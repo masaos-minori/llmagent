@@ -1,5 +1,5 @@
 ---
-title: "RagIngester Detail (Part 1)"
+title: "RagIngester Detail"
 area: rag
 tags:
   - ingester
@@ -46,7 +46,7 @@ and the canonical field-contract table in
 ### 4.2 Detailed Behavior
 
 - **Embedding Input:** The original chunk `content` is embedded as-is; no `passage:` / `query:` prefix is added (`scripts/rag/ingestion/embedding.py`).
-- **Vector Encoding:** Uses `struct.pack(f"<{N}f", *values)` $\rightarrow$ Little-endian float32 BLOB.
+- **Vector Encoding:** Uses `struct.pack(f"<{N}f", *values)` → Little-endian float32 BLOB.
 - **Parallel Embedding:** Uses `ThreadPoolExecutor(embed_workers)` per URL group (`scripts/rag/ingestion/chunk_preparation.py`). Embedding threads perform no DB access (`embed_and_store` returns a `PreparedChunk`).
 - **WAL Mode:** Uses `PRAGMA journal_mode=WAL` for concurrent read/write safety.
 - **Upsert (`--force`):** Deletes `chunks_vec` rows explicitly, then `documents` (rows in `chunks` are removed by `ON DELETE CASCADE`), then re-inserts. The original `chunking_strategy` value from the source file is preserved.
@@ -95,7 +95,7 @@ Response: `{"embedding": [float, ...]}` — the vector length must equal the fix
 
 ### 4.5 Database Updates
 
-Current DB schema definition $\rightarrow$ [rag.sqlite schema](../41_db/db_08_active_databases.md)
+Current DB schema definition → [rag.sqlite schema](../41_db/db_08_active_databases.md)
 
 ### 4.6 Error Handling
 
@@ -110,10 +110,10 @@ this layer), and file-move failure logging.
 
 - **File:** ingest log file (path set by the logging setup) + stderr
 - **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
-- Detailed log message formats $\rightarrow$ `scripts/rag/ingestion/ingester.py`
+- Detailed log message formats → `scripts/rag/ingestion/ingester.py`
 
-Detailed ETagManager info $\rightarrow$ [rag_02_06_ingestion_pipeline-supporting-components.md section 4.8](rag_02_06_ingestion_pipeline-supporting-components.md)
-Configuration details $\rightarrow$ [rag_02_06_ingestion_pipeline-supporting-components.md section 4.9](rag_02_06_ingestion_pipeline-supporting-components.md)
+Detailed ETagManager info → [rag_02_06_ingestion_pipeline-supporting-components.md section 4.8](rag_02_06_ingestion_pipeline-supporting-components.md)
+Configuration details → [rag_02_06_ingestion_pipeline-supporting-components.md section 4.9](rag_02_06_ingestion_pipeline-supporting-components.md)
 
 ---
 

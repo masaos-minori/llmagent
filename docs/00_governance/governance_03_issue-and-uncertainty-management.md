@@ -67,13 +67,34 @@ Part 1 entries are reviewed quarterly, consistent with the cadence documented fo
 
 ### Active Items
 
-Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
+Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
 | ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
 |----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
+| DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap | `deploy/setup_services.sh` | Unassigned | Documentation review | `setup_services.sh` only echoes the LLM service names (its header comment says they are agent-managed subprocesses), and no repository code starts `embed-llm`/`agent-llm`, so the start procedure is undocumented | `docs/90_deployment/deployment_01_deployment.md` |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | A CONSUMER-role token with no `consumer_authorization`/`topic_authorization` configured is not restricted to any consumer_id (fail-open) | `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` |
 | EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | `_nack_and_promote()` and the follow-up state lookup run under separate DB-lock acquisitions, so an event deleted in between yields 409 instead of 404 | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
-| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug | `scripts/eventbus/delivery_repo.py` | Unassigned | Documentation review | `nack_event()` has no idempotency guard for repeated NACKs of the same event by the same consumer, so repeated calls can drive the event toward DLQ promotion | `docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md` |
+| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug | `scripts/eventbus/delivery_repo.py` | Unassigned | Documentation review | `nack_event()` has no idempotency guard for repeated NACKs of the same event by the same consumer, so repeated calls can drive the event toward DLQ promotion | `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` |
+
+#### DEPLOY-001
+
+- **ID**: DEPLOY-001
+- **Title**: LLM service start procedure is not provided by any repository script
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Deployment
+- **Type**: operational-gap
+- **Source**: `deploy/setup_services.sh`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/90_deployment/deployment_01_deployment.md`
+- **Related**: None
+- **Summary**: No script, unit file or configuration in the repository starts the `embed-llm` and `agent-llm` services, so the deployment documentation cannot describe how to start them.
+- **Current Description**: The deployment documentation states that `setup_services.sh` does not start the LLM services and that MCP servers are started by the agent; it gives no start procedure for the LLM services.
+- **Observed Implementation**: `deploy/setup_services.sh` loops over the service names and only echoes them, then queries their health endpoints. Its header comment says the LLM servers are started as agent-managed subprocesses, but the agent code starts only MCP servers (`startup_mode = "subprocess"`). No other repository file starts `llama-server`.
+- **Impact**: An operator following the repository documentation has no instruction for starting the LLM services that the agent and the RAG pipeline require.
+- **Recommended Action**: Decide where the LLM service start procedure lives (a repository script, an init script under `/opt/llm`, or operator-owned), document it in the deployment document, and correct the `setup_services.sh` header comment.
+- **Resolution Target**: The deployment document describes how `embed-llm` and `agent-llm` are started, consistent with `setup_services.sh`.
 
 #### EVENTBUS-008
 
@@ -126,7 +147,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/eventbus/delivery_repo.py`
 - **Owner**: Unassigned
 - **First Found**: Documentation review
-- **Target**: `docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md`
+- **Target**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
 - **Related**: None
 - **Summary**: A NACK of an event that is neither ACKed nor in the DLQ always increments `delivery_failure_count` and `cycle_failure_count`, even when the same consumer already NACKed it.
 - **Current Description**: The ACK/NACK documentation describes an ACK-then-NACK guard (HTTP 409) but no equivalent guard for a repeated NACK.
@@ -262,7 +283,7 @@ Applies to any automated check finding classified `Warning` (not `Blocking`) in
 — for example, `GV-020`'s removed-name reintroduction findings. A `Warning`
 finding does not block merge by itself, but leaving it neither fixed nor formally
 excepted is not a complete review (see `docs/00_governance/governance_04_documentation-checks.md`
-`### 13. Merge Condition Validation`).
+`### 19. Merge Condition Validation`).
 
 ### Exception Record Fields
 
@@ -285,7 +306,7 @@ comparison, not a current-spec claim — @agent-lead — expires 2026-12-01 -->`
 
 An exception past its expiration date is treated as an unexplained finding (see
 `docs/00_governance/governance_04_documentation-checks.md`
-`### 13. Merge Condition Validation`) — not as still-covered.
+`### 19. Merge Condition Validation`) — not as still-covered.
 
 ## Non-Goals
 

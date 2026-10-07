@@ -6,7 +6,7 @@ tags:
   - api-reference
 related:
   - agent_02_runtime-architecture.md
-  - agent_14_reference-api-generated.md
+  - agent_13_reference-api-generated.md
   - agent_00_document-guide.md
 ---
 # Agent Reference API

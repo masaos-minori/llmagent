@@ -9,18 +9,18 @@ tags:
   - store
 related:
   - agent_00_document-guide.md
-  - agent_12_01_memory-overview-and-modes.md
-  - agent_12_02_memory-gate-data-model-search.md
-  - agent_12_04_memory-module-ref-retrieval-and-injection.md
-  - agent_12_05_memory-module-ref-extraction-and-facade.md
-  - agent_12_06_memory-module-ref-ops-and-scoring.md
+  - agent_11_01_memory-overview-and-modes.md
+  - agent_11_02_memory-gate-data-model-search.md
+  - agent_11_04_memory-module-ref-retrieval-and-injection.md
+  - agent_11_05_memory-module-ref-extraction-and-facade.md
+  - agent_11_06_memory-module-ref-ops-and-scoring.md
 ---
 
 
 # Memory Layer — Module Reference: Core and Store
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
+- Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Purpose
 

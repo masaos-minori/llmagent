@@ -16,7 +16,7 @@ related:
   - agent_08_01_configuration-loading-agent-config.md
   - agent_09_01_data-layer-session-db.md
   - agent_10_01_operations-and-observability-startup-and-health.md
-  - agent_13_reference-api.md
+  - agent_12_reference-api.md
 ---
 
 # Agent System Overview

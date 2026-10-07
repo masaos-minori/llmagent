@@ -84,18 +84,18 @@ See `RagConsistencyReport` in `scripts/db/models.py` for exact fields.
 
 **CLI:** `/session rag-consistency` runs the same check from the REPL and displays issues.
 
-**Post-Ingestion Warning:** After `ingest_all()` completes, `ingester.py` runs a non-blocking consistency check via `DocumentManager.check_consistency()` (`scripts/rag/ingestion/document_manager.py`). Warnings are logged, but the ingestion process itself is not interrupted. If the check fails with `sqlite3.OperationalError`, `sqlite3.DatabaseError`, or `ValueError`, it returns `None` and the exception is not re-raised. [Explicit in code]
+**Post-Ingestion Warning:** After `ingest_all()` completes, `ingester.py` runs a non-blocking consistency check via `DocumentManager.check_consistency()` (`scripts/rag/ingestion/document_manager.py`). Warnings are logged, but the ingestion process itself is not interrupted. If the check fails with `sqlite3.OperationalError`, `sqlite3.DatabaseError`, or `ValueError`, it returns `None` and the exception is not re-raised. (Explicit in code)
 
 **Notes:**
 - `fts` is read from `chunks_fts_docsize` (FTS5 shadow table), not `chunks_fts`. This provides an accurate count of FTS5 indexed documents without depending on joins with the backing table.
 - `orphan_vec_count > 0` indicates a failure in the vec trigger. This can be fixed by re-running `ingester.py --force` for the affected URLs.
 - This function is read-only and does not repair inconsistencies.
-- Performance: The `NOT IN` subquery for orphan detection is $O(\text{vec} \times \text{chunks})$. For large datasets, run this during maintenance windows.
+- Performance: The `NOT IN` subquery for orphan detection is O(vec × chunks). For large datasets, run this during maintenance windows.
 
 ### 2.7 Additional Options for `crawler.py`
 
 - `--targets-file PATH`: Specifies a TOML file in the `[[url, lang], ...]` format, overriding the `target_urls` in the configuration file (`config/crawler.toml`). Cannot be used with `--url` (`exits with `parser.error`).
-  [Explicit in code] — From the `main()` argument definition in `scripts/rag/ingestion/crawler.py`.
+  (Explicit in code) — From the `main()` argument definition in `scripts/rag/ingestion/crawler.py`.
 
 ---
 

@@ -1,5 +1,5 @@
 ---
-title: "Agent Configuration - Loading and AgentConfig Structure (Part 1)"
+title: "Agent Configuration - Loading and AgentConfig Structure"
 area: agent
 tags:
   - agent

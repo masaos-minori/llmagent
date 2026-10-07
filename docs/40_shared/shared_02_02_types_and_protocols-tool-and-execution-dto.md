@@ -1,5 +1,5 @@
 ---
-title: "Shared Types and Protocols - Tool and Execution DTOs (Part 1)"
+title: "Shared Types and Protocols - Tool and Execution DTOs"
 area: shared
 tags:
   - shared
@@ -9,7 +9,7 @@ related:
   - shared_02_01_types_and_protocols-core-types.md
   - shared_02_03_types_and_protocols-reference.md
 ---
-# Shared Types and Protocols - Tool and Execution DTOs (Part 1)
+# Shared Types and Protocols - Tool and Execution DTOs
 
 - Overview → [shared_00_document-guide.md](shared_00_document-guide.md)
 
@@ -23,7 +23,7 @@ Import: `from shared.llm_types import LLMUsage, LLMResponse`
 
 ## 6a. `ToolCallResult` / `TransportErrorInfo` (`shared/transport_dto.py`)
 
-`ToolCallResult` is the standard result contract for all tool executions (transport, cache) — includes output/error metadata, transport information, and audit info. The `source` field distinguishes between caller types (`"mcp"`/`"cache"`). (Explicit in code: `scripts/shared/transport_dto.py`)
+`ToolCallResult` is the standard result contract for all tool executions (transport, cache) — includes output/error metadata, transport information, and audit info. The `source` field distinguishes between caller types (`"mcp"`/`"cache"`). (Explicit in code — `scripts/shared/transport_dto.py`)
 
 `TransportErrorInfo` is used as structured error information for audit logs.
 
@@ -39,7 +39,7 @@ Import: `from shared.transport_dto import ToolCallResult, TransportErrorInfo`
 
 ## 7a. `ToolSpec` (`shared/tool_spec.py`)
 
-A frozen dataclass of DAG scheduling metadata. Fields: `call_id` (LLM-assigned tool call id from `tool_calls[].id`), `name` (tool function name), `args` (dict[str, object]), `resource_scopes` (tuple[str, ...] of kind-prefixed resource-scope strings, e.g., `"filesystem:/a/b.txt"`, for conflict detection — resolved per call by `shared/resource_scope.py::resolve_resource_scopes()`), `requires_serial` (forces serialization regardless of parallel mode), and `is_write` (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed `ToolSpec` for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`. Scheduling logic resides in `agent/tool_scheduler.py`. (Explicit in code: `scripts/agent/tool_scheduler.py`)
+A frozen dataclass of DAG scheduling metadata. Fields: `call_id` (LLM-assigned tool call id from `tool_calls[].id`), `name` (tool function name), `args` (dict[str, object]), `resource_scopes` (tuple[str, ...] of kind-prefixed resource-scope strings, e.g., `"filesystem:/a/b.txt"`, for conflict detection — resolved per call by `shared/resource_scope.py::resolve_resource_scopes()`), `requires_serial` (forces serialization regardless of parallel mode), and `is_write` (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed `ToolSpec` for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`. Scheduling logic resides in `agent/tool_scheduler.py`. (Explicit in code — `scripts/agent/tool_scheduler.py`)
 
 Import: `from shared.tool_spec import ToolSpec`
 
@@ -75,7 +75,7 @@ Import: `from shared.runtime_tool_registry import RuntimeToolRegistry`
 
 ## 7e. `ToolDefinition` (`shared/tool_registry.py`)
 
-Immutable tool definition — each tool belongs to exactly one MCP server. (Explicit in code: `scripts/shared/tool_registry.py` docstring)
+Immutable tool definition — each tool belongs to exactly one MCP server. (Explicit in code — `scripts/shared/tool_registry.py` docstring)
 
 **Boundary Conditions:** `description` and `input_schema` are reserved fields for future use; they are currently not set by default registry initialization functions and are not read by any caller. The authoritative tool schema for LLMs is the `TOOL_LIST` from each server's own `tools.py`, not from this `ToolRegistry`. (Explicit in code)
 
@@ -87,7 +87,7 @@ Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_regi
 
 ## 8. `ArtifactEvent` / `RetryEvent` (`shared/events.py`)
 
-`ArtifactEvent` (event_type, repo, branch, commit, path, pr_number, session_id, timestamp) — issued when repository artifacts are created/updated. (Explicit in code: `scripts/shared/events.py` module docstring)
+`ArtifactEvent` (event_type, repo, branch, commit, path, pr_number, session_id, timestamp) — issued when repository artifacts are created/updated. (Explicit in code — `scripts/shared/events.py` module docstring)
 
 > **Note:** `ArtifactEvent` is a pure data structure (`TypedDict`). No event bus, subscription mechanism, or delivery system exists. It exists solely as a type annotation for potential future artifact event emission. Do not assume that instantiating an `ArtifactEvent` triggers any action.
 
@@ -97,9 +97,9 @@ Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_regi
 
 ## 9. `ShellPolicy` (`shared/protocols/shell.py`)
 
-An immutable `frozen=True` dataclass — has no dependencies on FastAPI, MCP, or agents (depends only on `shared` $\rightarrow$ external). Used by `mcp_servers/shell/service.py` (`ShellService`) as its configuration object. (Explicit in code: `scripts/shared/protocols/shell.py`)
+An immutable `frozen=True` dataclass — has no dependencies on FastAPI, MCP, or agents (depends only on `shared` → external). Used by `mcp_servers/shell/service.py` (`ShellService`) as its configuration object. (Explicit in code — `scripts/shared/protocols/shell.py`)
 
-**Failure Intent:** Validates the following in `__post_init__` and raises `ValueError` if violated: `kill_policy` must be one of `{"sigterm_then_sigkill", "sigkill_only"}`, `sandbox_backend` must be one of `{"firejail", "none"}`, `timeout_sec >= 1`, `max_output_kb >= 1`, `max_memory_mb >= 1`, and `kill_grace_sec >= 0`. (Explicit in code: `scripts/shared/protocols/shell.py`)
+**Failure Intent:** Validates the following in `__post_init__` and raises `ValueError` if violated: `kill_policy` must be one of `{"sigterm_then_sigkill", "sigkill_only"}`, `sandbox_backend` must be one of `{"firejail", "none"}`, `timeout_sec >= 1`, `max_output_kb >= 1`, `max_memory_mb >= 1`, and `kill_grace_sec >= 0`. (Explicit in code — `scripts/shared/protocols/shell.py`)
 
 Purpose: To decouple shell execution policy from MCP server implementations.
 

@@ -34,7 +34,7 @@ class TestCommandDocsSync:
             # ... and prose lines explicitly marking a command as historical
             # ("旧" = "former") -- the doc set's established convention for
             # describing migrated/deprecated commands (see e.g.
-            # agent_07_08's "旧`/db session <subcmd>`...へ移管された").
+            # agent_07_07's "旧`/db session <subcmd>`...へ移管された").
             if "旧" in line or "legacy" in line.lower():
                 continue
             # Match command references like /mcp, /db, /debug, etc.
@@ -67,19 +67,19 @@ class TestCommandDocsSync:
             ROOT
             / "docs"
             / "23_agent"
-            / "agent_07_08_cli-and-commands-slash-commands-session-mcp.md",
+            / "agent_07_07_cli-and-commands-slash-commands-session-mcp.md",
             ROOT
             / "docs"
             / "23_agent"
-            / "agent_07_09_cli-and-commands-slash-commands-context-db.md",
+            / "agent_07_08_cli-and-commands-slash-commands-context-db.md",
             ROOT
             / "docs"
             / "23_agent"
-            / "agent_07_10_cli-and-commands-slash-commands-workflow-debug.md",
+            / "agent_07_09_cli-and-commands-slash-commands-workflow-debug.md",
             ROOT
             / "docs"
             / "23_agent"
-            / "agent_07_11_cli-and-commands-slash-commands-memory-other.md",
+            / "agent_07_10_cli-and-commands-slash-commands-memory-other.md",
         ]
 
         for filepath in docs_files:

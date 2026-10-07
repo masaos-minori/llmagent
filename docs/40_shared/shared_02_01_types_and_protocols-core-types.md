@@ -50,7 +50,7 @@ List of major common types (refer to code for details):
 
 A `TypedDict` containing field categories: `role` (required), `content`/`tool_calls` (conditional based on role), `importance`/`pinned` (compression), `_ephemeral`/`_skill_ephemeral`/`_memory_injected` (lifecycle), and `source` (validation). It inherits from `_LLMMessageRequired(TypedDict)` to isolate `role` as a required field. (Explicit in code)
 
-Auxiliary `TypedDict`s for representing tool call deltas during streaming (`ToolCallFunctionDelta`, `ToolCallDelta`, `AccumulatedToolCall`, etc.) are also defined here. (Explicit in code: `scripts/shared/types.py`)
+Auxiliary `TypedDict`s for representing tool call deltas during streaming (`ToolCallFunctionDelta`, `ToolCallDelta`, `AccumulatedToolCall`, etc.) are also defined here. (Explicit in code — `scripts/shared/types.py`)
 
 ---
 
@@ -62,7 +62,7 @@ Covers semantic cache settings, search parameters (`top_k_search`, `rag_top_k`),
 
 ## 5. `RawHit`, `MergedHit`, `RankedHit`, `RagHit` (`shared/types.py`)
 
-`RawHit` (base: `chunk_id`, `content`, `url`, `title`, `distance`, `bm25_score`) $\rightarrow$ `MergedHit` adds `rrf_score` $\rightarrow$ `RankedHit` adds `rerank_score | None`. These are defined as the canonical versions in `shared/types.py`, with fields added incrementally at each stage of the pipeline. (Explicit in code: `scripts/shared/types.py`)
+`RawHit` (base: `chunk_id`, `content`, `url`, `title`, `distance`, `bm25_score`) → `MergedHit` adds `rrf_score` → `RankedHit` adds `rerank_score | None`. These are defined as the canonical versions in `shared/types.py`, with fields added incrementally at each stage of the pipeline. (Explicit in code — `scripts/shared/types.py`)
 
 **Implementation Note:** Both `MergedHit` and `RankedHit` retain `distance` and `bm25_score`. All fields have default values except `chunk_id` and `content`. Only `rerank_score` allows `None`.
 

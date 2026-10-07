@@ -119,7 +119,7 @@ Not implemented:
 - Top-level `capabilities` — not returned by `build_tools_response()`
 
 Called at startup to verify that configured tool names match live server tools.
-In case of mismatch $\rightarrow$ warning log; if `tool_definitions_strict=True` $\rightarrow$ `RuntimeError`.
+In case of mismatch → warning log; if `tool_definitions_strict=True` → `RuntimeError`.
 
 ---
 

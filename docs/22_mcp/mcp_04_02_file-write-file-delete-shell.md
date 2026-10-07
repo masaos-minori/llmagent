@@ -20,7 +20,7 @@ related:
 
 All tools do not require configuration (`config_dependent: false`).
 
-The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
+The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty → disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 **Configuration Fields:** `allowed_dirs`, `max_write_bytes`
 
@@ -39,8 +39,8 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 ### Implementation Notes (file-write-mcp)
 
-- Enforcement of `max_write_bytes` is implemented via manual check in `write_service.py::WriteFileService.write_file` (`len(content.encode("utf-8")) > max_write_bytes`) rather than Pydantic field constraints (raises `FileValidationError` if exceeded). [Explicit in code]
-- `write_file` performs atomic writes by writing to a temporary file (`.tmp_<name>`) first and then replacing it using `os.replace`. If the write fails, the temporary file is deleted before returning an error. [Explicit in code]
+- Enforcement of `max_write_bytes` is implemented via manual check in `write_service.py::WriteFileService.write_file` (`len(content.encode("utf-8")) > max_write_bytes`) rather than Pydantic field constraints (raises `FileValidationError` if exceeded). (Explicit in code)
+- `write_file` performs atomic writes by writing to a temporary file (`.tmp_<name>`) first and then replacing it using `os.replace`. If the write fails, the temporary file is deleted before returning an error. (Explicit in code)
 
 ---
 
@@ -54,7 +54,7 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 All tools do not require configuration (`config_dependent: false`).
 
-The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
+The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty → disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 **Configuration Fields:** `allowed_dirs`
 
@@ -71,10 +71,10 @@ The runtime availability (`enabled`/`disabled_reason`) of these tools depends on
 
 ### Implementation Notes
 
-- `audit_log_path` is not a configuration key of `config/file_delete_mcp_server.toml`: `FileDeleteConfig` does not load it, and `delete_service.py::build_service` fixes the audit log destination in code. [Explicit in code]
-- Even if writing to the audit log fails, no exception is raised; instead, an error is logged and the deletion process itself returns as successful (unlike github-mcp's `GitHubAuditError`, failure to write the audit log does not block the deletion operation in file-delete-mcp). [Explicit in code]
-- `delete_directory(recursive=true)` rejects deletion with a `FileAuthorizationError` if the target matches any root directory defined in `allowed_dirs` (it does not prevent deleting individual files/subdirectories within allowed directories). [Explicit in code]
-- Directory scanning during `dry_run` is capped at `_DRY_RUN_MAX_FILES = 1000` and reflected in `dir_info` as `"<count>+ files"`. [Explicit in code]
+- `audit_log_path` is not a configuration key of `config/file_delete_mcp_server.toml`: `FileDeleteConfig` does not load it, and `delete_service.py::build_service` fixes the audit log destination in code. (Explicit in code)
+- Even if writing to the audit log fails, no exception is raised; instead, an error is logged and the deletion process itself returns as successful (unlike github-mcp's `GitHubAuditError`, failure to write the audit log does not block the deletion operation in file-delete-mcp). (Explicit in code)
+- `delete_directory(recursive=true)` rejects deletion with a `FileAuthorizationError` if the target matches any root directory defined in `allowed_dirs` (it does not prevent deleting individual files/subdirectories within allowed directories). (Explicit in code)
+- Directory scanning during `dry_run` is capped at `_DRY_RUN_MAX_FILES = 1000` and reflected in `dir_info` as `"<count>+ files"`. (Explicit in code)
 
 ---
 

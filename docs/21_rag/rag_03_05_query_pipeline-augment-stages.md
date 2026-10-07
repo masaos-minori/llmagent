@@ -170,7 +170,7 @@ Both reasons can be verified as follows:
 - Displayed as `~ Refiner: fallback — <reason>` and summary line `[refiner] fallback: N time(s)` in the stage results of `/rag search --debug`
 - Available via `pipeline.get_diagnostics()["fallback_reasons"]`, `["refiner_fallback_count"]`, and `["refiner_exception_count"]`
 
-**Related fields in get_diagnostics() (Explicit in code, scripts/rag/pipeline.py):**
+**Related fields in get_diagnostics() (Explicit in code — scripts/rag/pipeline.py):**
 
 | Key | Description |
 |---|---|

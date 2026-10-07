@@ -46,11 +46,10 @@ source:
 For exhaustive signature and constant detail, see `scripts/rag/ingestion/pipeline_utils.py`.
 
 ---
----
 
 ## 10. Shared Utilities (`scripts/rag/utils.py`)
 
-Details $\rightarrow$ [rag_02_09_ingestion_pipeline-shared-utilities.md](rag_02_09_ingestion_pipeline-shared-utilities.md)
+Details → [rag_02_09_ingestion_pipeline-shared-utilities.md](rag_02_09_ingestion_pipeline-shared-utilities.md)
 
 ```python
 from rag.utils import (

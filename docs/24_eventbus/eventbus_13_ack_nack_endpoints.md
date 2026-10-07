@@ -3,7 +3,9 @@ title: ACK/NACK Endpoints
 description: Consumer acknowledgment and negative acknowledgment endpoint contracts
 tags: [api-reference, ack, nack, consumer]
 area: eventbus
-related: []
+related:
+  - eventbus_02_api-reference-index.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
 created: 20260916
 ---
 
@@ -20,6 +22,8 @@ Consumer-scoped endpoints for acknowledging successful processing (`POST /events
 Requires `Bearer ${CONSUMER_TOKEN}` in the Authorization header.
 
 Additionally, the caller must be authorized for the specific `consumer_id` being used — the `Principal.allowed_consumer_ids` field enforces this at the application layer when the principal has a non-empty `consumer_id` allowlist; a principal with an empty allowlist is not restricted.
+
+On ACK, the per-consumer delivery record and the consumer offset are updated in one transaction, and offset advancement is monotonic: acknowledging an older event never moves the stored offset backwards. NACK increases `delivery_failure_count` and moves the event to the DLQ once it reaches `max_retry`.
 
 ## Acknowledge Event
 
@@ -232,6 +236,20 @@ Returned when `event_id` or `consumer_id` is present but empty. A completely mis
 curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
   "http://<eventbus-host>:<port>/nack?event_id=evt-abc&consumer_id=worker-1"
 ```
+
+## ACK/NACK State Transition Table
+
+| Scenario | Behavior | HTTP Status | Response Body | Side Effects on Persistence |
+|---|---|---|---|---|
+| Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq}` | Sets `consumer_delivery.acked_at` and advances the consumer offset |
+| Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq, already_acked: true}` | No new delivery state; the offset never moves backwards |
+| Initial NACK | `nack_event` increases `delivery_failure_count` from 0 to 1 | 200 | `{event_id, delivery_failure_count}` | Counter increases; promoted to the DLQ when it reaches `max_retry` |
+| Duplicate NACK | No idempotency guard in `nack_event`; the counter increases on every call (tracked as EVENTBUS-012 in `governance_03_issue-and-uncertainty-management.md`) | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, which can trigger DLQ promotion on a later call |
+| NACK followed by ACK | The consumer's `consumer_delivery.acked_at` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq}` | ACK succeeds; `delivery_failure_count` keeps the value from the NACK |
+| ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer | 409 | `event already acknowledged` | NACK rejected; counters unchanged |
+| Unknown event ID (ACK) | `ack_event_for_consumer` returns `found = False` | 404 | `event not found` | None |
+| Unknown event ID (NACK) | `nack_event` returns `-1` | 404 | `event not found` | None |
+| Simultaneous ACK/NACK | Both run under `run_with_db_lock` and are serialized | 200/200 | Depends on lock order | The second call observes the first call's committed state |
 
 ## Keywords
 

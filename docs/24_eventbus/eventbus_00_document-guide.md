@@ -6,10 +6,17 @@ tags:
   - document-guide
 related:
   - eventbus_01_system-overview.md
-  - eventbus_07_persistence_schema_and_replay.md
-  - eventbus_06_dlq_offsets_and_delivery_semantics.md
-  - eventbus_09_configuration-and-operations.md
-  - eventbus_10_reference_api.md
+  - eventbus_02_api-reference-index.md
+  - eventbus_03_dlq_operations.md
+  - eventbus_04_dlq_endpoint.md
+  - eventbus_10_publish_durability.md
+  - eventbus_11_health_endpoint.md
+  - eventbus_12_replay_endpoint.md
+  - eventbus_13_ack_nack_endpoints.md
+  - eventbus_06_persistence_schema_and_replay.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
+  - eventbus_08_configuration-and-operations.md
+  - eventbus_09_reference_api.md
 ---
 # Event Bus: Document Guide
 
@@ -22,12 +29,15 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 | Category | File |
 |---|---|
 | Overview & Architecture | `eventbus_01_system-overview.md` |
-| Primary Operations (publish/replay/subscribe/ack/nack/DLQ) | `eventbus_03_*`, `eventbus_04_*`, `eventbus_05_*` |
-| Persistence & Schema | `eventbus_07_persistence_schema_and_replay.md` |
-| Delivery Semantics & Consumer Responsibilities | `eventbus_06_dlq_offsets_and_delivery_semantics.md` |
-| Configuration, Security Constraints & Operations | `eventbus_09_configuration-and-operations.md` |
-| Validation Status | `eventbus_08_validation_status.md` |
-| Reference API (for detailed verification) | `eventbus_10_reference_api.md` |
+| Publish, subscribe and DLQ promotion | `eventbus_03_dlq_operations.md` |
+| Publish durability | `eventbus_10_publish_durability.md` |
+| HTTP API index and authentication model | `eventbus_02_api-reference-index.md` |
+| Endpoint references: DLQ, health, replay, ACK/NACK | `eventbus_04_dlq_endpoint.md`, `eventbus_11_health_endpoint.md`, `eventbus_12_replay_endpoint.md`, `eventbus_13_ack_nack_endpoints.md` |
+| Persistence & Schema | `eventbus_06_persistence_schema_and_replay.md` |
+| Delivery Semantics & Consumer Responsibilities | `eventbus_05_dlq_offsets_and_delivery_semantics.md` |
+| Configuration, Security Constraints & Operations | `eventbus_08_configuration-and-operations.md` |
+| Validation Status | `eventbus_07_validation_status.md` |
+| Reference API (for detailed verification) | `eventbus_09_reference_api.md` |
 | Known Issues & Pending Items | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## AI Query Routing
@@ -35,11 +45,17 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 | Question | Rule |
 |---|---|
 | Event Bus design intent & architecture | `eventbus_01` |
-| Publishing / replaying / subscribing / acking / nacking / DLQ events | `eventbus_03`, `eventbus_04`, `eventbus_05` |
-| Persistence layer & canonical data | `eventbus_07` |
-| Delivery semantics & consumer responsibilities | `eventbus_06` |
-| Configuration, bind address, health checks & operations | `eventbus_09` |
-| API details, types & schemas | `eventbus_10` |
+| Publishing / subscribing, DLQ promotion | `eventbus_03` |
+| Publish durability | `eventbus_10` |
+| Replay endpoint | `eventbus_12` |
+| ACK / NACK endpoints and state transitions | `eventbus_13` |
+| DLQ list / requeue endpoints | `eventbus_04` |
+| Health endpoint | `eventbus_11` |
+| API index, roles and authentication | `eventbus_02` |
+| Persistence layer & canonical data | `eventbus_06` |
+| Delivery semantics & consumer responsibilities | `eventbus_05` |
+| Configuration, bind address, health checks & operations | `eventbus_08` |
+| API details, types & schemas | `eventbus_09` |
 | Known issues & specification inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Canonical Source Rule
@@ -52,7 +68,7 @@ Known limitations, specification gaps, and pending items are centrally managed i
 
 ## Reference API
 
-`eventbus_10_*` files are Reference APIs containing detailed API specifications (type definitions, schemas, endpoint specifications). Refer to them as needed after verifying design decisions, but they are separate from the core design documentation.
+`eventbus_09_*` files are Reference APIs containing detailed API specifications (type definitions, schemas, endpoint specifications). Refer to them as needed after verifying design decisions, but they are separate from the core design documentation.
 
 ## Governance
 

@@ -35,7 +35,7 @@ auth_token = "${ENV:MCP_SHELL_AUTH_TOKEN}"   # required; non-empty for every HTT
 ```
 
 The server requires an `Authorization: Bearer <token>` header.
-Missing or mismatched token $\rightarrow$ HTTP 401.
+Missing or mismatched token → HTTP 401.
 Applies to: All servers except mdq-mcp (configured per server via `McpServerConfig.auth_token`). mdq-mcp attaches the auth middleware with an empty token, so it does not verify Bearer tokens at the HTTP layer (see `mcp_05_05_mdq-enforcement-and-lockdown.md`); the agent-side `auth_token` entry is still required to be non-empty.
 Use environment-variable injection (`"${ENV:VAR_NAME}"`) rather than a literal
 secret in the TOML file — see the Production-Only Migration Procedure for the current setup steps.
@@ -50,7 +50,7 @@ secret in the TOML file — see the Production-Only Migration Procedure for the 
 
 **Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](../23_agent/agent_08_01_configuration-loading-agent-config.md#configuration-file-ownership)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 
-**Audit API Isolation:** `agent/security_audit_config.py` is the sole authorized point in the agent layer for importing MCP server configuration models (`mcp_servers.shell.shell_models`, `mcp_servers.git.git_models`, `mcp_servers.github.github_models_config`, `mcp_servers.cicd.cicd_models`). It exposes four loader functions that handle four narrow scopes of DTOs (`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`) and their respective optional dependencies (`ImportError` $\rightarrow$ `None`) and config loading failures (`Exception` $\rightarrow$ `RuntimeError`).
+**Audit API Isolation:** `agent/security_audit_config.py` is the sole authorized point in the agent layer for importing MCP server configuration models (`mcp_servers.shell.shell_models`, `mcp_servers.git.git_models`, `mcp_servers.github.github_models_config`, `mcp_servers.cicd.cicd_models`). It exposes four loader functions that handle four narrow scopes of DTOs (`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`) and their respective optional dependencies (`ImportError` → `None`) and config loading failures (`Exception` → `RuntimeError`).
 
 ---
 
@@ -88,9 +88,9 @@ shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
 - `"none"`: No sandbox; only `RLIMIT_*` resource limits applied.
 
 **Startup Enforcement**:
-- If `backend == "firejail"` and `shutil.which("firejail")` returns `None` $\rightarrow$ `RuntimeError` at startup.
-- If `backend != "firejail"` and `backend != "none"` $\rightarrow$ WARNING at startup.
-- If `backend == "none"` $\rightarrow$ `RuntimeError`, regardless of environment.
+- If `backend == "firejail"` and `shutil.which("firejail")` returns `None` → `RuntimeError` at startup.
+- If `backend != "firejail"` and `backend != "none"` → WARNING at startup.
+- If `backend == "none"` → `RuntimeError`, regardless of environment.
 
 Installing firejail: `sudo apt-get install firejail` (Debian/Ubuntu) or `apk add firejail` (Alpine).
 Verify: `firejail --version`

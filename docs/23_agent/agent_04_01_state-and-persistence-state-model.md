@@ -1,5 +1,5 @@
 ---
-title: "Agent State and Persistence - State Model (Part 1)"
+title: "Agent State and Persistence - State Model"
 area: agent
 tags:
   - agent

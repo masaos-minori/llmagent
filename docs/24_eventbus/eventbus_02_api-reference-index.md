@@ -5,10 +5,10 @@ area: eventbus
 tags: [api-reference, index, overview]
 related:
   - eventbus_00_document-guide.md
-  - eventbus_12_health_endpoint.md
-  - eventbus_13_replay_endpoint.md
-  - eventbus_05_dlq_endpoint.md
-  - eventbus_15_ack_nack_endpoints.md
+  - eventbus_11_health_endpoint.md
+  - eventbus_12_replay_endpoint.md
+  - eventbus_04_dlq_endpoint.md
+  - eventbus_13_ack_nack_endpoints.md
 created: 20260916
 ---
 
@@ -22,10 +22,11 @@ This directory contains the API reference documentation for the EventBus HTTP se
 
 | Document | Description |
 |----------|-------------|
-| [Health Endpoint](eventbus_12_health_endpoint.md) | GET /health — Service health monitoring |
-| [Replay Endpoint](eventbus_13_replay_endpoint.md) | GET /replay — Replay events via SSE or JSON |
-| [DLQ Endpoint](eventbus_05_dlq_endpoint.md) | GET /dlq + POST /dlq/{event_id}/requeue — Dead-letter queue management |
-| [ACK/NACK Endpoints](eventbus_15_ack_nack_endpoints.md) | POST /events/{event_id}/ack + POST /nack — Consumer acknowledgments |
+| [Health Endpoint](eventbus_11_health_endpoint.md) | GET /health — Service health monitoring |
+| [Replay Endpoint](eventbus_12_replay_endpoint.md) | GET /replay — Replay events via SSE or JSON |
+| [Publish and Subscribe](eventbus_03_dlq_operations.md) | POST /publish + GET /subscribe — Publishing and SSE delivery |
+| [DLQ Endpoint](eventbus_04_dlq_endpoint.md) | GET /dlq + POST /dlq/{event_id}/requeue — Dead-letter queue management |
+| [ACK/NACK Endpoints](eventbus_13_ack_nack_endpoints.md) | POST /events/{event_id}/ack + POST /nack — Consumer acknowledgments |
 
 ## Authentication Model
 

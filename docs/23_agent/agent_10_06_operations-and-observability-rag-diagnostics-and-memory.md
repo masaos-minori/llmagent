@@ -107,12 +107,12 @@ Embed skip count        8
 
 ## Graceful Shutdown
 
-- `SIGTERM` $\rightarrow$ handled by the signal handler, which sets the shutdown flag and the shutdown event
-- Shutdown flag set $\rightarrow$ REPL input competes between blocking stdin read calls and `_shutdown_event` (using `asyncio.wait(FIRST_COMPLETED)`). If the shutdown event completes first, stdin read returns `None` immediately without waiting for next keypress. The executor thread for the remaining stdin read is not interrupted and terminates upon process exit.
+- `SIGTERM` → handled by the signal handler, which sets the shutdown flag and the shutdown event
+- Shutdown flag set → REPL input competes between blocking stdin read calls and `_shutdown_event` (using `asyncio.wait(FIRST_COMPLETED)`). If the shutdown event completes first, stdin read returns `None` immediately without waiting for next keypress. The executor thread for the remaining stdin read is not interrupted and terminates upon process exit.
 - `finally` block:
-  - Session diagnostics persistence $\rightarrow$ writes runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
-  - `memory.on_session_stop()` $\rightarrow$ extraction and persistence of memory
-  - Resource cleanup $\rightarrow$ saving readline history, `lifecycle.shutdown_all()`, closing HTTP clients
+  - Session diagnostics persistence → writes runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
+  - `memory.on_session_stop()` → extraction and persistence of memory
+  - Resource cleanup → saving readline history, `lifecycle.shutdown_all()`, closing HTTP clients
 - `shutdown_all()` temporarily absorbs additional `SIGINT` (e.g., second Ctrl-C) during execution to ensure all MCP subprocesses complete their shutdown processing without interruption (returns to normal interrupt handling after completion).
 
 ## Keywords

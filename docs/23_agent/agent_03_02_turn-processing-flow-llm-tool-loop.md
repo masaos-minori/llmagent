@@ -13,7 +13,7 @@ related:
 ---
 # Agent Turn Processing Flow - LLM and Tool Loop
 
-- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
+- Runtime Architecture → [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 
 ## Purpose
 
@@ -25,7 +25,7 @@ To document the processing flow for LLM invocation and the tool loop. This inclu
 
 Within the tool loop, an LLM may potentially call the same tool infinitely. To prevent this, `ToolLoopGuard` sequentially executes the following guards:
 
-1. **Cycle Detection** — If the same set of tool calls is repeated within the last $N$ rounds.
+1. **Cycle Detection** — If the same set of tool calls is repeated within the last N rounds.
 2. **Deduplication** — If the same `(name, args)` is detected more than a certain number of times.
 3. **Retry Suppression** — If a failed tool call is invoked again with the same arguments.
 4. **Consecutive Errors** — If all tools in a round fail consecutively for a certain number of rounds.
@@ -58,13 +58,13 @@ If a transport error occurs during LLM streaming resulting in a partial completi
 - Constructs payload: `history + tool_definitions + temperature + max_tokens + stream=True`
 - Sends to LLM via SSE streaming.
 - Collects `content_parts` (text) and `tool_calls_map` (function calls).
-- If `finish_reason == "tool_calls"`: Execute tools $\rightarrow$ Add results $\rightarrow$ Re-send to LLM.
+- If `finish_reason == "tool_calls"`: Execute tools → Add results → Re-send to LLM.
   - Repeats up to `max_tool_turns` times.
 - If `finish_reason == "stop"` or `max_tool_turns` exceeded: Return final answer.
 
 ### Adding to History
 
-`ctx.conv.append_message()` is a validated method; history must only be modified through this method rather than raw `list.append()` (See [agent_04_01_state-and-persistence-state-model.md] Validated History Modification Methods).
+`ctx.conv.append_message()` is a validated method; history must only be modified through this method rather than raw `list.append()` (the method validates the message and, on failure, sanitizes it or drops it; `agent/context.py::append_message`) (Explicit in code).
 
 ### Final Answer Fallback on Guard Trigger
 

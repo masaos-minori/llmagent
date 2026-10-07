@@ -1,5 +1,5 @@
 ---
-title: "WebCrawler Detail (Part 1)"
+title: "WebCrawler Detail"
 area: rag
 tags:
   - web-crawler

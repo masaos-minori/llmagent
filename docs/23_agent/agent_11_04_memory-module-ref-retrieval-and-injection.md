@@ -6,17 +6,17 @@ tags:
   - memory
   - retrieval-injection
 related:
-  - agent_12_01_memory-overview-and-modes.md
-  - agent_12_03_memory-module-ref-core-and-store.md
-  - agent_12_05_memory-module-ref-extraction-and-facade.md
+  - agent_11_01_memory-overview-and-modes.md
+  - agent_11_03_memory-module-ref-core-and-store.md
+  - agent_11_05_memory-module-ref-extraction-and-facade.md
   - agent_00_document-guide.md
-  - agent_12_02_memory-gate-data-model-search.md
-  - agent_12_06_memory-module-ref-ops-and-scoring.md
+  - agent_11_02_memory-gate-data-model-search.md
+  - agent_11_06_memory-module-ref-ops-and-scoring.md
 ---
 # Memory Layer — Module Reference: Retrieval and Injection
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
+- Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Purpose
 
@@ -24,16 +24,16 @@ Defines the responsibility boundaries for memory searching (FTS5 + KNN + Hybrid)
 
 ## Design Intent
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (memory layer is optional: guarded public APIs and shared immutable DTOs).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (memory layer is optional: guarded public APIs and shared immutable DTOs).
 
 ## Responsibility Boundary
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (the Memory Layer owns persistence, search and injection of memory entries).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (the Memory Layer owns persistence, search and injection of memory entries).
 
 ## Key Constraints
 
-- Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md).
-- Embedding, deduplication and archive-write constraints: see Key Constraints in [agent_12_05_memory-module-ref-extraction-and-facade.md](agent_12_05_memory-module-ref-extraction-and-facade.md).
+- Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md).
+- Embedding, deduplication and archive-write constraints: see Key Constraints in [agent_11_05_memory-module-ref-extraction-and-facade.md](agent_11_05_memory-module-ref-extraction-and-facade.md).
 - `HybridRetriever.search()` performs FTS only if embeddings are unavailable; otherwise, it performs RRF merging.
 - Default `InjectionPolicy`: `max_semantic=5`, `max_episodic=3`, `min_importance=0.3`, `max_snippet_length=500`.
 - `knn_search` uses L2/Euclidean distance metric (explicit `distance_metric=L2` in vec0 DDL).
@@ -49,7 +49,7 @@ Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-
 
 ## Known Limitations
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits).
 
 ## Keywords
 

@@ -11,7 +11,7 @@ related:
 ---
 # DB API and Operations
 
-- Schema $\rightarrow$ [db_01_architecture_and_schema-overview-and-config.md](db_01_architecture_and_schema-overview-and-config.md)
+- Schema → [db_01_architecture_and_schema-overview-and-config.md](db_01_architecture_and_schema-overview-and-config.md)
 
 ## 6. Maintenance Functions (`db/maintenance.py`)
 

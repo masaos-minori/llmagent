@@ -73,11 +73,11 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/dlq_route.py
 
-`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. The requeue inserts a new event row (lineage model); a requeued event whose inherited `delivery_failure_count` is `>= max_retry` is promoted again on its next NACK. See `eventbus_06_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
+`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. The requeue inserts a new event row (lineage model); a requeued event whose inherited `delivery_failure_count` is `>= max_retry` is promoted again on its next NACK. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
 
 ### scripts/eventbus/replay_route.py
 
-`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: `GET /replay`. SSE stream or paginated JSON. See `eventbus_06_dlq_offsets_and_delivery_semantics.md` for replay semantics.
+`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: `GET /replay`. SSE stream or paginated JSON. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for replay semantics.
 
 **Format parameter:** Accepts only `sse` or `json`. Unsupported values return HTTP 422. Default is `sse`.
 
@@ -89,7 +89,7 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/subscribe_route.py
 
-`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `eventbus_06_dlq_offsets_and_delivery_semantics.md` for delivery semantics, offset semantics, and backpressure behavior.
+`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for delivery semantics, offset semantics, and backpressure behavior.
 
 **SSE-standard features:**
 - Heartbeat: During live delivery phase, emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals to keep idle connections alive through proxies/LBs.
@@ -97,11 +97,11 @@ Common route helpers. See code for details.
 - Last-Event-ID: Client can send `Last-Event-ID` HTTP header with a sequence number to resume from that point. Precedence: `since_seq` query param > persisted consumer offset > `Last-Event-ID` header.
 - Stale reconnect rejection: If `Last-Event-ID` exceeds current max seq in SQLite, returns HTTP 412 Precondition Failed.
 
-For detailed delivery semantics (ordering guarantees, ACK/NACK rules, offset semantics, backpressure), see `eventbus_06_dlq_offsets_and_delivery_semantics.md`.
+For detailed delivery semantics (ordering guarantees, ACK/NACK rules, offset semantics, backpressure), see `eventbus_05_dlq_offsets_and_delivery_semantics.md`.
 
 ### scripts/eventbus/health_route.py
 
-`health_check(request)`: `GET /health`. See `eventbus_09_configuration-and-operations.md` for monitoring thresholds.
+`health_check(request)`: `GET /health`. See `eventbus_08_configuration-and-operations.md` for monitoring thresholds.
 
 ### HTTP Endpoints Summary
 

@@ -15,15 +15,15 @@ related:
 
 ## 9. `ToolExecutor` and Surrounding Concepts (`shared/tool_executor.py`)
 
-**Responsibility:** Core engine for tool dispatching — handles tool $\rightarrow$ server resolution, caching, concurrency limits, health gating, and transport communication.
+**Responsibility:** Core engine for tool dispatching — handles tool → server resolution, caching, concurrency limits, health gating, and transport communication.
 
-**`ToolCallResult` Data Class (Result Contract, `shared/transport_dto.py`, frozen dataclass):** A frozen dataclass containing `output` (truncated if $> \text{MCP\_MAX\_RESPONSE\_BYTES}$), `is_error`, `request_id` (X-Request-Id from MCP server, empty for cache hits), `server_key` (routing target), `source` ('mcp'/'cache'/empty), and `error_type` ('transport'/'tool'/empty). `error_type` is used by the health gate and error counter aggregation.
+**`ToolCallResult` Data Class (Result Contract, `shared/transport_dto.py`, frozen dataclass):** A frozen dataclass containing `output` (truncated if > `MCP_MAX_RESPONSE_BYTES`), `is_error`, `request_id` (X-Request-Id from MCP server, empty for cache hits), `server_key` (routing target), `source` ('mcp'/'cache'/empty), and `error_type` ('transport'/'tool'/empty). `error_type` is used by the health gate and error counter aggregation.
 
-**Execution Flow:** Resolve `tool_name` $\rightarrow$ `server_key` via `ToolRouteResolver`; `startup_mode=none` gate rejects disabled servers; `McpServerHealthRegistry.is_unavailable()` blocks `UNAVAILABLE` dispatch (`HALF_OPEN` allows one attempt per cooldown); `lifecycle.ensure_ready()` if configured; execute via `HttpTransport.call()` behind a per-server-key semaphore; return `ToolCallResult`.
+**Execution Flow:** Resolve `tool_name` → `server_key` via `ToolRouteResolver`; `startup_mode=none` gate rejects disabled servers; `McpServerHealthRegistry.is_unavailable()` blocks `UNAVAILABLE` dispatch (`HALF_OPEN` allows one attempt per cooldown); `lifecycle.ensure_ready()` if configured; execute via `HttpTransport.call()` behind a per-server-key semaphore; return `ToolCallResult`.
 
-**Health Gate:** `McpServerHealthRegistry.is_unavailable()` blocks dispatch when `UNAVAILABLE`; consecutive transport failures transition state from `HEALTHY` $\rightarrow$ `DEGRADED` $\rightarrow$ `UNAVAILABLE` (once `failure_threshold` reaches `UNAVAILABLE`); a success response resets state to `HEALTHY` (clears failure count/degraded reason). `HALF_OPEN` exists as an experimental circuit-breaker recovery mechanism: after `half_open_cooldown_sec` in `UNAVAILABLE` state, one dispatch attempt is allowed; a failure during `HALF_OPEN` immediately returns to `UNAVAILABLE`; `record_degraded()` does not override `UNAVAILABLE`/`HALF_OPEN` states.
+**Health Gate:** `McpServerHealthRegistry.is_unavailable()` blocks dispatch when `UNAVAILABLE`; consecutive transport failures transition state from `HEALTHY` → `DEGRADED` → `UNAVAILABLE` (once `failure_threshold` reaches `UNAVAILABLE`); a success response resets state to `HEALTHY` (clears failure count/degraded reason). `HALF_OPEN` exists as an experimental circuit-breaker recovery mechanism: after `half_open_cooldown_sec` in `UNAVAILABLE` state, one dispatch attempt is allowed; a failure during `HALF_OPEN` immediately returns to `UNAVAILABLE`; `record_degraded()` does not override `UNAVAILABLE`/`HALF_OPEN` states.
 
-**Concurrency Behavior:** `concurrency_limits` maps `server_key` $\rightarrow$ max concurrent calls; semaphore-based throttling in `ToolTransportInvoker`; tool-call-batch parallel/serial scheduling is unified under a single path — `agent/tool_runner.py::_execute_with_dag()`, which delegates to `agent/tool_scheduler.py::build_execution_groups()`. `ctx.cfg.tool.serial_tool_calls=True` feeds `force_serial=True` into the scheduler instead of selecting a different execution engine.
+**Concurrency Behavior:** `concurrency_limits` maps `server_key` → max concurrent calls; semaphore-based throttling in `ToolTransportInvoker`; tool-call-batch parallel/serial scheduling is unified under a single path — `agent/tool_runner.py::_execute_with_dag()`, which delegates to `agent/tool_scheduler.py::build_execution_groups()`. `ctx.cfg.tool.serial_tool_calls=True` feeds `force_serial=True` into the scheduler instead of selecting a different execution engine.
 
 **Side-Effect Detection:** `build_execution_groups()` reads each call's `is_write` from `PreparedToolCall.spec` (resolved once during `agent/tool_preparation.py::prepare_tool_calls()`, sourced from `RuntimeToolRegistry.tool_spec_for_call()`) — an unregistered tool is rejected fail-closed during preparation and never reaches scheduling. `_SIDE_EFFECT_TOOLS`/`is_side_effect()` (`tool_executor_helpers.py`) is not referenced by the execution path. See [agent_08_03_configuration-tools-memory.md](../23_agent/agent_08_03_configuration-tools-memory.md) for the scheduler's grouping rules.
 
@@ -37,7 +37,7 @@ related:
 
 **Primary APIs:** `LLMClient` wraps `AsyncClient` with retry logic, SSE streaming, and error handling. Constructor accepts http client, `max_retries`, `retry_base_delay`, `temperature`, `max_tokens`, optional callbacks (`on_token`/`on_usage`), and SSE parameters (`sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `llm_stream_retry_on_heartbeat_timeout`, `llm_stream_retry_on_malformed_chunk`). `call()`/`stream()` accept `url`/`history`/`tool_defs`; `build_payload` constructs the request dict.
 
-**Error Behavior:** HTTP errors $\rightarrow$ `LLMTransportError` classified by kind: `HTTP_STATUS_RETRYABLE` (429/503), `HTTP_STATUS_FATAL` (others), `CONNECT_ERROR`, `READ_TIMEOUT`, `HEARTBEAT_TIMEOUT`, `MALFORMED_SSE_FRAME`, `UTF8_PARTIAL_DECODE_ERROR`, `PREMATURE_EOF`, `UNKNOWN_STREAM_ERROR`. SSE heartbeat timeouts trigger retries if enabled; malformed chunks are retried up to `sse_malformed_retry` times before raising `MALFORMED_SSE_FRAME`. Retry exhaustion raises `LLMTransportError` with `partial_text` containing accumulated output.
+**Error Behavior:** HTTP errors → `LLMTransportError` classified by kind: `HTTP_STATUS_RETRYABLE` (429/503), `HTTP_STATUS_FATAL` (others), `CONNECT_ERROR`, `READ_TIMEOUT`, `HEARTBEAT_TIMEOUT`, `MALFORMED_SSE_FRAME`, `UTF8_PARTIAL_DECODE_ERROR`, `PREMATURE_EOF`, `UNKNOWN_STREAM_ERROR`. SSE heartbeat timeouts trigger retries if enabled; malformed chunks are retried up to `sse_malformed_retry` times before raising `MALFORMED_SSE_FRAME`. Retry exhaustion raises `LLMTransportError` with `partial_text` containing accumulated output.
 
 **Retries:** Exponential backoff starting from `retry_base_delay`; limit `max_retries` for non-streaming requests; streaming reconnection uses a separate counter `sse_reconnect_max`.
 
@@ -63,9 +63,9 @@ Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp
 
 ## 12. Summary of Execution Flows
 
-**Configuration Loading:** `build_agent_config()` $\rightarrow$ `ConfigLoader().load_all()` reads `agent.toml` only (`_BASE_CONFIG_FILES = ("agent.toml",)`). Other configs (`crawler.toml`, `chunk_splitter.toml`, `ingester.toml`, `*_mcp_server.toml`) are loaded separately following process isolation policies.
+**Configuration Loading:** `build_agent_config()` → `ConfigLoader().load_all()` reads `agent.toml` only (`_BASE_CONFIG_FILES = ("agent.toml",)`). Other configs (`crawler.toml`, `chunk_splitter.toml`, `ingester.toml`, `*_mcp_server.toml`) are loaded separately following process isolation policies.
 
-**Tool Execution:** `ToolExecutor.execute(tool_name, args)` $\rightarrow$ health gate $\rightarrow$ raw MCP call.
+**Tool Execution:** `ToolExecutor.execute(tool_name, args)` → health gate → raw MCP call.
 
 ---
 

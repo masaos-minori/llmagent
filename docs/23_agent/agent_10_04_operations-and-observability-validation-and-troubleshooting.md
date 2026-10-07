@@ -180,7 +180,7 @@ Budget breakdown:
    history       :    1,987 chars ( 62%)
 ```
 
-- **Remaining:** Distance to `context_char_limit` $\rightarrow$ trigger for compression.
+- **Remaining:** Distance to `context_char_limit` → trigger for compression.
 - **Token estimate:** Uses category-aware estimation (ratios: Text: 4.0, Tool Call JSON: 2.5, System Message: 3.5).
 - **Token limit:** Set to `disabled` if `context_token_limit` is not configured.
 - **Memory layer:** Set to `enabled (entries=N)` if `use_memory_layer=True`.

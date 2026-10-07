@@ -75,7 +75,7 @@ If a restoration value is set while a `pending_approval_task_id` is already conf
 
 Resources are closed in the following order within a `finally` block:
 
-1. WAL checkpoint (with PASSIVE $\rightarrow$ TRUNCATE fallback)
+1. WAL checkpoint (with PASSIVE → TRUNCATE fallback)
 2. WAL backup (with path validation)
 3. `lifecycle.shutdown_all()`
 4. `http.aclose()`

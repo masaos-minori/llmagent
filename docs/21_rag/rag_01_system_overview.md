@@ -1,5 +1,5 @@
 ---
-title: "RAG System Overview (Part 1)"
+title: "RAG System Overview"
 area: rag
 tags:
   - rag

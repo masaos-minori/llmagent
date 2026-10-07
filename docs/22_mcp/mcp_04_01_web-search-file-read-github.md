@@ -42,7 +42,7 @@ Specifications for each MCP server: purpose, port, tools, I/O, configuration, st
 | Key | Description |
 |---|---|
 | `default_max_results` | Default number of results |
-| `max_results_limit` | Server-side limit (must be $\le$ `HARD_MAX_RESULTS_LIMIT`) |
+| `max_results_limit` | Server-side limit (must be ≤ `HARD_MAX_RESULTS_LIMIT`) |
 | `search_timeout_sec` | Timeout in seconds for provider calls (range: `(0, 60.0]`) |
 
 Current default values are defined in `config/web_search_mcp_server.toml` and the owning config class.
@@ -74,7 +74,7 @@ Current default values are defined in `config/web_search_mcp_server.toml` and th
 
 **Implementation Details (browser_fetch):**
 
-- If the hostname is an IP literal, it is checked using `ipaddress.ip_address()`; if it falls under loopback / link-local / private / reserved / multicast, a `BrowserAuthorizationError` (HTTP 403) is raised regardless of `allowed_domains` content. This is a defense-in-depth mechanism independent of domain allowlists. (Explicit in code, `search_provider.py::_check_domain`)
+- If the hostname is an IP literal, it is checked using `ipaddress.ip_address()`; if it falls under loopback / link-local / private / reserved / multicast, a `BrowserAuthorizationError` (HTTP 403) is raised regardless of `allowed_domains` content. This is a defense-in-depth mechanism independent of domain allowlists. (Explicit in code — `search_provider.py::_check_domain`)
 - Only `http`/`https` schemes are allowed for `url`; others or missing hostnames trigger a `BrowserValidationError` (HTTP 422). (Explicit in code)
 - While `max_response_kb` can be specified by the caller, it is always clamped to the server setting `browser_max_response_kb` using `min()`. (Explicit in code)
 - Text truncation is performed by encoding to bytes before slicing (`_truncate`), preventing corruption of UTF-8 multibyte characters that might occur with naive character-based slicing. (Explicit in code)
@@ -104,7 +104,7 @@ The web-search server computes `enabled`/`disabled_reason` per tool in `/v1/tool
 
 All tools do not require configuration (`config_dependent: false`).
 
-Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty $\rightarrow$ disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
+Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty → disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
 
 **Primary Tool Inputs:**
 
@@ -130,8 +130,8 @@ Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty
 
 ### Implementation Details (file-read-mcp)
 
-- `FileReadConfig.from_dict` (`read_github_models.py`) interprets TOML's `max_read_bytes` as **KB** (`max_file_size_kb = max_read_bytes // 1024`). The effective limit is therefore `max_read_bytes // 1024 * 1024` bytes, which can differ from the TOML value when it is not a multiple of 1024. [Explicit in code]
-- Read-only errors are `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 or 422 as registered in `read_web_search_server.py`'s 422 handler) in addition to `read_text_file` rejecting simultaneous `head`/`tail` arguments via Pydantic model validation (ValueError $\rightarrow$ FastAPI standard 422). [Explicit in code]
+- `FileReadConfig.from_dict` (`read_github_models.py`) interprets TOML's `max_read_bytes` as **KB** (`max_file_size_kb = max_read_bytes // 1024`). The effective limit is therefore `max_read_bytes // 1024 * 1024` bytes, which can differ from the TOML value when it is not a multiple of 1024. (Explicit in code)
+- Read-only errors are `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 or 422 as registered in `read_web_search_server.py`'s 422 handler) in addition to `read_text_file` rejecting simultaneous `head`/`tail` arguments via Pydantic model validation (ValueError → FastAPI standard 422). (Explicit in code)
 
 ---
 
@@ -173,11 +173,11 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 
 ### Implementation Details (github-mcp)
 
-- Domain exception HTTP status mapping (`exception_handlers.py`): `GitHubAuthorizationError` $\rightarrow$ 403, `GitHubNotFoundError` $\rightarrow$ 404, `GitHubValidationError` $\rightarrow$ 400, `GitHubConflictError` $\rightarrow$ 409, `GitHubUpstreamError` $\rightarrow$ 502, `GitHubAuditError` $\rightarrow$ 500. [Explicit in code]
-- PyGithub's `GithubException` is converted to domain exceptions in `service_security.py` based on status codes (404 $\rightarrow$ NotFound, 403 $\rightarrow$ Authorization, 409 $\rightarrow$ Conflict, 400/422 $\rightarrow$ Validation, others $\rightarrow$ Upstream). [Explicit in code]
-- `allow_force_push=false` only applies by rejecting `merge_method="rebase"` in `merge_pull_request` (it does not directly block other force-push equivalent operations). [Explicit in code]
-- `require_pr_review=true` ensures at least one `APPROVED` review exists when executing `merge_pull_request`. [Explicit in code]
-- When `GITHUB_TOKEN` is unset, it starts with an anonymous `Github()` client, returning `degraded` health status (`service_init.py`). [Explicit in code]
+- Domain exception HTTP status mapping (`exception_handlers.py`): `GitHubAuthorizationError` → 403, `GitHubNotFoundError` → 404, `GitHubValidationError` → 400, `GitHubConflictError` → 409, `GitHubUpstreamError` → 502, `GitHubAuditError` → 500. (Explicit in code)
+- PyGithub's `GithubException` is converted to domain exceptions in `service_security.py` based on status codes (404 → NotFound, 403 → Authorization, 409 → Conflict, 400/422 → Validation, others → Upstream). (Explicit in code)
+- `allow_force_push=false` only applies by rejecting `merge_method="rebase"` in `merge_pull_request` (it does not directly block other force-push equivalent operations). (Explicit in code)
+- `require_pr_review=true` ensures at least one `APPROVED` review exists when executing `merge_pull_request`. (Explicit in code)
+- When `GITHUB_TOKEN` is unset, it starts with an anonymous `Github()` client, returning `degraded` health status (`service_init.py`). (Explicit in code)
 
 ---
 

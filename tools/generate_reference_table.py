@@ -60,13 +60,13 @@ REFERENCE_DOC_DEPLOYMENT = (
     REPO_ROOT / "docs" / "90_deployment" / "deployment_01_deployment.md"
 )
 REFERENCE_DOC_AGENT = (
-    REPO_ROOT / "docs" / "23_agent" / "agent_14_reference-api-generated.md"
+    REPO_ROOT / "docs" / "23_agent" / "agent_13_reference-api-generated.md"
 )
 REFERENCE_DOC_EVENTBUS = (
-    REPO_ROOT / "docs" / "24_eventbus" / "eventbus_10_reference_api.md"
+    REPO_ROOT / "docs" / "24_eventbus" / "eventbus_09_reference_api.md"
 )
 REFERENCE_DOC_MEMORY = (
-    REPO_ROOT / "docs" / "23_agent" / "agent_12_07_memory-module-reference-generated.md"
+    REPO_ROOT / "docs" / "23_agent" / "agent_11_07_memory-module-reference-generated.md"
 )
 
 # ---------------------------------------------------------------------------

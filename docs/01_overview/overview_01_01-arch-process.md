@@ -51,9 +51,9 @@ The system consists of the following categories of processes: the Agent CLI REPL
 
 - The Agent CLI depends on LLM services and MCP servers (it initiates calls to them).
 - LLM services depend on neither the Agent CLI nor MCP servers.
-- MCP servers depend on neither the Agent CLI nor LLM services.
+- MCP servers do not depend on the Agent CLI. The rag-pipeline MCP server is the only one that depends on the LLM services: its RAG pipeline calls them over HTTP for query expansion (MQE), re-ranking and embedding. Every other MCP server has no LLM-service dependency.
 - No MCP server depends on another MCP server.
-- Infrastructure (SQLite, vector DB) is depended upon by both the Agent CLI and MCP servers but does not depend on either.
+- Infrastructure (SQLite, vector DB) is depended upon by the Agent CLI, the MCP servers and the RAG layer but does not depend on any of them.
 
 **Reason for process separation:**
 

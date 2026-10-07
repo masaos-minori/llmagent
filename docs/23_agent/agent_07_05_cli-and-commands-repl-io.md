@@ -12,10 +12,10 @@ related:
   - agent_07_03_cli-and-commands-command-registry.md
   - agent_07_04_cli-and-commands-purpose.md
   - agent_07_06_cli-and-commands-hot-reload.md
-  - agent_07_08_cli-and-commands-slash-commands-session-mcp.md
-  - agent_07_09_cli-and-commands-slash-commands-context-db.md
-  - agent_07_10_cli-and-commands-slash-commands-workflow-debug.md
-  - agent_07_11_cli-and-commands-slash-commands-memory-other.md
+  - agent_07_07_cli-and-commands-slash-commands-session-mcp.md
+  - agent_07_08_cli-and-commands-slash-commands-context-db.md
+  - agent_07_09_cli-and-commands-slash-commands-workflow-debug.md
+  - agent_07_10_cli-and-commands-slash-commands-memory-other.md
 ---
 
 # Agent CLI and Commands

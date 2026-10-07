@@ -70,7 +70,7 @@ MCP Client
       → RagPipeline.run() (scripts/rag/pipeline.py)
 ```
 
-Detailed `RagPipeline` class info $\rightarrow$ [rag_03_02_query_pipeline-rag-pipeline-class.md](rag_03_02_query_pipeline-rag-pipeline-class.md)
+Detailed `RagPipeline` class info → [rag_03_02_query_pipeline-rag-pipeline-class.md](rag_03_02_query_pipeline-rag-pipeline-class.md)
 
 ---
 

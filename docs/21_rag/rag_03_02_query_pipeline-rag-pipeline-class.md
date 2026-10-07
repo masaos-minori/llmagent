@@ -33,7 +33,7 @@ from rag.pipeline import RagPipeline, RagPipelineError
 ```
 
 > **Note**: `fetch_full_document` is not provided by `rag/pipeline.py`. Its actual implementation is defined in `rag/repository.py` (`from rag.repository import fetch_full_document`). Similarly, `sanitize_document` is a function from `rag/utils.py` and does not exist in `rag.pipeline`. Actual imports in test and implementation code are only `from rag.pipeline import RagPipeline, RagPipelineError`.
-> (Evidence classification: Explicit in code — `scripts/rag/pipeline.py` import statements, `fetch_full_document()` function in `scripts/rag/repository.py`)
+> (Explicit in code — `scripts/rag/pipeline.py` import statements, `fetch_full_document()` function in `scripts/rag/repository.py`)
 
 The constructor of this class configures it bypassing `module_cfg`. Please refer to the source code for details.
 
@@ -42,13 +42,6 @@ Refer to the source code for a list of public attributes and methods.
 ### Implementation Note
 
 - `RagPipeline` has no cache invalidation mechanism. This is verified by `tests/rag/test_rag_pipeline_no_cache_freshness.py`.
-
-## Keywords
-
-rag-pipeline-class
-http-mode
-rag
-
 
 ### HTTP Mode (`rag_service_url`)
 
@@ -79,8 +72,7 @@ This classification result can be verified here:
 - `get_diagnostics()["http_result_kind"]`
 
 > **Note**: `get_diagnostics()["http_result_kind"]` and `SearchDiagnostics.http_result_kind` both carry the `rag.models_result.HttpResultKind` enum (`success`/`empty`/`error`/`not_used`/`auth_error`); the strings `remote_nonempty`/`remote_empty`/`in_process_fallback`/`auth_error` are internal to `HttpAugment` and are mapped to the enum before being exposed. See [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md) section 4.2 for details.
-> (Evidence classification: Explicit in code — `HttpAugment` (`scripts/rag/http_augment.py`) and `AugmentRefiner.run_http_augment`)
----
+> (Explicit in code — `HttpAugment` (`scripts/rag/http_augment.py`) and `AugmentRefiner.run_http_augment`)
 
 ## Keywords
 

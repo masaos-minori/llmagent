@@ -1,15 +1,11 @@
 ---
-title: "Event Bus: Operations (Publish, Subscribe, Ack/Nack, Health, DLQ)"
+title: "Event Bus: Operations (Publish, Subscribe, DLQ Promotion)"
 area: eventbus
 tags:
   - event-bus
   - http-api
   - publish
-  - replay
   - subscribe
-  - ack
-  - nack
-  - health
   - dlq
   - dead-letter-queue
   - background-loop
@@ -24,15 +20,29 @@ tags:
   - consumer-offset
   - idempotent
   - json-schema
-  - pagination
 related:
   - eventbus_00_document-guide.md
+  - eventbus_04_dlq_endpoint.md
+  - eventbus_11_health_endpoint.md
+  - eventbus_12_replay_endpoint.md
+  - eventbus_13_ack_nack_endpoints.md
   - eventbus_01_system-overview.md
-  - eventbus_06_dlq_offsets_and_delivery_semantics.md
-  - eventbus_09_configuration-and-operations.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
+  - eventbus_08_configuration-and-operations.md
 ---
 
-# Event Bus: Operations (Publish, Subscribe, Ack/Nack, Health, DLQ)
+# Event Bus: Operations (Publish, Subscribe, DLQ Promotion)
+
+This document covers publishing, subscribing, and how events reach the DLQ. The remaining HTTP endpoints are specified once, in their own reference documents:
+
+| Endpoint | Canonical document |
+|---|---|
+| `GET /replay` | `eventbus_12_replay_endpoint.md` |
+| `POST /events/{event_id}/ack`, `POST /nack`, ACK/NACK state transitions | `eventbus_13_ack_nack_endpoints.md` |
+| `GET /health` | `eventbus_11_health_endpoint.md` |
+| `GET /dlq`, `POST /dlq/{event_id}/requeue` | `eventbus_04_dlq_endpoint.md` |
+
+Delivery semantics (offsets, resume position, state diagram) are in `eventbus_05_dlq_offsets_and_delivery_semantics.md`.
 
 ## POST /publish
 
@@ -45,20 +55,6 @@ Publishes an event. Idempotent: duplicate `event_id`s are silently ignored.
 **Response**: On success, returns `{event_id, seq}`. A duplicate `event_id` with identical content returns the existing `seq`. A 422 error indicates a JSON Schema validation error, and a 409 error indicates that the `event_id` already exists with conflicting content.
 
 **JSONL Append Failure**: If writing to the JSONL archive fails, the event is still committed to SQLite and a 200 status is returned. A WARNING will be recorded in the logs.
-
----
-
-## GET /replay
-
-Replays past events. Returns events where `seq > since_seq`. Supports pagination when `format=json`.
-
-**Query Parameters:** `since_seq` (>=0), `limit` (bounded; see the route definition for the default and maximum), `offset` (>=0), `format` (sse/json, default sse).
-
-**Response (`format=json`):** A pagination object containing `{total, limit, offset, items}`. `total` is the total count regardless of `limit`/`offset`.
-
-**Response (`format=sse`):** Each event is output as an `id:<seq>\ndata: {...}\n\n` SSE frame. The `id:` field contains the monotonic sequence number, enabling `EventSource`-based clients to auto-reconnect. The SSE format does not support paginated incremental consumption. The stream terminates after `limit` items are output.
-
-**Error Response:** 422 — if parameter values are invalid.
 
 ---
 
@@ -111,76 +107,6 @@ A token with no configured `consumer_id` allowlist entry (the common case for a 
 
 ---
 
-## POST /events/{event_id}/ack [canonical]
-
-Acknowledges an event for a consumer. The per-consumer delivery record and the consumer offset are updated in one transaction. Idempotent.
-
-**Path Parameters:** `event_id` (required)
-**Query Parameters:** `consumer_id` (required)
-
-**Response:** On success, returns `{event_id, acked: true, seq: <int>}`. If already acknowledged, returns `{event_id, acked: true, seq: <int>, already_acked: true}`. A 404 error indicates the event was not found.
-
-**Note on Monotonicity:** Offset advancement is monotonic. Acknowledging an older event does not move the stored offset backwards.
-
----
-
-## POST /nack
-
-Sends a NACK (Negative Acknowledgement) for an event. Increases `delivery_failure_count`, and moves the event to the DLQ once `delivery_failure_count >= max_retry`.
-
-**Query Parameters:** `event_id` (required), `consumer_id` (required)
-**Response:** On success, returns `{event_id, delivery_failure_count}`, plus `dlq_promoted: true` when the NACK promoted the event to the DLQ. A 404 error indicates the event was not found. A 409 error indicates the event is already in the DLQ, or has `events.acked_at` set. A consumer's own ACK does not set `events.acked_at`; a NACK sent by a consumer after its own ACK is rejected with HTTP 409 `event already acknowledged`.
-
-For NACK's state-transition behavior (initial/duplicate NACK, NACK after ACK, unknown event ID), see the ACK/NACK State Transition Table below — it covers both ACK and NACK together rather than repeating NACK rows separately.
-
----
-
-## ACK/NACK State Transition Table
-
-The following table summarizes the current code behavior for ACK and NACK operations.
-
-| Scenario | Current Code Behavior | HTTP Status | Response Body | Side Effects on Persistence | Notes |
-|---|---|---|---|---|---|
-| Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq: <int>}` | Sets `consumer_delivery.acked_at` and advances the consumer offset | — |
-| Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq: <int>, already_acked: true}` | No new delivery state; the offset never moves backwards | Idempotent |
-| Initial NACK | `nack_event` increases `delivery_failure_count` from 0 → 1 | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` increases; promoted to DLQ if `>= max_retry` | — |
-| Duplicate NACK | No idempotency guard in `nack_event`; `delivery_failure_count` increases with every call | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, potentially triggering DLQ promotion on subsequent calls | Tracked as EVENTBUS-012 in `governance_03_issue-and-uncertainty-management.md` |
-| NACK followed by ACK | The consumer's `consumer_delivery.acked_at` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq: <int>}` | ACK succeeds, `delivery_failure_count` remains at the value from NACK | No readjustment |
-| ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer; the per-consumer ACK sets it | 409 | `event already acknowledged` | NACK rejected; counters unchanged | — |
-| Unknown Event ID (ACK) | `ack_event_for_consumer` returns `found = False` | 404 | `ERR_EVENT_NOT_FOUND` | None | — |
-| Unknown Event ID (NACK) | `nack_event` returns `-1` | 404 | `ERR_EVENT_NOT_FOUND` | None | — |
-| Simultaneous ACK/NACK | Both go through `run_with_db_lock` and are serialized at the DB layer | 200/200 | Depends on lock order | No true contention — Lock enforces total ordering, and the second call observes the first call's committed state | — |
-
----
-
-## GET /health
-
-Returns the health status of each component. `ok` corresponds to HTTP 200, while `degraded`/`unhealthy` corresponds to HTTP 503.
-
-**Response Fields:** `status`, `db`, `dlq_task`, `active_subscribers`, `max_queue_depth`, `slow_consumers`, `overflow_disconnects`, `duplicate_connection_rejections`, `degraded_reasons`, `metrics`.
-
-The `status` is `"ok"` only when all components are healthy. `degraded_reasons` lists failure causes (`db_unavailable`, `dlq_task_stopped`, `broker_unavailable`, `broker_queue_backlog_high`, `slow_consumers_detected`, `subscribers_at_capacity`, `lock_wait_high`, `query_duration_high`).
-
----
-
-## GET /dlq
-
-Retrieves a list of DLQ events (events where `dlq_at IS NOT NULL`).
-
-**Query Parameters:** `limit` (bounded; see the route definition for the default and maximum), `offset` (>=0, default 0)
-**Response:** A pagination object containing `{total, limit, offset, items}`. `items` includes `{seq, event_id, topic, producer, published_at, delivery_failure_count, dlq_requeue_count, dlq_at}`.
-
----
-
-## POST /dlq/{event_id}/requeue
-
-Requeues a DLQ event using the lineage model: the original row stays in the DLQ (`dlq_at` is kept, `dlq_requeue_count` is increased) and a new event row is inserted with a fresh `event_id`, `redelivered_from` pointing to the original, the copied `delivery_failure_count`, and `cycle_failure_count` reset to 0. Only one requeue succeeds per original event.
-
-**Path Parameters:** `event_id` (required)
-**Response:** On success, returns `{event_id, requeued: true, new_event_id, new_seq}`. A 409 error indicates the event is not in the DLQ or has already been requeued, and a 404 error indicates it was not found.
-
----
-
 ## DLQ Promotion Paths
 
 DLQ promotion occurs via two independent paths that share one underlying promotion procedure:
@@ -200,14 +126,12 @@ Using optimistic locking, it only targets events where `dlq_at IS NULL` to preve
 
 ## Failure Behavior Summary
 
+Failure behavior of the other endpoints is in their reference documents above.
+
 | Failure Cause | Action |
 |---|---|
 | JSON Schema validation failure during `publish` | 422, event is not saved |
 | JSONL append failure after SQLite commit | 200 returned, WARNING log output, event remains in SQLite |
-| DB unavailable in `/health` | `status: degraded`, `db: unavailable` |
-| DLQ task stopped in `/health` | `status: degraded`, `dlq_task: stopped` |
-| Unknown `event_id` during requeue | 404 |
-| Event exists but is not in DLQ (or already requeued) during requeue | 409 Conflict |
 | Duplicate `event_id` with conflicting content during `publish` | 409 Conflict, event is not saved |
 | Duplicate `event_id` during `publish` (Idempotency skip) | 200 returned (existing `seq`), broker notification skipped |
 | Subscriber queue full | Subscriber disconnected; client must reconnect using its last committed offset |
@@ -217,11 +141,7 @@ Using optimistic locking, it only targets events where `dlq_at IS NULL` to preve
 - event-bus
 - http-api
 - publish
-- replay
 - subscribe
-- ack
-- nack
-- health
 - dlq
 - dead-letter-queue
 - background-loop

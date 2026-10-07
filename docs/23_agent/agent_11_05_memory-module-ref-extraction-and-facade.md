@@ -6,17 +6,17 @@ tags:
   - memory
   - extraction-facade
 related:
-  - agent_12_01_memory-overview-and-modes.md
-  - agent_12_03_memory-module-ref-core-and-store.md
-  - agent_12_04_memory-module-ref-retrieval-and-injection.md
+  - agent_11_01_memory-overview-and-modes.md
+  - agent_11_03_memory-module-ref-core-and-store.md
+  - agent_11_04_memory-module-ref-retrieval-and-injection.md
   - agent_00_document-guide.md
-  - agent_12_02_memory-gate-data-model-search.md
-  - agent_12_06_memory-module-ref-ops-and-scoring.md
+  - agent_11_02_memory-gate-data-model-search.md
+  - agent_11_06_memory-module-ref-ops-and-scoring.md
 ---
 # Memory Layer — Module Reference: Extraction and Facade
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
+- Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Purpose
 
@@ -24,15 +24,15 @@ Defines the responsibility boundaries for rule-based extraction, append-only arc
 
 ## Design Intent
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (memory layer is optional: guarded public APIs and shared immutable DTOs).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (memory layer is optional: guarded public APIs and shared immutable DTOs).
 
 ## Responsibility Boundary
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (the Memory Layer owns persistence, search and injection of memory entries).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (the Memory Layer owns persistence, search and injection of memory entries).
 
 ## Key Constraints
 
-- Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md).
+- Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md).
 - When `EmbeddingClient.enabled=False`, `fetch()` returns `EmbeddingResult(success=False, error_kind=DISABLED)` immediately without making an HTTP call.
 - If embedding retrieval fails, processing continues and the entry is saved without embeddings (`stat_embed_skip` counter increases).
 - `JsonlMemoryStore` is an append-only archive. Deletions and changes to pin/unpin status are not replayed.
@@ -50,7 +50,7 @@ Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-
 
 ## Known Limitations
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits).
 
 ## Keywords
 

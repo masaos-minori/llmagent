@@ -330,7 +330,7 @@ def check_all(
     `.pre-commit-config.yaml` wiring (a bare `python -m tools.check_compat_shims`
     with no flags) keeps its current pass/fail behavior unchanged.
     `check_removed_name_reintroduction()` currently has one confirmed, known
-    finding in the live corpus (`docs/05_agent_13_reference-api.md:114`,
+    finding in the live corpus (`docs/05_agent_12_reference-api.md:114`,
     tracked by `plans/20260903-090104_plan.md`) — per this repository's
     "new checks stay report-only until the corpus is compliant" convention,
     it must be opted into explicitly (`--check-removed-names`) until that
@@ -363,7 +363,7 @@ def main() -> int:
             "Also run the removed-name-reintroduction check (docs/*.md only; "
             "see check_removed_name_reintroduction()). Off by default — this "
             "check currently has one known, Plan-tracked finding "
-            "(docs/05_agent_13_reference-api.md:114) and stays report-only "
+            "(docs/05_agent_12_reference-api.md:114) and stays report-only "
             "(opt-in) until that Plan lands, per this repository's convention "
             "for new checks."
         ),

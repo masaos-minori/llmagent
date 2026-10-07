@@ -35,7 +35,7 @@ To determine which documents are affected by a change:
    - Documentation-only changes → Documentation Reference Graph
    - Governance-policy changes → Governance Applicability Matrix
    - Configuration or API changes → continue to use the existing Canonical Source
-     Precedence matrix ([Decision Target Canonical Source Matrix](governance_01_documentation-policy.md#decision-target-canonical-source-matrix)) until a dedicated
+     Precedence matrix ([Resolution Matrix](governance_01_documentation-policy.md#resolution-matrix)) until a dedicated
      map exists; owner decision: a Configuration Ownership Map or API
      Consumer Map is needed for per-key ownership traceability, but building it is
      separate, unstarted follow-up work — not part of this change
@@ -78,7 +78,7 @@ function.
 
 **Cycles prohibited**: no circular dependencies are allowed among these 5 nodes.
 Enforced automatically by `tools/check_dependency_graph_cycles.py` (see
-`docs/00_governance/governance_04_documentation-checks.md` "12. Area Dependency Graph
+`docs/00_governance/governance_04_documentation-checks.md` "18. Area Dependency Graph
 Validation").
 
 Security is not a node in this graph: `scripts/shared/security/` (`HighRiskToolPolicy`,
@@ -86,31 +86,29 @@ Security is not a node in this graph: `scripts/shared/security/` (`HighRiskToolP
 exists for it. If it is wired in later, add it to the node set in
 `tools/check_dependency_graph_cycles.py` together with its edge here.
 
-Confirmed edges (direct source evidence —
-`scripts/agent/services/mcp_tool_discovery.py` fetches every MCP server's
-`/v1/tools` over HTTP; `scripts/agent/eventbus_client.py` publishes to the Event Bus
-`/publish` endpoint over HTTP):
+Confirmed edges (direct source evidence: `scripts/agent/services/mcp_tool_discovery.py`
+fetches every MCP server's `/v1/tools` over HTTP; the import statements under
+`scripts/agent/`, `scripts/mcp_servers/`, `scripts/rag/` and `scripts/eventbus/` show
+the Shared/DB dependencies; `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`
+imports `rag.pipeline`):
 - Agent → MCP
 - Agent → Shared/DB
+- MCP → Shared/DB
+- MCP → RAG
+- RAG → Shared/DB
 - EventBus → Shared/DB
-- Agent → EventBus
 
-Planned (design intent, not yet implemented; these are
-intended future integrations rather than a documentation error; no corresponding
-import or HTTP-publish call exists in current source, and none is expected until
-each integration is implemented):
-- RAG → EventBus
-- MCP → EventBus
+The `MCP → RAG` edge exists only through the rag-pipeline MCP server, an MCP-facing
+wrapper around `scripts/rag/`'s `RagPipeline` (`RagPipelineMCPService.start()`
+imports and instantiates it; no other file under `scripts/mcp_servers/rag_pipeline/`
+duplicates RAG pipeline logic).
 
-Not represented as an edge: no direct RAG ↔ Agent call path exists in current
-source (`scripts/agent/` contains no import of `scripts/rag/`) — RAG-related
-functionality, if any, is reached only through the generic `Agent → MCP` edge
-above. `scripts/mcp_servers/rag_pipeline/` is an MCP-facing wrapper around
-`scripts/rag/`'s `RagPipeline` (confirmed via
-`rag_pipeline_service.py::RagPipelineMCPService.start()`'s direct
-import/instantiation of it, and confirmation that no other file under
-`scripts/mcp_servers/rag_pipeline/` duplicates RAG pipeline logic), reachable
-via the existing `Agent → MCP` edge with no separate node or edge needed.
+Not represented as an edge:
+- Agent ↔ RAG: `scripts/agent/` contains no import of `scripts/rag/`; RAG
+  functionality is reached only through the generic `Agent → MCP` edge.
+- Agent, RAG or MCP → EventBus: no runtime component calls the Event Bus. The
+  client modules under `scripts/agent/` (`eventbus_client.py` and its siblings) are
+  imported only by their unit tests, so they create no runtime dependency.
 
 ## Deployment Management Graph
 

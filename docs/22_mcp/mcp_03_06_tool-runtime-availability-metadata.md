@@ -97,7 +97,7 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 
 For end-to-end tracing of how `disabled_reason` flows into `/mcp status`, see also:
 - `docs/22_mcp/mcp_03_02_tool-registry.md` — `RuntimeToolRegistry` module overview and discovery wiring.
-- `docs/23_agent/agent_07_08_cli-and-commands-slash-commands-session-mcp.md` — `/mcp status` command reference (general health/status view; does not yet detail the per-tool diagnostics table).
+- `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` — `/mcp status` command reference (general health/status view; does not yet detail the per-tool diagnostics table).
 
 ## `include_disabled` and `disabled_code`
 

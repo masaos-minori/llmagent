@@ -77,7 +77,7 @@ DB は rag.sqlite / session.sqlite / workflow.sqlite / eventbus.sqlite の 4 フ
 | `rag.sqlite` | `docs/41_db/db_02_architecture_and_schema-schema-reference.md` §5 |
 | `session.sqlite` | `docs/41_db/db_02_architecture_and_schema-schema-reference.md` §6 |
 | `workflow.sqlite` | `docs/41_db/db_02_architecture_and_schema-schema-reference.md` §7 |
-| `eventbus.sqlite` | `docs/24_eventbus/eventbus_07_persistence_schema_and_replay.md` |
+| `eventbus.sqlite` | `docs/24_eventbus/eventbus_06_persistence_schema_and_replay.md` |
 
 DB 構成・接続管理の全体像: `docs/41_db/db_01_architecture_and_schema-overview-and-config.md`。マイグレーション/スケーリング: `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`。
 

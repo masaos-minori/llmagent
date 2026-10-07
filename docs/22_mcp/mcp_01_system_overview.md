@@ -19,7 +19,7 @@ related:
 
 # MCP System Overview
 
-- Document Guide $\rightarrow$ [mcp_00_document-guide.md](mcp_00_document-guide.md)
+- Document Guide → [mcp_00_document-guide.md](mcp_00_document-guide.md)
 
 ## Purpose
 
@@ -69,7 +69,7 @@ Application settings specific to each MCP server:
 
 ## Server Catalog
 
-Ports are configured per server in `config/agent.toml` (`mcp_servers`). Configuration, tools, security settings, and operational notes per server $\rightarrow$ [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
+Ports are configured per server in `config/agent.toml` (`mcp_servers`). Configuration, tools, security settings, and operational notes per server → [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
 
 | Server | Transport | Startup Mode | Role |
 |---|---|---|---|
@@ -92,9 +92,9 @@ Ports are configured per server in `config/agent.toml` (`mcp_servers`). Configur
 
 ``` text
 Agent ToolExecutor
-  $\rightarrow$ POST http://127.0.0.1:{port}/v1/call_tool
-  $\rightarrow$ {"name": "tool_name", "args": {...}}
-  $\leftarrow$ {"result": "...", "is_error": false}
+  → POST http://127.0.0.1:{port}/v1/call_tool
+  → {"name": "tool_name", "args": {...}}
+  ← {"result": "...", "is_error": false}
 ```
 
 Servers run as subprocesses on loopback.
@@ -125,7 +125,7 @@ Servers run as subprocesses on loopback.
 | `MCPServer` | `scripts/mcp_servers/server.py` | Base class: HTTP startup, `/v1/call_tool`, `/v1/tools`, `/health` |
 | `CallToolRequest` / `CallToolResponse` | `scripts/mcp_servers/models.py` | Common Pydantic models for all servers |
 | `ToolExecutor` | `shared/tool_executor.py` | Routing, concurrent execution, health registry |
-| `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name $\rightarrow$ server_key (references only `RuntimeToolRegistry.resolve()`) |
+| `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name → server_key (references only `RuntimeToolRegistry.resolve()`) |
 | `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **Sole routing authority**. Constructed via live `/v1/tools` discovery using McpToolDiscoveryService |
 The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md` for details. |
 | `ToolRegistry` | `shared/tool_registry.py` | Seed data for drift detection regarding tool definitions and ownership (constructed at import from frozenset in `tool_constants.py`; not used for routing) |
@@ -139,16 +139,16 @@ The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field i
 
 ``` text
 agent/factory.py
-  $\rightarrow$ builds ToolExecutor (shared/tool_executor.py)
-       $\rightarrow$ uses ToolRouteResolver (shared/route_resolver.py)
-       $\rightarrow$ uses HttpTransport (shared/http_transport.py)
-       $\rightarrow$ uses McpServerConfig (shared/mcp_config.py)
-       $\rightarrow$ uses McpServerHealthRegistry (shared/mcp_health.py)
+  → builds ToolExecutor (shared/tool_executor.py)
+       → uses ToolRouteResolver (shared/route_resolver.py)
+       → uses HttpTransport (shared/http_transport.py)
+       → uses McpServerConfig (shared/mcp_config.py)
+       → uses McpServerHealthRegistry (shared/mcp_health.py)
 
 MCP server processes (mcp_servers/<name>/server.py)
-   $\rightarrow$ inherit MCPServer (scripts/mcp_servers/server.py)
-   $\rightarrow$ use CallToolRequest / CallToolResponse (scripts/mcp_servers/models.py)
-  $\rightarrow$ implement dispatch(name, args) $\rightarrow$ DispatchResult
+   → inherit MCPServer (scripts/mcp_servers/server.py)
+   → use CallToolRequest / CallToolResponse (scripts/mcp_servers/models.py)
+  → implement dispatch(name, args) → DispatchResult
 ```
 
 ---
@@ -159,7 +159,7 @@ MCP server processes (mcp_servers/<name>/server.py)
 |---|---|---|
 | Max response size | Fixed limit (`MCP_MAX_RESPONSE_BYTES`) | `scripts/mcp_servers/server.py` |
 | Auth header | `Authorization: Bearer <token>` (when `auth_token` is configured) | `scripts/mcp_servers/server.py` |
-| Health threshold | Consecutive failures reaching `failure_threshold` $\rightarrow$ UNAVAILABLE | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
+| Health threshold | Consecutive failures reaching `failure_threshold` → UNAVAILABLE | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
 | Circuit breaker recovery | `UNAVAILABLE` auto-transitions to `HALF_OPEN` (a trial state allowing one request) after `half_open_cooldown_sec` on `is_unavailable()`. | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
 
 ---

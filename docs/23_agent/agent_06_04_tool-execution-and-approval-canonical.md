@@ -43,7 +43,7 @@ Both layers are canonical; boundaries and responsibilities are explicit rather t
 | Axis | Pre-execution Approval (tool-level) | Post-execution Approval (workflow-level) |
 |------|---------------------------------------|---------------------------------------------|
 | Implementation | `agent/tool_approval.py` | `agent/workflow/workflow_engine.py` |
-| Granularity | Per tool call | Per task (between `execute` $\rightarrow$ `verify`) |
+| Granularity | Per tool call | Per task (between `execute` → `verify`) |
 | State | Ephemeral (in memory) | Persistent in DB (`approvals`) |
 | Resolution | Interactive via stdin | `/approve` / `/reject` |
 | Currently active | Always active | Inactive (default workflow definitions have `require_approval=false`) |

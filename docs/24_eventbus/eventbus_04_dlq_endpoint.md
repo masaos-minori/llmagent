@@ -6,7 +6,7 @@ area: eventbus
 related:
   - eventbus_03_dlq_operations.md
   - eventbus_01_system-overview.md
-  - eventbus_06_dlq_offsets_and_delivery_semantics.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
 ---
 
 # DLQ Endpoint
@@ -31,7 +31,7 @@ GET /dlq
 
 | Parameter | Required | Default | Constraints | Description |
 |-----------|----------|---------|-------------|-------------|
-| `limit` | No | `100` | `1 <= limit <= 1000` | Maximum entries to return |
+| `limit` | No | route default | bounded (see `scripts/eventbus/dlq_route.py`) | Maximum entries to return |
 | `offset` | No | `0` | `>= 0` | Offset for pagination |
 
 ### Success Response
@@ -40,34 +40,29 @@ GET /dlq
 
 #### Response Schema
 
-```json
-{
-  "total": 50,
-  "limit": 100,
-  "offset": 0,
-  "items": [
-    {
-      "seq": 42,
-      "event_id": "evt-failed",
-      "topic": "orders",
-      "producer": "svc-a",
-      "published_at": "2026-09-14T09:00:00Z",
-      "delivery_failure_count": 3,
-      "dlq_requeue_count": 0,
-      "dlq_at": "2026-09-14T10:00:00Z"
-    }
-  ]
-}
-```
+A pagination envelope (`total`, `limit`, `offset`) plus an `items` array; see `scripts/eventbus/dlq_route.py` for the exact schema.
 
 #### Field Descriptions
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `total` | integer | Total DLQ entries |
+| `total` | integer | Total DLQ entries (ignoring pagination) |
 | `limit` | integer | Requested page size |
 | `offset` | integer | Requested offset |
-| `items` | array[object] | Paginated DLQ entries |
+| `items` | array[object] | Paginated DLQ entries; each carries `seq`, `event_id`, `topic`, `producer`, `published_at`, `delivery_failure_count`, `dlq_requeue_count` and `dlq_at` (the time the event was promoted to the DLQ) |
+
+#### Empty Result
+
+When no events are in the DLQ, the response has `total: 0` and an empty `items` array.
+
+#### Invalid Parameters
+
+- Missing `limit` or `offset`: the route's default values apply.
+- `limit` below 1 or above the maximum bound, or `offset` below 0: HTTP 422 (FastAPI validation).
+
+#### Ordering
+
+Items are ordered by event `seq` ascending (oldest event first), not by the time of DLQ promotion.
 
 ### Example Request
 

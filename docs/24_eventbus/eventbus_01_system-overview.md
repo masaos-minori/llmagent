@@ -12,7 +12,7 @@ tags:
 related:
   - eventbus_00_document-guide.md
   - eventbus_03_dlq_operations.md
-  - eventbus_09_configuration-and-operations.md
+  - eventbus_08_configuration-and-operations.md
 source:
   - eventbus_02_api-reference-index.md
 ---
@@ -54,7 +54,7 @@ The Agent runtime does not use the Event Bus:
 
 ## Known Issues
 
-Known issues for this area are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Offset and resume semantics, including the ACK-order obligation, are described in `eventbus_06_dlq_offsets_and_delivery_semantics.md`.
+Known issues for this area are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus). Offset and resume semantics, including the ACK-order obligation, are described in `eventbus_05_dlq_offsets_and_delivery_semantics.md`.
 
 ## Keywords
 

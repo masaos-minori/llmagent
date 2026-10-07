@@ -13,7 +13,7 @@ related:
 ---
 # Agent Turn Processing Flow - Workflow Engine Integration & Turn-by-turn State Changes
 
-- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
+- Runtime Architecture → [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 
 ## Purpose
 
@@ -33,8 +33,8 @@ Workflow state means "started" (not "completed"). It is used to prevent duplicat
 
 If an `existing_task_id` is provided, the existing `TaskRecord` is retrieved and reused instead of creating a new task. Two validations are performed:
 
-- If the task is not found $\rightarrow$ `RuntimeError`
-- If the task status is `halted` $\rightarrow$ `RuntimeError` — the `halted` state is a terminal/paused state and must not be automatically resumed without explicit user action.
+- If the task is not found → `RuntimeError`
+- If the task status is `halted` → `RuntimeError` — the `halted` state is a terminal/paused state and must not be automatically resumed without explicit user action.
 
 Any `RuntimeError` is not caught by the caller's `except` block and propagates further up.
 
@@ -62,22 +62,22 @@ When `WorkflowEngine(require_approval=True)` is used, the engine pauses after th
 **Local Development Exception:** Local/dev deployments may leave `require_approval: false` for all categories, since the tool-level pre-execution approval gate remains active.
 
 **Approval Lifecycle (all paths):**
-- **approve**: `/approve <approval_id> [reason]` $\rightarrow$ `status=approved`, passes to the `verify` stage on the next run
-- **reject**: `/reject <approval_id> [reason]` $\rightarrow$ `status=rejected`, `WorkflowHaltError` is raised and the task halts
+- **approve**: `/approve <approval_id> [reason]` → `status=approved`, passes to the `verify` stage on the next run
+- **reject**: `/reject <approval_id> [reason]` → `status=rejected`, `WorkflowHaltError` is raised and the task halts
 - **missing**: If no existing approval record is found, a new record is created and the workflow pauses
 - **expire**: When `_gate_approval()` finds a `pending` record whose `expires_at` has passed, it marks that record `status=expired` and calls `request_approval()` again to re-request approval. `is_expired()` method exists in `approval_ops.py` for checking expiration status.
 - **cancel**: Not supported. By design, `/reject` is the only terminal path
 - **resume**: On the next workflow run after approve/reject, the existing approval record is checked and follows the branches above
 
-1. The engine calls `store.request_approval(task_id)` $\rightarrow$ creates an `ApprovalRecord` with `status=pending`.
-2. Task status $\rightarrow$ `pending_approval`.
-3. `WorkflowPendingApprovalError` occurs $\rightarrow$ orchestrator stores the `approval_id` and logs a WARNING.
+1. The engine calls `store.request_approval(task_id)` → creates an `ApprovalRecord` with `status=pending`.
+2. Task status → `pending_approval`.
+3. `WorkflowPendingApprovalError` occurs → orchestrator stores the `approval_id` and logs a WARNING.
 
 When a user executes `/approve <approval_id> [reason]` or `/reject <approval_id> [reason]`, the approval record is updated in the DB. During the next workflow execution for the same task, the gate checks existing approval records:
 
-- `status=approved` $\rightarrow$ pass to `verify` stage.
-- `status=rejected` $\rightarrow$ `WorkflowHaltError` occurs; task is halted.
-- `status=pending` $\rightarrow$ `WorkflowPendingApprovalError` occurs again.
+- `status=approved` → pass to `verify` stage.
+- `status=rejected` → `WorkflowHaltError` occurs; task is halted.
+- `status=pending` → `WorkflowPendingApprovalError` occurs again.
 
 If no existing approval record is found, a new record is created and the workflow pauses.
 
@@ -132,8 +132,8 @@ When loading workflow definitions from `config/workflows/*.json`:
 - Stage IDs must be unique
 - Mandatory stages: `plan`, `execute`, `verify`
 - Each stage must have: `id`, `timeout_sec`, `retryable`
-- `retry_policy.max_attempts` must be $\ge 1$
-- `retry_policy.backoff_sec` must be $\ge 0$
+- `retry_policy.max_attempts` must be ≥ 1
+- `retry_policy.backoff_sec` must be ≥ 0
 
 See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) for recovery steps when a rule is violated.
 

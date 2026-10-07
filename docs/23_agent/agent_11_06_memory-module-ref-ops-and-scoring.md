@@ -10,17 +10,17 @@ tags:
   - rrf
 related:
   - agent_00_document-guide.md
-  - agent_12_01_memory-overview-and-modes.md
-  - agent_12_02_memory-gate-data-model-search.md
-  - agent_12_03_memory-module-ref-core-and-store.md
-  - agent_12_04_memory-module-ref-retrieval-and-injection.md
-  - agent_12_05_memory-module-ref-extraction-and-facade.md
+  - agent_11_01_memory-overview-and-modes.md
+  - agent_11_02_memory-gate-data-model-search.md
+  - agent_11_03_memory-module-ref-core-and-store.md
+  - agent_11_04_memory-module-ref-retrieval-and-injection.md
+  - agent_11_05_memory-module-ref-extraction-and-facade.md
 ---
 
 # Memory Layer — Module Reference: Ops and Scoring
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
+- Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Purpose
 
@@ -28,16 +28,16 @@ Defines the responsibility boundaries for write operations, scoring, RRF merging
 
 ## Design Intent
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (memory layer is optional: guarded public APIs and shared immutable DTOs).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (memory layer is optional: guarded public APIs and shared immutable DTOs).
 
 ## Responsibility Boundary
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (the Memory Layer owns persistence, search and injection of memory entries).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (the Memory Layer owns persistence, search and injection of memory entries).
 
 ## Key Constraints
 
-- Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md).
-- Embedding, deduplication and archive-write constraints: see Key Constraints in [agent_12_05_memory-module-ref-extraction-and-facade.md](agent_12_05_memory-module-ref-extraction-and-facade.md).
+- Common constraints (`use_memory_layer = false` bypass; `VectorRetriever.knn_search()` on a missing `memories_vec` table): see Key Constraints in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md).
+- Embedding, deduplication and archive-write constraints: see Key Constraints in [agent_11_05_memory-module-ref-extraction-and-facade.md](agent_11_05_memory-module-ref-extraction-and-facade.md).
 - After retrieving embeddings, the top 5 nearest neighbors via KNN are searched; if an existing entry is found that is closer than the threshold for its `source_type`, the new entry is discarded (SKIP_NEW).
 - If insertion into `memory_links` fails with `sqlite3.OperationalError`/`IntegrityError`, only a warning is logged and processing continues.
 
@@ -51,7 +51,7 @@ Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-
 
 ## Known Limitations
 
-Same as in [agent_12_03_memory-module-ref-core-and-store.md](agent_12_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits).
+Same as in [agent_11_03_memory-module-ref-core-and-store.md](agent_11_03_memory-module-ref-core-and-store.md) (chunk fragmentation in search hits).
 
 ## Keywords
 

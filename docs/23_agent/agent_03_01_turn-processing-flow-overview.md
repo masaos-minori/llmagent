@@ -14,7 +14,7 @@ related:
 ---
 # Agent Turn Processing Flow - Overview
 
-- Runtime Architecture $\rightarrow$ [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
+- Runtime Architecture → [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
 
 ## Purpose
 
@@ -61,21 +61,21 @@ User input (line)
          ⑤ LLM Turn Processing
           │    → LlmTurnExecutor.handle_llm_turn(llm_url)
          │         ├─ LLMClient.stream(url, history, tool_defs)
-         │         │    → SSE streaming $\rightarrow$ on_token callback $\rightarrow$ CLIView.write_token()
-         │         │    $\rightarrow$ Collect content_parts + tool_calls_map
+         │         │    → SSE streaming → on_token callback → CLIView.write_token()
+         │         │    → Collect content_parts + tool_calls_map
          │         │
          │         └─ Tool Loop (internal, up to max_tool_turns=5):
-         │              $\rightarrow$ execute_all_tool_calls()
-         │                   $\rightarrow$ Execute in parallel unless side-effecting tools exist
-         │                   $\rightarrow$ ToolExecutor.execute(tool_name, args)
-         │                   $\rightarrow$ Add tool results to history as "tool" role
+         │              → execute_all_tool_calls()
+         │                   → Execute in parallel unless side-effecting tools exist
+         │                   → ToolExecutor.execute(tool_name, args)
+         │                   → Add tool results to history as "tool" role
          │                        (Denied tool calls are added via extend_messages())
-         │              $\rightarrow$ Re-send history to LLM
-         │              $\rightarrow$ ToolLoopGuard: Guards against duplication/cycles/retries/consecutive errors
+         │              → Re-send history to LLM
+         │              → ToolLoopGuard: Guards against duplication/cycles/retries/consecutive errors
          │
         ⑥ Turn End Processing                    [Within WorkflowEngine's verify stage]
-             $\rightarrow$ Issue audit log: turn_end (elapsed ms, token count, reconnection count, etc.)
-             $\rightarrow$ Set current_turn_id = None
+             → Issue audit log: turn_end (elapsed ms, token count, reconnection count, etc.)
+             → Set current_turn_id = None
 ```
 
 ### Implementation note: Always goes through the workflow engine

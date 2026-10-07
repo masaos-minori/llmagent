@@ -28,7 +28,7 @@ target_urls = [
 ]
 ```
 
-- Three-step process (separate processes): Crawling $\rightarrow$ Chunk Splitting $\rightarrow$ Embedding.
+- Three-step process (separate processes): Crawling → Chunk Splitting → Embedding.
 - `.py` files: Content is stored in `code_blocks`.
 - `etag`: SHA-256 hash of file content (instead of HTTP ETag).
 - `last_modified`: File mtime (ISO8601).

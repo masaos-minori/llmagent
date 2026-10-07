@@ -59,6 +59,7 @@ Provides guidance on determining which chapters to open as the entry point for t
 | Naming convention for tool schema modules, TOOL_LIST exports, and cleanup of _MCP_TOOLS references | `mcp_07` |
 | Tool capability naming convention (domain.action format) | `mcp_08` |
 | What is broken or unimplemented | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) |
+
 ---
 
 ## Navigation to Known Issues

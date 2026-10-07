@@ -15,7 +15,7 @@ related:
 
 ## 4. `ToolExecutor` (`shared/tool_executor.py`, `shared/tool_executor_helpers.py`)
 
-`ToolExecutor` inherits from `ToolTransportInvoker` and accepts an HTTP client, `server_configs`, and optional parameters via its constructor. `apply_config()` enables hot-reloading. The `execute()` method follows this sequence: concurrency protection $\rightarrow$ health check gate $\rightarrow$ transport resolution $\rightarrow$ per-server semaphore execution. `get_error_counters()` returns the error counters.
+`ToolExecutor` inherits from `ToolTransportInvoker` and accepts an HTTP client, `server_configs`, and optional parameters via its constructor. `apply_config()` enables hot-reloading. The `execute()` method follows this sequence: concurrency protection → health check gate → transport resolution → per-server semaphore execution. `get_error_counters()` returns the error counters.
 
 Helper functions: `is_side_effect()` identifies tools belonging to `WRITE_TOOLS`/`DELETE_TOOLS`/`shell_run`/`GIT_WRITE_TOOLS`/`GITHUB_WRITE_TOOLS`/`GITHUB_DANGEROUS_TOOLS` (not referenced by the execution path). Parallel/serial determination for tool call batches is delegated by `agent/tool_runner.py::_execute_with_dag()` to `agent/tool_scheduler.py::build_execution_groups()`, which references the `is_write` flag registered in `RuntimeToolRegistry` (via `PreparedToolCall.spec`) — this is a separate path from `is_side_effect()` (see [shared_03_03](shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)). `format_transport_error()` generates `TransportErrorInfo`. `tool_hash_key()` returns an MD5 hash used for failure tracking rather than as a cache key.
 
@@ -26,7 +26,7 @@ Helper functions: `is_side_effect()` identifies tools belonging to `WRITE_TOOLS`
 **Separation of Concerns (Explicit in code — module docstring):**
 - `shared/runtime_tool_registry.py`: **Routing Authority** (the sole source of truth). Constructed via `McpToolDiscoveryService` through live `/v1/tools` discovery and connected via `ToolExecutor.set_runtime_registry()`.
 - `shared/tool_registry.py`: **Input for Drift Detection** (not used for routing). Populated at import time by `frozenset` groups from `tool_constants.py`.
-- `shared/route_resolver.py`: `ToolRouteResolver` — resolves `tool_name` $\rightarrow$ `server_key`. **Refers exclusively to `RuntimeToolRegistry` for resolution; unknown tool names result in an immediate `ValueError`.**
+- `shared/route_resolver.py`: `ToolRouteResolver` — resolves `tool_name` → `server_key`. **Refers exclusively to `RuntimeToolRegistry` for resolution; unknown tool names result in an immediate `ValueError`.**
 - `shared/tool_routing_validation.py`: Validates consistency between configuration, live `/v1/tools` responses, and the registry (dedicated to drift detection; not used for runtime routing).
 
 ### `ToolRegistry` (`shared/tool_registry.py`)
@@ -37,7 +37,7 @@ Helper functions: `is_side_effect()` identifies tools belonging to `WRITE_TOOLS`
 
 ### `ToolRouteResolver` (`shared/route_resolver.py`)
 
-Resolves `tool_name` $\rightarrow$ `server_key` using `RuntimeToolRegistry` as sole authority; raises `ValueError` for unresolved names.
+Resolves `tool_name` → `server_key` using `RuntimeToolRegistry` as sole authority; raises `ValueError` for unresolved names.
 
 **Current behavior:**
 - `runtime_registry` takes priority in `resolve()` when set.

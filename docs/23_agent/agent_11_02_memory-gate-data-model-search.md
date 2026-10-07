@@ -1,22 +1,22 @@
 ---
-title: "Memory Layer — Activation Gate, Data Model, and Search (Part 1)"
+title: "Memory Layer — Activation Gate, Data Model, and Search"
 area: agent
 tags:
   - agent
   - memory
   - search
 related:
-  - agent_12_01_memory-overview-and-modes.md
-  - agent_12_03_memory-module-ref-core-and-store.md
+  - agent_11_01_memory-overview-and-modes.md
+  - agent_11_03_memory-module-ref-core-and-store.md
   - agent_00_document-guide.md
-  - agent_12_04_memory-module-ref-retrieval-and-injection.md
-  - agent_12_05_memory-module-ref-extraction-and-facade.md
-  - agent_12_06_memory-module-ref-ops-and-scoring.md
+  - agent_11_04_memory-module-ref-retrieval-and-injection.md
+  - agent_11_05_memory-module-ref-extraction-and-facade.md
+  - agent_11_06_memory-module-ref-ops-and-scoring.md
 ---
-# Memory Layer — Activation Gate, Data Model, and Search (Part 1)
+# Memory Layer — Activation Gate, Data Model, and Search
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
+- Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Purpose
 
@@ -137,8 +137,8 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 ## Disabled Behavior
 
 Overview:
-- `use_memory_layer=False` $\rightarrow$ `ctx.services.memory` becomes `None`, skipping all memory operations.
-- `EmbeddingClient.enabled=False` $\rightarrow$ `fetch()` returns a `DISABLED` error, falling back to FTS5 search.
+- `use_memory_layer=False` → `ctx.services.memory` becomes `None`, skipping all memory operations.
+- `EmbeddingClient.enabled=False` → `fetch()` returns a `DISABLED` error, falling back to FTS5 search.
 - `cli_view.py` reflects the memory layer status in the startup banner.
 
 ---

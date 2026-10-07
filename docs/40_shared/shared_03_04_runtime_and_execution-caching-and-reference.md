@@ -35,9 +35,9 @@ A frozen dataclass `CacheEntry` with `output` (str), `is_error` (bool), and `cac
 
 An enum for MCP server health states: `HEALTHY` (normal operation), `DEGRADED` (failing but not yet unavailable), `UNAVAILABLE` (circuit breaker open), `HALF_OPEN` (experimental probe after cooldown), and `UNKNOWN` (unregistered keys return `HEALTHY` default; `UNKNOWN` is never observed in practice).
 
-Per-server health tracking for `ToolExecutor` dispatch gating. Constructor accepts `failure_threshold` (consecutive failures $\rightarrow$ `UNAVAILABLE`) and `half_open_cooldown_sec`. Methods: `record_failure()` transitions `HEALTHY` $\rightarrow$ `DEGRADED` $\rightarrow$ `UNAVAILABLE`; `record_degraded()` records watchdog reachability probes (does not override `UNAVAILABLE`/`HALF_OPEN`); `record_restart_exhausted()` tags degraded reason as `'restart_limit_reached'`; `record_success()` resets state to `HEALTHY` and clears failure counts/degraded reasons; `get_state()` returns current state; `is_unavailable()` handles `UNAVAILABLE` $\rightarrow$ `HALF_OPEN` transition upon cooldown expiry.
+Per-server health tracking for `ToolExecutor` dispatch gating. Constructor accepts `failure_threshold` (consecutive failures → `UNAVAILABLE`) and `half_open_cooldown_sec`. Methods: `record_failure()` transitions `HEALTHY` → `DEGRADED` → `UNAVAILABLE`; `record_degraded()` records watchdog reachability probes (does not override `UNAVAILABLE`/`HALF_OPEN`); `record_restart_exhausted()` tags degraded reason as `'restart_limit_reached'`; `record_success()` resets state to `HEALTHY` and clears failure counts/degraded reasons; `get_state()` returns current state; `is_unavailable()` handles `UNAVAILABLE` → `HALF_OPEN` transition upon cooldown expiry.
 
-**State Transitions:** `HEALTHY` $\rightarrow$ `DEGRADED` on first failure; `DEGRADED` $\rightarrow$ `UNAVAILABLE` on `failure_threshold` consecutive failures;  `UNAVAILABLE` $\rightarrow$ `HALF_OPEN` after `half_open_cooldown_sec` (experimental probe); `HALF_OPEN` $\rightarrow$ `UNAVAILABLE` on probe failure (cooldown resets); `HALF_OPEN` $\rightarrow$ `HEALTHY` on probe success; any state $\rightarrow$ `HEALTHY` on successful response.
+**State Transitions:** `HEALTHY` → `DEGRADED` on first failure; `DEGRADED` → `UNAVAILABLE` on `failure_threshold` consecutive failures;  `UNAVAILABLE` → `HALF_OPEN` after `half_open_cooldown_sec` (experimental probe); `HALF_OPEN` → `UNAVAILABLE` on probe failure (cooldown resets); `HALF_OPEN` → `HEALTHY` on probe success; any state → `HEALTHY` on successful response.
 
 **Implementation Notes:** `get_state()` returns `HEALTHY` default for unregistered keys (`UNKNOWN` is never observed). `record_degraded()` does not override `UNAVAILABLE`/`HALF_OPEN` states (intentional guard against breaking circuit breaker/trial windows). `record_restart_exhausted()` does not change state (assumes `record_failure()` already set `UNAVAILABLE`) but tags the degraded reason. `record_success()` resets `_failure_counts`, `_unavailable_since`, and `_degraded_reasons` (prevents immediate re-`UNAVAILABLE` due to stale counts).
 
@@ -69,7 +69,7 @@ Manages hot-reloadable config fields for `LLMClient`. `HOT_CONFIG_FIELDS` is a t
 | How to get accurate token counts? | `await get_token_count(history, tokenize_url, http)` |
 | How do LLM retries work? | Exponential backoff: `retry_base_delay * (2**attempt)` for 429/503 and connection errors |
 | What is the `ToolResultCache` key format? | `{tool_name}:{json_dumps(args)}` (using `shared.json_utils.dumps`) |
-| What are the health gate state transitions? | HEALTHY $\rightarrow$ DEGRADED $\rightarrow$ UNAVAILABLE $\rightarrow$ HALF_OPEN $\rightarrow$ HEALTHY/UNAVAILABLE (see the `McpServerHealthState` section above) |
+| What are the health gate state transitions? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (see the `McpServerHealthState` section above) |
 
 ## Keywords
 

@@ -80,7 +80,7 @@ Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing t
 | GFM Tables                | No      | Stored as plain text within the parent section                                                                                                                                                                                                     |
 | Inline HTML Tags          | No      | Treated as plain text                                                                                                                                                                                                                            |
 
-> Note regarding search support for frontmatter `tags`/`categories`: This table covers heading/structural features only. For details on `tags` real data storage and `search_docs` `tag_filter` support, see the note above (2026-07-19).
+> Note regarding search support for frontmatter `tags`/`categories`: This table covers heading/structural features only. For details on `tags` real data storage and `search_docs` `tag_filter` support, see the `tags_json` note above.
 
 ### Search Modes
 

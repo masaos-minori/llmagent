@@ -304,7 +304,7 @@ class TestClassify:
     `add-missing`'s existing never-guess/report-ambiguous pattern."""
 
     def test_confident_signal_detected(self) -> None:
-        assert classify_from_filename("05_agent_13_reference-api.md") == "Reference"
+        assert classify_from_filename("05_agent_12_reference-api.md") == "Reference"
 
     def test_no_signal_is_ambiguous(self) -> None:
         assert classify_from_filename("notes.md") is None
@@ -317,7 +317,7 @@ class TestClassify:
     ) -> None:
         docs = tmp_path / "docs"
         docs.mkdir()
-        doc = docs / "06_eventbus_06_reference-api.md"
+        doc = docs / "06_eventbus_05_reference-api.md"
         original = "# Event Bus: Reference API\n\nBody.\n"
         doc.write_text(original)
         monkeypatch.setattr("tools.manage_frontmatter.DOCS_DIR", docs)

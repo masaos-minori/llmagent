@@ -27,7 +27,7 @@ class DbConfig:
     sqlite_busy_timeout_ms: int = ...
 ```
 
-- Validated in `__post_init__`: the DB paths must be non-empty, each parent directory must exist, and `sqlite_timeout` must be $\ge$ 1.
+- Validated in `__post_init__`: the DB paths must be non-empty, each parent directory must exist, and `sqlite_timeout` must be ≥ 1.
 - Constructed by `build_db_config()`, which reads `agent.toml` via `ConfigLoader().load("agent.toml")`.
 - Used by `SQLiteHelper`, `maintenance.py`, and session factories.
 
@@ -35,13 +35,13 @@ class DbConfig:
 
 ## 10. Tool Constants (`shared/tool_constants.py`)
 
-All constants are `frozenset[str]`. They serve as seed data for `ToolRegistry` and are used for side-effect classification in `ToolExecutor`. Defined per category: `READ`/`WRITE`/`DELETE`/`RAG`/`CICD`/`MDQ`/`GIT`/`SHELL`/`WEB_SEARCH`, and referenced by both `shared/tool_executor.py` and `agent/tool_runner.py`. (Explicit in code: `scripts/shared/tool_constants.py`)
+All constants are `frozenset[str]`. They serve as seed data for `ToolRegistry` and are used for side-effect classification in `ToolExecutor`. Defined per category: `READ`/`WRITE`/`DELETE`/`RAG`/`CICD`/`MDQ`/`GIT`/`SHELL`/`WEB_SEARCH`, and referenced by both `shared/tool_executor.py` and `agent/tool_runner.py`. (Explicit in code — `scripts/shared/tool_constants.py`)
 
 ---
 
 ## 11. `CallToolRequest` / `CallToolResponse` Reference
 
-Defined in `mcp_servers/models.py` (NOT in `shared/`; the `mcp_servers` package was renamed from `mcp` to avoid collision with the PyPI Model Context Protocol SDK `mcp`). These are Pydantic models used only within MCP servers; code in the `shared/` layer should NOT import from `mcp_servers/`. Do not confuse them with the `ToolCallResult` dataclass in `shared/transport_dto.py`. (Explicit in code: `scripts/mcp_servers/models.py`)
+Defined in `mcp_servers/models.py` (NOT in `shared/`; the `mcp_servers` package was renamed from `mcp` to avoid collision with the PyPI Model Context Protocol SDK `mcp`). These are Pydantic models used only within MCP servers; code in the `shared/` layer should NOT import from `mcp_servers/`. Do not confuse them with the `ToolCallResult` dataclass in `shared/transport_dto.py`. (Explicit in code — `scripts/mcp_servers/models.py`)
 
 ---
 

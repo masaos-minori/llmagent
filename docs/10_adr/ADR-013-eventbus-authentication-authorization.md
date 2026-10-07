@@ -11,8 +11,8 @@ related:
   - ADR-002-config-isolation.md
   - ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
   - eventbus_01_system-overview.md
-  - eventbus_07_persistence_schema_and_replay.md
-  - eventbus_06_dlq_offsets_and_delivery_semantics.md
+  - eventbus_06_persistence_schema_and_replay.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
   - security_01_architecture-and-trust-boundaries.md
   - governance_03_issue-and-uncertainty-management.md
 ---
@@ -280,8 +280,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ### Specifications
 
 - [EventBus System Overview](../24_eventbus/eventbus_01_system-overview.md)
-- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md)
-- [EventBus DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md)
+- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_06_persistence_schema_and_replay.md)
+- [EventBus DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md)
 - [Architecture and Trust Boundaries](../91_security/security_01_architecture-and-trust-boundaries.md)
 
 ### Known Issues

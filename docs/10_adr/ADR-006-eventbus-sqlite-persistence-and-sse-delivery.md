@@ -11,10 +11,10 @@ related:
   - ADR-002-config-isolation.md
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
-  - eventbus_07_persistence_schema_and_replay.md
-  - eventbus_06_dlq_offsets_and_delivery_semantics.md
-  - eventbus_09_configuration-and-operations.md
-  - eventbus_10_reference_api.md
+  - eventbus_06_persistence_schema_and_replay.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
+  - eventbus_08_configuration-and-operations.md
+  - eventbus_09_reference_api.md
   - governance_03_issue-and-uncertainty-management.md
 supersedes: []
 superseded_by: null
@@ -416,10 +416,10 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - [EventBus System Overview](../24_eventbus/eventbus_01_system-overview.md) — EventBus architecture overview
 - [Event Bus Operations](../24_eventbus/eventbus_03_dlq_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQ protocols
-- [Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md) — persistence schema and Replay
-- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md) — DLQ offsets and delivery semantics
-- [Configuration and Operations](../24_eventbus/eventbus_09_configuration-and-operations.md) — configuration, bind address, health endpoint, Consumer ID, delivery, DLQ operations
-- [Reference API](../24_eventbus/eventbus_10_reference_api.md) — core modules, route handlers, Broker/Offsets
+- [Persistence Schema and Replay](../24_eventbus/eventbus_06_persistence_schema_and_replay.md) — persistence schema and Replay
+- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md) — DLQ offsets and delivery semantics
+- [Configuration and Operations](../24_eventbus/eventbus_08_configuration-and-operations.md) — configuration, bind address, health endpoint, Consumer ID, delivery, DLQ operations
+- [Reference API](../24_eventbus/eventbus_09_reference_api.md) — core modules, route handlers, Broker/Offsets
 
 ### Known Issues
 

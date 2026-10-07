@@ -87,12 +87,12 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 
 | Task scope | Reference docs |
 |---|---|
-| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/agent_04_01_state-and-persistence-state-model.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` + `23_agent/agent_12_03_memory-module-ref-core-and-store.md` + `23_agent/agent_12_04_memory-module-ref-retrieval-and-injection.md` |
+| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/agent_04_01_state-and-persistence-state-model.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` + `23_agent/agent_11_03_memory-module-ref-core-and-store.md` + `23_agent/agent_11_04_memory-module-ref-retrieval-and-injection.md` |
 | OTel observability (otel_tracer.py) | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | Agent REPL slash commands (`CommandRegistry`) | `23_agent/agent_07_03_cli-and-commands-command-registry.md` |
 | Agent startup / verification / troubleshooting | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` |
 | Agent features / slash commands / tool calling | `23_agent/agent_01_system-overview.md` + `23_agent/agent_07_03_cli-and-commands-command-registry.md` |
-| AgentREPL class structure | `23_agent/agent_02_runtime-architecture.md` + `23_agent/agent_13_reference-api.md` |
+| AgentREPL class structure | `23_agent/agent_02_runtime-architecture.md` + `23_agent/agent_12_reference-api.md` |
 | Agent REPL flow / tool execution | `23_agent/agent_03_01_turn-processing-flow-overview.md` + `23_agent/agent_06_01_tool-execution-and-approval-execution.md` |
 | AgentContext / DI hub | `23_agent/agent_02_runtime-architecture.md` + `23_agent/agent_04_01_state-and-persistence-state-model.md` |
 | AgentConfig / config constants | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
@@ -145,10 +145,10 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 |---|---|
 | Event Bus (overview) | `24_eventbus/eventbus_01_system-overview.md` |
 | Event Bus (HTTP API) | `24_eventbus/eventbus_02_api-reference-index.md` |
-| Event Bus (persistence) | `24_eventbus/eventbus_07_persistence_schema_and_replay.md` |
-| Event Bus (DLQ/offsets) | `24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md` |
-| Event Bus (config/ops) | `24_eventbus/eventbus_09_configuration-and-operations.md` |
-| Event Bus (API ref) | `24_eventbus/eventbus_10_reference_api.md` |
+| Event Bus (persistence) | `24_eventbus/eventbus_06_persistence_schema_and_replay.md` |
+| Event Bus (DLQ/offsets) | `24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` |
+| Event Bus (config/ops) | `24_eventbus/eventbus_08_configuration-and-operations.md` |
+| Event Bus (API ref) | `24_eventbus/eventbus_09_reference_api.md` |
 | Event Bus (issues) | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Keywords

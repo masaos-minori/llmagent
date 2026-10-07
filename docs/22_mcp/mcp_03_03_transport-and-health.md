@@ -1,5 +1,5 @@
 ---
-title: "HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 1 & 2)"
+title: "HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys"
 area: mcp
 tags:
   - mcp
@@ -13,7 +13,7 @@ related:
   - mcp_03_05_lifecycle-and-new-server.md
 ---
 
-# HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys (Part 1)
+# HttpTransport, McpServerHealthRegistry, and Tracing Correlation Keys
 
 ## HttpTransport (`shared/http_transport.py`)
 
@@ -76,17 +76,6 @@ HEALTHY ──(failure × threshold)──→ UNAVAILABLE
 
 ---
 
-## Keywords
-
-- mcp
-- HttpTransport
-- McpServerHealthRegistry
-- health state
-- retry
-- correlation keys
-
-## Tracing Correlation Keys (Part 2)
-
 ## End-to-End Tool Call Tracing
 
 ### End-to-end tool call tracing
@@ -130,17 +119,15 @@ To trace a single tool call, combine `X-Request-Id` (unique per call) and `X-Ses
    McpServerHealthRegistry.record_success("file_read") → state remains HEALTHY
 ```
 
----
-
 ## Keywords
 
 - mcp
+- HttpTransport
+- McpServerHealthRegistry
+- health state
+- retry
 - correlation keys
 - tool call tracing
 - end-to-end tracing
-
-## Keywords
-
-- mcp
 - transport
 - health-registry

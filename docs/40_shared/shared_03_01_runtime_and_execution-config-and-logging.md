@@ -64,9 +64,9 @@ class Logger:
 - Both `name` and `log_file` must be non-empty strings; otherwise, a `ValueError` is raised (via string validation function).
 - Automatically configures `FileHandler` + `StreamHandler` (prevents duplication by setting `propagate=False`).
 - If a handler is already set for a logger with the same `name`, the initialization returns immediately without doing anything (prevents duplicate registration; safe even if multiple `Logger` instances with the same name are created).
-- `structured_log=True` $\rightarrow$ Logs are written in JSON Lines format (`_JsonFormatter`; fields include `ts`/`level`/`func`/`msg`, plus `turn_id`/`session_id`/`rag_query_id`/`workflow_id`/`task_id`/`exc` if they contain values).
+- `structured_log=True` → Logs are written in JSON Lines format (`_JsonFormatter`; fields include `ts`/`level`/`func`/`msg`, plus `turn_id`/`session_id`/`rag_query_id`/`workflow_id`/`task_id`/`exc` if they contain values).
 - Context injection: Using `set_context(turn_id="T001", session_id=42)`, subsequent log lines will include these fields. Because `_ContextFilter` uses `contextvars.ContextVar`, context does not leak between concurrent asyncio tasks sharing the same logger.
-- File write errors (`OSError`) $\rightarrow$ A WARNING is logged via the `shared.logger.fallback` logger (displayed on stderr), and execution falls back to `StreamHandler` only; no exception is raised.
+- File write errors (`OSError`) → A WARNING is logged via the `shared.logger.fallback` logger (displayed on stderr), and execution falls back to `StreamHandler` only; no exception is raised.
 - **Log messages must be in English only** (Japanese is not allowed) — per `rules/coding.md` convention.
 - **Secret redaction:** `register_secret(value)` adds a string to a module-level registry that every configured logger checks via `_RedactionFilter` (applied alongside `_ContextFilter` in `_configure_logger()`). Any `Bearer <token>`-pattern match, or an exact match against a registered value, is redacted from `record.msg` before emission. `shared.mcp_config._build_single_server()` calls `register_secret()` on every resolved MCP `auth_token` immediately after `resolve_env_ref()` resolves it, so a token never reaches a log line even if a caller accidentally logs a raw header or config value.
 

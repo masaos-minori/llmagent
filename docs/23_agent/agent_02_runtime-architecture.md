@@ -1,5 +1,5 @@
 ---
-title: "Agent Runtime Architecture (Part 1)"
+title: "Agent Runtime Architecture"
 area: agent
 tags:
   - agent
@@ -9,13 +9,13 @@ related:
   - agent_01_system-overview.md
   - agent_00_document-guide.md
 ---
-# Agent Runtime Architecture (Part 1)
+# Agent Runtime Architecture
 
 ## Purpose
 
 Describes the primary runtime components, their dependencies, and responsibility boundaries, enabling engineers and AI to identify where specific behaviors are implemented.
 
-> **Scope of this chapter:** Runtime behavior, module graph, data flow, and component lifecycles. For function signatures, parameter types, and return values $\rightarrow$ see [agent_13 Reference API](agent_13_reference-api.md).
+> **Scope of this chapter:** Runtime behavior, module graph, data flow, and component lifecycles. For function signatures, parameter types, and return values → see [agent_12 Reference API](agent_12_reference-api.md).
 
 ## Responsibility Boundary
 
@@ -86,51 +86,43 @@ Two distinct patterns exist where `tools.execute()` is called directly without g
 
 Coverage map accuracy must be maintained over time. Future changes to gate placement must update this map as part of the acceptance criteria. Any new `check_preflight()` addition requires a corresponding test or documented exception.
 
-## Keywords
+## Runtime Extension Points, Lifecycle and Shutdown
 
-agent
-runtime
-architecture
-lifecycle
 
-## Agent Runtime Architecture (Part 2)
-
-- System Overview $\rightarrow$ [agent_01_system-overview.md](agent_01_system-overview.md)
-
-## Purpose
+### Purpose
 
 Describes runtime extension points, lifecycle phases, and shutdown policies, clarifying component operation duration and interdependencies.
 
-## Design Intent
+### Design Intent
 
 `AgentREPL` is responsible only for the UI loop, command dispatching, and output display, containing no business logic. By delegating all startup sequences to `StartupOrchestrator`, the REPL functions purely as an I/O layer.
 
 Decoupling `StartupOrchestrator` from `AgentREPL` allows complexity during startup (service checks, MCP server startup, approval recovery) to be separated from the REPL's responsibility, ensuring the REPL focuses solely on UI concerns.
 
-## Responsibility Boundary
+### Responsibility Boundary
 
-### Component Responsibilities
+#### Component Responsibilities
 
-#### AgentREPL (`agent/repl.py`)
+##### AgentREPL (`agent/repl.py`)
 
-- Manages the input/dispatch loop: reads lines $\rightarrow$ commands or LLM turns.
+- Manages the input/dispatch loop: reads lines → commands or LLM turns.
 - Manages graceful shutdown.
 - Contains no business logic. Responsible only for UI loop, command dispatch, and output display.
 
-#### StartupOrchestrator (`agent/startup.py`)
+##### StartupOrchestrator (`agent/startup.py`)
 
 - Encapsulates all startup orchestration processes extracted from `AgentREPL`.
 - Constructed with `(ctx, view)`. `run()` returns `(CommandRegistry, Orchestrator)`.
 - Decouples startup complexity so that `AgentREPL` remains focused on UI concerns.
 
-#### Orchestrator (`agent/orchestrator.py`)
+##### Orchestrator (`agent/orchestrator.py`)
 
 - Handles end-to-end processing of a single user turn.
-- Manages the flow: memory injection $\rightarrow$ user message addition $\rightarrow$ history compression $\rightarrow$ LLM turn.
+- Manages the flow: memory injection → user message addition → history compression → LLM turn.
 - Delegates LLM streaming and the tool loop to `LlmTurnExecutor`.
 - Issues audit log events (`turn_start`, `turn_end`).
 
-#### AgentContext (`agent/context.py`)
+##### AgentContext (`agent/context.py`)
 
 The hub for shared mutable state and component references. All services are injected via `factory.build_agent_context()`.
 
@@ -144,38 +136,38 @@ The hub for shared mutable state and component references. All services are inje
 | `ctx.session` | Session | `AgentSession` (SQLite) |
 | `ctx.services` | Injected | All service instances (LLMClient, ToolExecutor, etc.) |
 
-#### LLMClient (`shared/llm_client.py`)
+##### LLMClient (`shared/llm_client.py`)
 
 - Constructs request payloads (messages + tool_defs + temperature + max_tokens).
 - SSE streaming (incremental UTF-8, heartbeat tracking).
 - Reconnects upon recoverable errors.
 - Detects and reports partial completions.
 
-#### ToolExecutor (`shared/tool_executor.py`)
+##### ToolExecutor (`shared/tool_executor.py`)
 
 - MCP routing.
 - Side-effect detection: serializes parallel tool calls if `write`/`delete`/`shell_run` is included.
-- Resolves tool name $\rightarrow$ server key.
+- Resolves tool name → server key.
 - Tracks health status per server.
 
-#### HistoryManager (`agent/history.py`)
+##### HistoryManager (`agent/history.py`)
 
 - Counts conversation history size (character count or token count).
 - Triggers LLM-based summarization when thresholds are exceeded.
 - Selects turns for compression (importance scoring + category).
 - Protects the most recent `history_protect_turns` pair from being compressed.
 
-#### CommandRegistry (`agent/commands/registry.py`)
+##### CommandRegistry (`agent/commands/registry.py`)
 
 Dispatches built-in commands.
 
-#### CLIView (`agent/cli_view.py`)
+##### CLIView (`agent/cli_view.py`)
 
 - Responsible only for the presentation layer, containing no business logic.
 - Provides `Writer` and `Reader` protocols for testability.
 - Receives callbacks from `Orchestrator`, `HistoryManager`, and `LLMClient`.
 
-#### LifecycleState (`agent/lifecycle.py`)
+##### LifecycleState (`agent/lifecycle.py`)
 
 An enum representing transport state shared among lifecycle managers:
 
@@ -189,13 +181,13 @@ An enum representing transport state shared among lifecycle managers:
 
 Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/STOPPED`, `RUNNING → STOPPED/FAILED/STARTING`, `FAILED → STARTING/STOPPED`, `UNKNOWN → any`.
 
-#### AgentSession (`agent/session.py`)
+##### AgentSession (`agent/session.py`)
 
 - CRUD for `sessions` and `messages` tables.
 - Deletion/listing of RAG documents is not handled here; it goes through `rag-pipeline-mcp`.
 - Returns message lists for session restoration.
 
-#### Memory Services (`agent/memory/`)
+##### Memory Services (`agent/memory/`)
 
 An optional subsystem enabled when `use_memory_layer=True`. Accessed via `ctx.services.memory`.
 
@@ -206,13 +198,13 @@ An optional subsystem enabled when `use_memory_layer=True`. Accessed via `ctx.se
 | `store` | JSONL + SQLite store for memory entries. |
 | `retriever` | FTS5 and optional KNN search. |
 
-#### EventBus Client Modules (`agent/eventbus_client.py`, `agent/eventbus_subscriber.py`, `agent/eventbus_topic_admin_client.py`)
+##### EventBus Client Modules (`agent/eventbus_client.py`, `agent/eventbus_subscriber.py`, `agent/eventbus_topic_admin_client.py`)
 
 Client-side libraries for the Event Bus HTTP API: `EventBusClient` publishes events, `EventBusSubscriber` consumes the `/subscribe` SSE stream (reconnecting with a fresh `consumer_id`), and `EventBusTopicAdminClient` updates the admin topics-authorization settings. No runtime component of the Agent process imports these modules; only their unit tests do, so the Agent does not currently publish to or subscribe from the Event Bus by itself.
 
-## Key Constraints
+### Key Constraints
 
-### Shutdown
+#### Shutdown
 
 Graceful shutdown is controlled via flags. Upon receiving `SIGTERM`, the `shutdown_requested` flag is set, and the loop terminates after the next turn completion. There is a bounded grace period before timeout.
 
@@ -220,27 +212,27 @@ This approach was chosen to ensure the integrity of ongoing workflows rather tha
 
 Resource closing occurs after WAL checkpointing, and both calls are independent and protected. One failing does not block the other.
 
-### Startup Validation Pipeline
+#### Startup Validation Pipeline
 
 Service checks accumulate results in `StartupValidationResult`, and startup is aborted if even one `FATAL` error occurs. MCP subprocesses are rolled back if an exception occurs after they have been started.
 
-### Lifecycle Implementation Location
+#### Lifecycle Implementation Location
 
 `LifecycleManagerProtocol` defines `ensure_ready`/`shutdown_all`/`restart`/`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot` using structural subtyping. The production implementation is in `agent/factory.py`, where HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
 
 `ensure_ready`/`start_http_subprocess`/`restart` are guarded against being ignored once shutdown has started.
 
-## Operational Notes
+### Operational Notes
 
 - Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default).
 - `handle_turn()` executes the plan/execute/verify stages via the workflow engine.
   While `ctx.workflow.approval_pending` is `True`, and while background tasks are paused, new turns are rejected. (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
 
-## Preflight Gate Coverage Map
+### Preflight Gate Coverage Map
 
 See [Preflight Gate Coverage](#preflight-gate-coverage) above for the enumerated `check_preflight()` call sites, the exempt paths and the maintenance rule for new gate additions.
 
-## Known Limitations
+### Known Limitations
 
 - Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
 

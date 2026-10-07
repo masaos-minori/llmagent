@@ -162,7 +162,7 @@ uv run python tools/check_docs_structure.py [glob ...]
 uv run python tools/check_docs_structure.py 'docs/23_agent/*.md' --area agent
 ```
 
-### 15. Docs Content Policy Check (`check_docs_content_policy.py`)
+### 9. Docs Content Policy Check (`check_docs_content_policy.py`)
 
 Checks all `docs/*.md` for implementation-detail content the docs content
 policy prohibits: full file trees, per-file descriptions embedded in a tree
@@ -176,7 +176,7 @@ policy — remove). Report-only (Warning) — findings never block CI; see
 uv run python tools/check_docs_content_policy.py
 ```
 
-### 16. ADR Structure Check (`check_adr_structure.py`)
+### 10. ADR Structure Check (`check_adr_structure.py`)
 
 Validates `docs/10_adr/*.md` structure:
 - `## Known Deviations` heading presence (missing → Error)
@@ -190,7 +190,7 @@ python tools/check_adr_structure.py
 python tools/check_adr_structure.py --format json
 ```
 
-### 17. Known Deviation Sync Check (`check_known_deviation_sync.py`)
+### 11. Known Deviation Sync Check (`check_known_deviation_sync.py`)
 
 Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), and rejects resolved-item bullets in `## Known Deviations` (Error).
 
@@ -201,19 +201,19 @@ Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section ex
 uv run python tools/check_known_deviation_sync.py
 ```
 
-### 18. ADR Invariant Matrix Checks (`check_adr_invariant_matrix.py`, `check_adr_reference.py`)
+### 12. ADR Invariant Matrix Checks (`check_adr_invariant_matrix.py`, `check_adr_reference.py`)
 
 Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr-index.md`: every pytest node id or test path cited in a `Verification Status` cell exists, and every `scripts/` source file cited there carries an `ADR-XXX` comment.
 
 **Enforcement:** pre-commit.
 
-### 19. Canonical Source Registry Checks (`check_canonical_source_registry.py`, `check_canonical_source_conflicts.py`)
+### 13. Canonical Source Registry Checks (`check_canonical_source_registry.py`, `check_canonical_source_conflicts.py`)
 
 Validate `config/documentation_canonical_sources.toml`: schema conformance, path existence, a single normative source per claim type, ADR-status conformance, and semantic conflicts between registered sources (`GV-022`, `GV-023`, `GV-024`).
 
 **Enforcement:** `.github/workflows/governance-docs-consistency.yml`.
 
-### 20. Issue Inventory Conformance Check (`check_issue_inventory_conformance.py`)
+### 14. Issue Inventory Conformance Check (`check_issue_inventory_conformance.py`)
 
 Verifies `governance_03_issue-and-uncertainty-management.md` against its own template: vocabulary values (including the Status value sets of every Part, so no closed-out status such as `resolved` is accepted), per-entry field counts, and referential integrity (`GV-008`).
 
@@ -221,19 +221,21 @@ Verifies `governance_03_issue-and-uncertainty-management.md` against its own tem
 
 ## Manual Checks
 
-Numbering continues from `## Automated Checks` above (items 1-8 and 15-20); items 9-14 below were assigned before items 15-20 were added, so the full sequence appears across both sections in creation order, not strict document order.
+Numbering continues from `## Automated Checks` above (items 1-14); the manual checks are items 15-20.
 
-### 9. Canonical Source Verification
+### 15. Canonical Source Verification
 
 When conflicts arise between documentation and code/config, apply the precedence hierarchy defined in `governance_01_documentation-policy.md`:
 
-1. Canonical authority resolved per claim type and decision target — see `governance_01_documentation-policy.md`'s Claim Type Taxonomy and Decision Target Canonical Source Matrix
+1. Canonical authority resolved per claim type and decision target — see `governance_01_documentation-policy.md`'s Claim Type Taxonomy and its Resolution Matrix
 2. Recency (review/modification/commit date) never determines canonical authority — see `governance_01_documentation-policy.md`'s Recency Is Not Authority subsection
 3. The area's document-guide identifies the canonical source within that area
 
-### 10. Evidence Label Validation
+### 16. Evidence Label Validation
 
 Verify evidence labels on statements match their actual grounding level:
+
+Notation: write the label in parentheses, optionally followed by an em dash and the supporting reference, for example (Explicit in code — `scripts/rag/pipeline.py::RagPipeline`). Do not use square brackets, a prefix such as `Evidence:` or `Evidence classification:`, or labels outside the list below (for example `Confirmed by code`).
 
 1. **Explicit in code** — Directly observable in source code
 2. **Strongly implied by code** — Inferred from code structure/patterns
@@ -243,7 +245,7 @@ Verify evidence labels on statements match their actual grounding level:
 6. **Verified by test** — Confirmed through automated tests
 7. **Operationally observed** — Based on runtime behavior observations
 
-### 11. ADR Section Header Compliance
+### 17. ADR Section Header Compliance
 
 All ADRs must use the following section headers in this order:
 
@@ -265,7 +267,7 @@ All ADRs must use the following section headers in this order:
 
 See [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization) for duplicate notes shared across all ADRs.
 
-### 12. Area Dependency Graph Validation
+### 18. Area Dependency Graph Validation
 
 Canonical source: the dependency-graph taxonomy (Software Runtime Dependency Graph,
 Deployment Management Graph, Documentation Reference Graph, Governance Applicability
@@ -284,7 +286,7 @@ tool — see each section's own cycle-tolerance statement in
 `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md` — and remain subject to human review
 only.
 
-### 13. Merge Condition Validation
+### 19. Merge Condition Validation
 
 Merge is gated on [Policy's Merge Conditions](governance_01_documentation-policy.md#merge-conditions)
 (Blocking/Non-Blocking conditions and the Merge Workflow) — see that
@@ -295,7 +297,7 @@ A `GV-020` finding is not itself blocking, but every finding must be resolved or
 covered by an approved temporary exception before merge — an unexplained finding
 left neither fixed nor excepted is treated as incomplete review, not a passing PR.
 
-### 14. Cross-Area Reference Validation
+### 20. Cross-Area Reference Validation
 
 Verify that cross-document references follow the Link Rules in [governance_02_documentation-metadata.md](governance_02_documentation-metadata.md#link-rules).
 

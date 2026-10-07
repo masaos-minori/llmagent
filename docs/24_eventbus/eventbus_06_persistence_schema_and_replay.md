@@ -13,7 +13,7 @@ related:
   - eventbus_00_document-guide.md
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
-  - eventbus_06_dlq_offsets_and_delivery_semantics.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
 source:
   - eventbus_02_api-reference-index.md
 ---
@@ -60,11 +60,11 @@ Schema migrations for existing databases are idempotent.
 
 ## Consumer ID Stability
 
-See [Consumer Identity](eventbus_06_dlq_offsets_and_delivery_semantics.md#consumer-identity) in the DLQ, offsets and delivery semantics document.
+See [Consumer Identity](eventbus_05_dlq_offsets_and_delivery_semantics.md#consumer-identity) in the DLQ, offsets and delivery semantics document.
 
 ## Replay Behavior
 
-`GET /replay?since_seq=N` returns events where `seq > N` in ascending order of `seq`. SSE format provides sequential streaming; JSON format provides a `{total, limit, offset, items}` pagination object. `total` is available only in JSON format.
+`GET /replay?since_seq=N` returns events where `seq > N` in ascending order of `seq`. SSE format provides sequential streaming; JSON format provides a `{total, limit, offset, items}` pagination object. `total` is available only in JSON format. The full endpoint contract is in `eventbus_12_replay_endpoint.md`.
 
 ## SQLite/JSONL Consistency Check and Recovery Procedure
 

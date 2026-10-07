@@ -8,10 +8,10 @@ tags:
   - metrics
 related:
   - eventbus_03_dlq_operations.md
-  - eventbus_05_dlq_endpoint.md
-  - eventbus_16_replay_operations.md
+  - eventbus_04_dlq_endpoint.md
+  - eventbus_12_replay_endpoint.md
   - eventbus_01_system-overview.md
-  - eventbus_06_dlq_offsets_and_delivery_semantics.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
 ---
 # EventBus Publish Durability
 

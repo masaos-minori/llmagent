@@ -97,9 +97,11 @@ The workflow definition is a **required workflow deployment artifact**:
 source `config/workflows/default.json` → deployed to the same relative path under the production install root.
 There is no disable, fallback, or workflow-optional mode.
 
-### 2.3 Registering and Starting LLM Services
+### 2.3 Starting Services
 
-`deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services (only echoes their names) or MCP servers.
+`deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services (it only echoes their names and later queries their health endpoints) or MCP servers.
+
+No script, unit file or configuration in this repository starts the LLM services (`embed-llm`, `agent-llm`): they must already be running before the agent starts. The start procedure is outside the repository and is tracked as DEPLOY-001 in `governance_03_issue-and-uncertainty-management.md`.
 
 MCP servers (ports defined per server in `config/agent.toml`) auto-start as agent-managed subprocesses on agent startup.
 
@@ -112,7 +114,7 @@ MCP servers (ports defined per server in `config/agent.toml`) auto-start as agen
 bash deploy/setup_services.sh
 ```
 
-After starting services, verify connectivity to the health-check endpoints for both `embed-llm` and `agent-llm`:
+After the LLM services are running, verify connectivity to the health-check endpoints for both `embed-llm` and `agent-llm`:
 
 ```bash
 # Illustrative: use the hosts/ports from llm.llm_url and rag.embed_url in config/agent.toml

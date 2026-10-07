@@ -6,17 +6,17 @@ tags:
   - memory
   - overview
 related:
-  - agent_12_02_memory-gate-data-model-search.md
-  - agent_12_03_memory-module-ref-core-and-store.md
-  - agent_12_04_memory-module-ref-retrieval-and-injection.md
-  - agent_12_05_memory-module-ref-extraction-and-facade.md
+  - agent_11_02_memory-gate-data-model-search.md
+  - agent_11_03_memory-module-ref-core-and-store.md
+  - agent_11_04_memory-module-ref-retrieval-and-injection.md
+  - agent_11_05_memory-module-ref-extraction-and-facade.md
   - agent_00_document-guide.md
-  - agent_12_06_memory-module-ref-ops-and-scoring.md
+  - agent_11_06_memory-module-ref-ops-and-scoring.md
 ---
 # Memory Layer — Overview and Modes (Part 1)
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
+- Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Purpose
 
@@ -51,8 +51,8 @@ None
 
 ## Memory Layer — Overview and Modes (Part 2)
 
-- Operations and Observability $\rightarrow$ [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration $\rightarrow$ [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
+- Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
+- Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
 
 ## Memory Modes
 
@@ -74,10 +74,10 @@ The memory layer operates in four different modes, which can be checked via `/me
 
 **Transitions between modes:**
 
-- Hybrid $\rightarrow$ FTS-only: Requires configuration change (`memory_embed_enabled`). Individual retrievals fall back to FTS automatically on embedding failure.
-- FTS-only $\rightarrow$ Hybrid: Requires configuration change (`memory_embed_enabled`).
-- Degraded $\rightarrow$ Hybrid: Automatic transition when the circuit breaker closes after a recovery period.
-- Any $\rightarrow$ Disabled: Requires configuration change and agent restart.
+- Hybrid → FTS-only: Requires configuration change (`memory_embed_enabled`). Individual retrievals fall back to FTS automatically on embedding failure.
+- FTS-only → Hybrid: Requires configuration change (`memory_embed_enabled`).
+- Degraded → Hybrid: Automatic transition when the circuit breaker closes after a recovery period.
+- Any → Disabled: Requires configuration change and agent restart.
 
 ### Implementation Note: Persistence Order and Failure Handling for `on_session_stop`
 

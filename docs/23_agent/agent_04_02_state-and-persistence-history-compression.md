@@ -12,9 +12,9 @@ related:
 ---
 # Agent State and Persistence - History Compression
 
-Turn flow $\rightarrow$ [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
-Turn flow $\rightarrow$ [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md)
-Data layer (schema) $\rightarrow$ [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
+Turn flow → [agent_02_runtime-architecture.md](agent_02_runtime-architecture.md)
+Turn flow → [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md)
+Data layer (schema) → [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md)
 
 ## Purpose
 
@@ -33,7 +33,7 @@ Triggered during each turn if either of the following conditions is met:
 
 `HistorySelectionPolicy.select_turns_to_compress()` selects turns based on the following:
 
-1. **Importance Scoring** — Pinned items $\rightarrow$ Explicit importance $\rightarrow$ Keyword-based
+1. **Importance Scoring** — Pinned items → Explicit importance → Keyword-based
 2. **Category Classification**:
    - `temporary` (`tool` role) — Highest priority for deletion
    - `temporary_reasoning` (`assistant` with tool calls) — Second highest priority
@@ -43,7 +43,7 @@ Triggered during each turn if either of the following conditions is met:
 
 ### Compression Results
 
-- Selected old turns $\rightarrow$ Replaced with a single LLM summary message
+- Selected old turns → Replaced with a single LLM summary message
 - `CompressResult.compressed_count` = Number of messages replaced
 - `CompressResult.protected_count` = Number of messages skipped (protected)
 - `stat_compress_count` is incremented
@@ -52,8 +52,8 @@ Triggered during each turn if either of the following conditions is met:
 
 If `HistoryManager.compress()` fails to call the summarization LLM, a `HistoryCompressionError` is raised but caught internally, returning `None` and logging a WARNING. Subsequent branching:
 
-- **If character limit is still exceeded** $\rightarrow$ Falls through to fallback truncation, performing mechanical deletion of low-importance messages without summarization.
-- **If character limit is no longer exceeded** $\rightarrow$ Returns as a no-op without modifying history (`CompressResult(compressed_count=0, ...)`).
+- **If character limit is still exceeded** → Falls through to fallback truncation, performing mechanical deletion of low-importance messages without summarization.
+- **If character limit is no longer exceeded** → Returns as a no-op without modifying history (`CompressResult(compressed_count=0, ...)`).
 
 Fallback truncation sorts messages by `HistorySelectionPolicy.classify_importance()` in ascending order (lowest importance first) and deletes them one by one from candidates that exclude the `system` role and the most recent `protect_turns` pairs until the character limit is met. If the limit cannot be reached even after deleting all messages, it continues processing while issuing a WARNING log. This path sets `CompressResult.is_fallback=True` and increments `HistoryManager.stat_fallback_truncate_count`.
 

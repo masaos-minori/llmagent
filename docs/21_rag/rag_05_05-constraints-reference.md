@@ -16,7 +16,7 @@ source:
 
 | Constraint | Value |
 |---|---|
-| Language detection threshold | CJK ratio above a threshold $\rightarrow$ `ja`; very short pages $\rightarrow$ use hint language |
+| Language detection threshold | CJK ratio above a threshold → `ja`; very short pages → use hint language |
 | Chunk size range | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](rag_05_01-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. |
 | Chunk overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](rag_05_01-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. |
 | Embedding dimensions | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB |

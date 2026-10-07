@@ -22,7 +22,7 @@ When adding a new server:
 - [ ] Declare the tool in the server's `/v1/tools` response with the schema-2.0 fields (this is what makes it routable)
 - [ ] Register the tool in the frozenset of `shared/tool_constants.py` (static seed for drift detection, not a routing input); the `tool_names` in the config side is only used for optional drift validation
 - [ ] Add the new file to the copy list in `deploy/deploy.sh`
-- [ ] Add startup procedures to `deploy/setup_services.sh`
+- [ ] Define `[mcp_servers.<key>]` with `startup_mode = "subprocess"` in `config/agent.toml` — the agent starts the server; `deploy/setup_services.sh` has no per-server step
 - [ ] For every new tool, add an entry for `tool_safety_tiers` in `config/agent.toml`
 - [ ] Update `routing.md` (repository root) if new documentation is required
 

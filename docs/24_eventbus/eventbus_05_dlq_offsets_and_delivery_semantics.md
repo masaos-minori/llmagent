@@ -13,7 +13,7 @@ related:
   - eventbus_00_document-guide.md
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
-  - eventbus_07_persistence_schema_and_replay.md
+  - eventbus_06_persistence_schema_and_replay.md
 source:
   - eventbus_02_api-reference-index.md
 ---
@@ -253,7 +253,8 @@ At-least-once. Duplicate publishing is suppressed by the `event_id` UNIQUE const
 | ACKed | `acked_at IS NOT NULL` |
 | Failed | `acked_at IS NULL AND delivery_failure_count >= max_retry AND dlq_at IS NULL` |
 | DLQ | `dlq_at IS NOT NULL` |
-| Requeued | `dlq_at IS NULL AND delivery_failure_count < max_retry` (after requeue) |
+
+A requeue is not a state of the original row. Under the lineage model the original row stays in the DLQ state (its `dlq_at` is preserved) and the requeue inserts a new row, which starts in the Normal/Delivered state.
 
 ### Allowed Transitions
 
@@ -270,7 +271,7 @@ DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cy
 ```
 ACKed ✗ NACK → HTTP 409 "event already acknowledged" (applies when `events.acked_at` is set or the requesting consumer has already ACKed via `consumer_delivery.acked_at`)
 DLQ ✗ NACK → HTTP 409 "event already in dead letter queue"
-DLQ ✗ REQUEUE → HTTP 409 "event is not in DLQ"
+DLQ ✗ REQUEUE of an event that is not in the DLQ, or that was already requeued → HTTP 409 "event is not in DLQ"
 ```
 
 ### Return Value Conventions

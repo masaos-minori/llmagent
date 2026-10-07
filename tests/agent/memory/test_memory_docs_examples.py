@@ -1,6 +1,6 @@
 """
 tests/test_memory_docs_examples.py
-Verify that documented behavior in docs/23_agent/agent_12_*.md matches actual code.
+Verify that documented behavior in docs/23_agent/agent_11_*.md matches actual code.
 
 Covers: activation gate, data model schema, RRF formula, embedding disabled behavior.
 """

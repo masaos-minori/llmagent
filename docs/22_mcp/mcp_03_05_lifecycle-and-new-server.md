@@ -72,7 +72,7 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 5. Add a `tool_safety_tiers` entry for each tool in `config/agent.toml`.
 6. Create `config/<key>_mcp_server.toml` containing server app settings, and add the `[mcp_servers.<key>]` transport section to `config/agent.toml`.
 7. Add the new file to the copy list in `deploy/deploy.sh`.
-8. Add a startup step to `deploy/setup_services.sh`.
+8. No `deploy/setup_services.sh` step is needed: with `startup_mode = "subprocess"` the agent starts the server.
 
 ### Setting `tool_names` (Drift Detection Only)
 

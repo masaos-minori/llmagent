@@ -75,7 +75,7 @@ At the agent level: `config/agent.toml`'s `approval_dry_run_tools` lists tools w
 
 ## Risk Tier Classification
 
-Safety tiers (from `config/agent.toml::tool_safety_tiers`) supply a default approval risk (`none`/`medium`/`high`); an explicit `config/agent.toml::approval_risk_rules` entry takes precedence (Explicit in code: `agent/tool_policy.py::classify_risk`, `_TIER_TO_RISK`). The approval method follows the effective risk, not the tier name alone:
+Safety tiers (from `config/agent.toml::tool_safety_tiers`) supply a default approval risk (`none`/`medium`/`high`); an explicit `config/agent.toml::approval_risk_rules` entry takes precedence (Explicit in code — `agent/tool_policy.py::classify_risk`, `_TIER_TO_RISK`). The approval method follows the effective risk, not the tier name alone:
 
 | Tier | Default risk | Approval Method | Examples |
 |---|---|---|---|

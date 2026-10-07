@@ -53,7 +53,7 @@ Documents in the design documentation set are classified into six classes:
 
 ## Canonical Source Precedence
 
-Canonical authority is resolved by the Claim Type Taxonomy and the Decision Target Canonical Source Matrix below, at the level of individual claims rather than whole-document-level rankings.
+Canonical authority is resolved by the Claim Type Taxonomy and its Resolution Matrix below, at the level of individual claims rather than whole-document-level rankings.
 
 ## Claim Type Taxonomy
 
@@ -113,21 +113,21 @@ A claim whose truth has not yet been verified through evidence.
 
 ### Resolution Matrix
 
-| Claim type | Definition | Canonical source kind | Auxiliary evidence | Conflict destination | Notes or constraints |
-|------------|-----------|----------------------|--------------------|---------------------|---------------------|
-| architecture-decision | Adopted architectural decision in accepted ADR | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design |
-| functional-requirement | Normative requirement in an Accepted ADR or Registry-registered source | `docs/10_adr/ADR-{NNN}-*.md` or the Canonical Source Registry entry | Acceptance Test | Known Issues | No per-area `*_specification.md` is maintained |
-| external-behavior | Observable system behavior for external consumers | Registry-registered source + Integration Test | Runtime Log, Test | Known Issues | |
-| api-contract | Formal interface contract | Official API Schema or Contract | Integration Test | Known Issues | |
-| runtime-behavior | Current execution-time behavior | Source under `scripts/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design |
-| verification-contract | Executable assertions about expected behavior | `tests/` + the requirement source | ADR | Known Issues | Tests cannot silently redefine requirements |
-| production-effective-value | Effective parameter value in deployment | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift | |
-| configuration-schema | Valid configuration structure and constraints | Configuration Schema | Configuration Validation | Configuration Drift | |
-| database-schema | Tables, columns, indexes, constraints | Schema Generator or official DDL | Schema Test | Known Issues | |
-| operational-procedure | Operator interaction guidance | Operations / Runbook | Operational Validation | Known Issues | |
-| security-policy | Security constraints and mandates | Governance + Security Policy Spec | Audit Evidence | Known Issues | |
-| documentation-metadata | Metadata on documentation assets | `docs/00_governance/governance_02_documentation-metadata.md` | Metadata Validator | Known Issues | |
-| unconfirmed-claim | Unverified claim | Needs Confirmation inventory | Investigation Evidence | Needs Confirmation | |
+| Claim type | Decision target | Definition | Canonical source kind | Auxiliary evidence | Conflict destination | Notes or constraints |
+|---|---|---|---|---|---|---|
+| architecture-decision | Adopted Architecture Decision | Adopted architectural decision in accepted ADR | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design |
+| functional-requirement | Requirements | Normative requirement in an Accepted ADR or Registry-registered source | `docs/10_adr/ADR-{NNN}-*.md` or the Canonical Source Registry entry | Acceptance Test | Known Issues | No per-area `*_specification.md` is maintained |
+| external-behavior | External Behavior | Observable system behavior for external consumers | Canonical Source Registry entry | Acceptance Test, Integration Test, Runtime Log | Known Issues |  |
+| api-contract | API Contract | Formal interface contract | Official API Schema or Contract | Integration Test | Known Issues |  |
+| runtime-behavior | Current Runtime Behavior | Current execution-time behavior | Source under `scripts/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design |
+| verification-contract | Expected Behavior | Executable assertions about expected behavior | `tests/` + the requirement source | ADR | Known Issues | Tests cannot silently redefine requirements |
+| production-effective-value | Effective Value in Production | Effective parameter value in deployment | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift |  |
+| configuration-schema | Configuration Structure | Valid configuration structure and constraints | Configuration Schema | Configuration Validation | Configuration Drift |  |
+| database-schema | DB Schema | Tables, columns, indexes, constraints | Schema Generator or official DDL | Schema Test | Known Issues |  |
+| operational-procedure | Operational Procedures | Operator interaction guidance | Operations / Runbook | Operational Validation | Known Issues |  |
+| security-policy | Security Constraints | Security constraints and mandates | Governance + Security Policy Spec | Audit Evidence | Known Issues |  |
+| documentation-metadata | Documentation Metadata | Metadata on documentation assets | `docs/00_governance/governance_02_documentation-metadata.md` | Metadata Validator | Known Issues |  |
+| unconfirmed-claim | Unconfirmed Items | Unverified claim | Needs Confirmation inventory (`governance_03_issue-and-uncertainty-management.md`) | Investigation Evidence | Needs Confirmation |  |
 
 Any rule for deciding whether documentation content is mechanically removable (verifiable from code, config, or schema alone) belongs in `governance_02_documentation-metadata.md`'s "Guidelines for Recording Information Verifiable via Implementation Reference" section — do not add a second, independently-worded rule here.
 
@@ -139,23 +139,9 @@ The "Canonical source kind" column identifies **authority** — the artifact who
 
 A single document may carry claims of more than one type. Classification is by claim, not by the document as a whole. For example, an ADR may contain both `architecture-decision` claims and `documentation-metadata` claims; each claim type is resolved independently using the row for that type.
 
-### Decision Target Canonical Source Matrix
+### Code vs. Adopted Design
 
-Defines which artifact is authoritative for each decision target, so Code is not
-treated as the top canonical source for every kind of decision.
-
-| Decision Target | Canonical | Auxiliary Evidence | Discrepancy Registration Target |
-|-----------------|-----------|--------------------|----------------------------------|
-| Adopted Architecture Decision | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues |
-| Requirements | Accepted ADR or Canonical Source Registry entry | Acceptance Test | Known Issues |
-| External Behavior | Canonical Source Registry entry | Acceptance Test | Known Issues |
-| Current Runtime Behavior | Source under `scripts/` | Runtime Log, Test | Known Issues |
-| Expected Behavior | `tests/` + the requirement source | ADR | Known Issues |
-| Effective Value in Production | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift |
-| DB Schema | Schema Generator or official DDL | Schema Test | Known Issues |
-| API Contract | API Schema or official Contract | Integration Test | Known Issues |
-| Operational Procedures | Operations / Runbook | Operational Validation | Known Issues |
-| Unconfirmed Items | `governance_03_issue-and-uncertainty-management.md` | Investigation Evidence | Needs Confirmation |
+The Resolution Matrix above names, for each claim type, the decision target it settles, so Code is not treated as the top canonical source for every kind of decision.
 
 **Code is canonical for current behavior, NOT for adopted design.** When code
 contradicts an ADR, the ADR represents the intended architecture and the discrepancy
@@ -205,7 +191,7 @@ When two documents contradict each other:
 
 1. Identify the area(s) each document belongs to
 2. Determine if both documents are in the same area — if so, consult the area's document-guide for the canonical source
-3. If documents span different areas, identify the decision target the conflict concerns and apply the Decision Target Canonical Source Matrix (see `## Claim Type Taxonomy` > `### Decision Target Canonical Source Matrix`) to determine the authoritative source for that decision target
+3. If documents span different areas, identify the decision target the conflict concerns and apply the Resolution Matrix (see `## Claim Type Taxonomy` > `### Resolution Matrix`) to determine the authoritative source for that decision target
 4. If neither rule resolves the conflict, register a Known Issue and defer resolution until the next review cycle
 
 ## Code vs Document Conflict Rule

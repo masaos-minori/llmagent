@@ -13,8 +13,8 @@ related:
   - db_02_architecture_and_schema-schema-reference.md
   - db_07_api_and_operations-recovery-and-reference.md
   - agent_09_01_data-layer-session-db.md
-  - eventbus_07_persistence_schema_and_replay.md
-  - eventbus_06_dlq_offsets_and_delivery_semantics.md
+  - eventbus_06_persistence_schema_and_replay.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
   - agent_10_01_operations-and-observability-startup-and-health.md
   - governance_03_issue-and-uncertainty-management.md
 ---
@@ -259,8 +259,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - [DB Architecture and Schema](../41_db/db_02_architecture_and_schema-schema-reference.md)
 - [DB API and Operations — Recovery and Reference](../41_db/db_07_api_and_operations-recovery-and-reference.md)
 - [Agent Session and DB Data Layer](../23_agent/agent_09_01_data-layer-session-db.md)
-- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_07_persistence_schema_and_replay.md)
-- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md)
+- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_06_persistence_schema_and_replay.md)
+- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md)
 
 ### Operations
 
