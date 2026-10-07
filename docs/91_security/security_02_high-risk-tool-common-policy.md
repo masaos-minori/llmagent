@@ -19,7 +19,7 @@ related:
   - mcp_04_04_mdq.md
   - mcp_05_05_mdq-enforcement-and-lockdown.md
   - agent_06_02_tool-execution-and-approval-approval.md
-  - mcp_06_16_pre-production-fail-open-checklist.md
+  - mcp_06_13_pre-production-fail-open-checklist.md
   - mcp_02_03_audit-logging-and-errors.md
 source:
 ---
@@ -160,7 +160,7 @@ unconditionally in every environment.
 | MCP server bind address | Loopback (`127.0.0.1`/`::1`) only, unconditionally — any other host raises `ValueError` at startup |
 | Bearer token (`auth_token`) | Required and non-empty for every HTTP MCP server — an empty token raises `ValueError` at startup |
 
-*Source: `mcp_06_16_pre-production-fail-open-checklist.md`*
+*Source: `mcp_06_13_pre-production-fail-open-checklist.md`*
 
 ## Failure behavior
 

@@ -6,9 +6,9 @@ tags:
   - configuration
 related:
   - mcp_00_document-guide.md
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
 source:
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
 ---
 
 # Verification Methods
@@ -38,7 +38,7 @@ curl -s http://127.0.0.1:<git_port>/health | jq   # git: dependencies.git
 - **HTTP 200**: Server is fully healthy (`status="ok"`, `ready=true`)
 - **HTTP 503**: Server has dependency failures (`status="degraded"`, `ready=false`)
 
-The mcp subcommand's `status` action (`McpStatusService.probe_all()`) reads both the HTTP status code and the `restart_recommended`/`operator_action_required` fields in the response body, reflecting them in the `health_reason` column. This is for display only and does not trigger automatic restarts (see [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md) for manual recovery).
+The mcp subcommand's `status` action (`McpStatusService.probe_all()`) reads both the HTTP status code and the `restart_recommended`/`operator_action_required` fields in the response body, reflecting them in the `health_reason` column. This is for display only and does not trigger automatic restarts (see [mcp_06_07_mcp-failure-diagnosis.md](mcp_06_07_mcp-failure-diagnosis.md) for manual recovery).
 
 ```bash
 # Check HTTP status code (not just body)

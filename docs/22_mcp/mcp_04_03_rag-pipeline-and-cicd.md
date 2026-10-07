@@ -58,7 +58,7 @@ Current default values are defined in `config/rag_pipeline_mcp_server.toml` and 
 **Note:** host/port/http_timeout are not configuration keys of `config/rag_pipeline_mcp_server.toml`, because `RagPipelineConfig` does not load them. The values are hardcoded: `http_host` (MCPServer base class), `http_port` (`rag_pipeline/rag_pipeline_server.py`), `http_timeout` (`rag_pipeline/rag_pipeline_service.py`).
 
 **Health:** If `embed_url` is configured: `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; if not configured: `{"status":"degraded","ready":false,"dependencies":{"embed_url":"not configured"}}` or `{"dependencies":{"config":"check failed"}}` — returns HTTP 200 when ready, and 503 when degraded.
-**Design Note:** To prevent HTTP loops, `rab_service_url = ""` is hardcoded in `build_rag_cfg_adapter()`.
+**Design Note:** To prevent HTTP loops, `rag_service_url = ""` is hardcoded in `build_rag_cfg_adapter()`.
 **Logs:** `rag-mcp.log` (in the log directory)
 **Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): None / Layer3 (Dedicated): None — does not write audit logs
 **Usage Scenarios:** All RAG searches; the `/rag search` command goes through this server.

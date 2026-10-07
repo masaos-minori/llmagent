@@ -47,28 +47,21 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 - **Component Responsibilities**: Admin/Operator initiates crawling via `crawler.py`; `WebCrawler` performs BFS crawl of same-origin URLs producing `{yyyymmddhhmmss}-{slug}.json` artifacts; `ChunkSplitter` splits crawled content using language-aware strategies (JA: Sudachi / EN: sentence / code: blank-line); `RagIngester` generates embeddings via embed-llm and upserts into SQLite; processed chunks are moved to `rag-src/registered/`.
 - **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (No automated retention or cleanup exists; cleanup mechanism design is out of scope — requires separate design decision.).
 - **Allowed Dependency Direction**: Admin → crawler.py → chunk_splitter.py → ingester.py → rag-src/registered/. No circular dependencies among pipeline stages.
-- **Reason for Process Separation**: Each pipeline stage runs as a separate script because failure isolation prevents one stage's crash from affecting others; independent scaling allows write-heavy domains (file-write-mcp) to require different resource allocation than read-only domains (web-search-mcp); deployment independence allows individual scripts to be updated or restarted without affecting the entire system.
+- **Process Separation**: Each ingestion stage (`crawler.py`, `chunk_splitter.py`, `ingester.py`) is a separate script with its own `main()` entry point and its own configuration file, and the stages hand off work through files (crawled JSON, chunked JSON, `rag-src/registered/`) rather than in-process calls, so each stage can be run, re-run or restarted on its own. (Explicit in code — `scripts/rag/ingestion/crawler.py`, `chunk_splitter.py`, `ingester.py`)
 - **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
 
 - **Component Responsibilities**: Agent turn invokes `RagPipeline.augment(query)` via MCP HTTP; RagPipeline executes MQE → Search → RRF → Rerank → Augment stages; KNN + BM25 search operates over SQLite (rag.db).
 - **Owned State**: RagPipeline owns the query execution lifecycle; SQLite (rag.db) owns the vector store layer.
 - **Ownership rationale**: `rag` layer's authority over query execution derives from the repository's layered-architecture rule (`rules/env.md`); SQLite's ownership of the vector store layer derives from `ADR-005` (canonical-source/derived-index relationship) and `ADR-010` (in-process fallback model). Note: modification-rights implications and known exceptions to these ownership rules are not separately documented anywhere in this repository.
 - **Allowed Dependency Direction**: Agent → MCP → RagPipeline → KNN + BM25 → SQLite. No circular dependencies among pipeline stages.
-- **Reason for Process Separation**: MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
+- **Process Separation**: MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
 - **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
 
 ### Ownership Rationale
 
 #### Why each component owns its stated state
 
-Each pipeline stage runs as a separate script because failure isolation prevents one
-stage's crash from affecting others; independent scaling allows write-heavy domains
-(e.g., file-write-mcp) to require different resource allocation than read-only domains
-(e.g., web-search-mcp); deployment independence allows individual scripts to be updated
-or restarted without affecting the entire system (Reason for Process Separation). These
-same principles apply to the Query Pipeline: the MCP server operates independently of
-the agent lifecycle, and each stage can be updated or restarted without affecting the
-entire system.
+Each ingestion stage is a separate script that exchanges data with the next stage through files, so a stage can be re-run or restarted without re-running the others (Process Separation). In the Query Pipeline, the MCP server operates independently of the agent lifecycle, and each stage can be updated or restarted without affecting the entire system.
 
 #### Why SQLite (rag.db) owns the vector store layer
 
@@ -194,11 +187,11 @@ Troubleshooting:
 - If the request times out: verify the embedding server is running and accessible at the specified address
 - If you receive an HTTP 503: the service is running but has failed dependency checks; inspect the `dependencies` field for specific failures
 
-**sqlite-vec extension:** Success criteria: command exits with return code 0 and produces no error output. A non-zero exit code indicates the extension is not loadable.
+**sqlite-vec extension:** Success criteria: the file at `sqlite_vec_so` (see `config/ingester.toml`) exists. A missing file means the extension cannot be loaded.
 
-**Configuration files:** Success criteria: each `ls` command outputs the file path without error. Missing files will produce "No such file or directory" errors.
+**Configuration files:** Success criteria: all three files exist at the paths listed in the table (for example, `ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml` prints each path without error). Missing files produce "No such file or directory" errors.
 
-**Target URLs or files:** Success criteria: the Python script completes without raising `FileNotFoundError` or `ValueError`. These exceptions indicate missing config files or empty target lists respectively.
+**Target URLs or files:** Success criteria: at least one target is given, either by `--url` on the command line or by `target_urls` in `config/crawler.toml`.
 
 ---
 

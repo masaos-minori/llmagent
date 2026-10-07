@@ -6,7 +6,7 @@ tags:
   - configuration
   - operations
 related:
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
 ---
 # Settings with High Operational Impact
 

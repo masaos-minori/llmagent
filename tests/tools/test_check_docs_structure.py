@@ -378,7 +378,7 @@ class TestDefaultGlobIsRecursive:
 
 
 class TestSelfReferenceCheck:
-    """GV-006: Self-reference prohibition check."""
+    """GV-005: Self-reference prohibition check."""
 
     def test_self_reference_in_body_link_is_flagged(self, tmp_path: Path) -> None:
         """REQ-008: A document linking to itself in body text is flagged."""

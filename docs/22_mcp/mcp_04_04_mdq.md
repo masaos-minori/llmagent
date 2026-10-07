@@ -34,7 +34,7 @@ related:
 - `max_snippet_chars`: `search.py` snippet processing truncates snippets using this value.
 - `search_timeout_sec`: `search_docs()` wraps the search in `asyncio.wait_for(asyncio.to_thread(...), timeout=...)` and raises `MdqConsistencyError` upon timeout (note: this does not forcibly interrupt the background thread itself).
 
-**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns more fields than the basic response (refer to [mcp_06 Health probes](mcp_06_06_verification-methods.md#health-probes)).
+**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns more fields than the basic response (refer to [mcp_06 Health probes](mcp_06_04_verification-methods.md#health-probes)).
 
 **DB Path:** (`config/mdq_mcp_server.toml`: `db_path`)
 **Logs:** `<log_dir>/mdq-mcp.log`

@@ -28,7 +28,7 @@ create_schema()
 ```
 
 - For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
-- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8c) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
+- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8d) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
 - Embedding dimension is a fixed code-level constant returned by `scripts/db/store_protocols.py::get_embedding_dims()`, not a config key.
 
 ### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)
@@ -62,7 +62,7 @@ Each table serves a distinct purpose:
 - **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
 - **New tables:** `_migrate()` additionally creates the `consumer_delivery` and `consumer_offsets` tables via the same idempotent `CREATE TABLE IF NOT EXISTS` pattern used for column/index additions.
 - **Separate data seeding:** `migrate_legacy_offsets()` (see Schema Evolution below) is distinct from `_migrate()`'s schema-DDL role.
-- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL via `schema.sql`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`) (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
+- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL via `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`) (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
 
 ### 8c. RAG Consistency Verification (Explicit in code)
 

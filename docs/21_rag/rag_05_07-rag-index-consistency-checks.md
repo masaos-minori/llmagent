@@ -44,13 +44,6 @@ The `/session rag-rebuild-fts` command rebuilds `chunks_fts` from the base `chun
 - When `fts_orphan_count > 0` (extra FTS entries, risk of data loss) is detected.
 - To verify FTS index integrity after large ingestions.
 
-**Repair Decision Flow:**
-
-| Issue | Fix |
-|---|---|
-| `fts_gap > 0` | Run `/session rag-rebuild-fts` — Rebuilds from `chunks` because FTS entries are missing. |
-| `fts_orphan_count > 0` | Run `/session rag-rebuild-fts` — Removes extra entries in FTS (risk of data loss; urgent action required). |
-
 ## `/session rag-consistency` Command
 
 The `/session rag-consistency` command displays numerical counts and then shows an OK status or a summary of errors.

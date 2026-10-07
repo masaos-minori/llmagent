@@ -41,7 +41,7 @@ Without an explicit decision, mechanical-content removal work cannot proceed aga
 ### Constraints
 
 - This ADR records the disposition decision only — it does not implement any generation tooling or edit any existing Reference document's content.
-- `GV-021` (`tools/check_docs_content_policy.py`) documents an intent to exempt guarded, auto-generated content from its mechanical-content warnings, but that exemption must actually recognize the real guard-comment format before Option B's guarded blocks are usable without warning noise (tracked separately).
+- `GV-018` (`tools/check_docs_content_policy.py`) documents an intent to exempt guarded, auto-generated content from its mechanical-content warnings, but that exemption must actually recognize the real guard-comment format before Option B's guarded blocks are usable without warning noise (tracked separately).
 
 ## Assumptions
 
@@ -96,7 +96,7 @@ Leave Reference-class documents hand-maintained and accept ongoing drift risk, t
 ### Negative Consequences
 
 - Requires a `tools/generate_reference_table.py` generator function for any other domain with a Reference document before migration can happen for that domain — tracked separately, not implemented by this ADR. Generators for Agent/EventBus/Memory already exist.
-- `GV-021`'s guard-comment exemption must actually recognize the real `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` format (a pre-existing bug where it only matches a literal bare string) before newly generated guarded blocks are exempt from mechanical-content warnings — tracked separately, not implemented by this ADR.
+- `GV-018`'s guard-comment exemption must actually recognize the real `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` format (a pre-existing bug where it only matches a literal bare string) before newly generated guarded blocks are exempt from mechanical-content warnings — tracked separately, not implemented by this ADR.
 
 ## Invariants
 
@@ -141,7 +141,7 @@ This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance E
 
 - [Documentation Policy](../00_governance/governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
 - `tools/generate_reference_table.py` — existing Option B precedent (rag/mcp/deployment/agent/eventbus/memory generators)
-- `tools/check_docs_content_policy.py` — `GV-021`'s guard-comment exemption, currently mismatched against the real guard format (tracked separately)
+- `tools/check_docs_content_policy.py` — `GV-018`'s guard-comment exemption, currently mismatched against the real guard format (tracked separately)
 
 ## Completion Checklist
 

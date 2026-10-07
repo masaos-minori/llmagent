@@ -26,7 +26,7 @@ Document the history compression mechanism, including triggers, selection polici
 
 Triggered during each turn if either of the following conditions is met:
 
-- `len(history_chars) > context_char_limit` (default 8000)
+- `len(history_chars) > context_char_limit` (threshold value: see `config/agent.toml`)
 - `token_count > context_token_limit` (if greater than 0)
 
 ### Selection of Targets for Compression

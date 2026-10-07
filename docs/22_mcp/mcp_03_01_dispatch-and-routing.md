@@ -45,7 +45,6 @@ LLM returns tool_call
 ### Implementation Notes (Current behavior)
 
 - Tool calls to a server with `startup_mode=none` return an error immediately before attempting health checks or lifecycle activation. (Explicit in code)
-- Tool calls to a server with `startup_mode=none` return an error immediately before attempting health checks or lifecycle activation. (Explicit in code)
 - If the health registry returns a `HALF_OPEN` state, the block by `is_unavailable` is skipped to allow one trial dispatch (circuit breaker half-open attempt). (Explicit in code)
 - `ToolTransportInvoker.invoke()` exists as a separate general-purpose method providing health checks, lifecycle activation, and semaphore control similar to internal dispatch, but it does not include the `startup_mode` gate. (Explicit in code)
 
@@ -94,12 +93,13 @@ Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](.
 | `shell_run` | `shell` |
 | `WEB_SEARCH_TOOLS` (search_web, browser_fetch) | `web_search` |
 | `GITHUB_TOOLS` (github_search_repositories, github_get_file_contents) | `github` |
+| `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
 | `RAG_TOOLS` (rag_run_pipeline, rag_debug_pipeline) | `rag_pipeline` |
 | `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
 | `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
 | No Match | `ValueError` |
 
-For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_09_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
+For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_07_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
 
 ```python
 resolver = ToolRouteResolver()

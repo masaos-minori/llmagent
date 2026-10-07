@@ -64,7 +64,7 @@ User input (line)
          │         │    → SSE streaming → on_token callback → CLIView.write_token()
          │         │    → Collect content_parts + tool_calls_map
          │         │
-         │         └─ Tool Loop (internal, up to max_tool_turns=5):
+         │         └─ Tool Loop (internal, up to max_tool_turns):
          │              → execute_all_tool_calls()
          │                   → Execute in parallel unless side-effecting tools exist
          │                   → ToolExecutor.execute(tool_name, args)

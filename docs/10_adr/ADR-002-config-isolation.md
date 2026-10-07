@@ -10,7 +10,7 @@ decision_scope:
 related:
   - ADR-001-workflow-engine-mandatory.md
   - agent_08_01_configuration-loading-agent-config.md
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
   - adr_02_config-isolation-supporting-sections.md
 supersedes: []
@@ -268,7 +268,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ### Specifications
 
 - [Configuration Loading](../23_agent/agent_08_01_configuration-loading-agent-config.md) — details of Agent configuration loading
-- [MCP Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — list of MCP configuration files
+- [MCP Configuration File Inventory](../22_mcp/mcp_06_01_configuration-file-inventory.md) — list of MCP configuration files
 
 ### Operations
 

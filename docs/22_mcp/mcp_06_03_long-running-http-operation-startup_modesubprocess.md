@@ -6,7 +6,7 @@ tags:
   - startup-modes
   - subprocess
 related:
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
 ---
 # Long-Running HTTP Operation (startup_mode=subprocess)
 

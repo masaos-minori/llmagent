@@ -31,8 +31,8 @@ This directory contains security-related documentation including system security
 | Fail-open/fail-closed risk tiers | `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` |
 | Auth profiles & sandboxing | `mcp_05_02_auth-profiles-and-sandboxing.md` |
 | MDQ enforcement & lockdown | `mcp_05_05_mdq-enforcement-and-lockdown.md` |
-| MCP authentication setup | `mcp_06_17_mcp-authentication-setup.md` |
-| Pre-production fail-open checklist | `mcp_06_16_pre-production-fail-open-checklist.md` |
+| MCP authentication setup | `mcp_06_14_mcp-authentication-setup.md` |
+| Pre-production fail-open checklist | `mcp_06_13_pre-production-fail-open-checklist.md` |
 
 ## Canonical Source Rule
 

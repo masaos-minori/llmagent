@@ -7,11 +7,11 @@ tags:
   - overview
 related:
   - agent_11_02_memory-gate-data-model-search.md
-  - agent_11_03_memory-module-ref-core-and-store.md
-  - agent_11_04_memory-module-ref-retrieval-and-injection.md
-  - agent_11_05_memory-module-ref-extraction-and-facade.md
+  - agent_11_03_memory-module-reference.md
+  - agent_11_03_memory-module-reference.md
+  - agent_11_03_memory-module-reference.md
   - agent_00_document-guide.md
-  - agent_11_06_memory-module-ref-ops-and-scoring.md
+  - agent_11_03_memory-module-reference.md
 ---
 # Memory Layer — Overview and Modes (Part 1)
 

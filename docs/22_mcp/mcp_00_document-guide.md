@@ -13,7 +13,7 @@ related:
   - mcp_03_01_dispatch-and-routing.md
   - mcp_04_01_web-search-file-read-github.md
   - mcp_05_01_access-control-and-allowlists.md
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
   - mcp_07_tool_schema_export_policy.md
   - mcp_08_tool_capability_naming_convention.md
   - governance_03_issue-and-uncertainty-management.md
@@ -86,22 +86,20 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [mcp_03_01](mcp_03_01_dispatch-and-routing.md) to [_02](mcp_03_02_tool-registry.md)/[_03a](mcp_03_03_transport-and-health.md)/[_03b](mcp_03_03_transport-and-health.md)/[_04](mcp_03_04_tool-call-tracing-and-lifecycle.md)/[_05](mcp_03_05_lifecycle-and-new-server.md)/[_06](mcp_03_06_tool-runtime-availability-metadata.md) | Routing and Lifecycle (7 parts) |
 | [mcp_04_01](mcp_04_01_web-search-file-read-github.md) to [_02](mcp_04_02_file-write-file-delete-shell.md)/[_03](mcp_04_03_rag-pipeline-and-cicd.md)/[_04](mcp_04_04_mdq.md)/[_05](mcp_04_05_git.md) | Server Catalog (5 parts, _04=mdq. browser-mcp was merged into web-search-mcp under _01 on 2026-07-20; old _06 was deleted) |
 | [mcp_05_01](mcp_05_01_access-control-and-allowlists.md) to [_02](mcp_05_02_auth-profiles-and-sandboxing.md)/[_03](mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)/[_04](mcp_05_04_mdq-rag-boundary.md)/[_05](mcp_05_05_mdq-enforcement-and-lockdown.md) | Security Model (5 parts) |
-| [mcp_06_01_purpose.md](mcp_06_01_purpose.md) | Config Purpose |
-| [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md) | Config Inventory |
-| [mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md](mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md) | McpServerConfig Fields |
-| [mcp_06_04_major-default-values.md](mcp_06_04_major-default-values.md) | Default Values |
-| [mcp_06_05_long-running-http-operation-startup_modesubprocess.md](mcp_06_05_long-running-http-operation-startup_modesubprocess.md) | Long-running Operations |
-| [mcp_06_06_verification-methods.md](mcp_06_06_verification-methods.md) | Verification Methods |
-| [mcp_06_07_reading-audit-logs.md](mcp_06_07_reading-audit-logs.md) | Audit Log |
-| [mcp_06_08_end-to-end-tool-call-tracing.md](mcp_06_08_end-to-end-tool-call-tracing.md) | Tracing |
-| [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md) | Failure Diagnosis |
-| [mcp_06_10_settings-with-high-operational-impact.md](mcp_06_10_settings-with-high-operational-impact.md) | Settings with High Operational Impact |
-| [mcp_06_11_startup-validation-behavior-tool_definitions_strict.md](mcp_06_11_startup-validation-behavior-tool_definitions_strict.md) | Startup Validation |
-| [mcp_06_13_health-reasons-and-error-kinds.md](mcp_06_13_health-reasons-and-error-kinds.md) | health_reason / HealthRegistry |
-| [mcp_06_14_new-tool-registration-procedure.md](mcp_06_14_new-tool-registration-procedure.md) | New Tool Registration |
-| [mcp_06_15_new-mcp-server-addition-checklist.md](mcp_06_15_new-mcp-server-addition-checklist.md) | New Server Addition Checklist |
-| [mcp_06_16_pre-production-fail-open-checklist.md](mcp_06_16_pre-production-fail-open-checklist.md) | Pre-Production Checklist |
-| [mcp_06_17_mcp-authentication-setup.md](mcp_06_17_mcp-authentication-setup.md) | Authentication Setup |
+| [mcp_06_01_configuration-file-inventory.md](mcp_06_01_configuration-file-inventory.md) | Config Inventory, purpose and major default values |
+| [mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md](mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md) | McpServerConfig Fields |
+| [mcp_06_03_long-running-http-operation-startup_modesubprocess.md](mcp_06_03_long-running-http-operation-startup_modesubprocess.md) | Long-running Operations |
+| [mcp_06_04_verification-methods.md](mcp_06_04_verification-methods.md) | Verification Methods |
+| [mcp_06_05_reading-audit-logs.md](mcp_06_05_reading-audit-logs.md) | Audit Log |
+| [mcp_06_06_end-to-end-tool-call-tracing.md](mcp_06_06_end-to-end-tool-call-tracing.md) | Tracing |
+| [mcp_06_07_mcp-failure-diagnosis.md](mcp_06_07_mcp-failure-diagnosis.md) | Failure Diagnosis |
+| [mcp_06_08_settings-with-high-operational-impact.md](mcp_06_08_settings-with-high-operational-impact.md) | Settings with High Operational Impact |
+| [mcp_06_09_startup-validation-behavior-tool_definitions_strict.md](mcp_06_09_startup-validation-behavior-tool_definitions_strict.md) | Startup Validation |
+| [mcp_06_10_health-reasons-and-error-kinds.md](mcp_06_10_health-reasons-and-error-kinds.md) | health_reason / HealthRegistry |
+| [mcp_06_11_new-tool-registration-procedure.md](mcp_06_11_new-tool-registration-procedure.md) | New Tool Registration |
+| [mcp_06_12_new-mcp-server-addition-checklist.md](mcp_06_12_new-mcp-server-addition-checklist.md) | New Server Addition Checklist |
+| [mcp_06_13_pre-production-fail-open-checklist.md](mcp_06_13_pre-production-fail-open-checklist.md) | Pre-Production Checklist |
+| [mcp_06_14_mcp-authentication-setup.md](mcp_06_14_mcp-authentication-setup.md) | Authentication Setup |
 | [../91_security/security_01_architecture-and-trust-boundaries.md](../91_security/security_01_architecture-and-trust-boundaries.md) | System architecture / trust boundaries / threat modeling (canonical cross-cutting source) |
 | [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) | High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping) |
 | [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) | Schema Export |

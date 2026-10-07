@@ -86,7 +86,7 @@ COMPAT_PATTERNS = {
 # Patterns an Accepted ADR phrases as an explicit prohibition, keyed by name,
 # each mapped to (adr_id, regex). Seeded only from a prohibition an
 # implementer can point at verbatim in ADR text — not speculative rules (see
-# docs/00_governance/governance_04_documentation-checks.md GV-014). Identifier-shaped
+# docs/00_governance/governance_04_documentation-checks.md GV-012). Identifier-shaped
 # (snake_case with underscores), not natural-language phrasing, so this does
 # not also match the ADR's own prose describing the prohibition (e.g.
 # ADR-001's Japanese "Workflow無効化モードを設けない" / "Workflowを迂回する

@@ -31,7 +31,7 @@ These methods only perform `proc.poll()` or read cached states; they do not term
 
 #### How to safely add a new tool
 
-When adding a new tool, follow the standard procedure in [mcp_06_14_new-tool-registration-procedure.md](mcp_06_14_new-tool-registration-procedure.md).
+When adding a new tool, follow the standard procedure in [mcp_06_11_new-tool-registration-procedure.md](mcp_06_11_new-tool-registration-procedure.md).
 
 Key points:
 1. **Declare the tool in the owning server's `GET /v1/tools` response (its `TOOL_LIST` entry), with the schema-2.0 fields [REQUIRED]** — Live discovery of `/v1/tools` is the sole basis for routing: `RuntimeToolRegistry` is built from it at startup. A tool that is missing from `/v1/tools`, or whose entry fails schema-2.0 validation, is excluded from the registry and is not routable (see [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md)).
@@ -85,7 +85,7 @@ url = "http://127.0.0.1:<port>"
 tool_names = ["my_tool_a", "my_tool_b"]
 ```
 
-Even if `tool_names` is omitted or incomplete, the registry will continue to route correctly (Priority 2), but a warning will be issued during startup drift validation.
+Even if `tool_names` is omitted or incomplete, routing is still determined by `/v1/tools` discovery (`RuntimeToolRegistry` is the sole routing authority, ADR-003), but a warning will be issued during startup drift validation.
 
 ## Keywords
 

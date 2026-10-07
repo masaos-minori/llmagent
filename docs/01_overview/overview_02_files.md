@@ -69,10 +69,9 @@ Startup order: build scripts → deployment → schema initialization → servic
 
 ### Reason for Process Separation
 
-Deployment scripts are separated because:
-- Failure isolation: a failure in one step does not affect others.
-- Independent scaling: write-heavy domains may require different resource allocation than read-only domains.
-- Deployment independence: individual scripts can be updated or restarted without affecting the entire system.
+Deployment is split into separate scripts under `deploy/` (`build_sqlite_vec.sh`, `deploy.sh`, `init_db.sh`, `setup_services.sh`, `start_agent.sh`), each an independent bash script using `set -euo pipefail`. (Explicit in code — `deploy/*.sh`)
+- One-time steps (such as building the sqlite-vec extension) are not repeated on every deployment.
+- Each step can be re-run on its own, for example `start_agent.sh` can be run again without re-running the deployment steps.
 
 ## 3.2 RAG Files
 

@@ -60,7 +60,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 - `chunk_splitter.py`: Deletes existing chunks and regenerates them.
 - `ingester.py`: Deletes `chunks_vec` rows and then the `documents` row (rows in `chunks` are removed by `ON DELETE CASCADE`) for the target URL, then re-inserts them.
 
-### 2.6 RAG Consistency Check (`db/rag_consistency.py`)
+### 2.5 RAG Consistency Check (`db/rag_consistency.py`)
 
 `check_rag_consistency`, `is_consistent`, and `summarize_issues` are defined in `scripts/db/rag_consistency.py`. (Explicit in code)
 
@@ -92,7 +92,7 @@ See `RagConsistencyReport` in `scripts/db/models.py` for exact fields.
 - This function is read-only and does not repair inconsistencies.
 - Performance: The `NOT IN` subquery for orphan detection is O(vec × chunks). For large datasets, run this during maintenance windows.
 
-### 2.7 Additional Options for `crawler.py`
+### 2.6 Additional Options for `crawler.py`
 
 - `--targets-file PATH`: Specifies a TOML file in the `[[url, lang], ...]` format, overriding the `target_urls` in the configuration file (`config/crawler.toml`). Cannot be used with `--url` (`exits with `parser.error`).
   (Explicit in code) — From the `main()` argument definition in `scripts/rag/ingestion/crawler.py`.

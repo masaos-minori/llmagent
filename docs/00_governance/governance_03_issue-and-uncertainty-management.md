@@ -280,7 +280,7 @@ The following resolution criteria apply across all four parts of this document:
 
 Applies to any automated check finding classified `Warning` (not `Blocking`) in
 `docs/00_governance/governance_04_documentation-checks.md`'s Governance Verification Matrix
-— for example, `GV-020`'s removed-name reintroduction findings. A `Warning`
+— for example, `GV-017`'s removed-name reintroduction findings. A `Warning`
 finding does not block merge by itself, but leaving it neither fixed nor formally
 excepted is not a complete review (see `docs/00_governance/governance_04_documentation-checks.md`
 `### 19. Merge Condition Validation`).
@@ -301,7 +301,7 @@ Record the exception inline, next to the flagged line, as:
 
 `<!-- exception: {rule-id} — {reason} — {owner} — expires {YYYY-MM-DD} -->`
 
-For example: `<!-- exception: GV-020 — read_json_file mention is a historical
+For example: `<!-- exception: GV-017 — read_json_file mention is a historical
 comparison, not a current-spec claim — @agent-lead — expires 2026-12-01 -->`
 
 An exception past its expiration date is treated as an unexplained finding (see

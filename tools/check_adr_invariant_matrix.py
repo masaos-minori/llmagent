@@ -17,7 +17,7 @@ gap, not a claim this check can verify.
 
 This check does not run the cited tests to confirm they pass — only that the
 path exists. Running cited tests is a separate, not-yet-implemented sub-step
-(see docs/00_governance/governance_04_documentation-checks.md GV-014 Follow-up Work).
+(see docs/00_governance/governance_04_documentation-checks.md GV-012 Follow-up Work).
 
 Usage:
     python tools/check_adr_invariant_matrix.py

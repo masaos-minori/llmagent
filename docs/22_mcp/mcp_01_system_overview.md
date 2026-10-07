@@ -13,7 +13,7 @@ related:
   - mcp_03_01_dispatch-and-routing.md
   - mcp_04_01_web-search-file-read-github.md
   - mcp_05_01_access-control-and-allowlists.md
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
   - governance_03_issue-and-uncertainty-management.md
 ---
 
@@ -127,7 +127,7 @@ Servers run as subprocesses on loopback.
 | `ToolExecutor` | `shared/tool_executor.py` | Routing, concurrent execution, health registry |
 | `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name → server_key (references only `RuntimeToolRegistry.resolve()`) |
 | `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **Sole routing authority**. Constructed via live `/v1/tools` discovery using McpToolDiscoveryService |
-The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md` for details. |
+The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` for details. |
 | `ToolRegistry` | `shared/tool_registry.py` | Seed data for drift detection regarding tool definitions and ownership (constructed at import from frozenset in `tool_constants.py`; not used for routing) |
 | `McpServerConfig` | `shared/mcp_config.py` | Transport settings per server |
 | `McpServerHealthRegistry` | `shared/mcp_health.py` | Server status: HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN (re-exported by `shared/mcp_config.py`) |
@@ -173,7 +173,7 @@ MCP server processes (mcp_servers/<name>/server.py)
 | Routing, Lifecycle, ToolExecutor | [mcp_03_01_dispatch-and-routing.md](mcp_03_01_dispatch-and-routing.md) |
 | Per-server specification | [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) |
 | Security and Safety model | [mcp_05_01_access-control-and-allowlists.md](mcp_05_01_access-control-and-allowlists.md) |
-| Configuration and Operations | [mcp_06_02_configuration-file-inventory.md](mcp_06_02_configuration-file-inventory.md) |
+| Configuration and Operations | [mcp_06_01_configuration-file-inventory.md](mcp_06_01_configuration-file-inventory.md) |
 | Known issues and inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: MCP) |
 
 ---

@@ -9,10 +9,10 @@ tags:
 related:
   - agent_11_01_memory-overview-and-modes.md
   - agent_11_02_memory-gate-data-model-search.md
-  - agent_11_03_memory-module-ref-core-and-store.md
-  - agent_11_04_memory-module-ref-retrieval-and-injection.md
-  - agent_11_05_memory-module-ref-extraction-and-facade.md
-  - agent_11_06_memory-module-ref-ops-and-scoring.md
+  - agent_11_03_memory-module-reference.md
+  - agent_11_03_memory-module-reference.md
+  - agent_11_03_memory-module-reference.md
+  - agent_11_03_memory-module-reference.md
 ---
 
 # Memory Layer Reference — Generated Class/Function Index
@@ -22,7 +22,7 @@ related:
 Generated index of every public top-level class/function under
 `scripts/agent/memory/*.py` (`tools/generate_reference_table.py --type memory`).
 Companion to the six hand-curated Memory Layer chapter documents
-(`agent_11_01` through `agent_11_06`); kept as a separate generated file so none
+(`agent_11_01` through `agent_11_03`); kept as a separate generated file so none
 of those hand-curated documents needs to embed a mechanically-derived class/function
 listing. Do not hand-edit between the guard comments — run the generator.
 

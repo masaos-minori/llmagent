@@ -7,11 +7,11 @@ tags:
   - search
 related:
   - agent_11_01_memory-overview-and-modes.md
-  - agent_11_03_memory-module-ref-core-and-store.md
+  - agent_11_03_memory-module-reference.md
   - agent_00_document-guide.md
-  - agent_11_04_memory-module-ref-retrieval-and-injection.md
-  - agent_11_05_memory-module-ref-extraction-and-facade.md
-  - agent_11_06_memory-module-ref-ops-and-scoring.md
+  - agent_11_03_memory-module-reference.md
+  - agent_11_03_memory-module-reference.md
+  - agent_11_03_memory-module-reference.md
 ---
 # Memory Layer — Activation Gate, Data Model, and Search
 
@@ -127,7 +127,7 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 ### Hybrid (RRF Merge)
 
 - **Engine:** Integrates FTS5 and KNN results using Reciprocal Rank Fusion (RRF)
-- **Formula:** `rrf_score = 1.0 / (k + rank + 1)`. Where `k=60` and `rank` is 0-indexed
+- **Formula:** `rrf_score = 1.0 / (k + rank + 1)`. Where `k` is `memory_rrf_k` (value: see `MemoryConfig` in `scripts/agent/config_dataclasses.py`) and `rank` is 0-indexed
 - **Result:** De-duplicated and sorted by descending RRF score
 - **Strengths:** Benefits from both methods regardless of query type
 - **Weaknesses:** High latency (two searches + merge). Requires embedding API

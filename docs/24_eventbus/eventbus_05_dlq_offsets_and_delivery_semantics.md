@@ -38,16 +38,6 @@ The ACK endpoint is not bound to a connection, so it does not detect a collision
 
 To avoid collisions, use unique, stable consumer IDs per instance. Do not use volatile IDs such as PIDs.
 
-### Monotonicity Guarantee
-
-The offset value is monotonically non-decreasing — older-or-equal seq values cannot move a consumer's offset backward. This is enforced by the SQL statement:
-
-```sql
-INSERT INTO consumer_offsets(consumer_id, offset) VALUES (?, ?) ON CONFLICT(consumer_id) DO UPDATE SET offset = excluded.offset WHERE excluded.offset > consumer_offsets.offset
-```
-
-This ensures monotonic enforcement: an older-or-equal seq value cannot move a consumer's offset backward.
-
 ## Ordering
 
 ### Per-Topic Ordering
@@ -111,6 +101,12 @@ No idempotency guard exists in `nack_event`; `delivery_failure_count` increases 
 ## Offset Semantics
 
 ### Monotonicity Guarantee
+
+The offset value is monotonically non-decreasing — older-or-equal seq values cannot move a consumer's offset backward. This is enforced by the SQL statement:
+
+```sql
+INSERT INTO consumer_offsets(consumer_id, offset) VALUES (?, ?) ON CONFLICT(consumer_id) DO UPDATE SET offset = excluded.offset WHERE excluded.offset > consumer_offsets.offset
+```
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 

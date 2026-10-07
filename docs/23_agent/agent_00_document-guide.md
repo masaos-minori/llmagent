@@ -71,7 +71,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 | Tool execution/approval, `/plan` mode, slash commands, `/reload` | `agent_06` / `agent_07` |
 | Config fields, defaults, control files | `agent_08` |
 | SQLite tables used, startup/validation/troubleshooting, audit log | `agent_09` / `agent_10` |
-| Adding a new MCP server | `mcp_06_15` |
+| Adding a new MCP server | `mcp_06_12` |
 | Memory layer | `agent_11` |
 | Where is class X defined and who calls it | `agent_12` → `agent_02` |
 

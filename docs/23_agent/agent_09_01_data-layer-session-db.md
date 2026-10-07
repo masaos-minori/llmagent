@@ -90,7 +90,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 ## Operational Notes
 
-- SQLiteSessionStore has zero production callers; sole caller is tests/db/test_db_store_impl.py.
+- `SQLiteSessionStore` is not used by production code; the session persistence path is `SessionMessageRepository` over `SQLiteHelper`. Its only caller is `tests/db/test_db_store_impl.py` (Explicit in code — `scripts/db/store_impl.py`, `scripts/agent/session.py`).
 
 ## Known Limitations
 

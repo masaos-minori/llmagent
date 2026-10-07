@@ -193,7 +193,7 @@ Local mode" path once a deployment has migrated to Production-only.
 Immediately before executing, re-run the Current State inspection above rather than
 relying solely on this document's recorded finding. For authentication-specific
 troubleshooting after following the steps above, see
-[`mcp_06_17_mcp-authentication-setup.md`](../22_mcp/mcp_06_17_mcp-authentication-setup.md)'s
+[`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md)'s
 Troubleshooting section.
 
 ---

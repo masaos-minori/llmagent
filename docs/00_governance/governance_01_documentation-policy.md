@@ -315,7 +315,7 @@ The ADR list, dependency graph, and invariant verification matrix are maintained
 - High-severity open issue exists in affected area
 - Documentation outdated but code is correct
 - Config drift detected but no behavioral impact
-- Removed-name reintroduction detected by `check_compat_shims.py --check-removed-names` (`GV-020`), without an approved temporary exception (`docs/00_governance/governance_03_issue-and-uncertainty-management.md`)
+- Removed-name reintroduction detected by `check_compat_shims.py --check-removed-names` (`GV-017`), without an approved temporary exception (`docs/00_governance/governance_03_issue-and-uncertainty-management.md`)
 
 ### Merge Workflow
 1. Check blocking conditions — if any fail, reject merge.

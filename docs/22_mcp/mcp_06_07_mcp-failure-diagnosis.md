@@ -6,7 +6,7 @@ tags:
   - diagnostics
   - troubleshooting
 related:
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
 ---
 # MCP Failure Diagnosis
 
@@ -76,7 +76,7 @@ except Exception:                               # any startup failure
 
 In other words, even if a server repeatedly crashes, individual tool calls that have not yet reached their own circuit-break threshold can attempt recovery through `ensure_ready()`. This is currently the only automatic recovery path; there is no periodic polling or automatic restart loop.
 
-Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recovery of any kind — `ensure_ready()` returns immediately for them (`cfg.transport != TransportType.HTTP or cfg.startup_mode != StartupMode.SUBPROCESS`) — so recovery for a crashed persistent-mode server depends entirely on external process supervision (see [mcp_06_16_pre-production-fail-open-checklist.md](./mcp_06_16_pre-production-fail-open-checklist.md)'s restart-policy requirement). This explicitly contrasts with subprocess-mode's reactive-on-next-dispatch recovery described above.
+Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recovery of any kind — `ensure_ready()` returns immediately for them (`cfg.transport != TransportType.HTTP or cfg.startup_mode != StartupMode.SUBPROCESS`) — so recovery for a crashed persistent-mode server depends entirely on external process supervision (see [mcp_06_13_pre-production-fail-open-checklist.md](./mcp_06_13_pre-production-fail-open-checklist.md)'s restart-policy requirement). This explicitly contrasts with subprocess-mode's reactive-on-next-dispatch recovery described above.
 
 **Implementation Note (Explicit in code):** `ensure_ready()` is not in `shared/tool_executor.py`; it is implemented in the `_ServerLifecycleRouter` class in `agent/factory.py`. Actual subprocess startup/shutdown is delegated to `HttpServerLifecycleManager` in `agent/http_lifecycle.py`. `ToolExecutor` only calls this router via `LifecycleProtocol` (`shared/tool_lifecycle.py`) and does not hold the startup logic itself.
 
@@ -95,7 +95,7 @@ Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recov
 - A failure during `HALF_OPEN` immediately reverts the state to `UNAVAILABLE` and resets the cooldown.
 - `record_success()` restores the state to `HEALTHY` and clears the failure count and degraded reason.
 
-The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or routing — it is merely reference information and not an input for routing (consistent with [mcp_06_03](mcp_06_03_mcpserverconfig-fields-agenttoml-mcp_servers.md)).
+The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or routing — it is merely reference information and not an input for routing (consistent with [mcp_06_02](mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md)).
 
 Basis: Explicit in code (`shared/mcp_health.py`). Health checks within the `ToolExecutor` execution process act as a gate before dispatching.
 

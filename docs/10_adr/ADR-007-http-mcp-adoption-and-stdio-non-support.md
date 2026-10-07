@@ -16,9 +16,9 @@ related:
   - mcp_03_03_transport-and-health.md
   - mcp_03_04_tool-call-tracing-and-lifecycle.md
   - mcp_03_05_lifecycle-and-new-server.md
-  - mcp_06_02_configuration-file-inventory.md
-  - mcp_06_05_long-running-http-operation-startup_modesubprocess.md
-  - mcp_06_15_new-mcp-server-addition-checklist.md
+  - mcp_06_01_configuration-file-inventory.md
+  - mcp_06_03_long-running-http-operation-startup_modesubprocess.md
+  - mcp_06_12_new-mcp-server-addition-checklist.md
   - governance_03_issue-and-uncertainty-management.md
 supersedes: []
 superseded_by: null
@@ -404,9 +404,9 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - [Transport and Health](../22_mcp/mcp_03_03_transport-and-health.md) — Transport and health
 - [Transport Error Tracing and Lifecycle Flow](../22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md) — transport error tracing and lifecycle flow
 - [Lifecycle and New Server](../22_mcp/mcp_03_05_lifecycle-and-new-server.md) — lifecycle
-- [Configuration File Inventory](../22_mcp/mcp_06_02_configuration-file-inventory.md) — list of configuration files
-- [Long-running HTTP Operation Startup Mode/Subprocess](../22_mcp/mcp_06_05_long-running-http-operation-startup_modesubprocess.md) — startup modes for HTTP operation
-- [New MCP Server Addition Checklist](../22_mcp/mcp_06_15_new-mcp-server-addition-checklist.md) — checklist for adding an MCP server
+- [Configuration File Inventory](../22_mcp/mcp_06_01_configuration-file-inventory.md) — list of configuration files
+- [Long-running HTTP Operation Startup Mode/Subprocess](../22_mcp/mcp_06_03_long-running-http-operation-startup_modesubprocess.md) — startup modes for HTTP operation
+- [New MCP Server Addition Checklist](../22_mcp/mcp_06_12_new-mcp-server-addition-checklist.md) — checklist for adding an MCP server
 
 ### Known Issues
 

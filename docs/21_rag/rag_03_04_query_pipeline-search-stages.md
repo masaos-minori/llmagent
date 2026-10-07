@@ -65,7 +65,7 @@ SearchStage(cfg: RagConfig, http: httpx.AsyncClient | None = None, embed_url: st
 ### 5.3 FusionStage
 
 ```python
-FusionStage(rrf_k: int = 60, use_rrf: bool = True)
+FusionStage(rrf_k: int, use_rrf: bool)
 ```
 
 - Merges `ctx.search_results` using Reciprocal Rank Fusion: `score = sum(1 / (rrf_k + rank))`.

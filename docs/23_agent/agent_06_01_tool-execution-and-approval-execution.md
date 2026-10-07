@@ -27,7 +27,7 @@ Documents the responsibility division of `ToolExecutor`, design decisions for pa
 
 ### ToolExecutor Responsibility Division
 
-Dispatch priority of `ToolExecutor.execute(tool_name, args)`:
+Dispatch path of `ToolExecutor.execute(tool_name, args)` (single path, no fallback chain):
 1. MCP server dispatch via `ToolRouteResolver.resolve()` → `McpServerHealthRegistry` → `LifecycleProtocol.ensure_ready()` → `HttpTransport`
 
 ### Parallel vs Sequential Execution

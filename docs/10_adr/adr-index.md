@@ -36,8 +36,8 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-008 | Separating SQLite into Four Databases | Accepted | `10_adr/ADR-008-sqlite-4db-separation.md` |
 | ADR-009 | Separating RAG FTS5 Search Text from LLM Presentation Text | Accepted | `10_adr/ADR-009-rag-ft5-text-separation.md` |
 | ADR-010 | In-Process Fallback When External RAG Execution Fails | Accepted | `10_adr/ADR-010-rag-fallback.md` |
-| ADR-013 | EventBus Authentication and Authorization | Accepted | `10_adr/ADR-013-eventbus-authentication-authorization.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `10_adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
+| ADR-013 | EventBus Authentication and Authorization | Accepted | `10_adr/ADR-013-eventbus-authentication-authorization.md` |
 | ADR-014 | Responsibility Boundaries of the Agent Control Plane | Accepted | `10_adr/ADR-014-agent-control-plane-responsibility-boundaries.md` |
 | ADR-015 | Reference Document Class Disposition | Accepted | `10_adr/ADR-015-reference-document-class-disposition.md` |
 

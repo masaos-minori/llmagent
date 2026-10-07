@@ -57,7 +57,7 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 - Reflected in `health_reason` as `operator_action_required` if `operator_action_required=true` and no body reason exists.
 - `McpServerHealthRegistry` (`shared/mcp_health.py`) is updated by the tool execution layer through a different path (`record_failure()`/`record_success()` from `ToolTransportInvoker`); it does not store a degraded reason.
 
-There is no automatic restart of MCP servers. For manual recovery procedures, see [mcp_06_09_mcp-failure-diagnosis.md](mcp_06_09_mcp-failure-diagnosis.md).
+There is no automatic restart of MCP servers. For manual recovery procedures, see [mcp_06_07_mcp-failure-diagnosis.md](mcp_06_07_mcp-failure-diagnosis.md).
 
 **Healthy Response Example**:
 ```json

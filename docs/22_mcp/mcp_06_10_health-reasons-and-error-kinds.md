@@ -7,7 +7,7 @@ tags:
   - scheduling
 related:
   - mcp_00_document-guide.md
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
 ---
 
 # MCP Health Reasons and Error Kinds

@@ -31,7 +31,7 @@ Three comparison functions (defined in `shared/tool_routing_validation.py`) dete
 | `validate_routing_against_live()` | live `/v1/tools` vs. Registry | At startup (`McpToolDiscoveryService` drift verification) |
 | `validate_all_routing()` | Combination of both above | Implemented, but has no production caller |
 
-> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` and `validate_all_routing()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [mcp_06 Startup Validation Behavior](mcp_06_11_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
+> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` and `validate_all_routing()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [mcp_06 Startup Validation Behavior](mcp_06_09_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
 
 Drift warnings are displayed during agent startup.
 
@@ -83,16 +83,7 @@ result = await executor.execute("read_text_file", {"path": "/opt/llm/..."})
 
 ### Side-effect Detection
 
-```python
-_SIDE_EFFECT_TOOLS = (
-    WRITE_TOOLS | DELETE_TOOLS | frozenset({"shell_run"})
-    | GIT_WRITE_TOOLS | GITHUB_WRITE_TOOLS | GITHUB_DANGEROUS_TOOLS
-    | CICD_WRITE_TOOLS | RAG_WRITE_TOOLS | MDQ_WRITE_TOOLS
-)
-is_side_effect(tool_name: str) -> bool
-```
-
-`is_side_effect()`/`_SIDE_EFFECT_TOOLS` (`shared/tool_executor_helpers.py`) is not referenced by the execution path. Batch execution parallel/serial determination is delegated to `agent/tool_runner.py::_execute_with_dag()` via `agent/tool_scheduler.py::build_execution_groups()`, which references `PreparedToolCall.spec.is_write` (resolved via `RuntimeToolRegistry` in `agent/tool_preparation.py::prepare_tool_calls()` before the approval phase) to determine parallel/serial execution (unregistered tools or calls without a connection to `RuntimeToolRegistry` are rejected in the preparation phase via fail-closed, so they never reach scheduling or execution). `serial_tool_calls` is not a branch to another execution engine, but is passed to the scheduler as `force_serial` input to `build_execution_groups()`; if `True`, it bypasses phase construction/conflict graph construction and forces individual serial phases for each call in order.
+Batch execution parallel/serial determination is delegated to `agent/tool_runner.py::_execute_with_dag()` via `agent/tool_scheduler.py::build_execution_groups()`, which references `PreparedToolCall.spec.is_write` (resolved via `RuntimeToolRegistry` in `agent/tool_preparation.py::prepare_tool_calls()` before the approval phase) to determine parallel/serial execution (unregistered tools or calls without a connection to `RuntimeToolRegistry` are rejected in the preparation phase via fail-closed, so they never reach scheduling or execution). `serial_tool_calls` is not a branch to another execution engine, but is passed to the scheduler as `force_serial` input to `build_execution_groups()`; if `True`, it bypasses phase construction/conflict graph construction and forces individual serial phases for each call in order.
 
 ### Safety Tier Verification
 

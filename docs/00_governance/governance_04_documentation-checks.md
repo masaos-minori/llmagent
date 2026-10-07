@@ -169,7 +169,7 @@ policy prohibits: full file trees, per-file descriptions embedded in a tree
 or table, class/function/method index tables, implementation-location
 mappings, and literal port numbers (see `skills/DESIGN.md` Docs content
 policy — remove). Report-only (Warning) — findings never block CI; see
-`GV-021` below.
+`GV-018` below.
 
 **Usage:**
 ```bash
@@ -209,13 +209,13 @@ Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr-index.md`: ever
 
 ### 13. Canonical Source Registry Checks (`check_canonical_source_registry.py`, `check_canonical_source_conflicts.py`)
 
-Validate `config/documentation_canonical_sources.toml`: schema conformance, path existence, a single normative source per claim type, ADR-status conformance, and semantic conflicts between registered sources (`GV-022`, `GV-023`, `GV-024`).
+Validate `config/documentation_canonical_sources.toml`: schema conformance, path existence, a single normative source per claim type, ADR-status conformance, and semantic conflicts between registered sources (`GV-019`, `GV-020`, `GV-021`).
 
 **Enforcement:** `.github/workflows/governance-docs-consistency.yml`.
 
 ### 14. Issue Inventory Conformance Check (`check_issue_inventory_conformance.py`)
 
-Verifies `governance_03_issue-and-uncertainty-management.md` against its own template: vocabulary values (including the Status value sets of every Part, so no closed-out status such as `resolved` is accepted), per-entry field counts, and referential integrity (`GV-008`).
+Verifies `governance_03_issue-and-uncertainty-management.md` against its own template: vocabulary values (including the Status value sets of every Part, so no closed-out status such as `resolved` is accepted), per-entry field counts, and referential integrity (`GV-007`).
 
 **Enforcement:** `.github/workflows/governance-docs-consistency.yml`.
 
@@ -290,10 +290,10 @@ only.
 
 Merge is gated on [Policy's Merge Conditions](governance_01_documentation-policy.md#merge-conditions)
 (Blocking/Non-Blocking conditions and the Merge Workflow) — see that
-section for the full list, including the `GV-020`-specific
+section for the full list, including the `GV-017`-specific
 removed-name-reintroduction condition this checker enforces.
 
-A `GV-020` finding is not itself blocking, but every finding must be resolved or
+A `GV-017` finding is not itself blocking, but every finding must be resolved or
 covered by an approved temporary exception before merge — an unexplained finding
 left neither fixed nor excepted is treated as incomplete review, not a passing PR.
 
@@ -322,43 +322,43 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-001 | Required Front Matter | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
-| GV-005 | Related section placement (no body Related section anywhere; ADRs keep `## Related ADRs`/`## Implementation References`; front matter `related:` covers body `.md` references) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
-| GV-006 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
-| GV-007 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
-| GV-008 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | Implement |
-| GV-009 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Existing | None |
-| GV-011 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Partial | Automate cross-document canonical source conflict detection (currently manual) |
-| GV-012 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Partial | Automate cross-document canonical source conflict detection (currently manual) |
-| GV-013 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
-| GV-014 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
-| GV-015 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Existing | None |
-| GV-016 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Partial | Automate auto-check implementation audit (currently manual) |
-| GV-018 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
-| GV-019 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
-| GV-020 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
-| GV-021 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Partial | Not yet wired into CI (`.github/workflows/`); promote to default-on (PR-gated) once wired |
-| GV-022 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
-| GV-023 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
-| GV-024 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
+| GV-004 | Related section placement (no body Related section anywhere; ADRs keep `## Related ADRs`/`## Implementation References`; front matter `related:` covers body `.md` references) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-005 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-006 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-007 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | None |
+| GV-008 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Existing | None |
+| GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Partial | Automate cross-document canonical source conflict detection (currently manual) |
+| GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Partial | Automate cross-document canonical source conflict detection (currently manual) |
+| GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
+| GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
+| GV-013 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Existing | None |
+| GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Partial | Automate auto-check implementation audit (currently manual) |
+| GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
+| GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
+| GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
+| GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Partial | Not yet wired into CI (`.github/workflows/`); promote to default-on (PR-gated) once wired |
+| GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
+| GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
+| GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 
 ### Follow-up Work Needed
 
 Rules marked "Missing" or "Partial" above need new inspection tools or processes:
 
-1. **GV-011, GV-012**: Automate cross-document canonical source conflict detection (currently manual)
-2. **GV-013**: Extend `stale_patterns` custom rule config to cover canonical document references
-3. **GV-014**: Optional scope — run each cited test in CI, not just verify that the cited path
+1. **GV-009, GV-010**: Automate cross-document canonical source conflict detection (currently manual)
+2. **GV-011**: Extend `stale_patterns` custom rule config to cover canonical document references
+3. **GV-012**: Optional scope — run each cited test in CI, not just verify that the cited path
      exists.
-4. **GV-016**: Automate auto-check implementation audit (currently manual)
-5. **GV-018**: Automate glossary term classification validation (currently manual)
-6. **GV-019**: Automate metadata field usage policy enforcement (currently manual)
-7. **GV-020**: Implement the `read_json_file`-style context-aware detection case (a name
+4. **GV-014**: Automate auto-check implementation audit (currently manual)
+5. **GV-015**: Automate glossary term classification validation (currently manual)
+6. **GV-016**: Automate metadata field usage policy enforcement (currently manual)
+7. **GV-017**: Implement the `read_json_file`-style context-aware detection case (a name
      retained in source but no longer the current production path); promote
      `--check-removed-names` from opt-in to default-on once the corpus is compliant, per
      `check_compat_shims.py`'s own "report-only until compliant" convention. The retired
      identifier patterns and historical-context markers are defined in
      `tools/check_compat_shims.py` (`_REMOVED_NAME_PATTERNS`, `_HISTORICAL_CONTEXT_MARKERS`).
-8. **GV-021**: `check_docs_content_policy.py` is not wired into any CI workflow
+8. **GV-018**: `check_docs_content_policy.py` is not wired into any CI workflow
      (`.github/workflows/`) — its Warning findings are report-only, produced by a
      local/manual run rather than enforced on every PR. Promote it to default-on
      (PR-gated) once wired into CI; until then, the Matrix Status is `Partial`, not

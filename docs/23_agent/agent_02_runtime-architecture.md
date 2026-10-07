@@ -37,7 +37,7 @@ Describes the primary runtime components, their dependencies, and responsibility
 
 - `Orchestrator.__init__()` loads workflow definitions via `WorkflowLoader().load()`, raising a `RuntimeError` on failure (which stops startup).
 - If an exception occurs after starting an MCP subprocess, the started MCP subprocesses are rolled back.
-- Side-effect detection: if `write`/`delete`/`shell_run` is included, parallel tool calls are serialized.
+- Parallel/serial determination of tool calls is driven by the `is_write` flag of the registered tool spec via `build_execution_groups()`; write-capable calls are serialized (Explicit in code — `scripts/agent/tool_scheduler.py`).
 
 ## Operational Notes
 
@@ -58,8 +58,8 @@ Because an untested execution path may bypass the gate, every path requires a te
 | # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
 |---|---|---|---|---|---|
 | 1 | `scripts/agent/repository_gateway.py` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
-| 2 | `scripts/agent/commands/cmd_mdq.py` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | None | None |
-| 3 | `scripts/agent/commands/cmd_context.py` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | None | None |
+| 2 | `scripts/agent/commands/cmd_mdq.py` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | Covered (`tests/agent/commands/test_cmd_mdq.py`, preflight denial case) | None |
+| 3 | `scripts/agent/commands/cmd_context.py` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | Covered (`tests/agent/commands/test_agent_cmd_context.py`, `git_diff` denial case) | None |
 | 4 | `scripts/agent/tool_approval.py` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
 
 ### Exempt Paths

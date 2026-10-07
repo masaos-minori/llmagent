@@ -25,7 +25,7 @@ related:
 
 **Concurrency Behavior:** `concurrency_limits` maps `server_key` → max concurrent calls; semaphore-based throttling in `ToolTransportInvoker`; tool-call-batch parallel/serial scheduling is unified under a single path — `agent/tool_runner.py::_execute_with_dag()`, which delegates to `agent/tool_scheduler.py::build_execution_groups()`. `ctx.cfg.tool.serial_tool_calls=True` feeds `force_serial=True` into the scheduler instead of selecting a different execution engine.
 
-**Side-Effect Detection:** `build_execution_groups()` reads each call's `is_write` from `PreparedToolCall.spec` (resolved once during `agent/tool_preparation.py::prepare_tool_calls()`, sourced from `RuntimeToolRegistry.tool_spec_for_call()`) — an unregistered tool is rejected fail-closed during preparation and never reaches scheduling. `_SIDE_EFFECT_TOOLS`/`is_side_effect()` (`tool_executor_helpers.py`) is not referenced by the execution path. See [agent_08_03_configuration-tools-memory.md](../23_agent/agent_08_03_configuration-tools-memory.md) for the scheduler's grouping rules.
+**Side-Effect Detection:** `build_execution_groups()` reads each call's `is_write` from `PreparedToolCall.spec` (resolved once during `agent/tool_preparation.py::prepare_tool_calls()`, sourced from `RuntimeToolRegistry.tool_spec_for_call()`) — an unregistered tool is rejected fail-closed during preparation and never reaches scheduling. See [agent_08_03_configuration-tools-memory.md](../23_agent/agent_08_03_configuration-tools-memory.md) for the scheduler's grouping rules.
 
 **Routing (Explicit in code):** `shared/runtime_tool_registry.py`'s `RuntimeToolRegistry` is the sole routing authority. `ToolRouteResolver.resolve()` (`shared/route_resolver.py`) refers only to `RuntimeToolRegistry.resolve()`, and unknown tools result in an immediate `ValueError`. `shared/tool_registry.py`'s `ToolRegistry` is not used for routing decisions; it serves as seed data for startup drift validation (`shared/tool_routing_validation.py`). Configuration file `tool_names` is metadata for drift validation only and is not used for runtime routing decisions. For detailed routing info, see [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md).
 
@@ -51,7 +51,7 @@ related:
 
 ## 11. `McpServerConfig` / `McpServerHealthRegistry`
 
-Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp_06_02_configuration-file-inventory.md](../22_mcp/mcp_06_02_configuration-file-inventory.md) and [agent_08_01_configuration-loading-agent-config.md](../23_agent/agent_08_01_configuration-loading-agent-config.md).
+Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp_06_01_configuration-file-inventory.md](../22_mcp/mcp_06_01_configuration-file-inventory.md) and [agent_08_01_configuration-loading-agent-config.md](../23_agent/agent_08_01_configuration-loading-agent-config.md).
 
 **Overview:** Per-server transport config (transport, url, cmd, startup_mode, tool_names, auth_token, env) validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). Key field set from TOML section name, excluded from `==` comparison. `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track "reachable but degraded" servers without incrementing the failure count.
 

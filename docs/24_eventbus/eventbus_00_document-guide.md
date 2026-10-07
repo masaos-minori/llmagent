@@ -15,6 +15,7 @@ related:
   - eventbus_13_ack_nack_endpoints.md
   - eventbus_06_persistence_schema_and_replay.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
+  - eventbus_07_validation_status.md
   - eventbus_08_configuration-and-operations.md
   - eventbus_09_reference_api.md
 ---

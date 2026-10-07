@@ -15,10 +15,10 @@ related:
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - agent_06_01_tool-execution-and-approval-execution.md
   - rag_03_05_query_pipeline-augment-stages.md
-  - mcp_06_16_pre-production-fail-open-checklist.md
-  - mcp_06_17_mcp-authentication-setup.md
+  - mcp_06_13_pre-production-fail-open-checklist.md
+  - mcp_06_14_mcp-authentication-setup.md
   - mcp_02_03_audit-logging-and-errors.md
-  - mcp_06_07_reading-audit-logs.md
+  - mcp_06_05_reading-audit-logs.md
   - agent_10_02_operations-and-observability-audit-and-otel.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - rag_04_dto-models-types.md
@@ -90,10 +90,10 @@ Secret lifecycle management covers:
 
 - **Provisioning**: Secrets provisioned via config files (`config/agent.toml`, `config/*_mcp_server.toml`) and environment variables; no hardcoded secrets in code
 - **Storage**: Secrets stored in config files with filesystem permissions (0600); no secrets in git history
-- **Rotation**: Operator replaces secret value in config and restarts affected services; no hot-reload for secrets (per `mcp_06_17_mcp-authentication-setup.md`)
+- **Rotation**: Operator replaces secret value in config and restarts affected services; no hot-reload for secrets (per `mcp_06_14_mcp-authentication-setup.md`)
 - **Revocation**: Removing secret from config and restarting services invalidates it immediately; no separate revocation list
 
-*Source: `mcp_06_17_mcp-authentication-setup.md`*
+*Source: `mcp_06_14_mcp-authentication-setup.md`*
 
 ## Log redaction rules
 
@@ -114,7 +114,7 @@ Audit retention policy:
 - **Disabled purge**: `retention_days <= 0` disables automatic purge
 - **Audit log files**: JSON-lines files at `audit_log_file` path rotated by external logrotate; no application-level rotation
 
-*Source: `mcp_06_07_reading-audit-logs.md`, `agent_10_02_operations-and-observability-audit-and-otel.md`*
+*Source: `mcp_06_05_reading-audit-logs.md`, `agent_10_02_operations-and-observability-audit-and-otel.md`*
 
 ## Production behavior (single security profile)
 
@@ -132,7 +132,7 @@ production behavior unconditionally. Event Bus and every MCP server bind to loop
 | Audit log redaction | Enforced |
 | Approval dry-run | Enforced per `approval_dry_run_tools` |
 
-*Source: `mcp_06_16_pre-production-fail-open-checklist.md`, `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Audit during startup*
+*Source: `mcp_06_13_pre-production-fail-open-checklist.md`, `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Audit during startup*
 
 ## Fail-open-vs-fail-closed behavior
 
@@ -209,7 +209,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
 
-*Source: [rag_05_02-execution-guide.md](../21_rag/rag_05_02-execution-guide.md#26-rag-consistency-check-dbrag_consistencypy)*
+*Source: [rag_05_02-execution-guide.md](../21_rag/rag_05_02-execution-guide.md#25-rag-consistency-check-dbrag_consistencypy)*
 
 ### Memory layer failure behavior
 

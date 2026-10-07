@@ -6,7 +6,7 @@ tags:
   - tracing
   - observability
 related:
-  - mcp_06_02_configuration-file-inventory.md
+  - mcp_06_01_configuration-file-inventory.md
 ---
 # End-to-End Tool Call Tracing
 

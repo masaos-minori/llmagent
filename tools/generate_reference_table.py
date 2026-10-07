@@ -66,7 +66,7 @@ REFERENCE_DOC_EVENTBUS = (
     REPO_ROOT / "docs" / "24_eventbus" / "eventbus_09_reference_api.md"
 )
 REFERENCE_DOC_MEMORY = (
-    REPO_ROOT / "docs" / "23_agent" / "agent_11_07_memory-module-reference-generated.md"
+    REPO_ROOT / "docs" / "23_agent" / "agent_11_04_memory-module-reference-generated.md"
 )
 
 # ---------------------------------------------------------------------------

@@ -87,7 +87,7 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 
 | Task scope | Reference docs |
 |---|---|
-| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/agent_04_01_state-and-persistence-state-model.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` + `23_agent/agent_11_03_memory-module-ref-core-and-store.md` + `23_agent/agent_11_04_memory-module-ref-retrieval-and-injection.md` |
+| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/agent_04_01_state-and-persistence-state-model.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` + `23_agent/agent_11_03_memory-module-reference.md` + `23_agent/agent_11_03_memory-module-reference.md` |
 | OTel observability (otel_tracer.py) | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | Agent REPL slash commands (`CommandRegistry`) | `23_agent/agent_07_03_cli-and-commands-command-registry.md` |
 | Agent startup / verification / troubleshooting | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` |
@@ -110,7 +110,7 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 | HttpServerLifecycleManager / http_lifecycle.py | `22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md` + `23_agent/agent_02_runtime-architecture.md` |
 | ToolSpec / tool_spec.py (execution metadata DAG) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | tool_cache.py (CacheEntry LRU cache) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
-| TransportType / StartupMode enums (mcp_config.py) | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `22_mcp/mcp_06_02_configuration-file-inventory.md` |
+| TransportType / StartupMode enums (mcp_config.py) | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `22_mcp/mcp_06_01_configuration-file-inventory.md` |
 | MCP security model (allowlist / denylist / fail-closed) | `22_mcp/mcp_05_01_access-control-and-allowlists.md` |
 | System security architecture / trust boundaries / threat model | `91_security/security_01_architecture-and-trust-boundaries.md` |
 | High-risk MCP tool policy (path/repo allowlists, traversal prevention, approval-to-risk-tier mapping) | `91_security/security_02_high-risk-tool-common-policy.md` |
