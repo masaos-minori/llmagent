@@ -22,7 +22,7 @@ related:
   - agent_10_02_operations-and-observability-audit-and-otel.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - rag_04_dto-models-types.md
-  - rag_05_2-execution-guide.md
+  - rag_05_02-execution-guide.md
 ---
 
 # System Security Architecture and Trust Boundaries
@@ -209,7 +209,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
 
-*Source: [rag_05_2-execution-guide.md](../21_rag/rag_05_2-execution-guide.md#26-rag-consistency-check-dbrag_consistencypy)*
+*Source: [rag_05_02-execution-guide.md](../21_rag/rag_05_02-execution-guide.md#26-rag-consistency-check-dbrag_consistencypy)*
 
 ### Memory layer failure behavior
 

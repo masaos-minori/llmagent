@@ -12,7 +12,7 @@ related:
   - rag_02_03_ingestion_pipeline-chunksplitter.md
   - rag_02_04_ingestion_pipeline-ingester.md
   - rag_02_07_ingestion_pipeline-utils.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
 source:
   - rag_02_01_ingestion_pipeline-overview.md
 ---
@@ -21,7 +21,7 @@ source:
 # RAG Ingestion Pipeline
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 
 ---
 

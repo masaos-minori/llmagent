@@ -10,14 +10,14 @@ decision_scope:
 related:
   - ADR-002-config-isolation.md
   - rag_04_dto-models-types.md
-  - rag_05_7-rag-index-consistency-checks.md
-  - rag_05_8-rag-mcp-internal-operations-direct-db-access.md
+  - rag_05_07-rag-index-consistency-checks.md
+  - rag_05_08-rag-mcp-internal-operations-direct-db-access.md
   - db_02_architecture_and_schema-schema-reference.md
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_02_04_ingestion_pipeline-ingester.md
   - rag_02_02_ingestion_pipeline-crawler.md
   - rag_02_03_ingestion_pipeline-chunksplitter.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
 supersedes: []
 superseded_by: null
 ---
@@ -399,14 +399,14 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ### Specifications
 
 - [RAG Data Model](../21_rag/rag_04_dto-models-types.md) — data model definitions
-- [RAG Consistency Checks](../21_rag/rag_05_7-rag-index-consistency-checks.md) — consistency-check procedure
-- [RAG MCP Internal Operations](../21_rag/rag_05_8-rag-mcp-internal-operations-direct-db-access.md) — MCP internal operations
+- [RAG Consistency Checks](../21_rag/rag_05_07-rag-index-consistency-checks.md) — consistency-check procedure
+- [RAG MCP Internal Operations](../21_rag/rag_05_08-rag-mcp-internal-operations-direct-db-access.md) — MCP internal operations
 - [DB Schema Reference](../41_db/db_02_architecture_and_schema-schema-reference.md) — DB schema reference
 - [Ingestion Pipeline Overview](../21_rag/rag_02_01_ingestion_pipeline-overview.md) — ingestion overview
 - [Ingestion Pipeline - Ingester](../21_rag/rag_02_04_ingestion_pipeline-ingester.md) — Ingester details
 - [Ingestion Pipeline - Crawler](../21_rag/rag_02_02_ingestion_pipeline-crawler.md) — Crawler details
 - [Ingestion Pipeline - ChunkSplitter](../21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md) — ChunkSplitter details
-- [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — configuration reference
+- [Configuration Reference](../21_rag/rag_05_01-configuration-reference.md) — configuration reference
 
 ### Known Issues
 

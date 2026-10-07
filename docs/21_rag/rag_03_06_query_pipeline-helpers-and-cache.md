@@ -13,13 +13,13 @@ related:
   - rag_03_04_query_pipeline-search-stages.md
   - rag_03_05_query_pipeline-augment-stages.md
   - rag_04_dto-models-types.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
 ---
 
 # RAG Query Pipeline
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 - Type Definitions → [rag_04_dto-models-types.md](rag_04_dto-models-types.md)
 
 ---
@@ -44,7 +44,7 @@ rag
 ## RAG Query Pipeline Implementation Details
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 - Type Definitions → [rag_04_dto-models-types.md](rag_04_dto-models-types.md)
 
 ---

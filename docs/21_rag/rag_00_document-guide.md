@@ -12,7 +12,7 @@ related:
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_03_01_query_pipeline-overview.md
   - rag_04_dto-models-types.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
   - governance_03_issue-and-uncertainty-management.md
 ---
 
@@ -80,14 +80,14 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md) | Helpers + Cache |
 | [rag_03_07_query_pipeline-tests.md](rag_03_07_query_pipeline-tests.md) | Tests |
 | [rag_04_dto-models-types.md](rag_04_dto-models-types.md) | DTO: models_data, models_result, models_config, types |
-| [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md) | Configuration reference |
-| [rag_05_2-execution-guide.md](rag_05_2-execution-guide.md) | Execution guide |
-| [rag_05_3-logging.md](rag_05_3-logging.md) | Logging |
-| [rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md) | Error handling |
-| [rag_05_5-constraints-reference.md](rag_05_5-constraints-reference.md) | Constraints |
-| [rag_05_6-local-file-re-ingestion.md](rag_05_6-local-file-re-ingestion.md) | Local file re-ingestion |
-| [rag_05_7-rag-index-consistency-checks.md](rag_05_7-rag-index-consistency-checks.md) | Consistency checks |
-| [rag_05_8-rag-mcp-internal-operations-direct-db-access.md](rag_05_8-rag-mcp-internal-operations-direct-db-access.md) | MCP internal operations |
+| [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md) | Configuration reference |
+| [rag_05_02-execution-guide.md](rag_05_02-execution-guide.md) | Execution guide |
+| [rag_05_03-logging.md](rag_05_03-logging.md) | Logging |
+| [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md) | Error handling |
+| [rag_05_05-constraints-reference.md](rag_05_05-constraints-reference.md) | Constraints |
+| [rag_05_06-local-file-re-ingestion.md](rag_05_06-local-file-re-ingestion.md) | Local file re-ingestion |
+| [rag_05_07-rag-index-consistency-checks.md](rag_05_07-rag-index-consistency-checks.md) | Consistency checks |
+| [rag_05_08-rag-mcp-internal-operations-direct-db-access.md](rag_05_08-rag-mcp-internal-operations-direct-db-access.md) | MCP internal operations |
 | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) | Known issues (all areas) |
 
 ---

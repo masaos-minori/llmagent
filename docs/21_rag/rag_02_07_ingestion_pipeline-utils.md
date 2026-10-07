@@ -17,7 +17,7 @@ related:
   - rag_02_04_ingestion_pipeline-ingester.md
   - rag_02_08_ingestion_pipeline-shared.md
   - rag_02_09_ingestion_pipeline-shared-utilities.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
 source:
   - rag_02_01_ingestion_pipeline-overview.md
 ---
@@ -26,7 +26,7 @@ source:
 # RAG Ingestion Pipeline
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 
 ---
 

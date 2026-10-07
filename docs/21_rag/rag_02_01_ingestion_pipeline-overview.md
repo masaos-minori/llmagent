@@ -12,14 +12,14 @@ related:
   - rag_00_document-guide.md
   - rag_01_system_overview.md
   - rag_03_01_query_pipeline-overview.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
 ---
 
 
 # RAG Ingestion Pipeline
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 
 ---
 
@@ -86,7 +86,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 >
 > **Chunk artifact keys:** additionally includes `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `chunking_strategy`
 
-`rag_src_dir` is set in the ingestion config files (see [Configuration Reference](rag_05_1-configuration-reference.md)).
+`rag_src_dir` is set in the ingestion config files (see [Configuration Reference](rag_05_01-configuration-reference.md)).
 
 ---
 

@@ -11,7 +11,7 @@ related:
   - rag_03_04_query_pipeline-search-stages.md
   - rag_03_03_query_pipeline-context-and-diagnostics.md
   - rag_04_dto-models-types.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
   - rag_03_06_query_pipeline-helpers-and-cache.md
 source:
   - rag_03_01_query_pipeline-overview.md
@@ -20,7 +20,7 @@ source:
 # RAG Query Pipeline - Augment Stages
 
 ## System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-## Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+## Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 ## Type Definitions → [rag_04_dto-models-types.md](rag_04_dto-models-types.md)
 
 ---

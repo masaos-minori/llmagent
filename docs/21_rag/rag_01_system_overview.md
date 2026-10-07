@@ -12,7 +12,7 @@ related:
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_03_01_query_pipeline-overview.md
   - rag_04_dto-models-types.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
   - governance_03_issue-and-uncertainty-management.md
 ---
 
@@ -207,11 +207,11 @@ Troubleshooting:
 | Constraint | Value | Source |
 |---|---|---|
 | Language Detection | CJK ratio above a threshold → `ja`; otherwise `en`; falls back to the language hint for very short text | `crawler.py` |
-| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](rag_05_1-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
-| Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](rag_05_1-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
+| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](rag_05_01-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
+| Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](rag_05_01-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
 | Embedding Dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB | `scripts/db/store_protocols.py` |
-| Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](rag_05_1-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
-| Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §1.1](rag_05_1-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
+| Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
+| Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §1.1](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
 | Database | SQLite single node only | Architecture |
 
 Note: No empirical basis or trade-off analysis for these constraint values is recorded in this repository's code, configuration files, or ADRs. If these values are tuned, verify the change against actual retrieval quality/performance for your intended use case rather than assuming a known-good adjustment — this documentation set does not currently provide quality-impact guidance for any of them.
@@ -222,7 +222,7 @@ Each constraint below states what happens when violated and whether enforcement 
 
 **Language Detection** — Enforced programmatically in `detect_lang()` (`crawler_utils.py`): text under 100 characters returns `None` (falls back to hint language); CJK ratio ≥ 0.10 triggers `ja`, otherwise `en`. No error is raised — the fallback path handles short-text edge cases gracefully.
 
-**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (`self._chunk_english(section)`). See `docs/21_rag/rag_05_1-configuration-reference.md` for the discard-on-noise policy.
+**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (`self._chunk_english(section)`). See `docs/21_rag/rag_05_01-configuration-reference.md` for the discard-on-noise policy.
 
 **Chunk Overlap** — A configured value applied programmatically via sliding-window logic in `merge_text_items()` (`chunk_splitter.py`). There is no "violation" concept — any config value is accepted and applied without validation.
 
@@ -258,7 +258,7 @@ For details on responsibilities of these components, please refer to `docs/21_ra
 | Query Pipeline (API, Stage Details) | [rag_03_01_query_pipeline-overview.md](rag_03_01_query_pipeline-overview.md) |
 | Type Definitions | [rag_04_dto-models-types.md](rag_04_dto-models-types.md) |
 | DB Schema | [db_08_active_databases.md](../41_db/db_08_active_databases.md) |
-| Config, Execution Commands, Logs | [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md) |
+| Config, Execution Commands, Logs | [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md) |
 | Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
 
 ## Keywords

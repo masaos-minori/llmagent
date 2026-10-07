@@ -15,14 +15,14 @@ related:
   - rag_02_03_ingestion_pipeline-chunksplitter.md
   - rag_02_04_ingestion_pipeline-ingester.md
   - rag_02_07_ingestion_pipeline-utils.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
 ---
 
 
 # RAG Ingestion Pipeline
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 
 ---
 
@@ -45,14 +45,14 @@ TypedDict field set used for crawl output JSON files.
 
 `max_depth` and `max_pages` bound the crawl's BFS traversal to prevent
 unbounded growth in processing time, storage, and external-site load — see
-[section 1.1 Configuration Reference](rag_05_1-configuration-reference.md)
+[section 1.1 Configuration Reference](rag_05_01-configuration-reference.md)
 for the current operational values. No historical rationale for the
 specific limit values is recorded in this repository; `config/crawler.toml`'s
 own inline comment states these are unvalidated heuristics.
 `skip_nofollow` controls whether nofollow-marked links are excluded from
 the BFS queue.
 
-> For a full list of parameters, see [section 1.1 Configuration Reference](rag_05_1-configuration-reference.md).
+> For a full list of parameters, see [section 1.1 Configuration Reference](rag_05_01-configuration-reference.md).
 
 ### 2.1.2 `crawl_file` Behavior
 
@@ -110,7 +110,7 @@ reader for crawl-stage JSON artifacts; `ChunkSplitter`
 (`scripts/rag/ingestion/chunk_splitter.py`) is its sole caller. A crawl artifact
 requires exactly this key set (`url`, `content`, `title`, `lang`, `code_blocks`, `etag`,
 `last_modified`, `fetched_at`) — a missing key or an invalid field type raises
-`ChunkFormatError` (see [rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md)).
+`ChunkFormatError` (see [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md)).
 For the full Required/Nullable/Conditional classification of these fields, see the
 canonical crawl/chunk artifact-field contract table in
 [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
@@ -119,18 +119,18 @@ the `ChunkDocument` DTO this reader returns.
 
 ### 2.5 Error Handling
 
-See [rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md)'s
+See [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md)'s
 "Crawler" section for HTTP-failure retry, per-URL exception, and language-mismatch
 handling. (The short-text hint-language fallback is covered in section 2.2's
 "Language Detection" bullet, not an error case.)
 
 ### 2.6 Logging
 
-See [rag_05_3-logging.md](rag_05_3-logging.md) for details.
+See [rag_05_03-logging.md](rag_05_03-logging.md) for details.
 
 ### 2.7 Configuration (`config/crawler.toml`)
 
-See [rag_05_1-configuration-reference.md section 1.1](rag_05_1-configuration-reference.md).
+See [rag_05_01-configuration-reference.md section 1.1](rag_05_01-configuration-reference.md).
 
 ---
 

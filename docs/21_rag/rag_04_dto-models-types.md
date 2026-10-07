@@ -184,7 +184,7 @@ These fields are only meaningful when the search is delegated to a remote HTTP R
 
 `RagConfigImpl` is the concrete implementation of the `RagConfig` Protocol, defining the flat configuration contract for the RAG pipeline. It contains fields covering MQE query expansion, search, reranking, refiner, LLM/embedding service URLs, database paths, and retry/workers configuration. All fields are required (no defaults).
 
-The field set is defined by the dataclass in `scripts/rag/models_config.py` and the `RagConfig` Protocol in `scripts/shared/types.py`; current operational values live in `config/*.toml` (see [Configuration Reference](rag_05_1-configuration-reference.md)).
+The field set is defined by the dataclass in `scripts/rag/models_config.py` and the `RagConfig` Protocol in `scripts/shared/types.py`; current operational values live in `config/*.toml` (see [Configuration Reference](rag_05_01-configuration-reference.md)).
 
 Note: All fields are required — no default values are specified in the dataclass.
 

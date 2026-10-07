@@ -11,8 +11,8 @@ related:
   - ADR-002-config-isolation.md
   - rag_03_01_query_pipeline-overview.md
   - rag_03_05_query_pipeline-augment-stages.md
-  - rag_05_4-error-handling-reference.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_04-error-handling-reference.md
+  - rag_05_01-configuration-reference.md
   - db_02_architecture_and_schema-schema-reference.md
 supersedes: []
 superseded_by: null
@@ -384,8 +384,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - [RAG Query Pipeline](../21_rag/rag_03_01_query_pipeline-overview.md) — query pipeline
 - [RAG Augment Stage](../21_rag/rag_03_05_query_pipeline-augment-stages.md) — Augment stage
-- [RAG Error Handling Reference](../21_rag/rag_05_4-error-handling-reference.md) — error handling
-- [Configuration Reference](../21_rag/rag_05_1-configuration-reference.md) — configuration reference
+- [RAG Error Handling Reference](../21_rag/rag_05_04-error-handling-reference.md) — error handling
+- [Configuration Reference](../21_rag/rag_05_01-configuration-reference.md) — configuration reference
 - [DB Schema Reference](../41_db/db_02_architecture_and_schema-schema-reference.md) — DB schema reference
 
 ### Known Issues

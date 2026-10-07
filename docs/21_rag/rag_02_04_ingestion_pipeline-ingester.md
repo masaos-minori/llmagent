@@ -16,14 +16,14 @@ related:
   - rag_02_07_ingestion_pipeline-utils.md
   - rag_02_05_ingestion_pipeline-document-manager.md
   - rag_02_06_ingestion_pipeline-supporting-components.md
-  - rag_05_1-configuration-reference.md
+  - rag_05_01-configuration-reference.md
 ---
 
 
 # RAG Ingestion Pipeline
 
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-- Configuration → [rag_05_1-configuration-reference.md](rag_05_1-configuration-reference.md)
+- Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 
 ---
 
@@ -39,7 +39,7 @@ For a complete list of dataclasses and public methods, see `scripts/rag/ingestio
 reader for chunk-stage JSON artifacts; `RagIngester._read_chunk_json()`
 (`scripts/rag/ingestion/ingester.py`, calling `read_chunk_json()`) is
 its wrapper, used within `ingester.py`. A missing required key or invalid field
-type raises `ChunkFormatError` — see [rag_05_4-error-handling-reference.md](rag_05_4-error-handling-reference.md)
+type raises `ChunkFormatError` — see [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md)
 and the canonical field-contract table in
 [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
 
