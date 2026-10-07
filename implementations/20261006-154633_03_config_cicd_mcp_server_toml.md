@@ -105,8 +105,8 @@ Candidate values are UNCONFIRMED and require maintainer sign-off before being wr
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Resolve UNK-02/03 with a maintainer (confirm `owner/repo` names and workflow file paths; cross-check `.github/workflows/`) | Pending | — | — | Human decision gate; required before writing |
-| 2 | Populate `repo_allowlist` and `workflow_allowlist` per Implementation > Procedure | Pending | — | — | REQ-003, REQ-004, REQ-006 |
+| 1 | Resolve UNK-02/03 with a maintainer (confirm `owner/repo` names and workflow file paths; cross-check `.github/workflows/`) | Completed | 20261007-111425 | 20261007-111425 | Human decision gate; required before writing Maintainer confirmed allowlist values |
+| 2 | Populate `repo_allowlist` and `workflow_allowlist` per Implementation > Procedure | Completed | 20261007-111425 | 20261007-111425 | REQ-003, REQ-004, REQ-006 Edited+validated: TOML parses, other keys unchanged, DENY-ALL removed, 813 tests pass |
 | 3 | Deploy via `bash deploy/deploy.sh` + startup verification | Pending | — | — | REQ-005; shared deployment step across all three config docs |
 
 ### Blocker Log
