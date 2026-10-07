@@ -147,10 +147,10 @@ executing a write twice on retry.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per target table | N/A — docs are Row 5 | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-211108 | 20261007-211108 | dispatch.py idempotency cache rewritten: composite key+args hash, reuse-reject, TTL+oldest-first eviction, no error/dry-run caching (REQ-001..004) |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-211108 | 20261007-211108 | New dispatch-cache behavioral tests are authored/validated under procedure 03 (test_mcp_dispatch.py); this cycle ran existing dispatch tests (1770 passed, 6 skipped) with no regression |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-211108 | 20261007-211108 | ruff format/check + mypy + bandit all clean; lint-imports shows pre-existing shared->agent broken contract (out of scope per plan line 107) |
+| 4 | Update documentation, if in scope per target table | Completed | — | — | Not applicable here: docs are Row 5 (procedure 05). No doc change in this code-only cycle. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
