@@ -78,8 +78,8 @@ Replace `UV_NATIVE_TLS=true` → `UV_SYSTEM_CERTS=true` on lines 28, 56, and 112
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace `UV_NATIVE_TLS=true` → `UV_SYSTEM_CERTS=true` in `deploy/setup_services.sh` (lines 28, 56, 112–114), preserving `PYTHONPATH=/opt/llm/scripts` | Pending | — | — | REQ-002, REQ-005, REQ-006 |
-| 2 | Static grep + runtime verification per Validation plan | Pending | — | — | REQ-001..REQ-006 |
+| 1 | Replace `UV_NATIVE_TLS=true` → `UV_SYSTEM_CERTS=true` in `deploy/setup_services.sh` (lines 28, 56, 112–114), preserving `PYTHONPATH=/opt/llm/scripts` | Completed | — | 20261007-123128 | REQ-002, REQ-005, REQ-006 |
+| 2 | Static grep + runtime verification per Validation plan | Completed | — | 20261007-123128 | REQ-001..REQ-006 static validation passed (bash -n OK; rg confirms all UV_NATIVE_TLS replaced with UV_SYSTEM_CERTS=true incl. echo examples 112-114); runtime verification requires /opt/llm prod env (unavailable in dev) |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | N/A: shell script, no Python lint/type/security gate | Pending | — | — |
 | 4 | Update documentation, if in scope | N/A: no docs reference the variable | Pending | — | — |
 
