@@ -76,8 +76,8 @@ Replace `UV_NATIVE_TLS=true` → `UV_SYSTEM_CERTS=true` at lines 65 and 76, pres
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace `UV_NATIVE_TLS=true` → `UV_SYSTEM_CERTS=true` in `deploy/start_agent.sh` (lines 65, 76), preserving `PYTHONPATH="${PYTHONPATH}"` | Pending | — | — | REQ-001, REQ-005, REQ-006 |
-| 2 | Static grep + runtime verification per Validation plan | Pending | — | — | REQ-001..REQ-006 |
+| 1 | Replace `UV_NATIVE_TLS=true` → `UV_SYSTEM_CERTS=true` in `deploy/start_agent.sh` (lines 65, 76), preserving `PYTHONPATH="${PYTHONPATH}"` | Completed | — | 20261007-123110 | REQ-001, REQ-005, REQ-006 |
+| 2 | Static grep + runtime verification per Validation plan | Completed | — | 20261007-123110 | REQ-001..REQ-006 static validation passed (bash -n OK; rg confirms all UV_NATIVE_TLS replaced with UV_SYSTEM_CERTS=true); runtime verification requires /opt/llm prod env (unavailable in dev) |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | N/A: shell script, no Python lint/type/security gate | Pending | — | — |
 | 4 | Update documentation, if in scope | N/A: no docs reference the variable | Pending | — | — |
 
