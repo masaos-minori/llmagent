@@ -41,12 +41,12 @@ Without an explicit decision, mechanical-content removal work cannot proceed aga
 ### Constraints
 
 - This ADR records the disposition decision only — it does not implement any generation tooling or edit any existing Reference document's content.
-- `GV-018` (`tools/check_docs_content_policy.py`) documents an intent to exempt guarded, auto-generated content from its mechanical-content warnings, but that exemption must actually recognize the real guard-comment format before Option B's guarded blocks are usable without warning noise (tracked separately).
+- `GV-018` (`tools/check_docs_content_policy.py`) exempts guarded, auto-generated content (blocks opened by a `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` comment) from its mechanical-content warnings.
 
 ## Assumptions
 
 - The existing `rag`/`mcp`/`deployment` generator pattern in `tools/generate_reference_table.py` is a working, adoptable precedent for Reference-class documents generally, not specific to those three domains.
-- Extending that tool to new domains (Agent, EventBus, Memory) is separate follow-up work, gated on this ADR's outcome, not performed here.
+- The same generator pattern is reused for further domains (Agent, EventBus, Memory).
 
 ## Decision
 
@@ -95,8 +95,7 @@ Leave Reference-class documents hand-maintained and accept ongoing drift risk, t
 
 ### Negative Consequences
 
-- Requires a `tools/generate_reference_table.py` generator function for any other domain with a Reference document before migration can happen for that domain — tracked separately, not implemented by this ADR. Generators for Agent/EventBus/Memory already exist.
-- `GV-018`'s guard-comment exemption must actually recognize the real `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` format (a pre-existing bug where it only matches a literal bare string) before newly generated guarded blocks are exempt from mechanical-content warnings — tracked separately, not implemented by this ADR.
+- A Reference document can be migrated to generated status only for a domain that has a generator function in `tools/generate_reference_table.py`.
 
 ## Invariants
 
@@ -137,11 +136,9 @@ Do not unconditionally align the ADR text with the current implementation; manag
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 
-## Related Documents
+## Related ADRs
 
-- [Documentation Policy](../00_governance/governance_01_documentation-policy.md) — Document Classification, ADR Section Header Standardization, ADR Acceptance Evidence Standard
-- `tools/generate_reference_table.py` — existing Option B precedent (rag/mcp/deployment/agent/eventbus/memory generators)
-- `tools/check_docs_content_policy.py` — `GV-018`'s guard-comment exemption, currently mismatched against the real guard format (tracked separately)
+Not applicable.
 
 ## Completion Checklist
 

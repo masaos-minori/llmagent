@@ -5,8 +5,6 @@ tags:
   - rag
   - index
   - canonical-source
-decision_scope:
-  - rag
 related:
   - ADR-002-config-isolation.md
   - rag_04_dto-models-types.md
@@ -18,8 +16,7 @@ related:
   - rag_02_02_ingestion_pipeline-crawler.md
   - rag_02_03_ingestion_pipeline-chunksplitter.md
   - rag_05_01-configuration-reference.md
-supersedes: []
-superseded_by: null
+  - ADR-004-environment-failure-handling-policy.md
 ---
 
 # ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
@@ -38,7 +35,7 @@ Accepted
 
 ## Summary
 
-`documents` and `chunks` are defined as the canonical data for document and chunk content, and `chunks_fts` and `chunks_vec` as rebuildable derived indexes, making the criteria for consistency checks, deletion order, and recovery unambiguous. The DESIGN-3 decision is integrated into this ADR.
+`documents` and `chunks` are defined as the canonical data for document and chunk content, and `chunks_fts` and `chunks_vec` as rebuildable derived indexes, making the criteria for consistency checks, deletion order, and recovery unambiguous.
 
 ## Context
 
@@ -334,7 +331,7 @@ Register any Invariant without Verification as an unverified item in an Issue.
 
 Briefly describe how the current implementation realizes the Decision.
 
-See Related Documents > Implementation References for the current file/symbol list.
+See Implementation References for the current file/symbol list.
 
 This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
@@ -389,30 +386,12 @@ Add review conditions specific to this ADR.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Related ADRs
+## Related ADRs
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-004: Failure Handling Policy Across Environments
 
-### Specifications
-
-- [RAG Data Model](../21_rag/rag_04_dto-models-types.md) — data model definitions
-- [RAG Consistency Checks](../21_rag/rag_05_07-rag-index-consistency-checks.md) — consistency-check procedure
-- [RAG MCP Internal Operations](../21_rag/rag_05_08-rag-mcp-internal-operations-direct-db-access.md) — MCP internal operations
-- [DB Schema Reference](../41_db/db_02_architecture_and_schema-schema-reference.md) — DB schema reference
-- [Ingestion Pipeline Overview](../21_rag/rag_02_01_ingestion_pipeline-overview.md) — ingestion overview
-- [Ingestion Pipeline - Ingester](../21_rag/rag_02_04_ingestion_pipeline-ingester.md) — Ingester details
-- [Ingestion Pipeline - Crawler](../21_rag/rag_02_02_ingestion_pipeline-crawler.md) — Crawler details
-- [Ingestion Pipeline - ChunkSplitter](../21_rag/rag_02_03_ingestion_pipeline-chunksplitter.md) — ChunkSplitter details
-- [Configuration Reference](../21_rag/rag_05_01-configuration-reference.md) — configuration reference
-
-### Known Issues
-
-- None
-
-### Implementation References
+## Implementation References
 
 - `scripts/rag/ingestion/document_manager.py` — `DocumentManager.delete_existing_document()`, `delete_document_chain()`
 - `scripts/agent/services/rag_maintenance_service.py` — `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`

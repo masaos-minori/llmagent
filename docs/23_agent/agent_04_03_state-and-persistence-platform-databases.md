@@ -11,8 +11,6 @@ related:
   - agent_00_document-guide.md
   - agent_04_01_state-and-persistence-state-model.md
   - agent_04_02_state-and-persistence-history-compression.md
-source:
-  - agent_04_01_state-and-persistence-state-model.md
 ---
 
 # Agent State and Persistence - Platform Databases

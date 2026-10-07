@@ -189,7 +189,7 @@ Troubleshooting:
 
 **sqlite-vec extension:** Success criteria: the file at `sqlite_vec_so` (see `config/ingester.toml`) exists. A missing file means the extension cannot be loaded.
 
-**Configuration files:** Success criteria: all three files exist at the paths listed in the table (for example, `ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml` prints each path without error). Missing files produce "No such file or directory" errors.
+**Configuration files:** Success criteria: all listed files exist at the paths listed in the table (for example, `ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml` prints each path without error). Missing files produce "No such file or directory" errors.
 
 **Target URLs or files:** Success criteria: at least one target is given, either by `--url` on the command line or by `target_urls` in `config/crawler.toml`.
 
@@ -213,9 +213,9 @@ Note: No empirical basis or trade-off analysis for these constraint values is re
 
 Each constraint below states what happens when violated and whether enforcement is programmatic or operational.
 
-**Language Detection** — Enforced programmatically in `detect_lang()` (`crawler_utils.py`): text under 100 characters returns `None` (falls back to hint language); CJK ratio ≥ 0.10 triggers `ja`, otherwise `en`. No error is raised — the fallback path handles short-text edge cases gracefully.
+**Language Detection** — Enforced programmatically in `detect_lang()` (`crawler_utils.py`): text shorter than the minimum detection length returns `None` (falls back to hint language); a CJK ratio at or above the threshold triggers `ja`, otherwise `en`. No error is raised — the fallback path handles short-text edge cases gracefully.
 
-**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (< 40 chars) are discarded as noise (confirmed: `if len(section) >= self._min_chunk`); over-maximum sections (> 500 chars) are split further via sentence-level chunking (`self._chunk_english(section)`). See `docs/21_rag/rag_05_01-configuration-reference.md` for the discard-on-noise policy.
+**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (below the minimum chunk length) are discarded as noise (confirmed: `if len(section) >= self._min_chunk`); over-maximum sections (above the maximum chunk length) are split further via sentence-level chunking (`self._chunk_english(section)`). See `docs/21_rag/rag_05_01-configuration-reference.md` for the discard-on-noise policy.
 
 **Chunk Overlap** — A configured value applied programmatically via sliding-window logic in `merge_text_items()` (`chunk_splitter.py`). There is no "violation" concept — any config value is accepted and applied without validation.
 

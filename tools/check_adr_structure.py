@@ -9,7 +9,7 @@ Two checks, both operating over every file under docs/10_adr/*.md:
     future ADR author can easily forget.
 (b) Implementation Notes vs Implementation References drift (WARNING). A
     backtick-quoted `scripts/...`/`tests/...` path cited under
-    `## Implementation Notes` but absent from `### Implementation References`
+    `## Implementation Notes` but absent from `## Implementation References`
     suggests the two lists have silently diverged. An ADR whose Notes section
     cites zero such paths is skipped for this check entirely — that is the
     expected, correct end state after Notes has been reduced to a plain
@@ -44,9 +44,8 @@ ADR_DIR = REPO_ROOT / "docs" / "10_adr"
 
 _KNOWN_DEVIATIONS_RE = re.compile(r"^## Known Deviations\s*$")
 _IMPLEMENTATION_NOTES_RE = re.compile(r"^## Implementation Notes\s*$")
-_IMPLEMENTATION_REFERENCES_RE = re.compile(r"^### Implementation References\s*$")
+_IMPLEMENTATION_REFERENCES_RE = re.compile(r"^## Implementation References\s*$")
 _H2_HEADING_RE = re.compile(r"^## ")
-_H1_TO_H3_HEADING_RE = re.compile(r"^#{1,3} ")
 
 # A `scripts/...`/`tests/...` path, backtick-quoted, with a file extension.
 _SOURCE_OR_TEST_PATH_RE = re.compile(r"`((?:scripts|tests)/[^`]+\.\w+)`")
@@ -107,7 +106,7 @@ def check_notes_references_drift(docs: list[DocFile]) -> list[Issue]:
         references_paths = {
             path
             for path, _line_no in _section_paths(
-                doc.lines, _IMPLEMENTATION_REFERENCES_RE, _H1_TO_H3_HEADING_RE
+                doc.lines, _IMPLEMENTATION_REFERENCES_RE, _H2_HEADING_RE
             )
         }
 

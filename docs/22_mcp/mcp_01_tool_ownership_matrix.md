@@ -38,7 +38,7 @@ related:
 | github_create_or_update_file, github_push_files | github-mcp | GITHUB_WRITE_TOOLS | WRITE_DANGEROUS | Yes, full `yes` (`high` via `approval_risk_rules`) | execute |
 | github_delete_file, github_merge_pull_request | github-mcp | GITHUB_DANGEROUS_TOOLS | WRITE_DANGEROUS | Yes, full `yes` (`high` via `approval_risk_rules`) | execute |
 
-> **Note:** `file-mcp` was historically a single server; it is now split into
+> **Note:** `file-mcp` is split into
 > three independent processes (`file-read-mcp`, `file-write-mcp`,
 > `file-delete-mcp`) for least-privilege isolation. Tool membership above is
 > kept in sync with the auto-generated reference table below — see

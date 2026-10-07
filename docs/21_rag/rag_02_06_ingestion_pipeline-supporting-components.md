@@ -15,8 +15,6 @@ related:
   - rag_02_07_ingestion_pipeline-utils.md
   - rag_02_05_ingestion_pipeline-document-manager.md
   - rag_05_01-configuration-reference.md
-source:
-  - rag_02_01_ingestion_pipeline-overview.md
 ---
 
 

@@ -544,7 +544,6 @@ def plan_related_merge(path: Path, content: str, known_names: set[str]) -> Relat
         return result
     start, stop, entries, _shape = parsed
 
-    is_adr = "10_adr" in path.parts
     spans: list[tuple[int, int]] = []
     refs: list[str] = []
     for heading in _RELATED_HEADING_RE.finditer(rest):
@@ -560,7 +559,7 @@ def plan_related_merge(path: Path, content: str, known_names: set[str]) -> Relat
                 name = PurePosixPath(code_ref or link_ref).name
                 if name != path.name and name not in refs:
                     refs.append(name)
-            if not is_adr and not _LINK_ONLY_RE.match(text):
+            if not _LINK_ONLY_RE.match(text):
                 result.non_link_lines.append(text)
 
     seen: set[str] = set()
@@ -590,7 +589,7 @@ def plan_related_merge(path: Path, content: str, known_names: set[str]) -> Relat
 
     unresolved_body = [n for n in result.unresolved if n in refs and n not in entries]
     result.remove_sections = bool(
-        spans and not is_adr and not result.non_link_lines and not unresolved_body
+        spans and not result.non_link_lines and not unresolved_body
     )
 
     changed_fm = new_entries != entries

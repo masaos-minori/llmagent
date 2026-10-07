@@ -45,7 +45,7 @@ Separately from the DB boundaries with other servers, mdq-mcp has a fail-closed 
 
 - If `allowed_dirs` is empty, `authorize_path()` always returns `False` — implementing fail-closed behavior where all path access is denied (Explicit in code).
 - Before evaluation, both the target path and the allowed root are normalized using `Path.resolve()` to prevent directory traversal via `../` or escaping the allowlist via symbolic links (Explicit in code).
-- Authorization checks are applied to five tools: `MdqService.outline()` (`outline` tool), path validation functions (used by `index_paths`/`refresh_index` tools), and `search_docs`, `get_chunk`, and `grep_docs` (**additional re-check upon reading added on 2026-07-20**, see below). Violations raise `MdqAuthorizationError`, which is converted to HTTP 403 by the error handler in `scripts/mcp_servers/mdq/mdq_server.py` (Explicit in code).
+- Authorization checks are applied to the following tools: `MdqService.outline()` (`outline` tool), path validation functions (used by `index_paths`/`refresh_index` tools), and `search_docs`, `get_chunk`, and `grep_docs` (these three re-check authorization upon reading, see below). Violations raise `MdqAuthorizationError`, which is converted to HTTP 403 by the error handler in `scripts/mcp_servers/mdq/mdq_server.py` (Explicit in code).
 - For `search_docs`, `get_chunk`, and `grep_docs`, the `source_path` of indexed chunks is re-checked against current `allowed_dirs` using `authorize_path()` before returning results. `search_docs` and `grep_docs` (when `paths` is not specified) silently exclude unauthorized lines and do not count them in totals (fail-closed, ensuring existence of unauthorized results is not leaked). `get_chunk` and `grep_docs` (when `paths` is explicitly specified) reject the entire call with `MdqAuthorizationError` if unauthorized targets are included (Explicit in code).
 - Since `stats` only returns counts and does not include path-level content, it continues to bypass `authorize_path()` (Explicit in code).
 
@@ -59,7 +59,7 @@ Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as
 
 > **Important:** The empty token passed to `attach_auth_middleware()` is enforced and intended: it skips HTTP auth for mdq-mcp and is part of the **current specification**.
 >
-> If the MDQ HTTP authentication model changes in the future (e.g., adding actual Bearer tokens), it should be treated as an independent security design task and not as part of a compatibility cleanup.
+> Any change to the MDQ HTTP authentication model (e.g., adding actual Bearer tokens) is an independent security design task and not part of a compatibility cleanup.
 
 ---
 

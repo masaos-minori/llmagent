@@ -17,7 +17,7 @@ related:
 
 ### `documents` table
 
-Document metadata: doc_id (INTEGER PK AUTOINCREMENT), url (TEXT UNIQUE NOT NULL), title (TEXT nullable), lang (TEXT NOT NULL CHECK ja/en), fetched_at (TEXT NOT NULL — ISO-8601 UTC Z-suffix, always provided by callers), etag (TEXT nullable), last_modified (TEXT nullable), chunking_strategy (TEXT NOT NULL DEFAULT 'text'). Timestamp format corrected in db/schema_sql.py _RAG_SCHEMA_TEMPLATE to use strftime('%Y-%m-%dT%H:%M:%SZ', 'now') instead of datetime('now'); all other tables' timestamp columns (created_at/updated_at etc) unified under same format.
+Document metadata: doc_id (INTEGER PK AUTOINCREMENT), url (TEXT UNIQUE NOT NULL), title (TEXT nullable), lang (TEXT NOT NULL CHECK ja/en), fetched_at (TEXT NOT NULL — ISO-8601 UTC Z-suffix, always provided by callers), etag (TEXT nullable), last_modified (TEXT nullable), chunking_strategy (TEXT NOT NULL DEFAULT 'text'). Timestamps in db/schema_sql.py _RAG_SCHEMA_TEMPLATE use strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); all other tables' timestamp columns (created_at/updated_at etc) unified under same format.
 
 ### `chunks` table
 

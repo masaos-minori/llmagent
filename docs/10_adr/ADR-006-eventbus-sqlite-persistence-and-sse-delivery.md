@@ -5,8 +5,6 @@ tags:
   - eventbus
   - sqlite
   - sse
-decision_scope:
-  - eventbus
 related:
   - ADR-002-config-isolation.md
   - eventbus_01_system-overview.md
@@ -16,8 +14,8 @@ related:
   - eventbus_08_configuration-and-operations.md
   - eventbus_09_reference_api.md
   - governance_03_issue-and-uncertainty-management.md
-supersedes: []
-superseded_by: null
+  - ADR-004-environment-failure-handling-policy.md
+  - ADR-013-eventbus-authentication-authorization.md
 ---
 
 # ADR-006: EventBus SQLite Persistence and SSE Delivery
@@ -405,28 +403,13 @@ Add review conditions specific to this ADR.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Related ADRs
+## Related ADRs
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-004: Failure Handling Policy Across Environments
 - ADR-013: EventBus Authentication and Authorization
 
-### Specifications
-
-- [EventBus System Overview](../24_eventbus/eventbus_01_system-overview.md) — EventBus architecture overview
-- [Event Bus Operations](../24_eventbus/eventbus_03_dlq_operations.md) — Publish/Replay/Subscribe/ACK/NACK/Health/DLQ protocols
-- [Persistence Schema and Replay](../24_eventbus/eventbus_06_persistence_schema_and_replay.md) — persistence schema and Replay
-- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md) — DLQ offsets and delivery semantics
-- [Configuration and Operations](../24_eventbus/eventbus_08_configuration-and-operations.md) — configuration, bind address, health endpoint, Consumer ID, delivery, DLQ operations
-- [Reference API](../24_eventbus/eventbus_09_reference_api.md) — core modules, route handlers, Broker/Offsets
-
-### Known Issues
-
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus known issues
-
-### Implementation References
+## Implementation References
 
 - `scripts/eventbus/broker.py` — `EventBroker.publish()`
 - `scripts/eventbus/publish_route.py` — `publish()`

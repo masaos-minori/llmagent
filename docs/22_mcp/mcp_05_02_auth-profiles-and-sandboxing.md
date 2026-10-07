@@ -46,7 +46,7 @@ secret in the TOML file — see the Production-Only Migration Procedure for the 
 
 `SecurityProfile` has a single `PRODUCTION` member, so `security_profile` does not distinguish environments. The authentication-mandatory behavior described above under [Authentication](#authentication-auth_token) applies unconditionally in every environment; there is no profile value that relaxes it.
 
-**Enforcement Point:** `agent/services/security_audit.py::audit_security_defaults()` raises `RuntimeError` unconditionally if any HTTP MCP server has an empty `auth_token` — this check no longer branches on `security_profile`. It also raises an exception, regardless of environment, if `shell_sandbox_backend == "none"`; it separately warns about empty `tool.allowed_tools`.
+**Enforcement Point:** `agent/services/security_audit.py::audit_security_defaults()` raises `RuntimeError` unconditionally if any HTTP MCP server has an empty `auth_token` — this check does not branch on `security_profile`. It also raises an exception, regardless of environment, if `shell_sandbox_backend == "none"`; it separately warns about empty `tool.allowed_tools`.
 
 **Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](../23_agent/agent_08_01_configuration-loading-agent-config.md#configuration-file-ownership)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 

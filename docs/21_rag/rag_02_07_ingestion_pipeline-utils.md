@@ -18,8 +18,6 @@ related:
   - rag_02_08_ingestion_pipeline-shared.md
   - rag_02_09_ingestion_pipeline-shared-utilities.md
   - rag_05_01-configuration-reference.md
-source:
-  - rag_02_01_ingestion_pipeline-overview.md
 ---
 
 

@@ -28,7 +28,7 @@ related:
 
 ## 1. Pipeline Overview
 
-`RagPipeline` executes five stages in order. Each stage implements the `PipelineStage` Protocol and modifies a shared `PipelineContext` dataclass in-place.
+`RagPipeline` executes its stages in order. Each stage implements the `PipelineStage` Protocol and modifies a shared `PipelineContext` dataclass in-place.
 
 ``` text
 RagPipeline.augment(query)

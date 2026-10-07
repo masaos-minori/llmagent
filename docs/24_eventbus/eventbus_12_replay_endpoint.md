@@ -1,12 +1,10 @@
 ---
 title: Replay Endpoint
-description: GET /replay endpoint contract for replaying events via SSE or JSON
 tags: [api-reference, replay, sse]
 area: eventbus
 related:
   - eventbus_02_api-reference-index.md
   - eventbus_06_persistence_schema_and_replay.md
-created: 20260916
 ---
 
 # Replay Endpoint

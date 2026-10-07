@@ -87,7 +87,7 @@ Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](.
 
 | Tool Set | Server Key |
 |---|---|
-| `READ_TOOLS` (9 tools: list_directory, read_text_file, etc.) | `file_read` |
+| `READ_TOOLS` (e.g., list_directory, read_text_file, etc.) | `file_read` |
 | `WRITE_TOOLS` (write_file, edit_file, create_directory, move_file) | `file_write` |
 | `DELETE_TOOLS` (delete_file, delete_directory) | `file_delete` |
 | `shell_run` | `shell` |
@@ -118,7 +118,7 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 | Registry Registration | `shared/tool_constants.py::MDQ_TOOLS` | Canonical set for registering tools in `ToolRegistry` |
 | Deployment Allowlist | `[mcp_servers.mdq].tool_names` in `config/agent.toml` | List of tools actually allowed to start and be used |
 
-**Generalization to all 8 servers:** The above 4-layer consistency guardrails were specific to MDQ, but `tests/test_tool_server_layer_consistency.py` generalizes this verification to all 8 MCP servers (mdq, github, shell, git, cicd, rag_pipeline, file[read/write/delete], web_search). Dispatch table implementations follow two patterns:
+**Generalization to all MCP servers:** The above 4-layer consistency guardrails were specific to MDQ, but `tests/test_tool_server_layer_consistency.py` generalizes this verification to all MCP servers (mdq, github, shell, git, cicd, rag_pipeline, file[read/write/delete], web_search). Dispatch table implementations follow two patterns:
 
 | Dispatch Pattern | Applicable Servers |
 |---|---|

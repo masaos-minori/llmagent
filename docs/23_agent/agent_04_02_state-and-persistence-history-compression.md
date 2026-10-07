@@ -73,7 +73,7 @@ Key behaviors:
 
 ### Token Counting
 
-Priority: (1) LLM's `usage.input_tokens` (accurate), (2) `/tokenize` endpoint (accurate), (3) Fallback to `chars // 4`.
+Priority: (1) LLM's `usage.input_tokens` (accurate), (2) `/tokenize` endpoint (accurate), (3) Fallback to a characters-per-token estimate (see `scripts/agent/history.py`).
 
 ### Data Classification
 

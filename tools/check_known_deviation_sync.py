@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
 """check_known_deviation_sync.py — Verify ADR Known Deviations stay in sync with docs/.
 
-Every ADR's `## Known Deviations` section (and `## Related Documents` ->
-`### Known Issues` subsection) cites Known Issue IDs (e.g. `EVENTBUS-008`)
+Every ADR's `## Known Deviations` section cites Known Issue IDs (e.g. `EVENTBUS-008`)
 that are tracked in
 `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
 Two failure modes are reported:
@@ -96,7 +95,6 @@ _RESOLVED_BULLET_RE = re.compile(
     r"^\s*-\s+(?:\*\*Resolved[^*]*\*\*:|\*\*Status\*\*:\s*Resolved\b)",
     re.IGNORECASE,
 )
-_BULLET_LINE_RE = re.compile(r"^\s*-\s+")
 
 
 @dataclass(frozen=True)
@@ -291,20 +289,6 @@ def parse_adr_references(files: list[DocFile]) -> list[AdrReference]:
                     section="Known Deviations",
                 )
             )
-
-        known_issues = _section_body(doc.lines, "### Known Issues", 3)
-        for line_no, line in known_issues:
-            if not _BULLET_LINE_RE.match(line):
-                continue
-            for id_match in _ID_LOOKAHEAD_RE.finditer(line):
-                refs.append(
-                    AdrReference(
-                        id=id_match.group(1),
-                        adr_file=adr_file,
-                        line_no=line_no,
-                        section="Related Documents > Known Issues",
-                    )
-                )
     return refs
 
 
@@ -393,8 +377,8 @@ def render_json(issues: list[Issue]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Read-only cross-check of every ADR's Known Deviations (and "
-            "Related Documents -> Known Issues) references against the "
+            "Read-only cross-check of every ADR's Known Deviations "
+            "references against the "
             "Known Issue entries in governance_03, and rejection of "
             "`- **Resolved**:` bullets in Known Deviations."
         )

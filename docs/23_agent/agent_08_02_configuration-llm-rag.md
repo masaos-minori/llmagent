@@ -9,8 +9,6 @@ related:
   - agent_08_01_configuration-loading-agent-config.md
   - agent_08_03_configuration-tools-memory.md
   - agent_08_04_configuration-mcp-approval-obs.md
-source:
-  - agent_08_01_configuration-loading-agent-config.md
 ---
 
 # Agent Configuration

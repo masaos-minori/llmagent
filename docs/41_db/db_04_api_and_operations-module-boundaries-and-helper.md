@@ -21,7 +21,7 @@ To document the `SQLiteHelper` API, the protocol groups and implementations in `
 
 ## 1a. DB Store Module Boundaries
 
-The DB store layer is split into three modules with clear import boundaries. `db/store.py` is the public API surface — it re-exports protocols and embedding helpers; callers should import from here to maintain a stable contract. `db/store_protocols.py` is the extension point — containing protocol definitions for storage contracts; implementers import this, while callers rarely use it directly. `db/store_impl.py` is the SQLite implementation layer — providing concrete implementations of the protocols; do not import directly unless intentionally working at the protocol/implementation level. **Rule:** Callers must always import from `db.store`; direct imports from `store_protocols.py` or `store_impl.py` are discouraged and should only be used for intentional protocol/implementation development.
+The DB store layer is split into modules with clear import boundaries. `db/store.py` is the public API surface — it re-exports protocols and embedding helpers; callers should import from here to maintain a stable contract. `db/store_protocols.py` is the extension point — containing protocol definitions for storage contracts; implementers import this, while callers rarely use it directly. `db/store_impl.py` is the SQLite implementation layer — providing concrete implementations of the protocols; do not import directly unless intentionally working at the protocol/implementation level. **Rule:** Callers must always import from `db.store`; direct imports from `store_protocols.py` or `store_impl.py` are discouraged and should only be used for intentional protocol/implementation development.
 
 ### How to extend the DB store
 

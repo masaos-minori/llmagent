@@ -169,7 +169,7 @@ Migrate a deployment to Production-only in this order:
    (shared secret between client and server); `web_search_mcp_server.toml`'s
    `browser_auth_token` is a distinct credential.
 3. **Verify strict validation**: confirm `ProductionConfigValidator`'s
-   now-unconditional strict validation  passes against the
+   strict validation passes against the
    migrated configuration before restarting.
 4. **Full restart**: restart the agent process fully — do not use `/reload`, since
    authentication, MCP server definition, and bind-address changes are

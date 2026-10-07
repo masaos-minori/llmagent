@@ -5,8 +5,6 @@ tags:
   - rag
   - fallback
   - in-process
-decision_scope:
-  - rag
 related:
   - ADR-002-config-isolation.md
   - rag_03_01_query_pipeline-overview.md
@@ -14,8 +12,8 @@ related:
   - rag_05_04-error-handling-reference.md
   - rag_05_01-configuration-reference.md
   - db_02_architecture_and_schema-schema-reference.md
-supersedes: []
-superseded_by: null
+  - ADR-005-rag-source-derived-index-relationships.md
+  - ADR-004-environment-failure-handling-policy.md
 ---
 
 # ADR-010: In-Process Fallback When External RAG Execution Fails
@@ -33,7 +31,7 @@ Accepted
 
 ## Summary
 
-This ADR canonicalizes the decision to fall back automatically to the in-process local RAG when execution of the RAG pipeline's external service fails. The execution mode is switched by whether `rag_service_url` is set, HTTP errors are distinguished from empty results, and idempotent re-execution is made possible. DESIGN-1 is transferred to this ADR.
+This ADR canonicalizes the decision to fall back automatically to the in-process local RAG when execution of the RAG pipeline's external service fails. The execution mode is switched by whether `rag_service_url` is set, HTTP errors are distinguished from empty results, and idempotent re-execution is made possible.
 
 ## Context
 
@@ -321,7 +319,7 @@ Register any Invariant without Verification as an unverified item in an Issue.
 
 Briefly describe how the current implementation realizes the Decision.
 
-See Related Documents > Implementation References for the current file/symbol list.
+See Implementation References for the current file/symbol list.
 
 This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
@@ -372,27 +370,13 @@ Add review conditions specific to this ADR.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Related ADRs
+## Related ADRs
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
 - ADR-004: Failure Handling Policy Across Environments
 
-### Specifications
-
-- [RAG Query Pipeline](../21_rag/rag_03_01_query_pipeline-overview.md) — query pipeline
-- [RAG Augment Stage](../21_rag/rag_03_05_query_pipeline-augment-stages.md) — Augment stage
-- [RAG Error Handling Reference](../21_rag/rag_05_04-error-handling-reference.md) — error handling
-- [Configuration Reference](../21_rag/rag_05_01-configuration-reference.md) — configuration reference
-- [DB Schema Reference](../41_db/db_02_architecture_and_schema-schema-reference.md) — DB schema reference
-
-### Known Issues
-
-- None
-
-### Implementation References
+## Implementation References
 
 - `scripts/rag/pipeline.py` — `RagPipeline.augment()`, `_format_chunks()` in `scripts/rag/stages/augment.py`
 - `scripts/rag/pipeline_service.py` — `call_rag_service()`

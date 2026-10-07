@@ -531,18 +531,13 @@ class TestMergeRelatedEdgeCases:
 
 
 class TestMergeRelatedAdr:
-    def test_adr_front_matter_is_extended_and_body_is_untouched(
-        self, merge_docs: Path
-    ) -> None:
-        body = (
-            "## Related Documents\n\n### Specifications\n\n- `a.md`\n- `b.md`\n" + _TAIL
-        )
+    def test_adr_is_migrated_like_any_other_document(self, merge_docs: Path) -> None:
+        body = "## Related Documents\n\n- `a.md`\n- `b.md`\n" + _TAIL
         adr = _subject(merge_docs, "\n  - a.md", body, name="10_adr/ADR-001-x.md")
-        before_body = adr.read_text(encoding="utf-8").split("\n---\n", 1)[1]
         assert cmd_merge_related(["--fix"]) == 0
         content = adr.read_text(encoding="utf-8")
         assert "related:\n  - a.md\n  - b.md\n---" in content
-        assert content.split("\n---\n", 1)[1] == before_body
+        assert "## Related Documents" not in content
 
 
 class TestMergeRelatedSelection:

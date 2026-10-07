@@ -281,11 +281,6 @@ Register any Invariant without Verification as an unverified item in an Issue.
 
 Not applicable. Known Deviations are recorded in `ADR-004-environment-failure-handling-policy.md`.
 
-## Related Documents
-
-- `ADR-004-environment-failure-handling-policy.md`
-- `adr_00_document-guide.md`
-
 ## Keywords
 
 - adr

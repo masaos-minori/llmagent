@@ -5,8 +5,6 @@ tags:
   - mcp
   - http
   - transport
-decision_scope:
-  - mcp
 related:
   - ADR-002-config-isolation.md
   - mcp_01_system_overview.md
@@ -20,8 +18,7 @@ related:
   - mcp_06_03_long-running-http-operation-startup_modesubprocess.md
   - mcp_06_12_new-mcp-server-addition-checklist.md
   - governance_03_issue-and-uncertainty-management.md
-supersedes: []
-superseded_by: null
+  - ADR-004-environment-failure-handling-policy.md
 ---
 
 # ADR-007: Adoption of HTTP MCP and Non-Support of stdio
@@ -388,31 +385,12 @@ Add review conditions specific to this ADR.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Related ADRs
+## Related ADRs
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-004: Failure Handling Policy Across Environments
 
-### Specifications
-
-- [MCP System Overview](../22_mcp/mcp_01_system_overview.md) — MCP architecture overview
-- [Endpoints and Transport](../22_mcp/mcp_02_01_endpoints-and-transport.md) — endpoints and Transport
-- [Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) — startup modes and health
-- [Dispatch and Routing](../22_mcp/mcp_03_01_dispatch-and-routing.md) — dispatch and routing
-- [Transport and Health](../22_mcp/mcp_03_03_transport-and-health.md) — Transport and health
-- [Transport Error Tracing and Lifecycle Flow](../22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md) — transport error tracing and lifecycle flow
-- [Lifecycle and New Server](../22_mcp/mcp_03_05_lifecycle-and-new-server.md) — lifecycle
-- [Configuration File Inventory](../22_mcp/mcp_06_01_configuration-file-inventory.md) — list of configuration files
-- [Long-running HTTP Operation Startup Mode/Subprocess](../22_mcp/mcp_06_03_long-running-http-operation-startup_modesubprocess.md) — startup modes for HTTP operation
-- [New MCP Server Addition Checklist](../22_mcp/mcp_06_12_new-mcp-server-addition-checklist.md) — checklist for adding an MCP server
-
-### Known Issues
-
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — MCP known issues
-
-### Implementation References
+## Implementation References
 
 - `scripts/mcp_servers/server.py` — `MCPServer.run_http()`
 - `scripts/shared/http_transport.py` — `HttpTransport.call_tool()`

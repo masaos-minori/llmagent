@@ -12,8 +12,6 @@ related:
   - eventbus_00_document-guide.md
   - eventbus_01_system-overview.md
   - eventbus_08_configuration-and-operations.md
-source:
-  - eventbus_08_configuration-and-operations.md
 ---
 
 # Event Bus: Validation Status

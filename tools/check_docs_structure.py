@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Validate docs/*.md structural conventions: size, H1 count, Front Matter,
-the Keywords section (and the Related Documents section of ADR documents),
-body Related Documents/Docs/Chapters headings at ANY level in non-ADR docs,
+the Keywords section (and the `## Related ADRs` section of ADR documents),
+body Related Documents/Docs/Chapters headings at ANY level in every doc (ADRs
+included: `related:` front matter is the single cross-reference store),
 front matter `related:` format (basenames ending in .md) and coverage of ADR
 body references, and internal .md link reachability.
 
@@ -214,15 +215,14 @@ def _is_adr(path: Path) -> bool:
 
 def check_tail_sections(path: Path, content: str) -> list[str]:
     issues = []
-    if _is_adr(path):
-        if not re.search(r"^## Related Documents", content, re.MULTILINE):
-            issues.append(f"{path.name}: missing '## Related Documents' section")
-    else:
-        for match in _RELATED_HEADING_RE.finditer(strip_fenced_code(content)):
-            issues.append(
-                f"{path.name}: non-ADR document must not carry a body "
-                f"'{match.group(0)}' section; use front matter 'related:'"
-            )
+    for match in _RELATED_HEADING_RE.finditer(strip_fenced_code(content)):
+        issues.append(
+            f"{path.name}: document must not carry a body "
+            f"'{match.group(0)}' section; use front matter 'related:'"
+        )
+    if _is_adr(path) and path.name.startswith("ADR-"):
+        if not re.search(r"^## Related ADRs", content, re.MULTILINE):
+            issues.append(f"{path.name}: missing '## Related ADRs' section")
     if not re.search(r"^## Keywords", content, re.MULTILINE):
         issues.append(f"{path.name}: missing '## Keywords' section")
     return issues

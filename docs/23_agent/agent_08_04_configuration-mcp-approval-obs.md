@@ -10,8 +10,6 @@ related:
   - agent_08_02_configuration-llm-rag.md
   - agent_08_03_configuration-tools-memory.md
   - agent_09_01_data-layer-session-db.md
-source:
-  - agent_08_01_configuration-loading-agent-config.md
 ---
 
 # Agent Configuration
@@ -62,7 +60,7 @@ assumed non-required (Decision Group 3 item 12).
 | `rag_pipeline` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
 | `mdq` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
 
-No server currently overrides `required` in `config/agent.toml`; a future
+No server currently overrides `required` in `config/agent.toml`; a
 non-required reclassification requires an explicit owner decision and an update to
 this table, per ADR-004 Decision Group 3 item 13.
 

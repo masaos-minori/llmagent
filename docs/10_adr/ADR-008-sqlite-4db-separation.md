@@ -5,8 +5,6 @@ tags:
   - system
   - sqlite
   - database-separation
-decision_scope:
-  - system
 related:
   - ADR-002-config-isolation.md
   - adr_08_sqlite-4db-supporting-sections.md
@@ -17,6 +15,10 @@ related:
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
   - agent_10_01_operations-and-observability-startup-and-health.md
   - governance_03_issue-and-uncertainty-management.md
+  - ADR-005-rag-source-derived-index-relationships.md
+  - ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
+  - ADR-004-environment-failure-handling-policy.md
+  - ADR-013-eventbus-authentication-authorization.md
 ---
 
 # ADR-008: Separating SQLite into Four Databases
@@ -240,13 +242,7 @@ This section is maintained in the companion document: [Verification](adr_08_sqli
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Companion Document
-
-- [ADR-008 Supporting Sections](adr_08_sqlite-4db-supporting-sections.md)
-
-### Related ADRs
+## Related ADRs
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
@@ -254,24 +250,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - ADR-004: Failure Handling Policy Across Environments
 - ADR-013: EventBus Authentication and Authorization
 
-### Specifications
-
-- [DB Architecture and Schema](../41_db/db_02_architecture_and_schema-schema-reference.md)
-- [DB API and Operations — Recovery and Reference](../41_db/db_07_api_and_operations-recovery-and-reference.md)
-- [Agent Session and DB Data Layer](../23_agent/agent_09_01_data-layer-session-db.md)
-- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_06_persistence_schema_and_replay.md)
-- [DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md)
-
-### Operations
-
-- [Operations and Observability](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md)
-- [Manual Recovery: workflow.sqlite / eventbus.sqlite](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md#manual-recovery-workflowsqlite-eventbussqlite)
-
-### Known Issues
-
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
-
-### Implementation References
+## Implementation References
 
 - `scripts/db/config.py` (`DbConfig`)
 - `scripts/db/helper.py` (`SQLiteHelper.__init__()`, `load_vec()`)

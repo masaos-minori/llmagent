@@ -168,7 +168,7 @@ times out.
 Context state:
   Messages        : 12
   Total chars     : 4,321
-  Compress limit  : 8,000
+  Compress limit  : <value>
   Remaining       : 3,679 chars until compression
   Compress count  : 1
   System prompt   : default
@@ -181,13 +181,13 @@ Budget breakdown:
 ```
 
 - **Remaining:** Distance to `context_char_limit` → trigger for compression.
-- **Token estimate:** Uses category-aware estimation (ratios: Text: 4.0, Tool Call JSON: 2.5, System Message: 3.5).
+- **Token estimate:** Uses category-aware estimation (per-category ratios defined in `shared/token_estimation.py`).
 - **Token limit:** Set to `disabled` if `context_token_limit` is not configured.
 - **Memory layer:** Set to `enabled (entries=N)` if `use_memory_layer=True`.
 
 **Implementation Notes:**
 - The Token estimate in `/context` remains constant based on category-aware estimation; the actual value used by `/tokenize` is only used for history compression decisions in the next turn, not for display in `/context`.
-- Category-aware estimation ratio constants (Text: 4.0, Tool Call JSON: 2.5, System Message: 3.5) use `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` from `shared/token_estimation.py` as the single source. `agent/services/context_view.py::_token_breakdown` imports and uses these and defines no local ratio constants.
+- Category-aware estimation ratio constants use `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` from `shared/token_estimation.py` as the single source. `agent/services/context_view.py::_token_breakdown` imports and uses these and defines no local ratio constants.
 - `/context`'s `Approval pending` is derived from turn state. Meanwhile, `/stats`'s `Approval pending` refers to workflow state. While both fields are always set/cleared in pairs by the orchestrator and startup commands, resulting in consistent operational values, they refer to different implementation fields.
 
 ## `/stats` Interpretation

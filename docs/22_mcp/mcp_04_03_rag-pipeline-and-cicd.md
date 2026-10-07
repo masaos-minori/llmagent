@@ -96,7 +96,7 @@ The cicd server computes `enabled`/`disabled_reason` via `_cicd_tool_availabilit
 **Log Limit:** Limited number of jobs, with total log size configurable via `max_log_size_kb`
 **Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): None — recorded as JSON-lines to the shared audit log (`<log_dir>/audit.log`) via `_audit_log()`
 **Architecture:** `CiCdService` → `CiBackend` (Protocol) → `GitHubActionsBackend`
-**Note:** The `CiBackend` Protocol allows for future support for GitLab CI / Jenkins backends.
+**Note:** The `CiBackend` Protocol abstracts the CI backend implementation.
 
 ---
 

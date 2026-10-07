@@ -5,8 +5,6 @@ tags:
   - system
   - tool-routing
   - runtime-tool-registry
-decision_scope:
-  - system
 related:
   - ADR-001-workflow-engine-mandatory.md
   - ADR-002-config-isolation.md
@@ -16,6 +14,7 @@ related:
   - agent_06_01_tool-execution-and-approval-execution.md
   - shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
   - adr_03_runtime-tool-registry-supporting-sections.md
+  - ADR-004-environment-failure-handling-policy.md
 ---
 
 # ADR-003: RuntimeToolRegistry as the Sole Routing Authority
@@ -176,7 +175,7 @@ This section is maintained in the companion document: [Alternatives Considered](
 - INV-01: When multiple MCP servers expose the same Tool name, Agent startup is aborted.
 - INV-02: `ToolRouteResolver.resolve()` references only `RuntimeToolRegistry` and immediately raises `ValueError` for an unknown Tool name.
 - INV-03: Safety Tier and Write attributes reference the same `RuntimeTool` in Routing, approval, and auditing.
-- INV-04: The static `ToolRegistry` is not used for runtime Routing and is limited to input data for tests, documentation generation, and startup Drift validation (`shared/tool_routing_validation.py`) (Decision Detail #15, added 2026-09-02).
+- INV-04: The static `ToolRegistry` is not used for runtime Routing and is limited to input data for tests, documentation generation, and startup Drift validation (`shared/tool_routing_validation.py`) (Decision Detail #15).
 - INV-05: Defined, Discoverable, Owned, LLM-visible, Statically available, Dynamically available, Routable, Approved, and Executable are treated as distinct concepts and are not merged into a single "enabled/disabled".
 - INV-06: A statically disabled Tool must not be exposed to the LLM as executable.
 - INV-07: Dynamic Health state must not change LLM visibility such as `enabled_for_llm`.
@@ -259,33 +258,13 @@ No confirmed deviations.
 - **Approval Date**: 2026-08-20
 - **Approval Reference**: ADR-003 creation, ADR-013 integration
 
-## Related Documents
-
-### Companion Document
-
-- [ADR-003 Supporting Sections](adr_03_runtime-tool-registry-supporting-sections.md)
-
-### Related ADRs
+## Related ADRs
 
 - ADR-001: Mandatory Workflow Engine
 - ADR-002: Config Isolation
 - ADR-004: Failure Handling Policy Across Environments
 
-### Specifications
-
-- [mcp_03_01_dispatch-and-routing.md](../22_mcp/mcp_03_01_dispatch-and-routing.md) — MCP Discovery and Routing
-- [mcp_03_02_tool-registry.md](../22_mcp/mcp_03_02_tool-registry.md) — Tool Registry Reference
-- [mcp_03_06_tool-runtime-availability-metadata.md](../22_mcp/mcp_03_06_tool-runtime-availability-metadata.md) — Tool Runtime Availability Metadata
-- [agent_06_01_tool-execution-and-approval-execution.md](../23_agent/agent_06_01_tool-execution-and-approval-execution.md) — Agent Tool Execution
-- [shared_03_03_runtime_and_execution-llm-and-mcp-clients.md](../40_shared/shared_03_03_runtime_and_execution-llm-and-mcp-clients.md) — Shared Runtime
-
-### Operations
-
-- Related Runbook or Troubleshooting Guide
-
-### Known Issues
-
-### Implementation References
+## Implementation References
 
 - `scripts/shared/runtime_tool_registry.py::RuntimeToolRegistry`
 - `scripts/shared/route_resolver.py::ToolRouteResolver`

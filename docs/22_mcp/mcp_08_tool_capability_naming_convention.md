@@ -38,7 +38,7 @@ or
 - Segments must be separated by dots.
 - Regex equivalent: `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`
 
-**Note**: This regex is for documentation purposes only; **no runtime regex validation will be added**. This document defines a shape convention and does not mandate validator implementation.
+**Note**: This regex is for documentation purposes only; **no runtime regex validation is performed**. This document defines a shape convention and does not mandate validator implementation.
 
 ## Domains
 
@@ -49,7 +49,7 @@ A domain is a logical resource area and does not necessarily map 1:1 to an MCP s
 - `github` — GitHub API operations
 - `process` — Process/shell operations
 - `search` — Search operations
-- Other future domains
+- Other domains following the same shape convention
 
 This list is **open and extensible**, not a closed enumeration.
 

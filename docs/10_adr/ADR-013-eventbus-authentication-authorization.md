@@ -5,8 +5,6 @@ tags:
   - eventbus
   - authentication
   - authorization
-decision_scope:
-  - eventbus/api
 related:
   - ADR-002-config-isolation.md
   - ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
@@ -153,8 +151,7 @@ ADR-002 explicitly documents this exception. Implement equivalent local validati
 - Configuration typos and unknown keys are rejected rather than silently accepted.
 - Per-role tokens make the five-role model actually enforceable: a caller holding
   only a `consumer_token` cannot reach a `Role.PUBLISHER`/`Role.OPERATOR`-gated
-  route, closing a gap where any caller holding the single shared token could
-  previously reach every endpoint regardless of role.
+  route.
 
 ### Negative Consequences
 
@@ -237,7 +234,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ## Implementation Notes
 
-See Related Documents > Implementation References for the current file/symbol list.
+See Implementation References for the current file/symbol list.
 
 This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
@@ -270,25 +267,12 @@ Do not unconditionally align the ADR text with the current implementation; manag
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Related ADRs
+## Related ADRs
 
 - ADR-002: Per-Process Configuration Ownership and Config Isolation
 - ADR-006: EventBus SQLite Persistence and SSE Delivery
 
-### Specifications
-
-- [EventBus System Overview](../24_eventbus/eventbus_01_system-overview.md)
-- [EventBus Persistence Schema and Replay](../24_eventbus/eventbus_06_persistence_schema_and_replay.md)
-- [EventBus DLQ Offsets and Delivery Semantics](../24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md)
-- [Architecture and Trust Boundaries](../91_security/security_01_architecture-and-trust-boundaries.md)
-
-### Known Issues
-
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (see Known Deviations).
-
-### Implementation References
+## Implementation References
 
 - `scripts/eventbus/auth.py` — `attach_auth_middleware()`, `require_role()`, `require_consumer_identity()`
 - `scripts/eventbus/audit.py` — `AuditRecord`, `log_auth_failure()`, `log_privileged_action()`

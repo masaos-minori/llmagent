@@ -1,6 +1,5 @@
 ---
 title: EventBus API Reference
-description: Index and overview of the EventBus HTTP API reference documents
 area: eventbus
 tags: [api-reference, index, overview]
 related:
@@ -9,7 +8,6 @@ related:
   - eventbus_12_replay_endpoint.md
   - eventbus_04_dlq_endpoint.md
   - eventbus_13_ack_nack_endpoints.md
-created: 20260916
 ---
 
 # EventBus API Reference

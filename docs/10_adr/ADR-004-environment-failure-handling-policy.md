@@ -5,8 +5,6 @@ tags:
   - system
   - failure-handling
   - environment
-decision_scope:
-  - system
 related:
   - ADR-001-workflow-engine-mandatory.md
   - ADR-002-config-isolation.md
@@ -220,33 +218,14 @@ Re-evaluate when:
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Companion Document
-
-- [ADR-004 Supporting Sections](adr_04_failure-handling-supporting-sections.md)
-
-### Related ADRs
+## Related ADRs
 
 - ADR-001: Mandatory Workflow Engine — missing/invalid Workflow → Fail-Fast
 - ADR-002: Per-Process Configuration Ownership and Config Isolation — Config Isolation violation → Fail-Fast
 - ADR-003: RuntimeToolRegistry as Sole Routing Authority — RuntimeToolRegistry init failure → Fail-Fast; authority for Tool visibility/Routing/Dynamic Health
 - ADR-010: In-Process Fallback When External RAG Execution Fails — sole Fallback this ADR permits
 
-### Specifications
-
-- [Deployment Guide](../90_deployment/deployment_01_deployment.md) — workflow validation during deployment
-- [MCP Config](../23_agent/agent_08_04_configuration-mcp-approval-obs.md#component-criticality-classification) — record of MCP server mandatory/non-mandatory classification (Decision Group 3)
-
-### Operations
-
-- [Workflow Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — incident response procedure
-
-### Known Issues
-
-- [Issue Mgmt](../00_governance/governance_03_issue-and-uncertainty-management.md) — single source for active Known Issues
-
-### Implementation References
+## Implementation References
 
 - `scripts/agent/startup.py` — `StartupOrchestrator.run()`
 - `scripts/shared/mcp_config.py` — `McpServerConfig`

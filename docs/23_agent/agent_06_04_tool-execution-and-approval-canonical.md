@@ -10,7 +10,6 @@ related:
   - agent_06_01_tool-execution-and-approval-execution.md
   - agent_06_02_tool-execution-and-approval-approval.md
   - agent_06_03_tool-execution-and-approval-concurrency-safety.md
-
 ---
 
 # Agent Tool Execution and Approval

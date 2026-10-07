@@ -73,11 +73,11 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/dlq_route.py
 
-`dlq_list(request, limit=100, offset=0)`: `GET /dlq`. `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. The requeue inserts a new event row (lineage model); a requeued event whose inherited `delivery_failure_count` is `>= max_retry` is promoted again on its next NACK. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
+`dlq_list(request, limit, offset)`: `GET /dlq` (defaults defined in the route signature). `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. The requeue inserts a new event row (lineage model); a requeued event whose inherited `delivery_failure_count` is `>= max_retry` is promoted again on its next NACK. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
 
 ### scripts/eventbus/replay_route.py
 
-`replay(request, since_seq=0, fmt=sse, limit=100, offset=0)`: `GET /replay`. SSE stream or paginated JSON. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for replay semantics.
+`replay(request, since_seq, fmt, limit, offset)` (defaults defined in the route signature): `GET /replay`. SSE stream or paginated JSON. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for replay semantics.
 
 **Format parameter:** Accepts only `sse` or `json`. Unsupported values return HTTP 422. Default is `sse`.
 

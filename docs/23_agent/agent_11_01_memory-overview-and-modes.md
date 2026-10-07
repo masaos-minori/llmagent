@@ -8,10 +8,7 @@ tags:
 related:
   - agent_11_02_memory-gate-data-model-search.md
   - agent_11_03_memory-module-reference.md
-  - agent_11_03_memory-module-reference.md
-  - agent_11_03_memory-module-reference.md
   - agent_00_document-guide.md
-  - agent_11_03_memory-module-reference.md
 ---
 # Memory Layer — Overview and Modes (Part 1)
 

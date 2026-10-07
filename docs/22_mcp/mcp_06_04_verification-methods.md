@@ -7,8 +7,6 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_06_01_configuration-file-inventory.md
-source:
-  - mcp_06_01_configuration-file-inventory.md
 ---
 
 # Verification Methods
@@ -116,7 +114,7 @@ uv run python scripts/mcp_launcher.py --list             # list all discoverable
 uv run python scripts/mcp_launcher.py <server_key> --force # bypass the port-collision guard
 ```
 
-**Why `mcp_servers`, not `mcp`**: the package was renamed from `scripts/mcp` to `scripts/mcp_servers` because the original name collided with the PyPI Model Context Protocol SDK (`mcp`), which is transitively installed via the `semgrep` dev dependency — this caused `ModuleNotFoundError: No module named 'mcp.audit'` when launching a server standalone in the dev venv.
+**Why `mcp_servers`, not `mcp`**: the package is `scripts/mcp_servers`, not `scripts/mcp`, because the name `mcp` collides with the PyPI Model Context Protocol SDK (`mcp`), which is transitively installed via the `semgrep` dev dependency — a colliding name causes `ModuleNotFoundError: No module named 'mcp.audit'` when launching a server standalone in the dev venv.
 
 The launcher guards against accidentally starting a server whose port is already bound (e.g., by the running agent) — use `--force` only when intentionally starting a duplicate instance.
 

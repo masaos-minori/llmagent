@@ -14,7 +14,6 @@ related:
   - rag_03_06_query_pipeline-helpers-and-cache.md
   - rag_04_dto-models-types.md
   - rag_05_01-configuration-reference.md
-
 ---
 
 

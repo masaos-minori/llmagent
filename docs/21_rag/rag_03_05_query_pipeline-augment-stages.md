@@ -13,8 +13,6 @@ related:
   - rag_04_dto-models-types.md
   - rag_05_01-configuration-reference.md
   - rag_03_06_query_pipeline-helpers-and-cache.md
-source:
-  - rag_03_01_query_pipeline-overview.md
 ---
 
 # RAG Query Pipeline - Augment Stages

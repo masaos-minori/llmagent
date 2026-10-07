@@ -34,7 +34,7 @@ related:
 
 **Module-level Constants**
 
-This module defines the following constants. See source code for details. `MIN_HEADING_LINES_FOR_MARKDOWN = 2` has no recorded historical rationale — traced through git history to the repository's initial commit with no explanatory commit message, ADR, or code comment found — and is accepted as an established heuristic, to be re-validated empirically if it becomes a concern.
+This module defines the following constants. See source code for details. `MIN_HEADING_LINES_FOR_MARKDOWN` has no recorded historical rationale — traced through git history to the repository's initial commit with no explanatory commit message, ADR, or code comment found — and is accepted as an established heuristic, to be re-validated empirically if it becomes a concern.
 
 **Typed dict**
 
@@ -80,7 +80,7 @@ Current values are owned by `config/chunk_splitter.toml`.
 
 URLs ending in `.md`, `.markdown`, or `.mdx` always use heading chunking regardless of `md_index_enable`. For other files, heuristic detection (two or more heading lines in content) is used only if `md_index_enable=true`.
 
-Note: No historical rationale for this extension-based rule is recorded in code comments or commit history (earliest traced commits: `ee035ff5e`/`c0b578e82`, "feat: Markdown ingest standardization — production code changes", contain no explanation). Contrary to what a reader might assume from the documentation, `md_index_enable` does not provide any way to override this rule for `.md`/`.markdown`/`.mdx` sources — including local `file://` sources (where `str.endswith()` matches the extension regardless of the `file://` scheme prefix, confirmed by inspecting `WebCrawler.crawl_file()`'s URL construction, `crawl_persister.py`: `f"file://{path.resolve()}"`). A plausible technical rationale is determinism vs. content-based heuristics (an extension-based check requires no content inspection), but this is inferred from the code's structure, not documented anywhere.
+Note: No rationale for this extension-based rule is recorded in code comments. Contrary to what a reader might assume from the documentation, `md_index_enable` does not provide any way to override this rule for `.md`/`.markdown`/`.mdx` sources — including local `file://` sources (where the suffix check matches the extension regardless of the `file://` scheme prefix, confirmed by inspecting `WebCrawler.crawl_file()`'s URL construction, `crawl_persister.py`: `f"file://{path.resolve()}"`). A plausible technical rationale is determinism vs. content-based heuristics (an extension-based check requires no content inspection), but this is inferred from the code's structure, not documented anywhere.
 
 ### 3.1.4 Markdown Heading Chunking Behavior
 

@@ -13,7 +13,14 @@ related:
   - rag_03_01_query_pipeline-overview.md
   - rag_04_dto-models-types.md
   - rag_05_01-configuration-reference.md
+  - governance_01_documentation-policy.md
+  - governance_02_documentation-metadata.md
   - governance_03_issue-and-uncertainty-management.md
+  - governance_04_documentation-checks.md
+  - ADR-005-rag-source-derived-index-relationships.md
+  - ADR-008-sqlite-4db-separation.md
+  - ADR-009-rag-ft5-text-separation.md
+  - ADR-010-rag-fallback.md
 ---
 
 # RAG Documentation Guide
@@ -91,22 +98,6 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) | Known issues (all areas) |
 
 ---
-
-## Governance
-
-Cross-cutting documentation rules and policies:
-
-- [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
-- [Documentation Metadata](../00_governance/governance_02_documentation-metadata.md)
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
-- [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
-
-## Related ADRs
-
-- [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) — Relationship Between RAG Canonical Data and Derived Indexes
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
-- [ADR-009](../10_adr/ADR-009-rag-ft5-text-separation.md) — Separating RAG FTS5 Search Text from LLM Presentation Text
-- [ADR-010](../10_adr/ADR-010-rag-fallback.md) — In-Process Fallback When External RAG Execution Fails
 
 ## Keywords
 

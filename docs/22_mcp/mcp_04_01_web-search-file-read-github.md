@@ -150,7 +150,7 @@ All tools require configuration (`config_dependent: true`).
 
 The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server is computed by `_github_tool_availability()` (disabled with reason `"GITHUB_TOKEN is not set"` when the token is missing). Refer [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for current contract.
 
-**Write Operations (9 items) are subject to repository allowlist:**
+**Write Operations are subject to repository allowlist:**
 `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`
 
 **Configuration Fields:** `max_per_page`, `allowed_repos`, `protected_branches` (fnmatch pattern), `path_denylist` (fnmatch pattern), `max_file_size_kb`, `allow_force_push`, `require_pr_review`, `audit_log_path`

@@ -55,7 +55,7 @@ In the first user turn, if session title generation fails, the following fallbac
 
 | Failure case | Fallback title | Log |
 |---|---|---|
-| LLM HTTP/Request error | If length > 32: `first_input[:29] + "..."`, else `first_input` | WARNING |
+| LLM HTTP/Request error | If `first_input` exceeds the title length limit: truncated prefix + `"..."`, else `first_input` | WARNING |
 | LLM returns empty or invalid response | Same as above | WARNING |
 | `first_input` is empty | `"(New Session)"` | WARNING |
 | `set_title()` DB write failure | Title is not persisted; error is logged | ERROR |

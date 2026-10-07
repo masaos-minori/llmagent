@@ -15,8 +15,6 @@ related:
   - rag_02_07_ingestion_pipeline-utils.md
   - rag_02_09_ingestion_pipeline-shared-utilities.md
   - rag_05_01-configuration-reference.md
-source:
-  - rag_02_01_ingestion_pipeline-overview.md
 ---
 
 
@@ -86,10 +84,10 @@ English queries use regex tokenization `[a-zA-Z0-9]+`. The Sudachi tokenizer is 
 
 ### FTS5 Query Token Limit
 
-Token limit for FTS5 queries: 20 (defined by `_MAX_FTS_TOKENS` in `repository.py`).
+Token limit for FTS5 queries: defined by `_MAX_FTS_TOKENS` in `repository.py`.
 Tokens exceeding this limit are silently truncated to prevent query explosion. Double quotes (FTS5 metacharacters) and whitespace are removed from each token, and empty tokens are discarded. If no valid tokens remain, `'""'` (an empty FTS5 query) is returned.
 
-There is no recorded historical rationale or measurement/load-testing data for this value (20); it is accepted as a heuristic, with re-validation deferred to a future RAG query performance tuning pass.
+There is no recorded rationale or measurement/load-testing data for this limit; it is a heuristic.
 
 ---
 

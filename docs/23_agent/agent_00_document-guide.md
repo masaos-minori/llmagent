@@ -98,14 +98,6 @@ When schema/command references change, verify that `agent_07_cli-and-commands-*.
 | 12 | Reference API — per-module API: role, callers, callees, config, failure |
 | 13 | Reference API (generated) — class/function index generated from code |
 
-### Additional References
-
-- `agent_01_system-overview.md`
-- `agent_02_runtime-architecture.md`
-- `agent_05_llm-and-streaming.md`
-- `agent_12_reference-api.md`
-- `governance_03_issue-and-uncertainty-management.md`
-
 ## Keywords
 
 - agent

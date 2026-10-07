@@ -16,8 +16,6 @@ related:
   - rag_02_07_ingestion_pipeline-utils.md
   - rag_02_08_ingestion_pipeline-shared.md
   - rag_05_01-configuration-reference.md
-source:
-  - rag_02_01_ingestion_pipeline-overview.md
 ---
 
 # RAG Ingestion Pipeline
@@ -44,7 +42,7 @@ This module exposes the following functions. Please refer to the source code for
 
 **Constants:**
 
-This module defines the following constants. Please refer to the source code for details. `MIN_TEXT_LENGTH_FOR_DETECTION = 100` has no recorded historical rationale and is accepted as a heuristic value as-is.
+This module defines the following constants. Please refer to the source code for details. `MIN_TEXT_LENGTH_FOR_DETECTION` has no recorded historical rationale and is accepted as a heuristic value as-is.
 
 **Prompt Injection Patterns:**
 

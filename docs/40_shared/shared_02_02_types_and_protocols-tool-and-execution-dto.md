@@ -77,7 +77,7 @@ Import: `from shared.runtime_tool_registry import RuntimeToolRegistry`
 
 Immutable tool definition — each tool belongs to exactly one MCP server. (Explicit in code — `scripts/shared/tool_registry.py` docstring)
 
-**Boundary Conditions:** `description` and `input_schema` are reserved fields for future use; they are currently not set by default registry initialization functions and are not read by any caller. The authoritative tool schema for LLMs is the `TOOL_LIST` from each server's own `tools.py`, not from this `ToolRegistry`. (Explicit in code)
+**Boundary Conditions:** `description` and `input_schema` are reserved fields; they are not set by default registry initialization functions and are not read by any caller. The authoritative tool schema for LLMs is the `TOOL_LIST` from each server's own `tools.py`, not from this `ToolRegistry`. (Explicit in code)
 
 `ToolRegistry` only handles tool ownership and routing. Live `/v1/tools` responses are used solely for startup drift validation, not for runtime routing decisions. (Explicit in code)
 
@@ -89,7 +89,7 @@ Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_regi
 
 `ArtifactEvent` (event_type, repo, branch, commit, path, pr_number, session_id, timestamp) — issued when repository artifacts are created/updated. (Explicit in code — `scripts/shared/events.py` module docstring)
 
-> **Note:** `ArtifactEvent` is a pure data structure (`TypedDict`). No event bus, subscription mechanism, or delivery system exists. It exists solely as a type annotation for potential future artifact event emission. Do not assume that instantiating an `ArtifactEvent` triggers any action.
+> **Note:** `ArtifactEvent` is a pure data structure (`TypedDict`). No event bus, subscription mechanism, or delivery system exists. It exists solely as a type annotation. Do not assume that instantiating an `ArtifactEvent` triggers any action.
 
 `RetryEvent` (event_type, workflow_id, task_id, attempt_number, max_attempts, error_type, backoff_sec, session_id, timestamp) — issued during retries in the workflow stage.
 

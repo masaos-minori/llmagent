@@ -41,7 +41,7 @@ All constants are `frozenset[str]`. They serve as seed data for `ToolRegistry` a
 
 ## 11. `CallToolRequest` / `CallToolResponse` Reference
 
-Defined in `mcp_servers/models.py` (NOT in `shared/`; the `mcp_servers` package was renamed from `mcp` to avoid collision with the PyPI Model Context Protocol SDK `mcp`). These are Pydantic models used only within MCP servers; code in the `shared/` layer should NOT import from `mcp_servers/`. Do not confuse them with the `ToolCallResult` dataclass in `shared/transport_dto.py`. (Explicit in code — `scripts/mcp_servers/models.py`)
+Defined in `mcp_servers/models.py` (NOT in `shared/`; the package is named `mcp_servers`, not `mcp`, to avoid collision with the PyPI Model Context Protocol SDK `mcp`). These are Pydantic models used only within MCP servers; code in the `shared/` layer should NOT import from `mcp_servers/`. Do not confuse them with the `ToolCallResult` dataclass in `shared/transport_dto.py`. (Explicit in code — `scripts/mcp_servers/models.py`)
 
 ---
 

@@ -5,8 +5,6 @@ tags:
   - system
   - workflow-engine
   - architecture
-decision_scope:
-  - system
 related:
   - ADR-001-workflow-engine-mandatory.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
@@ -169,7 +167,7 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 - **Test**: A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance (needs to be newly created)
   - **Verifies**: INV-024
   - **Type**: Unit
-  - **Blocking**: No (not yet implemented; to be added after the Known Deviations issue is resolved)
+  - **Blocking**: No (not yet implemented; tracked as AGENT-002 in `governance_03_issue-and-uncertainty-management.md`)
 
 ### Startup Validation
 
@@ -196,7 +194,7 @@ Register any Invariant without Verification as an unverified item in an Issue. I
 
 Briefly describe how the current implementation realizes the Decision.
 
-See Related Documents > Implementation References for the current file/symbol list.
+See Implementation References for the current file/symbol list.
 
 This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
@@ -204,7 +202,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: AGENT-002 — tracked in governance_03 Part 1 (no regression test for INV-024)
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -232,26 +230,11 @@ Re-evaluate this ADR when any of the following conditions occurs.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Related ADRs
+## Related ADRs
 
 - ADR-001: Mandatory Workflow Engine
 
-### Specifications
-
-- [ADR-001: Mandatory Workflow Engine](ADR-001-workflow-engine-mandatory.md) — the prerequisite ADR defining the mandatoriness and uniqueness of the Workflow Engine
-- [Turn Processing Flow](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md) — details of workflow execution
-
-### Operations
-
-- None
-
-### Known Issues
-
-- None
-
-### Implementation References
+## Implementation References
 
 - `scripts/agent/orchestrator.py` — `Orchestrator.handle_turn()`
 - `scripts/agent/workflow/workflow_engine.py` — `WorkflowEngine.run()`

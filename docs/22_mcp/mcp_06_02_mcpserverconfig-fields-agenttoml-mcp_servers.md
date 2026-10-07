@@ -6,8 +6,6 @@ tags:
   - configuration
 related:
   - mcp_06_01_configuration-file-inventory.md
-source:
-  - mcp_06_01_configuration-file-inventory.md
 ---
 
 # McpServerConfig Fields (agent.toml `[mcp_servers.*]`)

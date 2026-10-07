@@ -5,13 +5,12 @@ tags:
   - system
   - workflow-engine
   - architecture
-decision_scope:
-  - system
 related:
   - ADR-014-agent-control-plane-responsibility-boundaries.md
   - deployment_01_deployment.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - ADR-004-environment-failure-handling-policy.md
 ---
 
 # ADR-001: Mandatory Workflow Engine
@@ -309,7 +308,7 @@ Register any Invariant without Verification as an unverified item in an Issue.
 
 Briefly describe how the current implementation realizes the Decision.
 
-See Related Documents > Implementation References for the current file/symbol list.
+See Implementation References for the current file/symbol list.
 
 This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
@@ -354,27 +353,12 @@ Re-evaluate this ADR when any of the following conditions occurs.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Related ADRs
+## Related ADRs
 
 - ADR-004: Failure Handling Policy Across Environments
 - ADR-014: Responsibility Boundaries of the Agent Control Plane
 
-### Specifications
-
-- [Deployment Guide](../90_deployment/deployment_01_deployment.md) — workflow validation during deployment
-- [Turn Processing Flow](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md) — details of workflow execution
-
-### Operations
-
-- [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) — incident response procedure
-
-### Known Issues
-
-- None
-
-### Implementation References
+## Implementation References
 
 - `scripts/agent/orchestrator.py` — `Orchestrator.handle_turn()`
 - `scripts/agent/workflow/workflow_engine.py` — `WorkflowEngine.run()`

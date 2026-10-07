@@ -5,8 +5,6 @@ tags:
   - mcp
   - git
   - write-enforcement
-decision_scope:
-  - mcp/git
 related:
   - mcp_04_05_git.md
   - security_02_high-risk-tool-common-policy.md
@@ -70,7 +68,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 ### Out of Scope
 
 - GitHub MCP's existing `protected_branches`/force-push handling (already implemented separately; not part of this decision).
-- Redesign of the Agent-side approval risk-tier mapping (tracked separately; resolved).
+- Redesign of the Agent-side approval risk-tier mapping (out of scope for this ADR).
 - Any capability to allow Force Push, even as an administrative feature — this ADR only requires that if such a capability is later added, it MUST NOT be the default `git_push` path.
 
 ## Rationale
@@ -118,7 +116,7 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 - Makes Git MCP's safety posture consistent with the common high-risk-tool policy it is supposed to follow.
 
 ### Negative Consequences
-- Validation code and protected-branch configuration surface exist in what was previously a minimal server.
+- Validation code and protected-branch configuration surface add maintenance burden to the server.
 - A safe-ref pattern that is too strict can reject legitimate ref names that happen to resemble options; the pattern requires clear documentation to avoid false rejections.
 
 ### Ongoing Risks
@@ -180,7 +178,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ## Implementation Notes
 
-See Related Documents > Implementation References for the current file/symbol list.
+See Implementation References for the current file/symbol list.
 
 This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
@@ -211,17 +209,12 @@ Do not unconditionally align the ADR text with the current implementation; manag
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
+## Related ADRs
 
-### Specifications
-- [MCP Server Catalog: git-mcp](../22_mcp/mcp_04_05_git.md)
-- [High-Risk MCP Tool Common Policy](../91_security/security_02_high-risk-tool-common-policy.md)
-- [Fail-Open/Fail-Closed and Risk Tiers](../22_mcp/mcp_05_03_fail-open-fail-closed-and-risk-tiers.md)
+Not applicable.
 
-### Known Issues
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — no active entries related to this ADR; the protected-branch/Force-Push guard, approval risk-tier mapping, and audit repository-identity gaps this ADR addressed are all resolved.
+## Implementation References
 
-### Implementation References
 - `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `RepositoryState.snapshot()`, `WriteProtectionPipeline`, `WriteProtectionPipeline.run()`
 - `scripts/mcp_servers/git/git_security.py` — `GitSecurityGuards`, dispatch table
 - `scripts/mcp_servers/git/git_service.py` — `GitService`, `GitService.get_dispatch_table()`

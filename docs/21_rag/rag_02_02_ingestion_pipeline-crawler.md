@@ -63,7 +63,7 @@ the BFS queue.
 ### 2.2 Detailed Behavior
 
 - **Text Extraction:** Uses `crawler_utils.extract_text()` for body text and BeautifulSoup4's `<pre>` for code blocks.
-- **Language Detection:** If CJK ratio (Hiragana + Katakana + CJK Unified Ideographs ≥ 10%) is detected → `ja`; otherwise `en`. Pages with fewer than 100 characters use the hint language. `--lang auto` always performs automatic detection, with `en` as fallback.
+- **Language Detection:** If CJK ratio (Hiragana + Katakana + CJK Unified Ideographs at or above the threshold) is detected → `ja`; otherwise `en`. Pages shorter than the minimum detection length use the hint language. `--lang auto` always performs automatic detection, with `en` as fallback.
 - **Idempotency:** A `visited` set prevents duplicate fetching of the same URL within a single execution.
 - **Conditional GET:** Reads `documents.etag` / `documents.last_modified` from SQLite and sends `If-None-Match` / `If-Modified-Since`. If a 304 response is received, saving the file is skipped.
 

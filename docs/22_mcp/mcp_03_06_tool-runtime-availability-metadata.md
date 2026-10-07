@@ -68,14 +68,13 @@ The following table shows how /v1/tools response fields map to RuntimeTool field
 | /v1/tools field | RuntimeTool field | Notes |
 |---|---|---|
 | `enabled` | `enabled_for_llm` | Both indicate LLM visibility; values should match |
-| `disabled_reason` | *(not a first-class field)* | Currently not stored in RuntimeTool; deferred future task |
+| `disabled_reason` | *(not a first-class field)* | Not stored in RuntimeTool |
 
 ### Key points
 
 - `enabled` and `enabled_for_llm` serve the same purpose: indicating whether the tool is visible to the LLM
-- `disabled_reason` from /v1/tools is **not** currently a first-class RuntimeTool field
+- `disabled_reason` from /v1/tools is **not** a first-class RuntimeTool field
 - The reason a tool is disabled is determined by the source of truth (config, health status, etc.) rather than being carried forward in RuntimeTool
-- Future work will add `RuntimeTool.disabled_reason` as a first-class field to close this gap
 
 ## 5. Dispatch rule
 
@@ -107,7 +106,7 @@ All MCP servers' `list_tools()` handlers accept `include_disabled` and `disabled
 
 `disabled_code`, when provided, is compared against each tool's `disabled_reason` string (the values in section 3); no separate machine-readable enum exists. Because disabled tools are already omitted by default, `disabled_code` is only meaningful together with `include_disabled=true`. `disabled_reason` strings are therefore effectively part of the programmatic contract for this filter.
 
-First-class `RuntimeTool.disabled_reason` field — see "Field Mapping: /v1/tools ↔ RuntimeTool" above (still deferred future work, unrelated to `include_disabled`/`disabled_code`).
+`RuntimeTool` has no first-class `disabled_reason` field — see "Field Mapping: /v1/tools ↔ RuntimeTool" above (unrelated to `include_disabled`/`disabled_code`).
 
 ## Keywords
 

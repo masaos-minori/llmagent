@@ -122,11 +122,6 @@ currently exists.
 | Operations (runtime monitoring) | INV-018 |
 | Manual Review (code review) | INV-023, INV-024, INV-025 |
 
-## Related Documents
-
-- [Documentation Policy](../00_governance/governance_01_documentation-policy.md)
-- [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
-
 ## Keywords
 
 adr

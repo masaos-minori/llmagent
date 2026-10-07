@@ -57,7 +57,7 @@ Manages all SQL. For observability, logs `query` / `fts_query` / `top_k` / `elap
 
 **Japanese FTS5 Tokenization:**
 
-The FTS5 query token limit is 20, and Japanese tokens use Sudachi part-of-speech categories (`{"Noun", "Verb", "Adjective"}`). See `scripts/rag/repository.py` for details.
+The FTS5 query token limit is defined by `_MAX_FTS_TOKENS`, and Japanese tokens use Sudachi part-of-speech categories (`{"Noun", "Verb", "Adjective"}`). See `scripts/rag/repository.py` for details.
 
 **Sudachi Lazy Loading:**
 

@@ -5,16 +5,13 @@ tags:
   - system
   - configuration
   - config-isolation
-decision_scope:
-  - system
 related:
   - ADR-001-workflow-engine-mandatory.md
   - agent_08_01_configuration-loading-agent-config.md
   - mcp_06_01_configuration-file-inventory.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
   - adr_02_config-isolation-supporting-sections.md
-supersedes: []
-superseded_by: null
+  - ADR-004-environment-failure-handling-policy.md
 ---
 
 # ADR-002: Per-Process Configuration Ownership and Config Isolation
@@ -254,31 +251,12 @@ Add review conditions specific to this ADR.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
-## Related Documents
-
-### Companion Document
-
-- [ADR-002 Supporting Sections](adr_02_config-isolation-supporting-sections.md)
-
-### Related ADRs
+## Related ADRs
 
 - ADR-001: Mandatory Workflow Engine
 - ADR-004: Failure Handling Policy Across Environments
 
-### Specifications
-
-- [Configuration Loading](../23_agent/agent_08_01_configuration-loading-agent-config.md) — details of Agent configuration loading
-- [MCP Configuration File Inventory](../22_mcp/mcp_06_01_configuration-file-inventory.md) — list of MCP configuration files
-
-### Operations
-
-- [Runtime and Execution - Config and Logging](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md) — runtime configuration and logging
-
-### Known Issues
-
-- None
-
-### Implementation References
+## Implementation References
 
 - `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
 - `scripts/mcp_servers/server.py` — `MCPServer.run_http()`

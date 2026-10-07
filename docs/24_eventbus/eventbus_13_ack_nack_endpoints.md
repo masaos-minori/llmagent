@@ -1,12 +1,10 @@
 ---
 title: ACK/NACK Endpoints
-description: Consumer acknowledgment and negative acknowledgment endpoint contracts
 tags: [api-reference, ack, nack, consumer]
 area: eventbus
 related:
   - eventbus_02_api-reference-index.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
-created: 20260916
 ---
 
 # ACK/NACK Endpoints

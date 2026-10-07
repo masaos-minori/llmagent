@@ -625,7 +625,7 @@ class TestDuplicateBodyLinks:
 
 
 # ---------------------------------------------------------------------------
-# Related section rules: ADR requires the block; non-ADR must use front matter
+# Related section rules: no body Related Documents anywhere; ADRs need Related ADRs
 # ---------------------------------------------------------------------------
 
 _ADR_BODY = (
@@ -641,8 +641,27 @@ def _adr_content(related: str) -> str:
 class TestRelatedSectionRules:
     def test_adr_without_related_documents_is_reported(self, tmp_path: Path) -> None:
         adr = tmp_path / "10_adr" / "ADR-001-x.md"
+        issues = check_tail_sections(adr, "# ADR\n\n## Related ADRs\n\n## Keywords\n")
+        assert issues == []
+
+    def test_adr_without_related_adrs_is_reported(self, tmp_path: Path) -> None:
+        adr = tmp_path / "10_adr" / "ADR-001-x.md"
         issues = check_tail_sections(adr, "# ADR\n\n## Keywords\n")
-        assert issues == ["ADR-001-x.md: missing '## Related Documents' section"]
+        assert issues == ["ADR-001-x.md: missing '## Related ADRs' section"]
+
+    def test_adr_related_documents_is_reported(self, tmp_path: Path) -> None:
+        adr = tmp_path / "10_adr" / "ADR-001-x.md"
+        content = "# ADR\n\n## Related Documents\n\n- `a.md`\n\n## Related ADRs\n\n## Keywords\n"
+        issues = check_tail_sections(adr, content)
+        assert len(issues) == 1
+        assert "## Related Documents" in issues[0]
+
+    def test_adr_index_and_supporting_docs_need_no_related_adrs(
+        self, tmp_path: Path
+    ) -> None:
+        adr_dir = tmp_path / "10_adr"
+        for name in ("adr-index.md", "adr_02_supporting.md"):
+            assert check_tail_sections(adr_dir / name, "# T\n\n## Keywords\n") == []
 
     def test_non_adr_without_related_documents_passes(self, tmp_path: Path) -> None:
         assert check_tail_sections(tmp_path / "doc.md", "# T\n\n## Keywords\n") == []
@@ -727,8 +746,7 @@ class TestCheckTailSectionsAnyLevel:
         issues = check_tail_sections(Path("test.md"), content)
         assert len(issues) == 1
         assert (
-            "non-ADR document must not carry a body '## Related Documents' section"
-            in issues[0]
+            "document must not carry a body '## Related Documents' section" in issues[0]
         )
 
     def test_body_related_at_h3_level_reported(self) -> None:
@@ -736,7 +754,7 @@ class TestCheckTailSectionsAnyLevel:
         issues = check_tail_sections(Path("test.md"), content)
         assert len(issues) == 1
         assert (
-            "non-ADR document must not carry a body '### Related Documents' section"
+            "document must not carry a body '### Related Documents' section"
             in issues[0]
         )
 
@@ -745,11 +763,11 @@ class TestCheckTailSectionsAnyLevel:
         issues = check_tail_sections(Path("test.md"), content)
         assert len(issues) == 0
 
-    def test_adr_related_documents_required(self) -> None:
+    def test_adr_related_adrs_required(self) -> None:
         content = "# Some ADR\n\n## Keywords\n\nx\n"
         issues = check_tail_sections(Path("docs/10_adr/ADR-001-test.md"), content)
         assert len(issues) == 1
-        assert "missing '## Related Documents' section" in issues[0]
+        assert "missing '## Related ADRs' section" in issues[0]
 
 
 class TestValidateRelatedFormat:

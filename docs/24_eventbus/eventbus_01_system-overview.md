@@ -13,7 +13,6 @@ related:
   - eventbus_00_document-guide.md
   - eventbus_03_dlq_operations.md
   - eventbus_08_configuration-and-operations.md
-source:
   - eventbus_02_api-reference-index.md
 ---
 

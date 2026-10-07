@@ -138,7 +138,7 @@ Minimal surface area for shell execution; isolated from other systems to prevent
 - Code modification
 
 **Ownership rationale:**
-Consolidated from retired browser-mcp server; focuses on read-only web interaction.
+Focuses on read-only web interaction (search and browser page fetch).
 
 ### github-mcp 
 

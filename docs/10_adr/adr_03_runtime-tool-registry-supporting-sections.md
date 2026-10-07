@@ -207,11 +207,6 @@ Confuses call-time Policy decisions with per-Tool availability flags.
 
 Not applicable. Known Deviations are recorded in `ADR-003-runtime-tool-registry-routing-authority.md`.
 
-## Related Documents
-
-- `ADR-003-runtime-tool-registry-routing-authority.md`
-- `adr_00_document-guide.md`
-
 ## Keywords
 
 - adr

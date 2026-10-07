@@ -14,7 +14,6 @@ related:
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
   - eventbus_06_persistence_schema_and_replay.md
-source:
   - eventbus_02_api-reference-index.md
 ---
 
