@@ -79,6 +79,7 @@ removed (REQ-002 / AC-2).
 
 ### Details
 
+- Adversarial verification (20261007): Already applied in commit `4316bc537`; `stale_detector.py` reports clean only because it cannot detect an already-applied change. The line numbers in this procedure (254-298) did not match the pre-migration file either. Link-set diff: Companion/Specifications/Operations targets are all in `related:`; no file link lost; the anchor `#manual-recovery-workflowsqlite-eventbussqlite` was dropped (front matter is file-level). Unrelated finding (not fixed, outside this procedure's scope): ADR-008 Implementation References cite `SQLiteHelper.load_vec()`, which does not exist in `scripts/db/helper.py` (the real surface is `open(load_vec=...)` / `_load_vec_extension`). All referenced symbols/files/tests and `related:` targets exist (except the ADR-008 note above). Pre-migration block was lines 243-287; the line numbers below are historical.
 - Block layout (current): `## Related Documents`(254) → `### Companion Document`(256),
   `### Related ADRs`(260), `### Specifications`(268), `### Operations`(276),
   `### Known Issues`(281), `### Implementation References`(285); `## Completion
@@ -127,10 +128,10 @@ Revert this file to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002 / AC-2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only migration |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_structure.py + check_adr_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-145325 | 20261007-145325 | REQ-002 / AC-2 adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-145325 | 20261007-145325 | N/A: doc-only migration adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-145325 | 20261007-145325 | check_docs_structure.py + check_adr_structure.py adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-145325 | 20261007-145325 | adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
