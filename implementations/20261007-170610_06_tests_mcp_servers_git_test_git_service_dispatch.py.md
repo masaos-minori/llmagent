@@ -336,10 +336,10 @@ of the file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add allow-list rejection unit tests (Test 1) | Pending | — | — | REQ-001 |
-| 2 | Add dispatch-level rejection + destination-protection integration tests (Test 2) | Pending | — | — | REQ-001/002/003 |
-| 3 | Add branch-required schema test (Test 3) | Pending | — | — | REQ-004 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add allow-list rejection unit tests (Test 1) | Completed | — | 20261008-075850 | REQ-001 REQ-001/002/003/004: added TestWriteRefAllowlist, TestGitPushRefRejectionBeforeGit, TestDestinationBasedProtection, TestGitPullPushBranchRequired; 340 tests pass, ruff+mypy clean on module |
+| 2 | Add dispatch-level rejection + destination-protection integration tests (Test 2) | Completed | — | 20261008-075850 | REQ-001/002/003 REQ-001/002/003/004: added TestWriteRefAllowlist, TestGitPushRefRejectionBeforeGit, TestDestinationBasedProtection, TestGitPullPushBranchRequired; 340 tests pass, ruff+mypy clean on module |
+| 3 | Add branch-required schema test (Test 3) | Completed | — | 20261008-075850 | REQ-004 REQ-001/002/003/004: added TestWriteRefAllowlist, TestGitPushRefRejectionBeforeGit, TestDestinationBasedProtection, TestGitPullPushBranchRequired; 340 tests pass, ruff+mypy clean on module |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-075850 | REQ-001/002/003/004: added TestWriteRefAllowlist, TestGitPushRefRejectionBeforeGit, TestDestinationBasedProtection, TestGitPullPushBranchRequired; 340 tests pass, ruff+mypy clean on module |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
