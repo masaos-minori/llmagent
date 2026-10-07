@@ -103,10 +103,10 @@ rejection-marker check, the return) unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-004: remove unreachable fallback in format_push() |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc updates are Rows 8-10 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-073825 | REQ-004: remove unreachable fallback in format_push() REQ-004: removed dead 'or state.active_branch' fallback; updated two obsolete push tests; 306 tests pass, ruff+mypy clean |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-073825 | REQ-004: removed dead 'or state.active_branch' fallback; updated two obsolete push tests; 306 tests pass, ruff+mypy clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-073825 | REQ-004: removed dead 'or state.active_branch' fallback; updated two obsolete push tests; 306 tests pass, ruff+mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-073825 | N/A: doc updates are Rows 8-10 REQ-004: removed dead 'or state.active_branch' fallback; updated two obsolete push tests; 306 tests pass, ruff+mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
