@@ -3,7 +3,7 @@
 # allowed_repo_paths: absolute paths of git repositories accessible via this server.
 # Empty list = deny all (fail-closed). Add repo paths explicitly.
 # Example: allowed_repo_paths = ["/home/masaos/llmagent", "/opt/llm"]
-allowed_repo_paths = []
+allowed_repo_paths = ["/home/sugimoto/llmagent"]
 
 # allowed_remote_urls: normalized remote URLs authorized for git_pull/git_push.
 # Empty list = deny all (fail-closed). Add authorized remote URLs explicitly.

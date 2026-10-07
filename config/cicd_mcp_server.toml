@@ -3,7 +3,7 @@
 # repo_allowlist: permitted repositories in 'owner/repo' format
 # IMPORTANT: empty list = deny all repositories (fail-closed)
 # Example: ["myorg/myrepo", "myorg/other-repo"]
-repo_allowlist = []
+repo_allowlist = ["masaos-minori/llmagent"]
 
 # workflow_allowlist: permitted workflow file names (e.g. "ci.yml")
 # Fail-closed: empty list = deny all workflow triggers (CicdAuthorizationError).
@@ -13,7 +13,7 @@ repo_allowlist = []
 #   "my-org/my-repo/.github/workflows/deploy.yml",
 #   "my-org/my-repo/.github/workflows/ci.yml",
 # ]
-workflow_allowlist = []
+workflow_allowlist = ["masaos-minori/llmagent/.github/workflows/ci.yml"]
 
 # max_log_size_kb: maximum log output size in KB (prevents large data dumps)
 max_log_size_kb = 256

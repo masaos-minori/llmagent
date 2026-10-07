@@ -13,7 +13,7 @@ max_per_page = 100
 
 # allowed_repos: whitelist of repos permitted for write operations (owner/repo format)
 # Empty list = deny all (fail-closed)
-allowed_repos = []
+allowed_repos = ["masaos-minori/llmagent"]
 
 # protected_branches: branch name glob patterns for which write operations are prohibited
 protected_branches = ["main", "release/*"]
