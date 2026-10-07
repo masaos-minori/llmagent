@@ -73,6 +73,7 @@ invalid links removed (REQ-002 / AC-2).
 
 ### Details
 
+- Adversarial verification (20261007): Already applied in commit `4316bc537`; stale_detector cannot detect an already-applied change. Link-set diff: Companion/Specifications targets are all in `related:`; ADR-001/002/004 are under top-level `## Related ADRs`; placeholder `Related Runbook or Troubleshooting Guide` and empty `### Known Issues` dropped as template residue; Implementation References kept (plus `startup_validation.py`). No link lost. All referenced symbols/files/tests exist. Pre-migration block was lines 262-301; the line numbers below are historical.
 - Block layout (current): `## Related Documents`(262) → `### Companion Document`(264),
   `### Related ADRs`(268), `### Specifications`(274), `### Operations`(282), `### Known
   Issues`(286), `### Implementation References`(288); `## Completion Checklist`(301).
