@@ -180,10 +180,7 @@ class GitPullRequest(RepoPathMixin):
     """Request model for git_pull — fetch and merge changes from a remote repository."""
 
     remote: str = Field(default="origin", description="Remote name")
-    branch: str = Field(
-        default="",
-        description="Branch name; empty = current tracking branch",
-    )
+    branch: str = Field(description="Branch name to pull (required)")
     dry_run: bool = Field(
         default=False,
         description="When True, perform fetch --dry-run only",
@@ -194,7 +191,7 @@ class GitPushRequest(RepoPathMixin):
     """Request model for git_push — push local commits to a remote repository."""
 
     remote: str = Field(default="origin", description="Remote name")
-    branch: str = Field(default="", description="Branch name; empty = current branch")
+    branch: str = Field(description="Branch name to push (required)")
     dry_run: bool = Field(
         default=False,
         description="When True, preview only without pushing",

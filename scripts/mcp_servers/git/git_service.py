@@ -11,10 +11,9 @@ Split layout:
 
 from __future__ import annotations
 
-import dataclasses
 import logging
 import os
-import warnings
+import re
 from collections.abc import Awaitable, Callable
 
 import git
@@ -51,24 +50,6 @@ from .format_output import (
     format_show,
     format_status,
 )
-
-
-@dataclasses.dataclass(frozen=True)
-class RepoValidationResult:
-    """Result of repo path and write guard validation.
-
-    error_message is empty string when validation passes.
-    """
-
-    error_message: str
-
-    def __post_init__(self) -> None:
-        warnings.warn(
-            "RepoValidationResult is deprecated; use RepositoryState instead",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-
 
 # All git tool handlers catch this union; git.exc.GitError is the base for all
 # GitPython exceptions; OSError covers filesystem errors; ValueError covers
@@ -108,16 +89,14 @@ class GitService:
 
     async def _validate_repo(
         self, req_repo_path: str, tool_name: str
-    ) -> RepoValidationResult:
-        """Check repo_path and write guard; return result with error_message (empty on success)."""
+    ) -> tuple[bool, str]:
+        """Check repo_path and write guard; return (ok, error) (empty error on success)."""
         ok, err = self._is_within_allowed_paths(req_repo_path)
         if not ok:
-            return RepoValidationResult(error_message=err)
+            return False, err
         if tool_name in _WRITE_TOOLS and self._read_only:
-            return RepoValidationResult(
-                error_message="[DENIED] git-mcp is configured with read_only=true"
-            )
-        return RepoValidationResult(error_message="")
+            return False, "[DENIED] git-mcp is configured with read_only=true"
+        return True, ""
 
     def _validate_ref(self, ref: str) -> tuple[bool, str]:
         """Check if a ref is safe (not an option)."""
@@ -127,12 +106,39 @@ class GitService:
             return False, f"[DENIED] Ref {ref!r} looks like a CLI option"
         return True, ""
 
+    def _validate_ref_allowlist(self, ref: str) -> tuple[bool, str]:
+        """Check if a write branch/remote ref is an allowed simple name.
+
+        Rejects force-push / option-injection ref forms: structural tokens
+        (+ : ^ ~ ? * [, backslash, .., @{), whitespace/control chars, refs/
+        prefixes, and HEAD. Models git check-ref-format --branch. An empty ref
+        passes here and is caught by _validate_protected (branch must not be
+        empty), preserving the prior _validate_ref("") -> pass behavior.
+        """
+        if any(tok in ref for tok in ("+", ":", "^", "~", "?", "*", "[")):
+            return False, f"[DENIED] Ref {ref!r} is not a valid simple branch name"
+        if "\\" in ref or ".." in ref or "@{" in ref:
+            return False, f"[DENIED] Ref {ref!r} is not a valid simple branch name"
+        if any(ch.isspace() or ord(ch) < 32 for ch in ref):
+            return False, f"[DENIED] Ref {ref!r} is not a valid simple branch name"
+        if ref.startswith("refs/") or ref == "HEAD":
+            return False, f"[DENIED] Ref {ref!r} is not a valid simple branch name"
+        return True, ""
+
+    def _validate_remote(self, remote: str) -> tuple[bool, str]:
+        """Check if a remote name is a safe simple name (no CLI-option injection)."""
+        if remote.startswith("-"):
+            return False, f"[DENIED] Remote {remote!r} looks like a CLI option"
+        if re.fullmatch(r"[A-Za-z0-9._-]+", remote):
+            return True, ""
+        return False, f"[DENIED] Remote {remote!r} is not a valid remote name"
+
     def _validate_protected(self, branch: str) -> tuple[bool, str]:
         """Check if a branch is protected."""
         if not branch:
             return False, "[DENIED] branch must not be empty"
         if branch in self._protected_branches:
-            return False, "[DENIED] branch is a protected branch"
+            return False, f"[DENIED] {branch!r} is a protected branch"
         return True, ""
 
     # ── Backward-compatible guards (used by tests) ────────────────────────────
@@ -218,6 +224,8 @@ class GitService:
         op: Callable[[git.Repo, RepositoryState], str],
         active_ref: str = "",
         dry_run: bool = False,
+        requested_branch: str | None = None,
+        protected_branches: list[str] | None = None,
     ) -> str:
         """Validate repo/write guards, open the repo, and run op with error wrapping.
 
@@ -228,9 +236,9 @@ class GitService:
         plain string, which dispatch_tool() cannot distinguish from a successful
         result.
         """
-        result = await self._validate_repo(repo_path, tool_name)
-        if result.error_message:
-            raise ValueError(result.error_message)
+        ok, err = await self._validate_repo(repo_path, tool_name)
+        if not ok:
+            raise ValueError(err)
         state = RepositoryState.snapshot(
             repo_path,
             protected_branches=self._protected_branches,
@@ -244,6 +252,9 @@ class GitService:
             lambda: op(state.repo, state),
             dry_run,
             self._allow_detached_head,
+            requested_branch=requested_branch,
+            protected_branches=self._protected_branches,
+            active_ref=active_ref,
         )
         if pipeline_result.ok:
             return pipeline_result.output
@@ -346,7 +357,7 @@ class GitService:
             create=args.get("create", False),
             dry_run=args.get("dry_run", False),
         )
-        ok, err = self._validate_ref(req.branch)
+        ok, err = self._validate_ref_allowlist(req.branch)
         if not ok:
             raise ValueError(err)
         ok, err = self._validate_protected(req.branch)
@@ -369,6 +380,7 @@ class GitService:
             _checkout_op,
             active_ref=req.branch,
             dry_run=req.dry_run,
+            requested_branch=req.branch,
         )
 
     async def git_pull(self, args: ToolArgs) -> str:
@@ -379,13 +391,13 @@ class GitService:
             branch=args.get("branch", ""),
             dry_run=args.get("dry_run", False),
         )
-        ok, err = self._validate_ref(req.branch)
+        ok, err = self._validate_ref_allowlist(req.branch)
         if not ok:
             raise ValueError(err)
         ok, err = self._validate_protected(req.branch)
         if not ok:
             raise ValueError(err)
-        ok, err = self._validate_ref(req.remote)
+        ok, err = self._validate_remote(req.remote)
         if not ok:
             raise ValueError(err)
 
@@ -403,6 +415,7 @@ class GitService:
             _pull_op,
             active_ref=req.branch,
             dry_run=req.dry_run,
+            requested_branch=req.branch,
         )
 
     async def git_push(self, args: ToolArgs) -> str:
@@ -413,13 +426,13 @@ class GitService:
             branch=args.get("branch", ""),
             dry_run=args.get("dry_run", False),
         )
-        ok, err = self._validate_ref(req.branch)
+        ok, err = self._validate_ref_allowlist(req.branch)
         if not ok:
             raise ValueError(err)
         ok, err = self._validate_protected(req.branch)
         if not ok:
             raise ValueError(err)
-        ok, err = self._validate_ref(req.remote)
+        ok, err = self._validate_remote(req.remote)
         if not ok:
             raise ValueError(err)
 
@@ -437,6 +450,7 @@ class GitService:
             _push_op,
             active_ref=req.branch,
             dry_run=req.dry_run,
+            requested_branch=req.branch,
         )
 
     # ── Dispatch table ────────────────────────────────────────────────────────

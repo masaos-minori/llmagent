@@ -221,8 +221,7 @@ TOOL_LIST: list[McpTool] = [
                 },
                 "branch": {
                     "type": "string",
-                    "description": "Branch name; empty = current tracking branch",
-                    "default": "",
+                    "description": "Branch name to pull (required)",
                 },
                 "dry_run": {
                     "type": "boolean",
@@ -230,7 +229,7 @@ TOOL_LIST: list[McpTool] = [
                     "default": False,
                 },
             },
-            "required": ["repo_path"],
+            "required": ["repo_path", "branch"],
         },
         "status": "production",
         "config_dependent": True,
@@ -253,8 +252,7 @@ TOOL_LIST: list[McpTool] = [
                 },
                 "branch": {
                     "type": "string",
-                    "description": "Branch name; empty = current branch",
-                    "default": "",
+                    "description": "Branch name to push (required)",
                 },
                 "dry_run": {
                     "type": "boolean",
@@ -262,7 +260,7 @@ TOOL_LIST: list[McpTool] = [
                     "default": False,
                 },
             },
-            "required": ["repo_path"],
+            "required": ["repo_path", "branch"],
         },
         "status": "production",
         "config_dependent": True,

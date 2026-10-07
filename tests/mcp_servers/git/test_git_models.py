@@ -13,7 +13,8 @@ from pathlib import Path
 
 import pytest
 from mcp_servers.git.errors import GitServiceError
-from mcp_servers.git.git_models import GitConfig
+from mcp_servers.git.git_models import GitConfig, GitPullRequest, GitPushRequest
+from pydantic import ValidationError
 
 
 class TestAllowedRepoPathsHomeExpansion:
@@ -136,3 +137,29 @@ class TestGitServiceError:
         err = GitServiceError("boom")
         assert isinstance(err, RuntimeError)
         assert str(err) == "boom"
+
+
+class TestWriteRequestBranchRequired:
+    """REQ-004: git_pull/git_push require a non-empty branch (mirrors the JSON
+    schema in git_tools.py, which lists ``branch`` in ``required`` with no
+    default)."""
+
+    def test_git_pull_requires_branch(self) -> None:
+        with pytest.raises(ValidationError):
+            GitPullRequest(repo_path="/tmp/allowed/repo", remote="origin")
+
+    def test_git_push_requires_branch(self) -> None:
+        with pytest.raises(ValidationError):
+            GitPushRequest(repo_path="/tmp/allowed/repo", remote="origin")
+
+    def test_git_pull_accepts_explicit_branch(self) -> None:
+        req = GitPullRequest(
+            repo_path="/tmp/allowed/repo", remote="origin", branch="develop"
+        )
+        assert req.branch == "develop"
+
+    def test_git_push_accepts_explicit_branch(self) -> None:
+        req = GitPushRequest(
+            repo_path="/tmp/allowed/repo", remote="origin", branch="develop"
+        )
+        assert req.branch == "develop"

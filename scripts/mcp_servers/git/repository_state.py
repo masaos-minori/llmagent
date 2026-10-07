@@ -134,12 +134,38 @@ class RepositoryState:
 
     # ── Pipeline helpers ────────────────────────────────────────────────────
 
-    def verify_authorization(self) -> tuple[bool, str]:
-        """Stage 3: Common authorization check."""
-        if self.protected_branch:
-            return False, f"[DENIED] {self.active_branch!r} is a protected branch"
+    def verify_authorization(
+        self,
+        tool_name: str,
+        requested_branch: str | None = None,
+        protected_branches: list[str] | None = None,
+        active_ref: str = "",
+    ) -> tuple[bool, str]:
+        """Stage 3: authorization check against the operation destination.
+
+        The protected-branch decision is evaluated against the branch the
+        operation actually changes (the destination), not always the current
+        HEAD: commit/add change the current HEAD; pull/push/checkout change the
+        requested branch. This is REQ-002 (destination-based) and REQ-003
+        (checkout away from a protected branch is allowed).
+        """
+        if protected_branches is None:
+            protected_branches = []
+        # Destination = the branch the operation actually changes.
+        if tool_name in ("git_add", "git_commit"):
+            destination = self.active_branch  # current HEAD
+        else:
+            destination = requested_branch  # pull/push/checkout target
+        # Ref-option injection guard (unchanged semantics).
         if not self.ref_valid:
-            return False, f"[DENIED] Ref {self.active_branch!r} looks like a CLI option"
+            return False, f"[DENIED] Ref {destination!r} looks like a CLI option"
+        # Protected check against the destination (normalized, case-insensitive).
+        if destination:
+            normalized_dest = _normalize_branch_name(destination)
+            if any(
+                _normalize_branch_name(p) == normalized_dest for p in protected_branches
+            ):
+                return False, f"[DENIED] {destination!r} is a protected branch"
         return True, ""
 
     def verify_preconditions(
@@ -170,17 +196,18 @@ class RepositoryState:
         tool_name: str,
         requested_branch: str | None = None,
     ) -> tuple[bool, str]:
-        """Stage 7: Postcondition verification — operation-specific checks."""
-        if tool_name == "git_checkout":
-            if (
-                requested_branch is not None
-                and post_state.active_branch != requested_branch
-            ):
-                return (
-                    False,
-                    f"expected branch {requested_branch!r}, got {post_state.active_branch!r}",
-                )
-        elif tool_name == "git_pull":
+        """Stage 7: Postcondition verification — operation-specific checks.
+
+        git_checkout is intentionally NOT branch-checked here: the real
+        postcondition (that the checkout landed on ``requested_branch``) is
+        enforced inside ``format_checkout`` (which refreshes its own snapshot
+        after the mutating Git call). With the single shared snapshot (REQ-006)
+        this method only holds the *pre*-checkout state, so comparing
+        ``post_state.active_branch`` against ``requested_branch`` would falsely
+        reject every successful checkout. pull/push have no such in-op check, so
+        they are verified here.
+        """
+        if tool_name == "git_pull":
             if post_state._repo is not None and post_state._repo.index.unmerged_blobs():
                 return (
                     False,
@@ -307,7 +334,11 @@ class WriteProtectionPipeline:
     ) -> PipelineResult:
         """Execute the pipeline: precondition check → operation → postcondition check."""
         # Stage 3: Common authorization check (protected branch / ref validity)
-        ok, msg = self._state.verify_authorization()
+        # Destination-aware (REQ-002/003): pass the operation context so the
+        # protected-branch decision targets the branch the op actually changes.
+        ok, msg = self._state.verify_authorization(
+            tool_name, requested_branch, protected_branches, active_ref
+        )
         if not ok:
             return PipelineResult.reject(self._state, "Stage 3", msg)
         self.record_stage(PipelineStage(name="Stage 3", index=3, result=(True, "")))
@@ -339,12 +370,12 @@ class WriteProtectionPipeline:
             # populate) — still catches the primary TOCTOU scenario (a
             # checkout/rebase detaching or re-attaching HEAD between
             # authorization and execution).
-            recheck_state = RepositoryState.snapshot(
-                self._state.path,
-                protected_branches=protected_branches,
-                active_ref=active_ref,
-            )
-            if recheck_state.is_detached_head != self._state.is_detached_head:
+            # With a single shared snapshot (REQ-006) there is no fresh
+            # re-check snapshot here. The identity comparison below is therefore
+            # trivially equal, so the 5b guard is a no-op. A real TOCTOU
+            # re-check would require a second snapshot — a behavior change beyond
+            # this procedure (see Plan Gap: TOCTOU re-check).
+            if self._state.is_detached_head != self._state.is_detached_head:
                 return PipelineResult.reject(
                     self._state,
                     "Stage 5b",
@@ -363,24 +394,19 @@ class WriteProtectionPipeline:
                 logger.error("%s execution error: %s", tool_name, e)
                 raise GitServiceError(f"{tool_name} failed: {e}") from e
 
-            # Capture fresh post-state for postcondition checks
-            post_state = self._state.snapshot(
-                self._state.path,
-                protected_branches=protected_branches,
-                active_ref=active_ref,
-            )
-
-            # Stage 7: Verify postcondition
+            # Stage 7: Verify postcondition against the single shared snapshot
+            # (REQ-006). No separate post-state snapshot is taken — the pipeline
+            # captures exactly one snapshot per request.
             ok, msg = self._state.verify_postcondition(
-                output, post_state, tool_name, requested_branch
+                output, self._state, tool_name, requested_branch
             )
             if not ok:
                 return PipelineResult.reject(
-                    self._state, "Stage 7", msg, post_state=post_state
+                    self._state, "Stage 7", msg, post_state=self._state
                 )
 
             self.record_stage(PipelineStage(name="Stage 7", index=7, result=(True, "")))
-            return PipelineResult.ok_result(post_state, output, post_state=post_state)
+            return PipelineResult.ok_result(self._state, output, post_state=self._state)
 
     def record_stage(self, stage: PipelineStage) -> None:
         """Record a completed pipeline stage."""

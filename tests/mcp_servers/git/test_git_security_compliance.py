@@ -1500,7 +1500,13 @@ class TestLiveCallToolAuthorization:
         mock_validate_pre_snapshot,
         mock_repo_state_snapshot_dynamic,
     ):
-        """Parametrized test asserting both main and refs/heads/main deny checkout when main is protected."""
+        """Parametrized test asserting both main and refs/heads/main deny checkout when main is protected.
+
+        The *reason* for denial differs per REQ-001: ``main`` is a valid simple
+        branch name and is caught by the protected-branch check, whereas
+        ``refs/heads/main`` is a non-simple ref name rejected earlier by the
+        branch allow-list (so it never reaches the protected-branch check).
+        """
         from mcp_servers.git.git_server import _cfg as server_cfg
         from mcp_servers.git.git_server import _service as server_service
 
@@ -1529,7 +1535,11 @@ class TestLiveCallToolAuthorization:
             body = resp.json()
             result_str = str(body.get("result", ""))
             assert "[DENIED]" in result_str
-            assert "protected branch" in result_str.lower()
+            if branch == "refs/heads/main":
+                # REQ-001: non-simple ref name rejected by the allow-list.
+                assert "simple branch name" in result_str.lower()
+            else:
+                assert "protected branch" in result_str.lower()
         finally:
             server_cfg.read_only = original_read_only
             server_service._read_only = original_svc_read_only
