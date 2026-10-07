@@ -261,13 +261,13 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
   - **Verifies**: INV-02
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_canonical_deletion_leaves_no_orphans_and_cascades_chunks` (TEST-DESIGN3-04)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec` (TEST-DESIGN3-03)
 
 - **Test**: Deleting `documents` cascades the deletion to `chunks`
   - **Verifies**: INV-02
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec` (TEST-DESIGN3-03)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_canonical_deletion_leaves_no_orphans_and_cascades_chunks` (TEST-DESIGN3-04)
 
 - **Test**: The output of the FTS Trigger and of a manual rebuild match
   - **Verifies**: INV-03

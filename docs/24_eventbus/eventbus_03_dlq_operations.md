@@ -68,7 +68,7 @@ A hybrid model combining replay and push, streaming events to the caller.
 
 **Reconnection with `Last-Event-ID`:** Clients can send the `HTTP Last-Event-ID` header with a sequence number to resume from that point. Precedence for determining `start_seq`:
 1. `since_seq` query parameter (highest priority)
-2. Persisted consumer offset (from `consumer_id`)
+2. Resume position computed from the persisted consumer offset and the consumer's unacked events (from `consumer_id`; see the resume rules in `eventbus_05_dlq_offsets_and_delivery_semantics.md`)
 3. `Last-Event-ID` header value + 1 (lowest — fallback for `EventSource` clients)
 
 If `Last-Event-ID` exceeds the current max seq in SQLite, the server returns HTTP 412 Precondition Failed with the current max seq in the response body.
@@ -94,10 +94,10 @@ The exact logic in the `subscribe()` function in `scripts/eventbus/subscribe_rou
 ```
 start_seq = since_seq
 if consumer_id and start_seq == 0:
-    start_seq = get_consumer_offset(db, consumer_id)
+    start_seq = get_resume_position(db, consumer_id)
 ```
 
-Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Query(default=0)` declaration) are indistinguishable when a `consumer_id` is provided. Both resolve to "read from the saved offset". Clients wanting to perform a full replay while providing a `consumer_id` cannot currently express this intent.
+Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Query(default=0)` declaration) are indistinguishable when a `consumer_id` is provided. Both resolve to "read from the computed resume position" (the lowest unacked `seq` at or below the stored offset, otherwise the stored offset plus one). Clients wanting to perform a full replay while providing a `consumer_id` cannot currently express this intent.
 
 ### Consumer Identity Authorization
 

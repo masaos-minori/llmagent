@@ -43,7 +43,7 @@ A group of commands regarding **post-execution approval gates**.
 
 If the agent restarts with post-execution approvals pending, those pending states are automatically detected from the `approvals` database table at startup by `StateStore.find_latest_pending_approval()`.
 
-**Cross-session guarantee:** Even if `ctx.turn.pending_approval_id` in memory is `None` (e.g., after a crash), `/approve` and `/reject` will resolve the latest pending approval from the `approvals` DB table.
+**Cross-session behavior:** Resolution is keyed only by the `approval_id` argument and is validated against the `approvals` DB table (the record must exist and be pending), not against in-memory state. After a restart or crash, the operator supplies the `approval_id` shown in the startup notice. The commands never select a pending approval on the operator's behalf.
 
 **Overwrite Warning:** If `/approve` sets a new value while `ctx.turn.pending_approval_task_id` already contains a value, a `WARNING` level log is emitted to the `cmd_workflow.py` logger. This is a known design constraint due to the current lack of a queue that uses only a single field for handoff; the warning is for observability so operators can track missed approvals.
 

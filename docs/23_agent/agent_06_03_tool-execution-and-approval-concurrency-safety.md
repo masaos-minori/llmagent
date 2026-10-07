@@ -71,7 +71,7 @@ The Orchestrator never falls back directly to unapproved execution if it cannot 
 Workflow-level approval states are persisted in the `approvals` table of `workflow.sqlite`:
 
 - **Startup Recovery**: At startup, searches the `approvals` table to check for pending approvals
-- **Post-restart Resolution**: `/approve` and `/reject` resolve the latest pending approvals from the workflow database
+- **Post-restart Resolution**: `/approve` and `/reject` require an explicit `approval_id` and resolve that record in the workflow database only if it is still pending; they never pick a pending approval automatically
 - **IDs in Warning Messages**: Operators can match logs to identify which tasks need attention
 
 ## Responsibility Boundary
