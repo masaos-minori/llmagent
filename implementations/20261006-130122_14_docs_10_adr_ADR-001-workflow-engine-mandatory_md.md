@@ -77,6 +77,7 @@ removed (REQ-002 / AC-2).
 
 ### Details
 
+- Adversarial verification (20261007): Already applied in commit `4316bc537` (front-matter-only Related rule). Link-set diff: Deployment Guide, Turn Processing Flow and Workflow Deployment Runbook are all in `related:`; ADR-004/ADR-014 are under top-level `## Related ADRs`; all Implementation References kept (plus `startup_component_init.py`); `### Known Issues - None` dropped as empty. Only loss: the runbook anchor `#workflow-deployment-runbook` (front matter is file-level; the heading still exists in the target doc). All referenced symbols/files/tests exist. Pre-migration block was lines 357-387; the line numbers below are historical.
 - Block layout (current): `## Related Documents`(357) → `### Related ADRs`(359), `###
   Specifications`(364), `### Operations`(369), `### Known Issues`(373), `### Implementation
   References`(377); `## Completion Checklist`(387).
@@ -124,10 +125,10 @@ Revert this file to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002 / AC-2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only migration |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_structure.py + check_adr_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-144703 | 20261007-144703 | REQ-002 / AC-2 adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-144703 | 20261007-144703 | N/A: doc-only migration adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-144703 | 20261007-144703 | check_docs_structure.py + check_adr_structure.py adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-144703 | 20261007-144703 | adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
