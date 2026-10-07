@@ -21,6 +21,7 @@ from tools.check_issue_inventory_conformance import (
     check_closing_summary,
     check_orphaned_bullets,
     check_referential_integrity,
+    check_status_values,
     check_template_field_count,
     check_vocabulary,
 )
@@ -418,6 +419,58 @@ class TestVocabularyViolation:
         assert any("invalid Status" in i.message for i in issues), (
             "Invalid Part 2 Status should be detected"
         )
+
+
+class TestStatusValues:
+    """Status values are validated in definitions, tables and Part 3/4 entries."""
+
+    @staticmethod
+    def _doc(text: str) -> DocFile:
+        return DocFile(
+            Path("x.md"), rel_path=GOVERNANCE_DOC_NAME, lines=text.splitlines()
+        )
+
+    def test_resolved_definition_in_part3_is_detected(self) -> None:
+        doc = self._doc(
+            "## Part 3: Canonical Source Conflict\n\n"
+            "### Status Values\n\n"
+            "- **open** — acknowledged\n"
+            "- **resolved** — closed\n"
+        )
+        issues = check_status_values(doc)
+        assert len(issues) == 1
+        assert "'resolved'" in issues[0].message
+
+    def test_resolved_status_in_part4_entry_is_detected(self) -> None:
+        doc = self._doc(
+            "## Part 4: Configuration Drift\n\n#### DRIFT-1\n\n- **Status**: resolved\n"
+        )
+        assert len(check_status_values(doc)) == 1
+
+    def test_part1_table_row_status_is_checked(self) -> None:
+        doc = self._doc(
+            "## Part 1: Known Issues\n\n"
+            "| ID | Title | Status |\n|---|---|---|\n"
+            "| X-001 | t | Resolved |\n"
+            "| X-002 | t | open |\n"
+        )
+        issues = check_status_values(doc)
+        assert len(issues) == 1
+        assert "X-001" in issues[0].message
+
+    def test_valid_statuses_pass(self) -> None:
+        doc = self._doc(
+            "## Part 1: Known Issues\n\n"
+            "### Status Values\n\n"
+            "- **open** — a\n- **investigating** — b\n- **deferred** — c\n\n"
+            "## Part 3: Canonical Source Conflict\n\n"
+            "### Status Values\n\n"
+            "- **open** — a\n- **investigating** — b\n"
+        )
+        assert check_status_values(doc) == []
+
+    def test_live_governance_document_is_clean(self) -> None:
+        assert check_status_values(_make_doc(GOVERNANCE_DOC_PATH)) == []
 
 
 class TestTemplateFieldCountViolation:

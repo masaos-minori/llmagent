@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import subprocess
 import sys
@@ -11,6 +12,7 @@ from pathlib import Path
 
 import pytest
 
+from tools import check_docs_quality as cdq
 from tools.check_docs_quality import (
     _compute_section_similarity,
     check_content_similarity,
@@ -433,3 +435,102 @@ class TestRegressionFullDocsTree:
             f"Added: {current_pairs - EXPECTED_WITHIN_FILE_PAIRS}\n"
             f"Removed: {EXPECTED_WITHIN_FILE_PAIRS - current_pairs}"
         )
+
+
+# ---------------------------------------------------------------------------
+# Custom rules: history / uncertainty wording (config/doc_quality_rules.json)
+# ---------------------------------------------------------------------------
+
+
+def _run_live_rule(rule_name: str, lines: list[str]) -> list[cdq.Issue]:
+    """Build the named rule from the real rules file and run it on `lines`."""
+    cdq._CUSTOM_RULES.clear()
+    cdq.load_custom_rules(_DOCS_DIR)
+    try:
+        doc = cdq.DocFile(path=Path("x.md"), rel_path="x.md", lines=lines)
+        return cdq._CUSTOM_RULES[rule_name](_DOCS_DIR, [doc])
+    finally:
+        cdq._CUSTOM_RULES.clear()
+
+
+class TestHistoryMarkerRule:
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Rule text. (Added 2026-09-02; see the issue.)",
+            "- `implementations/done/20260829-134950_01_x.md`: Create module",
+            "Fixed by REQ-001 in the strict default.",
+            "### Impact of REQ-001",
+            "- **Resolved**: the protected-branch short-circuit was fixed.",
+            "- **Resolved Issue**: recovery treated UNKNOWN as corrupt.",
+            "~~Orchestrator creates an unused runner~~",
+            "## Traceability",
+        ],
+    )
+    def test_marker_is_reported_even_with_historical_wording(self, line: str) -> None:
+        issues = _run_live_rule("history_marker_in_active_doc", [line])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_current_state_wording_is_not_reported(self) -> None:
+        lines = [
+            "`SecurityProfile` holds only PRODUCTION.",
+            "Resolved server key names are cached after startup.",
+        ]
+        assert _run_live_rule("history_marker_in_active_doc", lines) == []
+
+
+class TestUncertaintyPhraseRule:
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Retention policy is unresolved — requires verification against code.",
+            "Latency may increase. To be verified.",
+            "Threshold: TBD",
+            "This behavior is not yet confirmed.",
+            "Pending decision on the cleanup policy.",
+        ],
+    )
+    def test_unverified_wording_is_reported(self, line: str) -> None:
+        issues = _run_live_rule("uncertainty_phrase_outside_inventory", [line])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+
+    def test_ordinary_wording_is_not_reported(self) -> None:
+        lines = [
+            "Unknown tool names raise ValueError.",
+            "Verification is performed by the integration tests.",
+        ]
+        assert _run_live_rule("uncertainty_phrase_outside_inventory", lines) == []
+
+
+class TestExemptHistoricalContextOption:
+    def test_default_rule_skips_lines_with_historical_marker(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        rules = tmp_path / "rules.json"
+        rules.write_text(
+            json.dumps(
+                {
+                    "rules": {
+                        "default_rule": {"pattern": "FOO", "severity": "ERROR"},
+                        "strict_rule": {
+                            "pattern": "FOO",
+                            "severity": "ERROR",
+                            "exempt_historical_context": False,
+                        },
+                    }
+                }
+            )
+        )
+        monkeypatch.setattr(cdq, "CUSTOM_RULES_FILE", rules)
+        cdq._CUSTOM_RULES.clear()
+        cdq.load_custom_rules(_DOCS_DIR)
+        try:
+            doc = cdq.DocFile(
+                path=Path("x.md"), rel_path="x.md", lines=["FOO was removed"]
+            )
+            assert cdq._CUSTOM_RULES["default_rule"](_DOCS_DIR, [doc]) == []
+            assert len(cdq._CUSTOM_RULES["strict_rule"](_DOCS_DIR, [doc])) == 1
+        finally:
+            cdq._CUSTOM_RULES.clear()

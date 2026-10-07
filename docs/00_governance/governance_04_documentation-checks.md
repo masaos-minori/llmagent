@@ -28,10 +28,10 @@ Checks all documents under `docs/*.md` for quality issues.
 - Unclosed inline code blocks
 - JSON examples without fence markers
 - Duplicate heading numbers
-- Resolved issue mentions in active documents
 
 **Custom rules:**
 - Dynamically loaded from `config/doc_quality_rules.json`
+- History, change-history, traceability and resolved-item markers in active documents are rejected (ERROR); unverified-claim wording outside the Needs Confirmation inventory is reported (WARNING)
 
 **Usage:**
 ```bash
@@ -192,7 +192,7 @@ python tools/check_adr_structure.py --format json
 
 ### 17. Known Deviation Sync Check (`check_known_deviation_sync.py`)
 
-Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1, and that an ADR bullet's resolved-or-open signal agrees with the entry's Status. A cited ID with no entry is reported as a dangling reference (Warning).
+Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), and rejects resolved-item bullets in `## Known Deviations` (Error).
 
 **Enforcement:** local run only — not wired into pre-commit or `.github/workflows/`.
 
@@ -215,7 +215,7 @@ Validate `config/documentation_canonical_sources.toml`: schema conformance, path
 
 ### 20. Issue Inventory Conformance Check (`check_issue_inventory_conformance.py`)
 
-Verifies `governance_03_issue-and-uncertainty-management.md` against its own template: vocabulary values, per-entry field counts, and referential integrity (`GV-008`).
+Verifies `governance_03_issue-and-uncertainty-management.md` against its own template: vocabulary values (including the Status value sets of every Part, so no closed-out status such as `resolved` is accepted), per-entry field counts, and referential integrity (`GV-008`).
 
 **Enforcement:** `.github/workflows/governance-docs-consistency.yml`.
 

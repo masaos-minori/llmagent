@@ -16,6 +16,7 @@ from pathlib import Path
 from tools._docs_consistency_lib import DocFile, discover_md_files
 from tools.check_known_deviation_sync import (
     cross_check,
+    find_resolved_bullets,
     parse_adr_references,
     parse_canonical_statuses,
 )
@@ -31,8 +32,7 @@ def _discover(dir_path: Path) -> list[DocFile]:
 
 
 class TestStatusMatch:
-    """An ADR reference whose signal agrees with the canonical Status
-    produces no Status-mismatch or dangling finding."""
+    """An ADR reference to a tracked Known Issue produces no finding."""
 
     def test_matching_open_status_produces_no_finding(self, tmp_path: Path) -> None:
         canonical_dir = tmp_path / "docs"
@@ -56,42 +56,40 @@ class TestStatusMatch:
         adr_refs = parse_adr_references(_discover(adr_dir))
         assert len(adr_refs) == 1
         assert adr_refs[0].id == "ID-001"
-        assert adr_refs[0].signal == "open-like"
 
         assert cross_check(statuses, adr_refs) == []
 
 
-class TestStatusMismatch:
-    """A canonical Status that disagrees with the ADR's open/resolved signal
-    is reported as an ERROR Status-mismatch finding."""
+class TestResolvedBullet:
+    """A resolved-item bullet in an ADR's Known Deviations is an ERROR."""
 
-    def test_disagreeing_status_is_reported(self, tmp_path: Path) -> None:
-        canonical_dir = tmp_path / "docs"
-        _write(
-            canonical_dir,
-            "04_mcp_90_inconsistencies_and_known_issues.md",
-            "### ID-002: Another tracked deviation\n\n- **Status**: resolved\n",
-        )
+    def test_resolved_bullets_are_reported(self, tmp_path: Path) -> None:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
             "ADR-002-example.md",
             "## Known Deviations\n\n"
-            "- **Known Issue**: ID-002 — still open per implementation\n",
+            "- **Resolved**: Something was fixed.\n"
+            "- **Resolved Issue**: Another fix.\n"
+            "  - **Status**: Resolved\n"
+            "- **Known Issue**: ID-002 — still open\n\n"
+            "## Review Triggers\n\n"
+            "- **Resolved**: outside the section, ignored\n",
         )
 
-        statuses, parse_issues = parse_canonical_statuses(_discover(canonical_dir))
-        assert parse_issues == []
+        findings = find_resolved_bullets(_discover(adr_dir))
+        assert [f.line_no for f in findings] == [3, 4, 5]
+        assert all(f.severity == "ERROR" for f in findings)
+        assert "not allowed" in findings[0].message
 
-        adr_refs = parse_adr_references(_discover(adr_dir))
-        assert len(adr_refs) == 1
-        assert adr_refs[0].signal == "open-like"
-
-        findings = cross_check(statuses, adr_refs)
-        assert len(findings) == 1
-        assert findings[0].severity == "ERROR"
-        assert "ID-002" in findings[0].message
-        assert "mismatch" in findings[0].message.lower()
+    def test_open_only_section_has_no_finding(self, tmp_path: Path) -> None:
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "ADR-003-example.md",
+            "## Known Deviations\n\n- **Known Issue**: ID-003 — tracked\n",
+        )
+        assert find_resolved_bullets(_discover(adr_dir)) == []
 
 
 class TestDanglingReference:

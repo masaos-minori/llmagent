@@ -55,6 +55,20 @@ PART1_AREA_VALUES = {
 PART1_OWNER_VALUES = {"Unassigned", "[Name]", "Team"}
 
 PART2_STATUS_VALUES = {"open", "investigating", "deferred"}
+# Parts 3/4 track conflicts and drift; a resolved item is removed, never kept
+# with a closed-out status (Current-Specification-Only Policy).
+PART3_STATUS_VALUES = {"open", "investigating"}
+PART4_STATUS_VALUES = {"open", "investigating"}
+_ALLOWED_STATUS_BY_PART = {
+    "Part 1": PART1_STATUS_VALUES,
+    "Part 2": PART2_STATUS_VALUES,
+    "Part 3": PART3_STATUS_VALUES,
+    "Part 4": PART4_STATUS_VALUES,
+}
+_PART_HEADING_RE = re.compile(r"^## (Part [1-4])\b")
+_STATUS_DEFINITION_RE = re.compile(r"^- \*\*([A-Za-z-]+)\*\*\s+—")
+_STATUS_BULLET_RE = re.compile(r"^- \*\*Status\*\*:\s*(\S+)")
+_ACTIVE_TABLE_ROW_RE = re.compile(r"^\|\s*[A-Z]+-\d+\s*\|")
 
 # ── Document structure constants ─────────────────────────────────────────────────
 
@@ -239,6 +253,59 @@ def check_vocabulary(doc: DocFile) -> list[Issue]:
                     )
                 )
 
+    return issues
+
+
+def check_status_values(doc: DocFile) -> list[Issue]:
+    """Validate every Status value in the document against its Part's value set.
+
+    Covers three places the entry-level vocabulary check does not: the
+    `### Status Values` definition bullets of each Part, the Status column of
+    the Part 1 Active Items table, and `- **Status**:` bullets inside Part 3/4.
+    A `resolved` (or any other closed-out) status is therefore rejected
+    everywhere, not just in Part 1/2 entries.
+    """
+    issues: list[Issue] = []
+    part: str | None = None
+    in_status_values = False
+
+    def _flag(line_no: int, value: str, where: str) -> None:
+        issues.append(
+            Issue(
+                file=doc.rel_path,
+                line_no=line_no,
+                severity="ERROR",
+                message=(
+                    f"{where}: Status '{value}' is not allowed in {part} "
+                    f"(allowed: {sorted(_ALLOWED_STATUS_BY_PART[part or 'Part 1'])})"
+                ),
+            )
+        )
+
+    for line_no, line in enumerate(doc.lines, start=1):
+        part_match = _PART_HEADING_RE.match(line)
+        if part_match:
+            part = part_match.group(1)
+            in_status_values = False
+            continue
+        if part is None:
+            continue
+        if re.match(r"^#{2,3} ", line):
+            in_status_values = line.startswith("### Status Values")
+            continue
+        allowed = _ALLOWED_STATUS_BY_PART[part]
+        if in_status_values:
+            definition = _STATUS_DEFINITION_RE.match(line)
+            if definition and definition.group(1) not in allowed:
+                _flag(line_no, definition.group(1), "Status Values definition")
+        elif part == "Part 1" and _ACTIVE_TABLE_ROW_RE.match(line):
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if len(cells) > 2 and cells[2] not in allowed:
+                _flag(line_no, cells[2], f"{cells[0]} Active Items row")
+        elif part in ("Part 3", "Part 4"):
+            bullet = _STATUS_BULLET_RE.match(line)
+            if bullet and bullet.group(1) not in allowed:
+                _flag(line_no, bullet.group(1), "entry Status")
     return issues
 
 
@@ -464,6 +531,7 @@ def main() -> None:
 
     issues: list[Issue] = []
     issues.extend(check_vocabulary(doc))
+    issues.extend(check_status_values(doc))
     issues.extend(check_template_field_count(doc))
     issues.extend(check_orphaned_bullets(doc))
     issues.extend(check_closing_summary(doc))

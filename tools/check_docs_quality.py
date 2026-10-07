@@ -510,35 +510,6 @@ def check_stale_patterns(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
     return issues
 
 
-@register_core_check("resolved_in_active", "Resolved items under active sections")
-def check_resolved_in_active(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
-    issues: list[Issue] = []
-    for doc in files:
-        in_active = False
-        for i, line in enumerate(doc.lines, 1):
-            stripped = line.strip()
-            if stripped.startswith("## Active Issues"):
-                in_active = True
-                continue
-            if stripped.startswith("## ") and not stripped.startswith(
-                "## Active Issues"
-            ):
-                in_active = False
-                continue
-            if in_active and (
-                "[Resolved]" in stripped or "resolved" in stripped.lower()
-            ):
-                issues.append(
-                    Issue(
-                        doc.rel_path,
-                        i,
-                        "ERROR",
-                        f"resolved item under active issues: '{stripped[:80]}'",
-                    )
-                )
-    return issues
-
-
 @register_core_check(
     "duplicate_heading_numbers", "Duplicate numbered headings at same level"
 )
@@ -725,17 +696,21 @@ def load_custom_rules(docs_dir: Path) -> None:
         pattern_str = rule.get("pattern")
         severity = rule.get("severity", "ERROR")
         description = rule.get("description", "")
+        # A rule that targets history/uncertainty wording must also match lines
+        # that carry a historical marker ("resolved", "removed", ...), so it can
+        # opt out of the default exemption with "exempt_historical_context": false.
+        exempt_historical = bool(rule.get("exempt_historical_context", True))
         if not pattern_str:
             continue
         compiled = re.compile(pattern_str)
 
-        def make_checker(pat, sev, desc):
+        def make_checker(pat, sev, desc, exempt):
             def checker(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
                 issues: list[Issue] = []
                 for doc in files:
                     for i, line in enumerate(doc.lines, 1):
                         stripped = line.strip()
-                        is_historical = any(
+                        is_historical = exempt and any(
                             m.lower() in stripped.lower() for m in _HISTORICAL_MARKERS
                         )
                         # A line pairing the stale form with its current "/session ..."
@@ -756,7 +731,9 @@ def load_custom_rules(docs_dir: Path) -> None:
 
             return checker
 
-        _CUSTOM_RULES[name] = make_checker(compiled, severity, description)
+        _CUSTOM_RULES[name] = make_checker(
+            compiled, severity, description, exempt_historical
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -2,18 +2,18 @@
 """check_known_deviation_sync.py — Verify ADR Known Deviations stay in sync with docs/.
 
 Every ADR's `## Known Deviations` section (and `## Related Documents` ->
-`### Known Issues` subsection) cites Known Issue IDs (e.g. `MCP-004`,
-`EVENTBUS-008`) that are supposed to be tracked, with their current Status,
-in one of the per-area canonical `docs/*_90_inconsistencies_and_known_issues.md`
-documents. Two failure modes are possible:
+`### Known Issues` subsection) cites Known Issue IDs (e.g. `EVENTBUS-008`)
+that are tracked in
+`docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
+Two failure modes are reported:
 
-  1. An ADR's Known Deviations bullet marks an ID as still open (or as
-     resolved) while the canonical document's Status field for that same
-     ID disagrees -- one side was updated and the other was not.
-  2. An ADR references an ID that has no matching `### <ID>` entry in any
-     canonical document at all -- a dangling reference (e.g. a typo, a
-     removed entry, or a canonical entry recorded under the wrong heading
-     level).
+  1. A `- **Resolved**:` bullet appears in an ADR's Known Deviations. The
+     Current-Specification-Only Policy keeps no resolved items in active
+     documents: a resolved deviation is removed, with any still-applicable
+     requirement stated in the ADR's current sections instead (ERROR).
+  2. An ADR references an ID that has no matching entry heading in the
+     canonical document -- a dangling reference (e.g. a typo or a removed
+     entry) (WARNING).
 
 Usage:
     python tools/check_known_deviation_sync.py
@@ -86,21 +86,17 @@ _CANONICAL_INLINE_STATUS_RE = re.compile(
 # or end-of-line -- otherwise "ADR-004-D1-profile-config-model-still-present"
 # would be misread as the ID "ADR-004".
 _ID_LOOKAHEAD_RE = re.compile(r"([A-Z]+-\d+)(?=\s|—|$)")
-# Top-level "- **Known Issue**: ..." / "- **Resolved**: ..." bullets inside
-# `## Known Deviations` -- these carry the resolved-like/open-like signal.
-# Sibling continuation bullets ("- **Type**: ...", "- **Status**: ...", used
-# by ADR-002's CI-001 for its own Proposed->Accepted transition, unrelated to
-# canonical Known Issue sync) are intentionally not matched by this pattern.
-_LABELED_BULLET_RE = re.compile(r"^\s*-\s+\*\*(Known Issue|Resolved)\*\*:\s*(.*)$")
+# "- **Known Issue**: <ID> ..." bullets inside `## Known Deviations` cite an
+# active Known Issue.
+_LABELED_BULLET_RE = re.compile(r"^\s*-\s+\*\*Known Issue\*\*:\s*(.*)$")
+# Any "- **Resolved ...**:" bullet, or a "- **Status**: Resolved" continuation
+# bullet, inside `## Known Deviations` records a resolved item, which the
+# Current-Specification-Only Policy does not allow in active documents.
+_RESOLVED_BULLET_RE = re.compile(
+    r"^\s*-\s+(?:\*\*Resolved[^*]*\*\*:|\*\*Status\*\*:\s*Resolved\b)",
+    re.IGNORECASE,
+)
 _BULLET_LINE_RE = re.compile(r"^\s*-\s+")
-
-# Canonical Status values recognized as "resolved-like" or "open-like" for
-# automatic mismatch detection. Any other value (e.g. "deferred", the
-# 90_shared_90 "partially resolved" bucket, or a 05_agent_90-style 5-tier
-# label) is excluded from automatic mismatch reporting -- informational only,
-# per the source Plan's Assumptions.
-_RESOLVED_LIKE_STATUSES = frozenset({"resolved", "fixed", "closed"})
-_OPEN_LIKE_STATUSES = frozenset({"open"})
 
 
 @dataclass(frozen=True)
@@ -119,12 +115,6 @@ class AdrReference:
     adr_file: str  # "adr/<name>.md", relative to docs/
     line_no: int
     section: str
-    # "resolved-like" / "open-like" for a `## Known Deviations` bullet (which
-    # always carries an explicit **Known Issue**/**Resolved** label); None for
-    # a `## Related Documents` -> `### Known Issues` mention, which has no
-    # such label and therefore contributes to the dangling-reference check
-    # only, never to the Status-mismatch check.
-    signal: str | None
 
 
 # ---------------------------------------------------------------------------
@@ -268,15 +258,6 @@ def parse_canonical_statuses(
     return statuses, issues
 
 
-def _status_family(raw_status: str) -> str | None:
-    lowered = raw_status.strip().lower()
-    if lowered in _RESOLVED_LIKE_STATUSES:
-        return "resolved-like"
-    if lowered in _OPEN_LIKE_STATUSES:
-        return "open-like"
-    return None
-
-
 # ---------------------------------------------------------------------------
 # ADR-side parsing
 # ---------------------------------------------------------------------------
@@ -293,7 +274,7 @@ def parse_adr_references(files: list[DocFile]) -> list[AdrReference]:
             labeled_match = _LABELED_BULLET_RE.match(line)
             if not labeled_match:
                 continue
-            label, rest = labeled_match.group(1), labeled_match.group(2)
+            rest = labeled_match.group(1)
             # Anchored match, not search: the ID (if any) is always the very
             # first token after the label (e.g. "MCP-003 — ..."). A search
             # would also catch an unrelated ID-shaped token appearing later
@@ -302,14 +283,12 @@ def parse_adr_references(files: list[DocFile]) -> list[AdrReference]:
             id_match = _ID_LOOKAHEAD_RE.match(rest.lstrip())
             if not id_match:
                 continue
-            signal = "resolved-like" if label == "Resolved" else "open-like"
             refs.append(
                 AdrReference(
                     id=id_match.group(1),
                     adr_file=adr_file,
                     line_no=line_no,
                     section="Known Deviations",
-                    signal=signal,
                 )
             )
 
@@ -324,10 +303,31 @@ def parse_adr_references(files: list[DocFile]) -> list[AdrReference]:
                         adr_file=adr_file,
                         line_no=line_no,
                         section="Related Documents > Known Issues",
-                        signal=None,
                     )
                 )
     return refs
+
+
+def find_resolved_bullets(files: list[DocFile]) -> list[Issue]:
+    """Report resolved-item bullets in each ADR's `## Known Deviations` (ERROR)."""
+    issues: list[Issue] = []
+    for doc in files:
+        for line_no, line in _section_body(doc.lines, "## Known Deviations", 2):
+            if _RESOLVED_BULLET_RE.match(line):
+                issues.append(
+                    Issue(
+                        file=f"adr/{doc.rel_path}",
+                        line_no=line_no,
+                        severity="ERROR",
+                        message=(
+                            "resolved item in Known Deviations is not allowed "
+                            "(Current-Specification-Only Policy); remove it and "
+                            "state any still-applicable requirement in the ADR's "
+                            "current sections"
+                        ),
+                    )
+                )
+    return issues
 
 
 # ---------------------------------------------------------------------------
@@ -355,36 +355,15 @@ def cross_check(
                 )
             )
             continue
-
-        if ref.signal is None:
-            continue  # Related Documents mention: dangling check only.
-
-        canonical_family = _status_family(canonical_entry.raw_status)
-        if canonical_family is None:
-            continue  # deferred / partially resolved / 5-tier value: informational only.
-
-        if canonical_family != ref.signal:
-            issues.append(
-                Issue(
-                    file=ref.adr_file,
-                    line_no=ref.line_no,
-                    severity="ERROR",
-                    message=(
-                        f"{ref.id} Status mismatch: canonical "
-                        f"{canonical_entry.doc} marks it "
-                        f"'{canonical_entry.raw_status}' ({canonical_family}), "
-                        f"but this ADR's Known Deviations bullet marks it "
-                        f"{ref.signal}"
-                    ),
-                )
-            )
     return issues
 
 
 def collect_issues() -> list[Issue]:
     canonical, parse_issues = parse_canonical_statuses(discover_canonical_docs())
-    adr_refs = parse_adr_references(discover_adr_docs())
+    adr_docs = discover_adr_docs()
+    adr_refs = parse_adr_references(adr_docs)
     issues = list(parse_issues)
+    issues.extend(find_resolved_bullets(adr_docs))
     issues.extend(cross_check(canonical, adr_refs))
     return issues
 
@@ -416,8 +395,8 @@ def main(argv: list[str] | None = None) -> int:
         description=(
             "Read-only cross-check of every ADR's Known Deviations (and "
             "Related Documents -> Known Issues) references against the "
-            "Status field of the same Known Issue ID in its canonical "
-            "docs/*_90_inconsistencies_and_known_issues.md document."
+            "Known Issue entries in governance_03, and rejection of "
+            "`- **Resolved**:` bullets in Known Deviations."
         )
     )
     parser.add_argument(
