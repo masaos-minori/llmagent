@@ -4,6 +4,7 @@
 import asyncio
 import dataclasses
 import logging
+import uuid
 from typing import Any
 
 import httpx
@@ -11,10 +12,35 @@ import httpx
 from shared.json_utils import parse_http_json
 from shared.logger import attach_redaction_filter, register_secret
 from shared.mcp_config import McpServerConfig
+from shared.tool_constants import (
+    CICD_WRITE_TOOLS,
+    DELETE_TOOLS,
+    GIT_WRITE_TOOLS,
+    GITHUB_DANGEROUS_TOOLS,
+    GITHUB_WRITE_TOOLS,
+    RAG_WRITE_TOOLS,
+    SHELL_TOOLS,
+    WRITE_TOOLS,
+)
 from shared.transport_dto import ToolCallResult
 
 logger = logging.getLogger(__name__)
 attach_redaction_filter(logger)
+
+
+# Write/state-mutating tools. Mirrors scripts/mcp_servers/dispatch.py's
+# `_write_tools` so the idempotency retry gate in `call()` covers exactly the
+# tools the dispatch layer deduplicates. See ADR-004 (fail-closed on writes).
+_WRITE_TOOLS: frozenset[str] = frozenset(
+    WRITE_TOOLS
+    | DELETE_TOOLS
+    | GIT_WRITE_TOOLS
+    | RAG_WRITE_TOOLS
+    | CICD_WRITE_TOOLS
+    | GITHUB_WRITE_TOOLS
+    | GITHUB_DANGEROUS_TOOLS
+    | SHELL_TOOLS
+)
 
 
 class TransportError(Exception):
@@ -121,11 +147,16 @@ class HttpTransport:
         timeouts, invalid responses).  Tool-level errors from the MCP server
         are returned as-is with is_error=True in the result.
         """
+        # One idempotency key per logical call, generated here and reused across
+        # every retry (REQ-005). Sent as a header so the server can deduplicate a
+        # re-sent write via dispatch.py's _duplicate_cache.
+        idempotency_key = str(uuid.uuid4())
         headers: dict[str, str] = {}
         if self._auth_token:
             headers["Authorization"] = f"Bearer {self._auth_token}"
         if self._session_id:
             headers["X-Session-Id"] = self._session_id
+        headers["X-Idempotency-Key"] = idempotency_key
 
         timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
         last_retryable_status: int | None = None
@@ -173,6 +204,14 @@ class HttpTransport:
                     name, f"[{type(e).__name__}]", str(e), break_flag=True
                 )
             except httpx.RequestError as e:
+                # REQ-006: a state-mutating write must not be retried without a
+                # server-side dedup key (blind retry could execute it twice).
+                # Gate the post-send retry on key presence for write tools; read
+                # tools keep the current retry behavior.
+                if name in _WRITE_TOOLS and not idempotency_key:
+                    raise self._transport_error(
+                        name, f"[{type(e).__name__}]", str(e), break_flag=True
+                    )
                 self._transport_error(name, f"[{type(e).__name__}]", str(e))
         msg = self._build_exhaustion_message(name, last_retryable_status)
         logger.error(msg)

@@ -229,7 +229,8 @@ class TestHttpTransportAuthHeader:
         await transport.call("my_tool", {})
 
         call_kwargs = mock_http.post.call_args.kwargs
-        assert call_kwargs["headers"] == {"Authorization": "Bearer my-token"}
+        assert call_kwargs["headers"].get("Authorization") == "Bearer my-token"
+        assert "X-Idempotency-Key" in call_kwargs["headers"]
 
     @pytest.mark.asyncio
     async def test_no_auth_token_sends_empty_headers(self) -> None:
@@ -248,7 +249,8 @@ class TestHttpTransportAuthHeader:
         await transport.call("my_tool", {})
 
         call_kwargs = mock_http.post.call_args.kwargs
-        assert call_kwargs["headers"] == {}
+        assert call_kwargs["headers"].get("Authorization") is None
+        assert "X-Idempotency-Key" in call_kwargs["headers"]
 
     @pytest.mark.asyncio
     async def test_no_cfg_raises_fail_loud(self) -> None:
