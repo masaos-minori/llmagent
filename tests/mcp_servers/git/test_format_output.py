@@ -532,14 +532,6 @@ class TestFormatPush:
         result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "[DRY RUN] Would push branch 'feature/x' to 'origin'"
 
-    def test_dry_run_defaults_to_active_branch(self) -> None:
-        state = _make_state(active_branch="main")
-        req = GitPushRequest(
-            repo_path=REPO_PATH, remote="origin", branch="", dry_run=True
-        )
-        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
-        assert result == "[DRY RUN] Would push branch 'main' to 'origin'"
-
     def test_real_push_with_result(self) -> None:
         mock_repo = MagicMock()
         mock_repo.git.push.return_value = "push output"
@@ -559,7 +551,7 @@ class TestFormatPush:
         _mock_remote(mock_repo, "origin")
         state = _make_state(active_branch="main", _repo=mock_repo)
         req = GitPushRequest(
-            repo_path=REPO_PATH, remote="origin", branch="", dry_run=False
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
         )
         result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "Pushed 'main' to 'origin'"

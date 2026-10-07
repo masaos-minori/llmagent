@@ -204,7 +204,7 @@ def format_push(
 ) -> str:
     """Format output for pushing local commits to a remote."""
     _authorize_remote(state, req.remote, cfg or GitConfig.load())
-    branch = req.branch or state.active_branch
+    branch = req.branch
     if req.dry_run:
         return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
     assert state._repo is not None
