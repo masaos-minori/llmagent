@@ -8,7 +8,7 @@ and guard integration with GitService handlers.
 from __future__ import annotations
 
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import git
 import pytest
@@ -666,13 +666,10 @@ class TestStage3Authorization:
         snap = self._make_mock_state(protected_branch=False, ref_valid=True)
         snap.is_detached_head = False
         pipeline = WriteProtectionPipeline(snap)
-        # Stage 5b re-snapshots for the HEAD-identity recheck (REQ-006); patch
-        # RepositoryState.snapshot to return the same mock rather than opening
-        # a real repo at the fake "/tmp/repo" path.
-        with patch.object(RepositoryState, "snapshot", return_value=snap):
-            result = pipeline.run("git_status", lambda: "ok")
-        # Stage 3 passed; verify it reached Stage 5 or succeeded
-        assert result.ok is True or result.rejected_at_stage != "Stage 3"
+        # REQ-006: single shared snapshot — run() no longer calls
+        # RepositoryState.snapshot() in-pipeline, so no patch is needed.
+        result = pipeline.run("git_status", lambda: "ok")
+        assert result.ok is True
 
     def test_pipeline_run_rejects_invalid_ref(self):
         """Stage 3 blocks execution when ref_valid is False."""
@@ -705,3 +702,54 @@ class TestRemovedMembersAbsent:
             "structured_result",
         ):
             assert not hasattr(state, name), f"{name} should have been removed"
+
+
+# ── Stage 3 destination protection with pipeline inputs (REQ-002, REQ-005) ───────
+
+
+class TestStage3DestinationProtection:
+    """REQ-002/REQ-005: Stage 3 rejects a protected destination using the
+    inputs run() receives, even when the pre-pipeline check is bypassed."""
+
+    def test_protected_destination_rejected_at_stage_3_without_precheck(
+        self, working_repo: str
+    ) -> None:
+        from mcp_servers.git.repository_state import WriteProtectionPipeline
+
+        # HEAD is on master (unprotected); call the pipeline directly so the
+        # git_service pre-pipeline _validate_protected() never runs. A protected
+        # *destination* (requested_branch) is still rejected at Stage 3.
+        state = RepositoryState.snapshot(working_repo, protected_branches=["main"])
+        pipeline = WriteProtectionPipeline(state)
+
+        op_called = False
+
+        def _op() -> str:
+            nonlocal op_called
+            op_called = True
+            return "should not run"
+
+        result = pipeline.run(
+            "git_checkout",
+            _op,
+            requested_branch="main",
+            protected_branches=["main"],
+            active_ref="main",
+        )
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 3"
+        assert op_called is False
+
+    def test_unprotected_destination_allowed(self, working_repo: str) -> None:
+        from mcp_servers.git.repository_state import WriteProtectionPipeline
+
+        state = RepositoryState.snapshot(working_repo, protected_branches=["main"])
+        pipeline = WriteProtectionPipeline(state)
+        result = pipeline.run(
+            "git_checkout",
+            lambda: "ok",
+            requested_branch="develop",
+            protected_branches=["main"],
+            active_ref="develop",
+        )
+        assert result.ok is True
