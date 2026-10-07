@@ -66,6 +66,7 @@ removed (REQ-002 / AC-2).
 
 ### Details
 
+- Adversarial verification (20261007): Already applied in commit `4316bc537`; line numbers in this procedure (66-75) did not match the pre-migration file. Link-set diff: `00_index.md` and `overview_00_document-guide.md` are in `related:`. Superseded premise: this procedure keeps the existing top-level `## Related ADRs` section untouched, but that section is gone — its only link (ADR-015) is now in `related:` and the body Related sections are forbidden for non-ADR files by `tools/check_docs_structure.py`. The one-line context phrase (defines how ADRs relate to other document types) was dropped. No link lost. Pre-migration block was lines 66-73; the line numbers below are historical.
 - Block layout (current): `## Related ADRs`(66) → one link (68); `## Related Documents`(70) →
   two flat links (72-73); `## Keywords`(75).
 - The `## Related ADRs` section (66-68) is already top-level; leave it.
@@ -107,10 +108,10 @@ Revert this file to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002 / AC-2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only migration |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-150031 | 20261007-150031 | REQ-002 / AC-2 adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-150031 | 20261007-150031 | N/A: doc-only migration adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-150031 | 20261007-150031 | check_docs_structure.py adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-150031 | 20261007-150031 | adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
