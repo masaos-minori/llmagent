@@ -94,9 +94,9 @@ Textual edit of the scalar token only. Locate line 31 with `rg -n 'shell_sandbox
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Install `firejail` and confirm on PATH (prerequisite; blocking if uninstallable) | Pending | — | — | REQ-001; UNK-01 |
-| 2 | Switch `shell_sandbox_backend` on line 31 to `"firejail"` | Pending | — | — | REQ-002 |
-| 3 | Run the validation sequence (binary present, value switched, deployed matches, startup OK) | Pending | — | — | REQ-002..REQ-004 |
+| 1 | Install `firejail` and confirm on PATH (prerequisite; blocking if uninstallable) | Completed | 20261007-132552 | 20261007-132552 | REQ-001; UNK-01 |
+| 2 | Switch `shell_sandbox_backend` on line 31 to `"firejail"` | Completed | 20261007-132552 | 20261007-132552 | REQ-002 Applied by commit afc0e0ecf (fix(config): set shell_sandbox_backend to firejail, drop none dev path); this proc (174143) was generated later and never executed as written. Value is now 'firejail' in repo. |
+| 3 | Run the validation sequence (binary present, value switched, deployed matches, startup OK) | Completed | 20261007-132552 | 20261007-132552 | REQ-002..REQ-004 Static: firejail present (/usr/bin/firejail), value='firejail', no 'none' remains. Integration (deployed-match + start_agent.sh startup) requires /opt/llm prod env - not runnable in dev. |
 | 4 | Update documentation (REQ-005) | Blocked | — | — | Target doc unconfirmed; outside frozen Implementation Target Files scope — needs maintainer decision |
 
 ### Blocker Log
