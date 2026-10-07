@@ -31,11 +31,11 @@ EventBus API establishes a fail-closed security boundary by adding Bearer-token 
 
 ### Problem
 
-Several routes in `scripts/eventbus/` authenticate and authorize callers via Bearer-token middleware and role-based authorization, but the authentication model has gaps: consumer identity validation can fail-open when no `consumer_id` allowlist is configured for a token, and audit logging of privileged actions is incomplete. Additionally, `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys — implemented locally, not via `ConfigLoader`.
+EventBus routes in `scripts/eventbus/` authenticate and authorize callers via Bearer-token middleware and role-based authorization. Consumer identity validation is skipped for a token with no configured `consumer_id` allowlist entry (EVENTBUS-008; see Known Deviations). `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
 
 ### Current State
 
-Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in `scripts/eventbus/app.py`. Each route requires role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation. The Problem section above describes the pre-auth state; see the Known Deviations section below for residual gaps.
+Auth middleware (`attach_auth_middleware(app)`) is attached to all routes in `scripts/eventbus/app.py`. Each route requires role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation.
 
 ### Constraints
 
@@ -46,10 +46,9 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 
 ### Assumptions
 
-- The next unused ADR number is `ADR-013` (not the vacated `ADR-011` slot) — inferred from this repository's Known-Issue ID-non-reuse convention applied by analogy to ADRs, since no explicit ADR-numbering-reuse policy was found in `docs/10_adr/adr-index.md`.
 - "Privileged replay" means all `/replay` calls require operator permission (simplest interpretation consistent with the Issue's Required Changes and Acceptance Criteria).
 - The token is stored as a plain string in config (following the existing `auth_token = "${ENV:...}"` convention used by every `*_mcp_server.toml` file).
-- Empty/missing `auth_token` must fail closed at startup, per `REQ-005`.
+- Empty/missing `auth_token` must fail closed at startup.
 
 ## Decision
 
@@ -66,8 +65,8 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 4. DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay (`/replay`) require operator permission.
 5. Audit logging of authorization failures and privileged actions, with no secret/token values recorded.
 6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`.
-7. A missing or empty `auth_token` in `config/eventbus.toml` must fail closed at startup (per REQ-005), not silently start unauthenticated.
-8. The ConfigLoader migration question is already resolved by ADR-002's local-invariant exception (its own embedded CI-001 note in Known Deviations) — no new decision needed there.
+7. A missing or empty `auth_token` in `config/eventbus.toml` must fail closed at startup, not silently start unauthenticated.
+8. EventBus configuration is not loaded through `ConfigLoader` for key validation (ADR-002 documents the local-invariant exception).
 
 ### Scope
 
@@ -77,11 +76,10 @@ Auth middleware (`attach_auth_middleware(app)`) is now attached to all routes in
 
 ### Out of Scope
 
-- Re-implementing or weakening loopback-only binding (`EventBusConfig.__post_init__`, `_LoopbackVerifyingServer`) — already implemented; this Plan only adds a regression test confirming it.
-- Transactional ACK/offset redesign, backpressure handling, and DLQ requeue redesign — each tracked by a separate Issue/Plan in this batch (`eb_h01`, `eb_h02`, `eb_h03`).
-- Migrating EventBus configuration loading to `scripts/shared/config_loader.py`'s `ConfigLoader` for key validation — not adopted (ADR-002 already resolved this via a documented local-invariant exception).
-- Correcting the stale `CI-001` status/Recommended-Action text in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (pre-existing documentation inconsistency unrelated to this Issue's stated Target Files).
-- Choosing between static bearer token / rotatable service token / mutual TLS / reverse-proxy authentication as an open research question — this Plan resolves it to static bearer token.
+- Re-implementing or weakening loopback-only binding (`EventBusConfig.__post_init__`, `_LoopbackVerifyingServer`) — already implemented; a regression test confirms it.
+- Transactional ACK/offset redesign, backpressure handling, and DLQ requeue redesign — each outside this ADR's scope.
+- Migrating EventBus configuration loading to `scripts/shared/config_loader.py`'s `ConfigLoader` for key validation — not adopted (ADR-002 documents a local-invariant exception).
+- Choosing between static bearer token / rotatable service token / mutual TLS / reverse-proxy authentication — static bearer token is adopted.
 
 ## Rationale
 
@@ -188,28 +186,6 @@ ADR-002 explicitly documents this exception. Implement equivalent local validati
 - Authorization boundaries prevent role escalation.
 - Audit records identify the affected caller and action without exposing secrets.
 
-## Traceability
-
-### Implementation Procedures
-
-- `implementations/done/20260910-171554_01_docs_adr_ADR-013-eventbus-authentication-authorization.md`: Create ADR document
-- `implementations/done/20260910-171554_02_scripts_eventbus_auth_py.md`: Create auth module
-- `implementations/done/20260910-171554_03_scripts_eventbus_app_py.md`: Modify app.py
-- `implementations/done/20260910-171554_04_scripts_eventbus_subscribe_route_py.md`: Modify subscribe_route.py
-- `implementations/done/20260910-171554_05_scripts_eventbus_ack_route_py.md`: Modify ack_route.py
-- `implementations/done/20260910-171554_06_scripts_eventbus_dlq_route_py.md`: Modify dlq_route.py
-- `implementations/done/20260910-171554_07_scripts_eventbus_replay_route_py.md`: Modify replay_route.py
-- `implementations/done/20260910-171554_08_scripts_eventbus_config_py.md`: Modify config.py
-- `implementations/done/20260910-171554_09_scripts_eventbus_audit_py.md`: Create audit module
-- `implementations/done/20260910-171554_10_docs_00_security_01_architecture-and-trust-boundaries_md.md`: Modify security doc
-- `implementations/done/20260910-171554_11_tests_eventbus_test_eventbus_config_py.md`: Modify config tests
-- `implementations/done/20260910-171554_12_tests_eventbus_test_eventbus_auth_py.md`: Create auth tests
-
-### Source Documents
-
-- Source issue: issues/done/20260907-125042_eb_h04_eventbus_authentication_authorization.md
-- Source plan: plans/done/20260909-101237_plan.md
-
 ## Invariants
 
 - INV-01: All EventBus routes MUST reject unauthenticated requests with HTTP 401.
@@ -259,11 +235,6 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - **Test**: `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) — **Verifies**: INV-06 — **Type**: Regression — **Blocking**: Yes
 - **Test**: audit records do not include token values (verified by inspection of audit implementation) — **Verifies**: INV-05 — **Type**: Code Review — **Blocking**: Yes
 
-### Resolved Items
-
-- **Resolved**: Privileged-replay scope ambiguity (UNK-01) — resolved by this ADR's Decision Details #4 (all `/replay` calls require operator permission).
-- **Resolved**: ConfigLoader migration question — already resolved by ADR-002's embedded CI-001 note.
-
 ## Implementation Notes
 
 See Related Documents > Implementation References for the current file/symbol list.
@@ -274,7 +245,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s CI-001 (EventBus process reads configuration directly instead of using ConfigLoader, High severity, resolved 2026-09-15) is resolved and intentionally no longer tracked there. The residual gap EVENTBUS-008 (token with no configured consumer_id allowlist entry has consumer-identity validation skipped — fail-open) is open and registered in that document.
+- **Known Issue**: EVENTBUS-008 — see `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -315,7 +286,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Known Issues
 
-- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — CI-001 (ConfigLoader migration) addressed by this ADR.
+- [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EVENTBUS-008 (see Known Deviations).
 
 ### Implementation References
 

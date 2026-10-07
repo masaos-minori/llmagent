@@ -84,17 +84,13 @@ See `rag-src/` for the current file layout.
 
 **Chunked content** — Produced by the chunk_splitter process from crawled content. Feeds into the ingester stage. Dependency direction flows from chunk_splitter into this staging area.
 
-**Post-ingestion staging** — Files moved here by the ingester after successful database insertion. Retention period and cleanup policy are unresolved — requires verification against ingester implementation.
+**Post-ingestion staging** — Files moved here by the ingester after successful database insertion. No automated retention or cleanup applies to this staging area; files accumulate until removed manually.
 
 **Vector search extension** — SQLite extension module providing vector search capability. Runtime dependency of the RAG pipeline's vector store layer.
 
 ### Data Flow Dependencies
 
 Crawler produces crawled content consumed by chunk_splitter; chunk_splitter produces chunks consumed by ingester for database insertion; ingester moves processed files to post-ingestion staging; vector search extension supports embedding similarity queries across all stages.
-
-### Unknowns
-
-Retention period for post-ingestion staging files is not confirmed within this document (requires verification against ingester implementation).
 
 ## 3.3 Scripts: Agent Core and Memory
 

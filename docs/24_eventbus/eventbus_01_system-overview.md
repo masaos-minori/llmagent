@@ -24,7 +24,7 @@ source:
 The Event Bus provides an internal publish/subscribe infrastructure for LLM agent systems. Producers publish JSON events, and consumers subscribe to topics via SSE and can replay past events.
 
 > **Note:** The Event Bus HTTP API is fully implemented as a standalone service and is operational.
-> Integration with the Agent runtime (publishing events from Agents, subscribing to Agent topics via SSE) has been intentionally deferred and is not yet implemented. This documentation describes the Event Bus as an independent component; event generation/consumption on the Agent side will be documented in future releases.
+> The Agent runtime does not publish to or subscribe from the Event Bus. This documentation describes the Event Bus as an independent component.
 
 ## Architecture
 
@@ -44,15 +44,13 @@ The Event Bus API uses Bearer-token authentication with role-based access (publi
 - **Exposure Warning**: The Event Bus must NOT be directly accessible from the internet.
 - **Startup Guard**: Binding to any non-loopback address (anything other than loopback, including wildcard addresses) is rejected unconditionally at config-load time (`EventBusConfig.__post_init__()`, `scripts/eventbus/config.py`) — `ValueError` is raised, and startup does not proceed. No configuration value can permit a public bind.
 
-## Future Integration
+## Agent Integration Status
 
-The following Agent-side integrations are intentionally unimplemented at this time:
+The Agent runtime does not use the Event Bus:
 
-- **Event publishing by Agents**: No event producer exists on the Agent side. While the Event Bus HTTP API supports publishing from any HTTP client, an Agent-specific producer is planned for a future release.
-- **SSE subscription by Agents**: There is no Agent-side subscriber consuming events via `/subscribe` SSE. Agent-side consumers are planned for a future release.
-- **Agent event topics**: No topics defined by the Agent exist at this time. Topic naming conventions for Agent lifecycle events will be defined when Agent integration is implemented.
-
-These items are also documented as Deferred Items in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus).
+- **Event publishing by Agents**: No event producer exists on the Agent side. The Event Bus HTTP API accepts publishing from any HTTP client.
+- **SSE subscription by Agents**: No Agent-side subscriber consumes events via `/subscribe` SSE.
+- **Agent event topics**: No topics are defined by the Agent.
 
 ## Known Issues
 

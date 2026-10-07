@@ -24,23 +24,21 @@ Details → [`agent_07_01_cli-and-commands-cli-reference.md`](../23_agent/agent_
 
 ## 2.5 Implemented Features Summary
 
-| Feature | Implementation Location |
-|---|---|
-| RAG Search (MQE + KNN + BM25 + RRF + Rerank + Refiner) | `scripts/rag/` |
-| MCP Tool Calling (HTTP) | `scripts/agent/`, `scripts/shared/` |
-| Memory Layer (semantic/episodic) | `scripts/agent/memory/` |
-| Session Persistence & Restoration | `scripts/agent/`, `scripts/db/` |
-| Context Compression (LLM Summarization) | `scripts/agent/` |
-| Tool Result Cache (standalone, not used by ToolExecutor) | `scripts/shared/` |
-| SSE Streaming | `scripts/shared/` |
-| Slash Commands | `scripts/agent/commands/` |
-| Tool Loop Guard (dedup/cycle/retry/error limits) | `scripts/agent/` |
-| Workflow Engine (plan/execute/approval/verify) | `scripts/agent/workflow/` |
-| MDQ/RAG Query Routing | `scripts/agent/` |
-| Dependency Injection Hub (AgentContext) | `scripts/agent/` |
-| Diagnostic Store (turn/session statistics) | `scripts/agent/` |
+- RAG Search (MQE + KNN + BM25 + RRF + Rerank + Refiner)
+- MCP Tool Calling (HTTP)
+- Memory Layer (semantic/episodic)
+- Session Persistence & Restoration
+- Context Compression (LLM Summarization)
+- Tool Result Cache (standalone, not used by ToolExecutor)
+- SSE Streaming
+- Slash Commands
+- Tool Loop Guard (dedup/cycle/retry/error limits)
+- Workflow Engine (plan/execute/approval/verify)
+- MDQ/RAG Query Routing
+- Dependency Injection Hub (AgentContext)
+- Diagnostic Store (turn/session statistics)
 
-Refer to the `overview_02_files.md` for detailed file structure.
+Refer to `overview_02_files.md` for the file structure.
 
 ### Implementation Notes
 
@@ -54,7 +52,7 @@ Refer to the `overview_02_files.md` for detailed file structure.
 
 **Tool Routing**
 
-`RuntimeToolRegistry` (`shared/runtime_tool_registry.py`) holds sole routing authority. The live discovery map from `/v1/tools` at startup is used exclusively for validation and not for routing. Additionally, the static registry (`tool_registry.py`) is currently not used for routing. The `tool_names` setting is used only for drift validation. (Source: `shared/runtime_tool_registry.py`)
+`RuntimeToolRegistry` (`shared/runtime_tool_registry.py`) holds sole routing authority. It is built from the live `/v1/tools` discovery at startup. The static registry (`tool_registry.py`) and the `tool_names` setting are used only for drift validation, never for routing. (Source: `shared/runtime_tool_registry.py`)
 
 **Scope of sqlite-vec Extension Application**
 

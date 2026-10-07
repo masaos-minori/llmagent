@@ -42,11 +42,10 @@ not performed by adding or updating this policy.
 
 ## Document Classification
 
-Documents in the design documentation set are classified into seven classes:
+Documents in the design documentation set are classified into six classes:
 
 - **Governance** — Cross-cutting rules, policies, and standards that apply across areas
 - **Guide** — Navigation documents that provide an overview of an area's documentation structure
-- **Specification** — Detailed technical specifications describing how components work
 - **Reference** — API references, command references, and configuration reference materials
 - **Operations** — Operational guidance including monitoring, troubleshooting, and diagnostics
 - **Note** — Working notes, investigation results, and temporary documentation
@@ -116,12 +115,12 @@ A claim whose truth has not yet been verified through evidence.
 
 | Claim type | Definition | Canonical source kind | Auxiliary evidence | Conflict destination | Notes or constraints |
 |------------|-----------|----------------------|--------------------|---------------------|---------------------|
-| architecture-decision | Adopted architectural decision in accepted ADR | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design (AC4) |
+| architecture-decision | Adopted architectural decision in accepted ADR | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design |
 | functional-requirement | Normative requirement in an Accepted ADR or Registry-registered source | `docs/10_adr/ADR-{NNN}-*.md` or the Canonical Source Registry entry | Acceptance Test | Known Issues | No per-area `*_specification.md` is maintained |
 | external-behavior | Observable system behavior for external consumers | Registry-registered source + Integration Test | Runtime Log, Test | Known Issues | |
 | api-contract | Formal interface contract | Official API Schema or Contract | Integration Test | Known Issues | |
-| runtime-behavior | Current execution-time behavior | Source under `scripts/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design (AC4) |
-| verification-contract | Executable assertions about expected behavior | `tests/` + the requirement source | ADR | Known Issues | Tests cannot silently redefine requirements (AC5) |
+| runtime-behavior | Current execution-time behavior | Source under `scripts/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design |
+| verification-contract | Executable assertions about expected behavior | `tests/` + the requirement source | ADR | Known Issues | Tests cannot silently redefine requirements |
 | production-effective-value | Effective parameter value in deployment | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift | |
 | configuration-schema | Valid configuration structure and constraints | Configuration Schema | Configuration Validation | Configuration Drift | |
 | database-schema | Tables, columns, indexes, constraints | Schema Generator or official DDL | Schema Test | Known Issues | |
@@ -180,7 +179,7 @@ Review date, modification date, commit date, and document recency do not determi
 Recency must never be used for any of the following:
 
 - Overriding an accepted ADR
-- Overriding a canonical Specification
+- Overriding a source registered in the Canonical Source Registry
 - Overriding an official API contract or schema
 - Overriding deployed configuration
 - Overriding an Operations runbook
@@ -236,7 +235,7 @@ From detection to record-keeping:
 2. Classify the conflict type using the rules above
 3. Apply the appropriate resolution rule based on classification
 4. Update affected documents or code to eliminate the conflict
-5. Record the resolution in the relevant Known Issues document if applicable
+5. Remove the item from the active inventory in `governance_03_issue-and-uncertainty-management.md` once resolved; no resolution record is kept
 
 ### Routing Rules
 
@@ -244,7 +243,7 @@ When a canonical source conflict is detected, route it to exactly one destinatio
 
 1. **design-vs-code** → Known Issue — Design intent conflicts with current implementation behavior
 2. **functional-requirement-vs-implementation** → Known Issue — Functional requirements contradict actual implementation
-3. **Specification-vs-acceptance-test** → blocking Canonical Source Conflict — Specification claims conflict with acceptance test outcomes
+3. **functional-requirement-vs-acceptance-test** → blocking Canonical Source Conflict — A requirement source (Accepted ADR or Registry-registered source) conflicts with acceptance test outcomes
 4. **deployed-vs-approved config** → Configuration Drift — Deployed operational value differs from approved value
 5. **undetermined intent** → Needs Confirmation — Cannot determine whether discrepancy reflects intentional design or omission
 6. **missing canonical source** → design/governance gap — No authoritative source exists for the claim
@@ -302,7 +301,7 @@ reviewer name, date, or reference that was never given.
 
 When the current architectural decision changes, update the current Accepted ADR
 directly rather than creating a new ADR. In the same change, update every
-Specification, Reference, Operations document, and verification requirement that the
+Guide, Reference, Operations document, and verification requirement that the
 changed decision affects.
 
 ## ADR Section Header Standardization
@@ -353,7 +352,7 @@ This document does not cover:
 - Source code review processes
 - Testing strategy per area
 - Individual area architectural decisions
-- Document formatting conventions within Specification documents
+- Document formatting conventions within area documents
 - Defining how AI agents parse or use metadata fields
 - Specifying enforcement mechanisms for metadata compliance
 - Defining metadata for non-document assets (code, configuration files)

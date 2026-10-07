@@ -75,16 +75,16 @@ At the agent level: `config/agent.toml`'s `approval_dry_run_tools` lists tools w
 
 ## Risk Tier Classification
 
-Tool risk tiers (from `config/agent.toml::tool_safety_tiers`):
+Safety tiers (from `config/agent.toml::tool_safety_tiers`) supply a default approval risk (`none`/`medium`/`high`); an explicit `config/agent.toml::approval_risk_rules` entry takes precedence (Explicit in code: `agent/tool_policy.py::classify_risk`, `_TIER_TO_RISK`). The approval method follows the effective risk, not the tier name alone:
 
-| Tier | Example | Approval Method |
-|---|---|---|
-| `READ_ONLY` | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` | Automatic approval |
-| `WRITE_SAFE` | `write_file`, `edit_file`, `git_add`, `git_commit` | `y/N` prompt |
-| `WRITE_DANGEROUS` | `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`, `trigger_workflow` | Requires `yes` (full word) input **for tools with an explicit `"high"` override in `approval_risk_rules`** (e.g. `delete_file`, `shell_run`, `github_push_files`, `git_checkout`, `git_pull`, `git_push`). Tools without such an override fall back to the `WRITE_DANGEROUS`→`RiskLevel.MEDIUM` tier mapping and get the `y/N` single-character prompt instead — this currently includes `trigger_workflow` (Explicit in code: `agent/tool_policy.py::_TIER_TO_RISK`, `config/agent.toml::approval_risk_rules`). |
-| `ADMIN` | (Custom; unconfigured by default) | Requires `yes` input |
+| Tier | Default risk | Approval Method | Examples |
+|---|---|---|---|
+| `READ_ONLY` | `none` | Automatic approval | `read_text_file`, `git_status`, `search_web`, `rag_run_pipeline` |
+| `WRITE_SAFE` | `none` | Automatic approval unless an `approval_risk_rules` entry sets `medium` (then `y/N`) | No rule (automatic): `git_add`, `git_commit`, `index_paths`. `medium` rule (`y/N`): `write_file`, `edit_file`, `create_directory`, `github_create_issue` |
+| `WRITE_DANGEROUS` | `medium` | `y/N` prompt by default; full `yes` when an `approval_risk_rules` entry sets `high` | `medium`: `trigger_workflow`, `rag_delete_document`. `high`: `delete_file`, `github_push_files`, `git_checkout`, `git_pull`, `git_push` |
+| `ADMIN` | `high` | Requires `yes` (full word) input | `shell_run` |
 
-Tools not listed in `tool_safety_tiers` are treated as `WRITE_DANGEROUS` by default (fail-safe).
+A tool missing from `tool_safety_tiers` is not given a default tier: startup validation rejects it (see below), and a tool absent from the registry entirely is classified `high` at call time.
 
 Entries in `tool_safety_tiers` must match registered tool names exactly (not server keys). Bidirectional validation is performed at startup.
 

@@ -29,7 +29,7 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 - `temperature`: Generation temperature (0.0–2.0).
 - `max_tokens`: Maximum number of tokens to generate.
-- For session titles: `title_llm_temperature` (0.1), `title_llm_max_tokens` (20).
+- For session titles: `title_llm_temperature`, `title_llm_max_tokens` (values: see `config/agent.toml`).
 
 #### HTTP/Connection
 

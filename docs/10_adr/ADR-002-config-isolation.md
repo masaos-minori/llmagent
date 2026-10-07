@@ -66,7 +66,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 7. The Agent does not interpret MCP-server-internal configuration.
 8. MCP servers do not reference `agent.toml`.
 9. Using a shared Config Loader is permitted, but the permitted files are restricted per process, and reading a non-permitted file is a Runtime Error.
-    *Note: EventBus is an exception — it loads its own config through the shared loader without `restrict_to()`; isolation is enforced by a local invariant instead (see CI-001).*
+    *Note: EventBus is an exception — it loads its own config through the shared loader without `restrict_to()`; isolation is enforced by a local invariant instead (see Implementation Notes).*
 10. No new shared configuration file is created.
 11. Duplication of values such as DB paths, URLs, and Timeouts across multiple configurations is permitted as explicit dependency declarations of independent processes.
 12. Even when a key with the same name exists in multiple files, each is treated as a separate configuration contract.
@@ -124,7 +124,6 @@ This section is maintained in the companion document: [Alternatives Considered](
 
 - The same values must be written in multiple places
 - The number of configuration files increases
-- Dual paths are needed during the migration period
 - Overhead of keeping configuration files consistent
 
 ### Operational Consequences
@@ -150,7 +149,7 @@ This section is maintained in the companion document: [Alternatives Considered](
 | Crawler | `config/crawler.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
 | Chunk Splitter | `config/chunk_splitter.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
 | Ingester | `config/ingester.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
-| EventBus | `config/eventbus.toml` (loaded through ConfigLoader without `restrict_to()`; see CI-001) | *N/A* | *N/A* |
+| EventBus | `config/eventbus.toml` (loaded through ConfigLoader without `restrict_to()`; see Implementation Notes) | *N/A* | *N/A* |
 
 ## Invariants
 
@@ -165,7 +164,7 @@ None
 
 ### Note: The Restriction Is Unconditional
 
-The `AGENT_RESTRICT_CONFIG` environment variable has been removed (legacy). Every process entry point always calls `ConfigLoader.restrict_to("agent.toml")`. Setting this environment variable is ignored, and reading a non-permitted file is always rejected.
+Every process entry point always calls `ConfigLoader.restrict_to("agent.toml")`; no environment variable disables the restriction, and reading a non-permitted file is always rejected.
 
 ## Failure Policy
 
@@ -207,27 +206,17 @@ This section is maintained in the companion document: [Verification](adr_02_conf
 
 Briefly describe how the current implementation realizes the Decision.
 
+- EventBus does not call `ConfigLoader.restrict_to()`. Its isolation is a local invariant: `load_config()` in `scripts/eventbus/config.py` accepts only the path returned by `get_config_path()`, and `tests/eventbus/test_eventbus_config.py` locks both call sites in `scripts/eventbus/app.py` to that invariant.
+- The Agent calls `ConfigLoader.restrict_to("agent.toml")` in `AgentContext.__init__` (`scripts/agent/context.py`).
+- Config isolation is enforced at startup (fail-closed): a missing `agent.toml` is not silently bypassed, and no process starts with incomplete configuration. The required-file/required-key table in `## Per-Process Required Files and Keys` lets operators audit configuration completeness without reading dataclass definitions.
+
 This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
 
 Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
-
-### CI-001: EventBus does not apply ConfigLoader.restrict_to()
-
-- **Resolved**: CI-001 — EventBus config isolation is enforced by a local invariant instead of `restrict_to()`
-- **Type**: Design Deviation
-- **Summary**: EventBus loads its config through the shared loader but does not call ConfigLoader.restrict_to(), so the loader's per-process permission check is not applied
-- **Conflicting Source**: docs/10_adr/ADR-002-config-isolation.md:Decision #9, scripts/eventbus/config.py (load_config()), scripts/eventbus/app.py
-- **Expected Design**: All processes MUST load config through ConfigLoader.restrict_to() to enforce process-level config ownership boundaries
-- **Observed Implementation**: EventBus config.py loads its own config through the shared loader without calling restrict_to(); the permission check is replaced by the local invariant described under Recommended Action
-- **Impact**: Without the local invariant, EventBus could read configs belonging to other processes
-- **Recommended Action**: Resolved via a local invariant instead of `restrict_to()`: load_config()'s docstring states callers must pass get_config_path()'s return value, and a regression test in tests/eventbus/test_eventbus_config.py locks both call sites in app.py to that invariant. Agent-side, ConfigLoader.restrict_to("agent.toml") was added to AgentContext.__init__ (scripts/agent/context.py).
-- **Owner**: Team
-- **Status**: resolved
-- **Resolution Target**: Resolved (ADR-002 is Accepted)
+Not applicable
 
 ## Review Triggers
 
@@ -296,25 +285,16 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/rag/ingestion/crawler.py` — configuration loading for the `crawler` process
 - `scripts/rag/ingestion/chunk_splitter.py` — configuration loading for the `chunk_splitter` process
 - `scripts/rag/ingestion/ingester.py` — configuration loading for the `ingester` process
+- `scripts/agent/context.py` — `AgentContext.__init__` (`restrict_to("agent.toml")`)
+- `scripts/eventbus/app.py` — EventBus `load_config()` call sites
+- `scripts/eventbus/config.py` — `load_config()`, `get_config_path()`
 - `config/agent.toml` — Agent configuration file
 - `config/*_mcp_server.toml` — MCP server configuration files
 - `config/crawler.toml` — crawler configuration file
 - `config/chunk_splitter.toml` — chunk_splitter configuration file
 - `config/ingester.toml` — ingester configuration file
 - `config/eventbus.toml` — EventBus configuration file
-- Tests — `tests/shared/test_config_loader.py`, `tests/agent/test_config_permission_cross_server.py`
-
-## Impact of REQ-001
-
-With REQ-001's fix (strict-default behavior), the config isolation boundary is now enforced at startup time rather than being silently bypassed when `agent.toml` is missing. This ensures that:
-
-1. Config isolation violations are detected early (fail-closed).
-2. No process can start with incomplete configuration.
-3. The strict-default applies uniformly across all environments.
-
-## Impact of REQ-005
-
-REQ-005 adds a per-process required-file/required-key/empty-allowed-key table to this ADR, making explicit which keys each process requires vs. may legitimately omit. This supports operators in auditing configuration completeness without requiring them to read dataclass definitions directly.
+- Tests — `tests/shared/test_config_loader.py`, `tests/eventbus/test_eventbus_config.py`, `tests/agent/test_config_permission_cross_server.py`
 
 ## Completion Checklist
 

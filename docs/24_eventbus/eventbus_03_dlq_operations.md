@@ -107,7 +107,7 @@ Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Q
 
 `consumer_id` is validated against the caller's token before `/subscribe`, `/events/{event_id}/ack`, and `/nack` accept it: a token that has an explicit `consumer_id` allowlist configured is rejected (HTTP 403) if it presents a `consumer_id` outside that allowlist.
 
-**Known Issue**: a token with no configured `consumer_id` allowlist entry (the common case for a shared per-role token) has this check skipped entirely — an empty allowlist means "no restriction," not "deny all." This means `consumer_id` collisions between callers sharing such a token remain possible unless a per-caller allowlist is explicitly configured.
+A token with no configured `consumer_id` allowlist entry (the common case for a shared per-role token) has this check skipped: an empty allowlist means "no restriction," not "deny all." This gap is tracked as EVENTBUS-008 in `governance_03_issue-and-uncertainty-management.md`.
 
 ---
 
@@ -144,9 +144,9 @@ The following table summarizes the current code behavior for ACK and NACK operat
 | Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq: <int>}` | Sets `consumer_delivery.acked_at` and advances the consumer offset | — |
 | Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq: <int>, already_acked: true}` | No new delivery state; the offset never moves backwards | Idempotent |
 | Initial NACK | `nack_event` increases `delivery_failure_count` from 0 → 1 | 200 | `{event_id, delivery_failure_count}` | `delivery_failure_count` increases; promoted to DLQ if `>= max_retry` | — |
-| Duplicate NACK | No idempotency guard in `nack_event`; `delivery_failure_count` increases with every call | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, potentially triggering DLQ promotion on subsequent calls | **Known Issue: Implementation fix required** |
+| Duplicate NACK | No idempotency guard in `nack_event`; `delivery_failure_count` increases with every call | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, potentially triggering DLQ promotion on subsequent calls | Tracked as EVENTBUS-012 in `governance_03_issue-and-uncertainty-management.md` |
 | NACK followed by ACK | The consumer's `consumer_delivery.acked_at` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq: <int>}` | ACK succeeds, `delivery_failure_count` remains at the value from NACK | No readjustment |
-| ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer; the per-consumer ACK sets it | 409 | `event already acknowledged` | NACK rejected; counters unchanged | **Resolved** |
+| ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer; the per-consumer ACK sets it | 409 | `event already acknowledged` | NACK rejected; counters unchanged | — |
 | Unknown Event ID (ACK) | `ack_event_for_consumer` returns `found = False` | 404 | `ERR_EVENT_NOT_FOUND` | None | — |
 | Unknown Event ID (NACK) | `nack_event` returns `-1` | 404 | `ERR_EVENT_NOT_FOUND` | None | — |
 | Simultaneous ACK/NACK | Both go through `run_with_db_lock` and are serialized at the DB layer | 200/200 | Depends on lock order | No true contention — Lock enforces total ordering, and the second call observes the first call's committed state | — |

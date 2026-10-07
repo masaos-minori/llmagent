@@ -55,7 +55,7 @@ Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp
 
 **Overview:** Per-server transport config (transport, url, cmd, startup_mode, tool_names, auth_token, env) validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). Key field set from TOML section name, excluded from `==` comparison. `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track "reachable but degraded" servers without incrementing the failure count.
 
-> **Note:** `McpServerConfig.transport` uses the `TransportType` enum instead of a plain string. Related enums include `StartupMode` (none/persistent/subprocess) and `SecurityProfile` (local/production controls MCP auth enforcement).
+> **Note:** `McpServerConfig.transport` uses the `TransportType` enum instead of a plain string. Related enums include `StartupMode` (none/persistent/subprocess) and `SecurityProfile` (a single `production` member; MCP auth enforcement is unconditional).
 
 `shared/route_resolver.py`'s `ToolRouteResolver.resolve(tool_name)` maps a tool name to its server key using `RuntimeToolRegistry` as the sole routing source, and raises `ValueError` for an unresolved tool.
 

@@ -95,7 +95,7 @@ If a workflow fails after some steps are completed, the workflow engine records 
 ## Known Limitations
 
 - Post-execution approval (workflow-level) is disabled by default — requires explicit configuration change
-- Pre-execution approval (tool-level) can be configured individually via `approval_risk_rules`, but unset tools require approval as "MEDIUM" risk
+- Pre-execution approval (tool-level) can be configured individually via `approval_risk_rules`, but a tool without a rule falls back to its safety-tier default (`READ_ONLY`/`WRITE_SAFE` → `none`, `WRITE_DANGEROUS` → `medium`, `ADMIN` → `high`)
 - Partial completion is not automatically resumed — manual user intervention is required
 
 ## Keywords

@@ -52,15 +52,15 @@ When adding a new tool to an **existing** MCP server:
 
 | Step | Action | Required? |
 |---|---|---|
-| 1 | Add the tool name to the corresponding `frozenset` in `shared/tool_constants.py` (e.g., add to `READ_TOOLS`, `WRITE_TOOLS`, or create a new `<SERVER>_TOOLS` frozenset and add it to `get_all_mcp_tool_names()`) | **[Required]** |
-| 2 | The registry is automatically built from these frozensets upon import — manual editing of the registry is not required | (Automatic) |
-| 3 | Implement the `dispatch()` handler in the owner MCP server (`scripts/mcp_servers/<name>/server.py`) | **[Required]** |
-| 4 | Expose the tool via the `/v1/tools` endpoint (return a tool definition including the `server_key` field) | **[Recommended]** — enables drift validation at startup but does not affect routing |
+| 1 | Implement the `dispatch()` handler in the owner MCP server (`scripts/mcp_servers/<name>/server.py`) | **[Required]** |
+| 2 | Expose the tool via the `/v1/tools` endpoint (return a tool definition including the `server_key` field and the schema-2.0 fields listed above) | **[Required]** — sole routing basis; a missing or invalid entry leaves the tool out of `RuntimeToolRegistry`, so it is not routable |
+| 3 | Add the tool name to the corresponding `frozenset` in `shared/tool_constants.py` (e.g., add to `READ_TOOLS`, `WRITE_TOOLS`, or create a new `<SERVER>_TOOLS` frozenset and add it to `get_all_mcp_tool_names()`) | **[Required]** — static seed for drift detection and classification; not a routing input |
+| 4 | The static `ToolRegistry` is built from these frozensets upon import — manual editing of the registry is not required | (Automatic) |
 | 5 | Add the LLM schema to `[[tool_definitions]]` in `config/agent.toml` (OpenAI function-calling format) | **[Required]** — if the tool is to be visible to the LLM |
 | 6 | Add an entry for the new tool to `tool_safety_tiers` in `config/agent.toml` | **[Required]** — all tools must declare their safety tier |
 | 7 | Add the tool name to the `tool_names` section of `[mcp_servers.<key>]` in `config/<key>_mcp_server.toml` | **[Optional]** — only enables drift validation at startup; not required for routing |
 
-**Note**: All tools must be explicitly registered in the `ToolRegistry`. Prefix-based routing does not exist.
+**Note**: Routing resolves only through `RuntimeToolRegistry` (built from live `/v1/tools` discovery); there is no fallback to the static `ToolRegistry` and no prefix-based routing (ADR-003).
 
 ### Verification
 

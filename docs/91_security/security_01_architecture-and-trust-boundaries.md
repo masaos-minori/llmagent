@@ -29,7 +29,7 @@ related:
 
 ## Purpose / how to use this doc
 
-This document is the canonical cross-cutting security architecture reference for the project. It synthesizes trust boundaries, protected assets, threat model, per-API authentication/authorization, secret lifecycle, log redaction, audit retention, local-vs-production behavior, fail-open/closed behavior, and prompt-injection responsibility boundaries from existing scattered documentation. Other documents should cross-reference this document rather than duplicate its content.
+This document is the canonical cross-cutting security architecture reference for the project. It synthesizes trust boundaries, protected assets, threat model, per-API authentication/authorization, secret lifecycle, log redaction, audit retention, production behavior (the only security profile), fail-open/closed behavior, and prompt-injection responsibility boundaries from existing scattered documentation. Other documents should cross-reference this document rather than duplicate its content.
 
 ## Trust-boundary diagram
 
@@ -73,13 +73,13 @@ The threat model covers the following threat vectors:
 | MCP Server | Transport | AuthN | AuthZ | Notes |
 |---|---|---|---|---|
 | file-read | HTTP | Bearer token (required) | `allowed_dirs` allowlist | Read-only; path allowlist enforced |
-| file-write | HTTP | Bearer token (required) | `allowed_dirs` allowlist + approval | Write requires approval for `WRITE_DANGEROUS` tools |
+| file-write | HTTP | Bearer token (required) | `allowed_dirs` allowlist + approval | Write tools are `WRITE_SAFE` but carry a `medium` rule, so they require a `y/N` approval |
 | file-delete | HTTP | Bearer token (required) | `allowed_dirs` allowlist + approval | Delete requires approval |
 | shell | HTTP | Bearer token (required) | Command allowlist + approval | `command_allowlist` restricts executable commands |
-| git | HTTP | Bearer token (required) | `allowed_repo_paths` + approval | Git write tools require approval; protected branches enforced |
+| git | HTTP | Bearer token (required) | `allowed_repo_paths` + approval | `git_checkout`/`git_pull`/`git_push` require full-word `yes` approval; `git_add`/`git_commit` have no prompt by default; protected branches enforced |
 | github | HTTP | Bearer token (required) | `allowed_repos` + `protected_branches` | `protected_branches` escalate to high risk |
 | cicd | HTTP | Bearer token (required) | Workflow allowlist | Workflow execution restricted to allowlisted workflows |
-| mdq | HTTP | Bearer token (required) | `allowed_dirs` equivalent | Path traversal prevention via `Path.resolve()` |
+| mdq | HTTP | None at HTTP layer (empty token skips auth by design; see `mcp_05_05_mdq-enforcement-and-lockdown.md`) | `allowed_dirs` allowlist (fail-closed) | Path traversal prevention via `Path.resolve()` |
 | rag-pipeline | HTTP | Bearer token (required) | Query/ingest separation | Ingestion requires separate config; query is read-only |
 
 *Source: `mcp_05_01_access-control-and-allowlists.md`, `mcp_05_02_auth-profiles-and-sandboxing.md`*
@@ -116,7 +116,7 @@ Audit retention policy:
 
 *Source: `mcp_06_07_reading-audit-logs.md`, `agent_10_02_operations-and-observability-audit-and-otel.md`*
 
-## Local-vs-production behavior
+## Production behavior (single security profile)
 
 `SecurityProfile` has a single `PRODUCTION` member, so every environment runs the
 production behavior unconditionally. Event Bus and every MCP server bind to loopback
@@ -125,7 +125,7 @@ production behavior unconditionally. Event Bus and every MCP server bind to loop
 | Aspect | Behavior |
 |---|---|
 | Bind address | Loopback-only, no override |
-| Bearer token | Required for every HTTP MCP server; enforced at startup |
+| Bearer token | The agent-side `auth_token` must be non-empty for every enabled HTTP MCP server (enforced at startup); mdq-mcp does not verify it at the HTTP layer (see `mcp_05_05_mdq-enforcement-and-lockdown.md`) |
 | Tool safety tiers | Fatal on unknown keys |
 | `approval_github_allowed_repos` | Empty = deny all (fail-closed) |
 | `gitops_push_blocked` | `true` recommended |
@@ -136,17 +136,17 @@ production behavior unconditionally. Event Bus and every MCP server bind to loop
 
 ## Fail-open-vs-fail-closed behavior
 
-Fail-open vs fail-closed behavior by component:
+Fail-open vs fail-closed behavior by component. There is a single security profile (`PRODUCTION`), so no per-environment column applies:
 
-| Component | Default | Production | Notes |
-|---|---|---|---|
-| Tool safety tier unknown | Fail-open (warn) | Fail-closed (fatal) | `tool_safety_tiers` unknown key |
-| `approval_github_allowed_repos` empty | Allow all | Deny all | Fail-closed in production |
-| `allowed_dirs` empty | Allow none (fail-closed) | Allow none | Consistent |
-| `allowed_repos` empty | Allow none | Allow none | Consistent |
-| MCP server bind address | N/A | N/A | Loopback-only binding is unconditional, no override key exists |
-| MCP tool approval | `medium` default | Per `approval_risk_rules` | Configurable per tool |
-| Shell command allowlist | Empty = none allowed | Configured explicitly | Fail-closed by default |
+| Component | Behavior | Notes |
+|---|---|---|
+| Tool safety tier missing or unknown | Fail-closed (fatal at startup) | `tool_safety_tiers` entries must match registered tools exactly |
+| `approval_github_allowed_repos` empty | Fail-closed (deny all GitHub mutation tools) | Pre-flight check in `agent/tool_policy.py` |
+| `allowed_dirs` empty | Fail-closed (allow none) | |
+| `allowed_repos` (github-mcp) empty | Mode-dependent: denies writes in fail-closed mode, allows all repositories in fail-open mode | See `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Fail-Open vs Fail-Closed Summary |
+| MCP server bind address | Loopback-only binding is unconditional | No override key exists |
+| MCP tool approval | Safety-tier default, overridable per tool by `approval_risk_rules` | Tier mapping and prompt behavior: `agent_06_02_tool-execution-and-approval-approval.md` |
+| Shell command allowlist | Empty = none allowed | Fail-closed by default |
 
 *Source: `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Summary of Fail-Open vs Fail-Closed*
 
@@ -185,12 +185,12 @@ Prompt injection responsibility is distributed across layers:
 | Startup Mode | Health Check | Failure Response | Recovery |
 |---|---|---|---|
 | `none` | None | Server treated as unavailable | Manual configuration change |
-| `persistent` | `/health` endpoint | 503 on degraded, retry loop | Operator restarts external server |
-| `subprocess` | Watchdog polling | Auto-restart (max attempts) | Manual if restart limit reached |
+| `persistent` | `/health` endpoint | 503 on degraded; no automatic recovery by the agent | Operator restarts external server |
+| `subprocess` | On-demand check at tool dispatch (`ensure_ready()`); no background watchdog | Start/restart on the next tool dispatch; a failed start triggers a cooldown during which dispatch is rejected | Wait for cooldown, or restart manually; use external process monitoring for liveness |
 
 Fail-fast vs fail-open at MCP startup failure: `production` raises `RuntimeError` (aborts startup, no REPL started).
 
-*Source: `shared/mcp_health.py`*
+*Source: `shared/mcp_health.py`, `agent/factory.py`*
 
 ### Workflow deployment failures
 

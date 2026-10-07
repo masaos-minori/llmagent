@@ -115,14 +115,14 @@ This generalizes the symlink-traversal prevention language from the mdq docs to 
 
 ## Approval requirements mapped explicitly to risk tiers
 
-The following table reproduces the authoritative approval-to-risk-tier mapping from `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification:
+The following table summarizes the approval-to-tier mapping defined in `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Risk Tier Classification (the tier supplies a default approval risk; `approval_risk_rules` can override it):
 
 | Risk Tier | Description | Approval Required | Example Tools |
 |---|---|---|---|
-| `READ_ONLY` | Read-only operations; no side effects | None (auto-approved) | `read_text_file`, `list_directory`, `github_list_issues` |
-| `WRITE_SAFE` | Write operations with limited blast radius | User approval (configurable) | `write_file`, `create_directory`, `github_create_issue` |
-| `WRITE_DANGEROUS` | Destructive or high-impact writes | User approval (mandatory) | `delete_file`, `delete_directory`, `github_push_files`, `github_merge_pull_request` |
-| `ADMIN` | Administrative/privileged operations | Admin approval + audit | `shell_run` |
+| `READ_ONLY` | Read-only operations; no side effects | None (auto-approved, risk `none`) | `read_text_file`, `list_directory`, `github_list_issues` |
+| `WRITE_SAFE` | Write operations with limited blast radius | Auto-approved by default (risk `none`); `y/N` prompt when `approval_risk_rules` sets `medium` | `write_file`, `create_directory`, `github_create_issue` |
+| `WRITE_DANGEROUS` | Destructive or high-impact writes | User approval (mandatory): `y/N` by default (risk `medium`), full `yes` when `approval_risk_rules` sets `high` | `delete_file`, `delete_directory`, `github_push_files`, `github_merge_pull_request` |
+| `ADMIN` | Administrative/privileged operations | Full-word `yes` approval (risk `high`); approval decisions are audited | `shell_run` |
 
 **Cross-linked with approval-execution flow**: `agent_06_01_tool-execution-and-approval-execution.md` and `agent_06_02_tool-execution-and-approval-approval.md` define how approval is requested, granted, and audited.
 

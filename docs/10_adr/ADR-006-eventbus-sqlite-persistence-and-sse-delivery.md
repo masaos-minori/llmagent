@@ -84,7 +84,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
     - Replay-to-Live switch → Consumers must process idempotently by event_id
 12. Resolve Known Issue vs. API Reference contradiction on Offset monotonicity.
 13. If authentication not implemented, enforce Loopback/Unix Socket binding, firewall restrictions, and ban on external exposure.
-14. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. A Consumer that resumes with a persistent Consumer ID must ACK in `seq` order; the no-loss guarantee of item 9 applies to resume only for Consumers that do so, because an unacknowledged lower `seq` is not re-acquired once a higher `seq` has been acknowledged.
+14. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. On resume, the position is the lowest unacknowledged `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1`; no unacknowledged event is skipped, and already-acknowledged events are fast-forwarded. Consumers need not ACK in strict `seq` order.
 
 ### Scope
 
@@ -357,40 +357,17 @@ Register any Invariant without Verification as an unverified item in an Issue.
 
 - Transaction guarantee: see INV-16 (a single transaction inside `ack_event_for_consumer()`)
 - Monotonicity Enforcement: see INV-05, INV-09
-- Legacy migration: for details of `migrate_legacy_offsets()`, see the Resolved item in Known Deviations
+- Resume position: the lowest unacked `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1` (see Decision item 14)
+- Offset store: `consumer_delivery` tracks per-consumer delivery progress and `consumer_offsets` stores monotonic offsets; `ack_event_for_consumer()` updates both atomically. At startup, `migrate_legacy_offsets()` reads each offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; without a `.map` companion, the sanitized filename is the `consumer_id`.
+- INV-07 is enforced by content comparison logic in `insert_event()`: duplicate events cannot corrupt stored data; identical retries return the original seq, conflicting retries return HTTP 409.
 
 ## Known Deviations
 
 Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-- **Resolved**: Per-consumer delivery-state and SQLite-backed offset store were added to eliminate the two-commit gap between ACK state and offset advancement. The `consumer_delivery` table tracks per-consumer delivery progress; the `consumer_offsets` table stores monotonic offsets. `ack_event_for_consumer()` performs both operations atomically. Legacy file-based offsets remain during migration but are no longer the primary path. At startup, `migrate_legacy_offsets()` reads each legacy offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; when no `.map` companion exists, it falls back to the sanitized filename as the `consumer_id`.
-- **Type**: Resolved Gap
-- **Summary**: Closing the two-commit gap between ACK state and Offset tracking
-- **Impact**: Compatibility with existing file-based offsets
-- **Resolution Target**: Remove the legacy path after the migration period ends
-
-- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed: `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gap (EVENTBUS-008, open in governance_03): a CONSUMER token without a consumer_authorization/topic_authorization entry skips the consumer_id check. Other residual gaps are tracked under ADR-013 Known Deviations.
-- **Type**: Security Gap
-- **Summary**: The authentication model is implemented per ADR-013 (a public bind itself has been removed)
-- **Impact**: Access within the same host or via an SSH tunnel is authenticated (direct external exposure cannot be configured)
-- **Resolution Target**: Residual gaps are tracked in ADR-013 Known Deviations
-
-### Enforced Invariants (post-implementation)
-
-The following invariants are now enforced by content comparison logic in `insert_event()`:
-
-- **INV-07 (at-least-once delivery)**: Now enforced — duplicate events cannot corrupt stored data. Identical retries return the original seq; conflicting retries return HTTP 409.
-- **INV-12 (ACK failure handling)**: Not affected by this change.
-- **INV-13 (DLQ promotion priority)**: Not affected by this change.
-
-- **Known Issue**: EVENTBUS-011 — `nack_event()` now returns `(-2,-2)` for invalid transitions (already ACKed or DLQ'd), and `ack_route.py` converts this to HTTP 409. However, the caller (`_nack_and_promote()`) checks `failure_count == -2` but does not verify whether the event is actually in the database before raising 409 — if the event was deleted between the NACK call and the status check, a spurious 409 could be returned (the intended response is 404).
-- **Type**: Race Condition
-- **Summary**: A 409 response after NACK may be returned incorrectly when the Event has been deleted
-- **Impact**: Low (Events are deleted only in rare cases)
-- **Resolution Target**: Re-check the Event state before responding with 409, or improve the error message
-
-- **Not affected**: INV-12 (ACK failure handling) — Not affected by this change.
-- **Not affected**: INV-13 (DLQ promotion priority) — Not affected by this change.
+- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (authentication model per ADR-013)
+- **Known Issue**: EVENTBUS-011 — tracked in governance_03 Part 1 (NACK on a concurrently deleted event)
+- **Known Issue**: EVENTBUS-012 — tracked in governance_03 Part 1 (duplicate NACK from the same consumer)
 
 ## Review Triggers
 
@@ -446,22 +423,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Known Issues
 
-#### EVENTBUS-001: Out-of-order ACK skips lower-seq events on reconnect
-
-**Status**: Resolved (by design decision)
-
-**Resolution**: Option B — resume position accounts for lowest unacked event.
-
-**Rationale**: Preserves at-least-once guarantee without requiring ordered ACKs.
-Consumers cannot reliably ACK in strict seq order under network partition or
-broker reordering. The existing high-water-mark offset remains useful for
-fast-forwarding already-acked events; the new logic adds a low-water-mark
-fallback below it.
-
-**Behavior change**: Resume position now uses `max(lowest_unacked_seq, stored_offset)`
-instead of `stored_offset` alone. This ensures no unacked event is skipped on
-reconnect while still allowing fast-forward past already-acked events.
-
 - [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) — EventBus known issues
 
 ### Implementation References
@@ -478,7 +439,7 @@ reconnect while still allowing fast-forward past already-acked events.
 - `events` table — `seq`, `event_id`, `topic`, `payload`, `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`
 - `consumer_delivery` table — `consumer_id`, `event_id`, `acked_at`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
-- Offset files — `{offsets_dir}/{sanitized_consumer_id}` (legacy, being migrated)
+- Offset files — `{offsets_dir}/{sanitized_consumer_id}` (read only by `migrate_legacy_offsets()` at startup)
 - DLQ promotion paths — inline promotion (on `POST /nack`) and the periodic background loop
 - Tests — `tests/eventbus/`, `tests/db/test_create_schema.py`
 

@@ -347,7 +347,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
-There are currently no deviations to record (MCP-001 and MCP-002 have both been resolved).
+Not applicable
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 

@@ -134,24 +134,7 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 ### Security Consequences
 - Closes the option-injection vector for `branch`/`remote` arguments.
 - Audit records identify the affected repository and capture pre/post-condition state.
-- Audit `target` field fix completed; this tool category's audit trail now includes canonical repository identity.
-
-## Traceability
-
-### Implementation Procedures
-- `implementations/done/20260829-134950_01_scripts_mcp_servers_git_repository_state.py.md`: Create RepositoryState module
-- `implementations/done/20260829-134950_02_scripts_mcp_servers_git_git_service.py.md`: Modify git_service.py
-- `implementations/done/20260829-134950_03_scripts_mcp_servers_git_git_security.py.md`: Modify git_security.py
-- `implementations/done/20260829-134950_04_scripts_mcp_servers_git_format_output.py.md`: Modify format_output.py
-- `implementations/done/20260829-134950_05_scripts_mcp_servers_git_git_models.py.md`: Modify git_models.py
-- `implementations/done/20260829-134950_06_scripts_mcp_servers_git_git_server.py.md`: Modify git_server.py
-- `implementations/done/20260829-134950_07_scripts_mcp_servers_dispatch.py.md`: Skipped — procedure did not match actual architecture (generic async dispatcher vs git-specific sync dispatcher); git_server.py already handles RepositoryState via call_tool endpoint
-- `implementations/done/20260829-134950_08_scripts_mcp_servers_audit.py.md`: Modify audit.py
-- `implementations/done/20260829-134950_09_tests_mcp_servers_git_test_repository_state.py.md`: Create tests
-
-### Source Documents
-- Source issue: issues/done/20260828-162303_mcp003_git_write_protection_pipeline.md
-- Source plan: plans/done/20260829-134950_plan.md
+- This tool category's audit trail includes canonical repository identity in the `target` field.
 
 ## Invariants
 
@@ -195,11 +178,6 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - **Test**: audit records include the correct repository identity and pre/post-condition state (`test_audit_record_includes_repo_identity`, `test_audit_record_has_pre_condition`, `test_audit_record_has_post_condition`) — **Verifies**: Decision Details #7, #10 — **Type**: Unit — **Blocking**: Yes
 - **Test**: the pipeline stages execute in the documented order for `git_checkout`/`git_pull`/`git_push` (`TestCompletePipelineCoverage`: `test_all_stages_execute_in_order_for_checkout`, `test_all_stages_execute_in_order_for_pull`, `test_all_stages_execute_in_order_for_push`) — **Verifies**: Decision Details #9 — **Type**: Integration — **Blocking**: Yes
 
-### Resolved Items
-
-- **Resolved**: Protected-branch empty-branch short-circuit — fixed by `_validate_protected()` rejecting an empty `branch` argument.
-- **Resolved**: Audit `target` field key-name mismatch fixed.
-
 ## Implementation Notes
 
 See Related Documents > Implementation References for the current file/symbol list.
@@ -210,7 +188,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`'s MCP-001 (`verify_postcondition()` unconditional-success placeholder) and MCP-002 (`PipelineResult` missing `post_state`) are both resolved; resolved entries are intentionally not tracked in that document, and no open deviation is recorded for this ADR.
+Not applicable
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 

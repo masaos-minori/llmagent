@@ -264,7 +264,7 @@ Rejected to prioritize Predictability and Maintainability, because static classi
 - Review of changes to the failure policy
 - Review of component mandatoriness classification
 - No automated test directly verifies INV-01 (single common failure handling policy)
-- INV-14 (no startup continuation with undefined mandatoriness) verified by REQ-001 unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`)
+- INV-14 (no startup continuation with undefined mandatoriness) verified by unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`)
 - INV-15/INV-16 cross-cutting audit (no ADR-004-scope fallback outside ADR-010):
   - **Why not automated**: "fallback" appears throughout production code in defensive patterns (default-value substitution, best-effort cleanup) not Destination substitution; pattern-based detector would produce unmanageable false positives. Only ADR-010 marker uniqueness automated (`TestFallbackMarkerLockGuard`).
   - **Procedure**: search production sources for fallback paths, classify as (a) ADR-010 fallback or (b) ADR-004-scope fallback requiring Accepted ADR (Decision 26); file follow-up issue for paths fitting neither.

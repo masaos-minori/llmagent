@@ -98,7 +98,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### Duplicate NACK Behavior
 
-No idempotency guard exists in `nack_event`; `delivery_failure_count` increases with every call. This is **Implementation fix required**.
+No idempotency guard exists in `nack_event`; `delivery_failure_count` increases with every call. This gap is tracked as EVENTBUS-012 in `governance_03_issue-and-uncertainty-management.md`.
 
 ### NACK followed by ACK
 
@@ -114,11 +114,11 @@ No idempotency guard exists in `nack_event`; `delivery_failure_count` increases 
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. On reconnect, the resume position is computed as `max(lowest_unacked_seq, stored_offset)`, where `lowest_unacked_seq` is the minimum sequence among events where `consumer_delivery.acked_at IS NULL` AND `seq <= stored_offset`. This ensures no unacked event is skipped on reconnect while still allowing fast-forward past already-acked events. For consumers that ACK in order, `lowest_unacked_seq = stored_offset + 1` when all events up to the offset are acked, so the resume position equals `stored_offset + 1` (fast-forward). For consumers with out-of-order ACKs, the low-water-mark fallback ensures previously skipped events are re-delivered.
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. On reconnect, the resume position is computed from the stored offset and the set of unacked events at or below it: let `lowest_unacked_seq` be the minimum `seq` among events with `seq <= stored_offset` that the consumer has not acknowledged (`consumer_delivery.acked_at IS NULL`, or no `consumer_delivery` row for that consumer). If such an event exists, the resume position is `lowest_unacked_seq` (a position at or below `stored_offset`); otherwise it is `stored_offset + 1`. This ensures no unacked event is skipped on reconnect while still allowing fast-forward past already-acked events. For consumers that ACK in order, every event up to the offset is acked, so the resume position equals `stored_offset + 1` (fast-forward). For consumers with out-of-order ACKs, the low-water-mark fallback moves the resume position back to the lowest unacked event so that previously skipped events are re-delivered.
 
 ### Resume Behavior
 
-Reconnecting with a `consumer_id` resumes from the computed resume position: `max(lowest_unacked_seq, stored_offset)`. If no offsets have been acknowledged, it starts from `seq=0`. It is also possible to start from a specific position using `since_seq=N`.
+Reconnecting with a `consumer_id` resumes from the computed resume position described in Monotonicity Guarantee (`lowest_unacked_seq` when an unacked event exists at or below the stored offset, otherwise `stored_offset + 1`). If no offsets have been acknowledged, it starts from `seq=0`. It is also possible to start from a specific position using `since_seq=N`.
 
 ## Replay Semantics
 

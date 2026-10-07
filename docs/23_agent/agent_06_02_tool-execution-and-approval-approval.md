@@ -44,7 +44,9 @@ Documents design decisions for approval flows, risk classification, and plan mod
 2. `tool_safety_tiers[tool_name]` (Tier mapping)
 3. Fallback to `tool_constants.py` classification: `DELETE_TOOLS`/`SHELL_TOOLS` → `high`, `WRITE_TOOLS` → `medium`, others → `medium` (default)
 
-**Design judgment**: Tools not found in `tool_safety_tiers` default to `WRITE_DANGEROUS` (**Fail-safe**)
+**Vocabulary**: the *safety tier* (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`, from `tool_safety_tiers`) and the *approval risk* (`none`/`medium`/`high`, `RiskLevel`) are distinct. Only the approval risk decides whether a prompt is shown; the tier supplies its default value. An `approval_risk_rules` entry overrides the tier default in either direction (for example, `WRITE_SAFE` file write tools carry a `medium` rule and therefore prompt, while `WRITE_SAFE` tools without a rule, such as `git_add`, do not).
+
+**Design judgment**: a tool registered but missing from `tool_safety_tiers` is rejected by startup validation (fatal). If classification is still reached for an untiered tool, it falls back to the constants-based rule above, and a tool absent from the registry entirely is classified `high` (**Fail-safe**). An unrecognized tier string maps to `medium`.
 
 #### Tier-Risk Mapping
 
@@ -115,7 +117,7 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 ## Key Constraints
 
 - Fail-closed: GitHub repository allowlist, `gitops_push_blocked`
-- Fail-safe: Undefined tools in `tool_safety_tiers` default to `WRITE_DANGEROUS`
+- Fail-safe: tools missing from `tool_safety_tiers` are rejected at startup; at classification time a tool absent from the registry is `high`
 - Base risk `none` skips escalation
 
 ## Known Limitations

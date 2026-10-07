@@ -118,7 +118,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 14. Physical recovery must classify DB state (healthy/corruption/lock contention/permission failure/invalid format/unknown) before acting. Lock Contention and Permission Failure must not be classified as physical corruption.
 15. A backup that is a restore candidate must have its own integrity verified independently before it replaces the target DB.
 16. Restore stages candidate in temporary location, verifies it, then atomically replaces target DB per current design limits. Target DB must not be overwritten before candidate passes verification.
-17. An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore.
+17. An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore; `recover_corruption()` returns `action="preserved_operator_intervention_required"` for `DbCondition.UNKNOWN` and does not call `_restore_from_backup()`.
 18. Dry Run must not move, replace, Truncate, delete, or rewrite the target DB for any classification result.
 19. Corrupted DB is set aside as diagnostic copy before replacement. Retention/deletion left to operator manual judgment; no automatic deletion.
 20. Recovery policy defined per persistence domain: `rag.sqlite` derived indexes (FTS5, Vector Index) rebuilt from canonical data (`chunks` table), with canonical tables restored from a verified backup; `session.sqlite` restored from backup; `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore—manual operator handling only (no silent re-initialization).
@@ -185,7 +185,7 @@ This section is maintained in the companion document: [Consequences](adr_08_sqli
 - INV-14: A backup that is a restore candidate must be verified independently before it replaces the target DB.
 - INV-15: The target DB must not be overwritten before the candidate passes verification. Replacement is done Atomically to the extent supported by the current design.
 - INV-16: Dry Run must not move, replace, Truncate, delete, or rewrite the target DB for any classification result.
-- INV-17: An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore.
+- INV-17: An Unknown or unclassifiable failure preserves the target DB and requires operator intervention instead of an automatic restore; `recover_corruption()` returns `action="preserved_operator_intervention_required"` for `DbCondition.UNKNOWN` and does not call `_restore_from_backup()`.
 - INV-18: Automatic restore of `workflow.sqlite` and `eventbus.sqlite` is prohibited. Recovery is manual operator handling only, explicitly applying a policy different from `rag.sqlite` (rebuild) and `session.sqlite` (restore from backup).
 
 ## Failure Policy
@@ -202,18 +202,7 @@ This section is maintained in the companion document: [Verification](adr_08_sqli
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-008 — Production deployment requires an authentication model. The legacy workaround `allow_public_bind` has been fully removed: `EventBusConfig.__post_init__()` unconditionally rejects any host other than `127.0.0.1`/`::1` with `ValueError`, so a public bind can no longer be configured at all. The authentication middleware has since been implemented (Bearer-token authentication and role-based authorization attached in `scripts/eventbus/app.py`; see ADR-013), so same-host access via loopback or an SSH tunnel is authenticated. Residual gap (EVENTBUS-008, open in governance_03): a CONSUMER token without a consumer_authorization/topic_authorization entry skips the consumer_id check. Other residual gaps are tracked under ADR-013 Known Deviations.
-  - **Type**: Security Gap
-  - **Summary**: The EventBus authentication model is implemented per ADR-013 (a public bind itself has been removed)
-  - **Impact**: Access within the same host or via an SSH tunnel is authenticated (direct external exposure cannot be configured)
-  - **Resolution Target**: Residual gaps are tracked in ADR-013 Known Deviations
-
-- **Resolved Issue**: `recover_corruption()` (`scripts/db/recovery.py`) formerly treated the Unknown classification (`DbCondition.UNKNOWN`) the same as the Corruption classification and, for `rag`/`session`, automatically attempted to restore from a backup, which did not satisfy INV-17 (an Unknown or unclassifiable failure preserves the target DB and requires operator intervention).
-  - **Type**: Resolved
-  - **Summary**: The Unknown classification behaved identically to Corruption; preserving the DB and requiring operator intervention was implemented through the `preserved_operator_intervention_required` action
-  - **Impact**: Even an unclassifiable integrity-check failure could trigger an automatic restore for `rag`/`session`
-  - **Resolution**: Implemented in `implementations/done/20260902-064946_01_scripts_db_recovery_py.md`; verified by unit tests and integration tests
-  - **Resolved (details)**: Through REQ-001 to REQ-003, a dedicated branch for `DbCondition.UNKNOWN` was added to `recover_corruption()`, which now returns `action="preserved_operator_intervention_required"` to preserve the target DB and require operator intervention (`_restore_from_backup()` is not called). This satisfies INV-17. **Impact**: INV-17 → resolved.
+- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (EventBus authentication model)
 
 ## Review Triggers
 

@@ -78,7 +78,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 9. **Criteria for mandatory components**: a component is mandatory if any applies: required to start/complete core processing; establishes auth/authz/approval/Routing/auditability/Config Isolation/persistence/data integrity; absence prevents operations from being safely rejected; absence could cause incorrect success result; owns canonical state for core processing; an Accepted ADR explicitly defines it as mandatory; failure cannot be safely isolated from other mandatory components.
 10. **Criteria for non-mandatory components**: a component may be non-mandatory only if all true: absence does not prevent safe core processing; absence bypasses none of auth/authz/approval/Routing/audit/Config Isolation/data integrity controls; failure can be localized to known set of functions; related functions/Tools can be reliably disabled; calls targeting the function can be rejected Fail-Closed; disabled state and impact are observable; other mandatory components remain safe and internally consistent; any Fallback explicitly defined by an Accepted ADR.
 11. A component must not be treated as non-mandatory merely because startup is technically possible.
-12. When a component's mandatoriness is undefined or cannot be determined: do not assume non-mandatory. Do not use undefined classification as grounds for continuing startup. Treat as unresolved design/configuration error. Where applicable, record or reference the current Known Issue.
+12. When a component's mandatoriness is undefined or cannot be determined: do not assume non-mandatory. Do not use undefined classification as grounds for continuing startup. Treat as unresolved design/configuration error.
 13. **Division of classification responsibility**: this ADR defines classification criteria and failure handling contract. Approved classification of each component recorded by applicable Startup/Agent/MCP Specification. Configuration provides effective values only within range the approved Specification permits. Startup validation verifies effective classification before using it to decide whether startup continues. Configuration alone cannot weaken a mandatory component to non-mandatory without an approved architecture or Specification change.
 ### Group 4: Startup Fail-Fast Boundary
 
@@ -162,7 +162,7 @@ This section is maintained in the companion document: [Consequences](adr_04_fail
 
 ## Alignment with INV-01/INV-02
 
-With REQ-001's fix (strict-default behavior), the Fail-Fast requirements of INV-01/INV-02 are now enforced at startup time:
+The strict-default behavior enforces the Fail-Fast requirements of INV-01/INV-02 at startup time:
 
 1. **INV-01**: Missing required config files cause immediate process termination (no silent-continue).
 2. **INV-02**: All processes enforce fail-closed behavior regardless of environment.
@@ -186,37 +186,7 @@ Do not record line numbers; reference by file path and symbol name.
 
 ## Known Deviations
 
-### ADR-004-D1-profile-config-model-still-present: Environment-conditional required/local branching in McpServerConfig
-
-- **Summary**: `McpServerConfig` branched on `security_profile` to choose `required_in_production` vs `required_in_local`
-- **Action**: **Resolved**: removed `SecurityProfile.LOCAL`; `SecurityProfile` now holds only `PRODUCTION`. Mandatoriness decisions are environment-independent.
-- **Status**: Resolved
-
-### ADR-004-D2-production-config-validator-severity-downgrade: is_production-gated strict-mode violation downgraded to warning
-
-- **Summary**: Strict-mode violations downgraded to warnings under `is_production` in `production_config_validator.py`
-- **Action**: **Resolved**: removed the `is_production` branch; Production-grade validation applies unconditionally.
-- **Status**: Resolved
-
-### ADR-004-D3-non-required-continuation-test-coverage: Decision #18/INV-09 continuation test coverage
-
-- **Summary**: Automated test coverage for startup continuation on non-mandatory availability failure (Decision #18, INV-09)
-- **Action**: Recorded as Confirmed in this ADR's `## Verification` section; no new governance Known Issue registered
-- **Status**: Resolved
-
-### ADR-004-D4-production-tool-safety-validation-fail-open
-
-- **Summary**: Production tool-safety validation could silently skip checks on registry failure (bare `except Exception:` returning `None` in `_resolve_known_tools()`) and accept unknown security-profile values without rejection
-- **Action**: **Resolved**: REQ-001–REQ-005 removed broad exception fallback, added explicit `SecurityProfile` coercion/rejection, injected authoritative known-tools from both call sites. Safety-critical checks remain unconditional across `SecurityProfile.PRODUCTION`.
-- **Status**: Resolved
-
-### CI-016: Undefined component criticality treatment relies on a safe default, untested
-
-- **Summary**: No automated test verifies prohibition on continuing startup with undefined mandatoriness (Decision #12, INV-14)
-- **Action**: **Resolved**: REQ-001 unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`) verifies the strict default of `McpServerConfig.required`. Update the automated test if that default changes.
-- **Status**: Resolved
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
+Not applicable
 
 ## Review Triggers
 
@@ -274,7 +244,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Known Issues
 
-- [Issue Mgmt](../00_governance/governance_03_issue-and-uncertainty-management.md) — ADR-004-related Known Issue CI-016 is resolved and intentionally not tracked there
+- [Issue Mgmt](../00_governance/governance_03_issue-and-uncertainty-management.md) — single source for active Known Issues
 
 ### Implementation References
 

@@ -71,25 +71,9 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
 |----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
-| EVENTBUS-001 | EventBus out-of-order ACK skips lower-seq events on reconnect | Resolved | Medium | EventBus | design-gap | `scripts/eventbus/delivery_repo.py` | Unassigned | ADR Known Deviations review | An unacknowledged lower `seq` is skipped on reconnect when a higher `seq` is ACKed first (high-water mark advances past it) | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | A CONSUMER-role token with no `consumer_authorization`/`topic_authorization` configured is not restricted to any consumer_id (fail-open) | `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` |
 | EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | `_nack_and_promote()` and the follow-up state lookup run under separate DB-lock acquisitions, so an event deleted in between yields 409 instead of 404 | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
-
-#### EVENTBUS-001
-
-- **ID**: EVENTBUS-001
-- **Title**: EventBus out-of-order ACK skips lower-seq events on reconnect
-- **Status**: resolved
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: `scripts/eventbus/delivery_repo.py`
-- **Owner**: Unassigned
-- **First Found**: ADR Known Deviations review
-- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related**: None
-- **Summary**: An unacknowledged lower `seq` is skipped on reconnect when a higher `seq` is ACKed first (high-water mark advances past it)
-- **Resolution**: Option B — resume position accounts for lowest unacked event. The fix computes `max(lowest_unacked_seq, stored_offset)` instead of using `stored_offset` alone, ensuring no unacked event is skipped on reconnect while still allowing fast-forward past already-acked events.
+| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug | `scripts/eventbus/delivery_repo.py` | Unassigned | Documentation review | `nack_event()` has no idempotency guard for repeated NACKs of the same event by the same consumer, so repeated calls can drive the event toward DLQ promotion | `docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md` |
 
 #### EVENTBUS-008
 
@@ -131,10 +115,27 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Treat a missing row in the follow-up lookup as 404 (event not found), or perform the NACK and the state lookup under one lock acquisition.
 - **Resolution Target**: A NACK on an event deleted concurrently returns 404, covered by a test.
 
+#### EVENTBUS-012
+
+- **ID**: EVENTBUS-012
+- **Title**: Duplicate NACK from the same consumer increments the failure counters on every call
+- **Status**: open
+- **Severity**: Medium
+- **Area**: EventBus
+- **Type**: implementation-bug
+- **Source**: `scripts/eventbus/delivery_repo.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/24_eventbus/eventbus_06_dlq_offsets_and_delivery_semantics.md`
+- **Related**: None
+- **Summary**: A NACK of an event that is neither ACKed nor in the DLQ always increments `delivery_failure_count` and `cycle_failure_count`, even when the same consumer already NACKed it.
+- **Current Description**: The ACK/NACK documentation describes an ACK-then-NACK guard (HTTP 409) but no equivalent guard for a repeated NACK.
+- **Observed Implementation**: `nack_event()` in `scripts/eventbus/delivery_repo.py` applies its `UPDATE` whenever `acked_at IS NULL AND dlq_at IS NULL` (plus the per-consumer ACK guard when `consumer_id` is given). No per-consumer NACK-state check exists, so each call increments the counters.
+- **Impact**: A retried or duplicated NACK request can inflate the failure count and promote an event to the DLQ earlier than the configured retry limit implies.
+- **Recommended Action**: Decide whether NACK must be idempotent per consumer; if so, add a per-consumer guard in `nack_event()` and align the ACK/NACK documentation.
+- **Resolution Target**: Repeated NACKs from the same consumer for the same delivery attempt do not change the counters again, covered by a test.
+
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
-
-
-**Removal-placeholder-reference policy**: A `Related`/`Target` field may cite a removed entry's ID only when a removal-placeholder paragraph exists for that ID; without such a placeholder, the citation is treated as a dangling reference (Warning severity if the placeholder exists but no heading, Blocking if neither exists).
 
 
 ## Part 2: Needs Confirmation Inventory
@@ -188,13 +189,12 @@ Each active Canonical Source Conflict entry must contain these 12 fields: ID, De
 
 - **open** — Conflict acknowledged but not yet investigated
 - **investigating** — Investigation underway
-- **resolved** — Exactly one normative source remains; validation evidence confirms the conflict is closed
 
-An item is removed from this active inventory once it is resolved or no longer applies to the current system; it is not retained here with a closed-out status.
+An item is removed from this active inventory once it is resolved (exactly one normative source remains and validation evidence confirms the conflict is closed) or no longer applies to the current system; it is not retained here with a closed-out status.
 
 ### Lifecycle
 
-Open → Investigating → Resolved, or removed from this inventory once resolved or no longer applicable to the current system.
+Open → Investigating, or removed from this inventory once resolved or no longer applicable to the current system.
 
 ### Resolution Rule
 
@@ -226,13 +226,12 @@ Each active Configuration Drift entry must contain these 6 fields: ID, Decision 
 
 - **open** — Drift acknowledged but not yet investigated
 - **investigating** — Investigation underway
-- **resolved** — Deployed and approved values agree, or the approved value has been formally changed
 
-An item is removed from this active inventory once it is resolved or no longer applies to the current system; it is not retained here with a closed-out status.
+An item is removed from this active inventory once it is resolved (deployed and approved values agree, or the approved value has been formally changed) or no longer applies to the current system; it is not retained here with a closed-out status.
 
 ### Lifecycle
 
-Same as the Lifecycle in Part 3: Open → Investigating → Resolved, or removed from this inventory once resolved or no longer applicable to the current system.
+Same as the Lifecycle in Part 3: Open → Investigating, or removed from this inventory once resolved or no longer applicable to the current system.
 
 ### Resolution Rule
 

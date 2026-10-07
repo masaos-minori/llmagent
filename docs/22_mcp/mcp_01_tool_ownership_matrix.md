@@ -16,24 +16,27 @@ related:
 
 ## Tool-to-MCP Server Mapping
 
-| Tool Name | Owning MCP Server | Capability Group | Risk Tier | Approval Required | Typical Workflow Stage |
+| Tool Name | Owning MCP Server | Capability Group | Safety Tier | Approval (effective risk) | Typical Workflow Stage |
 |---|---|---|---|---|---|
-| list_directory, list_directory_with_sizes, directory_tree, read_text_file, read_media_file, read_multiple_files, search_files, grep_files, get_file_info | file-read-mcp | READ_TOOLS | LOW | No | plan, verify |
-| write_file, edit_file, create_directory, move_file | file-write-mcp | WRITE_TOOLS | MEDIUM | Yes | execute |
-| delete_file, delete_directory | file-delete-mcp | DELETE_TOOLS | HIGH | Yes | execute |
-| rag_run_pipeline, rag_debug_pipeline, rag_list_documents | rag-pipeline-mcp | RAG_READ_TOOLS | LOW | No | plan, verify |
-| rag_delete_document | rag-pipeline-mcp | RAG_WRITE_TOOLS | HIGH | Yes | execute |
-| trigger_workflow | cicd-mcp | CICD_WRITE_TOOLS | HIGH | Yes | execute |
-| get_workflow_runs, get_workflow_status, get_workflow_logs | cicd-mcp | CICD_READ_TOOLS | LOW | No | verify |
-| search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs | mdq-mcp | MDQ_TOOLS | LOW (READ) / MEDIUM (WRITE) | No (READ) / Yes (index_paths, refresh_index) | plan, verify |
-| git_status, git_log, git_diff, git_branch, git_show | git-mcp | GIT_READ_TOOLS | LOW | No | plan, verify |
-| git_add, git_commit | git-mcp | GIT_WRITE_TOOLS | WRITE_SAFE | Yes | execute |
-| git_checkout, git_pull, git_push | git-mcp | GIT_WRITE_TOOLS | WRITE_DANGEROUS | Yes (requires `yes` full-word confirmation via `"high"` override in `approval_risk_rules`) | execute |
-| shell_run | shell-mcp | SHELL_TOOLS | MEDIUM | Yes | execute |
-| search_web, browser_fetch | web-search-mcp | WEB_SEARCH_TOOLS | LOW | No | plan |
-| github_search_repositories, github_list_branches, github_list_commits, github_get_commit, github_search_code, github_get_file_contents, github_list_issues, github_get_issue, github_search_issues, github_list_pull_requests, github_get_pull_request, github_search_pull_requests | github-mcp | GITHUB_READ_TOOLS | LOW | No | plan, verify |
-| github_create_branch, github_create_or_update_file, github_push_files, github_create_issue, github_add_issue_comment, github_create_pull_request, github_update_pull_request | github-mcp | GITHUB_WRITE_TOOLS | MEDIUM | Yes | execute |
-| github_delete_file, github_merge_pull_request | github-mcp | GITHUB_DANGEROUS_TOOLS | HIGH | Yes | execute |
+| list_directory, list_directory_with_sizes, directory_tree, read_text_file, read_media_file, read_multiple_files, search_files, grep_files, get_file_info | file-read-mcp | READ_TOOLS | READ_ONLY | No (`none`) | plan, verify |
+| write_file, edit_file, create_directory, move_file | file-write-mcp | WRITE_TOOLS | WRITE_SAFE | Yes, `y/N` (`medium` via `approval_risk_rules`) | execute |
+| delete_file, delete_directory | file-delete-mcp | DELETE_TOOLS | WRITE_DANGEROUS | Yes, full `yes` (`high` via `approval_risk_rules`) | execute |
+| rag_run_pipeline, rag_debug_pipeline, rag_list_documents | rag-pipeline-mcp | RAG_READ_TOOLS | READ_ONLY | No (`none`) | plan, verify |
+| rag_delete_document | rag-pipeline-mcp | RAG_WRITE_TOOLS | WRITE_DANGEROUS | Yes, `y/N` (`medium` via tier mapping) | execute |
+| trigger_workflow | cicd-mcp | CICD_WRITE_TOOLS | WRITE_DANGEROUS | Yes, `y/N` (`medium` via tier mapping) | execute |
+| get_workflow_runs, get_workflow_status, get_workflow_logs | cicd-mcp | CICD_READ_TOOLS | READ_ONLY | No (`none`) | verify |
+| search_docs, get_chunk, outline, stats, grep_docs | mdq-mcp | MDQ_TOOLS | READ_ONLY | No (`none`) | plan, verify |
+| index_paths, refresh_index | mdq-mcp | MDQ_TOOLS | WRITE_SAFE | No by default (`none` via tier mapping; no `approval_risk_rules` entry) | plan, verify |
+| git_status, git_log, git_diff, git_branch, git_show | git-mcp | GIT_READ_TOOLS | READ_ONLY | No (`none`) | plan, verify |
+| git_add, git_commit | git-mcp | GIT_WRITE_TOOLS | WRITE_SAFE | No by default (`none` via tier mapping; no `approval_risk_rules` entry) | execute |
+| git_checkout, git_pull, git_push | git-mcp | GIT_WRITE_TOOLS | WRITE_DANGEROUS | Yes, full `yes` (`high` via `approval_risk_rules`) | execute |
+| shell_run | shell-mcp | SHELL_TOOLS | ADMIN | Yes, full `yes` (`high`) | execute |
+| search_web, browser_fetch | web-search-mcp | WEB_SEARCH_TOOLS | READ_ONLY | No (`none`) | plan |
+| github_search_repositories, github_list_branches, github_list_commits, github_get_commit, github_search_code, github_get_file_contents, github_list_issues, github_get_issue, github_search_issues, github_list_pull_requests, github_get_pull_request, github_search_pull_requests | github-mcp | GITHUB_READ_TOOLS | READ_ONLY | No (`none`) | plan, verify |
+| github_create_branch, github_create_issue, github_add_issue_comment | github-mcp | GITHUB_WRITE_TOOLS | WRITE_SAFE | Yes, `y/N` (`medium` via `approval_risk_rules`) | execute |
+| github_create_pull_request, github_update_pull_request | github-mcp | GITHUB_WRITE_TOOLS | WRITE_DANGEROUS | Yes, `y/N` (`medium` via `approval_risk_rules`) | execute |
+| github_create_or_update_file, github_push_files | github-mcp | GITHUB_WRITE_TOOLS | WRITE_DANGEROUS | Yes, full `yes` (`high` via `approval_risk_rules`) | execute |
+| github_delete_file, github_merge_pull_request | github-mcp | GITHUB_DANGEROUS_TOOLS | WRITE_DANGEROUS | Yes, full `yes` (`high` via `approval_risk_rules`) | execute |
 
 > **Note:** `file-mcp` was historically a single server; it is now split into
 > three independent processes (`file-read-mcp`, `file-write-mcp`,
@@ -49,13 +52,16 @@ This document provides a canonical mapping between MCP tools and their owning se
 
 ### Risk Classification
 
-- **LOW**: Read-only operations; no approval required
-- **MEDIUM**: Write operations that modify state but are not destructive; approval required
-- **HIGH**: Operations that can delete data or perform irreversible actions; strict approval required
+Two vocabularies are used, and they are not interchangeable:
+
+- **Safety tier** (`tool_safety_tiers`): `READ_ONLY`, `WRITE_SAFE`, `WRITE_DANGEROUS`, `ADMIN`. A static per-tool label.
+- **Approval risk** (`RiskLevel`): `none`, `medium`, `high`. The value that decides whether an approval prompt is shown. It comes from an explicit `approval_risk_rules` entry first, then from the tier mapping (`READ_ONLY`/`WRITE_SAFE` → `none`, `WRITE_DANGEROUS` → `medium`, `ADMIN` → `high`).
+
+An `approval_risk_rules` entry can raise a tool above its tier default (for example, file write tools are `WRITE_SAFE` but carry a `medium` rule). The canonical definition is in [agent_06_02_tool-execution-and-approval-approval.md](../23_agent/agent_06_02_tool-execution-and-approval-approval.md); the matrix above reflects `config/agent.toml` and may drift from it.
 
 ### Approval Flow
 
-High-risk tools require explicit approval before execution. The approval flow follows the existing `cfg.approval.tool_safety_tiers` logic.
+`none` is auto-approved, `medium` requires a `y/N` prompt, and `high` requires the full word `yes`. The approval flow follows `cfg.approval.tool_safety_tiers` and `cfg.approval.approval_risk_rules` (`agent/tool_policy.py::classify_risk`).
 
 ## Responsibility Boundaries
 

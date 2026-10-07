@@ -70,7 +70,7 @@ Consistency issue: [WARNING] FTS gap detected (chunks=1042, fts=1039, gap=3). Af
 
 ## Threshold Policy
 
-This check uses a **strict zero** threshold. That is, if any of `fts_gap`, `fts_orphan_count`, or `orphan_vec_count` is non-zero, an inconsistency is reported. Configurable thresholds (e.g., allowing a small `fts_gap`) are not implemented. Whether a policy for partial "OK" results is needed **requires verification**.
+This check uses a **strict zero** threshold. That is, if any of `fts_gap`, `fts_orphan_count`, or `orphan_vec_count` is non-zero, an inconsistency is reported. Configurable thresholds (e.g., allowing a small `fts_gap`) are not implemented.
 
 ## Fixing Inconsistencies
 

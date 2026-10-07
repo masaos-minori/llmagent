@@ -19,7 +19,8 @@ When adding a new server:
 - [ ] Declare `own_config_file = "<key>_mcp_server.toml"` within the `MCPServer` subclass — `run_http()` will automatically call `ConfigLoader.restrict_to(own_config_file)`
 - [ ] Create `config/<key>_mcp_server.toml` and include **all settings required by the server** (including DB paths, external URLs, etc.; do not refer to `agent.toml`)
 - [ ] Add the tool definition to `[[tool_definitions]]` in `config/agent.toml`
-- [ ] Register the tool in the frozenset of `shared/tool_constants.py` (automatic routing on startup); the `tool_names` in the config side is only used for arbitrary drift validation
+- [ ] Declare the tool in the server's `/v1/tools` response with the schema-2.0 fields (this is what makes it routable)
+- [ ] Register the tool in the frozenset of `shared/tool_constants.py` (static seed for drift detection, not a routing input); the `tool_names` in the config side is only used for optional drift validation
 - [ ] Add the new file to the copy list in `deploy/deploy.sh`
 - [ ] Add startup procedures to `deploy/setup_services.sh`
 - [ ] For every new tool, add an entry for `tool_safety_tiers` in `config/agent.toml`

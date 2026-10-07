@@ -18,10 +18,10 @@ This document defines how a change maps to the documents it affects, the approva
 
 When a change occurs, the following documents must be updated based on the change type:
 
-- **Architecture change** — Update Specification documents in the affected area, update Guide documents for cross-area impacts, update Operations documents if operational behavior changes
-- **Configuration change** — Update Reference documents for the affected configuration, update Specification documents if behavior changes, update Guide documents if cross-area impacts exist
+- **Architecture change** — Update the Accepted ADR for the decision (see ADR Change Protocol) and the Reference documents in the affected area, update Guide documents for cross-area impacts, update Operations documents if operational behavior changes
+- **Configuration change** — Update Reference documents for the affected configuration, update the affected area's Reference documents if behavior changes, update Guide documents if cross-area impacts exist
 - **Command change** — Update Command Reference documents, update Guide documents for affected areas, update Known Issues if deprecations occur
-- **Behavioral change** — Update Specification documents describing the behavior, update Operations documents if observable behavior changes, update Known Issues if discrepancies are found
+- **Behavioral change** — Update the Reference documents describing the behavior, update Operations documents if observable behavior changes, update Known Issues if discrepancies are found
 - **Documentation-only change** — Update only the affected documents without triggering broader reviews
 
 ## Change Impact Rule
@@ -42,7 +42,7 @@ To determine which documents are affected by a change:
 
    Map the change to the areas or components covered by the selected graph or matrix.
 3. List all documents in affected areas that reference the changed element
-4. Prioritize updates by document class priority: Specification > Guide > Reference > Operations > Note
+4. Prioritize updates by document class priority: Guide > Reference > Operations > Note
 
 ## Change-Impact Matrix
 

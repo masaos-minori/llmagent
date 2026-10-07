@@ -19,7 +19,7 @@ related:
 
 ## Purpose
 
-To document tool routing, server startup/shutdown lifecycles, the internal structure of `ToolExecutor`, watchdog behavior, idle timeouts, and procedures for adding new servers.
+To document tool routing, server startup/shutdown lifecycles, the internal structure of `ToolExecutor`, on-demand restart behavior (there is no background watchdog), idle timeouts, and procedures for adding new servers.
 
 ---
 

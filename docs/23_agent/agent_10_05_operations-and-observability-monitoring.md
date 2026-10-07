@@ -45,7 +45,7 @@ For the formal partial completion model, see [agent_03 Partial-Completion Model]
 | Frequent `Sudachi tokenize error` | `sudachidict-core` is not installed | Run `pip install sudachidict-core` |
 | `llama-server` fails to start | Path or permission issue with model files | Check `ls -lh <model directory>` |
 | Extremely high latency | RAM exhausted due to multiple models loaded | Adjust `--threads` and keep the total within the available CPU cores |
-| Server shows UNAVAILABLE in `/mcp` | Health registry marks server as unavailable | Check watchdog logs regarding auto-restart attempts. Note that changing the server *definition* (URL, auth, transport, etc.) requires a full agent restart — `/reload` does not apply MCP configuration changes. |
+| Server shows UNAVAILABLE in `/mcp` | Health registry marks server as unavailable | There is no background watchdog; a crashed subprocess-mode server is retried only on the next tool dispatch (`ensure_ready()`), so check the agent logs for lifecycle start/restart messages and cooldown rejections. Note that changing the server *definition* (URL, auth, transport, etc.) requires a full agent restart — `/reload` does not apply MCP configuration changes. |
 
 ## Runtime Diagnostics (Session End Summary)
 

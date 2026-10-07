@@ -72,7 +72,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 | `{rag_src_dir}/chunk/{stem}-{idx:04d}.json` | chunk_splitter.py | Chunk information, Strategy | Moved out of `chunk/` after ingestion: to `registered/` on success, to `retry/` (embedding failures) or `failed/` (other failures, with a `.error.json` file) on failure |
 | `{rag_src_dir}/registered/{stem}-{idx:04d}.json` | ingester.py | Chunk → Registered | No automated retention or cleanup; files accumulate until removed manually |
 
-> **Retention:** No retention or cleanup setting exists for `rag-src/registered/`. See the Known issue in [rag_01_system_overview.md](rag_01_system_overview.md).
+> **Retention:** No retention or cleanup setting exists for `rag-src/registered/`. See "Retention of `registered/`" in [rag_01_system_overview.md](rag_01_system_overview.md).
 >
 > **JSON verification:** Parse crawl/chunk artifacts with `orjson.loads()` (the ingestion pipeline uses `orjson.dumps()` for writing and `orjson.loads()` for reading). Example — verify a crawl artifact:
 >

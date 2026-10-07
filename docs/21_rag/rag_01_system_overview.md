@@ -87,7 +87,7 @@ state transitions require coordinated testing when any component's contract chan
 (Design Boundaries Requiring Joint Review). This means modifications to one component's
 owned state must consider downstream impact on dependent components.
 
-#### Known issue
+#### Retention of `registered/`
 
 Chunk files are moved to `rag-src/registered/` after ingestion. No automated retention or cleanup of `rag-src/registered/` exists; files accumulate until removed manually, and adding cleanup requires a separate design decision.
 

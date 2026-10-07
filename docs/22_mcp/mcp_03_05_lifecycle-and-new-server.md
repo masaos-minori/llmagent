@@ -34,8 +34,8 @@ These methods only perform `proc.poll()` or read cached states; they do not term
 When adding a new tool, follow the standard procedure in [mcp_06_14_new-tool-registration-procedure.md](mcp_06_14_new-tool-registration-procedure.md).
 
 Key points:
-1. **Add the tool name to the frozenset in `shared/tool_constants.py` [REQUIRED]** — The internal registry functions read these frozensets upon import to automatically build the routing registry. Manual editing of the registry is unnecessary.
-2. **Add a `GET /v1/tools` endpoint [RECOMMENDED]** — Enables drift validation against `validate_routing_against_live()` at startup; does not affect routing.
+1. **Declare the tool in the owning server's `GET /v1/tools` response (its `TOOL_LIST` entry), with the schema-2.0 fields [REQUIRED]** — Live discovery of `/v1/tools` is the sole basis for routing: `RuntimeToolRegistry` is built from it at startup. A tool that is missing from `/v1/tools`, or whose entry fails schema-2.0 validation, is excluded from the registry and is not routable (see [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md)).
+2. **Add the tool name to the frozenset in `shared/tool_constants.py` [REQUIRED for the static ownership seed — not a routing input]** — The static `ToolRegistry` built from these frozensets is used only as drift-detection input (compared against live `/v1/tools` and the configured `tool_names`) and for static classification; it never decides routing.
 3. **Add `tool_names` to the server configuration [OPTIONAL]** — Only serves as a hint for drift validation; not required for routing.
 4. **Add the LLM schema to `[[tool_definitions]]` in `config/agent.toml` [REQUIRED if you want the tool visible to the LLM]**
 5. **Add an entry to `tool_safety_tiers` in `config/agent.toml` [REQUIRED — all tools must declare their safety tier]**
@@ -43,7 +43,7 @@ Key points:
 ```toml
 [mcp_servers.my_server]
 transport = "http"
-url = "http://127.0.0.1:8015"
+url = "http://127.0.0.1:<port>"
 tool_names = ["my_tool_a", "my_tool_b"]
 ```
 
@@ -55,7 +55,8 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 
 | Item | Required? | Notes |
 |---|---|---|
-| `shared/tool_constants.py` — Add tool to frozenset | **Required** | Registry reads frozenset on import |
+| Owning server's `/v1/tools` (`TOOL_LIST`) — declare the tool with schema-2.0 fields | **Required** | Sole routing basis; a missing or invalid entry leaves the tool unroutable |
+| `shared/tool_constants.py` — Add tool to frozenset | **Required** (static seed) | Feeds drift detection and static classification only; not a routing input |
 | `config/agent.toml` — Add to `[[tool_definitions]]` | **Required** (if tool is to be visible to LLM) | OpenAI function-calling format; required for LLM to call the tool |
 | `config/agent.toml` — Add `tool_safety_tiers` entry | **Required** | All tools must declare a safety tier |
 | `config/<key>_mcp_server.toml` — Server config file | **Required** (for new servers) | Server application settings (server-specific values only). The `[mcp_servers.<key>]` transport section belongs in `config/agent.toml`. |
@@ -65,8 +66,8 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 ### Manual Procedure
 
 1. Subclass `MCPServer` in `scripts/mcp_servers/<name>/server.py` and override `dispatch()`.
-2. Add a `GET /v1/tools` endpoint that returns tool definitions including the `server_key` field.
-3. Add the tool name to the frozenset in `shared/tool_constants.py` (owned by this server).
+2. Add a `GET /v1/tools` endpoint that returns tool definitions including the `server_key` field and the schema-2.0 fields (required for routing).
+3. Add the tool name to the frozenset in `shared/tool_constants.py` (owned by this server; static seed for drift detection, not a routing input).
 4. Add the LLM schema to `[[tool_definitions]]` in `config/agent.toml` (OpenAI function-calling format).
 5. Add a `tool_safety_tiers` entry for each tool in `config/agent.toml`.
 6. Create `config/<key>_mcp_server.toml` containing server app settings, and add the `[mcp_servers.<key>]` transport section to `config/agent.toml`.
@@ -75,12 +76,12 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 
 ### Setting `tool_names` (Drift Detection Only)
 
-The tool registry is automatically built on import from the `tool_constants.py` frozenset. For drift detection, you can optionally add `tool_names` to the `[mcp_servers.<key>]` server configuration in `config/agent.toml`.
+Runtime routing is built from live `/v1/tools` discovery (`RuntimeToolRegistry`); the static `ToolRegistry` built from the `tool_constants.py` frozensets is drift-detection input only. For drift detection, you can optionally add `tool_names` to the `[mcp_servers.<key>]` server configuration in `config/agent.toml`.
 
 ```toml
 [mcp_servers.my_server]
 transport = "http"
-url = "http://127.0.0.1:8015"
+url = "http://127.0.0.1:<port>"
 tool_names = ["my_tool_a", "my_tool_b"]
 ```
 

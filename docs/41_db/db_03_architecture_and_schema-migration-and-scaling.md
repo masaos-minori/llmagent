@@ -121,7 +121,7 @@ The following indicators suggest a need for re-evaluation.
 ### Corpus Size
 
 - **When the `chunks` table grows large:** KNN scan time in `chunks_vec` increases linearly with corpus size. Monitor `/rag search` latency as the corpus grows. *(Note: Actual thresholds depend on hardware and embedding dimensions.)*
-- **When the DB file grows large:** Latency for `VACUUM`, backups, and WAL checkpoints will increase, and `/db vacuum` will take longer. *(Note: To be verified.)*
+- **When the DB file grows large:** Latency for `VACUUM`, backups, and WAL checkpoints will increase, and `/db vacuum` will take longer.
 
 ### Write Concurrency
 
@@ -130,7 +130,7 @@ The following indicators suggest a need for re-evaluation.
 
 ### FTS5 Search Latency
 
-- **Indicator:** `/rag search` latency is consistently higher than the deployment's accepted latency. Since FTS5 BM25 scales with document count, search speed may decrease with very large corpora. *(Note: To be verified.)*
+- **Indicator:** `/rag search` latency is consistently higher than the deployment's accepted latency. Since FTS5 BM25 scales with document count, search speed may decrease with very large corpora.
 
 ### Operational Complexity Indicators
 

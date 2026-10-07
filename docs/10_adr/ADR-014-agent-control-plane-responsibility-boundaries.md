@@ -33,7 +33,7 @@ The Workflow Engine is the mandatory and sole workflow control path (ADR-001), b
 
 ### Problem
 
-ADR-001 established that the Workflow Engine is the mandatory and sole workflow control path, but which responsibilities the components other than the Workflow Engine (`Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`, MCP Server) actually bear was not documented. When implementation accumulates while responsibility boundaries remain undocumented, there is a risk that the same responsibility (for example, creating and holding the LLM/Tool call loop) appears duplicated in multiple components, or that one layer takes over a judgment that belongs to another layer (for example, the Orchestrator judging the safety of an individual Tool call). In fact, implementation verification while drafting this ADR found a duplication: `Orchestrator` created an unused `LLMTurnRunner` instance in its own constructor, while the actual LLM/Tool call loop was processed by a separate instance that `LlmTurnExecutor` creates internally on its own (see Known Deviations).
+ADR-001 established that the Workflow Engine is the mandatory and sole workflow control path, but which responsibilities the components other than the Workflow Engine (`Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`, MCP Server) actually bear was not documented. When implementation accumulates while responsibility boundaries remain undocumented, there is a risk that the same responsibility (for example, creating and holding the LLM/Tool call loop) appears duplicated in multiple components, or that one layer takes over a judgment that belongs to another layer (for example, the Orchestrator judging the safety of an individual Tool call).
 
 ### Constraints
 
@@ -53,7 +53,7 @@ ADR-001 established that the Workflow Engine is the mandatory and sole workflow 
 
 1. The responsibility boundaries are fixed as follows.
 
-   - **Workflow Engine** (`scripts/agent/workflow/workflow_engine.py`): responsible for persistent business state (Task, Attempt), stage transitions (`plan -> execute -> approval -> verify -> complete/failed`), retries, and approvals. The mandatoriness and uniqueness defined by ADR-001 are maintained as is.
+   - **Workflow Engine** (`scripts/agent/workflow/workflow_engine.py`): responsible for persistent business state (Task, Attempt), stage transitions (`plan -> execute -> approval -> verify -> complete/failed`), retries, and approvals. The mandatoriness and uniqueness defined by ADR-001 are maintained as is. Other retry concepts (`ToolLoopGuard.check_retry()` in `scripts/agent/tool_loop_guard.py`, LLM transport retries such as `llm_max_retries` in `config/agent.toml`) operate at a different granularity from the Workflow Engine `retry_policy` and are described in `docs/23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md`.
    - **Orchestrator** (`scripts/agent/orchestrator.py`): responsible for coordinating processing within a single turn. It performs only coordination that completes within a turn, such as delegating task initialization and startup to the Workflow Engine, managing conversation state, and emitting audit events, and delegates decisions about persistent business state to the Workflow Engine.
     - **LlmTurnExecutor** (`scripts/agent/llm_turn_executor.py`): responsible for the short loop between the LLM and Tool Calls (streaming and Tool call round-trips within a turn). Creating and holding this loop is centralized in the component that actually drives the loop (currently `LlmTurnExecutor`), and no other component holds duplicate unused instances.
     - **ToolExecutor** (`scripts/shared/tool_executor.py`): responsible for executing a single Tool Call (gate checks, lifecycle checks, transport resolution, execution records). State spanning multiple calls and per-turn coordination are left to the Orchestrator/LlmTurnExecutor.
@@ -109,7 +109,7 @@ Do not document each component's scope of responsibility, and treat the structur
 
 #### Disadvantages
 
-- Problems like the unused `LLMTurnRunner` duplication in `Orchestrator` found while drafting this ADR cannot be prevented in advance
+- Duplicated holding of the LLM/Tool Call loop cannot be prevented in advance by documentation alone
 - The risk remains that new implementers mistakenly implement responsibilities that cross layers
 
 #### Reason for Rejection
@@ -149,7 +149,6 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 ### Positive Consequences
 
 - Each component's scope of responsibility is made explicit, making it easier to avoid duplicating or taking over judgments across layers in new implementations
-- The unused `LLMTurnRunner` duplication in `Orchestrator` found while drafting this ADR was fixed through an issue (see Known Deviations)
 - The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are complemented consistently for the other layers
 
 ### Negative Consequences
@@ -205,8 +204,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-- ~~`Orchestrator.__init__` (`scripts/agent/orchestrator.py`) creates an unused `LLMTurnRunner` instance as `self._llm_runner`, while the actual LLM/Tool Call round-trip loop is processed by a separate instance that `LlmTurnExecutor` (`scripts/agent/llm_turn_executor.py`) creates internally on its own. This is a current deviation from INV-024 (centralized `LlmTurnExecutor` creation) and is tracked by a fix issue (`issues/done/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md`).~~ → **RESOLVED**: `Orchestrator.__init__` has been refactored so that it no longer constructs `_llm_runner`. Currently `self._llm_executor = LlmTurnExecutor(...)` is actively used (passed to `WorkflowEngineAdapter`, `await self._llm_executor.handle_llm_turn(...)`), and no duplicate instance exists.
-- The definition in this ADR that "the Workflow Engine is responsible for retries" does not itself contradict INV-023, but separate "retry" concepts also exist in `ToolLoopGuard.check_retry()` (`scripts/agent/tool_loop_guard.py`) and in the LLM transport layer (such as `llm_max_retries` in `config/agent.toml`), and their relationship to the WorkflowEngine's `retry_policy` is undocumented. Because their granularity differs, this is not immediately judged an INV-023 violation, but the lack of organization is tracked by a documentation issue (`issues/done/20260914-123659_arch03_retry_ownership_documentation_and_layering.md`). → **RESOLVED**: An explanation of the three layers of retry scope has been added to `docs/23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md` (REQ-002).
+Not applicable
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -251,7 +249,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ### Known Issues
 
-- `issues/done/20260914-121616_arch01_orchestrator-dead-llm-turn-runner-reference.md` — issue fixing the violation of invariant INV-024.
+- None
 
 ### Implementation References
 
@@ -278,7 +276,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Negative Consequences are recorded
 - [x] Verifiable Invariants are defined
 - [x] Each Invariant has a corresponding Verification
-- [x] Automatable verification does not rely only on Manual Review (some INVs currently rely only on Manual Review; adding automated tests will be considered after the INV-024 fix issue is resolved)
+- [x] Automatable verification does not rely only on Manual Review (some INVs rely only on Manual Review)
 - [x] The ADR does not contradict related Specifications
 - [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)

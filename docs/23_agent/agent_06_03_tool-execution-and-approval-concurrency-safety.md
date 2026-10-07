@@ -82,7 +82,7 @@ Workflow-level approval states are persisted in the `approvals` table of `workfl
 ## Key Constraints
 
 - Fail-closed: `allowed_tools=[]` (production), `approval_github_allowed_repos=[]`, workflow creation failure
-- Fail-safe: Undefined tools in `tool_safety_tiers` default to `WRITE_DANGEROUS`
+- Fail-safe: tools missing from `tool_safety_tiers` are rejected at startup; at classification time a tool absent from the registry is `high`
 - ToolLoopGuard guard hints are not injected into history
 
 ## Known Limitations

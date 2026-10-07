@@ -106,6 +106,7 @@ _ADR_TEMPLATE_SECTIONS: frozenset[str] = frozenset(
         "Scope",
         "Out of Scope",
         "Review Triggers",
+        "Known Deviations",
         "Startup Validation",
         "Deployment Validation",
         "Runtime Monitoring",

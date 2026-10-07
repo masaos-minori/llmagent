@@ -53,7 +53,7 @@ Document class (see `governance_01_documentation-policy.md`'s Document
 Classification). Optional — no default; a document without this field has an
 unclassified status, not an error.
 
-- Allowed values: `Governance`, `Guide`, `Specification`, `Reference`, `Operations`, `Note`, `Known Issues`
+- Allowed values: `Governance`, `Guide`, `Reference`, `Operations`, `Note`, `Known Issues`
 - Example:
 ```yaml
 class: Reference
@@ -97,7 +97,6 @@ Topics explicitly excluded from this document:
 | Decision | Decision | decision | Capitalize when referring to design decision |
 | Alternative | Alternative | alternative | Capitalize when referring to considered alternatives |
 | Trade-off | Trade-off | tradeoff | Hyphenate as noun; "tradeoff" acceptable as single word |
-| Specification | Specification | specification | Capitalize when referring to formal spec document |
 | Standardization | Standardization | standardisation | Use American English spelling (z) per project convention |
 | Localization | Localization | Localisation | Use American English spelling (z) per project convention |
 | Authorization | Authorization | Authorisation | Use American English spelling (or) per project convention |
