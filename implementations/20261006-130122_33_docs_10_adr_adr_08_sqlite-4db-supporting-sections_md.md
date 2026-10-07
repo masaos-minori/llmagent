@@ -56,6 +56,7 @@ already present in `related:`; tidy headings/blank lines/file endings. Report li
 
 ### Details
 
+- Adversarial verification (20261007): Already applied in commit `4316bc537`; the line numbers in this procedure match the pre-migration file but the block no longer exists. Link-set diff: both block links (the parent ADR and `adr_00_document-guide.md`) are in `related:` and their files exist; no file link lost; no body `Related` text remains. The claim that no subsections need promotion holds (the old block was a flat two-link list). Pre-migration block was lines 290-293; the line numbers below are historical.
 - Block layout (current): `## Related Documents`(290) → two flat links (292-293);
   `## Keywords`(295).
 - `## Known Deviations`(286) is outside the block; leave it.
@@ -96,10 +97,10 @@ Revert this file to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002 / AC-2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only migration |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-151851 | 20261007-151851 | REQ-002 / AC-2 adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-151851 | 20261007-151851 | N/A: doc-only migration adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-151851 | 20261007-151851 | check_docs_structure.py adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-151851 | 20261007-151851 | adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
