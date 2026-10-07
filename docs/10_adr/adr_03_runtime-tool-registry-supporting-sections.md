@@ -184,7 +184,7 @@ Confuses call-time Policy decisions with per-Tool availability flags.
 ### Startup Validation
 
 - Routing is determined at startup based on Discovery results
-- Startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable, its Tools are disabled and startup continues (ADR-004 Decision 18)
+- Startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable, its Tools are disabled and startup continues (ADR-004 Decision Group 7, item 18)
 
 ### Deployment Validation
 
@@ -193,14 +193,11 @@ Confuses call-time Policy decisions with per-Tool availability flags.
 
 ### Runtime Monitoring
 
-- Health Check
-- Metrics
-- Logs
 - Alert conditions: when Discovery fails
-- Degraded condition: Not applicable
 
 ### Manual Review
 
+- INV-05, INV-08, and INV-09 have no dedicated automated test and are verified by review of the Registry and approval code paths.
 - Confirm that a future PR does not re-merge static availability and Dynamic Health by writing to `enabled_for_llm` from a Dynamic Health-driven code path.
 
 ## Known Deviations

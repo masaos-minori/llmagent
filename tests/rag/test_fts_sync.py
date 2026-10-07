@@ -134,7 +134,7 @@ class TestFtsTriggerSync:
         assert len(rows) == 0
 
     def test_rebuild_fts_preserves_normalized_content_semantics(self) -> None:
-        """INV-009: rebuild_fts() preserves normalized_content semantics.
+        """ADR-009 INV-07: rebuild_fts() preserves normalized_content semantics.
 
         After rebuilding FTS index, the COALESCE(normalized_content, content) rule
         must hold: English/code chunks without normalized_content fall back to content,

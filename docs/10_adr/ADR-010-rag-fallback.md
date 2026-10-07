@@ -42,17 +42,19 @@ The RAG pipeline depends heavily on the external RAG service, so a network failu
 ### Constraints
 
 - Execution on a single host with multiple processes is assumed
-- In the deployment environment, the existence of each DB file must be confirmed before startup
-- Because the sqlite-vec extension is used, some standard FK constraints are restricted
-- Different tokenizer approaches are used for Japanese and for English/code
+- The RAG pipeline has two execution modes, selected only by whether `rag_service_url` is configured
+- The external RAG service is reached through `POST /v1/call_tool` with the `rag_run_pipeline` tool, and the call carries an authentication token when one is configured
+- The in-process mode needs the local `rag.sqlite` and the sqlite-vec extension in the calling process
+- The RAG pipeline served by the external RAG service must not itself delegate over HTTP (its own `rag_service_url` is empty)
 
-### Assumptions
+## Assumptions
 
 - Target environment: a single host, multiple processes
 - Expected scale: limited concurrency
-- Trust boundary: privileges are granted only within each DB
-- External dependencies: none (SQLite is a local file)
-- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, integration with an external event store
+- Trust boundary: the external RAG service authenticates callers with a token; the local mode needs no network access
+- External dependencies: the external RAG service is reachable over HTTP; it is the dependency whose failure triggers the fallback
+- The external and the in-process mode read their corpus from separately configured database paths (`rag_db_path`), which are identical by configuration convention only
+- Items to re-evaluate if the assumptions no longer hold: multi-host configuration, distributed execution, the external RAG service using a corpus other than the local one
 
 ## Decision
 
@@ -63,21 +65,21 @@ The RAG pipeline depends heavily on the external RAG service, so a network failu
 3. The HTTP call is made by `call_rag_service()`, and each attempt is bounded by a configured timeout.
 4. HTTP errors (401, 403, 4xx, 5xx) are distinguished from empty results (`""`).
 5. An empty result is treated as a valid result and does not trigger fallback.
-6. Only technical failures (timeouts, connection errors, HTTP errors other than authentication errors 401/403, which do not fall back) are fallback conditions.
+6. Only technical failures are fallback conditions: timeouts and connection errors and HTTP 5xx after the bounded retries are exhausted, and HTTP 4xx other than 401/403. Authentication errors (401/403) do not fall back.
 7. On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
 8. The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
 9. Parse errors are logged and treated as empty results.
 10. Local DB access uses only `rag.sqlite`.
-11. The corpus difference between the external RAG and the local RAG is documented, stating that result consistency is not guaranteed.
-12. The terms `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, and `HttpResultKind` are defined.
+11. Result consistency between the external RAG and the local RAG is not guaranteed, because each mode reads the corpus from its own configured database path.
+12. The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, and `HttpResultKind`.
 
 ### Scope
 
-- **Target components**: `RagPipeline`, `call_rag_service()`, `AugmentStage`
+- **Target components**: `RagPipeline`, `HttpAugment`, `call_rag_service()`, `AugmentStage`
 - **Target processes**: the Agent process and the ingester process
-- **Target data**: `rag.sqlite`, `session.sqlite`
+- **Target data**: `rag.sqlite`
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
-- **Target APIs or processing paths**: `RagPipeline.augment()`, `call_rag_service()`, `AugmentStage.run()`
+- **Target APIs or processing paths**: `RagPipeline.augment()`, `HttpAugment.run()`, `call_rag_service()`, `AugmentStage.run()`
 
 ### Out of Scope
 
@@ -100,8 +102,6 @@ Distinguishing empty results from technical failures prevents unnecessary fallba
 ### 3. Third Reason for Adoption — Observability
 
 Tracking the result source makes it possible to know which path produced the result, which helps debugging and operations.
-
-Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -198,43 +198,32 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
 
 ### Operational Consequences
 
-- The fallback state is checked at startup
-- Manual commands are required when a failure occurs
-- Metrics and logs must be checked
-
-If not applicable, write "Not applicable".
+- A fallback is visible through `ResultSource`, `HttpResultKind`, and the fallback reason in the pipeline diagnostics and logs
+- A recurring fallback points to a failing or misconfigured external RAG service, which must be repaired outside this process
 
 ### Security Consequences
 
-- Trust boundary: privileges are granted only within each DB
+- Trust boundary: the external RAG service is authenticated by a token; an authentication failure is a configuration error and is not masked by the local fallback
 - Secret handling: follow the principle of minimal exposure
-
-If not applicable, write "Not applicable".
 
 ## Invariants
 
 - INV-01: The execution mode is switched by whether `rag_service_url` is set.
 - INV-02: Each HTTP call attempt is bounded by a configured timeout.
 - INV-03: An empty result is treated as a valid result and does not trigger fallback.
-- INV-04: Only technical failures (timeouts, connection errors, HTTP errors other than authentication errors 401/403, which do not fall back) are fallback conditions.
+- INV-04: Only technical failures (timeouts, connection errors, HTTP 5xx after retries, HTTP 4xx other than 401/403) are fallback conditions; authentication errors 401/403 do not fall back.
 - INV-05: On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
 - INV-06: The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
 - INV-07: Parse errors are logged and treated as empty results.
 - INV-08: Local DB access uses only `rag.sqlite`.
-- INV-09: The corpus difference between the external RAG and the local RAG is documented, stating that result consistency is not guaranteed.
-- INV-10: The terms `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, and `HttpResultKind` are defined.
-
-## Exceptions
-
-None
+- INV-09: Result consistency between the external RAG and the local RAG is not guaranteed, because each mode reads the corpus from its own configured database path.
+- INV-10: The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, and `HttpResultKind`.
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- When the `rag.sqlite` connection fails (RAG functionality stops)
-- When the `session.sqlite` connection fails (session functionality stops)
-- When local RAG pipeline execution fails
+- When the `rag.sqlite` connection cannot be opened in the in-process mode, `RagPipeline.augment()` raises `RagPipelineError` and no further fallback exists (Explicit in code — `scripts/rag/pipeline.py`)
 
 ### Fail-Open or Degraded Conditions
 
@@ -242,30 +231,27 @@ None
 
 ### Retry Policy
 
-Not applicable (this ADR defines no retry policy of its own)
-
-If not applicable, write "Not applicable".
+- Retry target: HTTP 5xx and transport errors (timeouts, connection errors) of the external RAG call
+- Retry count: bounded; the fallback starts after the last attempt fails
+- Backoff: increasing delay between attempts
+- Errors not retried: HTTP 4xx and response parse errors (Explicit in code — `scripts/rag/pipeline_service.py` `call_rag_service()`)
 
 ### Fallback Policy
 
-- Fallback target: technical failures
-- Fallback destination: the in-process local RAG
-- Conditions that prohibit Fallback: consistency-check mismatches
-- Where Fallback reasons are recorded: audit log
-
-If not applicable, write "Not applicable".
+- Fallback targets: a technical failure of the external RAG HTTP call (see Decision item 6)
+- Fallback destination: the in-process local RAG (the whole pipeline is re-executed)
+- Conditions that prohibit Fallback: an empty result (`""`) from the external RAG, a response parse error (treated as an empty result), authentication errors 401/403, and any safety or integrity failure (ADR-004: a safety/integrity failure must not trigger an availability Fallback)
+- Where Fallback reasons are recorded: the fallback reason in the stage result and search diagnostics (`ResultSource.FALLBACK`, `HttpResultKind`) and the application log
 
 ## Data Ownership and Persistence
 
 - **System of Record**: `rag.sqlite` (shared by both the local and remote RAG modes)
-- **Derived Data**: regenerable derived data (FTS5, Vector Index)
+- **Derived Data**: the FTS5 and Vector indexes of `rag.sqlite` (defined by ADR-005)
 - **Ownership**: RAG team (owner of the canonical data)
-- **Persistence**: file system (the configured DB directory)
-- **Transaction Boundary**: per DB
-- **Recovery Source**: manual recovery of each DB
-- **Deletion Rule**: each DB is deleted independently
-
-If not applicable, write "Not applicable".
+- **Persistence**: file system (the configured DB directory); the fallback itself persists nothing
+- **Transaction Boundary**: not applicable (the fallback only reads `rag.sqlite`)
+- **Recovery Source**: not applicable (see ADR-005 and ADR-008 for `rag.sqlite`)
+- **Deletion Rule**: not applicable
 
 ## Verification
 
@@ -275,63 +261,77 @@ If not applicable, write "Not applicable".
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_rag_pipeline_service.py::TestResponseParsing::test_5xx_retries_and_returns_none`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_400_still_triggers_fallback`
 
 - **Test**: An empty result is treated as a valid result
   - **Verifies**: INV-03
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process`
 
 - **Test**: The result source is tracked correctly
   - **Verifies**: INV-06
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_remote_empty_sets_result_source_remote`, `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_pipeline_http_result_kind.py`
 
 - **Test**: The pipeline is re-executed idempotently on fallback
   - **Verifies**: INV-05
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback` (the in-process `run` is stubbed; no test asserts the full stage sequence)
+
+- **Test**: The mode is selected by whether `rag_service_url` is set
+  - **Verifies**: INV-01
+  - **Type**: Integration
+  - **Blocking**: Yes
+  - **Implementation**: `tests/rag/test_pipeline_http_result_kind.py::test_no_http_mode`
+
+- **Test**: A response parse error is treated as an empty result
+  - **Verifies**: INV-07
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Implementation**: `tests/rag/test_rag_pipeline_service.py::TestFallbackReasonCallback::test_json_parse_error_does_not_call_set_fallback_reason`
+
+- **Test**: The external call returns no result for 401/403 and records an authentication reason (the caller-level behavior is not tested; see Known Deviations)
+  - **Verifies**: INV-04
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Implementation**: `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_403_no_fallback`
 
 ### Startup Validation
 
-- The fallback state is checked at startup
-- Whether configuration files are valid (parseable TOML, required fields)
+- No startup check of the external RAG service or of the fallback state exists; the mode is decided per request from `rag_service_url`
 
 ### Deployment Validation
 
-- Check the fallback state before and after deployment
-- The post-deployment consistency check passes
+- Confirm that `rag_service_url` and the RAG token are set as intended for the deployed process
 
 ### Runtime Monitoring
 
-- Health Check: fallback state
-- Metrics: fallback count, distribution of result sources
-- Logs: fallback events, error events
-- Alert conditions: `fallback_count > threshold`
-- Degraded condition: failure of a dependency
+- Diagnostics: `ResultSource`, `HttpResultKind`, the remote status code and latency, and the fallback reason in the search diagnostics
+- Logs: fallback events, authentication-error events, retry events
+- Degraded condition: the external RAG service fails and the in-process mode serves the request
 
 ### Manual Review
 
-- Fallback state verification before deployment
-
-Register any Invariant without Verification as an unverified item in an Issue.
+- Verification of the RAG service URL and token configuration before deployment
+- INV-02, INV-05 (full re-execution), INV-08, INV-09, INV-10 have no dedicated automated test
 
 ## Implementation Notes
 
-Briefly describe how the current implementation realizes the Decision.
+- `RagPipeline.augment()` delegates to `HttpAugment` when `rag_service_url` is set; a non-`None` result (including `""`) is returned as final, and `None` makes `augment()` run the in-process pipeline.
+- `call_rag_service()` posts to the RAG service, retries 5xx and transport errors a bounded number of times, returns `""` for an empty or unparsable response, and returns `None` for exhausted retries and for 4xx.
+- `HttpAugment.run()` classifies the outcome (`remote_nonempty`, `remote_empty`, `in_process_fallback`) and `run_http_augment()` records `ResultSource` and `HttpResultKind` in the search diagnostics.
+- The rag_pipeline MCP server builds its pipeline configuration with an empty `rag_service_url`, so a call served by the external service never delegates again.
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
+This chapter is not a basis for design decisions.
 
 ## Known Deviations
 
-Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
-
-
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
+- **Known Issue**: RAG-001 — tracked in governance_03 Part 1 (HTTP 401/403 still falls back to the in-process pipeline)
 
 ## Review Triggers
 
@@ -344,13 +344,9 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-
-Add review conditions specific to this ADR.
-
-- sqlite-vec supports FK constraints
-- FTS5 supports standard DELETE
-- A new shared configuration file becomes necessary
-- Persistent storage moves to something other than files
+- The external RAG service and the in-process RAG must return consistent results
+- The set of failures that trigger the fallback (including the 401/403 handling) changes
+- Fallback to a destination other than the in-process RAG is proposed
 
 ## Approval
 
@@ -378,13 +374,14 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Implementation References
 
-- `scripts/rag/pipeline.py` — `RagPipeline.augment()`, `_format_chunks()` in `scripts/rag/stages/augment.py`
+- `scripts/rag/pipeline.py` — `RagPipeline.augment()`
+- `scripts/rag/augment.py` — `AugmentRefiner.run_http_augment()`
+- `scripts/rag/http_augment.py` — `HttpAugment.run()`
 - `scripts/rag/pipeline_service.py` — `call_rag_service()`
-- `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
-- `scripts/rag/stages/augment.py` — `AugmentStage.run()`
-- `rag.sqlite` — `documents`, `chunks`, `chunks_fts`, `chunks_vec`
-- Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`
-- Tests — `tests/rag/test_rag_pipeline.py`, `tests/rag/test_rag_pipeline_stage.py`
+- `scripts/rag/models_result.py` — `ResultSource`, `HttpResultKind`
+- `scripts/rag/stages/augment.py` — `AugmentStage.run()`, `_format_chunks()`
+- `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py` — pipeline configuration with an empty `rag_service_url`
+- Tests — `tests/rag/test_rag_http_mode.py`, `tests/rag/test_rag_pipeline_service.py`, `tests/rag/test_pipeline_http_result_kind.py`
 
 ## Completion Checklist
 
@@ -401,12 +398,11 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [x] Each Invariant has a corresponding Verification
+- [ ] Each Invariant has a corresponding Verification (INV-02, INV-08, INV-09, INV-10 have no automated test; INV-04 for 401/403 and INV-05 are only partly verified)
 - [x] Automatable verification does not rely only on Manual Review
-- [x] Migration, or the reason no migration is needed, is recorded
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [ ] Discrepancies with the current implementation are registered as Known Issues (the 401/403 Known Issue above is not yet registered in `governance_03_issue-and-uncertainty-management.md`)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
-- [ ] The ADR is registered in the ADR index and the Document Guides of related areas
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

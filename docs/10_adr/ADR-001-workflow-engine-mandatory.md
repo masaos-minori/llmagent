@@ -98,8 +98,6 @@ Inspecting and recovering partially completed tasks requires persisted task and 
 
 Tool execution should not depend solely on the LLM conversation state. Workflow management makes execution patterns consistently predictable and simplifies incident response.
 
-Do not use "the current code is implemented this way" as the sole reason for adoption.
-
 ## Alternatives Considered
 
 ### Alternative A: Direct tool execution without workflow
@@ -302,23 +300,16 @@ Rejected to prioritize Recoverability and Data Integrity, because state must per
 - Review of changes to the approval policy
 - Workflow definition validation before deployment
 
-Register any Invariant without Verification as an unverified item in an Issue.
-
 ## Implementation Notes
 
-Briefly describe how the current implementation realizes the Decision.
+- Startup preflight checks for the workflow definition file and the workflow DB schema run before `Orchestrator` construction and abort startup on failure (Explicit in code — `scripts/agent/startup_component_init.py`).
+- `Orchestrator` constructs the `WorkflowEngine` from the loaded workflow definition and routes turns through it (Explicit in code — `scripts/agent/orchestrator.py`).
 
-See Implementation References for the current file/symbol list.
-
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
+See Implementation References for the file/symbol list.
 
 ## Known Deviations
 
-No confirmed deviations.
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
+- **Known Issue**: AGENT-003 — tracked in governance_03 Part 1 (Orchestrator fallback mode when the workflow fails to load)
 
 ## Review Triggers
 
@@ -347,7 +338,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 
 ### Approval Record
 
-- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
@@ -365,6 +356,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/agent/workflow/workflow_loader.py` — `WorkflowLoader.load()`
 - `scripts/agent/workflow/state_store.py` — `StateStore.recover_stale_attempts()`
 - `scripts/agent/workflow/idempotency_ops.py` — `begin_stage_if_new()`
+- `scripts/agent/startup_component_init.py` — workflow definition and workflow DB schema preflight checks
 - `config/workflows/default.json` — workflow definition file
 - Tests — `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`
 

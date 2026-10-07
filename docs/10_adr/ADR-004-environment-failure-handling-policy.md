@@ -42,20 +42,19 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 
 ### Constraints
 
-- Execution on a single host in a single process is assumed
-- In the deployment environment, the existence of the workflow definition file must be confirmed before startup
-- There are no constraints from external protocols, libraries, or services
-- Security requirement: every operation with side effects must be traceable
-- Data integrity: approval state must persist across process boundaries
+- Execution on a single host with one Agent process and multiple MCP server processes is assumed
+- Startup validation of the Agent process runs before the Agent accepts work, so its outcome decides whether the process starts
+- Security requirement: safety/integrity failures must never be downgraded to warnings or partial availability
+- Operational requirement: the disabled state and reason of a non-mandatory component must be observable
 - Safety, validation, authentication, authorization, approval, Routing, and data integrity requirements must not be relaxed by choosing an environment name or changing the configuration
 
-### Assumptions
+## Assumptions
 
-- Target environment: single host, single Agent process
+- Target environment: single host, one Agent process and multiple MCP server processes
 - Expected scale: limited concurrency
-- Trust boundary: privileges granted only within the Agent process
-- External dependencies: none (workflow definition is a local file)
-- Re-evaluate if assumptions no longer hold: multi-host configuration, distributed execution, integration with an external workflow engine
+- Trust boundary: privileges granted only within each process
+- External dependencies: MCP servers, the Embedding service, external search and RAG services, and the Observability output destination (classified as mandatory or non-mandatory by the applicable Specification)
+- Re-evaluate if assumptions no longer hold: multi-host configuration, distributed execution, integration with an external orchestrator or service supervisor
 
 ## Decision
 
@@ -99,7 +98,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 
 21. Tools associated with a disabled component: must not be presented to LLM as executable; must not be Routable for new calls; must not be executable; must have observable disable reason.
 22. ADR-003 remains authority for `RuntimeToolRegistry`, Tool ownership, Routing, static availability, Dynamic Health, LLM visibility, separation of approval state, execution eligibility, Reload/Rediscovery behavior. This ADR defines only failure-handling consequences of how these concepts relate to component mandatoriness classification; does not redefine ADR-003's decisions.
-23. Drift validation using static `ToolRegistry` or `tool_names`, Routing fallback to static Registry, Routing by name inference not reintroduced.
+23. Routing decisions based on static `ToolRegistry` or `tool_names`, Routing fallback to static Registry, and Routing by name inference are not reintroduced. The permitted diagnostic use of the static `ToolRegistry` as startup Drift validation input is defined by ADR-003 Decision Detail #15.
 24. Distinguish between a component unavailable because of startup classification (disabled due to non-mandatory availability failure) and one dynamically unavailable after startup due to Dynamic Health. Former relates to ADR-003's "static availability" affecting LLM visibility/Routing eligibility. Latter relates to ADR-003's "Dynamic Health", affects only runtime success/failure, does not automatically change LLM visibility. This ADR does not merge/collapse this distinction defined by ADR-003.
 ### Group 10: Fallback Boundary
 
@@ -158,13 +157,12 @@ This section is maintained in the companion document: [Consequences](adr_04_fail
 - INV-15: Fallback is permitted only when another Accepted ADR explicitly defines it
 - INV-16: ADR-010 remains the authority for the approved RAG Fallback
 
-## Alignment with INV-01/INV-02
+### Alignment with INV-01 and INV-02
 
-The strict-default behavior enforces the Fail-Fast requirements of INV-01/INV-02 at startup time:
+The strict-default behavior enforces INV-01 and INV-02 at startup time:
 
-1. **INV-01**: Missing required config files cause immediate process termination (no silent-continue).
-2. **INV-02**: All processes enforce fail-closed behavior regardless of environment.
-3. **No environment-based relaxation**: The strict-default applies uniformly across all environments.
+1. **INV-01**: the same strict checks run in every environment; for example, a missing required configuration file (`agent.toml`) raises `ConfigMissingError` (Explicit in code — `scripts/shared/config_loader.py`).
+2. **INV-02**: `ProductionConfigValidator` rejects a configuration whose strict keys (`tool_definitions_strict`, `routing_drift_strict`) are not true, independent of any environment name (Explicit in code — `scripts/shared/production_config_validator.py`).
 
 ## Verification
 
@@ -172,19 +170,12 @@ This section is maintained in the companion document: [Verification](adr_04_fail
 
 ## Implementation Notes
 
-Briefly describe how the current implementation realizes the Decision.
-
-For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in `## Rationale`.
-
-Retry policy when an MCP server is unreachable: unreachable-handling paths (`mcp_health.py`, `scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`, adjacent files) contain no retry logic; the only retry implementation (`scripts/agent/http_lifecycle_health_checker.py::HealthChecker.startup_poll()`) has no callers. Owner confirmation: current no-retry behavior on these paths is the intended, settled policy.
-
-Not a basis for design decisions. Detailed APIs, Classes, and Functions listed in Implementation References.
-
-Do not record line numbers; reference by file path and symbol name.
+- For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale (companion document `adr_04_failure-handling-supporting-sections.md`).
+- Retry policy when an MCP server is unreachable: unreachable-handling paths (`scripts/shared/mcp_health.py`, `scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) contain no retry logic; the only retry implementation (`scripts/agent/http_lifecycle_health_checker.py::HealthChecker.startup_poll()`) has no callers (Explicit in code).
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: AGENT-003 — tracked in governance_03 Part 1 (Orchestrator fallback mode when the workflow fails to load)
 
 ## Review Triggers
 
@@ -197,7 +188,7 @@ Re-evaluate when:
 - External protocol/adopted library changed or discontinued
 - Failure history shows assumptions no longer valid
 - Reasons for rejecting an alternative no longer hold
-- Component mandatoriness classification logic changed to be environment-independent
+- Component mandatoriness classification criteria change
 - New Accepted ADR permitting Fallback added
 
 ## Approval
@@ -212,7 +203,7 @@ Re-evaluate when:
 
 ### Approval Record
 
-- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names not recorded)
+- **Approved By**: Task-level approval decision (repository owner; individual reviewer names not recorded)
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
@@ -222,7 +213,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - ADR-001: Mandatory Workflow Engine — missing/invalid Workflow → Fail-Fast
 - ADR-002: Per-Process Configuration Ownership and Config Isolation — Config Isolation violation → Fail-Fast
-- ADR-003: RuntimeToolRegistry as Sole Routing Authority — RuntimeToolRegistry init failure → Fail-Fast; authority for Tool visibility/Routing/Dynamic Health
+- ADR-003: RuntimeToolRegistry as the Sole Routing Authority — RuntimeToolRegistry init failure → Fail-Fast; authority for Tool visibility/Routing/Dynamic Health
 - ADR-010: In-Process Fallback When External RAG Execution Fails — sole Fallback this ADR permits
 
 ## Implementation References

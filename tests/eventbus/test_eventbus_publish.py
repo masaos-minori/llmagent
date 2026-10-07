@@ -138,9 +138,8 @@ def _ensure_prometheus_counters_registered() -> None:
     unregistered collectors (e.g. test_eventbus_route_helpers_metrics.py's
     client fixture), this ensures they're present before checking metrics.
     """
-    from prometheus_client import REGISTRY
-
     import eventbus.publish_route
+    from prometheus_client import REGISTRY
 
     for counter in (
         eventbus.publish_route._jsonl_append_failure_counter,
@@ -228,7 +227,7 @@ def test_broker_notify_failure_increments_metric(
 
 
 def test_concurrent_publish_ordering_via_seq(client: TestClient) -> None:
-    """INV-013: Concurrent publishes produce monotonically increasing seq values.
+    """Concurrent publishes produce monotonically increasing seq values.
 
     When multiple messages are published concurrently, the database assigns
     monotonically increasing sequence numbers. Responses reflect this ordering
@@ -266,7 +265,7 @@ def test_concurrent_publish_ordering_via_seq(client: TestClient) -> None:
 
 
 def test_sequential_publish_seq_matches_persistence_order(client: TestClient) -> None:
-    """INV-013: Sequential publishes produce seq matching DB insertion order.
+    """Sequential publishes produce seq matching DB insertion order.
 
     Publishing A then B must yield seq(A) < seq(B), confirming response
     ordering matches persistence order.

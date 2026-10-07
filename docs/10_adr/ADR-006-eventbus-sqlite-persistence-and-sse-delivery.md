@@ -51,7 +51,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 - Consumer IDs: client-specified, not server-generated
 - Offsets advance by ACK; no automatic advancement
 
-### Assumptions
+## Assumptions
 
 - Single host, single SQLite database
 - Limited concurrency
@@ -73,22 +73,21 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 8. Event IDs are assigned so that Consumers can process idempotently.
 9. At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not.
 10. The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
-11. Open items confirmed with code and tests, decision finalized:
+11. The following delivery rules apply:
     - Reject `new_offset <= current_offset` (Monotonicity Invariant); enforced by atomic SQL statement against per-consumer offset table
     - Prohibit concurrent use of same Consumer ID (Conflict Detection Required)
     - Detect Consumer ID collisions
     - ACK persistence failure → error response + no redelivery (Fail-Closed)
     - Unify DLQ promotion paths → inline promotion prioritized; background loop supplements
     - Replay-to-Live switch → Consumers must process idempotently by event_id
-12. Resolve Known Issue vs. API Reference contradiction on Offset monotonicity.
-13. If authentication not implemented, enforce Loopback/Unix Socket binding, firewall restrictions, and ban on external exposure.
-14. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. On resume, the position is the lowest unacknowledged `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1`; no unacknowledged event is skipped, and already-acknowledged events are fast-forwarded. Consumers need not ACK in strict `seq` order.
+12. Authentication and authorization of EventBus callers follow ADR-013. Independently of authentication, the EventBus accepts only a loopback bind address; a non-loopback host fails configuration validation. (Explicit in code — `scripts/eventbus/config.py` `_validate_deployment_mode()`)
+13. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. On resume, the position is the lowest unacknowledged `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1`; no unacknowledged event is skipped, and already-acknowledged events are fast-forwarded. Consumers need not ACK in strict `seq` order.
 
 ### Scope
 
 - **Target components**: `EventBroker`, `EventPublisher`, `EventSubscriber`, `OffsetManager`, `DlqService`
 - **Target processes**: the EventBus process
-- **Target data**: the `events` table, offset files, DLQ state
+- **Target data**: the `events` table, the `consumer_delivery` and `consumer_offsets` tables, DLQ state (`events.dlq_at` and deadletter files)
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `POST /publish`, `GET /subscribe`, `POST /events/{event_id}/ack`, `POST /nack`, `POST /dlq/{event_id}/requeue`
 
@@ -210,11 +209,12 @@ Security requires preventing unintended Event reception.
 - Duplicate Events must be handled
 - Cost of detecting Consumer ID collisions
 - Overhead of verifying Offset monotonicity
-- Authentication must be implemented
+- Authentication and authorization are a separate concern (ADR-013) that must stay consistent with this ADR
 
 ### Operational Consequences
 
-Not applicable (EventBus persistence has no RAG-style consistency check or rebuild command)
+- DLQ promotion happens inline on `POST /nack`, with a periodic background sweep as a safety net; a DLQ event is returned to delivery through `POST /dlq/{event_id}/requeue`.
+- Health state (database availability, DLQ task state) is exposed through the health endpoint.
 
 ### Security Consequences
 
@@ -237,12 +237,8 @@ Not applicable (EventBus persistence has no RAG-style consistency check or rebui
 - INV-12: When ACK persistence fails, an error response is returned and the Event is not redelivered.
 - INV-13: DLQ promotion prefers inline promotion; the background loop only supplements it.
 - INV-14: When switching from Replay to Live, Consumers are required to process idempotently by event_id.
-- INV-15: If authentication is not implemented, binding to Loopback or a Unix Socket, Firewall restrictions, and a ban on external exposure are technically enforced.
+- INV-15: The EventBus binds only to a loopback address; a non-loopback host fails configuration validation.
 - INV-16: The Delivery-State UPSERT and the Offset advancement in `ack_event_for_consumer()` are committed within a single transaction, and if either fails, both are rolled back.
-
-## Exceptions
-
-None
 
 ## Failure Policy
 
@@ -251,12 +247,13 @@ None
 - When a SQLite write fails (persistence failure)
 - When ACK persistence fails (risk of breaking idempotency)
 - When `new_offset <= current_offset` is violated (breaking monotonicity)
-- When a Consumer ID collision is detected (security risk)
+- When a second concurrent `GET /subscribe` uses a Consumer ID that is already connected (rejected with HTTP 409)
 
 ### Fail-Open or Degraded Conditions
 
 - None: ADR-004 defines a single common failure-handling policy, and no environment-specific downgrade to warnings exists
-- A JSONL archive write failure produces only a WARNING log (SQLite is healthy)
+- A JSONL archive write failure produces only a WARNING log and a failure metric (the Event is already committed to SQLite)
+- A broker notification failure after the commit is logged and counted; the Event stays persisted and is delivered by Replay (Explicit in code — `scripts/eventbus/publish_route.py` `publish()`)
 
 ### Retry Policy
 
@@ -264,20 +261,17 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ### Fallback Policy
 
-- Fallback targets: none
-- Fallback destination: none
-- Conditions that prohibit Fallback: consistency-check mismatches
-- Where Fallback reasons are recorded: audit log
+Not applicable (no Fallback exists: the JSONL archive is an audit log, not an alternative store, and neither it nor SSE delivery may stand in for a failed SQLite write)
 
 ## Data Ownership and Persistence
 
 - **System of Record**: the `events` table (SQLite)
-- **Derived Data**: the JSONL archive (secondary audit log), offset files
-- **Ownership**: EventBus team (owner of the canonical data)
+- **Derived Data**: the JSONL archive (secondary audit log), deadletter files (copies of DLQ-promoted Events)
+- **Ownership**: EventBus (owner of the canonical data)
 - **Persistence**: SQLite file system
 - **Transaction Boundary**: per Event
 - **Recovery Source**: SQLite (canonical store)
-- **Deletion Rule**: deleted after DLQ promotion (or by TTL-based cleanup)
+- **Deletion Rule**: the EventBus does not delete Events; DLQ promotion marks the `events` row (`dlq_at`) and writes a deadletter file (Explicit in code — `scripts/eventbus/dlq.py` `promote_single()`)
 
 ## Verification
 
@@ -287,46 +281,79 @@ Not applicable (this ADR defines no retry policy of its own)
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_publish.py::test_publish_inserts_event`
 
 - **Test**: Un-ACKed Events are Replayed on reconnection
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_unacked_event_replayed_on_reconnect`, `tests/eventbus/test_eventbus_restart_resume.py::TestOutOfOrderAckNoSkipOnReconnect::test_out_of_order_ack_no_skip_on_reconnect`
 
 - **Test**: Offsets do not move backward
   - **Verifies**: INV-05
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq`
 
 - **Test**: A failure to persist an ACK is not treated as success
   - **Verifies**: INV-12
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state` (the failure raises and nothing is committed; no HTTP-level test exists)
 
 - **Test**: Consumers can handle duplicates when switching between Replay and Live
   - **Verifies**: INV-14
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_subscribe_transition.py::TestReplayToLiveTransition::test_event_published_during_replay_delivered_via_live_push` (server-side Replay-to-Live transition; consumer-side idempotency is not testable here)
 
 - **Test**: Events move to the DLQ after the Retry limit
   - **Verifies**: INV-13
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPROMotionSemantics::test_dlq_promotion_when_delivery_failure_count_gte_max_retry`, `tests/eventbus/test_eventbus_dlq.py::test_inline_dlq_promotion_on_nack`
 
 - **Test**: Consumer ID collisions are detected
   - **Verifies**: INV-11
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_subscribe.py::test_subscribe_duplicate_consumer_id_returns_409`, `tests/eventbus/test_eventbus_broker.py::test_duplicate_consumer_id_rejected`
 
 - **Test**: `new_offset <= current_offset` is rejected
   - **Verifies**: INV-09
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq`
 
-- **Test**: The Delivery-State UPSERT and the Offset advancement are committed atomically within a single transaction (`tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state`)
+- **Test**: The Delivery-State UPSERT and the Offset advancement are committed atomically within a single transaction
   - **Verifies**: INV-16
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state`
+
+- **Test**: Identical retries return the original seq and conflicting retries are rejected without modifying stored data
+  - **Verifies**: INV-07
+  - **Type**: Integration
+  - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_publish.py::test_identical_content_retry_returns_same_seq`, `tests/eventbus/test_eventbus_publish.py::test_conflicting_content_retry_returns_409`
+
+- **Test**: NACK counters and requeue counters are persisted per Event
+  - **Verifies**: INV-08
+  - **Type**: Integration
+  - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPROMotionSemantics::test_nack_increments_delivery_failure_count`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPROMotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count`
+
+- **Test**: A non-loopback host is rejected at configuration validation
+  - **Verifies**: INV-15
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_config.py::test_non_loopback_host_raises_value_error`
+
+- **Test**: A publish whose JSONL append fails still succeeds after the SQLite commit (persistence precedes the secondary paths)
+  - **Verifies**: INV-02 (partial: no test injects a SQLite write failure on `POST /publish`)
+  - **Type**: Integration
+  - **Blocking**: Yes
+  - **Implementation**: `tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails`
 
 ### Startup Validation
 
@@ -348,20 +375,18 @@ Not applicable (this ADR defines no retry policy of its own)
 
 - Investigation of DLQ promotions
 - DB Schema verification before deployment
-
-Register any Invariant without Verification as an unverified item in an Issue.
+- INV-10 is verified for `GET /subscribe` only (EVENTBUS-013 tracks ACK/NACK)
+- INV-01 and INV-06 have no dedicated automated test (INV-01 is exercised indirectly by every persistence test; INV-06 is bounded by the envelope schema's `event_id` format check in `tests/eventbus/test_eventbus_publish_contract.py::TestPublishEnvelopeSchemaContract`)
 
 ## Implementation Notes
 
 - Transaction guarantee: see INV-16 (a single transaction inside `ack_event_for_consumer()`)
 - Monotonicity Enforcement: see INV-05, INV-09
-- Resume position: the lowest unacked `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1` (see Decision item 14)
+- Resume position: the lowest unacked `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1` (see Decision item 13)
 - Offset store: `consumer_delivery` tracks per-consumer delivery progress and `consumer_offsets` stores monotonic offsets; `ack_event_for_consumer()` updates both atomically. At startup, `migrate_legacy_offsets()` reads each offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; without a `.map` companion, the sanitized filename is the `consumer_id`.
 - INV-07 is enforced by content comparison logic in `insert_event()`: duplicate events cannot corrupt stored data; identical retries return the original seq, conflicting retries return HTTP 409.
 
 ## Known Deviations
-
-Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
 - **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (authentication model per ADR-013)
 - **Known Issue**: EVENTBUS-011 — tracked in governance_03 Part 1 (NACK on a concurrently deleted event)
@@ -377,12 +402,9 @@ Record any discrepancy between this ADR and the current implementation, configur
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-
-Add review conditions specific to this ADR.
-
-- Consumer ID collision detection becomes necessary
-- Authentication must be implemented
-- Persistent storage moves to something other than files
+- Consumer ID exclusivity must also be enforced on ACK and NACK (EVENTBUS-013)
+- The EventBus authentication model (ADR-013) changes
+- Persistent storage moves away from a single local SQLite database
 - A change from At-Least-Once Delivery to Exactly-Once Delivery becomes necessary
 
 ## Approval
@@ -411,14 +433,15 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Implementation References
 
-- `scripts/eventbus/broker.py` — `EventBroker.publish()`
+- `scripts/eventbus/broker.py` — `EventBroker.publish()`, `EventBroker.subscribe()`
 - `scripts/eventbus/publish_route.py` — `publish()`
 - `scripts/eventbus/subscribe_route.py` — `subscribe()`
 - `scripts/eventbus/delivery_repo.py` — `ack_event()`, `ack_event_for_consumer()`, `nack_event()`, `get_consumer_offset()`
 - `scripts/eventbus/event_repo.py` — `insert_event()`
 - `scripts/eventbus/offset_migrator.py` — `migrate_legacy_offsets()`
 - `scripts/eventbus/db.py` — facade that re-exports the functions above
-- `scripts/eventbus/dlq.py` — `promote_single()`
+- `scripts/eventbus/dlq.py` — `promote_single()`, `sweep_orphans()`
+- `scripts/eventbus/config.py` — `_validate_deployment_mode()`
 - `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
 - `events` table — `seq`, `event_id`, `topic`, `payload`, `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`
 - `consumer_delivery` table — `consumer_id`, `event_id`, `acked_at`, PRIMARY KEY `(consumer_id, event_id)`
@@ -442,12 +465,11 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [x] Each Invariant has a corresponding Verification
+- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, INV-06, and INV-10 lack a complete automated test; INV-10 is enforced on `GET /subscribe` only, see EVENTBUS-013)
 - [x] Automatable verification does not rely only on Manual Review
-- [x] Migration, or the reason no migration is needed, is recorded
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
-- [ ] The ADR is registered in the ADR index and the Document Guides of related areas
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

@@ -281,22 +281,52 @@ Where an ADR relies on a task-level approval decision, its Approval Record secti
 say so explicitly. It must not use `pending` for `Approved By` / `Approval Date` /
 `Approval Reference` (`pending` asserts that acceptance evidence is still outstanding,
 which is false once a task-level decision has been made), and must not fabricate a
-reviewer name, date, or reference that was never given.
+reviewer name, date, or reference that was never given. Approval records identify people by role (for example `repository owner`), never by personal name.
 
 ## ADR Change Protocol
 
 When the current architectural decision changes, update the current Accepted ADR
-directly rather than creating a new ADR. In the same change, update every
+directly rather than creating a new ADR. An edit that does not change the decision (wording, evidence, references) does not reopen approval; an edit that changes the decision needs a new approval record in the same change. In the same change, update every
 Guide, Reference, Operations document, and verification requirement that the
 changed decision affects.
 
 ## ADR Section Header Standardization
 
-All ADRs must use these section headers in order: Context (Problem, Constraints), Assumptions, Decision, Rationale, Alternatives Considered, Consequences (Positive/Negative), Invariants, Verification, Implementation Notes, Known Deviations, Review Triggers, Approval, Related ADRs, Implementation References, Completion Checklist.
+Every `ADR-NNN-*.md` uses these top-level (`##`) headings, in this order. Sections marked
+*conditional* are written only when the decision has that aspect; every other section is
+always present.
+
+1. Keywords (immediately after the H1)
+2. Status (`Proposed` or `Accepted`, see ADR Status Definitions)
+3. Summary
+4. Context (subsections: Problem, Constraints)
+5. Assumptions
+6. Decision
+7. Rationale
+8. Alternatives Considered
+9. Consequences (subsections: Positive Consequences, Negative Consequences)
+10. Invariants
+11. Exceptions *(conditional)*
+12. Failure Policy *(conditional)*
+13. Data Ownership and Persistence *(conditional)*
+14. Verification
+15. Implementation Notes
+16. Known Deviations
+17. Review Triggers
+18. Approval
+19. Related ADRs
+20. Implementation References
+21. Completion Checklist
+
+No other top-level heading is allowed: additional material goes under a subsection of the section it belongs to.
+Template instruction text (for example "Briefly describe ...", "Add review conditions ...") is never left in an ADR body.
+A required section with nothing to say contains exactly "Not applicable".
+Cross-references to a decision use the decision's own wording or its position in the numbered Decision list, never a number that the Decision section does not carry.
+
+Invariant IDs are ADR-local: `INV-NN` (two digits, numbered from `INV-01` within each ADR). Outside the owning ADR, cite them as `ADR-NNN INV-NN`. There is no global invariant numbering.
 
 Duplicate notes shared across all ADRs:
 - This chapter is not a basis for design decisions.
-- If not applicable, write "Not applicable".
 - Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 The ADR list, dependency graph, and invariant verification matrix are maintained in

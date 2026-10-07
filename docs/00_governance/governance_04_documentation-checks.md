@@ -247,23 +247,9 @@ Notation: write the label in parentheses, optionally followed by an em dash and 
 
 ### 17. ADR Section Header Compliance
 
-All ADRs must use the following section headers in this order:
+The heading list, heading order, template-instruction residue and global `INV-NNN` ids are verified automatically by `check_adr_structure.py` (section ADR Structure Check above). The review below covers what the tool cannot check.
 
-1. Context (Problem, Constraints)
-2. Assumptions
-3. Decision
-4. Rationale
-5. Alternatives Considered
-6. Consequences (Positive Consequences, Negative Consequences)
-7. Invariants (non-negotiable constraints)
-8. Verification
-9. Implementation Notes
-10. Known Deviations
-11. Review Triggers
-12. Approval
-13. Related ADRs
-14. Implementation References
-15. Completion Checklist
+The required headings and their order are defined once, in the Policy's ADR Section Header Standardization.
 
 See [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization) for duplicate notes shared across all ADRs.
 

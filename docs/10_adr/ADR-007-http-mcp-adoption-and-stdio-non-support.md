@@ -36,7 +36,7 @@ Accepted
 
 ## Summary
 
-This ADR unifies the official Transport between the Agent and MCP servers on HTTP and canonicalizes the decision not to use stdio, together with its operation and safety conditions. It distinguishes subprocess startup from the Tool Transport and defines the responsibilities for Timeout, Retry, and Health Check. It records the authentication and TLS requirements for remote exposure. Remaining references to stdio are removed or marked Deprecated.
+This ADR unifies the official Transport between the Agent and MCP servers on HTTP and canonicalizes the decision not to use stdio, together with its operation and safety conditions. It distinguishes subprocess startup from the Tool Transport and defines the responsibilities for Timeout, Retry, and Health Check. It records that MCP servers bind to loopback only, are authenticated with a Bearer token, and that exposure beyond localhost is not supported. The stdio transport value is rejected at configuration load.
 
 ## Context
 
@@ -47,12 +47,12 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 ### Constraints
 
 - Execution on a single host with multiple processes is assumed
-- In the deployment environment, the existence of each MCP server's configuration file must be confirmed before startup
-- Security requirement: Secrets must be exposed only to the processes that need them
-- Data integrity: each MCP server's configuration must be managed independently
-- Operational requirement: the impact scope and restart targets of a configuration change must be determinable per owning process
+- Each MCP server runs as its own process with its own configuration file (ADR-002)
+- Security requirement: MCP servers accept only authenticated requests and bind only to a loopback address
+- Operational requirement: MCP servers must be startable, stoppable, and health-checkable independently of the Agent
+- The MCP servers' startup mode (external persistent or Agent-launched subprocess) must not change the Tool transport
 
-### Assumptions
+## Assumptions
 
 - Target environment: a single host, multiple processes
 - Expected scale: limited concurrency
@@ -69,11 +69,11 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 3. Even with subprocess startup, Tool communication after startup is over HTTP.
 4. The Agent does not use stdin/stdout for MCP Tool communication.
 5. There is no Fallback to the stdio Transport.
-6. Where stdio remains in configuration Schemas or documents, it is removed or marked Deprecated.
+6. stdio is not a valid transport value: the configuration schema accepts only `http`. (Explicit in code — `scripts/shared/mcp_config.py` `TransportType`)
 7. Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
 8. MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
-9. Exposure beyond localhost requires authentication and TLS.
-10. Record the reasons for prioritizing fault isolation, operational monitoring, independent deployment, and placement on separate hosts over the cost of HTTP Serialization and Socket communication.
+9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`)
+10. Fault isolation, operational monitoring, independent deployment, and placement on separate hosts take priority over the cost of HTTP Serialization and Socket communication.
 
 ### Scope
 
@@ -103,8 +103,6 @@ With HTTP, security controls through authentication (Bearer Token) and TLS becom
 ### 3. Third Reason for Adoption — Portability
 
 With HTTP, placement on separate hosts becomes possible. Even if an MCP server is deployed on a separate host, it can communicate with the same protocol.
-
-Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -209,18 +207,14 @@ Rejected to prioritize Security and prevent unauthenticated access.
 
 ### Operational Consequences
 
-- The existence of each MCP server's configuration file must be confirmed at startup
+- A Health Check of each MCP server is evaluated at startup and its liveness state is tracked at runtime
 - A configuration change requires restarting the owning process
-- Incident response requires investigating configuration files
-
-If not applicable, write "Not applicable".
+- Incident response starts from the MCP server's Health Check result and its configuration file
 
 ### Security Consequences
 
 - Trust boundary: privileges are granted only within each process
 - Secret handling: follow the principle of minimal exposure
-
-If not applicable, write "Not applicable".
 
 ## Invariants
 
@@ -229,28 +223,25 @@ If not applicable, write "Not applicable".
 - INV-03: Even with subprocess startup, Tool communication after startup is over HTTP.
 - INV-04: The Agent does not use stdin/stdout for MCP Tool communication.
 - INV-05: There is no Fallback to the stdio Transport.
-- INV-06: Where stdio remains in configuration Schemas or documents, it is removed or marked Deprecated.
+- INV-06: stdio is not a valid transport value in the configuration schema.
 - INV-07: Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
 - INV-08: MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
-- INV-09: Exposure beyond localhost requires authentication and TLS.
+- INV-09: MCP servers bind only to a loopback address and require a non-empty authentication token; exposure beyond localhost is not supported.
 - INV-10: Fault isolation, operational monitoring, independent deployment, and placement on separate hosts take priority over the cost of HTTP Serialization and Socket communication.
 - INV-11: The names of the MCP server liveness states managed by McpServerHealthRegistry (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN) are not changed implicitly, because multiple callers outside the Transport layer compare them directly.
-
-## Exceptions
-
-None
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
 - When a required (mandatory) MCP server Health Check fails at startup
-- When authentication token validation fails
-- When TLS certificate validation fails
+- When an MCP server configuration has an empty authentication token (startup validation)
+- When an MCP server is configured to bind to a non-loopback address (`run_http()` raises)
+- When the configuration names an unsupported transport (such as stdio)
 
 ### Fail-Open or Degraded Conditions
 
-- A non-mandatory MCP server that is unavailable is disabled and startup continues in a partial-availability state (ADR-004 Decision 18)
+- A non-mandatory MCP server that is unavailable is disabled and startup continues in a partial-availability state (ADR-004: an availability failure of a non-mandatory component disables it and startup continues in a partial-availability state)
 
 ### Retry Policy
 
@@ -259,28 +250,19 @@ None
 - Backoff: increasing delay between attempts (`scripts/shared/http_transport.py`)
 - Errors not retried: timeouts, other HTTP status codes
 
-If not applicable, write "Not applicable".
-
 ### Fallback Policy
 
-- Fallback targets: none
-- Fallback destination: none
-- Conditions that prohibit Fallback: falling back to stdio
-- Where Fallback reasons are recorded: audit log
-
-If not applicable, write "Not applicable".
+Not applicable (no Fallback exists; in particular, falling back to stdio is prohibited, see INV-05)
 
 ## Data Ownership and Persistence
 
 - **System of Record**: MCP configuration files (TOML format)
-- **Derived Data**: regenerable derived data (SHA256 checksums of configuration files)
-- **Ownership**: MCP team (owner of the configuration files)
+- **Derived Data**: none
+- **Ownership**: the owning MCP server process (owner of its configuration file, see ADR-002)
 - **Persistence**: file system (`config/` directory)
 - **Transaction Boundary**: per configuration-file load
 - **Recovery Source**: configuration files (manual recovery)
 - **Deletion Rule**: deleting a configuration file requires restarting the related processes
-
-If not applicable, write "Not applicable".
 
 ## Verification
 
@@ -290,26 +272,37 @@ If not applicable, write "Not applicable".
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected` (the only transport value is `http`, for every startup mode)
 
 - **Test**: Tool Call Timeouts and Transport Errors are converted into common errors
   - **Verifies**: INV-07
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Implementation**: `tests/shared/test_tool_transport_invoker.py::TestToolTransportInvoker::test_transport_error_returns_error_type_transport`, `tests/integration/test_mcp_transport_crash.py::test_d05_http_timeout_races_lifecycle_termination`
 
 - **Test**: Health Checks are also usable from outside the Agent
   - **Verifies**: INV-08
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/agent/test_http_lifecycle_health_check.py`
 
 - **Test**: No path references stdio as a runtime Transport
   - **Verifies**: INV-04
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Implementation**: `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected`, `tests/shared/test_mcp_config.py` (`test_unsupported_transport_raises_from_toml`)
 
-- **Test**: Circuit Breaker state transitions (reaching the DEGRADED/UNAVAILABLE thresholds, the HALF_OPEN cooldown, returning to UNAVAILABLE on a HALF_OPEN failure) behave as specified (`tests/shared/test_mcp_health.py`)
+- **Test**: Circuit Breaker state transitions (reaching the DEGRADED/UNAVAILABLE thresholds, the HALF_OPEN cooldown, returning to UNAVAILABLE on a HALF_OPEN failure) behave as specified
   - **Verifies**: INV-11
   - **Type**: Unit
   - **Blocking**: Yes
+  - **Implementation**: `tests/shared/test_mcp_health.py`
+
+- **Test**: A non-loopback bind address is rejected by `run_http()`
+  - **Verifies**: INV-09
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Implementation**: `tests/mcp_servers/test_mcp_server_base.py::TestBindAddressValidation::test_private_lan_rejected`
 
 ### Startup Validation
 
@@ -322,29 +315,25 @@ If not applicable, write "Not applicable".
 ### Runtime Monitoring
 
 - Health Check: MCP server liveness state managed by `McpServerHealthRegistry` (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN)
-- Degraded condition: a non-mandatory MCP server is unavailable (ADR-004 Decision 18)
-
-If not applicable, write "Not applicable".
+- Degraded condition: a non-mandatory MCP server is unavailable (ADR-004: availability failure of a non-mandatory component)
 
 ### Manual Review
 
 - Review of MCP server Health Check failures
-
-Register any Invariant without Verification as an unverified item in an Issue.
+- INV-01, INV-02, INV-10 have no dedicated automated test (they are structural properties of the transport and server base classes)
 
 ## Implementation Notes
 
-Briefly describe how the current implementation realizes the Decision.
+- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding and a Bearer-token authentication middleware.
+- `HttpTransport.call()` posts to `/v1/call_tool` with a bounded retry for 429/502/503/504; timeouts and other HTTP status errors surface as `TransportError`.
+- `ToolTransportInvoker.invoke()` applies the per-server Semaphore and records success or failure in `McpServerHealthRegistry`.
+- `TransportType` accepts only `http`; the startup mode (`none`, `persistent`, `subprocess`) selects how the process is launched, not the transport.
 
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
+This chapter is not a basis for design decisions. See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
-
-Not applicable
+No confirmed deviations.
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -359,12 +348,8 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-
-Add review conditions specific to this ADR.
-
 - The MCP standard officially supports Transports other than stdio
-- TLS/mTLS implementation becomes necessary
-- Persistent storage moves to something other than files
+- Exposure of an MCP server beyond localhost becomes necessary (authentication and TLS/mTLS would then have to be designed)
 - Fault isolation is no longer needed
 
 ## Approval
@@ -393,7 +378,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 ## Implementation References
 
 - `scripts/mcp_servers/server.py` — `MCPServer.run_http()`
-- `scripts/shared/http_transport.py` — `HttpTransport.call_tool()`
+- `scripts/shared/http_transport.py` — `HttpTransport.call()`
 - `scripts/shared/tool_transport_invoker.py` — `ToolTransportInvoker.invoke()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry.record_failure()`
 - `config/*_mcp_server.toml` — MCP server configuration files, authentication tokens (environment variables or secret files)
@@ -415,12 +400,11 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [x] Each Invariant has a corresponding Verification
+- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, INV-10 have no automated test)
 - [x] Automatable verification does not rely only on Manual Review
-- [x] Migration, or the reason no migration is needed, is recorded
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
-- [ ] The ADR is registered in the ADR index and the Document Guides of related areas
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

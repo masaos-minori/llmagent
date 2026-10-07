@@ -3,7 +3,7 @@
 
 `docs/10_adr/adr-index.md`'s "## ADR Invariant Verification Matrix" table sometimes
 cites a `scripts/<path>.py` source file directly in a row's `Verification
-Status` cell (e.g. `` `scripts/agent/startup.py` `` for INV-011/ADR-004) as
+Status` cell (e.g. `` `scripts/agent/startup.py` `` for ADR-004 INV-07) as
 the implementation evidence for that invariant. This check requires that any
 such named source file contain an inline reference to the row's ADR ID
 (e.g. `ADR-004`) somewhere in its text — so a reader opening the file can

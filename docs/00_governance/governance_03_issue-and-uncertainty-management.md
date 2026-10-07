@@ -31,77 +31,103 @@ applies to the current system; it is not retained here with a closed-out status.
 
 ### Type Values
 
-- **document-code-mismatch** — Documentation contradicts code behavior
-- **document-document-mismatch** — Two documents contradict each other
-- **obsolete-description** — Description refers to removed/deprecated feature
-- **missing-documentation** — Feature exists without documentation
-- **ambiguous-behavior** — Behavior unclear due to insufficient specification
-- **implementation-bug** — Code does not match documented intent
-- **design-gap** — Missing design consideration
-- **operational-gap** — Missing operational guidance
+document-code-mismatch, document-document-mismatch, obsolete-description, missing-documentation, ambiguous-behavior, implementation-bug (code does not match documented intent), design-gap, operational-gap.
 
 ### Severity Values
 
-- **High** — Requires immediate attention; affects safety or critical functionality
-- **Medium** — Should be addressed soon; affects correctness or clarity
-- **Low** — Can be deferred; minor inconsistency or formatting issue
+High (safety or critical functionality; immediate attention), Medium (correctness or clarity; address soon), Low (minor inconsistency; can be deferred).
 
 ### Owner Values
 
-- **Unassigned** — No owner assigned
-- **[Name]** — Assigned to specific person
-- **Team** — Assigned to team decision
+Unassigned, a specific person (`[Name]`), or Team.
 
 ### Area Values
 
 Overview, Deployment, RAG, MCP, Agent, EventBus, Shared/DB, Governance
 
-### Lifecycle
-
-Open → Investigating → Deferred, or removed from this inventory once resolved or no
-longer applicable to the current system.
-
 ### Review Cadence
 
-Part 1 entries are reviewed quarterly, consistent with the cadence documented for Part 2 Needs Confirmation items and "Proposed" ADRs in `docs/00_governance/governance_01_documentation-policy.md` under `## Maintenance Rules`.
+Part 1 entries are reviewed quarterly, as are Part 2 items and "Proposed" ADRs (`governance_01_documentation-policy.md`, Maintenance Rules).
 
 ### Active Items
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
-| ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
-|----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
-| DESIGN-001 | ADR-002 Agent required-keys row lists keys absent from config/agent.toml | open | Low | Governance | document-code-mismatch | `ADR-002` | Unassigned | Documentation review | Agent row names keys absent from `config/agent.toml` | `ADR-002` |
-| AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap | `config/workflows/default.json` | Unassigned | Documentation review | Default workflow sets `require_approval` false; policy not enforced | `agent_03` |
-| AGENT-002 | No regression test for ADR-014 INV-024 | open | Low | Agent | operational-gap | `scripts/agent/orchestrator.py` | Unassigned | Documentation review | INV-024 is verified only by code inspection | `ADR-014` |
-| MCP-001 | git-mcp audit records are never emitted | open | Medium | MCP | implementation-bug | `scripts/mcp_servers/git/git_server.py` | Unassigned | Documentation review | `_audit_log()` rejects the keywords `call_tool` passes; no audit record | `mcp_04`, `ADR-012` |
-| MCP-002 | git_pull and git_push schema contradicts the protected-branch validation | open | Medium | MCP | implementation-bug | `scripts/mcp_servers/git/git_tools.py` | Unassigned | Documentation review | Schema allows an empty `branch`; validation rejects it | `mcp_04` |
-| MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug | `config/cicd_mcp_server.toml` | Unassigned | Documentation review | Allowlist holds `owner/repo/.github/workflows/ci.yml` but requests carry a file name | `mcp_05` |
-| DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap | `deploy/setup_services.sh` | Unassigned | Documentation review | No repository script starts `embed-llm`/`agent-llm` | `deployment_01` |
-| EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | CONSUMER token without an allowlist is unrestricted (fail-open) | `ADR-013` |
-| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | Concurrent delete during NACK yields 409 instead of 404 | `ADR-006` |
-| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug | `scripts/eventbus/delivery_repo.py` | Unassigned | Documentation review | No idempotency guard: repeated NACKs keep incrementing counters | `eventbus_05` |
-| EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap | `scripts/eventbus/ack_route.py` | Unassigned | Documentation review | `/ack` and `/nack` do not enforce Consumer ID exclusivity | `ADR-006`, `eventbus_05` |
+| ID | Title | Status | Severity | Area | Type |
+|----|-------|--------|----------|------|------|
+| RAG-001 | HTTP 401/403 from the RAG service still falls back to the in-process pipeline | open | Medium | RAG | implementation-bug |
+| RAG-002 | Japanese sentences with empty normalized text are dropped with their original text | open | Low | RAG | implementation-bug |
+| AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap |
+| AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
+| AGENT-003 | Orchestrator continues in fallback mode when the workflow fails to load | open | Medium | Agent | design-gap |
+| MCP-001 | git-mcp audit records are never emitted | open | Medium | MCP | implementation-bug |
+| MCP-002 | git_pull and git_push schema contradicts the protected-branch validation | open | Medium | MCP | implementation-bug |
+| MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
+| DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
+| EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
+| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug |
+| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug |
+| EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap |
 
-#### DESIGN-001
+#### AGENT-003
 
-- **ID**: DESIGN-001
-- **Title**: ADR-002 Agent required-keys row lists keys absent from config/agent.toml
+- **ID**: AGENT-003
+- **Title**: Orchestrator continues in fallback mode when the workflow fails to load
 - **Status**: open
-- **Severity**: Low
-- **Area**: Governance
-- **Type**: document-code-mismatch
-- **Source**: `docs/10_adr/ADR-002-config-isolation.md`
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/orchestrator.py`
 - **Owner**: Unassigned
 - **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-002-config-isolation.md`
+- **Target**: `docs/10_adr/ADR-001-workflow-engine-mandatory.md`
+- **Related**: `docs/10_adr/ADR-004-environment-failure-handling-policy.md`
+- **Summary**: `Orchestrator.__init__()` catches workflow load errors and runs with a stage-less workflow.
+- **Current Description**: ADR-001 and ADR-004 require startup to abort.
+- **Observed Implementation**: The preflight normally aborts first; otherwise the REPL starts in fallback mode.
+- **Impact**: The agent runs without workflow features.
+- **Recommended Action**: Abort startup on load failure, or record the exception in the ADRs.
+- **Resolution Target**: Startup aborts, or the ADRs record the exception.
+
+#### RAG-001
+
+- **ID**: RAG-001
+- **Title**: HTTP 401/403 from the RAG service still falls back to the in-process pipeline
+- **Status**: open
+- **Severity**: Medium
+- **Area**: RAG
+- **Type**: implementation-bug
+- **Source**: `scripts/rag/pipeline_service.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/ADR-010-rag-fallback.md`
 - **Related**: None
-- **Summary**: The Agent row of the per-process key table names keys that `config/agent.toml` does not contain.
-- **Current Description**: The other rows were corrected against their files; this one was not.
-- **Observed Implementation**: About a dozen listed keys appear nowhere in `config/agent.toml` (for example `title_llm_temperature`, `security_profile`).
-- **Impact**: Required keys for the Agent are unclear to readers.
-- **Recommended Action**: Verify each key against the builders and fix the row.
-- **Resolution Target**: The Agent row matches `config/agent.toml` and the builders.
+- **Summary**: ADR-010 forbids falling back on 401/403, but the code falls back.
+- **Current Description**: Decision 6 and INV-04 say authentication failures do not fall back.
+- **Observed Implementation**: `call_rag_service()` returns `None` for 401/403; `HttpAugment.run()` reports it as `in_process_fallback`; the pipeline then runs in-process. A mocked 401 confirmed this.
+- **Impact**: Authentication failures are hidden behind a local result.
+- **Recommended Action**: Surface `AUTH_ERROR` and skip the fallback, then test the caller-level behavior.
+- **Resolution Target**: A 401/403 produces `AUTH_ERROR` with no fallback, covered by a test.
+
+#### RAG-002
+
+- **ID**: RAG-002
+- **Title**: Japanese sentences with empty normalized text are dropped with their original text
+- **Status**: open
+- **Severity**: Low
+- **Area**: RAG
+- **Type**: implementation-bug
+- **Source**: `scripts/rag/ingestion/chunk_japanese.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/ADR-009-rag-ft5-text-separation.md`
+- **Related**: None
+- **Summary**: Sentences that normalize to nothing are dropped, so `content` is lost for them.
+- **Current Description**: ADR-009 INV-05 says normalization never costs original text.
+- **Observed Implementation**: `_split_into_ja_sentences()` drops a pair whose normalized text is empty, together with the original sentence.
+- **Impact**: Original text of such sentences is missing from the index.
+- **Recommended Action**: Keep the original sentence in `content` when normalization is empty.
+- **Resolution Target**: `content` keeps every original sentence, covered by a test.
 
 #### AGENT-001
 
@@ -126,7 +152,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 #### AGENT-002
 
 - **ID**: AGENT-002
-- **Title**: No regression test for ADR-014 INV-024
+- **Title**: No regression test for ADR-014 INV-02
 - **Status**: open
 - **Severity**: Low
 - **Area**: Agent
@@ -136,12 +162,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/ADR-014-agent-control-plane-responsibility-boundaries.md`
 - **Related**: None
-- **Summary**: INV-024 (only the component that drives the LLM/tool-call loop creates `LlmTurnExecutor`) has no automated test.
+- **Summary**: ADR-014 INV-02 (only the component that drives the LLM/tool-call loop creates `LlmTurnExecutor`) has no automated test.
 - **Current Description**: ADR-014 lists the test as not yet written.
 - **Observed Implementation**: `Orchestrator.__init__` creates only `_llm_executor` and passes it to the workflow adapter; no test asserts this.
 - **Impact**: A regression could go unnoticed.
 - **Recommended Action**: Add a unit test that `Orchestrator` constructs exactly one `LlmTurnExecutor`.
-- **Resolution Target**: A test covers INV-024.
+- **Resolution Target**: A test covers ADR-014 INV-02.
 
 #### MCP-001
 
@@ -310,7 +336,7 @@ Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable i
 
 ### Purpose
 
-A centralized inventory of all "Needs confirmation" items found across the design documentation set. It makes unconfirmed statements trackable and actionable, preventing them from being silently accepted as facts.
+An inventory of active "Needs confirmation" items, so unconfirmed statements are tracked rather than silently accepted as facts.
 
 ### Inventory Entry Fields
 
@@ -347,7 +373,7 @@ No active Needs Confirmation items remain.
 
 ### Purpose
 
-A centralized inventory of all canonical source conflicts found across the design documentation set. It makes conflicting claims trackable and actionable, preventing them from being silently accepted as facts.
+An inventory of active canonical source conflicts, so conflicting claims are tracked rather than silently accepted.
 
 ### Entry Template
 
@@ -360,14 +386,6 @@ Each active Canonical Source Conflict entry must contain these 12 fields: ID, De
 
 An item is removed from this active inventory once it is resolved (exactly one normative source remains and validation evidence confirms the conflict is closed) or no longer applies to the current system; it is not retained here with a closed-out status.
 
-### Resolution Rule
-
-Canonical Source Conflict resolved only when exactly one normative source remains registered.
-
-### Evidence-Required Rule
-
-Evidence is required before any discrepancy is reclassified or removed; a documentation-only edit cannot close a design-vs-code conflict unless required implementation evidence exists.
-
 ### Active Items
 
 No other active Canonical Source Conflict items remain open.
@@ -376,7 +394,7 @@ No other active Canonical Source Conflict items remain open.
 
 ### Purpose
 
-A minimal inventory of discrepancies between deployed operational values and approved operational values. Tracks configuration drift that may affect behavior without changing the approved value.
+An inventory of discrepancies between deployed and approved operational values.
 
 ### Entry Template
 
@@ -389,14 +407,6 @@ Each active Configuration Drift entry must contain these 6 fields: ID, Decision 
 
 An item is removed from this active inventory once it is resolved (deployed and approved values agree, or the approved value has been formally changed) or no longer applies to the current system; it is not retained here with a closed-out status.
 
-### Resolution Rule
-
-Configuration Drift resolved only when deployed and approved values agree, or approved value is formally changed.
-
-### Evidence-Required Rule
-
-Evidence is required before any discrepancy is reclassified or removed.
-
 ## Resolution Rules
 
 The following resolution criteria apply across all four parts of this document:
@@ -406,6 +416,7 @@ The following resolution criteria apply across all four parts of this document:
 - Needs Confirmation removed only after evidence establishes intent and the canonical source is updated
 - Canonical Source Conflict resolved only when exactly one normative source remains registered
 - Documentation correction complete only when validation shows no stale statement remains
+- Evidence is required before any discrepancy is reclassified or removed; a documentation-only edit cannot close a design-vs-code conflict without implementation evidence
 
 ## Temporary Exception Process
 
@@ -418,13 +429,7 @@ excepted is not a complete review (see `docs/00_governance/governance_04_documen
 
 ### Exception Record Fields
 
-A temporary exception must record all three of:
-- **Reason**: why the finding is not being fixed now (e.g. the flagged usage is
-  intentional and pending a separate follow-up issue).
-- **Owner**: who accepted the exception — a specific person, not `Team` or
-  `Unassigned`.
-- **Expiration Date**: the date by which the exception must be re-reviewed or the
-  underlying finding fixed. An exception with no expiration date is not valid.
+A temporary exception records a **Reason** (why the finding is not fixed now), an **Owner** (the person who accepted it; not `Team` or `Unassigned`) and an **Expiration Date** (when it must be re-reviewed or fixed; an exception without one is not valid).
 
 ### Recording an Exception
 

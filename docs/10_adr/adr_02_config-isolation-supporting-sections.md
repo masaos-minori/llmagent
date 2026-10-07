@@ -107,15 +107,13 @@ Rejected to prioritize Security and prevent configuration leakage across process
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
-- **Status**: Confirmed — `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error` verifies Config Isolation fail-closed; `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to` verifies ConfigLoader.restrict_to call path
-  - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys`, `tests/mcp_servers/test_config_isolation_fail_closed.py`
+  - **Citation**: `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_allows_authorized`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error`, `tests/mcp_servers/test_config_isolation_fail_closed.py`
 
 - **Test**: Access to non-permitted configuration files is rejected
   - **Verifies**: INV-02
   - **Type**: Regression
   - **Blocking**: Yes
-- **Status**: Confirmed — `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorUnknownTopLevelKeys` verifies unknown-key rejection in production config validation
-  - **Citation**: `tests/shared/test_production_config_validator.py::TestProductionConfigValidatorSecurityProfileEnum`, `tests/mcp_servers/test_config_isolation_fail_closed.py`
+  - **Citation**: `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_denies_unauthorized`, `tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error`
 
 - **Test**: An MCP server can start standalone without agent.toml
   - **Verifies**: INV-03
@@ -139,17 +137,13 @@ Rejected to prioritize Security and prevent configuration leakage across process
 
 ### Runtime Monitoring
 
-- Health Check: confirmation that configuration files loaded successfully
-- Metrics: configuration file loading events
-- Logs: configuration loading events, error events
-- Alert conditions: configuration file loading failure, configuration file syntax error
+- `ConfigLoader` emits no metric or audit event for configuration loading; a missing or invalid configuration file surfaces as a startup failure of the owning process
+- Alert conditions: process startup failure caused by a configuration file error
 
 ### Manual Review
 
 - Review of configuration file changes
 - Configuration file validation before deployment
-
-Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Known Deviations
 

@@ -41,8 +41,6 @@ Uniformly aborting all of startup even for availability failures of non-mandator
 
 Making the reasons for component disabling and partial availability explicitly observable prevents unavailable functions from appearing available and makes incident response easier.
 
-Do not use "the current code is implemented this way" as the sole reason for adoption.
-
 ### 6. Non-Persistence of Startup Validation Results
 
 The startup validation results built by `StartupOrchestrator` are an in-memory aggregate rebuilt at every process startup, intentionally not persisted. Keeping a history of past startups is outside the scope of this Decision; only the decision at each startup is valid.
@@ -263,7 +261,7 @@ Rejected to prioritize Predictability and Maintainability, because static classi
 
 - Review of changes to the failure policy
 - Review of component mandatoriness classification
-- No automated test directly verifies INV-01 (single common failure handling policy)
+- No automated test directly verifies INV-01 (single common failure handling policy); INV-02 and INV-13 have no dedicated entry in the list above
 - INV-14 (no startup continuation with undefined mandatoriness) verified by unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`)
 - INV-15/INV-16 cross-cutting audit (no ADR-004-scope fallback outside ADR-010):
   - **Why not automated**: "fallback" appears throughout production code in defensive patterns (default-value substitution, best-effort cleanup) not Destination substitution; pattern-based detector would produce unmanageable false positives. Only ADR-010 marker uniqueness automated (`TestFallbackMarkerLockGuard`).
@@ -274,8 +272,6 @@ Rejected to prioritize Predictability and Maintainability, because static classi
     - **Path 2** (`retriever.py` vector-to-FTS degradation): option (a) — accepted current behavior. Rationale: vector→FTS is a within-database mode switch (both modes read the same `memories` table), not a Destination substitution; therefore outside ADR-004 scope. No behavioral change required.
   - **Cadence**: at each release review, and whenever a change introduces new fallback or Destination substitution.
   - **Owner**: not yet assigned; cross-cutting ownership decision remains open in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`.
-
-Register any Invariant without Verification as an unverified item in an Issue.
 
 ## Known Deviations
 

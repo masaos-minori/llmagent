@@ -1,7 +1,7 @@
 """tests/agent/test_failure_handling_policy_cross_cutting.py
 
 Cross-cutting tests for ADR-004 environment failure handling policy.
-Covers INV-010 and INV-011.
+Covers ADR-004 INV-01, INV-02, INV-07 and INV-10.
 """
 
 from __future__ import annotations
@@ -55,7 +55,7 @@ def _patch_cicd():
 
 class TestFailureHandlingPolicy:
     def test_shell_config_failure_production_raises(self) -> None:
-        """INV-010: shell config load failure raises RuntimeError in production."""
+        """ADR-004 INV-01/INV-02: shell config load failure raises RuntimeError in production."""
         ctx = _make_ctx()
         with patch(
             "agent.services.security_audit.load_shell_audit_config",
@@ -67,7 +67,7 @@ class TestFailureHandlingPolicy:
                 audit_security_defaults(ctx)
 
     def test_git_config_failure_production_raises(self) -> None:
-        """INV-010: git config load failure raises RuntimeError in production."""
+        """ADR-004 INV-01/INV-02: git config load failure raises RuntimeError in production."""
         ctx = _make_ctx()
         with patch(
             "agent.services.security_audit.load_shell_audit_config",
@@ -84,7 +84,7 @@ class TestFailureHandlingPolicy:
                         audit_security_defaults(ctx)
 
     def test_github_config_failure_production_raises(self) -> None:
-        """INV-010: GitHub config load failure raises RuntimeError in production."""
+        """ADR-004 INV-01/INV-02: GitHub config load failure raises RuntimeError in production."""
         ctx = _make_ctx()
         with patch(
             "agent.services.security_audit.load_shell_audit_config",
@@ -105,7 +105,7 @@ class TestFailureHandlingPolicy:
                             audit_security_defaults(ctx)
 
     def test_lockdown_does_not_suppress_production_failure(self) -> None:
-        """INV-011: lockdown mode does not suppress config load failures."""
+        """ADR-004 INV-07/INV-10: lockdown mode does not suppress config load failures."""
         ctx = _make_ctx(lockdown=True)
         with patch(
             "agent.services.security_audit.load_shell_audit_config",
@@ -117,7 +117,7 @@ class TestFailureHandlingPolicy:
                 audit_security_defaults(ctx)
 
     def test_all_configs_load_success_returns_no_warnings(self) -> None:
-        """INV-010: successful config loads produce no warnings."""
+        """ADR-004 INV-01/INV-02: successful config loads produce no warnings."""
         ctx = _make_ctx()
         with patch(
             "agent.services.security_audit.load_shell_audit_config",
@@ -136,7 +136,7 @@ class TestFailureHandlingPolicy:
         assert not warnings
 
     def test_partial_config_failure_produces_targeted_exception(self) -> None:
-        """INV-011: partial failures raise RuntimeError for specific components only."""
+        """ADR-004 INV-07/INV-10: partial failures raise RuntimeError for specific components only."""
         ctx = _make_ctx()
         with patch(
             "agent.services.security_audit.load_shell_audit_config",
@@ -157,7 +157,7 @@ class TestFailureHandlingPolicy:
                             audit_security_defaults(ctx)
 
     def test_lockdown_mode_validates_required_configs(self) -> None:
-        """INV-011: lockdown mode enforces stricter validation on required configs."""
+        """ADR-004 INV-07/INV-10: lockdown mode enforces stricter validation on required configs."""
         ctx = _make_ctx(lockdown=True)
         with patch(
             "agent.services.security_audit.load_shell_audit_config",
@@ -174,7 +174,7 @@ class TestFailureHandlingPolicy:
                         audit_security_defaults(ctx)
 
     def test_non_production_profile_raises_on_config_failures(self) -> None:
-        """INV-011: non-production profiles also raise on config load failures (_load_audit_config_or_raise)."""
+        """ADR-004 INV-07/INV-10: non-production profiles also raise on config load failures (_load_audit_config_or_raise)."""
         ctx = _make_ctx()
         # Simulate non-production profile by setting a flag
         ctx.cfg.env = MagicMock()

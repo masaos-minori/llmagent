@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_adr_structure.py — Structural checks for docs/10_adr/*.md.
 
-Two checks, both operating over every file under docs/10_adr/*.md:
+Four checks, all operating over docs/10_adr/*.md:
 
 (a) `## Known Deviations` heading presence (ERROR). Every ADR must carry this
     heading per docs/00_governance/governance_04_documentation-checks.md's "ADR Section
@@ -14,6 +14,14 @@ Two checks, both operating over every file under docs/10_adr/*.md:
     cites zero such paths is skipped for this check entirely — that is the
     expected, correct end state after Notes has been reduced to a plain
     pointer sentence, not a violation.
+
+(c) Section headings of each `ADR-NNN-*.md` (ERROR): only the headings of the
+    "ADR Section Header Standardization" list in
+    docs/00_governance/governance_01_documentation-policy.md are allowed, in that
+    order; every non-conditional heading is required.
+(d) Template instruction text and global invariant IDs (ERROR): an ADR body must
+    not contain template instructions (for example "Briefly describe") or a
+    global `INV-NNN` invariant ID (invariant IDs are ADR-local, `INV-NN`).
 
 Usage:
     python tools/check_adr_structure.py
@@ -126,9 +134,138 @@ def check_notes_references_drift(docs: list[DocFile]) -> list[Issue]:
     return issues
 
 
+# "ADR Section Header Standardization" (governance_01): required headings in order,
+# then the conditional ones (allowed only between Invariants and Verification).
+_REQUIRED_HEADINGS = (
+    "Keywords",
+    "Status",
+    "Summary",
+    "Context",
+    "Assumptions",
+    "Decision",
+    "Rationale",
+    "Alternatives Considered",
+    "Consequences",
+    "Invariants",
+    "Verification",
+    "Implementation Notes",
+    "Known Deviations",
+    "Review Triggers",
+    "Approval",
+    "Related ADRs",
+    "Implementation References",
+    "Completion Checklist",
+)
+_CONDITIONAL_HEADINGS = (
+    "Exceptions",
+    "Failure Policy",
+    "Data Ownership and Persistence",
+)
+_HEADING_ORDER = (
+    *_REQUIRED_HEADINGS[: _REQUIRED_HEADINGS.index("Verification")],
+    *_CONDITIONAL_HEADINGS,
+    *_REQUIRED_HEADINGS[_REQUIRED_HEADINGS.index("Verification") :],
+)
+_TEMPLATE_RESIDUE_RE = re.compile(
+    r"Briefly describe|If not applicable, write|Add review conditions|"
+    r"Record any discrepancy between this ADR|Register any Invariant without",
+)
+_GLOBAL_INV_RE = re.compile(r"\bINV-\d{3}\b")
+_ADR_FILE_RE = re.compile(r"^ADR-\d{3}-.*\.md$")
+
+
+def _top_level_headings(lines: list[str]) -> list[tuple[int, str]]:
+    """`## ` headings outside fenced code blocks, as (line number, title)."""
+    headings: list[tuple[int, str]] = []
+    in_fence = False
+    for i, line in enumerate(lines, start=1):
+        if line.startswith("```"):
+            in_fence = not in_fence
+        elif not in_fence and line.startswith("## "):
+            headings.append((i, line[3:].strip()))
+    return headings
+
+
+def check_section_headings(docs: list[DocFile]) -> list[Issue]:
+    """Flag (ERROR) ADR headings that are unknown, out of order, or missing."""
+    issues: list[Issue] = []
+    for doc in docs:
+        if not _ADR_FILE_RE.match(Path(doc.rel_path).name):
+            continue
+        headings = _top_level_headings(doc.lines)
+        last_pos = -1
+        for line_no, title in headings:
+            if title not in _HEADING_ORDER:
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=line_no,
+                        severity="ERROR",
+                        message=f"'## {title}' is not an allowed ADR heading",
+                    )
+                )
+                continue
+            pos = _HEADING_ORDER.index(title)
+            if pos < last_pos:
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=line_no,
+                        severity="ERROR",
+                        message=f"'## {title}' is out of order",
+                    )
+                )
+            last_pos = max(last_pos, pos)
+        present = {title for _line, title in headings}
+        for required in _REQUIRED_HEADINGS:
+            if required not in present:
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=1,
+                        severity="ERROR",
+                        message=f"missing required heading '## {required}'",
+                    )
+                )
+    return issues
+
+
+def check_template_residue(docs: list[DocFile]) -> list[Issue]:
+    """Flag (ERROR) template instruction text and global INV-NNN IDs in ADR bodies."""
+    issues: list[Issue] = []
+    for doc in docs:
+        if not _ADR_FILE_RE.match(Path(doc.rel_path).name):
+            continue
+        for i, line in enumerate(doc.lines, start=1):
+            if _TEMPLATE_RESIDUE_RE.search(line):
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="ERROR",
+                        message="template instruction text left in the ADR body",
+                    )
+                )
+            if _GLOBAL_INV_RE.search(line):
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=i,
+                        severity="ERROR",
+                        message="global INV-NNN id; use the ADR-local INV-NN",
+                    )
+                )
+    return issues
+
+
 def collect_issues() -> list[Issue]:
     docs = discover_md_files(ADR_DIR, prefix="")
-    return check_known_deviations_heading(docs) + check_notes_references_drift(docs)
+    return (
+        check_known_deviations_heading(docs)
+        + check_notes_references_drift(docs)
+        + check_section_headings(docs)
+        + check_template_residue(docs)
+    )
 
 
 def render_json(issues: list[Issue]) -> str:

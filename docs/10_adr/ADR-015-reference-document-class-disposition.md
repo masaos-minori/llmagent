@@ -24,13 +24,13 @@ Accepted
 
 ## Summary
 
-`docs/00_governance/governance_01_documentation-policy.md`'s Document Classification defines a "Reference" class (API/command/configuration reference material), but a proposed documentation-slimming policy's mechanical-content removal criteria conflict with hand-written Reference documents by design — their entire content is exactly the kind of code-derivable listing the policy wants removed. This ADR recommends treating Reference-class documents as generated artifacts (Option B), produced from source code via `tools/generate_reference_table.py`, rather than retiring the class or accepting continued drift.
+`docs/00_governance/governance_01_documentation-policy.md`'s Document Classification defines a "Reference" class (API/command/configuration reference material), but the mechanical-content removal criteria of the documentation policy conflict with hand-written Reference documents by design — their entire content is exactly the kind of code-derivable listing the policy wants removed. This ADR adopts treating Reference-class documents as generated artifacts (Option B), produced from source code via `tools/generate_reference_table.py`, rather than retiring the class or accepting continued drift.
 
 ## Context
 
 ### Problem
 
-Without an explicit decision, mechanical-content removal work cannot proceed against Reference-class documents without first knowing whether their content should be deleted, generated, or left alone. Three options exist:
+Mechanical-content removal against Reference-class documents requires knowing whether their content should be deleted, generated, or left alone. Three options exist:
 
 - **Option A**: Retire the Reference class; keep only canonical-source pointers.
 - **Option B**: Treat Reference documents as generated artifacts (auto-produced from code/docstrings; hand-editing prohibited).
@@ -40,13 +40,13 @@ Without an explicit decision, mechanical-content removal work cannot proceed aga
 
 ### Constraints
 
-- This ADR records the disposition decision only — it does not implement any generation tooling or edit any existing Reference document's content.
+- This ADR records the disposition decision only; generation tooling and the content of individual Reference documents are defined elsewhere.
 - `GV-018` (`tools/check_docs_content_policy.py`) exempts guarded, auto-generated content (blocks opened by a `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` comment) from its mechanical-content warnings.
 
 ## Assumptions
 
 - The existing `rag`/`mcp`/`deployment` generator pattern in `tools/generate_reference_table.py` is a working, adoptable precedent for Reference-class documents generally, not specific to those three domains.
-- The same generator pattern is reused for further domains (Agent, EventBus, Memory).
+- The same generator pattern is reused for further domains (the generator also covers `agent`, `eventbus`, and `memory`).
 
 ## Decision
 
@@ -60,7 +60,7 @@ Applies to any `docs/*.md` document classified `class: Reference` per `docs/00_g
 
 ### Out of Scope
 
-Which specific existing Reference-class documents migrate to generated status, and when, is recorded in Implementation Notes below as a starting list — actually performing that migration is separate follow-up work, not this ADR.
+Selecting which Reference-class documents migrate to generated status, and when, and performing that migration, are outside this ADR; Implementation Notes lists the documents currently generated.
 
 ## Rationale
 
@@ -99,24 +99,27 @@ Leave Reference-class documents hand-maintained and accept ongoing drift risk, t
 
 ## Invariants
 
-- A Reference-class document migrated to Option B has its guarded-block content produced only by its corresponding `tools/generate_reference_table.py --type <domain>` generator — it is never hand-edited between the guard comments.
+- INV-01: A Reference-class document migrated to Option B has its guarded-block content produced only by its corresponding `tools/generate_reference_table.py --type <domain>` generator — it is never hand-edited between the guard comments.
 
 ## Verification
 
-Run the corresponding `tools/generate_reference_table.py --type <domain>` generator and confirm the guarded block matches current source (`--dry-run` output equals the live-written content). No automated CI check enforces this invariant yet; it is manually verified when a generator is run.
+- **Test**: Run the corresponding `tools/generate_reference_table.py --type <domain>` generator and confirm the guarded block matches current source (`--dry-run` output equals the live-written content). No automated CI check enforces this invariant yet; it is manually verified when a generator is run. — **Verifies**: INV-01 — **Type**: Manual Review — **Blocking**: No
 
 ## Implementation Notes
 
-Agent (`docs/23_agent/agent_12_reference-api.md`) and EventBus (`docs/24_eventbus/eventbus_09_reference_api.md`)
-have both been migrated to generated Reference-class status under Option B.
+Documents carrying a generated guarded block (Explicit in code — `tools/generate_reference_table.py` `DOMAIN_GENERATORS` and its `REFERENCE_DOC_*` targets):
 
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
+- `mcp` — `docs/22_mcp/mcp_01_tool_ownership_matrix.md`
+- `deployment` — `docs/90_deployment/deployment_01_deployment.md`
+- `agent` — `docs/23_agent/agent_13_reference-api-generated.md`
+- `eventbus` — `docs/24_eventbus/eventbus_09_reference_api.md`
+- `memory` — `docs/23_agent/agent_11_04_memory-module-reference-generated.md`
+
+See Implementation References for the tool list.
 
 ## Known Deviations
 
-Not applicable — Agent and EventBus Reference-class documents are already migrated to generated status under this decision (see Implementation Notes).
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
+Not applicable.
 
 ## Review Triggers
 
@@ -130,7 +133,7 @@ Do not unconditionally align the ADR text with the current implementation; manag
 
 ### Approval Record
 
-- **Approved By**: Masao Sugimoto (repository owner)
+- **Approved By**: repository owner
 - **Approval Date**: 2026-09-19
 - **Approval Reference**: Reviewed and approved via chat (Claude Code session llmagent-73), content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 
@@ -139,6 +142,11 @@ This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance E
 ## Related ADRs
 
 Not applicable.
+
+## Implementation References
+
+- `tools/generate_reference_table.py` — `DOMAIN_GENERATORS`, `--type <domain>`, `--dry-run`, guard comments (`<!-- AUTO-GENERATED: ... -->` / `<!-- END AUTO-GENERATED -->`)
+- `tools/check_docs_content_policy.py` — exemption of guarded auto-generated content (`GV-018`)
 
 ## Completion Checklist
 
@@ -151,12 +159,13 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Substantive alternatives and the reasons for rejecting them are recorded
 - [x] Positive Consequences are recorded
 - [x] Negative Consequences are recorded
-- [ ] The impact on Security has been evaluated (Not applicable — this ADR covers only the classification policy for governance documents and does not affect code or runtime)
-- [ ] The impact on Operations, Monitoring, and Recovery has been evaluated (Not applicable — same as above)
+- [x] The impact on Security has been evaluated (Not applicable — this ADR covers only the classification policy for governance documents and does not affect code or runtime)
+- [x] The impact on Operations, Monitoring, and Recovery has been evaluated (Not applicable — same as above)
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
 - [x] Each Invariant has a corresponding Verification
-- [x] Automatable verification does not rely only on Manual Review (no automated verification at present; future CI integration is a Review Trigger)
+- [ ] Automatable verification does not rely only on Manual Review (INV-01 is verified manually; no automated check exists)
 - [x] Discrepancies with the current implementation are registered as Known Issues (none applicable; see Known Deviations)
 - [x] The Owner and required Reviewers are defined (see Approval Record — review completed through a Named Approval Record)
 - [x] Review Triggers are recorded
+- [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)

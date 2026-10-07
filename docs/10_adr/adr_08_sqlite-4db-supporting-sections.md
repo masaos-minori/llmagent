@@ -168,7 +168,7 @@ Whether to make them unrecoverable or to provide a manual operator recovery proc
 ### Operational Consequences
 
 - Each DB's connection is confirmed at startup
-- Configuration changes require restarting the owning DB
+- Configuration changes require restarting the owning process
 - Incident response requires a recovery procedure per DB
 - No automatic restore for `workflow.sqlite`/`eventbus.sqlite` physical corruption; operators must handle recovery manually
 - Deletion of set-aside corrupted DB copies is left to the operator's manual judgment (no automatic deletion)
@@ -176,11 +176,8 @@ Whether to make them unrecoverable or to provide a manual operator recovery proc
 ### Security Consequences
 
 - Trust boundary: privileges granted only within each DB
-- Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
-- Fail-Closed: abort startup when a configuration file is missing
 - Error Messages and Audit Records of physical-recovery operations must not include row-level DB content (Paths and exception text only)
-- Audit Log: record configuration loading events
 
 ## Failure Policy
 
@@ -204,10 +201,7 @@ Not applicable. physical-recovery is designed as a Fail-Closed domain. When in d
 
 ### Fallback Policy
 
-- Fallback targets: none
-- Fallback destination: none
-- Conditions that prohibit Fallback: consistency-check mismatches
-- Where Fallback reasons are recorded: audit log
+Not applicable (no Fallback exists: a failed restore or an unclassifiable failure preserves the target DB and requires operator action, and no other database or empty replacement substitutes for it)
 
 ## Data Ownership and Persistence
 
@@ -223,45 +217,52 @@ Not applicable. physical-recovery is designed as a Fail-Closed domain. When in d
 
 ### Automated Tests
 
-- **Test**: Each DB can be initialized, connected, Checkpointed, and Recovered independently
+- **Test**: Each DB has its own schema creation and its own recovery target path
   - **Verifies**: INV-01, INV-02, INV-03, INV-04
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_four_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_uses_correct_db_path`
 
 - **Test**: sqlite-vec is not loaded into anything other than `rag.sqlite`
   - **Verifies**: INV-08
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Implementation**: `tests/db/test_sqlite_helper.py::TestSQLiteHelperTargetValidation::test_dbtarget_enum_member_resolves_to_value` (asserts the `rag` default only; the non-`rag` default is set in `SQLiteHelper.__init__()`)
 
-- **Test**: Corruption of one DB does not require initialization or recovery of the other DBs
-  - **Verifies**: INV-11
-  - **Type**: Integration
-  - **Blocking**: Yes
-
-- **Test**: Cross-DB processing can be re-executed idempotently
-  - **Verifies**: INV-12
-  - **Type**: Integration
-  - **Blocking**: Yes
-
-- **Test**: The Lock Contention path is not classified as physical corruption
+- **Test**: Lock Contention and Permission Failure are not classified as physical corruption
   - **Verifies**: INV-13
   - **Type**: Regression
   - **Blocking**: Yes
+  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode`
 
-- **Test**: Dry Run keeps the target DB Byte-identical for every classification result
+- **Test**: Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results
   - **Verifies**: INV-16
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_eventbus_prohibited` (no test asserts byte-identity of a corrupt DB under Dry Run)
 
 - **Test**: A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore
   - **Verifies**: INV-18
   - **Type**: Integration
   - **Blocking**: Yes
+  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_healthy_eventbus_prohibited`
+
+- **Test**: A restore candidate with a corrupt or wrong-domain backup is rejected and the target DB is left untouched
+  - **Verifies**: INV-14, INV-15
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_bad_backup`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_rejected`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_leaves_db_untouched`
+
+- **Test**: An unclassifiable integrity-check failure preserves the target DB and requires operator intervention
+  - **Verifies**: INV-17
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_unknown_preserved_operator_intervention_required`
 
 ### Startup Validation
 
 - Each DB's connection is confirmed at startup
-- Whether configuration files are valid (parseable TOML, required fields)
+- Required DB paths are resolved from configuration before a connection is opened
 
 ### Deployment Validation
 
@@ -271,21 +272,20 @@ Not applicable. physical-recovery is designed as a Fail-Closed domain. When in d
 ### Runtime Monitoring
 
 - Health Check: connection state of each DB
-- Metrics: number of connections, WAL mode, and checkpoint count per DB
+- Metrics: WAL checkpoint counts per DB (`WalCheckpointCounts`)
 - Logs: DB connection events, error events
-- Alert conditions: `db_unavailable`
+- Alert conditions: `db_unavailable` (EventBus health endpoint)
 - Degraded condition: failure of a dependency
 
 ### Manual Review
 
 - DB Schema verification before deployment
 - A manual operator recovery procedure for `workflow.sqlite`/`eventbus.sqlite` (a concrete runbook) is not yet in place in this ADR and must be prepared separately as a Runbook
-
-Register any Invariant without Verification as an unverified item in an Issue.
+- INV-05, INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 describe design rules without a dedicated automated test
 
 ## Known Deviations
 
-Not applicable. Known Deviations are recorded in `ADR-008-sqlite-4db-separation.md`.
+Known Deviations are recorded in `ADR-008-sqlite-4db-separation.md`.
 
 ## Keywords
 

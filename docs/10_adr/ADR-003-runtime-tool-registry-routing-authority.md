@@ -57,7 +57,7 @@ When routing from a Tool name to an MCP server happens through multiple paths, o
 - Operational requirement: Discovery results are obtained once at startup and are not re-obtained until the Agent process restarts
 - External dependencies: the `/v1/tools` endpoint of each MCP server
 
-### Assumptions
+## Assumptions
 
 - Target environment: a single host, multiple processes (one Agent process, each MCP server process)
 - Expected scale: limited concurrency
@@ -77,7 +77,7 @@ When routing from a Tool name to an MCP server happens through multiple paths, o
 6. Unregistered Tools are not routed by inferring from naming conventions. There is no Fallback to the static Registry.
 7. When multiple MCP servers expose the same Tool name, startup fails regardless of Profile.
 8. Safety Tier and Write attributes reference the same `RuntimeTool` in Routing, approval, and auditing.
-9. If Registry updates are permitted, consistency with Tools being executed is guaranteed.
+9. Registry updates are limited to policy application (`RuntimeToolRegistry.apply_policy()`), which builds a complete replacement mapping and installs it in a single assignment, so lookups never observe a partially updated Registry. (Explicit in code — `scripts/shared/runtime_tool_registry.py`)
 10. Defined, Discoverable, Owned, LLM-visible, Statically available, Dynamically available, Routable, Approved, and Executable are distinct concepts and are not merged, without distinction, into a single "enabled/disabled" flag.
 11. Static availability (a value based on configuration, computed by each MCP server at Discovery time and taken in once at startup by `McpToolDiscoveryService`) and Dynamic Health (server reachability and Circuit Breaker state, continuously tracked during execution by `McpServerHealthRegistry`/`ToolExecutor`) are separate subsystems. Static availability controls whether a Tool is exposed to the LLM and whether it is eligible for Routing; Dynamic Health controls whether an already Routable call succeeds at runtime. A Tool that is statically enabled but dynamically Down stays visible to the LLM and Routable, and fails only at runtime.
 12. Dynamic Health state must not automatically change LLM visibility (such as `enabled_for_llm`).
@@ -108,7 +108,6 @@ Being Discoverable or Owned alone does not mean the Tool is always Executable. I
 - Per-MCP-server mandatoriness and failure policy (handled by a separate ADR)
 - Implementation details of how each MCP server computes static availability (the responsibility of each MCP server itself; only referenced in this ADR)
 - Redesign of the Approval Policy itself (owned by `tool_policy.py`/`tool_approval.py`; only referenced in this ADR)
-- Details of how the EventBus integration loads its configuration
 - Changes to runtime behavior
 - Adoption of Rediscovery through Hot Reload (Policy B) (an option that a future ADR may address; this ADR defines only the current policy, Discovery updates through a full restart)
 - Monitoring and metrics design (handled by a separate ADR)
@@ -158,14 +157,14 @@ This section is maintained in the companion document: [Alternatives Considered](
 - Routing is determined at startup based on Discovery results
 - Adding or removing Tools at runtime is prohibited
 - A configuration change that affects Discovery-derived state requires a full restart of the Agent process and is not reflected by Reload
-- Impact on Health Checks: startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable, its Tools are disabled and startup continues (ADR-004 Decision 18)
+- Impact on Health Checks: startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable, its Tools are disabled and startup continues (ADR-004 Decision Group 7, item 18)
 - Incident response: a restart is required when Discovery fails
 
 ### Security Consequences
 
 - Trust boundary: only Discovery results are the Routing authority
 - Authentication and authorization: RuntimeToolRegistry centrally manages Safety Tier
-- Secret handling: based on Discovery results
+- Secret handling: not applicable (this ADR handles no Secrets)
 - Fail-Open, Fail-Closed: unregistered Tools are Fail-Closed
 - Because static availability continues to gate LLM visibility, Config-driven Security Controls (for example, `read_only=true`) are prevented from being weakened by Dynamic Health signals
 - Audit Log: Routing, approval, and auditing reference the same Safety Tier
@@ -181,12 +180,6 @@ This section is maintained in the companion document: [Alternatives Considered](
 - INV-07: Dynamic Health state must not change LLM visibility such as `enabled_for_llm`.
 - INV-08: The approval-required state must not be represented as a disabled Tool state.
 - INV-09: Being Discoverable, Owned, Statically Available, or Routable does not mean the Tool is always Executable. It can be rejected at runtime by Dynamic Health or Approval.
-
-## Exceptions
-
-None
-
-There are no exceptions to the normal policy. No conditions permitting exceptions are defined.
 
 ## Failure Policy
 
@@ -206,7 +199,7 @@ Dynamic Health uses the Circuit Breaker's CLOSED/OPEN/HALF_OPEN Trial-Recovery S
 
 ### Fallback Policy
 
-Not applicable
+There is no Fallback to the static `ToolRegistry` and no Routing by name inference (Decision Details #4 and #6).
 
 ## Data Ownership and Persistence
 
@@ -223,6 +216,11 @@ Not applicable
 This section is maintained in the companion document: [Verification](adr_03_runtime-tool-registry-supporting-sections.md#verification).
 
 ## Implementation Notes
+
+- `McpToolDiscoveryService` is invoked during startup validation, and the resulting `RuntimeToolRegistry` is connected to `ToolExecutor` through `set_runtime_registry()` (Explicit in code — `scripts/agent/startup_validation.py`, `scripts/agent/services/mcp_tool_discovery.py`).
+- `ToolRouteResolver.resolve()` consults only `RuntimeToolRegistry` (Explicit in code — `scripts/shared/route_resolver.py`).
+
+See Implementation References for the file/symbol list.
 
 ## Known Deviations
 
@@ -267,10 +265,11 @@ No confirmed deviations.
 ## Implementation References
 
 - `scripts/shared/runtime_tool_registry.py::RuntimeToolRegistry`
-- `scripts/shared/route_resolver.py::ToolRouteResolver`
+- `scripts/shared/route_resolver.py` — `ToolRouteResolver`
 - `scripts/shared/tool_registry.py::ToolRegistry`
 - `scripts/shared/runtime_tool.py::RuntimeTool`
-- `scripts/agent/services/mcp_tool_discovery.py::McpToolDiscoveryService`
+- `scripts/agent/services/mcp_tool_discovery.py` — `McpToolDiscoveryService`
+- `scripts/agent/startup_validation.py` — Discovery invocation and `set_runtime_registry()` wiring
 - `scripts/shared/mcp_health.py::McpServerHealthRegistry`
 - `scripts/shared/tool_executor.py::ToolExecutor`
 - `[mcp_servers.*]` in `config/agent.toml`

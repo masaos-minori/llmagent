@@ -40,7 +40,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 - Git MCP wraps local `git` operations via GitPython; it does not shell out through a shell interpreter (no shell-injection vector), but GitPython still passes argument strings to `git`'s own CLI option parser.
 - Approval is enforced client-side in the Agent process (`agent/tool_policy.py`, `tool_approval.py`); the Git MCP HTTP endpoint itself has no dependency on Agent-side approval state and accepts calls authenticated only by an optional Bearer token.
 
-### Assumptions
+## Assumptions
 
 - Target environment: single Agent process talking to a locally-run Git MCP server over HTTP.
 - Re-evaluate if: Git MCP is exposed to callers other than the single trusted Agent process, or if GitPython is replaced by a different git-invocation mechanism.
@@ -54,8 +54,8 @@ Approval and technical safety are different concerns: Agent-side approval confir
 3. Force Push MUST be rejected by the normal `git_push` operation. If Force Push is ever required operationally, it MUST be implemented as a separate, more strongly authorized administrative capability with its own approval and audit requirements — not as a mode of the normal tool.
 4. A protected-branch policy MUST be enforced by Git MCP itself for `git_checkout`/`git_push`/`git_pull` against configured protected branches, independent of any Agent-side branch-name checks (which apply only to `github_*` tools, not local git).
 5. `git_checkout`/`git_pull` MUST reject execution against a Dirty Worktree unless a documented safe exception applies; Detached HEAD MUST be rejected unless explicitly permitted by policy.
-6. Postcondition verification MUST confirm the resulting branch/HEAD and detect unresolved conflicts before reporting success; a `git` command that exits non-zero already fails today, but a low-level "did we actually end up where we intended" check is not the same guarantee.
-7. Audit records for Git MCP write operations include the correct repository identity; the key-name mismatch (`"repo"` vs. `repo_path`) was fixed as part of closing this gap.
+6. Postcondition verification MUST confirm the resulting branch/HEAD and detect unresolved conflicts before reporting success; a non-zero `git` exit status alone does not guarantee the repository ended up in the intended state.
+7. Audit records for Git MCP write operations MUST include the correct repository identity (the `repo_path` key).
 8. `RepositoryState` frozen dataclass MUST capture full repository state from a single `git.Repo` query and provide immutable access to all fields.
 9. Write-protection pipeline MUST enforce stage ordering: Stage 4 (state snapshot) → Stage 5 (preconditions) → Stage 5b (HEAD-identity re-check immediately before the mutating Git call) → Stage 6 (execution) → Stage 7 (postcondition verification).
 10. Audit records for Git MCP write operations MUST include both pre-condition and post-condition snapshots captured by `RepositoryState`.
@@ -162,7 +162,7 @@ Not applicable — a rejected write MUST be reported as rejected, not silently d
 
 ## Data Ownership and Persistence
 
-Not applicable in the DB sense — this ADR governs a control-flow/validation boundary, not persisted state. The audit record (JSON lines, per-call) is the relevant persisted artifact and is covered by INV-04's requirement for correct repository identity.
+Not applicable in the DB sense — this ADR governs a control-flow/validation boundary, not persisted state. The audit record (JSON lines, per-call) is the relevant persisted artifact and is governed by Decision Details #7 and #10.
 
 ## Verification
 
@@ -180,15 +180,9 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
-
 ## Known Deviations
 
 - **Known Issue**: MCP-001 — tracked in governance_03 Part 1 (git-mcp audit records are not emitted)
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 

@@ -17,6 +17,15 @@ related:
 
 # ADR-013: EventBus Authentication and Authorization
 
+## Keywords
+
+eventbus
+authentication
+authorization
+bearer-token
+security-boundary
+five-role-model
+
 ## Status
 
 Accepted
@@ -42,7 +51,7 @@ Auth middleware (`attach_auth_middleware(app)`) is attached to all routes in `sc
 - EventBus configuration loading uses `scripts/shared/config_loader.py`'s `ConfigLoader` without `restrict_to()` (ADR-002 already documented and accepted this local-invariant exception); validating keys through a `ConfigLoader`-based schema is not adopted here.
 - Loopback-only binding (`EventBusConfig.__post_init__`, `_LoopbackVerifyingServer`) is already implemented; this ADR does not re-implement or weaken it.
 
-### Assumptions
+## Assumptions
 
 - "Privileged replay" means all `/replay` calls require operator permission (simplest interpretation consistent with the Issue's Required Changes and Acceptance Criteria).
 - The token is stored as a plain string in config (following the existing `auth_token = "${ENV:...}"` convention used by every `*_mcp_server.toml` file).
@@ -52,7 +61,7 @@ Auth middleware (`attach_auth_middleware(app)`) is attached to all routes in `sc
 
 ### Decision Details
 
-1. **Authentication mechanism**: Bearer token, mirroring `scripts/mcp_servers/server.py::attach_auth_middleware()` pattern — a FastAPI `@app.middleware("http")` function checking `request.headers.get("Authorization", "")` against a configured token. Two kinds of token are accepted: the single shared `auth_token` (grants every role, for backward compatibility with the original single-token deployment model) and an optional per-role token (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role; `admin_token` grants every role, same as `auth_token`). A caller's actual role(s) are resolved from *which* configured token they presented (`scripts/eventbus/auth.py`'s `_TOKEN_PRINCIPAL_MAP`), not merely from having presented *a* valid token — `require_role(...)`'s `_check_role` rejects (403) a token whose resolved role(s) do not include the endpoint's required role, even when that token is otherwise valid.
+1. **Authentication mechanism**: Bearer token, mirroring `scripts/mcp_servers/server.py::attach_auth_middleware()` pattern — a FastAPI `@app.middleware("http")` function checking `request.headers.get("Authorization", "")` against a configured token. Two kinds of token are accepted: the single shared `auth_token` (grants every role, suited to single-token deployments) and an optional per-role token (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role; `admin_token` grants every role, same as `auth_token`). A caller's actual role(s) are resolved from *which* configured token they presented (`scripts/eventbus/auth.py`'s `_TOKEN_PRINCIPAL_MAP`), not merely from having presented *a* valid token — `require_role(...)`'s `_check_role` rejects (403) a token whose resolved role(s) do not include the endpoint's required role, even when that token is otherwise valid.
 2. **Authorization model**: Five roles — publisher, consumer, operator, monitoring, admin — each granted a fixed subset of routes:
    - Publisher: POST `/publish`
    - Consumer: GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack`
@@ -135,11 +144,11 @@ Consistent configuration validation across the project; centralized schema manag
 
 #### Disadvantages
 
-ADR-002 already documented and accepted the local-invariant exception (EventBus loads its configuration through `ConfigLoader` without `restrict_to()`).
+Key validation through a `ConfigLoader`-based schema conflicts with the local-invariant exception ADR-002 documents (EventBus loads its configuration through `ConfigLoader` without `restrict_to()`).
 
 #### Reason for Rejection
 
-ADR-002 explicitly documents this exception. Implement equivalent local validation instead.
+ADR-002 documents the exception. Equivalent fail-closed validation is implemented locally in `load_config()` instead.
 
 ## Consequences
 
@@ -226,30 +235,26 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 ### Automated Tests
 
 - **Test**: Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) — **Verifies**: INV-01 — **Type**: Integration — **Blocking**: Yes
-- **Test**: Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_as_wrong_role`, `test_dlq_requeue_as_wrong_role`) — **Verifies**: INV-02, INV-03 — **Type**: Integration — **Blocking**: Yes
+- **Test**: Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) — **Verifies**: INV-03 (operator-gated routes) — **Type**: Integration — **Blocking**: Yes
+- **Test**: consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`; `consumer_id` allowlist gap tracked as EVENTBUS-008) — **Verifies**: INV-02 (topic access) — **Type**: Unit — **Blocking**: Yes
+- **Test**: `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) — **Verifies**: Decision Details #7 — **Type**: Unit — **Blocking**: Yes
 - **Test**: `load_config()` rejects unknown TOML keys (`test_load_config_rejects_unknown_key`) — **Verifies**: INV-04 — **Type**: Unit — **Blocking**: Yes
 - **Test**: `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) — **Verifies**: INV-04 — **Type**: Unit — **Blocking**: Yes
 - **Test**: `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) — **Verifies**: INV-06 — **Type**: Regression — **Blocking**: Yes
-- **Test**: audit records do not include token values (verified by inspection of audit implementation) — **Verifies**: INV-05 — **Type**: Code Review — **Blocking**: Yes
+- **Test**: audit records do not include token values (`test_no_credential_leakage_in_audit_records`) — **Verifies**: INV-05 — **Type**: Unit — **Blocking**: Yes
 
 ## Implementation Notes
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
-
 ## Known Deviations
 
 - **Known Issue**: EVENTBUS-008 — see `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
 
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
-
 ## Review Triggers
 
 - EventBus is exposed to callers other than the single trusted Agent process.
-- A legitimate operational need for token rotation is identified (triggers designing the separate administrative capability referenced in Decision Details #1).
+- A legitimate operational need for token rotation is identified (triggers revisiting the static bearer-token mechanism in Decision Details #1).
 - The `.importlinter` `eventbus-is-isolated` contract is relaxed to allow importing from `mcp_servers`.
 
 ## Approval
@@ -281,15 +286,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/app.py` — middleware registration
 - `scripts/eventbus/config.py` — fail-closed validation
 - Tests — `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
-
-## Keywords
-
-eventbus
-authentication
-authorization
-bearer-token
-security-boundary
-five-role-model
 
 ## Completion Checklist
 

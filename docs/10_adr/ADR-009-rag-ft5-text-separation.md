@@ -45,12 +45,12 @@ Japanese BM25 search requires normalization by morphological analysis, but the c
 
 ### Constraints
 
-- Multiple tables coexist in a single SQLite database
-- `chunks_fts` is an FTS5 virtual table and does not support standard FK constraints
-- Because the sqlite-vec extension is used, some standard FK constraints are restricted
+- `chunks_fts` is an external-content FTS5 table over `chunks` with a single indexed column, so what it indexes is decided by the text written to it, not by a separate column
+- Japanese normalization (Sudachi) runs at chunking time and its result is stored in `chunks.normalized_content`
 - Different tokenizer approaches are used for Japanese and for English/code
+- The embedding of a chunk is computed from `content`, not from `normalized_content`
 
-### Assumptions
+## Assumptions
 
 - Target environment: a single host, a single SQLite database
 - Expected scale: limited concurrency
@@ -67,11 +67,11 @@ Japanese BM25 search requires normalization by morphological analysis, but the c
 3. FTS5 indexes `COALESCE(normalized_content, content)`.
 4. Japanese text can use values normalized by Sudachi or similar tools.
 5. For English, code, and text not subject to normalization, `normalized_content = NULL`, falling back to `content`.
-6. `content` is kept even when normalization fails.
+6. A normalization failure never alters `content`: normalized text never replaces it, and a source file whose Japanese normalization fails produces no chunks.
 7. The original text is not restored from `normalized_content`.
 8. The FTS Trigger and manual rebuilds use the same text-selection rule.
 9. Changes to the Tokenizer or normalization method do not change the original LLM-facing text.
-10. Document the behavior for cases where Japanese normalization is not performed, such as Markdown heading chunks.
+10. Text that is not Japanese-normalized, including Markdown heading chunks, has `normalized_content = NULL` and is indexed by `content`.
 11. AugmentStage outputs only `content` and does not output `normalized_content` to the LLM Context.
 
 ### Scope
@@ -102,9 +102,7 @@ The context presented to the LLM must use the original readable text. Presenting
 
 ### 3. Third Reason for Adoption — Data Integrity
 
-Keeping `content` even when normalization fails prevents data loss. Because the original text cannot be restored from `normalized_content`, `content` is always a reliable source of information.
-
-Do not use "the current code is implemented this way" as the sole reason for adoption.
+Keeping `content` as a separate, never-replaced field prevents the original text from being lost to normalization. Because the original text cannot be restored from `normalized_content`, `content` is always a reliable source of information.
 
 ## Alternatives Considered
 
@@ -200,18 +198,13 @@ Rejected to prioritize Search Quality and enable search in all languages.
 
 ### Operational Consequences
 
-- A consistency check runs at startup
-- Repairing a mismatch requires a manual command
-- Rebuild with `/session rag-rebuild-fts` or `ingester.py --force`
-
-If not applicable, write "Not applicable".
+- `/session rag-rebuild-fts` regenerates `chunks_fts` from the stored `content` and `normalized_content`; it does not recompute normalization
+- Changing the normalization method requires re-chunking the sources so that `normalized_content` is regenerated
 
 ### Security Consequences
 
 - Trust boundary: privileges are granted only within SQLite
 - Secret handling: follow the principle of minimal exposure
-
-If not applicable, write "Not applicable".
 
 ## Invariants
 
@@ -219,29 +212,19 @@ If not applicable, write "Not applicable".
 - INV-02: `chunks.normalized_content` is used only for the FTS5 Index.
 - INV-03: FTS5 indexes `COALESCE(normalized_content, content)`.
 - INV-04: For English, code, and text not subject to normalization, `normalized_content = NULL`, falling back to `content`.
-- INV-05: `content` is kept even when normalization fails.
+- INV-05: A normalization failure never alters `content`: normalized text never replaces it, and a source file whose Japanese normalization fails produces no chunks.
 - INV-06: The original text is not restored from `normalized_content`.
 - INV-07: The FTS Trigger and manual rebuilds use the same text-selection rule.
 - INV-08: Changes to the Tokenizer or normalization method do not change the original LLM-facing text.
-- INV-09: The behavior for cases where Japanese normalization is not performed, such as Markdown heading chunks, is documented.
+- INV-09: Text that is not Japanese-normalized, including Markdown heading chunks, has `normalized_content = NULL` and is indexed by `content`.
 - INV-10: AugmentStage outputs only `content` and does not output `normalized_content` to the LLM Context.
-
-Behavior for INV-09: Markdown heading chunks (and other text not subject to Japanese normalization,
-determined by the `_is_markdown_source()` branch) get `normalized_content = NULL` at ingestion
-(`scripts/rag/ingestion/chunk_splitter.py::_build_text_triples()`). By the same
-`COALESCE(normalized_content, content)` rule as the English and code chunks defined by INV-04, FTS5
-falls back to `content`.
-
-## Exceptions
-
-None
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- When normalization fails (an error generating `normalized_content`)
-- When FTS Trigger synchronization fails
+- When Japanese normalization fails (`TokenizationError`), chunking of that source file stops and no chunk is written for it; the failure is logged and the remaining source files are still processed (Explicit in code — `scripts/rag/ingestion/chunk_japanese.py` `_normalize_ja_sentence()`, `scripts/rag/ingestion/chunk_splitter.py` `ChunkSplitter.process_all()`)
+- When an FTS Trigger fails, the statement on `chunks` that fired it fails with it (SQLite trigger semantics)
 
 ### Fail-Open or Degraded Conditions
 
@@ -251,16 +234,9 @@ None
 
 Not applicable (this ADR defines no retry policy of its own)
 
-If not applicable, write "Not applicable".
-
 ### Fallback Policy
 
-- Fallback target: normalization failure
-- Fallback destination: fall back to `content`
-- Conditions that prohibit Fallback: consistency-check mismatches
-- Where Fallback reasons are recorded: audit log
-
-If not applicable, write "Not applicable".
+Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, content)` rule is a data-selection rule for chunks that have no `normalized_content`, not a Fallback for a failed normalization; a failed normalization never produces a chunk (see Fail-Fast Conditions).
 
 ## Data Ownership and Persistence
 
@@ -269,10 +245,8 @@ If not applicable, write "Not applicable".
 - **Ownership**: RAG team (owner of the canonical data)
 - **Persistence**: SQLite file system
 - **Transaction Boundary**: per chunk
-- **Recovery Source**: canonical data (`content` + `normalized_content`)
-- **Deletion Rule**: `chunks_vec` → `documents` (`chunks` via CASCADE, `chunks_fts` via Trigger)
-
-If not applicable, write "Not applicable".
+- **Recovery Source**: the `chunks` table (`content` + `normalized_content`); `chunks_fts` is rebuilt from it
+- **Deletion Rule**: deleting a document removes its `chunks` rows by CASCADE and the matching `chunks_fts` rows by Trigger; the deletion order is defined by ADR-005
 
 ## Verification
 
@@ -282,7 +256,7 @@ If not applicable, write "Not applicable".
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_fts_fallback.py::TestEnglishFtsFallback`
+  - **Implementation**: `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_ja_normalized_content_indexed_in_fts`, `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_trigger_uses_coalesce_order`
 
 - **Test**: The original text is used for the LLM Context
   - **Verifies**: INV-01
@@ -294,13 +268,13 @@ If not applicable, write "Not applicable".
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_fts_fallback.py::TestCodeFtsFallback::test_code_search_returns_original_content`
+  - **Implementation**: `tests/rag/test_fts_fallback.py::TestCodeFtsFallback::test_code_search_returns_original_content`, `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_ja_raw_content_fallback_when_normalized_null`
 
 - **Test**: The Index content is the same after an FTS rebuild
   - **Verifies**: INV-07
   - **Type**: Regression
   - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_fts_sync.py::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`
+  - **Implementation**: `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`, `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_rebuild_fts_preserves_normalized_content_semantics`, `tests/agent/services/test_rag_index_integrity.py::test_rebuild_fts_uses_coalesce`
 
 - **Test**: `normalized_content` does not leak into the RAG Context Block
   - **Verifies**: INV-02
@@ -336,32 +310,22 @@ If not applicable, write "Not applicable".
 
 - Investigation of consistency-check mismatches
 - Consistency-check verification before deployment
-
-Register any Invariant without Verification as an unverified item in an Issue.
+- INV-05, INV-06, INV-08, INV-09 have no dedicated automated test
 
 ## Implementation Notes
 
-Briefly describe how the current implementation realizes the Decision.
+- `ChunkSplitter` produces `(chunk_type, content, normalized_content)` triples: Japanese text is split and normalized by `ChunkJapaneseMixin`; English text, code blocks, and Markdown heading chunks (selected by `_is_markdown_source()`) get an empty `normalized_content`.
+- The ingestion transaction stores an empty `normalized_content` as NULL in `chunks`; the chunk embedding is computed from `content`.
+- The `chunks_ai`, `chunks_au`, and `chunks_ad` triggers and `RagMaintenanceService.rebuild_fts()` index `COALESCE(normalized_content, content)`.
+- `AugmentStage` formats only `content` of each reranked hit into the RAG context block.
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
+This chapter is not a basis for design decisions.
 
 ## Known Deviations
 
-Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
-
-
-- **Whitelist**: 
-  - `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` — sanctioned `/session rag-rebuild-fts` command path
-  - `scripts/db/schema_sql.py` — schema initialization SQL (executed once during setup, not runtime)
-- **Excluded**: `scripts/mcp_servers/mdq/` — targets a separate mdq database, out of ADR-009 scope
-- **Enforcement**: `tools/check_chunks_fts_invariant.py` detects direct INSERT/UPDATE (integrated into CI)
-  - Whitelist: `scripts/agent/services/rag_maintenance_service.py::rebuild_fts()` (AST function-context detection), `scripts/db/schema_sql.py` (INSERTs inside CREATE TRIGGER blocks are excluded because they are not runtime writes), `scripts/mcp_servers/mdq/` (targets a separate DB)
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
+- **Known Issue**: RAG-002 — tracked in governance_03 Part 1 (Japanese sentences with empty normalized text are dropped)
 
 ## Review Triggers
 
@@ -374,13 +338,9 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-
-Add review conditions specific to this ADR.
-
-- sqlite-vec supports FK constraints
-- FTS5 supports standard DELETE
-- A new shared configuration file becomes necessary
-- Persistent storage moves to something other than files
+- The Japanese normalization method or the Sudachi dictionary changes
+- The FTS5 tokenizer or the indexed column set of `chunks_fts` changes
+- The LLM context starts to use any text other than `chunks.content`
 
 ## Approval
 
@@ -408,17 +368,17 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Implementation References
 
-- `scripts/rag/ingestion/document_manager.py` — `DocumentManager.delete_existing_document()`, `delete_document_chain()`
-- `scripts/agent/services/rag_maintenance_service.py` — `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
-- `scripts/db/rag_consistency.py` — `check_rag_consistency()`
-- `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
-- `documents` table — `url` UNIQUE, `title`, `lang`, `fetched_at`, `etag`, `last_modified`, `chunking_strategy`
-- `chunks` table — `content`, `normalized_content`, `chunk_index`, `chunk_type`, `doc_id` FK
-- `chunks_fts` virtual table — FTS5 trigger synchronization
-- `chunks_vec` virtual table — sqlite-vec KNN index
-- Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`, `chunks_vec_ad`
-- Tests — `tests/agent/services/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
-- Tests — `tests/rag/test_fts_fallback.py`
+- `scripts/rag/ingestion/chunk_splitter.py` — `ChunkSplitter._build_text_triples()`, `ChunkSplitter._is_markdown_source()`, `ChunkSplitter._build_chunk_payload()`
+- `scripts/rag/ingestion/chunk_japanese.py` — `ChunkJapaneseMixin._chunk_japanese()`, `ChunkJapaneseMixin._normalize_ja_sentence()`
+- `scripts/rag/ingestion/embedding.py` — `embed_and_store()` (embeds `content`)
+- `scripts/rag/ingestion/transaction_commit.py` — `TransactionManager._insert_chunks_batch()`
+- `scripts/rag/stages/augment.py` — `_format_chunks()`, `AugmentStage.run()`
+- `scripts/agent/services/rag_maintenance_service.py` — `RagMaintenanceService.rebuild_fts()`
+- `scripts/db/schema_sql.py` — `chunks_fts` and the `chunks_ai`, `chunks_au`, `chunks_ad` triggers
+- `tools/check_chunks_fts_invariant.py` — direct `chunks_fts` write detection
+- `chunks` table — `content`, `normalized_content`
+- `chunks_fts` virtual table — FTS5 index over `COALESCE(normalized_content, content)`
+- Tests — `tests/rag/test_fts_sync.py`, `tests/rag/test_fts_japanese.py`, `tests/rag/test_fts_fallback.py`, `tests/rag/test_rag_pipeline.py`, `tests/rag/test_rag_pipeline_stage.py`, `tests/rag/ingestion/test_chunk_splitter.py`, `tests/agent/services/test_rag_index_integrity.py`
 
 ## Completion Checklist
 
@@ -435,12 +395,11 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [x] Each Invariant has a corresponding Verification
+- [ ] Each Invariant has a corresponding Verification (INV-05, INV-06, INV-08, INV-09 have no automated test)
 - [x] Automatable verification does not rely only on Manual Review
-- [x] Migration, or the reason no migration is needed, is recorded
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [ ] Discrepancies with the current implementation are registered as Known Issues (the Known Issue above is not yet registered in `governance_03_issue-and-uncertainty-management.md`)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
-- [ ] The ADR is registered in the ADR index and the Document Guides of related areas
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

@@ -56,7 +56,7 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
 - No migration mechanism exists; a Schema change requires recreating the whole DB (out of scope for this ADR)
 
-### Assumptions
+## Assumptions
 
 - Single host, multiple processes
 - Limited concurrency
@@ -86,15 +86,15 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 | Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none |
 | Owning component | RAG team | Agent team | Workflow team | EventBus team |
 | Required service stop scope | RAG process | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process |
-| Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | `_run_integrity_check()` | `_run_integrity_check()` |
+| Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | none through `recover_corruption()` (returns `no_recovery_allowed` before any check) | none through `recover_corruption()` (returns `no_recovery_allowed` before any check) |
 | Supported recovery source | verified backup from operator for `documents`/`chunks`; FTS5 and Vector Index rebuilt from `chunks` (Decision Detail #20) | verified backup from operator | none (auto-restore prohibited per Decision Detail #20) | none (auto-restore prohibited per Decision Detail #20) |
-| Automatic restore allowed or prohibited | allowed (per Decision Detail #20) | allowed (per Decision Detail #20) | prohibited (INV-18) | prohibited (INV-18) |
+| Automatic restore allowed or prohibited | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | prohibited (INV-18) | prohibited (INV-18) |
 | Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only |
 | Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) |
 | Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived via `rotate_eventbus_db()` alongside other three databases |
 | WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup |
-| Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | independent validation before restore (INV-14) | independent validation before restore (INV-14) |
-| Database-specific logical verification | `check_rag_consistency()` post-restore | connection test + message count check post-restore | `_recover_pending_approvals()` post-restore | offset/delivery reconciliation post-restore |
+| Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | not applicable (no automated restore) | not applicable (no automated restore) |
+| Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling; pending approvals are recovered by `_recover_pending_approvals()` at Agent startup) | none automated (manual operator handling) |
 | Service restart condition | RAG process restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore |
 | Rollback condition | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails |
 | Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) |
@@ -202,6 +202,15 @@ This section is maintained in the companion document: [Data Ownership and Persis
 
 This section is maintained in the companion document: [Verification](adr_08_sqlite-4db-supporting-sections.md#verification).
 
+## Implementation Notes
+
+- `SQLiteHelper` resolves one of four targets (`rag`, `session`, `workflow`, `eventbus`) to its configured file path and loads the sqlite-vec extension by default only for `rag`.
+- `create_schema()` creates the schema of each database separately.
+- `recover_corruption()` rejects `workflow` and `eventbus` with `no_recovery_allowed` before any integrity check, classifies the other targets through `_run_integrity_check()` and `_classify_error()`, and restores from a verified backup through `_restore_from_backup()`.
+- `rotate_all_dbs()` archives each of the four databases.
+
+This chapter is not a basis for design decisions. See Implementation References for the current file/symbol list.
+
 ## Known Deviations
 
 - **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (EventBus authentication model)
@@ -215,9 +224,8 @@ This section is maintained in the companion document: [Verification](adr_08_sqli
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-- sqlite-vec supports FK constraints
-- FTS5 supports standard DELETE
-- A new shared configuration file becomes necessary
+- sqlite-vec is needed in a database other than `rag.sqlite`
+- A fifth persistence domain is added or two domains are merged (a recovery policy must then be defined for it)
 - Persistent storage moves to something other than files
 - A migration mechanism or a replicated storage foundation is introduced
 - The backup strategy changes from periodic file copies to another method
@@ -257,11 +265,13 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/db/create_schema.py` (`create_schema()`)
 - `scripts/db/rag_consistency.py` (`check_rag_consistency()`)
 - `scripts/db/recovery.py` (`recover_corruption()`, `_classify_error()`, `_run_integrity_check()`, `_restore_from_backup()`)
+- `scripts/db/rotation.py` (`rotate_all_dbs()`, `rotate_eventbus_db()`)
+- `scripts/db/session_consistency.py` (`check_session_consistency()`)
 - `rag.sqlite` (`documents`, `chunks`, `chunks_fts`, `chunks_vec`)
 - `session.sqlite` (`sessions`, `messages`, `memories`, `memories_vec`)
 - `workflow.sqlite` (`tasks`, `attempts`, `artifacts`, `approvals`)
 - `eventbus.sqlite` (`events`)
-- Tests — `tests/db/test_db_maintenance.py`, `tests/integration/test_session_recovery.py`
+- Tests — `tests/db/test_db_maintenance.py`, `tests/db/test_db_recovery.py`, `tests/db/test_sqlite_helper.py`, `tests/db/test_create_schema.py`, `tests/integration/test_session_recovery.py`
 
 ## Completion Checklist
 
@@ -278,7 +288,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [x] Each Invariant has a corresponding Verification
+- [ ] Each Invariant has a corresponding Verification (INV-05, INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 have no automated test)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications

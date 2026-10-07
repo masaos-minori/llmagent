@@ -51,7 +51,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 - Because `chunks_vec` has no FK, explicit deletion is required on delete
 - Consistency checks run at startup and manually
 
-### Assumptions
+## Assumptions
 
 - Target environment: a single host, a single SQLite database
 - Expected scale: limited concurrency
@@ -67,7 +67,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 2. `chunks` is the canonical data for chunk content. It has `content`, `normalized_content`, `chunk_index`, and a `doc_id` FK (ON DELETE CASCADE).
 3. `chunks_fts` is a derived full-text-search index generated from `chunks`. It is synchronized by AFTER INSERT/AFTER UPDATE/AFTER DELETE triggers.
 4. `chunks_vec` is a derived vector-search index generated from `chunks`. Explicit INSERTs are performed during the ingestion pipeline, and explicit DELETEs on deletion.
-5. Canonical data is not updated from derived indexes. Direct INSERT/UPDATE into `chunks_fts` is prohibited; only `/session rag-rebuild-fts` is permitted.
+5. Canonical data is not updated from derived indexes. Direct INSERT/UPDATE into `chunks_fts` is prohibited outside the schema triggers and the `RagMaintenanceService` maintenance operations (rebuild through `/session rag-rebuild-fts`, per-URL reconciliation). (Explicit in code — `tools/check_chunks_fts_invariant.py` sanctioned paths)
 6. Consistency checks detect differences using `chunks` as the reference.
 7. When a document is deleted, the target `chunks_vec` rows are deleted first, then `documents` (CASCADE also deletes `chunks`, and the Trigger synchronizes `chunks_fts`).
 8. Normal FTS5 synchronization and manual rebuilds use the same generation rule (`COALESCE(normalized_content, content)`).
@@ -77,15 +77,15 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
     - `fts_orphan_count > 0`: rebuild FTS5
     - `orphan_vec_count > 0`: re-ingest the target documents
     - `vec != chunks`: investigate as an embedding or synchronization failure
-11. The ingestion path and the MCP deletion path use the same deletion helper or the same invariants.
+11. The ingestion path (`delete_document_chain()`) and the MCP deletion path (`DocumentManager.delete_document()` of the rag_pipeline MCP server) apply the same deletion order (`chunks_vec` before `documents`). The MCP path issues the same statements itself rather than calling the shared helper.
 
 ### Scope
 
-- **Target components**: `DocumentManager`, `RagMaintenanceService`, `check_rag_consistency()`
+- **Target components**: `DocumentManager` (ingestion), `DocumentManager` (rag_pipeline MCP server), `RagMaintenanceService`, `check_rag_consistency()`
 - **Target processes**: the Agent process and the ingester process
 - **Target data**: the `documents` table, the `chunks` table, the `chunks_fts` virtual table, the `chunks_vec` virtual table
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
-- **Target APIs or processing paths**: `DocumentManager.delete_existing_document()`, `delete_document_chain()`, `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
+- **Target APIs or processing paths**: `DocumentManager.delete_existing_document()`, `delete_document_chain()`, rag_pipeline `DocumentManager.delete_document()`, `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
 
 ### Out of Scope
 
@@ -107,8 +107,6 @@ Defining the deletion-order invariant prevents orphan records. Because consisten
 ### 3. Third Reason for Adoption — Portability
 
 Because the indexes can be rebuilt even if FTS5 or the Vector Engine is replaced, future technology migrations become easier.
-
-Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -218,30 +216,24 @@ Rejected to prioritize Operability, ensuring real-time synchronization and preve
 - Trust boundary: privileges are granted only within SQLite
 - Secret handling: follow the principle of minimal exposure
 
-If not applicable, write "Not applicable".
-
 ## Invariants
 
 - INV-01: Canonical data is not updated from derived indexes.
 - INV-02: When a document is deleted, rows are deleted in the order `chunks_vec` → `documents`.
 - INV-03: Normal FTS5 synchronization and manual rebuilds use the same generation rule.
 - INV-04: Consistency checks detect differences using `chunks` as the reference.
-- INV-05: The ingestion path and the MCP deletion path use the same deletion helper.
-
-## Exceptions
-
-None
+- INV-05: The ingestion path and the MCP deletion path use the same deletion order (`chunks_vec` before `documents`).
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
-- The consistency check finds `fts_orphan_count > 0` (risk of data loss)
-- `write_mode=True` is not effective during deletion (FKs disabled)
+- Document deletion requires a `write_mode=True` connection: foreign keys are enforced only in write mode, and without them the `documents` delete does not cascade to `chunks` (Explicit in code — `scripts/db/helper.py` `SQLiteHelper.open()`)
 
 ### Fail-Open or Degraded Conditions
 
-- None: ADR-004 defines a single common failure-handling policy, and no environment-specific downgrade to warnings exists
+- The startup consistency check records each mismatch as a warning and does not abort startup; a timeout or an unexpected failure of the check skips it (Explicit in code — `scripts/agent/startup_validation.py`)
+- The post-ingestion consistency check logs each issue as a warning and does not fail the ingestion run (Explicit in code — `scripts/rag/ingestion/document_manager.py` `DocumentManager.check_consistency()`)
 
 ### Retry Policy
 
@@ -249,12 +241,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ### Fallback Policy
 
-- Fallback targets: none
-- Fallback destination: none
-- Conditions that prohibit Fallback: consistency-check mismatches
-- Where Fallback reasons are recorded: audit log
-
-If not applicable, write "Not applicable".
+Not applicable (no Fallback exists: a mismatch is reported and repaired through the manual commands, never masked by switching to another index or data source)
 
 ## Data Ownership and Persistence
 
@@ -265,8 +252,6 @@ If not applicable, write "Not applicable".
 - **Transaction Boundary**: per document
 - **Recovery Source**: canonical data (`documents` + `chunks`)
 - **Deletion Rule**: `chunks_vec` → `documents` (`chunks` via CASCADE, `chunks_fts` via Trigger)
-
-If not applicable, write "Not applicable".
 
 ## Verification
 
@@ -288,13 +273,31 @@ If not applicable, write "Not applicable".
   - **Verifies**: INV-03
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_fts_sync.py::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`
+  - **Implementation**: `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`
 
 - **Test**: The consistency check detects Gaps and Orphans
   - **Verifies**: INV-04
   - **Type**: Regression
   - **Blocking**: Yes
   - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_consistency_check_detects_fts_gap` (TEST-DESIGN3-05)
+
+- **Test**: The MCP deletion path removes `chunks_vec` and cascades to `chunks`
+  - **Verifies**: INV-05
+  - **Type**: Integration
+  - **Blocking**: Yes
+  - **Implementation**: `tests/mcp_servers/rag_pipeline/test_document_manager.py::TestDeleteDocument::test_cascades_to_chunks_and_removes_chunks_vec`
+
+- **Test**: The deletion helper deletes `chunks_vec` before `documents`
+  - **Verifies**: INV-02
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Implementation**: `tests/rag/ingestion/test_delete_chain.py::TestDeleteDocumentChain::test_delete_chunks_vec_before_documents`
+
+- **Test**: A direct `chunks_fts` INSERT/UPDATE outside the sanctioned paths is detected
+  - **Verifies**: INV-01
+  - **Type**: Lint regression
+  - **Blocking**: Yes
+  - **Implementation**: `tests/test_chunks_fts_invariant_lint.py::test_violation_detected`
 
 - **Test**: `chunks_fts` is derived from `chunks` (no direct INSERTs)
   - **Verifies**: INV-01
@@ -325,21 +328,18 @@ If not applicable, write "Not applicable".
 - Investigation of consistency-check mismatches
 - Consistency-check verification before deployment
 
-Register any Invariant without Verification as an unverified item in an Issue.
-
 ## Implementation Notes
 
-Briefly describe how the current implementation realizes the Decision.
+- Schema triggers on `chunks` keep `chunks_fts` synchronized and clean `chunks_vec` as a backstop for direct `chunks` deletes; `chunks_vec` rows are written explicitly by the ingestion pipeline.
+- `delete_document_chain()` deletes the `chunks_vec` rows of a document, then the `documents` row; the cascade removes `chunks`. The rag_pipeline MCP server's `DocumentManager.delete_document()` issues the same two statements in the same order.
+- `RagMaintenanceService.rebuild_fts()` regenerates `chunks_fts` with `COALESCE(normalized_content, content)`, the same rule as the triggers.
+- `check_rag_consistency()` computes the counts and mismatches from `chunks`; the startup check and `/session rag-consistency` report them.
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
+This chapter is not a basis for design decisions.
 
 ## Known Deviations
-
-Record any discrepancy between this ADR and the current implementation, configuration, tests, or documents.
 
 - **Known Issue**: `sqlite-vec` lacks FK constraints — `chunks_vec` has no foreign key pointing to `chunks`. This is a known architectural limitation of `sqlite-vec` virtual tables. Consequence: Orphaned vector records can exist after document deletion if the explicit `chunks_vec` deletion step is missed. Mitigation: All deletion code paths enforce the `chunks_vec` → `documents` ordering invariant.
 - **Type**: Architectural Limitation
@@ -360,12 +360,8 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-
-Add review conditions specific to this ADR.
-
 - `sqlite-vec` supports FK constraints
 - FTS5 supports standard DELETE
-- A new shared configuration file becomes necessary
 - Persistent storage moves to something other than files
 
 ## Approval
@@ -396,14 +392,16 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/rag/ingestion/document_manager.py` — `DocumentManager.delete_existing_document()`, `delete_document_chain()`
 - `scripts/agent/services/rag_maintenance_service.py` — `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`
 - `scripts/db/rag_consistency.py` — `check_rag_consistency()`
-- `scripts/shared/config_loader.py` — `ConfigLoader.restrict_to()`, `ConfigLoader.load()`
+- `scripts/mcp_servers/rag_pipeline/document_manager.py` — `DocumentManager.delete_document()`
+- `scripts/db/schema_sql.py` — RAG schema and triggers
+- `tools/check_chunks_fts_invariant.py` — direct `chunks_fts` write detection
 - `documents` table — `url` UNIQUE, `title`, `lang`, `fetched_at`, `etag`, `last_modified`, `chunking_strategy`
 - `chunks` table — `content`, `normalized_content`, `chunk_index`, `chunk_type`, `doc_id` FK
 - `chunks_fts` virtual table — FTS5 trigger synchronization
 - `chunks_vec` virtual table — sqlite-vec KNN index
 - Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`, `chunks_vec_ad`
 - Tests — `tests/agent/services/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
-- Tests — `tests/rag/test_fts_fallback.py`
+- Tests — `tests/rag/ingestion/test_delete_chain.py`, `tests/rag/test_fts_sync.py`, `tests/mcp_servers/rag_pipeline/test_document_manager.py`, `tests/test_chunks_fts_invariant_lint.py`
 
 ## Completion Checklist
 
@@ -422,10 +420,9 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Exceptions or out-of-scope cases are clear
 - [x] Each Invariant has a corresponding Verification
 - [x] Automatable verification does not rely only on Manual Review
-- [x] Migration, or the reason no migration is needed, is recorded
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [ ] Discrepancies with the current implementation are registered as Known Issues
+- [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
-- [ ] The ADR is registered in the ADR index and the Document Guides of related areas
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

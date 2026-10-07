@@ -67,7 +67,7 @@ ADR-001 established that the Workflow Engine is the mandatory and sole workflow 
 - **Target processes**: the entire Agent process
 - **Target data**: none (this ADR defines the allocation of responsibilities between components and does not change the data model itself)
 - **Target Environment Profile**: production (the same as ADR-001; the only supported execution mode)
-- **Target APIs or processing paths**: `Orchestrator.handle_turn()`, `WorkflowEngineAdapter.execute_turn()`, `LlmTurnExecutor.handle_llm_turn()`, `LlmTurnExecutor.run()`, `ToolExecutor.execute()` (or `_raw_execute()`), `validate_tool_args()` on the MCP Server side
+- **Target APIs or processing paths**: `Orchestrator.handle_turn()`, `WorkflowEngineAdapter.execute_turn()`, `LlmTurnExecutor.handle_llm_turn()`, `ToolExecutor.execute()` (or `_raw_execute()`), `validate_tool_args()` on the MCP Server side
 
 ### Out of Scope
 
@@ -80,7 +80,7 @@ ADR-001 established that the Workflow Engine is the mandatory and sole workflow 
 
 ### 1. Primary Reason for Adoption — Maintainability
 
-When responsibility boundaries are not documented, which component should decide what is left to the implementer's discretion when writing new code or changing existing code, which easily causes duplication and gaps. The unused `LLMTurnRunner` instance in `Orchestrator` found while drafting this ADR (see Known Deviations) shows that this lack of boundaries had already caused actual harm.
+When responsibility boundaries are not documented, which component should decide what is left to the implementer's discretion when writing new code or changing existing code, which easily causes duplication and gaps. Duplicate or unused holding of the LLM/Tool call loop (INV-02) is the concrete failure that undocumented boundaries permit.
 
 ### 2. Second Reason for Adoption — Correctness
 
@@ -89,8 +89,6 @@ When each layer takes over judgments beyond its own scope, judgments become dist
 ### 3. Third Reason for Adoption — Auditability
 
 The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are a discipline for the layer that the Workflow Engine manages. By likewise clarifying the responsibilities of the other layers (in-turn coordination, LLM/Tool round-trips, single Tool execution, safety of external operations), this ADR increases the auditability of the Agent control plane as a whole.
-
-Do not use "the current code is implemented this way" as the sole reason for adoption.
 
 ## Alternatives Considered
 
@@ -156,18 +154,18 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 
 ## Invariants
 
-- INV-023: Components other than the Workflow Engine (`Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`) do not themselves decide persistent Task/Attempt state, stage transitions, retries, or whether to approve. These are decided only under the management of the Workflow Engine.
-- INV-024: Creation of `LlmTurnExecutor` instances is centralized in the one component that actually drives the LLM/Tool Call round-trip loop. No other component holds unused or duplicate `LlmTurnExecutor` instances.
-- INV-025: The technical safety judgments of external operations that the MCP Server is responsible for (allowlist validation, path validation, sandboxed execution, resource limits, argument validation) are not taken over or duplicated in the Orchestrator layer or the ToolExecutor layer.
+- INV-01: Components other than the Workflow Engine (`Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`) do not themselves decide persistent Task/Attempt state, stage transitions, retries, or whether to approve. These are decided only under the management of the Workflow Engine.
+- INV-02: Creation of `LlmTurnExecutor` instances is centralized in the one component that actually drives the LLM/Tool Call round-trip loop. No other component holds unused or duplicate `LlmTurnExecutor` instances.
+- INV-03: The technical safety judgments of external operations that the MCP Server is responsible for (allowlist validation, path validation, sandboxed execution, resource limits, argument validation) are not taken over or duplicated in the Orchestrator layer or the ToolExecutor layer.
 
 ## Verification
 
 ### Automated Tests
 
-- **Test**: A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance (needs to be newly created)
-  - **Verifies**: INV-024
+- **Test**: A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance (no such test exists)
+  - **Verifies**: INV-02
   - **Type**: Unit
-  - **Blocking**: No (not yet implemented; tracked as AGENT-002 in `governance_03_issue-and-uncertainty-management.md`)
+  - **Blocking**: No (no test exists; tracked as AGENT-002 in `governance_03_issue-and-uncertainty-management.md`)
 
 ### Startup Validation
 
@@ -188,23 +186,17 @@ Not applicable.
 
 - When adding a new component, or during code review of a change that alters the scope of responsibility of the Orchestrator/LlmTurnExecutor/ToolExecutor/MCP Server, confirm consistency with this ADR's responsibility boundaries
 
-Register any Invariant without Verification as an unverified item in an Issue. INV-023 and INV-025 currently have no automated tests and depend only on code review (Manual Review).
+INV-01 and INV-03 have no automated tests and depend only on code review (Manual Review).
 
 ## Implementation Notes
 
-Briefly describe how the current implementation realizes the Decision.
+`Orchestrator` constructs a single `LlmTurnExecutor` instance and passes it to `WorkflowEngineAdapter`; turn handling reaches the LLM/Tool loop through that one instance (Explicit in code — `scripts/agent/orchestrator.py`).
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions. List detailed APIs, Classes, and Functions in the Implementation References.
-
-Do not record line numbers; reference by File Path and Symbol name.
-
 ## Known Deviations
 
-- **Known Issue**: AGENT-002 — tracked in governance_03 Part 1 (no regression test for INV-024)
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
+- **Known Issue**: AGENT-002 — tracked in governance_03 Part 1 (no regression test for INV-02)
 
 ## Review Triggers
 
@@ -240,7 +232,6 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/agent/workflow/workflow_engine.py` — `WorkflowEngine.run()`
 - `scripts/agent/workflow_engine_adapter.py` — `WorkflowEngineAdapter.execute_turn()`
 - `scripts/agent/llm_turn_executor.py` — `LlmTurnExecutor.handle_llm_turn()`
-- `scripts/agent/llm_turn_executor.py` — `LlmTurnExecutor.run()`
 - `scripts/shared/tool_executor.py` — `ToolExecutor._raw_execute()`
 - `scripts/mcp_servers/tool_validators.py` — `validate_tool_args()`
 - `scripts/mcp_servers/shell/shell_service.py`
@@ -259,7 +250,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Negative Consequences are recorded
 - [x] Verifiable Invariants are defined
 - [x] Each Invariant has a corresponding Verification
-- [x] Automatable verification does not rely only on Manual Review (some INVs rely only on Manual Review)
+- [ ] Automatable verification does not rely only on Manual Review (INV-01 and INV-03 rely only on Manual Review; INV-02 has no test yet)
 - [x] The ADR does not contradict related Specifications
 - [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
