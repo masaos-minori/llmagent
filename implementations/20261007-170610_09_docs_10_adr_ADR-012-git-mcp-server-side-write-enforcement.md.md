@@ -133,9 +133,9 @@ Retain the existing MCP-001 entry.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Refresh INV-01/INV-03 automated-test verifications | Pending | — | — | REQ-001/002 |
-| 2 | Update Known Deviations (MCP-002 resolved, MCP-004 pending) | Pending | — | — | REQ-004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Refresh INV-01/INV-03 automated-test verifications | Completed | — | 20261008-084024 | REQ-001/002 Refreshed INV-01 row with TestWriteRefAllowlist/TestGitPushRefRejectionBeforeGit allow-list tests; read-tool option-injection tests retained. Added TestStage3DestinationProtection/TestDestinationBasedProtection to INV-03 row (protected destination rejected via pipeline, checkout away allowed). INV-02/INV-04 unchanged. |
+| 2 | Update Known Deviations (MCP-002 resolved, MCP-004 pending) | Completed | — | 20261008-084024 | REQ-004 Added MCP-002 (resolved: branch required in git_pull/git_push schemas) and MCP-004 (residual known deviation; branch-vector closed server-side under REQ-001/002, generic Force-Push block out of scope) alongside existing MCP-001 entry. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-084024 | Doc validators pass: quality/structure/content_policy/consistency(mcp) all clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
