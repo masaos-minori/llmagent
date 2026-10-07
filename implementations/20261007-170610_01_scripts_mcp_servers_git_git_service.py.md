@@ -156,10 +156,10 @@ Leave `_validate_ref()` calls on `git_log.branch` (268), `git_diff.commit` (284)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001/002/005/007/008 in git_service.py |
-| 2 | Add or update tests per Validation plan | Pending | — | — | dispatch + repository_state docs own the test rows |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc updates are Rows 8-10 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-072031 | REQ-001/002/005/007/008 in git_service.py Post-hoc archive: code landed in fbfa4d416; 307 tests pass; ruff+mypy clean |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-072031 | dispatch + repository_state docs own the test rows Post-hoc archive: code landed in fbfa4d416; 307 tests pass; ruff+mypy clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-072031 | Post-hoc archive: code landed in fbfa4d416; 307 tests pass; ruff+mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-072031 | N/A: doc updates are Rows 8-10 N/A: no docs/00_index.md task-scope mapping for changed file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
