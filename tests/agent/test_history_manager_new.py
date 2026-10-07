@@ -1,8 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from scripts.agent.history import (
+from agent.history import (
     HistoryManager,
 )
 

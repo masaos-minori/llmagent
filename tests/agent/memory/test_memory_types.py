@@ -6,8 +6,7 @@ Unit tests for agent/memory/types.py — MemoryEntry, SourceType, MemoryQuery, M
 from __future__ import annotations
 
 import pytest
-
-from scripts.agent.memory.types import (
+from agent.memory.types import (
     EmbeddingResult,
     MemoryEntry,
     MemoryHit,

@@ -2,9 +2,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from scripts.db.config import DbConfig
-from scripts.db.recovery import (
+from db.config import DbConfig
+from db.recovery import (
     DbCondition,
     _classify_error,
     _restore_from_backup,
@@ -14,7 +13,7 @@ from scripts.db.recovery import (
 
 @pytest.fixture
 def mock_db_cfg():
-    with patch("scripts.db.recovery.build_db_config") as mock_cfg:
+    with patch("db.recovery.build_db_config") as mock_cfg:
         # spec=DbConfig ensures accessing a nonexistent field (e.g. "bogus_db_path")
         # raises AttributeError, matching a real DbConfig instance — required for
         # test_recover_unsupported_target's getattr(..., None) guard to be exercised
@@ -30,14 +29,14 @@ def mock_db_cfg():
 
 @pytest.fixture
 def mock_sqlite_helper():
-    with patch("scripts.db.recovery.SQLiteHelper") as mock_helper_class:
+    with patch("db.recovery.SQLiteHelper") as mock_helper_class:
         mock_helper_instance = mock_helper_class.return_value.__enter__.return_value
         yield mock_helper_instance
 
 
 def test_recover_healthy(mock_db_cfg, mock_sqlite_helper):
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ):
         result = recover_corruption(target="rag", dry_run=False)
@@ -47,7 +46,7 @@ def test_recover_healthy(mock_db_cfg, mock_sqlite_helper):
 
 
 def test_recover_corrupt_rag_restores(mock_db_cfg, mock_sqlite_helper):
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         mock_integrity.side_effect = [
             (DbCondition.CORRUPTION, "corruption error"),  # For DB
             (DbCondition.HEALTHY, None),  # For Backup
@@ -59,7 +58,7 @@ def test_recover_corrupt_rag_restores(mock_db_cfg, mock_sqlite_helper):
             patch("shutil.copy2"),
             patch("os.replace"),
             patch(
-                "scripts.db.recovery._run_logical_verification",
+                "db.recovery._run_logical_verification",
                 return_value=(True, None),
             ),
         ):
@@ -71,7 +70,7 @@ def test_recover_corrupt_rag_restores(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_corrupt_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.CORRUPTION, "corruption error"),
     ) as mock_integrity:
         result = recover_corruption(target="workflow")
@@ -84,7 +83,7 @@ def test_recover_corrupt_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_lock_contention(mock_db_cfg, mock_sqlite_helper):
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.LOCK_CONTENTION, "database is locked"),
     ):
         result = recover_corruption(target="rag")
@@ -96,7 +95,7 @@ def test_recover_lock_contention(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_permission_failure(mock_db_cfg, mock_sqlite_helper):
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.PERMISSION_FAILURE, "permission denied"),
     ):
         result = recover_corruption(target="rag")
@@ -108,7 +107,7 @@ def test_recover_permission_failure(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_invalid_format(mock_db_cfg, mock_sqlite_helper):
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.INVALID_FORMAT, "invalid database format"),
     ):
         result = recover_corruption(target="rag")
@@ -120,7 +119,7 @@ def test_recover_invalid_format(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_no_backup(mock_db_cfg, mock_sqlite_helper):
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.CORRUPTION, "corruption error"),
     ):
         result = recover_corruption(backup_path=None, target="rag")
@@ -130,7 +129,7 @@ def test_recover_no_backup(mock_db_cfg, mock_sqlite_helper):
 
 
 def test_recover_bad_backup(mock_db_cfg, mock_sqlite_helper):
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         mock_integrity.side_effect = [
             (DbCondition.CORRUPTION, "DB corruption"),  # For DB
             (DbCondition.CORRUPTION, "Backup corruption"),  # For Backup
@@ -145,9 +144,9 @@ def test_recover_bad_backup(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_wrong_domain_backup_rejected(mock_db_cfg, mock_sqlite_helper):
     with (
-        patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
+        patch("db.recovery._run_integrity_check") as mock_integrity,
         patch(
-            "scripts.db.recovery._verify_domain_identity",
+            "db.recovery._verify_domain_identity",
             return_value=(False, "backup missing required table 'sessions'"),
         ),
         patch("pathlib.Path.exists", return_value=True),
@@ -164,9 +163,9 @@ def test_recover_wrong_domain_backup_rejected(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_wrong_domain_backup_distinct_action(mock_db_cfg, mock_sqlite_helper):
     with (
-        patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
+        patch("db.recovery._run_integrity_check") as mock_integrity,
         patch(
-            "scripts.db.recovery._verify_domain_identity",
+            "db.recovery._verify_domain_identity",
             return_value=(False, "backup missing required table 'sessions'"),
         ),
         patch("pathlib.Path.exists", return_value=True),
@@ -184,9 +183,9 @@ def test_recover_wrong_domain_backup_leaves_db_untouched(
     mock_db_cfg, mock_sqlite_helper
 ):
     with (
-        patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
+        patch("db.recovery._run_integrity_check") as mock_integrity,
         patch(
-            "scripts.db.recovery._verify_domain_identity",
+            "db.recovery._verify_domain_identity",
             return_value=(False, "backup missing required table 'sessions'"),
         ),
         patch("pathlib.Path.exists", return_value=True),
@@ -206,7 +205,7 @@ def test_recover_wrong_domain_backup_leaves_db_untouched(
 
 def test_recover_dry_run_healthy(mock_db_cfg, mock_sqlite_helper):
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ):
         result = recover_corruption(target="rag", dry_run=True)
@@ -217,7 +216,7 @@ def test_recover_dry_run_healthy(mock_db_cfg, mock_sqlite_helper):
 
 
 def test_recover_unsupported_target(mock_db_cfg, mock_sqlite_helper):
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         result = recover_corruption(target="bogus")
 
         assert result.success is False
@@ -227,7 +226,7 @@ def test_recover_unsupported_target(mock_db_cfg, mock_sqlite_helper):
 
 
 def test_recover_restore_verify_failed(mock_db_cfg, mock_sqlite_helper):
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         mock_integrity.side_effect = [
             (DbCondition.CORRUPTION, "corruption error"),  # current DB
             (DbCondition.HEALTHY, None),  # backup
@@ -251,7 +250,7 @@ def test_recover_workflow_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
     not session_db_path (ADR-011 domain-policy bypass found during adversarial
     verification of the implementation procedure)."""
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.CORRUPTION, "corruption error"),
     ) as mock_integrity:
         result = recover_corruption(target="workflow")
@@ -263,7 +262,7 @@ def test_recover_workflow_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_eventbus_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.CORRUPTION, "corruption error"),
     ) as mock_integrity:
         result = recover_corruption(target="eventbus")
@@ -278,7 +277,7 @@ def test_recover_unknown_preserved_operator_intervention_required(
 ):
     """DbCondition.UNKNOWN must preserve the DB and require operator intervention."""
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.UNKNOWN, "unclassifiable integrity failure"),
     ) as mock_integrity:
         result = recover_corruption(target="rag")
@@ -302,7 +301,7 @@ def _mock_restore_side_effect():
 
 def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
     """RAG FTS gap should cause logical verification failure."""
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         mock_integrity.side_effect = _mock_restore_side_effect()
 
         rag_report = MagicMock()
@@ -321,7 +320,7 @@ def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+            patch("db.recovery.check_rag_consistency", return_value=rag_report),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -332,7 +331,7 @@ def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
     """RAG missing table/trigger should cause logical verification failure."""
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         mock_integrity.side_effect = _mock_restore_side_effect()
 
         rag_report = MagicMock()
@@ -351,7 +350,7 @@ def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+            patch("db.recovery.check_rag_consistency", return_value=rag_report),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -362,7 +361,7 @@ def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
     """RAG FTS orphan should cause logical verification failure."""
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         mock_integrity.side_effect = _mock_restore_side_effect()
 
         rag_report = MagicMock()
@@ -381,7 +380,7 @@ def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+            patch("db.recovery.check_rag_consistency", return_value=rag_report),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -392,7 +391,7 @@ def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
     """RAG vector orphan should cause logical verification failure."""
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         mock_integrity.side_effect = _mock_restore_side_effect()
 
         rag_report = MagicMock()
@@ -411,7 +410,7 @@ def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+            patch("db.recovery.check_rag_consistency", return_value=rag_report),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -422,7 +421,7 @@ def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
     """RAG read smoke test failure should cause logical verification failure even when counts are healthy."""
-    with patch("scripts.db.recovery._run_integrity_check") as mock_integrity:
+    with patch("db.recovery._run_integrity_check") as mock_integrity:
         mock_integrity.side_effect = _mock_restore_side_effect()
 
         rag_report = MagicMock()
@@ -442,7 +441,7 @@ def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("scripts.db.recovery.check_rag_consistency", return_value=rag_report),
+            patch("db.recovery.check_rag_consistency", return_value=rag_report),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -459,10 +458,10 @@ import sqlite3
 def test_recover_healthy_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
     """Regression: workflow target with HEALTHY DB must reject before any DB access."""
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ) as mock_integrity:
-        with patch("scripts.db.recovery._vacuum_db") as mock_vacuum:
+        with patch("db.recovery._vacuum_db") as mock_vacuum:
             result = recover_corruption(target="workflow")
 
             assert result.success is False
@@ -475,10 +474,10 @@ def test_recover_healthy_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
 def test_recover_healthy_eventbus_prohibited(mock_db_cfg, mock_sqlite_helper):
     """Regression: eventbus target with HEALTHY DB must reject before any DB access."""
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ) as mock_integrity:
-        with patch("scripts.db.recovery._vacuum_db") as mock_vacuum:
+        with patch("db.recovery._vacuum_db") as mock_vacuum:
             result = recover_corruption(target="eventbus")
 
             assert result.success is False
@@ -491,7 +490,7 @@ def test_recover_healthy_eventbus_prohibited(mock_db_cfg, mock_sqlite_helper):
 def test_recover_dry_run_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
     """Regression: dry_run mode must reject workflow before any DB access."""
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ) as mock_integrity:
         result = recover_corruption(target="workflow", dry_run=True)
@@ -505,7 +504,7 @@ def test_recover_dry_run_workflow_prohibited(mock_db_cfg, mock_sqlite_helper):
 def test_recover_dry_run_eventbus_prohibited(mock_db_cfg, mock_sqlite_helper):
     """Regression: dry_run mode must reject eventbus before any DB access."""
     with patch(
-        "scripts.db.recovery._run_integrity_check",
+        "db.recovery._run_integrity_check",
         return_value=(DbCondition.HEALTHY, None),
     ) as mock_integrity:
         result = recover_corruption(target="eventbus", dry_run=True)
@@ -594,7 +593,7 @@ import shutil
 import tempfile
 import time
 
-from scripts.db.recovery import (
+from db.recovery import (
     _quarantine_sidecar_files,
     _stage_backup_sidecars,
 )
@@ -687,9 +686,9 @@ def test_restore_with_stale_wal_shm_before_swap(mock_db_cfg, mock_sqlite_helper)
         backup_path.write_bytes(b"SQLite format 3\x00" + b"\x00" * 99)
 
         with (
-            patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_integrity_check") as mock_integrity,
             patch(
-                "scripts.db.recovery._run_logical_verification",
+                "db.recovery._run_logical_verification",
                 return_value=(True, None),
             ),
             patch("os.replace"),
@@ -744,9 +743,9 @@ def test_restore_with_backup_wal_shm_sidecars(mock_db_cfg, mock_sqlite_helper):
         assert backup_shm.exists()
 
         with (
-            patch("scripts.db.recovery._run_integrity_check") as mock_integrity,
+            patch("db.recovery._run_integrity_check") as mock_integrity,
             patch(
-                "scripts.db.recovery._run_logical_verification",
+                "db.recovery._run_logical_verification",
                 return_value=(True, None),
             ),
             patch("os.replace"),

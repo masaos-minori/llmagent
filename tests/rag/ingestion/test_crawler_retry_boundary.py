@@ -11,8 +11,7 @@ from typing import Any
 import pytest
 import respx
 from httpx import Response
-
-from scripts.rag.ingestion.crawler import WebCrawler
+from rag.ingestion.crawler import WebCrawler
 
 
 def _get_base_cfg(tmp_path: Path) -> dict[str, Any]:

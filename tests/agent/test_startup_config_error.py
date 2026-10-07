@@ -6,9 +6,8 @@ from unittest.mock import patch
 
 import pytest
 from agent.config_builders import ConfigLoadError, build_agent_config
+from shared.config_errors import ConfigMissingError
 from shared.config_loader import ConfigLoader
-
-from scripts.shared.config_errors import ConfigMissingError
 
 
 class TestBuildAgentConfigErrorPath:

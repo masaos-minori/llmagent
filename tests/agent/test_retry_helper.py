@@ -1,6 +1,5 @@
 import pytest
-
-from scripts.agent.shared.retry_helper import retry_once_with_delay
+from agent.shared.retry_helper import retry_once_with_delay
 
 
 class TestRetryHelperExceptionPreservation:

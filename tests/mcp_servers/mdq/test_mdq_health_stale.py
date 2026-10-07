@@ -352,7 +352,7 @@ class TestStaleDocumentCountNoDocumentsTable:
         """When documents table doesn't exist, stale count should be None (not raised)."""
         import sqlite3
 
-        from scripts.mcp_servers.mdq.health_check import _check_stale_documents
+        from mcp_servers.mdq.health_check import _check_stale_documents
 
         path = str(tmp_path / "mdq_test_no_docs.sqlite")
         conn = sqlite3.connect(path)

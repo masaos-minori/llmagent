@@ -783,9 +783,8 @@ class TestBuildAgentConfigErrorPath:
         """REQ-001: Startup fails when agent.toml is missing (strict-default)."""
         import pytest
         from agent.context import AgentContext
+        from shared.config_errors import ConfigMissingError
         from shared.config_loader import ConfigLoader
-
-        from scripts.shared.config_errors import ConfigMissingError
 
         with patch.object(
             ConfigLoader, "load_all", side_effect=ConfigMissingError("agent.toml")
@@ -797,9 +796,8 @@ class TestBuildAgentConfigErrorPath:
         """REQ-002: build_agent_config() raises ConfigLoadError when agent.toml is missing."""
         import pytest
         from agent.config_builders import ConfigLoadError, build_agent_config
+        from shared.config_errors import ConfigMissingError
         from shared.config_loader import ConfigLoader
-
-        from scripts.shared.config_errors import ConfigMissingError
 
         with patch.object(
             ConfigLoader, "load_all", side_effect=ConfigMissingError("agent.toml")

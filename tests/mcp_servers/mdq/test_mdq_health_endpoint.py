@@ -13,8 +13,7 @@ from unittest.mock import patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
-from scripts.mcp_servers.mdq.mdq_server import app
+from mcp_servers.mdq.mdq_server import app
 
 
 def _create_test_db(tmp_path: Path) -> str:

@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import sqlite3
 
-from scripts.db.session_consistency import check_session_consistency, is_consistent
+from db.session_consistency import check_session_consistency, is_consistent
 
 # ── In-memory SQLite helper ───────────────────────────────────────────────────
 

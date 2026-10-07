@@ -1,8 +1,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-
-from scripts.agent.http_lifecycle_process_terminator import ProcessTerminator
+from agent.http_lifecycle_process_terminator import ProcessTerminator
 
 
 class TestProcessTerminatorSigKillFailureScenarios:
@@ -16,14 +15,12 @@ class TestProcessTerminatorSigKillFailureScenarios:
         proc.pid = 12345
         proc.poll.return_value = None  # Process still running
 
-        with patch("scripts.agent.http_lifecycle_process_terminator.os") as mock_os:
+        with patch("agent.http_lifecycle_process_terminator.os") as mock_os:
             mock_os.getpgid.return_value = 12345
             # SIGTERM succeeds; SIGKILL also succeeds (no exception)
             mock_os.killpg.side_effect = [None, None]
             # Wait loop: first monotonic() sets deadline, second exceeds it
-            with patch(
-                "scripts.agent.http_lifecycle_process_terminator.time"
-            ) as mock_time:
+            with patch("agent.http_lifecycle_process_terminator.time") as mock_time:
                 # deadline = 0 + 5 = 5; second call returns 10 > 5, so loop exits immediately
                 mock_time.monotonic.side_effect = [0.0, 10.0]
 
@@ -44,14 +41,12 @@ class TestProcessTerminatorSigKillFailureScenarios:
         proc.pid = 12345
         proc.poll.return_value = None  # Process still running
 
-        with patch("scripts.agent.http_lifecycle_process_terminator.os") as mock_os:
+        with patch("agent.http_lifecycle_process_terminator.os") as mock_os:
             mock_os.getpgid.return_value = 12345
             # SIGTERM succeeds; SIGKILL also succeeds (no exception)
             mock_os.killpg.side_effect = [None, None]
             # Wait loop: first monotonic() sets deadline, second exceeds it
-            with patch(
-                "scripts.agent.http_lifecycle_process_terminator.time"
-            ) as mock_time:
+            with patch("agent.http_lifecycle_process_terminator.time") as mock_time:
                 # deadline = 0 + 5 = 5; second call returns 10 > 5, so loop exits immediately
                 mock_time.monotonic.side_effect = [0.0, 10.0]
 

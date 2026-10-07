@@ -1,9 +1,7 @@
 import asyncio
 
 import pytest
-from agent.context import AgentContext
-
-from scripts.agent.context import AppServices, TurnState
+from agent.context import AgentContext, AppServices, TurnState
 
 
 class TestServicesRequired:

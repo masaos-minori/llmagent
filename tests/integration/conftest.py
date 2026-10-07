@@ -40,7 +40,7 @@ async def stdio_echo_server():
 @pytest.fixture
 def tmp_sqlite_db(tmp_path: Path) -> str:
     """Temp SQLite DB with workflow schema initialized."""
-    from scripts.db.create_schema import create_workflow_schema
+    from db.create_schema import create_workflow_schema
 
     # Create workflow schema in temp directory
     old_cwd = os.getcwd()

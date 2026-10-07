@@ -576,7 +576,7 @@ class TestScopedCitationWithMethodSuffix:
         nested = tmp_path / "scripts" / "mcp_servers" / "rag_pipeline"
         nested.mkdir(parents=True)
         (nested / "rag_pipeline_service.py").write_text(
-            "from scripts.rag.pipeline import RagPipeline\n"
+            "from rag.pipeline import RagPipeline\n"
         )
         result = StaleResult.clean()
         proc_text = (

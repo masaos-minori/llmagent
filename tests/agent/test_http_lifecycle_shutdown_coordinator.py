@@ -1,8 +1,7 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from scripts.agent.http_lifecycle_shutdown_coordinator import ShutdownCoordinator
+from agent.http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 
 
 class TestShutdownCoordinatorFailureScenarios:

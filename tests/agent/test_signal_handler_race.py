@@ -131,7 +131,7 @@ class TestWindowsCtypesFallback:
                                     # Import signal_handler to trigger the fallback path
                                     import importlib
 
-                                    import scripts.agent.signal_handler as sh_module
+                                    import agent.signal_handler as sh_module
 
                                     importlib.reload(sh_module)
                                     # Verify SetConsoleCtrlHandler was called via ctypes

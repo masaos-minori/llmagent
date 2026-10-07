@@ -4,7 +4,7 @@
 import re
 from datetime import UTC, datetime
 
-from scripts.eventbus.json_utils import dumps, now_iso
+from eventbus.json_utils import dumps, now_iso
 
 
 class TestDumpsReturnsStr:

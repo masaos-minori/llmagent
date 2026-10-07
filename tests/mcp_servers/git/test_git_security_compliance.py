@@ -694,13 +694,13 @@ class TestPostConditionBypassPrevention:
 
     @pytest.fixture
     def client(self):
-        from scripts.mcp_servers.git.git_server import app
+        from mcp_servers.git.git_server import app
 
         return TestClient(app)
 
     def test_checkout_postcondition_cannot_be_bypassed(self, client, monkeypatch):
         """REQ-010, AC-8: Checkout postcondition failure is reported, not silently accepted."""
-        from scripts.mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.repository_state import RepositoryState
 
         snap = MagicMock()
         snap.repo = MagicMock()
@@ -732,7 +732,7 @@ class TestPostConditionBypassPrevention:
 
     def test_pull_postcondition_cannot_be_bypassed(self, client, monkeypatch):
         """REQ-010, AC-8: Pull postcondition failure (merge conflict) is reported."""
-        from scripts.mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.repository_state import RepositoryState
 
         snap = MagicMock()
         snap.repo = MagicMock()
@@ -771,7 +771,7 @@ class TestPostConditionBypassPrevention:
 
     def test_push_postcondition_cannot_be_bypassed(self, client, monkeypatch):
         """REQ-010, AC-8: Push postcondition failure (rejection) is reported."""
-        from scripts.mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.repository_state import RepositoryState
 
         snap = MagicMock()
         snap.repo = MagicMock()
@@ -811,13 +811,13 @@ class TestCompletePipelineCoverage:
 
     @pytest.fixture
     def client(self):
-        from scripts.mcp_servers.git.git_server import app
+        from mcp_servers.git.git_server import app
 
         return TestClient(app)
 
     def test_all_stages_execute_in_order_for_checkout(self, client, monkeypatch):
         """REQ-010, AC-1: Authorization, precondition, execution, and postcondition stages execute in documented order."""
-        from scripts.mcp_servers.git.repository_state import (
+        from mcp_servers.git.repository_state import (
             RepositoryState,
             WriteProtectionPipeline,
         )
@@ -857,7 +857,7 @@ class TestCompletePipelineCoverage:
 
     def test_all_stages_execute_in_order_for_pull(self, client, monkeypatch):
         """REQ-010, AC-1: Pull stages execute in documented order."""
-        from scripts.mcp_servers.git.repository_state import (
+        from mcp_servers.git.repository_state import (
             RepositoryState,
             WriteProtectionPipeline,
         )
@@ -901,7 +901,7 @@ class TestCompletePipelineCoverage:
 
     def test_all_stages_execute_in_order_for_push(self, client, monkeypatch):
         """REQ-010, AC-1: Push stages execute in documented order."""
-        from scripts.mcp_servers.git.repository_state import (
+        from mcp_servers.git.repository_state import (
             RepositoryState,
             WriteProtectionPipeline,
         )
@@ -954,13 +954,13 @@ class TestLiveCallToolAuthorization:
 
     @pytest.fixture
     def client(self):
-        from scripts.mcp_servers.git.git_server import app
+        from mcp_servers.git.git_server import app
 
         return TestClient(app)
 
     @pytest.fixture
     def mock_validate_pre_snapshot(self, monkeypatch):
-        from scripts.mcp_servers.git import git_server
+        from mcp_servers.git import git_server
 
         monkeypatch.setattr(
             git_server, "_validate_pre_snapshot", lambda path: (True, "")
@@ -1095,8 +1095,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_checkout + branch=main must deny when main is protected."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1141,8 +1141,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_checkout + branch=develop must allow when develop is not protected."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1184,8 +1184,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_pull + branch=master must deny when master is protected."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1230,8 +1230,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_pull + branch=develop must allow when develop is not protected."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1272,8 +1272,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_push + branch=release must deny when release is protected."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1318,8 +1318,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_push + branch=develop must allow when develop is not protected."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1360,8 +1360,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_checkout + empty branch must deny/resolution (REQ-007)."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1407,8 +1407,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_pull + empty branch must deny/resolution (REQ-007)."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1453,8 +1453,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """POST /v1/call_tool with git_push + empty branch must deny/resolution (REQ-007)."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1501,8 +1501,8 @@ class TestLiveCallToolAuthorization:
         mock_repo_state_snapshot_dynamic,
     ):
         """Parametrized test asserting both main and refs/heads/main deny checkout when main is protected."""
-        from scripts.mcp_servers.git.git_server import _cfg as server_cfg
-        from scripts.mcp_servers.git.git_server import _service as server_service
+        from mcp_servers.git.git_server import _cfg as server_cfg
+        from mcp_servers.git.git_server import _service as server_service
 
         original_read_only = server_cfg.read_only
         original_svc_read_only = server_service._read_only
@@ -1543,14 +1543,14 @@ class TestDryRunAndDetachedHeadLivePath:
 
     @pytest.fixture
     def client(self):
-        from scripts.mcp_servers.git.git_server import app
+        from mcp_servers.git.git_server import app
 
         return TestClient(app)
 
     def test_dry_run_checkout_skips_dirty_and_detached_precondition(
         self, client, tmp_path
     ):
-        from scripts.mcp_servers.git import git_server
+        from mcp_servers.git import git_server
 
         repo_dir = tmp_path / "repo"
         repo_dir.mkdir()
@@ -1597,7 +1597,7 @@ class TestDryRunAndDetachedHeadLivePath:
         assert git.Repo(str(repo_dir)).head.is_detached  # unchanged: still detached
 
     def test_dry_run_checkout_protected_branch_still_denied(self, client, tmp_path):
-        from scripts.mcp_servers.git import git_server
+        from mcp_servers.git import git_server
 
         repo_dir = tmp_path / "repo"
         repo_dir.mkdir()
@@ -1636,7 +1636,7 @@ class TestDryRunAndDetachedHeadLivePath:
         assert body.get("is_error") is True
 
     def test_non_dry_run_detached_head_denied_then_allowed(self, client, tmp_path):
-        from scripts.mcp_servers.git import git_server
+        from mcp_servers.git import git_server
 
         repo_dir = tmp_path / "repo"
         repo_dir.mkdir()
@@ -1697,7 +1697,7 @@ class TestDryRunAndDetachedHeadLivePath:
         assert allowed.json().get("is_error") is not True
 
     def test_dry_run_pull_and_push_skip_dirty_precondition(self, client, tmp_path):
-        from scripts.mcp_servers.git import git_server
+        from mcp_servers.git import git_server
 
         # Stage 3 (verify_authorization) rejects an empty/implicit ref when
         # there is no resolvable active branch — e.g. a detached HEAD — per
@@ -1777,14 +1777,13 @@ class TestNewlyReachableToolsViaHTTP:
     def client(self):
         # This file's module-scoped `client` fixture (top of file) imports the
         # app via `mcp_servers.git.server` — a distinct module object from
-        # `scripts.mcp_servers.git.git_server` (dual import paths resolve to
-        # separate sys.modules entries), so patching one's `_cfg`/`_service`
+        # `mcp_servers.git.git_server`, so patching one's `_cfg`/`_service`
         # does not affect the other's live app instance. This class's `enabled`
-        # fixture patches via `scripts.mcp_servers.git.git_server`, matching
+        # fixture patches via `mcp_servers.git.git_server`, matching
         # this file's more recent `client` fixtures (e.g. line ~905) — define
         # a class-local `client` on the same import path instead of reusing
         # the outer one.
-        from scripts.mcp_servers.git.git_server import app
+        from mcp_servers.git.git_server import app
 
         return TestClient(app)
 
@@ -1800,7 +1799,7 @@ class TestNewlyReachableToolsViaHTTP:
 
     @pytest.fixture
     def enabled(self, repo_dir):
-        from scripts.mcp_servers.git import git_server
+        from mcp_servers.git import git_server
 
         # Snapshot BEFORE mutating so restore returns to the true prior state
         # (whatever it was before this fixture ran), not to this fixture's own
@@ -1890,7 +1889,7 @@ class TestRemoteAuthorizationViaHTTP:
 
     @pytest.fixture
     def client(self):
-        from scripts.mcp_servers.git.git_server import app
+        from mcp_servers.git.git_server import app
 
         return TestClient(app)
 
@@ -1911,7 +1910,7 @@ class TestRemoteAuthorizationViaHTTP:
 
     @pytest.fixture
     def enabled(self, repo_dir):
-        from scripts.mcp_servers.git import git_server
+        from mcp_servers.git import git_server
 
         # Snapshot BEFORE mutating so restore returns to the true prior state
         # (whatever it was before this fixture ran), not to this fixture's own
@@ -2053,7 +2052,7 @@ class TestGitServiceErrorHandlerIdentity:
 
     @pytest.fixture
     def client(self):
-        from scripts.mcp_servers.git.git_server import app
+        from mcp_servers.git.git_server import app
 
         return TestClient(app)
 
@@ -2070,7 +2069,7 @@ class TestGitServiceErrorHandlerIdentity:
 
     @pytest.fixture
     def enabled(self, repo_dir):
-        from scripts.mcp_servers.git import git_server
+        from mcp_servers.git import git_server
 
         # Snapshot BEFORE mutating so restore returns to the true prior state
         # (whatever it was before this fixture ran), not to this fixture's own
@@ -2100,7 +2099,7 @@ class TestGitServiceErrorHandlerIdentity:
     ):
         # Step 3a correction: format_checkout is now called from
         # mcp_servers.git.git_service (gitdispatch's dispatch-unification
-        # moved it there), not scripts.mcp_servers.git.git_server as this
+        # moved it there), not mcp_servers.git.git_server as this
         # document originally assumed — patch it at its actual call site.
         from mcp_servers.git import git_service
         from mcp_servers.git.errors import GitServiceError
