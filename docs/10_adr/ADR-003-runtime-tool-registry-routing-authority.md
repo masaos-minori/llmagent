@@ -252,9 +252,17 @@ No confirmed deviations.
 
 ### Approval Record
 
+Initial approval (Decision Details #1 to #9):
+
 - **Approved By**: architecture-reviewer
 - **Approval Date**: 2026-08-20
-- **Approval Reference**: ADR-003 creation, ADR-013 integration
+- **Approval Reference**: ADR-003 creation
+
+Task-level approval decision (Decision Details #10 to #15 and INV-04, which were added after the initial approval: the integration of the former ADR-013 content and the static `ToolRegistry` drift-validation rule):
+
+- **Approved By**: repository owner
+- **Approval Date**: 2026-10-07
+- **Approval Reference**: documentation task reviewing the approval scope of ADR-003; the repository owner approved the current content, including Decision Details #10 to #15
 
 ## Related ADRs
 
