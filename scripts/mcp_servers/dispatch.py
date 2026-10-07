@@ -24,7 +24,6 @@ from shared.tool_constants import (
 )
 
 from mcp_servers.models import CallToolResponse
-from scripts.shared import tool_constants  # side-effecting classification
 
 logger = logging.getLogger(__name__)
 
@@ -63,19 +62,7 @@ _duplicate_cache: dict[DuplicateCacheKey, DuplicateCacheValue] = {}
 
 def _is_side_effecting(tool_name: str) -> bool:
     """Check if a tool name belongs to the write/dangerous/exec sets."""
-    all_write_tools: set[str] = set()
-    for s in (
-        tool_constants.WRITE_TOOLS,
-        tool_constants.DELETE_TOOLS,
-        tool_constants.GIT_WRITE_TOOLS,
-        tool_constants.RAG_WRITE_TOOLS,
-        tool_constants.CICD_WRITE_TOOLS,
-        tool_constants.GITHUB_WRITE_TOOLS,
-        tool_constants.GITHUB_DANGEROUS_TOOLS,
-        tool_constants.SHELL_TOOLS,
-    ):
-        all_write_tools.update(s)
-    return tool_name in all_write_tools
+    return tool_name in _write_tools
 
 
 def _to_call_tool_response(r: DispatchResult) -> CallToolResponse:
