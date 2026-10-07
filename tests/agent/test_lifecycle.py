@@ -675,6 +675,7 @@ class TestAssertValidTransition:
         assert "Valid targets from" in msg
         assert "STARTING" in msg
         assert "FAILED" in msg
+        assert "STOPPED" in msg
 
     def test_valid_transition_does_not_raise(self) -> None:
         assert_valid_transition(LifecycleState.FAILED, LifecycleState.STARTING)
