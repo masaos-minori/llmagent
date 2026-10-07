@@ -127,10 +127,14 @@ transform recipe and post-transform verification commands in
 #### mypy — primary
 
 ```bash
-mypy scripts/
-mypy scripts/<file>.py --strict
-mypy scripts/ --show-error-codes   # always include error codes
+mypy --no-namespace-packages scripts/
+mypy --no-namespace-packages scripts/<file>.py --strict
+mypy --no-namespace-packages scripts/ --show-error-codes   # always include error codes
 ```
+
+Always pass `--no-namespace-packages` (the CI and pre-commit invocation; see `rules/toolchain.md`
+section 2). Without it, mypy can abort with `Source file found twice` and judges
+`# type: ignore` comments differently, so its result does not predict CI.
 
 A 0-error result is evidence of a clean type-check only after confirming the target file
 exists and mypy actually visited it (e.g. its path appears in a run with `--verbose`, or

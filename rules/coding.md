@@ -133,7 +133,7 @@ The default parameter is mandatory — omitting it means "reject missing keys".
 
 ## mypy note
 
-`warn_unused_ignores = true` is set in `pyproject.toml` — any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run.
+`warn_unused_ignores = true` is set in `pyproject.toml` — any `# type: ignore` on a line where mypy finds no error is itself an error. `tests/` is also covered by pre-commit's mypy run. Judge unused ignores only with the CI invocation, `uv run mypy --no-namespace-packages scripts/` (see `rules/toolchain.md`): without the flag, mypy reports ignores that CI still needs as unused.
 
 ## Documentation notes — "Current behavior" classification
 

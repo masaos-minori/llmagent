@@ -42,9 +42,11 @@ uv run ruff check scripts/       # confirm clean
 ### 2. Type check
 
 ```bash
-uv run mypy scripts/             # primary
+uv run mypy --no-namespace-packages scripts/   # primary (same invocation as CI and pre-commit)
 uv run pyright scripts/          # alternate (cross-validate)
 ```
+
+Always pass `--no-namespace-packages`: CI (`.github/workflows/ci.yml`) and the pre-commit mypy hook (which adds `--no-incremental`) run mypy that way. Without it, mypy resolves `scripts/` modules under two names and can abort with `Source file found twice`, and its verdict on `# type: ignore` comments (`warn_unused_ignores`) differs, so a clean result without the flag does not show that CI passes.
 
 Fix type errors at the source. See `rules/coding.md`, section "Suppression governance".
 
@@ -107,7 +109,7 @@ continuing to patch beyond that bound.
 ## Completion checklist (common to all tasks)
 
 - `uv run ruff check scripts/` passes with no errors
-- `uv run mypy scripts/` passes (no new regressions vs pre-existing errors)
+- `uv run mypy --no-namespace-packages scripts/` passes (no new regressions vs pre-existing errors)
 - `uv run bandit -r scripts/ -c pyproject.toml` passes (no high/medium unaddressed)
 - `PYTHONPATH=scripts uv run lint-imports` passes (no architecture boundary violations)
 - `uv run pytest` passes with no new failures
