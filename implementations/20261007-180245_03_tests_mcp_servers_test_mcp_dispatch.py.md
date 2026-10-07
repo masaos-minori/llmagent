@@ -128,10 +128,10 @@ Acceptance criterion for the cache is exercised (REQ-001..REQ-004).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per target table | N/A — docs are Row 5 | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-081902 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-081902 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-081902 |  |
+| 4 | Update documentation, if in scope per target table | N/A — docs are Row 5 | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
