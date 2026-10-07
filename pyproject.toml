@@ -112,10 +112,6 @@ warn_return_any = true
 warn_unused_ignores = true
 
 [[tool.mypy.overrides]]
-module = ["scripts.mcp_servers.*"]
-disable_error_code = ["attr-defined", "call-arg"]
-
-[[tool.mypy.overrides]]
 module = ["agent.signal_handler"]
 disable_error_code = ["attr-defined"]
 
