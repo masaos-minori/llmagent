@@ -255,3 +255,35 @@ class TestNoIdHeadings:
         assert findings[0].severity == "WARNING"
         assert "ID-005" in findings[0].message
         assert "dangling" in findings[0].message.lower()
+
+
+class TestSubsectionNoLongerParsed:
+    """An ID mentioned only in the removed `### Known Issues` subsection is no
+    longer parsed; an identical ID in `## Known Deviations` still is -- the
+    regression guard for dropping the subsection parser (rel002 / AC-4)."""
+
+    def test_id_only_in_removed_subsection_is_no_longer_parsed(
+        self, tmp_path: Path
+    ) -> None:
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "ADR-020-example.md",
+            "## Implementation Notes\n\n"
+            "Some notes.\n\n"
+            "### Known Issues\n\n"
+            "- **Known Issue**: ID-020 — only in the old subsection\n",
+        )
+        refs = parse_adr_references(_discover(adr_dir))
+        assert not any(ref.id == "ID-020" for ref in refs)
+
+    def test_same_id_in_known_deviations_is_still_parsed(self, tmp_path: Path) -> None:
+        adr_dir = tmp_path / "10_adr"
+        _write(
+            adr_dir,
+            "ADR-021-example.md",
+            "## Known Deviations\n\n"
+            "- **Known Issue**: ID-020 — tracked in Known Deviations\n",
+        )
+        refs = parse_adr_references(_discover(adr_dir))
+        assert [ref.id for ref in refs] == ["ID-020"]
