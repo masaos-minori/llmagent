@@ -71,15 +71,16 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
 |----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
-| DESIGN-001 | ADR-002 Agent required-keys row lists keys absent from config/agent.toml | open | Low | Governance | document-code-mismatch | `docs/10_adr/ADR-002-config-isolation.md` | Unassigned | Documentation review | Agent row names keys absent from `config/agent.toml` | `docs/10_adr/ADR-002-config-isolation.md` |
-| AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap | `config/workflows/default.json` | Unassigned | Documentation review | Default workflow sets `require_approval` false; policy not enforced | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` |
-| MCP-001 | git-mcp audit records are never emitted | open | Medium | MCP | implementation-bug | `scripts/mcp_servers/git/git_server.py` | Unassigned | Documentation review | `_audit_log()` rejects the keywords `call_tool` passes; no audit record | `docs/22_mcp/mcp_04_05_git.md`, `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
-| MCP-002 | git_pull and git_push schema contradicts the protected-branch validation | open | Medium | MCP | implementation-bug | `scripts/mcp_servers/git/git_tools.py` | Unassigned | Documentation review | Schema allows an empty `branch`; validation rejects it | `docs/22_mcp/mcp_04_05_git.md` |
-| DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap | `deploy/setup_services.sh` | Unassigned | Documentation review | No repository script starts `embed-llm`/`agent-llm` | `docs/90_deployment/deployment_01_deployment.md` |
-| EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | CONSUMER token without an allowlist is unrestricted (fail-open) | `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` |
-| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | Concurrent delete during NACK yields 409 instead of 404 | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
-| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug | `scripts/eventbus/delivery_repo.py` | Unassigned | Documentation review | No idempotency guard: repeated NACKs keep incrementing counters | `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` |
-| EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap | `scripts/eventbus/ack_route.py` | Unassigned | Documentation review | `/ack` and `/nack` do not enforce Consumer ID exclusivity | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` |
+| DESIGN-001 | ADR-002 Agent required-keys row lists keys absent from config/agent.toml | open | Low | Governance | document-code-mismatch | `ADR-002` | Unassigned | Documentation review | Agent row names keys absent from `config/agent.toml` | `ADR-002` |
+| AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap | `config/workflows/default.json` | Unassigned | Documentation review | Default workflow sets `require_approval` false; policy not enforced | `agent_03` |
+| MCP-001 | git-mcp audit records are never emitted | open | Medium | MCP | implementation-bug | `scripts/mcp_servers/git/git_server.py` | Unassigned | Documentation review | `_audit_log()` rejects the keywords `call_tool` passes; no audit record | `mcp_04`, `ADR-012` |
+| MCP-002 | git_pull and git_push schema contradicts the protected-branch validation | open | Medium | MCP | implementation-bug | `scripts/mcp_servers/git/git_tools.py` | Unassigned | Documentation review | Schema allows an empty `branch`; validation rejects it | `mcp_04` |
+| MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug | `config/cicd_mcp_server.toml` | Unassigned | Documentation review | Allowlist holds `owner/repo/.github/workflows/ci.yml` but requests carry a file name | `mcp_05` |
+| DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap | `deploy/setup_services.sh` | Unassigned | Documentation review | No repository script starts `embed-llm`/`agent-llm` | `deployment_01` |
+| EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | CONSUMER token without an allowlist is unrestricted (fail-open) | `ADR-013` |
+| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | Concurrent delete during NACK yields 409 instead of 404 | `ADR-006` |
+| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug | `scripts/eventbus/delivery_repo.py` | Unassigned | Documentation review | No idempotency guard: repeated NACKs keep incrementing counters | `eventbus_05` |
+| EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap | `scripts/eventbus/ack_route.py` | Unassigned | Documentation review | `/ack` and `/nack` do not enforce Consumer ID exclusivity | `ADR-006`, `eventbus_05` |
 
 #### DESIGN-001
 
@@ -160,6 +161,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: `git_pull`/`git_push` calls that rely on the schema default are rejected.
 - **Recommended Action**: Resolve the current branch before validation, or make `branch` required in the schema.
 - **Resolution Target**: Schema, validation and mcp_04_05 agree.
+
+#### MCP-003
+
+- **ID**: MCP-003
+- **Title**: cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives
+- **Status**: open
+- **Severity**: Medium
+- **Area**: MCP
+- **Type**: implementation-bug
+- **Source**: `config/cicd_mcp_server.toml`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md`
+- **Related**: `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`
+- **Summary**: The checked-in allowlist uses a full-path form, but `trigger_workflow` compares the request's `workflow` value by exact match and its schema describes a file name or workflow ID.
+- **Current Description**: The configuration comment says "file names (e.g. ci.yml)", but its example and the checked-in value use a full path.
+- **Observed Implementation**: `_assert_allowed_workflow()` tests `workflow not in allowlist`; tests use `ci.yml`.
+- **Impact**: A call with `workflow="ci.yml"` is rejected with `CicdAuthorizationError` under the checked-in configuration.
+- **Recommended Action**: Decide the accepted form (file name or full path), then align the guard or normalization, the configuration value and comment, and the documentation.
+- **Resolution Target**: The allowlist form, the guard, the tool schema and the documentation agree.
 
 #### DEPLOY-001
 
@@ -330,10 +351,6 @@ Canonical Source Conflict resolved only when exactly one normative source remain
 
 Evidence is required before any discrepancy is reclassified or removed; a documentation-only edit cannot close a design-vs-code conflict unless required implementation evidence exists.
 
-### Current-Specification-Only Policy Reference
-
-Resolved-item handling for Canonical Source Conflict follows the existing Current-Specification-Only Policy: resolved entries are removed from the active inventory, not retained with a closed-out status.
-
 ### Active Items
 
 No other active Canonical Source Conflict items remain open.
@@ -366,10 +383,6 @@ Configuration Drift resolved only when deployed and approved values agree, or ap
 ### Evidence-Required Rule
 
 Evidence is required before any discrepancy is reclassified or removed.
-
-### Current-Specification-Only Policy Reference
-
-Resolved-item handling for Configuration Drift follows the existing Current-Specification-Only Policy: resolved entries are removed from the active inventory, not retained with a closed-out status.
 
 ## Resolution Rules
 
@@ -405,9 +418,6 @@ A temporary exception must record all three of:
 Record the exception inline, next to the flagged line, as:
 
 `<!-- exception: {rule-id} — {reason} — {owner} — expires {YYYY-MM-DD} -->`
-
-For example: `<!-- exception: GV-017 — read_json_file mention is a historical
-comparison, not a current-spec claim — @agent-lead — expires 2026-12-01 -->`
 
 An exception past its expiration date is treated as an unexplained finding (see
 `docs/00_governance/governance_04_documentation-checks.md`

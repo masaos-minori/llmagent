@@ -97,7 +97,7 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 
 ## Notes for AI Systems
 
-1. **Do not assume write access to GitHub.** `allowed_repos` is empty by default (fail-closed). Verify `allowed_repos` is configured before attempting GitHub writes.
+1. **Do not assume write access to GitHub.** An empty `allowed_repos` (the code default) denies all writes (fail-closed); the checked-in configuration lists repositories explicitly. Verify `allowed_repos` is configured before attempting GitHub writes.
 
 2. **Do not assume shell commands can be executed.** `command_allowlist` is empty by default. Verify the allowlist before calling `shell_run`.
 
