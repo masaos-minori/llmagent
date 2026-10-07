@@ -37,7 +37,7 @@ Describes the primary runtime components, their dependencies, and responsibility
 
 - `Orchestrator.__init__()` loads workflow definitions via `WorkflowLoader().load()`, raising a `RuntimeError` on failure (which stops startup).
 - If an exception occurs after starting an MCP subprocess, the started MCP subprocesses are rolled back.
-- Parallel/serial determination of tool calls is driven by the `is_write` flag of the registered tool spec via `build_execution_groups()`; write-capable calls are serialized (Explicit in code — `scripts/agent/tool_scheduler.py`).
+- Parallel/serial determination of tool calls is made by `build_execution_groups()` from `ToolSpec.requires_serial` (in-place serial barrier), overlapping `resource_scopes` where at least one side `is_write` (serial group; a write without scopes uses a synthetic global write scope), and `force_serial` from `serial_tool_calls` (every call in its own serial phase). Each serialization is logged as `ROUND_SERIALIZATION` with a reason (Explicit in code — `scripts/agent/tool_scheduler.py`).
 
 ## Operational Notes
 
@@ -146,7 +146,7 @@ The hub for shared mutable state and component references. All services are inje
 ##### ToolExecutor (`shared/tool_executor.py`)
 
 - MCP routing.
-- Side-effect detection: serializes parallel tool calls if `write`/`delete`/`shell_run` is included.
+- MCP call dispatch only; parallel/serial scheduling is not decided here but by `agent/tool_scheduler.py::build_execution_groups()` (see Key Constraints) (Explicit in code — `scripts/agent/tool_scheduler.py`).
 - Resolves tool name → server key.
 - Tracks health status per server.
 
@@ -222,19 +222,9 @@ Service checks accumulate results in `StartupValidationResult`, and startup is a
 
 `ensure_ready`/`start_http_subprocess`/`restart` are guarded against being ignored once shutdown has started.
 
-### Operational Notes
-
-- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default).
-- `handle_turn()` executes the plan/execute/verify stages via the workflow engine.
-  While `ctx.workflow.approval_pending` is `True`, and while background tasks are paused, new turns are rejected. (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
-
 ### Preflight Gate Coverage Map
 
 See [Preflight Gate Coverage](#preflight-gate-coverage) above for the enumerated `check_preflight()` call sites, the exempt paths and the maintenance rule for new gate additions.
-
-### Known Limitations
-
-- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Keywords
 

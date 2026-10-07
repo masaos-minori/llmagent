@@ -4,10 +4,10 @@ area: eventbus
 tags: [api-reference, index, overview]
 related:
   - eventbus_00_document-guide.md
-  - eventbus_11_health_endpoint.md
-  - eventbus_12_replay_endpoint.md
+  - eventbus_10_health_endpoint.md
+  - eventbus_11_replay_endpoint.md
   - eventbus_04_dlq_endpoint.md
-  - eventbus_13_ack_nack_endpoints.md
+  - eventbus_12_ack_nack_endpoints.md
 ---
 
 # EventBus API Reference
@@ -20,11 +20,11 @@ This directory contains the API reference documentation for the EventBus HTTP se
 
 | Document | Description |
 |----------|-------------|
-| [Health Endpoint](eventbus_11_health_endpoint.md) | GET /health — Service health monitoring |
-| [Replay Endpoint](eventbus_12_replay_endpoint.md) | GET /replay — Replay events via SSE or JSON |
+| [Health Endpoint](eventbus_10_health_endpoint.md) | GET /health — Service health monitoring |
+| [Replay Endpoint](eventbus_11_replay_endpoint.md) | GET /replay — Replay events via SSE or JSON |
 | [Publish and Subscribe](eventbus_03_dlq_operations.md) | POST /publish + GET /subscribe — Publishing and SSE delivery |
 | [DLQ Endpoint](eventbus_04_dlq_endpoint.md) | GET /dlq + POST /dlq/{event_id}/requeue — Dead-letter queue management |
-| [ACK/NACK Endpoints](eventbus_13_ack_nack_endpoints.md) | POST /events/{event_id}/ack + POST /nack — Consumer acknowledgments |
+| [ACK/NACK Endpoints](eventbus_12_ack_nack_endpoints.md) | POST /events/{event_id}/ack + POST /nack — Consumer acknowledgments |
 
 ## Authentication Model
 
@@ -44,7 +44,7 @@ The available roles are:
 | MONITORING | `${MONITORING_TOKEN}` | Health checks |
 | ADMIN | `${ADMIN_TOKEN}` | Admin endpoints (`/admin/*`, e.g. `POST /admin/topics/authorization`) |
 
-When per-role tokens are configured, each token grants only its own role. When the shared `auth_token` is set, it grants all roles for backward compatibility.
+When per-role tokens are configured, each token grants only its own role. When the shared `auth_token` is set, it grants all roles. (Explicit in code — `scripts/eventbus/auth.py`)
 
 ## Common Patterns
 

@@ -63,7 +63,7 @@ See [Consumer Identity](eventbus_05_dlq_offsets_and_delivery_semantics.md#consum
 
 ## Replay Behavior
 
-`GET /replay?since_seq=N` returns events where `seq > N` in ascending order of `seq`. SSE format provides sequential streaming; JSON format provides a `{total, limit, offset, items}` pagination object. `total` is available only in JSON format. The full endpoint contract is in `eventbus_12_replay_endpoint.md`.
+`GET /replay?since_seq=N` returns events where `seq > N` in ascending order of `seq`. SSE format provides sequential streaming; JSON format provides a `{total, limit, offset, items}` pagination object. `total` is available only in JSON format. The full endpoint contract is in `eventbus_11_replay_endpoint.md`.
 
 ## SQLite/JSONL Consistency Check and Recovery Procedure
 
@@ -72,7 +72,7 @@ See [Consumer Identity](eventbus_05_dlq_offsets_and_delivery_semantics.md#consum
 Run the following command to verify the SQLite WAL file integrity:
 
 ```bash
-sqlite3 /path/to/eventbus.db "PRAGMA integrity_check;"
+sqlite3 /path/to/eventbus.sqlite "PRAGMA integrity_check;"
 ```
 
 Expected output: `ok`
@@ -84,8 +84,8 @@ If the output is not `ok`, the database may be corrupted. Proceed to Step 5 (con
 Check for gaps in the sequence numbers:
 
 ```bash
-sqlite3 /path/to/eventbus.db "SELECT seq FROM events ORDER BY seq LIMIT 1;"
-sqlite3 /path/to/eventbus.db "SELECT MAX(seq) FROM events;"
+sqlite3 /path/to/eventbus.sqlite "SELECT seq FROM events ORDER BY seq LIMIT 1;"
+sqlite3 /path/to/eventbus.sqlite "SELECT MAX(seq) FROM events;"
 ```
 
 Compare the minimum and maximum `seq` values. If there are gaps (i.e., `MAX(seq) - MIN(seq) != COUNT(*) - 1`), some events may have been lost.
@@ -95,7 +95,7 @@ Compare the minimum and maximum `seq` values. If there are gaps (i.e., `MAX(seq)
 Verify that consumer offsets are consistent with the latest event:
 
 ```bash
-sqlite3 /path/to/eventbus.db "SELECT consumer_id, offset FROM consumer_offsets ORDER BY consumer_id;"
+sqlite3 /path/to/eventbus.sqlite "SELECT consumer_id, offset FROM consumer_offsets ORDER BY consumer_id;"
 ```
 
 For each consumer, compare the offset with the maximum `seq` in the `events` table. If a consumer's offset is greater than the maximum `seq`, it indicates a potential inconsistency.
@@ -105,7 +105,7 @@ For each consumer, compare the offset with the maximum `seq` in the `events` tab
 Check that events marked for DLQ promotion match the DLQ directory:
 
 ```bash
-sqlite3 /path/to/eventbus.db "SELECT event_id FROM events WHERE dlq_at IS NOT NULL;"
+sqlite3 /path/to/eventbus.sqlite "SELECT event_id FROM events WHERE dlq_at IS NOT NULL;"
 ls -la /path/to/deadletter_dir/
 ```
 
@@ -127,7 +127,7 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 3. Run the checkpoint command to flush WAL to the main database:
    ```bash
-   sqlite3 /path/to/eventbus.db "PRAGMA wal_checkpoint(TRUNCATE);"
+   sqlite3 /path/to/eventbus.sqlite "PRAGMA wal_checkpoint(TRUNCATE);"
    ```
 
 4. Start the EventBus process again:

@@ -1,5 +1,5 @@
 ---
-title: "Memory Layer — Overview and Modes (Part 1)"
+title: "Memory Layer — Overview and Modes"
 area: agent
 tags:
   - agent
@@ -10,7 +10,7 @@ related:
   - agent_11_03_memory-module-reference.md
   - agent_00_document-guide.md
 ---
-# Memory Layer — Overview and Modes (Part 1)
+# Memory Layer — Overview and Modes
 
 - Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
 - Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
@@ -36,22 +36,7 @@ It separates semantic memory (long-term rules/decisions) from episodic memory (s
 - Semantic memory injection at session start requires `importance >= memory_min_importance`. Low-importance entries are not automatically injected.
 - Pinned entries are always injected at every session start (regardless of the importance threshold).
 
-## Operational Notes
-
-- Set `memory_local_only = true` if data must not leave the machine.
-- Current mode can be checked with `/memory status` (Hybrid / FTS-only / Degraded / Disabled).
-- Ensure you have tested `/memory rebuild` after restoring a JSONL backup.
-
-## Known Limitations / Unresolved Issues
-
-None
-
-## Memory Layer — Overview and Modes (Part 2)
-
-- Operations and Observability → [agent_10_01_operations-and-observability-startup-and-health.md](agent_10_01_operations-and-observability-startup-and-health.md)
-- Configuration → [agent_08_03_configuration-tools-memory.md](agent_08_03_configuration-tools-memory.md)
-
-## Memory Modes
+### Memory Modes
 
 The memory layer operates in four different modes, which can be checked via `/memory status`.
 
@@ -86,7 +71,16 @@ Only when embedding retrieval succeeds does the duplicate link discovery perform
 
 Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but semantic writes / episodic writes (manual writes) intentionally bypass this deduplication.
 
----
+## Operational Notes
+
+- Set `memory_local_only = true` if data must not leave the machine.
+- Current mode can be checked with `/memory status` (Hybrid / FTS-only / Degraded / Disabled).
+- `/memory rebuild` imports records from the JSONL archive; delete/pin/unpin operations are not replayed, so deleted entries may be re-inserted (Explicit in code — `scripts/agent/commands/memory_rebuild_ops.py`). It is a dry run by default; `--confirm` applies the rebuild.
+
+## Known Limitations / Unresolved Issues
+
+None
+
 
 ## Keywords
 

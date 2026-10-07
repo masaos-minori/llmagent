@@ -66,7 +66,7 @@ User input (line)
          │         │
          │         └─ Tool Loop (internal, up to max_tool_turns):
          │              → execute_all_tool_calls()
-         │                   → Execute in parallel unless side-effecting tools exist
+         │                   → build_execution_groups(): serial phases for requires_serial tools, serial groups for conflicting resource_scopes, otherwise parallel
          │                   → ToolExecutor.execute(tool_name, args)
          │                   → Add tool results to history as "tool" role
          │                        (Denied tool calls are added via extend_messages())

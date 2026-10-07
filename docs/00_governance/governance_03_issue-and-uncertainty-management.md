@@ -60,14 +60,17 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap |
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-003 | Orchestrator continues in fallback mode when the workflow fails to load | open | Medium | Agent | design-gap |
+| AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
 | MCP-001 | git-mcp audit records are never emitted | open | Medium | MCP | implementation-bug |
 | MCP-002 | git_pull and git_push schema contradicts the protected-branch validation | open | Medium | MCP | implementation-bug |
 | MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
+| MCP-004 | git-mcp ref and remote validation is weaker than ADR-012 INV-01 | open | Low | MCP | design-gap |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
 | EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug |
 | EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug |
 | EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap |
+| EVENTBUS-014 | `events.acked_at` is never written but is still read | open | Low | EventBus | implementation-bug |
 
 #### AGENT-003
 
@@ -169,6 +172,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Add a unit test that `Orchestrator` constructs exactly one `LlmTurnExecutor`.
 - **Resolution Target**: A test covers ADR-014 INV-02.
 
+#### AGENT-004
+
+- **ID**: AGENT-004
+- **Title**: A non-required subprocess MCP server aborts startup when it fails to spawn
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/startup_mcp_starter.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/ADR-004-environment-failure-handling-policy.md`
+- **Related**: None
+- **Summary**: The spawn path never reads `required`, so `required=false` does not disable the server.
+- **Current Description**: ADR-004 disables a non-mandatory component and continues startup.
+- **Observed Implementation**: `McpServerStarter` retries once and raises a fatal error; `required` is applied only during discovery.
+- **Impact**: A non-required server can still block startup.
+- **Recommended Action**: Apply `required` to spawn failures, or record the exception in ADR-004.
+- **Resolution Target**: Spawn failures follow `required`, or ADR-004 records the exception.
+
 #### MCP-001
 
 - **ID**: MCP-001
@@ -182,10 +205,10 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: Documentation review
 - **Target**: `docs/22_mcp/mcp_04_05_git.md`
 - **Related**: `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`
-- **Summary**: `call_tool` passes keyword arguments that `_audit_log()` does not accept, so no audit record is written.
+- **Summary**: `call_tool` passes keyword arguments that `_audit_log()` does not accept, so most audit records are not written.
 - **Current Description**: mcp_04_05 describes audit fields that are never written.
 - **Observed Implementation**: `call_tool` passes `requested_target=`/`canonical_target=`; the `TypeError` is swallowed by `_audit_log_safe()` and only `audit_log failed` is logged. Tests mock `_audit_log`.
-- **Impact**: git-mcp writes leave no audit record.
+- **Impact**: Only the path-containment rejection is recorded.
 - **Recommended Action**: Align the `_audit_log()` signature with its callers and test the real function.
 - **Resolution Target**: Each git-mcp call writes an audit record, covered by a test.
 
@@ -228,6 +251,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: `workflow="ci.yml"` is rejected under the checked-in configuration.
 - **Recommended Action**: Decide the accepted form (file name or full path), then align the guard or normalization, the configuration value and comment, and the documentation.
 - **Resolution Target**: The allowlist form, the guard, the tool schema and the documentation agree.
+
+#### MCP-004
+
+- **ID**: MCP-004
+- **Title**: git-mcp ref and remote validation is weaker than ADR-012 INV-01
+- **Status**: open
+- **Severity**: Low
+- **Area**: MCP
+- **Type**: design-gap
+- **Source**: `scripts/mcp_servers/git/git_service.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`
+- **Related**: `MCP-002`
+- **Summary**: INV-01 requires a safe ref/remote-name pattern; the code rejects only a leading `-`.
+- **Current Description**: ADR-012 INV-01 says unsafe values must be rejected.
+- **Observed Implementation**: `_validate_ref()` rejects a leading `-`; no pattern check exists and empty values pass it.
+- **Impact**: Unusual ref or remote names reach the git command.
+- **Recommended Action**: Add the pattern check, or narrow INV-01 to what is enforced.
+- **Resolution Target**: INV-01 and `_validate_ref()` agree, covered by a test.
 
 #### DEPLOY-001
 
@@ -328,6 +371,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Callers sharing a `consumer_id` overwrite each other's progress.
 - **Recommended Action**: Bind ACK/NACK to the active subscription, or narrow INV-10 to the subscribe path; add a test.
 - **Resolution Target**: INV-10 and the ACK path agree, covered by a test.
+
+#### EVENTBUS-014
+
+- **ID**: EVENTBUS-014
+- **Title**: `events.acked_at` is never written but is still read
+- **Status**: open
+- **Severity**: Low
+- **Area**: EventBus
+- **Type**: implementation-bug
+- **Source**: `scripts/eventbus/delivery_repo.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
+- **Related**: `EVENTBUS-012`
+- **Summary**: The ACK route writes only per-consumer state, yet NACK and a 409 branch test `events.acked_at`.
+- **Current Description**: The delivery-semantics document defines ACKed per consumer.
+- **Observed Implementation**: `ack_event_for_consumer()` writes `consumer_delivery` and `consumer_offsets`; `ack_event()`, the only writer of `events.acked_at`, has no caller.
+- **Impact**: The event-level ACK guard in NACK never triggers.
+- **Recommended Action**: Remove the dead helper, column and checks, or write the column on ACK.
+- **Resolution Target**: No code reads `events.acked_at` without a writer.
 
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 

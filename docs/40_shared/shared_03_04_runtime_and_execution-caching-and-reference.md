@@ -35,11 +35,11 @@ A frozen dataclass `CacheEntry` with `output` (str), `is_error` (bool), and `cac
 
 An enum for MCP server health states: `HEALTHY` (normal operation), `DEGRADED` (failing but not yet unavailable), `UNAVAILABLE` (circuit breaker open), `HALF_OPEN` (experimental probe after cooldown), and `UNKNOWN` (unregistered keys return `HEALTHY` default; `UNKNOWN` is never observed in practice).
 
-Per-server health tracking for `ToolExecutor` dispatch gating. Constructor accepts `failure_threshold` (consecutive failures → `UNAVAILABLE`) and `half_open_cooldown_sec`. Methods: `record_failure()` transitions `HEALTHY` → `DEGRADED` → `UNAVAILABLE`; `record_degraded()` records watchdog reachability probes (does not override `UNAVAILABLE`/`HALF_OPEN`); `record_restart_exhausted()` tags degraded reason as `'restart_limit_reached'`; `record_success()` resets state to `HEALTHY` and clears failure counts/degraded reasons; `get_state()` returns current state; `is_unavailable()` handles `UNAVAILABLE` → `HALF_OPEN` transition upon cooldown expiry.
+Per-server health tracking for `ToolExecutor` dispatch gating. Constructor accepts `failure_threshold` (consecutive failures → `UNAVAILABLE`) and `half_open_cooldown_sec`. Methods: `record_failure()` transitions `HEALTHY` → `DEGRADED` → `UNAVAILABLE`; `record_success()` resets state to `HEALTHY` and clears the failure count and the unavailable timestamp; `get_state()` returns current state; `is_unavailable()` handles `UNAVAILABLE` → `HALF_OPEN` transition upon cooldown expiry.
 
 **State Transitions:** `HEALTHY` → `DEGRADED` on first failure; `DEGRADED` → `UNAVAILABLE` on `failure_threshold` consecutive failures;  `UNAVAILABLE` → `HALF_OPEN` after `half_open_cooldown_sec` (experimental probe); `HALF_OPEN` → `UNAVAILABLE` on probe failure (cooldown resets); `HALF_OPEN` → `HEALTHY` on probe success; any state → `HEALTHY` on successful response.
 
-**Implementation Notes:** `get_state()` returns `HEALTHY` default for unregistered keys (`UNKNOWN` is never observed). `record_degraded()` does not override `UNAVAILABLE`/`HALF_OPEN` states (intentional guard against breaking circuit breaker/trial windows). `record_restart_exhausted()` does not change state (assumes `record_failure()` already set `UNAVAILABLE`) but tags the degraded reason. `record_success()` resets `_failure_counts`, `_unavailable_since`, and `_degraded_reasons` (prevents immediate re-`UNAVAILABLE` due to stale counts).
+**Implementation Notes:** `get_state()` returns `HEALTHY` default for unregistered keys (`UNKNOWN` is never observed). The registry stores no degraded reason. `record_success()` resets `_failure_counts` and `_unavailable_since` (prevents immediate re-`UNAVAILABLE` due to stale counts).
 
 ---
 

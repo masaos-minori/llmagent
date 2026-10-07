@@ -36,7 +36,6 @@ related:
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
   - eventbus_06_persistence_schema_and_replay.md
-  - eventbus_07_validation_status.md
 ---
 
 # Event Bus: Configuration and Operations
@@ -61,7 +60,7 @@ that dataclass's `__post_init__()` for the exact validation rules enforced at st
 and `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the authorization
 model the token fields below implement.
 
-- `retained_event_count` — Number of events retained in SQLite for replay
+- `retained_event_count` — Validated at startup (must be at least 1) but not consumed by any runtime code path: it does not limit or prune the events retained in SQLite (Explicit in code — `scripts/eventbus/config.py`; no other reference under `scripts/`)
 - `publish_rate` — Maximum publish rate in events/sec before backpressure applies
 - `host` — Listening address (must be a loopback address — see Bind Address below)
 - `auth_token` — Required for all requests (startup fails if empty)
@@ -129,14 +128,14 @@ Initial replay is performed in bounded, configurable batches rather than a singl
 
 ### Configuration
 
-The following configuration fields control replay behavior (see also `retained_event_count` above):
+The following configuration fields control replay behavior:
 
 - `replay_batch_size` — Number of rows fetched per batch
 - `subscriber_count` — Maximum number of concurrent subscribers before capacity limits apply
 
 ### Capacity Limits
 
-Capacity is governed by the configuration fields `subscriber_count`, `retained_event_count`, and `publish_rate` described above and in the Configuration section. No replay-size limit or latency objective is defined.
+Capacity is governed by the configuration fields `subscriber_count` and `publish_rate` described above and in the Configuration section. No replay-size limit or latency objective is defined.
 
 ### Database-Lock Contention Monitoring
 
@@ -210,6 +209,10 @@ Files are created at `{deadletter_dir}/{event_id}.json` during inline processing
 ### Monitoring
 
 Sweep results are recorded in the logs but are not exposed via the health endpoint.
+
+## Validation
+
+The CI workflow runs lint checks, type checks, and the test suite for `scripts/`, so the health, ACK/NACK, and DLQ tests under `tests/eventbus/` run on every change. (Explicit in code — `.github/workflows/ci.yml`)
 
 ## Keywords
 

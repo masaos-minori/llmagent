@@ -4,7 +4,7 @@ tags: [api-reference, health, monitoring]
 area: eventbus
 related:
   - eventbus_02_api-reference-index.md
-  - eventbus_08_configuration-and-operations.md
+  - eventbus_07_configuration-and-operations.md
 ---
 
 # Health Endpoint

@@ -101,7 +101,7 @@ For detailed delivery semantics (ordering guarantees, ACK/NACK rules, offset sem
 
 ### scripts/eventbus/health_route.py
 
-`health_check(request)`: `GET /health`. See `eventbus_08_configuration-and-operations.md` for monitoring thresholds.
+`health_check(request)`: `GET /health`. See `eventbus_07_configuration-and-operations.md` for monitoring thresholds.
 
 ### HTTP Endpoints Summary
 

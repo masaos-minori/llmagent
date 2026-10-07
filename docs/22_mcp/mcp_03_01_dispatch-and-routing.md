@@ -25,7 +25,7 @@ To document tool routing, server startup/shutdown lifecycles, the internal struc
 
 ## Tool Call Dispatch Flow
 
-The agent sets the `server_key` and `tool_name` in the dispatch log context. The `X-Request-Id` (retrieved from the serverless response header) correlates the agent's dispatch logs with transport and server audit logs.
+The agent sets the `server_key` and `tool_name` in the dispatch log context. The `X-Request-Id` (returned in the HTTP response header of the MCP server) correlates the agent's dispatch logs with transport and server audit logs.
 
 ``` text
 LLM returns tool_call
@@ -54,7 +54,7 @@ LLM returns tool_call
 
 A single stage does the real filtering: `RuntimeToolRegistry.llm_tool_definitions()` returns only tools with `enabled_for_llm=True`, and that is the set of function definitions actually sent to the LLM. Disabled tools (per the owning server's `enabled`/`disabled_reason`) are excluded here, before the LLM ever sees them — not at a later "runtime routability" stage.
 
-`LlmTurnExecutor` has no second filtering stage. `LlmTurnExecutor._stream_llm()` calls `registry.llm_tool_definitions()` directly (falling back to `ctx.cfg.tool.tool_definitions` only when no registry is available), so Stage 1 above is the sole filtering stage — see `mcp_03_06_tool-runtime-availability-metadata.md` sections 6a/6b for the concepts this area actually needs (static vs. dynamic availability, approval).
+`LlmTurnExecutor` has no second filtering stage. `LlmTurnExecutor._stream_llm()` calls `registry.llm_tool_definitions()` directly (falling back to `ctx.cfg.tool.tool_definitions` only when no registry is available), so Stage 1 above is the sole filtering stage — see ADR-003 for the distinction between static availability, dynamic health, and approval, and `mcp_03_06_tool-runtime-availability-metadata.md` for the availability metadata.
 
 Once a tool call reaches `ToolRouteResolver.resolve()`/`RuntimeToolRegistry`, routing succeeds as long as the tool is *owned* by a server — `enabled_for_llm`/`disabled_reason` are not re-checked at this layer. A disabled tool that somehow reaches this point (e.g., a stale LLM response referencing a tool disabled after the definitions were generated) is not rejected by the agent-side router; enforcement of "disabled tools must not execute" then depends on the owning MCP server's own `/v1/call_tool` gate, which every server except `mdq` implements (`git`, `file_read`/`file_write`/`file_delete`, `github`, `web_search`, `shell`, `cicd`, `rag_pipeline` — see `mcp_03_06_tool-runtime-availability-metadata.md`).
 
@@ -85,18 +85,18 @@ There is a single data source for scheduling metadata today: a tool's `/v1/tools
 
 Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
-| Tool Set | Server Key |
+| Static tool group (`shared/tool_constants.py`) | Owning server key |
 |---|---|
-| `READ_TOOLS` (e.g., list_directory, read_text_file, etc.) | `file_read` |
-| `WRITE_TOOLS` (write_file, edit_file, create_directory, move_file) | `file_write` |
-| `DELETE_TOOLS` (delete_file, delete_directory) | `file_delete` |
-| `shell_run` | `shell` |
-| `WEB_SEARCH_TOOLS` (search_web, browser_fetch) | `web_search` |
-| `GITHUB_TOOLS` (github_search_repositories, github_get_file_contents) | `github` |
-| `GIT_TOOLS` (git_status, git_log, git_diff, git_branch, git_show, git_add, git_commit, git_checkout, git_pull, git_push) | `git` |
-| `RAG_TOOLS` (rag_run_pipeline, rag_debug_pipeline) | `rag_pipeline` |
-| `CICD_TOOLS` (trigger_workflow, get_workflow_runs, get_workflow_status, get_workflow_logs) | `cicd` |
-| `MDQ_TOOLS` (search_docs, get_chunk, outline, index_paths, refresh_index, stats, grep_docs) | `mdq` |
+| `READ_TOOLS` | `file_read` |
+| `WRITE_TOOLS` | `file_write` |
+| `DELETE_TOOLS` | `file_delete` |
+| `SHELL_TOOLS` | `shell` |
+| `WEB_SEARCH_TOOLS` | `web_search` |
+| `GITHUB_TOOLS` (`GITHUB_READ_TOOLS`, `GITHUB_WRITE_TOOLS`, `GITHUB_DANGEROUS_TOOLS`) | `github` |
+| `GIT_TOOLS` (`GIT_READ_TOOLS`, `GIT_WRITE_TOOLS`) | `git` |
+| `RAG_TOOLS` (`RAG_READ_TOOLS`, `RAG_WRITE_TOOLS`) | `rag_pipeline` |
+| `CICD_TOOLS` (`CICD_READ_TOOLS`, `CICD_WRITE_TOOLS`) | `cicd` |
+| `MDQ_TOOLS` (`MDQ_WRITE_TOOLS` is its write subset) | `mdq` |
 | No Match | `ValueError` |
 
 For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_07_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
@@ -136,11 +136,11 @@ Every MCP tool passes through these layers consistently from invocation to audit
 ② Runtime Dispatch        `server.py`'s `_DISPATCH_TABLE` or `service.get_dispatch_table()`
 ③ Registry Registration    `shared/tool_constants.py`'s frozenset → `shared/tool_registry.py` (for drift detection); routing relies solely on `RuntimeToolRegistry` in `shared/runtime_tool_registry.py`
 ④ Side-effect Detection     Only execution path `agent/tool_runner.py::_execute_with_dag()` delegates to `agent/tool_scheduler.py::build_execution_groups()` and references `RuntimeToolRegistry`-registered `is_write` (PreparedToolCall.spec) to determine parallel/serial execution (unregistered tools are rejected in the preparation phase via fail-closed)
-⑤ Risk Classification & Approval `agent/tool_policy.py::classify_operation_type()` / `classify_risk()` — Priority: `approval_risk_rules` → `tool_safety_tiers` → `tool_constants.py` classification
+⑤ Risk Classification & Approval `agent/tool_policy.py::classify_operation_type()` / `classify_risk()` — Priority: `approval_risk_rules` → `tool_safety_tiers` → operation-type classification (`tool_constants.py` frozensets first, then `RuntimeToolRegistry` for READ vs UNKNOWN)
 ⑥ Audit Logging           `agent/tool_audit.py` — Records `classify_operation_type()` result as `operation_type`
 ```
 
-**Layers ③–⑤ reference different sources.** ③ is registry registration (ownership), ④ is batch execution parallel/serial control, and ⑤ is approval risk assessment and audit classification; all three refer to the `shared/tool_constants.py` frozenset, but missing a reference can cause each layer to drift individually. `agent/tool_policy.py::classify_operation_type()` references `WRITE_TOOLS`/`DELETE_TOOLS`/GitHub sets plus `MDQ_WRITE_TOOLS, RAG_WRITE_TOOLS, CICD_WRITE_TOOLS, GIT_WRITE_TOOLS` (e.g., `index_paths`, `refresh_index`, `rag_delete_document`, `trigger_workflow`, `git_add`, etc.). `tests/test_tool_policy_comprehensive.py` and `tests/test_tool_approval_risk.py` verify this classification.
+**Layers ③–⑤ reference different sources.** ③ is registry registration (ownership; drift detection only), ④ is batch execution parallel/serial control (`RuntimeToolRegistry` `is_write`), and ⑤ is approval risk assessment and audit classification. Missing a reference can cause each layer to drift individually. `agent/tool_policy.py::classify_operation_type()` evaluates in this order: (1) the `shared/tool_constants.py` frozensets `WRITE_TOOLS`, `MDQ_WRITE_TOOLS`, `RAG_WRITE_TOOLS`, `CICD_WRITE_TOOLS`, `GIT_WRITE_TOOLS` give WRITE; (2) `DELETE_TOOLS` gives DELETE; (3) the shell execution tool set gives EXECUTE; (4) `GITHUB_WRITE_TOOLS` and `GITHUB_DANGEROUS_TOOLS` give API_WRITE; (5) any other tool is looked up in `RuntimeToolRegistry`: a registered tool gives READ, and an unregistered tool or a missing registry gives UNKNOWN (fail closed, no static-registry fallback; ADR-003 Decision Detail #6/#8). (Explicit in code — `scripts/agent/tool_policy.py::classify_operation_type`) `tests/test_tool_policy_comprehensive.py` and `tests/test_tool_approval_risk.py` verify this classification.
 
 ### Serialization mechanism integrated into a single scheduler
 

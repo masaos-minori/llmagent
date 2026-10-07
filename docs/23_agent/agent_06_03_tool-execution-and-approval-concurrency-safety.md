@@ -28,7 +28,7 @@ Documents responsibility separation for safety controls, design decisions for `T
 
 | Control | Config field | Behavior |
 |---|---|---|
-| `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; if empty, all are allowed. In production, `allowed_tools=[]` is treated as a configuration error |
+| `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; at runtime (`check_preflight()`) an empty list performs no whitelist check, so all tools are allowed. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error in production (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/shared/production_config_validator.py`) |
 | `allowed_root` | `cfg.approval.allowed_root` | Path jail; if empty, disabled |
 | `approval_github_allowed_repos` | `cfg.approval.*` | GitHub write allowlist; if empty, all are rejected (**Fail-closed**) |
 | `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | Automatic rejection in plan mode |
@@ -81,7 +81,7 @@ Workflow-level approval states are persisted in the `approvals` table of `workfl
 
 ## Key Constraints
 
-- Fail-closed: `allowed_tools=[]` (production), `approval_github_allowed_repos=[]`, workflow creation failure
+- Fail-closed: `approval_github_allowed_repos=[]`, workflow creation failure. `allowed_tools=[]` is not fail-closed at runtime (all tools allowed); only the production startup validator rejects it
 - Fail-safe: tools missing from `tool_safety_tiers` are rejected at startup; at classification time a tool absent from the registry is `high`
 - ToolLoopGuard guard hints are not injected into history
 

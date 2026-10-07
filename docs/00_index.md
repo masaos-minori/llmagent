@@ -147,8 +147,8 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 | Event Bus (HTTP API) | `24_eventbus/eventbus_02_api-reference-index.md` |
 | Event Bus (persistence) | `24_eventbus/eventbus_06_persistence_schema_and_replay.md` |
 | Event Bus (DLQ/offsets) | `24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` |
-| Event Bus (config/ops) | `24_eventbus/eventbus_08_configuration-and-operations.md` |
-| Event Bus (API ref) | `24_eventbus/eventbus_09_reference_api.md` |
+| Event Bus (config/ops) | `24_eventbus/eventbus_07_configuration-and-operations.md` |
+| Event Bus (API ref) | `24_eventbus/eventbus_08_reference_api.md` |
 | Event Bus (issues) | `00_governance/governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
 ## Keywords

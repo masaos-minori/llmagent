@@ -40,6 +40,34 @@ Documents the responsibilities of `CommandRegistry`, which handles dispatching a
 | `command_defs_list.py` | Built-in command definitions | Dispatch logic |
 | `registry.py` | Dispatch behavior, imports command list from `command_defs_list` | Definition of command list |
 
+### Built-in Command Index
+
+Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is additionally reserved by the REPL itself. Subcommands, arguments and flags are intentionally not repeated here: see the per-command chapters ([agent_07_07](agent_07_07_cli-and-commands-slash-commands-session-mcp.md) to [agent_07_10](agent_07_10_cli-and-commands-slash-commands-memory-other.md)) and the `help` text of each `CommandDef` in the source (Explicit in code — `scripts/agent/commands/command_defs_list.py`, `scripts/agent/repl.py`).
+
+| Command | Purpose |
+|---|---|
+| `/help` | Show the command help |
+| `/config` | Show the current configuration and config file paths |
+| `/stats` | Show session statistics |
+| `/context` | Show the runtime context state |
+| `/plan` | Toggle plan mode |
+| `/undo` | Roll back the last user+assistant turn |
+| `/reload` | Reload config files and apply runtime-configurable parameters |
+| `/compact` | Force immediate compression of conversation history |
+| `/diff` | Show diffs for files written/edited this session |
+| `/mcp` | Show MCP server status, tool list and connectivity |
+| `/session` | Manage sessions and session database maintenance |
+| `/clear` | Reset conversation history, optionally starting a new session |
+| `/history` | Show recent user/assistant messages |
+| `/system` | Switch the system prompt preset |
+| `/memory` | Manage long-term memory entries |
+| `/debug` | Toggle debug mode / log level |
+| `/audit` | Browse audit log events |
+| `/approve` | Approve the pending workflow task |
+| `/reject` | Reject the pending workflow task |
+| `/skill` | List skills or load a skill as ephemeral system context |
+| `/mdq` | Markdown query operations (status, index, search, outline, etc.) |
+
 ### Adding New Commands
 
 Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corresponding handler in the appropriate mixin file.

@@ -112,7 +112,7 @@ serialization is forced within a round under certain conditions:
 | Tool has `requires_serial=True` | Any tool with this flag | `requires_serial` |
 | Overlapping `resource_scopes` (at least one write) | Two or more tool calls with matching or hierarchical filesystem scopes | `resource_read_write_conflict` or `resource_write_write_conflict` |
 | Empty `resource_scopes` for a write tool | Any write tool without scope metadata | `global_write_scope` |
-| Side-effect tool in a round (standard path) | Any side-effecting tool | "Side-effect tool detected" |
+| `serial_tool_calls=True` with at least one write tool | `force_serial` passed to the scheduler; every call runs in its own serial phase | `forced_serial` |
 
 Serialization is an intentional safety measure — to prevent corruption of shared resources due to concurrent writes. This is not an indication of a configuration error.
 

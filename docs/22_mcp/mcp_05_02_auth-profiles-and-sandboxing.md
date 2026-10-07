@@ -38,7 +38,7 @@ The server requires an `Authorization: Bearer <token>` header.
 Missing or mismatched token → HTTP 401.
 Applies to: All servers except mdq-mcp (configured per server via `McpServerConfig.auth_token`). mdq-mcp attaches the auth middleware with an empty token, so it does not verify Bearer tokens at the HTTP layer (see `mcp_05_05_mdq-enforcement-and-lockdown.md`); the agent-side `auth_token` entry is still required to be non-empty.
 Use environment-variable injection (`"${ENV:VAR_NAME}"`) rather than a literal
-secret in the TOML file — see the Production-Only Migration Procedure for the current setup steps.
+secret in the TOML file — see section 2.5 (MCP Authentication Tokens) of the deployment document for the current setup steps.
 
 ---
 

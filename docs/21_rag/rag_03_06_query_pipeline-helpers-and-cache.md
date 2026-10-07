@@ -1,5 +1,5 @@
 ---
-title: "RAG Query Pipeline - Helpers and Cache"
+title: "RAG Query Pipeline - Helpers and Retrieval Freshness"
 area: rag
 tags:
   - rag-repository
@@ -29,23 +29,6 @@ related:
 Every query executes the full retrieval pipeline (`SearchStage`, via `RagPipeline.augment()`) — including repeated identical queries. No query-result cache exists. Committed document additions, updates, and deletions are reflected in the very next query with no cache-invalidation action or service/process restart required. This guarantee is verified by `tests/rag/test_rag_pipeline_no_cache_freshness.py`.
 
 For the status of the semantic cache feature, see the Semantic Cache section of [rag_01_system_overview.md](rag_01_system_overview.md).
-
----
-
-## Keywords
-
-rag-repository
-rag-scorer
-rag-llm
-rag
-
----
-
-## RAG Query Pipeline Implementation Details
-
-- System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
-- Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
-- Type Definitions → [rag_04_dto-models-types.md](rag_04_dto-models-types.md)
 
 ---
 
@@ -119,3 +102,12 @@ Returned by `RagPipeline.run()`.
 **Note:** `result_source` exists only on `SearchDiagnostics`.
 
 - `SearchDiagnostics.result_source: ResultSource` (`rag/models_result.py`) — Takes `ResultSource.LOCAL` (default), `REMOTE`, or `FALLBACK`; updated via `dataclasses.replace()` during HTTP augment execution.
+
+---
+
+## Keywords
+
+rag-repository
+rag-scorer
+rag-llm
+rag

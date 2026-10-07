@@ -12,7 +12,7 @@ related:
 
 ## Purpose
 
-This document defines how a change maps to the documents it affects, the approval model for governed changes, and the dependency-graph taxonomy. It was split out of the [Documentation Policy](governance_01_documentation-policy.md).
+This document defines how a change maps to the documents it affects, the approval model for governed changes, and the dependency-graph taxonomy.
 
 ## Update Rule
 

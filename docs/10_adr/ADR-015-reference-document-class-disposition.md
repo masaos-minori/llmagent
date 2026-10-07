@@ -112,7 +112,7 @@ Documents carrying a generated guarded block (Explicit in code — `tools/genera
 - `mcp` — `docs/22_mcp/mcp_01_tool_ownership_matrix.md`
 - `deployment` — `docs/90_deployment/deployment_01_deployment.md`
 - `agent` — `docs/23_agent/agent_13_reference-api-generated.md`
-- `eventbus` — `docs/24_eventbus/eventbus_09_reference_api.md`
+- `eventbus` — `docs/24_eventbus/eventbus_08_reference_api.md`
 - `memory` — `docs/23_agent/agent_11_04_memory-module-reference-generated.md`
 
 See Implementation References for the tool list.

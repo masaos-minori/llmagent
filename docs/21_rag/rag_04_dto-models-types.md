@@ -157,7 +157,7 @@ The following table groups fields that are active depending on the execution mod
 Fields and defaults are defined in `scripts/rag/models_result.py::SearchDiagnostics`:
 `embed_ok`, `embed_failed`, `fts_errors`.
 
-### Fields Added After HTTP Introduction (Meaningful only in Remote mode)
+### Remote-mode fields (Meaningful only in Remote mode)
 These fields are only meaningful when the search is delegated to a remote HTTP RAG service; they remain at their default values during pure local execution: `result_source`, `http_result_kind`, `remote_status_code`, `remote_latency_ms`, `fallback_reason`.
 
 ## 6.3 types.py (`scripts/rag/types.py`)

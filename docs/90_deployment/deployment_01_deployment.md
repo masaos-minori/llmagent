@@ -23,6 +23,8 @@ related:
 
 ### 1.1 OS Provisioning (Gentoo Linux)
 
+The provisioning procedure in this repository targets Gentoo Linux. The deployment scripts (`deploy/*.sh`) are plain bash and contain no distribution-specific commands, and the `conf.d/` files follow the Gentoo `/etc/conf.d/<service>` layout. (Explicit in code — `deploy/deploy.sh`, `conf.d/`)
+
 ```bash
 # Required Packages
 emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja dev-db/sqlite dev-lang/python:3.13 dev-libs/libxml2 dev-libs/libxslt dev-vcs/git
@@ -38,11 +40,11 @@ emerge --ask sys-devel/gcc sys-devel/make dev-util/cmake dev-util/ninja dev-db/s
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync --dev --system-certs
 ```
 
-Dependency management is centralized in `pyproject.toml`/`uv.lock` (`requirements.txt` does not exist).
-Running `uv sync` installs all dependency packages for both runtime and development.
+Dependency management is centralized in `pyproject.toml`/`uv.lock` (`requirements.txt` does not exist). Runtime dependencies are declared in `[project].dependencies`; development tools are declared separately in the `dev` dependency group.
+
+The deployment scripts do not run `uv sync`. `deploy/deploy.sh` copies `pyproject.toml` and `uv.lock` into the production install root, and `deploy/deploy.sh`, `deploy/setup_services.sh` and `deploy/start_agent.sh` invoke Python through `uv run` with `UV_SYSTEM_CERTS=true`; none of them passes a flag that selects or excludes the `dev` dependency group. (Explicit in code — `deploy/deploy.sh`, `deploy/start_agent.sh`, `pyproject.toml`) The `uv sync --dev --system-certs` command in `rules/toolchain.md` is the development-checkout setup, not a production step.
 
 ### 1.3 Building llama.cpp
 
@@ -129,8 +131,11 @@ bash deploy/start_agent.sh
 `deploy/start_agent.sh` automatically detects whether to use the production install root or development (repository root) based on the presence of `pyproject.toml` in the production install root, and executes `python -m agent` (`scripts/agent/__main__.py`) in the corresponding root. (Explicit in code)
 
 > API Key Configuration:
-> - Web Search: DuckDuckGo — No API key required
+> - Web Search: DuckDuckGo — No API key required; `BRAVE_API_KEY` and `BING_API_KEY` (see `conf.d/web-search-mcp`) enable the optional providers
 > - GitHub Operations: Export `GITHUB_TOKEN` in shell or source `conf.d/github-mcp` before startup
+> - CI/CD: `conf.d/cicd-mcp` holds `GITHUB_TOKEN` for `cicd-mcp`
+>
+> `conf.d/` contains environment files only for the `cicd-mcp`, `git-mcp`, `github-mcp` and `web-search-mcp` servers; `git-mcp` defines no variables there (comments only). `deploy/deploy.sh` does not copy `conf.d/`. The MCP authentication tokens (`MCP_<SERVER_KEY>_AUTH_TOKEN`) are not part of `conf.d/`; they are set as environment variables (see Section 2.5). (Explicit in code — `conf.d/`, `deploy/deploy.sh`, `config/agent.toml`)
 
 ### 2.4 Verifying MCP Servers
 
@@ -138,63 +143,9 @@ MCP servers automatically start as uvicorn subprocesses according to the `startu
 
 ---
 
-## Production-Only Migration Procedure
+### 2.5 MCP Authentication Tokens
 
-### Current State
-
-The repository contains no Local/development-only configuration or deployment artifacts
-(for example `config/*.local.toml`/`*.dev.toml`, `config/local/`/`config/dev/`, `.env.local`,
-or `docker-compose.local.yml`), and `deploy/`'s scripts contain no Local/development-mode
-branching. This is not a permanent guarantee — re-run the same inspection immediately
-before executing the migration procedure below, in case a Local-only overlay file has
-been introduced.
-
-### Migration Procedure
-
-Migrate a deployment to Production-only in this order:
-
-1. **Backup** the current configuration (`config/`, especially `config/agent.toml`).
-2. **Migrate bind addresses** (loopback-only binding) and **MCP authentication tokens**
-   (MCP authentication) together, in the same maintenance window. Every
-   `config/agent.toml` `[mcp_servers.*]` entry, plus `git_mcp_server.toml`'s
-   `auth_token`, `cicd_mcp_server.toml`'s `auth_token`, and
-   `web_search_mcp_server.toml`'s `browser_auth_token`, hold a
-   `"${ENV:VAR_NAME}"` reference rather than a literal secret — set the
-   corresponding `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` environment variable
-   (e.g. `MCP_SHELL_AUTH_TOKEN`, `MCP_GIT_AUTH_TOKEN`,
-   `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN`) for every server **before** starting
-   the agent or that server process; an unset variable raises `ValueError` at
-   config-load time (fail-closed). `git_mcp_server.toml`/`cicd_mcp_server.toml`
-   must use the same variable value as `agent.toml`'s corresponding entry
-   (shared secret between client and server); `web_search_mcp_server.toml`'s
-   `browser_auth_token` is a distinct credential.
-3. **Verify strict validation**: confirm `ProductionConfigValidator`'s
-   strict validation passes against the
-   migrated configuration before restarting.
-4. **Full restart**: restart the agent process fully — do not use `/reload`, since
-   authentication, MCP server definition, and bind-address changes are
-   restart-only.
-5. **Post-restart verification**: confirm authentication, MCP discovery, tool
-   routing, tool visibility, and socket binding all behave as expected after
-   restart.
-6. **Verify external unreachability**: confirm MCP-internal services remain
-   unreachable from outside the loopback interface.
-7. **Conditional deletion**: only after the above verification succeeds, and only
-   if a Local-only overlay file exists (see Current State above), confirm its purpose and remaining references before deleting it.
-
-### Rollback Guidance
-
-Rollback means redeploying a prior release — never re-enabling a Local runtime
-profile or restoring a deleted override key. There is no supported "revert to
-Local mode" path once a deployment has migrated to Production-only.
-
-### Prerequisite
-
-Immediately before executing, re-run the Current State inspection above rather than
-relying solely on this document's recorded finding. For authentication-specific
-troubleshooting after following the steps above, see
-[`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md)'s
-Troubleshooting section.
+Every enabled `[mcp_servers.*]` entry in `config/agent.toml` holds an `"${ENV:VAR_NAME}"` reference as its `auth_token` rather than a literal secret. Set the corresponding `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` environment variable (for example `MCP_SHELL_AUTH_TOKEN`, `MCP_GIT_AUTH_TOKEN`) for every server before starting the agent; an unset variable raises `ValueError` at config-load time (fail-closed). `git_mcp_server.toml` and `cicd_mcp_server.toml` use the same variable value as the corresponding `agent.toml` entry (shared secret between client and server); `web_search_mcp_server.toml`'s `browser_auth_token` is a distinct credential. Changes to authentication, MCP server definitions, or bind addresses take effect only after a full agent restart (not `/reload`). (Explicit in code — `config/agent.toml`, `scripts/shared/config_utils.py`) For setup and troubleshooting, see [`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md).
 
 ---
 
@@ -247,7 +198,7 @@ bash deploy/init_db.sh
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
-For the production `require_approval` category policy (which categories require a post-execution approval gate, and the local-dev exception), see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
+For the production `require_approval` category policy (which categories require a post-execution approval gate), see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
 
 Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md).
 

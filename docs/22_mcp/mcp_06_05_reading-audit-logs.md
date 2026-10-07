@@ -20,7 +20,7 @@ Format: JSON-lines, one JSON object per line. Example:
 {"event":"mcp_tool_exec","source":"mcp_server","ts":1719500000.0,"session_id":"sess-abc","request_id":"req-uuid","tool":"read_text_file","target":"/tmp/f.txt","outcome":"ok","server_key":"file_read","error_type":""}
 ```
 
-**Shared Audit Log** (`<log_dir>/audit.log`): Used by `web-search-mcp`, `github-mcp`, `shell-mcp`, `git-mcp`, `cicd-mcp`, and `mdq-mcp`.
+**Shared Audit Log** (`<log_dir>/audit.log`): Used by `web-search-mcp`, `github-mcp`, `shell-mcp`, `cicd-mcp`, and `mdq-mcp` (`git-mcp` is intended to write here but currently does not; see MCP-001).
 
 ```bash
 # View MCP server audit events (JSON-lines format)
@@ -45,7 +45,7 @@ grep "op=delete_directory" <log_dir>/delete_audit.log
 grep '"event":"mcp_tool_exec"' <log_dir>/audit.log
 ```
 
-> **Note:** `cicd-mcp`, `git-mcp`, and `mdq-mcp` use the shared audit log only (no dedicated audit log files). They record via `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format.
+> **Note:** `cicd-mcp`, `git-mcp`, and `mdq-mcp` use the shared audit log only (no dedicated audit log files). They record via `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format. Exception: git-mcp currently writes no audit records for dispatched calls because its `_audit_log()` call passes parameters the shared signature does not accept (`TypeError`, logged only as `audit_log failed`); see MCP-001 in `governance_03_issue-and-uncertainty-management.md`.
 
 ## Server-specific Log Files
 
@@ -90,7 +90,7 @@ grep '"event":"mcp_tool_exec"' <log_dir>/audit.log
 | mdq-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (`_audit_log()`) |
 | rag-pipeline-mcp | None | No audit functionality implemented |
 | cicd-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (`_audit_log()`) |
-| git-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (`_audit_log()`). `audit_log_path` setting is reserved but unimplemented |
+| git-mcp | `<log_dir>/audit.log` (shared; currently not written, see MCP-001) | JSON-lines (`_audit_log()`). `audit_log_path` setting is reserved but unimplemented |
 
 **Note:** `mdq-mcp` and `git-mcp` have no effective `audit_log_path` setting (it is not set in `config/mdq_mcp_server.toml` or `config/git_mcp_server.toml`). MDQ audit events are actually recorded via `MdqService`/`server.py`'s `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format. (Explicit in code)
 

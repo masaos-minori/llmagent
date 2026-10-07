@@ -23,12 +23,12 @@ tags:
 related:
   - eventbus_00_document-guide.md
   - eventbus_04_dlq_endpoint.md
-  - eventbus_11_health_endpoint.md
-  - eventbus_12_replay_endpoint.md
-  - eventbus_13_ack_nack_endpoints.md
+  - eventbus_10_health_endpoint.md
+  - eventbus_11_replay_endpoint.md
+  - eventbus_12_ack_nack_endpoints.md
   - eventbus_01_system-overview.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
-  - eventbus_08_configuration-and-operations.md
+  - eventbus_07_configuration-and-operations.md
 ---
 
 # Event Bus: Operations (Publish, Subscribe, DLQ Promotion)
@@ -37,9 +37,9 @@ This document covers publishing, subscribing, and how events reach the DLQ. The 
 
 | Endpoint | Canonical document |
 |---|---|
-| `GET /replay` | `eventbus_12_replay_endpoint.md` |
-| `POST /events/{event_id}/ack`, `POST /nack`, ACK/NACK state transitions | `eventbus_13_ack_nack_endpoints.md` |
-| `GET /health` | `eventbus_11_health_endpoint.md` |
+| `GET /replay` | `eventbus_11_replay_endpoint.md` |
+| `POST /events/{event_id}/ack`, `POST /nack`, ACK/NACK state transitions | `eventbus_12_ack_nack_endpoints.md` |
+| `GET /health` | `eventbus_10_health_endpoint.md` |
 | `GET /dlq`, `POST /dlq/{event_id}/requeue` | `eventbus_04_dlq_endpoint.md` |
 
 Delivery semantics (offsets, resume position, state diagram) are in `eventbus_05_dlq_offsets_and_delivery_semantics.md`.

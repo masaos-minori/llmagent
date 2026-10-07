@@ -67,7 +67,7 @@ Write tools where the `resource_scope_kind` is declared but the actual scope val
 
 - `tool_definitions`: List of LLM tool schemas derived from `[[tool_definitions]]`.
 - `system_prompts`: Dictionary of system prompt presets.
-- `allowed_tools`: Session tool whitelist (empty = all allowed).
+- `allowed_tools`: Session tool whitelist (empty = all allowed at runtime; rejected by the production validator).
 
 ### Memory Configuration
 
@@ -123,7 +123,7 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 
 - If `tool_definitions_strict=True`, any reachable server schema mismatch causes startup failure.
 - If `routing_drift_strict=True`, routing drift causes startup failure.
-- `allowed_tools=[]` (empty) means "all allowed" — explicit confirmation is required to prevent unintended behavior.
+- `allowed_tools=[]` (empty) means "all allowed" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so an explicit allowlist is required (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/shared/production_config_validator.py`).
 - `memory_embed_enabled=True` → `rag.embed_url` must not be empty.
 
 ## Keywords

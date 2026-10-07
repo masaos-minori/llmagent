@@ -3,7 +3,7 @@
 #
 # 各検索プロバイダの API キーを取得して以下に設定する。
 # 設定していないプロバイダは自動的にスキップされ、次のプロバイダにフォールバックする。
-# プロバイダの優先順位は config/web_search_mcp_server.json の search_providers で設定する。
+# プロバイダの優先順位は config/web_search_mcp_server.toml の search_providers で設定する。
 #
 # [Brave Search]
 #   https://brave.com/search/api/ で無料アカウントを作成 (2000 req/月)
@@ -13,8 +13,7 @@
 #   Azure の Cognitive Services (Bing Search v7) が必要
 #
 # [DuckDuckGo]
-#   API キー不要。duckduckgo-search ライブラリが venv に必要
-#   pip install "duckduckgo-search>=6.0.0"
+#   API キー不要。duckduckgo-search ライブラリは pyproject.toml の依存として uv が管理する
 #
 # 設定を反映するには、エージェントプロセスを再起動してください。
 

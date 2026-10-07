@@ -131,13 +131,9 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 ## Key Constraints
 
 - The keys in tool_safety_tiers must be actual registered tool names — unknown keys are fatal at startup
-- `allowed_tools=[]` (empty) means "allow all"
+- `allowed_tools=[]` (empty) means "allow all" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so startup exits (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/shared/production_config_validator.py`)
 - `approval_github_allowed_repos=[]` (empty) means "deny all"
 - `/reload reports cfg.diagnostics.* changes under a distinct LIVE category; they take effect immediately on every DiagnosticStore save()/fetch() call without requiring a restart`
-
-## Operational Notes
-
-Unknown
 
 ## Known Limitations
 

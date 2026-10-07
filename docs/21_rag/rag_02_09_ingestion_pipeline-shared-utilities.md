@@ -38,23 +38,32 @@ from rag.utils import (
 )
 ```
 
-This module exposes the following functions. Please refer to the source code for details.
+This module provides stateless helpers shared by ingestion and query code. (Explicit in code — `scripts/rag/utils.py`)
 
-**Constants:**
+**Vectors**
 
-This module defines the following constants. Please refer to the source code for details. `MIN_TEXT_LENGTH_FOR_DETECTION` has no recorded historical rationale and is accepted as a heuristic value as-is.
+- `cosine_sim()` returns cosine similarity and returns `0.0` when either vector has zero magnitude.
+- `floats_to_blob()` packs a float list into a little-endian float32 BLOB for sqlite-vec. It raises `TypeError` for a non-list and `ValueError` for an empty list or non-numeric or non-finite elements; a packing failure is logged and the `struct.error` is re-raised.
 
-**Prompt Injection Patterns:**
+**Text normalization**
 
-Please refer to the source code for details.
+- `normalize_unicode()` applies NFKC normalization so that full-width and compatibility characters index consistently. It raises `TypeError` for a non-str input.
 
-**Structured Log Keys (Tracing the RAG Lifecycle):**
+**Prompt injection sanitization**
 
-Please refer to the source code for details.
+- `sanitize_document()` replaces text matching the known injection patterns (for example "ignore instructions", "system:", "new instructions:") with a `[REMOVED]` marker and leaves clean text unchanged.
+- `sanitize_document_full()` does the same and also returns a `SanitizeResult` recording whether sanitization happened and which patterns matched.
 
-**Usage:**
+**URL validation**
 
-Please refer to the source code for details.
+- `validate_url()` returns true only for an http or https URL with a non-empty host.
+
+**Language detection and logging keys**
+
+- A module constant defines the minimum text length for language detection; shorter text is not classified and falls back to the language hint (Explicit in code — `scripts/rag/ingestion/crawler_utils.py`).
+- Module constants define the structured log keys (url, doc_id, chunk_id, source_type, stage_name) used to trace the RAG lifecycle.
+
+The module is a library module: it attaches no log handler, and the caller controls log routing.
 
 ---
 

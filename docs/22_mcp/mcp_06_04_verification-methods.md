@@ -91,7 +91,7 @@ curl -s http://127.0.0.1:<file_read_port>/v1/tools | jq '.tools[].name'
 ## Checking in Agent REPL
 
 ```text
-agent[:#N]> mcp
+> /mcp status
 ```
 
 Probes all HTTP servers. Expected result: All show `OK` along with their tool lists.

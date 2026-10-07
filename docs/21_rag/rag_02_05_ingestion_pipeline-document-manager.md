@@ -25,11 +25,18 @@ related:
 
 ## 4.10 DocumentManager (`scripts/rag/ingestion/document_manager.py`)
 
-`DocumentManager` manages the lifecycle of documents for `RagIngester`. It handles detection of existing documents, updating ETags, and post-ingestion consistency reporting. It was extracted from `RagIngester` to reduce class size and separate concerns.
+`DocumentManager` manages the lifecycle of documents for `RagIngester`: detection of existing documents, ETag refresh, document deletion, and post-ingestion consistency reporting. (Explicit in code — `scripts/rag/ingestion/document_manager.py`)
 
-For exhaustive signature detail, see `scripts/rag/ingestion/document_manager.py`.
+**Existing-document handling (`handle_existing_document()`):** returns the document id together with a skip flag and a replace-chunks flag.
 
+- With `--force`, the document is never skipped and its chunks are replaced.
+- For `file://` sources, the stored and new content hashes (kept in the `etag` column) are compared: a match skips the document, a mismatch triggers automatic re-ingestion, and a missing hash on either side counts as changed.
+- For other sources, a skip happens only when both the stored ETag and Last-Modified equal the new values; otherwise the ETag fields are refreshed and the chunks are replaced.
+- When no stored row is found, the document is neither skipped nor replaced.
 
+**Deletion:** `delete_existing_document()` and the module-level `delete_document_chain()` delete the `chunks_vec` rows of the document first and then the `documents` row; the cascade removes `chunks`. This order is the invariant defined by [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md).
+
+**Post-ingestion consistency check (`check_consistency()`):** runs the RAG consistency check and logs each issue as a warning without failing the ingestion run. If the check itself raises a database or value error, the failure is logged and `None` is returned. The optional completion callback is invoked afterwards; an exception raised by the callback is logged and not re-raised. See [rag_05_07](rag_05_07-rag-index-consistency-checks.md).
 
 **CLI Entrypoint:**
 

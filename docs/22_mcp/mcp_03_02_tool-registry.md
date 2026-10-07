@@ -17,7 +17,7 @@ related:
 
 # Tool Registry: Drift Verification, Adding Tools, Cache and Concurrency
 
-The responsibility of `ToolRegistry` is to manage the ownership relationship from tools to servers, not as a schema registry. Runtime routing is exclusively authorized by `RuntimeToolRegistry`, and `ToolRegistry` is NOT used for routing decisions (see the "`RuntimeToolRegistry` and Live Discovery" section at the end of this document for details). `ToolRegistry` has one production use: input data for `McpToolDiscoveryService`'s drift detection. This use is a formalized architectural decision — see ADR-003 Decision Detail #15 / INV-04. `agent/tool_policy.py::classify_operation_type()` uses `RuntimeToolRegistry` exclusively, per ADR-003 Decision Detail #8. `ToolDefinition.description` / `input_schema` are reserved and unused here. The canonical source for the schemas of tools visible to the LLM is each server's `TOOL_LIST` ([mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md)).
+The responsibility of `ToolRegistry` is to manage the ownership relationship from tools to servers, not as a schema registry. Runtime routing is exclusively authorized by `RuntimeToolRegistry`, and `ToolRegistry` is NOT used for routing decisions (see the "`RuntimeToolRegistry` and Live Discovery" section at the end of this document for details). `ToolRegistry` has one production use: input data for `McpToolDiscoveryService`'s drift detection. This use is a formalized architectural decision — see ADR-003 Decision Detail #15 / INV-04. `agent/tool_policy.py::classify_operation_type()` checks the `tool_constants.py` frozensets first for the WRITE/DELETE/EXECUTE/API_WRITE categories, and consults `RuntimeToolRegistry` only to separate READ (registered) from UNKNOWN (unregistered), per ADR-003 Decision Detail #8. `ToolDefinition.description` / `input_schema` are reserved and unused here. The canonical source for the schemas of tools visible to the LLM is each server's `TOOL_LIST` ([mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md)).
 
 ## Drift Verification
 
@@ -36,8 +36,10 @@ Three comparison functions (defined in `shared/tool_routing_validation.py`) dete
 Drift warnings are displayed during agent startup.
 
 ``` text
-WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in registry but not in config. Update file_read_mcp_server.toml [mcp_servers.file_read] tool_names or the registry to resolve.
+WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in registry but not in config
 ```
+
+To resolve a drift warning, update `tool_names` under `[mcp_servers.<key>]` in `config/agent.toml`, or the static registry source (`shared/tool_constants.py`). (Explicit in code — `scripts/shared/mcp_config.py::McpServerConfig.tool_names`)
 
 ### Adding a New Tool
 
@@ -100,7 +102,7 @@ Batch execution parallel/serial determination is delegated to `agent/tool_runner
 
 `shared/runtime_tool.py` (`RuntimeTool`, `build_runtime_tool()`) and `shared/runtime_tool_registry.py` (`RuntimeToolRegistry`) are additional modules separate from the existing `shared.tool_registry.ToolRegistry` described in this document. `agent/services/mcp_tool_discovery.py`'s `McpToolDiscoveryService` (`async def discover_all() -> DiscoveryResult`) fetches `/v1/tools` live from each HTTP transport MCP server and validates the response shape. In addition to `name`/`description`/`inputSchema`, four fields—`is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys`—are **mandatory** under the schema-2.0 contract (with `shared/resource_scope.py::validate_tool_schema_v2()` verifying type, known kinds, and presence of `resource_scope_keys` within `inputSchema.properties`); any individual tool with missing or invalid fields is excluded from the registry (silent default application is not allowed). `status`/`resource_scope` (legacy singular form)/`enabled` are validated only if present. Tools with duplicate names across servers are excluded from the registry and a `FATAL` `StartupCheckOutcome` is returned regardless of `strict` or `required` settings (explicitly implemented in `_dedupe_and_build()`). Startup pipelines propagate `FATAL` via `pipeline.add_fatal()`, causing startup to abort.
 
-**(Explicit in code)** `McpToolDiscoveryService` is called from `startup.py`. `ToolExecutor.set_runtime_registry(runtime_reg)` connects the `RuntimeToolRegistry`. `ToolRouteResolver.resolve()` refers only to `RuntimeToolRegistry` for resolution. `ToolRegistry` is NOT used for routing decisions—it functions solely as drift detection data for the `tool_constants.py` frozenset (see the explanation at the beginning of this document; `agent/tool_policy.py::classify_operation_type()` no longer consults `ToolRegistry` — see ADR-003 Decision Detail #8).
+**(Explicit in code)** `McpToolDiscoveryService` is called from `startup.py`. `ToolExecutor.set_runtime_registry(runtime_reg)` connects the `RuntimeToolRegistry`. `ToolRouteResolver.resolve()` refers only to `RuntimeToolRegistry` for resolution. `ToolRegistry` is NOT used for routing decisions—it functions solely as drift detection data for the `tool_constants.py` frozenset (see the explanation at the beginning of this document; `agent/tool_policy.py::classify_operation_type()` does not consult `ToolRegistry` — see ADR-003 Decision Detail #8).
 
 ## Keywords
 

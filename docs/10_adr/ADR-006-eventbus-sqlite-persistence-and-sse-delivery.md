@@ -11,8 +11,8 @@ related:
   - eventbus_03_dlq_operations.md
   - eventbus_06_persistence_schema_and_replay.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
-  - eventbus_08_configuration-and-operations.md
-  - eventbus_09_reference_api.md
+  - eventbus_07_configuration-and-operations.md
+  - eventbus_08_reference_api.md
   - governance_03_issue-and-uncertainty-management.md
   - ADR-004-environment-failure-handling-policy.md
   - ADR-013-eventbus-authentication-authorization.md
@@ -443,7 +443,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/dlq.py` — `promote_single()`, `sweep_orphans()`
 - `scripts/eventbus/config.py` — `_validate_deployment_mode()`
 - `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
-- `events` table — `seq`, `event_id`, `topic`, `payload`, `acked_at`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`
+- `events` table — `seq`, `event_id`, `topic`, `payload`, `acked_at` (event-level column; not written by the ACK route), `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`
 - `consumer_delivery` table — `consumer_id`, `event_id`, `acked_at`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
 - Offset files — `{offsets_dir}/{sanitized_consumer_id}` (read only by `migrate_legacy_offsets()` at startup)

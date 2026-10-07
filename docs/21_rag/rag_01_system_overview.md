@@ -44,17 +44,13 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 
 ## System Architecture
 
-- **Component Responsibilities**: Admin/Operator initiates crawling via `crawler.py`; `WebCrawler` performs BFS crawl of same-origin URLs producing `{yyyymmddhhmmss}-{slug}.json` artifacts; `ChunkSplitter` splits crawled content using language-aware strategies (JA: Sudachi / EN: sentence / code: blank-line); `RagIngester` generates embeddings via embed-llm and upserts into SQLite; processed chunks are moved to `rag-src/registered/`.
-- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (No automated retention or cleanup exists; cleanup mechanism design is out of scope — requires separate design decision.).
-- **Allowed Dependency Direction**: Admin → crawler.py → chunk_splitter.py → ingester.py → rag-src/registered/. No circular dependencies among pipeline stages.
-- **Process Separation**: Each ingestion stage (`crawler.py`, `chunk_splitter.py`, `ingester.py`) is a separate script with its own `main()` entry point and its own configuration file, and the stages hand off work through files (crawled JSON, chunked JSON, `rag-src/registered/`) rather than in-process calls, so each stage can be run, re-run or restarted on its own. (Explicit in code — `scripts/rag/ingestion/crawler.py`, `chunk_splitter.py`, `ingester.py`)
-- **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
-
-- **Component Responsibilities**: Agent turn invokes `RagPipeline.augment(query)` via MCP HTTP; RagPipeline executes MQE → Search → RRF → Rerank → Augment stages; KNN + BM25 search operates over SQLite (rag.db).
-- **Owned State**: RagPipeline owns the query execution lifecycle; SQLite (rag.db) owns the vector store layer.
-- **Ownership rationale**: `rag` layer's authority over query execution derives from the repository's layered-architecture rule (`rules/env.md`); SQLite's ownership of the vector store layer derives from `ADR-005` (canonical-source/derived-index relationship) and `ADR-010` (in-process fallback model). Note: modification-rights implications and known exceptions to these ownership rules are not separately documented anywhere in this repository.
-- **Allowed Dependency Direction**: Agent → MCP → RagPipeline → KNN + BM25 → SQLite. No circular dependencies among pipeline stages.
-- **Process Separation**: MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
+- **Component Responsibilities**:
+  - Ingestion: Admin/Operator initiates crawling via `crawler.py`; `WebCrawler` performs BFS crawl of same-origin URLs producing `{yyyymmddhhmmss}-{slug}.json` artifacts; `ChunkSplitter` splits crawled content using language-aware strategies (JA: Sudachi / EN: sentence / code: blank-line); `RagIngester` generates embeddings via embed-llm and upserts into SQLite; processed chunks are moved to `rag-src/registered/`.
+  - Query: Agent turn invokes `RagPipeline.augment(query)` via MCP HTTP; RagPipeline executes MQE → Search → RRF → Rerank → Augment stages; KNN + BM25 search operates over SQLite (rag.db).
+- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (No automated retention or cleanup exists; cleanup mechanism design is out of scope — requires separate design decision.). RagPipeline owns the query execution lifecycle; SQLite (rag.db) owns the vector store layer.
+- **Ownership rationale**: `rag` layer's authority over query execution derives from the repository's layered-architecture rule (`rules/env.md`); SQLite's ownership of the vector store layer derives from `ADR-005` (canonical-source/derived-index relationship) and `ADR-010` (in-process fallback model).
+- **Allowed Dependency Direction**: Ingestion: Admin → crawler.py → chunk_splitter.py → ingester.py → rag-src/registered/. Query: Agent → MCP → RagPipeline → KNN + BM25 → SQLite. No circular dependencies among pipeline stages.
+- **Process Separation**: Each ingestion stage (`crawler.py`, `chunk_splitter.py`, `ingester.py`) is a separate script with its own `main()` entry point and its own configuration file, and the stages hand off work through files (crawled JSON, chunked JSON, `rag-src/registered/`) rather than in-process calls, so each stage can be run, re-run or restarted on its own. (Explicit in code — `scripts/rag/ingestion/crawler.py`, `chunk_splitter.py`, `ingester.py`) In the Query Pipeline, the MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
 - **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
 
 ### Ownership Rationale
@@ -65,13 +61,7 @@ Each ingestion stage is a separate script that exchanges data with the next stag
 
 #### Why SQLite (rag.db) owns the vector store layer
 
-Per ADR-005's Rationale, SQLite's `documents`/`chunks` tables are authoritative and
-`chunks_fts`/`chunks_vec` are derived indexes for three reasons: (1) Data Integrity —
-prioritizing data integrity over search performance ensures no orphaned records;
-(2) Operability — prioritizing operability over real-time synchronization prevents
-human operation errors; (3) Portability — the SQLite-based architecture enables
-portable, self-contained deployments. These same considerations justify SQLite owning
-the vector store layer specifically.
+Per ADR-005, SQLite's `documents`/`chunks` tables are the canonical data and `chunks_fts`/`chunks_vec` are derived indexes. ADR-005's Rationale rests on three points: (1) Data Integrity — separating canonical from derived data prevents canonical data from being updated through a derived index; (2) Operability — the deletion-order invariant (`chunks_vec` before `documents`) prevents orphan records, and unified consistency checks and repair procedures leave operators without ambiguity; (3) Portability — because the indexes can be rebuilt from `documents` and `chunks`, FTS5 or the vector engine can be replaced. See [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md).
 
 #### How ownership affects modification rights
 
@@ -150,42 +140,14 @@ The RAG pipeline has no semantic cache. The configuration keys `use_semantic_cac
 | Configuration files exist | `config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml` |
 | Target URLs or files specified | `--url` in CLI, or `target_urls` in config |
 
-**Embedding server health check:**
+**Embedding server health check:** The embedding server (`embed-llm`) is a `llama-server` process external to this repository. The curl command above is the check used by `deploy/setup_services.sh`; the response body is defined by `llama-server`, not by repository code, so this document does not specify it. (Explicit in code — `deploy/setup_services.sh`)
 
-Expected success response:
-
-```json
-{
-  "status": "ok",
-  "ready": true,
-  "liveness": "alive",
-  "restart_recommended": false,
-  "operator_action_required": false,
-  "dependencies": {},
-  "details": {}
-}
-```
-
-Expected failure response:
-
-```json
-{
-  "status": "degraded",
-  "ready": false,
-  "liveness": "alive",
-  "restart_recommended": false,
-  "operator_action_required": true,
-  "dependencies": {
-    "embed_url": "not configured"
-  },
-  "details": {}
-}
-```
+**RAG pipeline MCP server health check:** The `rag-pipeline-mcp` server answers `/health` with the common MCP health response, in which `liveness` is a boolean, `ready` is true only when no dependency check fails, and HTTP 503 is returned when it is not ready (`dependencies.embed_url` is `"not configured"` when no embedding URL is configured). (Explicit in code — `scripts/mcp_servers/health_response.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`) For the response format see [mcp_02_02 Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) and [mcp_04_03](../22_mcp/mcp_04_03_rag-pipeline-and-cicd.md).
 
 Troubleshooting:
-- If `status` is `"degraded"` and `dependencies.embed_url` is `"not configured"`: verify the embedding server URL is set in your configuration
-- If the request times out: verify the embedding server is running and accessible at the specified address
-- If you receive an HTTP 503: the service is running but has failed dependency checks; inspect the `dependencies` field for specific failures
+- If the embedding server request times out: verify the embedding server is running and accessible at the specified address
+- If the `rag-pipeline-mcp` `/health` reports `status` `"degraded"` with `dependencies.embed_url` `"not configured"`: verify the embedding server URL is set in the configuration
+- If an HTTP 503 is returned by an MCP server: the service is running but has failed dependency checks; inspect the `dependencies` field
 
 **sqlite-vec extension:** Success criteria: the file at `sqlite_vec_so` (see `config/ingester.toml`) exists. A missing file means the extension cannot be loaded.
 

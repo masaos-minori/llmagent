@@ -102,11 +102,11 @@ cp workflow.sqlite workflow.sqlite.corrupted
 cp eventbus.sqlite eventbus.sqlite.corrupted
 ```
 
-**Step 3 — Locate available backups.** `rotate_all_dbs()` (`scripts/db/rotation.py`) archives `workflow.sqlite`/`eventbus.sqlite` alongside `rag.sqlite`/`session.sqlite` via the SQLite online backup API, writing WAL-consistent copies to the configured archive directory (`sqlite_archive_dir` in `agent.toml`) named `{stem}_{timestamp}{suffix}` (e.g. `workflow_20260901-063000.sqlite`):
+**Step 3 — Locate available backups.** `rotate_all_dbs()` (`scripts/db/rotation.py`) archives `workflow.sqlite`/`eventbus.sqlite` alongside `rag.sqlite`/`session.sqlite` via the SQLite online backup API, writing WAL-consistent copies to the configured archive directory (`sqlite_archive_dir` in `agent.toml`) named `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in UTC (e.g. `workflow_20260901_063000.sqlite`):
 ```bash
 ARCHIVE_DIR="${SQLITE_ARCHIVE_DIR:?set to the configured sqlite_archive_dir}"
-ls -lt "$ARCHIVE_DIR"/workflow_*.sqlite 2>/dev/null
-ls -lt "$ARCHIVE_DIR"/eventbus_*.sqlite 2>/dev/null
+ls -lt "$ARCHIVE_DIR"/workflow_[0-9]*_[0-9]*.sqlite 2>/dev/null
+ls -lt "$ARCHIVE_DIR"/eventbus_[0-9]*_[0-9]*.sqlite 2>/dev/null
 ```
 List is sorted newest-first (`-t`); if none are listed, skip to Step 6 (No backup available).
 
@@ -114,15 +114,15 @@ List is sorted newest-first (`-t`); if none are listed, skip to Step 6 (No backu
 
 **Step 4 — Validate a candidate backup**, starting with the most recent and working backward until one passes:
 ```bash
-sqlite3 "$ARCHIVE_DIR/workflow_<timestamp>.sqlite" "PRAGMA integrity_check;"
-sqlite3 "$ARCHIVE_DIR/eventbus_<timestamp>.sqlite" "PRAGMA integrity_check;"
+sqlite3 "$ARCHIVE_DIR/workflow_<YYYYMMDD_HHMMSS>.sqlite" "PRAGMA integrity_check;"
+sqlite3 "$ARCHIVE_DIR/eventbus_<YYYYMMDD_HHMMSS>.sqlite" "PRAGMA integrity_check;"
 ```
 Each must print exactly `ok`. Reject and try the next-older archive otherwise.
 
 **Step 5 — Apply the validated backup, then re-verify:**
 ```bash
-cp "$ARCHIVE_DIR/workflow_<timestamp>.sqlite" workflow.sqlite
-cp "$ARCHIVE_DIR/eventbus_<timestamp>.sqlite" eventbus.sqlite
+cp "$ARCHIVE_DIR/workflow_<YYYYMMDD_HHMMSS>.sqlite" workflow.sqlite
+cp "$ARCHIVE_DIR/eventbus_<YYYYMMDD_HHMMSS>.sqlite" eventbus.sqlite
 sqlite3 workflow.sqlite "PRAGMA integrity_check;"
 sqlite3 eventbus.sqlite "PRAGMA integrity_check;"
 ```
@@ -141,9 +141,8 @@ The recreated databases contain schema only: all workflow state (tasks, attempts
 
 ## Known Limitations / Unresolved Issues
 
-- Some branches in `startup.py` have been tested, but their actual behavior in production environments has only been partially verified.
-- The WAL checkpoint timeout may need adjustment based on real-world load.
-- Information regarding rollback failures is not displayed on the console screen; it can only be checked in the log files.
+- The WAL checkpoint and backup timeouts at shutdown are fixed in `ResourceShutdownCoordinator.close_resources()` and are not configurable; a timeout is recorded as a shutdown error and logged (Explicit in code — `scripts/agent/resource_shutdown_coordinator.py`).
+- A failure of the rollback `shutdown_all()` during startup failure is only logged; the original startup exception is re-raised and nothing is shown on the console for the rollback failure (Explicit in code — `scripts/agent/startup.py`).
 - Secret masking of MCP subprocess output is incomplete (see Secret Masking in MCP Subprocess Failure Reports).
 
 ## Keywords

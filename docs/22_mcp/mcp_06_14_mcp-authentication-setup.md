@@ -15,9 +15,8 @@ related:
 ## Setting up MCP authentication
 
 Every environment enforces the authentication requirements below at
-startup; there is no profile switch. For the step-by-step migration of an existing
-deployment (bind-address migration together with MCP authentication token setup),
-follow the Production-Only Migration Procedure in the deployment document.
+startup; there is no profile switch. For the production token setup, see section 2.5 (MCP Authentication Tokens) of
+the deployment document.
 
 ### Setup Requirements
 

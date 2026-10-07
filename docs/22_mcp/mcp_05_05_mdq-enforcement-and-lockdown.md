@@ -71,14 +71,6 @@ Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as
 - **Config gates:** `enable_grep` is enforced in `grep_docs()` (raises `MdqValidationError` if `not self.enable_grep`) and tested in `tests/mcp_servers/mdq/test_mdq_service.py::TestGrepDocsConfigGate`. There is no equivalent gate for `refresh_index()` (Explicit in code).
 - **Chunk metadata:** `tags_json` in the `chunks` table stores a JSON array extracted from the YAML frontmatter `tags:` field (list or comma-separated) by `scripts/mcp_servers/mdq/parser.py::parse_markdown()`. `token_count` is an approximation (`len(content) // 4`), not a tokenizer value. `search_docs`'s `tag_filter` matches against `tags_json` via the `LIKE` condition in `scripts/mcp_servers/mdq/search.py` (Explicit in code).
 
----
-
-### Fail-Open vs Fail-Closed Configuration Review
-
-| Setting | Default | Behavior when Fail-Open | Recommended for Production |
-|---|---|---|---|
-| `allowed_dirs` (mdq-mcp) | `[]` | `[]` = All path access denied (fail-closed); however, not subject to startup audit (Explicit in code) | Explicitly enumerate directories allowed for reading |
-
 ## Keywords
 
 mcp

@@ -19,11 +19,7 @@ related:
 
 # Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`
 
-> **Implementation status:** `config_dependent` is adopted across `git`, `file_read`/`file_write`/`file_delete`, `github`, and `web_search` (`browser_fetch`). `enabled`/`disabled_reason` fields are now wired into RuntimeToolRegistry via `_dedupe_and_build()` in `mcp_tool_discovery.py` — see `mcp_03_01_dispatch-and-routing.md` for details.
-
-## 0. Concept distinctions
-
-See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the distinction between these concepts.
+> `config_dependent` is adopted across `git`, `file_read`/`file_write`/`file_delete`, `github`, and `web_search` (`browser_fetch`). `enabled`/`disabled_reason` are carried into `RuntimeToolRegistry` by `_dedupe_and_build()` in `mcp_tool_discovery.py`. See `mcp_03_01_dispatch-and-routing.md` for details. (Explicit in code — `scripts/agent/services/mcp_tool_discovery.py`)
 
 ## 1. `config_dependent` (static)
 
@@ -53,14 +49,6 @@ Added to each tool dict in the live `/v1/tools` response body, computed per-requ
 
 By default (`include_disabled=false`) disabled tools (`enabled=False`) are omitted from the response; pass `include_disabled=true` to receive them. Each returned tool entry carries `config_dependent`, `enabled`, and `disabled_reason` alongside its other fields — see each server's own `/v1/tools` handler (named in section 3 above) for the exact response shape.
 
-## /v1/tools as RuntimeToolRegistry Source
-
-See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that `/v1/tools` is the sole source for constructing `RuntimeToolRegistry`.
-
-## Reload vs. restart for RuntimeToolRegistry
-
-See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that reload does not rediscover tools.
-
 ## Field Mapping: /v1/tools ↔ RuntimeTool
 
 The following table shows how /v1/tools response fields map to RuntimeTool fields:
@@ -80,17 +68,9 @@ The following table shows how /v1/tools response fields map to RuntimeTool field
 
 Every server except `mdq` rejects disabled tools at `/v1/call_tool` before reaching the dispatch table (server-side gate). The response shape is `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`. `mdq` only reports `enabled`/`disabled_reason` in `/v1/tools`; its `/v1/call_tool` has no such gate and relies on the per-path `allowed_dirs` authorization (`MdqAuthorizationError`) instead. (Explicit in code — `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/mcp_servers/git/git_server.py`)
 
-## 6. RuntimeToolRegistry (agent-side)
+## Design decisions
 
-See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision about RuntimeToolRegistry as the sole authority.
-
-## 6a. Static availability vs. dynamic health (distinct, unintegrated boundary)
-
-See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that static availability and dynamic health are separate subsystems.
-
-## 6b. Approval is not a disabled state
-
-See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for the design decision that approval is not a form of disabled availability.
+For the concept distinctions (static availability vs. dynamic health, approval vs. disabled state), `/v1/tools` as the sole source of `RuntimeToolRegistry`, and reload not rediscovering tools, see [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md).
 
 ## Wiring reference
 

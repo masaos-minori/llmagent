@@ -60,7 +60,7 @@ Application settings specific to each MCP server:
 - allowlists / denylists
 - Resource limits
 - Audit paths
-- allowed_repos / allowed_repos_mode (GitHub specific)
+- allowed_repos (GitHub specific)
 - command_allowlist (Shell specific)
 - allowed_dirs (File server specific)
 - auth_token (Secret reference, e.g. `${ENV:...}`)
@@ -88,7 +88,7 @@ Ports are configured per server in `config/agent.toml` (`mcp_servers`). Configur
 
 ## Transport Mechanisms
 
-### HTTP transport (Most servers)
+### HTTP transport (all servers)
 
 ``` text
 Agent ToolExecutor
@@ -97,7 +97,7 @@ Agent ToolExecutor
   ← {"result": "...", "is_error": false}
 ```
 
-Servers run as subprocesses on loopback.
+HTTP is the only supported transport (Explicit in code — `scripts/shared/mcp_config.py::TransportType`). Servers started with `startup_mode = "subprocess"` run as subprocesses on loopback.
 
 ### Transport Selection Guide
 

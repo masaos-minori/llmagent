@@ -30,7 +30,7 @@ Documents the purpose and side effects of slash commands in the Memory, MDQ, and
 
 ### Memory Category
 
-A group of commands for long-term memory. `/memory rebuild` performs DELETE + INSERT for all memories from JSONL (JSONL is the source of truth).
+A group of commands for long-term memory. `/memory rebuild` imports records from the JSONL archive into SQLite; it is a dry run unless `--confirm` is passed, and deletes and pin/unpin changes are not replayed (Explicit in code — `scripts/agent/commands/memory_rebuild_ops.py`).
 
 ### MDQ Category
 

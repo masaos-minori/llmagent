@@ -158,9 +158,9 @@ If summarization fails with `use_refiner=true`, `augment()` falls back to raw ch
 | `refiner_returned_empty` | LLM response content is `""` or whitespace after `.strip()`. The `if refined:` guard evaluates to `False`. Common causes: rejection due to content policy, empty LLM generation, or prompt format without extractable key points. |
 | `refiner_exception: {e}` | An `httpx.HTTPStatusError`, `httpx.RequestError`, or `ValueError` occurred during the LLM call. The exception message is included in the reason string. No retries are performed. |
 
-**No-retry Policy**: Refiner failures are treated as non-critical quality degradations — allowing raw chunks as output. Retrying failed LLM calls offers low expected benefit while increasing latency (transient errors are rare, and content policy rejections will not succeed upon retry). If degraded output cannot be tolerated, completely disable the refiner by setting `use_refiner=false`.
+**No-retry Policy**: Refiner failures are treated as non-critical quality degradations — allowing raw chunks as output. The refiner call is not retried. If degraded output cannot be tolerated, completely disable the refiner by setting `use_refiner=false`.
 
-Note: This rationale is design reasoning, not derived from measured retry-latency data or content-policy-rejection-pattern analysis. No ADR documents this policy. If this policy is revisited, the "transient errors are rare" and "retries increase latency" claims should be verified against actual production data first, since neither is currently substantiated.
+(Explicit in code — `scripts/rag/pipeline_refiner.py`: no retry is performed on refiner failure.)
 
 Both reasons can be verified as follows:
 - Displayed at INFO level in application logs (augment: refiner fallback (reason=...))

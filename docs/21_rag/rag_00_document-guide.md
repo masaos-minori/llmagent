@@ -84,7 +84,7 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md) | Context + Diagnostics |
 | [rag_03_04_query_pipeline-search-stages.md](rag_03_04_query_pipeline-search-stages.md) | Search stages |
 | [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md) | Augmentation stages |
-| [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md) | Helpers + Cache |
+| [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md) | Helpers + Retrieval Freshness |
 | [rag_03_07_query_pipeline-tests.md](rag_03_07_query_pipeline-tests.md) | Tests |
 | [rag_04_dto-models-types.md](rag_04_dto-models-types.md) | DTO: models_data, models_result, models_config, types |
 | [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md) | Configuration reference |

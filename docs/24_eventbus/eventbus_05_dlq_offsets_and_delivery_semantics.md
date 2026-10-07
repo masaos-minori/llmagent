@@ -73,7 +73,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 ### NACK Preconditions
 
 - The event must exist in the `events` table.
-- The event must not have been previously ACKed (`acked_at IS NULL`).
+- The event must not have been ACKed by the requesting consumer (`consumer_delivery.acked_at` unset for that consumer and event) and must not be in the DLQ (`events.dlq_at IS NULL`).
 
 ### NACK Postconditions
 
@@ -92,7 +92,7 @@ No idempotency guard exists in `nack_event`; `delivery_failure_count` increases 
 
 ### NACK followed by ACK
 
-`ack_event`'s `WHERE acked_at IS NULL` check remains true (NACK does not set `acked_at`). ACK succeeds, `delivery_failure_count` remains at the value from NACK — No readjustment.
+NACK does not set the consumer's `consumer_delivery.acked_at`, so a later ACK from the same consumer succeeds; `delivery_failure_count` remains at the value from NACK — No readjustment. (Explicit in code — `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`)
 
 ### ACK followed by NACK
 
@@ -247,10 +247,12 @@ At-least-once. Duplicate publishing is suppressed by the `event_id` UNIQUE const
 
 | State | Definition |
 |-------|------------|
-| Normal/Delivered | `acked_at IS NULL AND dlq_at IS NULL` |
-| ACKed | `acked_at IS NOT NULL` |
-| Failed | `acked_at IS NULL AND delivery_failure_count >= max_retry AND dlq_at IS NULL` |
-| DLQ | `dlq_at IS NOT NULL` |
+| Normal/Delivered | `events.dlq_at IS NULL`, `events.delivery_failure_count < max_retry`, and the consumer has no `consumer_delivery.acked_at` for the event |
+| ACKed (per consumer) | `consumer_delivery.acked_at IS NOT NULL` for that `(consumer_id, event_id)` |
+| Failed | `events.dlq_at IS NULL`, `events.delivery_failure_count >= max_retry`, and the consumer has no `consumer_delivery.acked_at` for the event |
+| DLQ | `events.dlq_at IS NOT NULL` |
+
+ACK is recorded per consumer in `consumer_delivery.acked_at` and in `consumer_offsets`; the ACK route does not write the event-level `events.acked_at` column. (Explicit in code — `scripts/eventbus/ack_route.py` `_do_ack()`, `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`) The ACKed state therefore applies to the acknowledging consumer only; another consumer's NACK of the same event is not rejected by that ACK.
 
 A requeue is not a state of the original row. Under the lineage model the original row stays in the DLQ state (its `dlq_at` is preserved) and the requeue inserts a new row, which starts in the Normal/Delivered state.
 
@@ -267,7 +269,7 @@ DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cy
 ### Prohibited Transitions
 
 ```
-ACKed ✗ NACK → HTTP 409 "event already acknowledged" (applies when `events.acked_at` is set or the requesting consumer has already ACKed via `consumer_delivery.acked_at`)
+ACKed ✗ NACK → HTTP 409 "event already acknowledged" (applies when the requesting consumer has already ACKed via `consumer_delivery.acked_at`; the route also rejects an event whose `events.acked_at` is set, a column the ACK route does not write)
 DLQ ✗ NACK → HTTP 409 "event already in dead letter queue"
 DLQ ✗ REQUEUE of an event that is not in the DLQ, or that was already requeued → HTTP 409 "event is not in DLQ"
 ```
@@ -278,7 +280,7 @@ DLQ ✗ REQUEUE of an event that is not in the DLQ, or that was already requeued
 |--------------|---------|
 | `(failure_count, cycle_count)` | Success — event in Normal/Delivered state |
 | `(-1, -1)` | Event not found |
-| `(-2, -2)` | Invalid NACK transition (already ACKed or DLQ'd) |
+| `(-2, -2)` | Invalid NACK transition (already ACKed by the requesting consumer, or DLQ'd) |
 
 ## Reliability Limits
 

@@ -141,7 +141,7 @@ Fail-open vs fail-closed behavior by component. There is a single security profi
 | Tool safety tier missing or unknown | Fail-closed (fatal at startup) | `tool_safety_tiers` entries must match registered tools exactly |
 | `approval_github_allowed_repos` empty | Fail-closed (deny all GitHub mutation tools) | Pre-flight check in `agent/tool_policy.py` |
 | `allowed_dirs` empty | Fail-closed (allow none) | |
-| `allowed_repos` (github-mcp) empty | Mode-dependent: denies writes in fail-closed mode, allows all repositories in fail-open mode | See `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Fail-Open vs Fail-Closed Summary |
+| `allowed_repos` (github-mcp) empty | Fail-closed (denies all writes; no fail-open mode exists) | See `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md` Fail-Open vs Fail-Closed Summary |
 | MCP server bind address | Loopback-only binding is unconditional | No override key exists |
 | MCP tool approval | Safety-tier default, overridable per tool by `approval_risk_rules` | Tier mapping and prompt behavior: `agent_06_02_tool-execution-and-approval-approval.md` |
 | Shell command allowlist | Empty = none allowed | Fail-closed by default |
@@ -201,7 +201,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 | Embedding API down (HTTP 503) | fts-only mode | Restart embed-llm |
 | Embedding dimension mismatch | Chunk skipped, WARNING logged | Verify the embedding model's output matches `scripts/db/store_protocols.py::get_embedding_dims()` (a fixed code-level constant, not a config key) |
 | Vector store corruption | RAG unavailable | Restore from backup |
-| FTS index desync (`fts_gap != 0`) | Search results incomplete | Run `rag_consistency.py` |
+| FTS index desync (`fts_gap != 0`) | Search results incomplete | Run `/session rag-consistency` to inspect (`scripts/db/rag_consistency.py` is a library module, not a CLI entry point) |
 | Orphan vector rows (`orphan_vec_count > 0`) | Search returns stale results | Run `ingester.py --force` |
 | Crawler timeout | URL skipped, WARNING logged | Retry crawler execution |
 

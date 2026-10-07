@@ -73,7 +73,7 @@ All high-risk tools that access filesystem or remote resources use a fail-closed
 Tools that execute commands (shell, git, github CLI) enforce command allowlists:
 
 - **Shell MCP**: `command_allowlist` in `config/shell_mcp_server.toml` — only listed command prefixes allowed (e.g., `ls`, `cat`, `grep`, `git log`, `git status`)
-- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, but individual tool arguments (`branch`, `remote`) are not validated against a safe-value allowlist — see `mcp_04_05_git.md` Command-specific guard status for the current gap. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see Layered protection model below).
+- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, but ref-shaped arguments (`branch`, `remote`, `commit`, `ref`) are rejected only when they start with `-` (`GitService._validate_ref()`), not validated against a safe-value allowlist — see `mcp_04_05_git.md` Command-specific guard status. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see Layered protection model below).
 - **GitHub MCP**: Uses GitHub API directly; no shell command execution
 
 *Source: `mcp_05_01_access-control-and-allowlists.md` Command Allowlist*

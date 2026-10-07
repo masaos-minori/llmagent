@@ -25,7 +25,7 @@ Building a multi-agent orchestration system with Agent + MCP servers
 - Single-responsibility tool execution MCP server group
 - LLM agents supporting both Japanese and English
 - RAG environment with SQLite-based vector DB
-- Target OS: Gentoo Linux or Ubuntu Linux
+- Target OS: Linux (the provisioning procedure is documented for Gentoo Linux; see [deployment_01_deployment.md](../90_deployment/deployment_01_deployment.md))
 - Use case: Program development
 
 ## 2. Architecture
@@ -65,7 +65,7 @@ Each MCP server runs as a separate process because:
 
 **Reason for per-process configuration separation:**
 
-Each process reads only its own configuration file. Common parameters (DB paths, external service URLs) are described individually in each process's configuration rather than shared across files. This ensures that changing one process's configuration never inadvertently affects another, and each process can be configured independently for different environments (development, staging, production).
+Each process reads only its own configuration file. Common parameters (DB paths, external service URLs) are described individually in each process's configuration rather than shared across files. This ensures that changing one process's configuration never inadvertently affects another: each process owns its own configuration and is isolated from the others. See [ADR-002](../10_adr/ADR-002-config-isolation.md).
 
 #### Implementation Notes
 

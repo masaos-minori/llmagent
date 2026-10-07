@@ -42,7 +42,7 @@ For the formal partial completion model, see [agent_03 Partial-Completion Model]
 | `no such table: chunks_vec` | Failure to load `sqlite-vec` extension | Verify `ls <sqlite-vec library path>` (path from the configured extension setting) |
 | FTS search returns 0 results | `chunks_fts` is in an asynchronous state | Run `/session rag-rebuild-fts` |
 | `blob_bytes` ≠ expected | Embedding dimension mismatch | Verify the BLOB byte count matches `scripts/db/store_protocols.py::get_embedding_dims()` (returns a fixed code constant, not a config value) |
-| Frequent `Sudachi tokenize error` | `sudachidict-core` is not installed | Run `pip install sudachidict-core` |
+| Frequent `Sudachi tokenize error` | `sudachidict-core` is not installed | Run `uv sync` (`sudachipy` and `sudachidict-core` are declared in `pyproject.toml`; see `docs/90_deployment/deployment_01_deployment.md`) |
 | `llama-server` fails to start | Path or permission issue with model files | Check `ls -lh <model directory>` |
 | Extremely high latency | RAM exhausted due to multiple models loaded | Adjust `--threads` and keep the total within the available CPU cores |
 | Server shows UNAVAILABLE in `/mcp` | Health registry marks server as unavailable | There is no background watchdog; a crashed subprocess-mode server is retried only on the next tool dispatch (`ensure_ready()`), so check the agent logs for lifecycle start/restart messages and cooldown rejections. Note that changing the server *definition* (URL, auth, transport, etc.) requires a full agent restart — `/reload` does not apply MCP configuration changes. |

@@ -56,7 +56,7 @@ When adding a new tool to an **existing** MCP server:
 | 4 | The static `ToolRegistry` is built from these frozensets upon import — manual editing of the registry is not required | (Automatic) |
 | 5 | Add the LLM schema to `[[tool_definitions]]` in `config/agent.toml` (OpenAI function-calling format) | **[Required]** — if the tool is to be visible to the LLM |
 | 6 | Add an entry for the new tool to `tool_safety_tiers` in `config/agent.toml` | **[Required]** — all tools must declare their safety tier |
-| 7 | Add the tool name to the `tool_names` section of `[mcp_servers.<key>]` in `config/<key>_mcp_server.toml` | **[Optional]** — only enables drift validation at startup; not required for routing |
+| 7 | Add the tool name to the `tool_names` section of `[mcp_servers.<key>]` in `config/agent.toml` | **[Optional]** — only enables drift validation at startup; not required for routing |
 
 **Note**: Routing resolves only through `RuntimeToolRegistry` (built from live `/v1/tools` discovery); there is no fallback to the static `ToolRegistry` and no prefix-based routing (ADR-003).
 

@@ -17,8 +17,6 @@ related:
 
 # MCP Security and Safety Model: Access Control, Paths, Repos and Allowlists
 
-## config/github_mcp_server.toml
-
 - Server Catalog → [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md)
 
 ## Purpose

@@ -130,9 +130,8 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 - Operators configuring Git MCP define a protected-branch list, analogous to GitHub MCP's existing configuration.
 
 ### Security Consequences
-- Closes the option-injection vector for `branch`/`remote` arguments.
-- Audit records identify the affected repository and capture pre/post-condition state.
-- This tool category's audit trail includes canonical repository identity in the `target` field.
+- Closes the option-injection vector for ref-shaped arguments (`branch`, `remote`, `commit`, `ref`) on the tools that accept them, by rejecting values that start with `-`.
+- Intended: audit records identify the affected repository and capture pre/post-condition state, with canonical repository identity in the `target` field. Currently git-mcp audit records for dispatched calls are not written (the `_audit_log()` call raises `TypeError`, which is swallowed); see MCP-001 in `governance_03_issue-and-uncertainty-management.md`. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `scripts/mcp_servers/audit.py`)
 
 ## Invariants
 

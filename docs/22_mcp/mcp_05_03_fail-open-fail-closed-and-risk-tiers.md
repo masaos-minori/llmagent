@@ -23,8 +23,7 @@ related:
 |---|---|---|
 | `allowed_dirs` (file-read/write/delete-mcp) | Fail-closed | All access denied |
 | `allowed_dirs` (mdq-mcp) | Fail-closed | Denies all tools that accept paths (`MdqAuthorizationError`) |
-| `allowed_repos` (github-mcp, fail_closed mode) | Fail-closed | All writes denied |
-| `allowed_repos` (github-mcp, fail_open mode) | Fail-open | All repositories allowed |
+| `allowed_repos` (github-mcp) | Fail-closed | All writes denied (no mode switch exists; `_assert_allowed_repo` in `scripts/mcp_servers/github/github_service_security.py`) |
 | `allowed_repo_paths` (git-mcp) | Fail-closed | All access denied |
 | `repo_allowlist` (cicd-mcp) | Fail-closed | All repositories denied |
 | `workflow_allowlist` (cicd-mcp) | **Fail-closed** | All workflows denied |

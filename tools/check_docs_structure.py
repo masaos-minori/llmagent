@@ -82,6 +82,9 @@ def strip_fenced_code(content: str) -> str:
 # limit. Each ceiling equals the file's accepted size, so any further growth fails.
 SIZE_EXCEPTIONS: dict[str, int] = {
     "ADR-003-runtime-tool-registry-routing-authority.md": 24808,
+    # The Known Issue inventory grows with each active entry (17 template fields
+    # per entry); the owner accepted this exception (2026-10-07).
+    "governance_03_issue-and-uncertainty-management.md": 26861,
 }
 
 

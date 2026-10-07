@@ -9,7 +9,7 @@ tags:
 related:
   - eventbus_03_dlq_operations.md
   - eventbus_04_dlq_endpoint.md
-  - eventbus_12_replay_endpoint.md
+  - eventbus_11_replay_endpoint.md
   - eventbus_01_system-overview.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
 ---
@@ -44,7 +44,7 @@ Step 2 is the **only** step that determines publish success. Steps 4-5 are best-
 
 When the JSONL append fails after a successful database commit:
 - **Event status**: Published (DB commit succeeded).
-- **Observable signal**: the warning log line below is the operator-visible signal. The in-process Prometheus Counter `eventbus_jsonl_append_failure_total` increments, but no endpoint exposes it (the service serves no Prometheus scrape endpoint and `/health` does not return this counter; see [eventbus_08](eventbus_08_configuration-and-operations.md)). (Explicit in code — `scripts/eventbus/publish_route.py`, `scripts/eventbus/health_route.py`)
+- **Observable signal**: the warning log line below is the operator-visible signal. The in-process Prometheus Counter `eventbus_jsonl_append_failure_total` increments, but no endpoint exposes it (the service serves no Prometheus scrape endpoint and `/health` does not return this counter; see [eventbus_07](eventbus_07_configuration-and-operations.md)). (Explicit in code — `scripts/eventbus/publish_route.py`, `scripts/eventbus/health_route.py`)
 - **Log output**: Structured warning: `"eventbus: JSONL append failed (event still committed): {exc}"`.
 - **Recovery**: None automated. SQLite remains complete; the JSONL archive is missing the affected line.
 
