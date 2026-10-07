@@ -4,8 +4,15 @@ Unit tests for mcp/dispatch.py — dispatch_tool.
 
 from __future__ import annotations
 
+from collections.abc import Awaitable, Callable
+
 import pytest
-from mcp_servers.dispatch import dispatch_tool
+from mcp_servers.dispatch import (
+    _IDEMPOTENCY_CACHE_TTL_SECONDS,
+    _duplicate_cache,
+    _is_side_effecting,
+    dispatch_tool,
+)
 
 
 class TestDispatchTool:
