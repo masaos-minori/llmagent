@@ -526,7 +526,7 @@ class TestEmittedAuditLogContent:
 @pytest.fixture(scope="module")
 def client():
     """Provide a TestClient for the git-mcp server."""
-    from mcp_servers.git import server as git_server
+    from mcp_servers.git import git_server
 
     with TestClient(git_server.app) as c:
         yield c
@@ -536,7 +536,7 @@ class TestHTTPSiblingPathRejection:
     @pytest.mark.asyncio
     async def test_sibling_prefix_rejected_via_http(self, client):
         """A sibling path such as /allowed-repo-evil must not be accepted for /allowed-repo root."""
-        from mcp_servers.git import server as git_server
+        from mcp_servers.git import git_server
 
         original = git_server._cfg.allowed_repo_paths
         try:
@@ -558,7 +558,7 @@ class TestHTTPSiblingPathRejection:
     @pytest.mark.asyncio
     async def test_symlink_escape_rejected_via_http(self, client):
         """Symlink escape attempts must be rejected before RepositoryState.snapshot()."""
-        from mcp_servers.git import server as git_server
+        from mcp_servers.git import git_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             real_dir = Path(tmpdir) / "real"
@@ -589,7 +589,7 @@ class TestHTTPSiblingPathRejection:
     @pytest.mark.asyncio
     async def test_missing_path_clean_rejection_via_http(self, client):
         """A missing path must produce a clean rejection response (no 500, no unhandled exception)."""
-        from mcp_servers.git import server as git_server
+        from mcp_servers.git import git_server
 
         original = git_server._cfg.allowed_repo_paths
         try:
@@ -610,7 +610,7 @@ class TestHTTPSiblingPathRejection:
     @pytest.mark.asyncio
     async def test_permission_denied_clean_rejection_via_http(self, client):
         """A permission-denied path must produce a clean rejection response."""
-        from mcp_servers.git import server as git_server
+        from mcp_servers.git import git_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             restricted_dir = Path(tmpdir) / "restricted"
@@ -635,7 +635,7 @@ class TestHTTPSiblingPathRejection:
     @pytest.mark.asyncio
     async def test_non_repository_clean_rejection_via_http(self, client):
         """A non-Git directory must produce a clean rejection response."""
-        from mcp_servers.git import server as git_server
+        from mcp_servers.git import git_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             plain_dir = Path(tmpdir) / "plain"
@@ -659,7 +659,7 @@ class TestHTTPSiblingPathRejection:
     @pytest.mark.asyncio
     async def test_audit_redacts_requested_target(self, client):
         """The raw requested path must appear only in a redacted field, not as the authoritative target."""
-        from mcp_servers.git import server as git_server
+        from mcp_servers.git import git_server
 
         with tempfile.TemporaryDirectory() as tmpdir:
             allowed_dir = Path(tmpdir) / "allowed"
@@ -1775,14 +1775,11 @@ class TestNewlyReachableToolsViaHTTP:
 
     @pytest.fixture
     def client(self):
-        # This file's module-scoped `client` fixture (top of file) imports the
-        # app via `mcp_servers.git.server` — a distinct module object from
-        # `mcp_servers.git.git_server`, so patching one's `_cfg`/`_service`
-        # does not affect the other's live app instance. This class's `enabled`
-        # fixture patches via `mcp_servers.git.git_server`, matching
-        # this file's more recent `client` fixtures (e.g. line ~905) — define
-        # a class-local `client` on the same import path instead of reusing
-        # the outer one.
+        # Unlike the module-scoped `client` fixture at the top of this file, which
+        # enters the app's lifespan via `with TestClient(...)`, this class-local
+        # fixture builds a plain TestClient. Both use the same
+        # `mcp_servers.git.git_server` module (`mcp_servers.git.server` is only an
+        # alias for it), so patching `_cfg`/`_service` affects both.
         from mcp_servers.git.git_server import app
 
         return TestClient(app)
