@@ -242,10 +242,10 @@ In `WriteProtectionPipeline.run()`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement destination-aware `verify_authorization()` + single-snapshot in repository_state.py | Pending | — | — | REQ-002/003/005/006 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | test_repository_state.py own row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc updates are Rows 8-10 |
+| 1 | Implement destination-aware `verify_authorization()` + single-snapshot in repository_state.py | Completed | — | 20261008-072031 | REQ-002/003/005/006 Post-hoc archive: code landed in fbfa4d416; 307 tests pass; ruff+mypy clean |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-072031 | test_repository_state.py own row Post-hoc archive: code landed in fbfa4d416; 307 tests pass; ruff+mypy clean |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-072031 | Post-hoc archive: code landed in fbfa4d416; 307 tests pass; ruff+mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-072031 | N/A: doc updates are Rows 8-10 N/A: no docs/00_index.md task-scope mapping for changed file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
