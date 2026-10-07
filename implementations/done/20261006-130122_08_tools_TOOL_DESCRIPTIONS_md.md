@@ -108,9 +108,9 @@ Revert `tools/TOOL_DESCRIPTIONS.md` to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-005 / AC-5 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: description-only change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_tool_descriptions_sync.py |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-133507 | 20261007-133507 | Description changes landed via commit 4316bc537; verified this session |
+| 2 | Add or update tests per Validation plan | N/A | — | — | description-only change |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-133507 | 20261007-133507 | check_tool_descriptions_sync.py: no issues found |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
 
 ### Blocker Log

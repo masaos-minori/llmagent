@@ -111,9 +111,9 @@ Revert `tools/check_adr_structure.py` (and its test file) to the pre-this-change
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-005 / AC-5 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | test_check_adr_structure.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy/bandit + pytest |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-133507 | 20261007-133507 | Code landed via commit 4316bc537; verified against current source this session |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-133507 | 20261007-133507 | tests/tools/test_check_adr_structure.py updated by 4316bc537; passes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-133507 | 20261007-133507 | ruff format/check clean, mypy clean, bandit 0 issues, smoke tests pass |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
 
 ### Blocker Log

@@ -102,10 +102,10 @@ Revert `tests/tools/test_check_known_deviation_sync.py` to the pre-this-change c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-004 / AC-4 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | test_check_known_deviation_sync.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy/bandit + pytest |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-144755 | 20261007-144755 | REQ-004 / AC-4 Added test_id_only_in_removed_subsection_is_no_longer_parsed + positive control (same ID in ## Known Deviations still parsed) |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-144755 | 20261007-144755 | test_check_known_deviation_sync.py 10 passed (targeted); 8087 passed, 20 skipped (full suite, EXIT=0) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-144755 | 20261007-144755 | ruff/mypy/bandit + pytest ruff format+check clean; mypy clean; bandit B101(Low) only; full suite EXIT=0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-144755 | 20261007-144755 | N/A: no docs/00_index.md task-scope mapping for tests/tools/ |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

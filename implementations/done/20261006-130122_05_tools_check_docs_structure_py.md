@@ -153,9 +153,9 @@ ADR requirement.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-003 / AC-3 — implement rel001 first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | test_check_docs_structure.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy/bandit + pytest |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-133507 | 20261007-133507 | Code landed via commit 4316bc537; verified against current source this session |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-133507 | 20261007-133507 | tests/tools/test_check_docs_structure.py updated by 4316bc537; 87 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-133507 | 20261007-133507 | ruff format/check clean, mypy clean, bandit 0 issues, smoke tests pass, check_tool_descriptions_sync clean |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
 
 ### Blocker Log
