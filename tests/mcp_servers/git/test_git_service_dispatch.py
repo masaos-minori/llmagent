@@ -17,8 +17,10 @@ from unittest.mock import MagicMock, patch
 import git
 import pytest
 from mcp_servers.git.errors import GitServiceError
+from mcp_servers.git.git_models import GitPullRequest, GitPushRequest
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.repository_state import RepositoryState
+from pydantic import ValidationError
 
 
 def _svc(
@@ -613,3 +615,140 @@ class TestAuditRecordFields:
         with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_status({"repo_path": "/opt/repos/proj"})
         assert "main" in result
+
+
+class TestWriteRefAllowlist:
+    """REQ-001: allow-list validator rejects force-push / refspec forms."""
+
+    @pytest.mark.parametrize(
+        "bad",
+        [
+            "+main",
+            "feature:main",
+            "HEAD:main",
+            "refs/heads/main",
+            "main~1",
+            "main..",
+            "a b",
+            "a\\b",
+            "a@{1}",
+            "[x]",
+            "\0",
+            "HEAD",
+        ],
+    )
+    def test_rejected_branch_forms(self, bad) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, msg = svc._validate_ref_allowlist(bad)
+        assert ok is False
+        assert msg.startswith("[DENIED]")
+
+    @pytest.mark.parametrize("good", ["main", "feature/x", "develop-1", "a.b"])
+    def test_simple_names_pass(self, good) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, msg = svc._validate_ref_allowlist(good)
+        assert ok is True
+        assert msg == ""
+
+    @pytest.mark.parametrize("bad", ["../evil", "a:b", "-x", "has space"])
+    def test_rejected_remote_forms(self, bad) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, msg = svc._validate_remote(bad)
+        assert ok is False
+        assert msg.startswith("[DENIED]")
+
+    @pytest.mark.parametrize("good", ["origin", "remote-1", "upstream"])
+    def test_valid_remote_forms(self, good) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, msg = svc._validate_remote(good)
+        assert ok is True
+        assert msg == ""
+
+
+class TestGitPushRefRejectionBeforeGit:
+    """REQ-001: malicious push refspec forms rejected before any GitPython call."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "bad",
+        ["+main", "feature:main", "HEAD:main", "refs/heads/main", "main~1"],
+    )
+    async def test_rejected_before_snapshot(self, bad) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+
+        def _no_snapshot(*_a, **_k):
+            raise AssertionError("snapshot() must not be reached for a bad ref")
+
+        with (
+            patch.object(RepositoryState, "snapshot", side_effect=_no_snapshot),
+            pytest.raises(ValueError, match="\\[DENIED\\]"),
+        ):
+            await svc.git_push(
+                {"repo_path": "/opt/repos/proj", "branch": bad, "remote": "origin"}
+            )
+
+
+class TestDestinationBasedProtection:
+    """REQ-002/REQ-003: protected-branch decision is evaluated against the destination."""
+
+    @pytest.mark.asyncio
+    async def test_checkout_from_protected_succeeds(self, tmp_path) -> None:
+        import pathlib
+
+        repo_dir = pathlib.Path(str(tmp_path))
+        # init a repo with an initial commit on main
+        repo = git.Repo.init(repo_dir)
+        (repo_dir / "f.txt").write_text("x")
+        repo.index.add(["f.txt"])
+        repo.index.commit("init")
+        repo.git.branch("develop")
+        svc = GitService(
+            allowed_repo_paths=[str(repo_dir)],
+            read_only=False,
+            protected_branches=["main"],
+            max_log_entries=50,
+        )
+        result = await svc.git_checkout(
+            {"repo_path": str(repo_dir), "branch": "develop"}
+        )
+        assert "develop" in result  # switched away from protected main
+
+    @pytest.mark.asyncio
+    async def test_push_to_protected_rejected_at_dispatch(self, tmp_path) -> None:
+        import pathlib
+
+        repo_dir = pathlib.Path(str(tmp_path))
+        repo = git.Repo.init(repo_dir)
+        (repo_dir / "f.txt").write_text("x")
+        repo.index.add(["f.txt"])
+        repo.index.commit("init")
+        svc = GitService(
+            allowed_repo_paths=[str(repo_dir)],
+            read_only=False,
+            protected_branches=["main"],
+            max_log_entries=50,
+        )
+        with pytest.raises(ValueError, match="protected branch"):
+            await svc.git_push(
+                {"repo_path": str(repo_dir), "branch": "main", "remote": "origin"}
+            )
+
+
+class TestGitPullPushBranchRequired:
+    """REQ-004: git_pull/git_push require a non-empty branch."""
+
+    def test_pull_requires_branch(self) -> None:
+        with pytest.raises(ValidationError):
+            GitPullRequest(repo_path="/x")
+
+    def test_push_requires_branch(self) -> None:
+        with pytest.raises(ValidationError):
+            GitPushRequest(repo_path="/x")
+
+    def test_pull_accepts_branch(self) -> None:
+        req = GitPullRequest(repo_path="/x", branch="main")
+        assert req.branch == "main"
+
+    def test_push_accepts_branch(self) -> None:
+        req = GitPushRequest(repo_path="/x", branch="main")
+        assert req.branch == "main"
