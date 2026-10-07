@@ -119,10 +119,10 @@ Revert this file to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002 / AC-2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only migration |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_structure.py + check_adr_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-144455 | 20261007-144455 | REQ-002 / AC-2 stale_detector clean; already satisfied by current ADR-003 (no Related Documents; top-level Related ADRs/Implementation References); no edit needed |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-144455 | 20261007-144455 | N/A: doc-only migration N/A: doc-only migration |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-144455 | 20261007-144455 | check_docs_structure.py + check_adr_structure.py check_docs_structure.py and check_adr_structure.py pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-144455 | 20261007-144455 | N/A: no documentation change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
