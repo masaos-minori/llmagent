@@ -94,6 +94,7 @@ removed (REQ-002, REQ-004 / AC-2, AC-4).
 
 ### Details
 
+- Adversarial verification (20261007): Already applied in commit `4316bc537`; line numbers (237-268) did not match the pre-migration file. Link-set diff: no file link lost. Superseded premise: the `issues/done/20260914-121616_...` citation no longer appears in the ADR at all (resolved-item history was removed; `## Known Deviations` now cites only AGENT-002), and `check_known_deviation_sync.py` passes. The stale prose `See Related Documents > Implementation References` was updated to `See Implementation References`. Implementation Reference `LlmTurnExecutor.run()` was corrected to `handle_llm_turn()` (`run` does not exist in `scripts/agent/llm_turn_executor.py`); the other references exist. All referenced symbols/files/tests and `related:` targets exist. Pre-migration block was lines 235-266; the line numbers below are historical.
 - Block layout (current): `## Related Documents`(237) → `### Related ADRs`(239),
   `### Specifications`(243), `### Operations`(248), `### Known Issues`(252),
   `### Implementation References`(256); `## Completion Checklist`(268).
@@ -145,10 +146,10 @@ Revert this file to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002 / AC-2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only migration |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_structure.py + check_adr_structure.py + check_known_deviation_sync.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-145523 | 20261007-145523 | REQ-002 / AC-2 adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-145523 | 20261007-145523 | N/A: doc-only migration adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-145523 | 20261007-145523 | check_docs_structure.py + check_adr_structure.py + check_known_deviation_sync.py adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-145523 | 20261007-145523 | adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
