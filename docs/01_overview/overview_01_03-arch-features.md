@@ -66,7 +66,7 @@ After the REPL input loop ends, session diagnostics and memory are persisted (`A
 2. **Persist Session Memory** — Extracts and persists memory from session history using rule-based logic.
 3. **WAL Truncate Checkpoint** — Executes a WAL TRUNCATE checkpoint on `session.sqlite` before closing the connection. If the checkpoint fails, a defensive backup of the WAL file via `WalCheckpointManager.backup_sync` is attempted; however, no exception is raised and the process terminates normally. Since SQLite will read existing WAL files upon the next startup, no data loss occurs. Note that if failures persist, attention should be paid to WAL file growth. (Source: `agent/wal_checkpoint_manager.py`, `agent/repl.py`)
 
-Diagnostics can be viewed using the `/db` command. (Source: `agent/repl.py`)
+Current-session counters can be viewed with the `/stats` command; the saved record is stored in the `session_diagnostics` table. (Source: `agent/repl.py`)
 
 ---
 

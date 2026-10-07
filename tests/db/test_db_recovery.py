@@ -247,7 +247,7 @@ def test_recover_restore_verify_failed(mock_db_cfg, mock_sqlite_helper):
 
 def test_recover_workflow_uses_correct_db_path(mock_db_cfg, mock_sqlite_helper):
     """Regression test: target="workflow" must integrity-check workflow_db_path,
-    not session_db_path (ADR-011 domain-policy bypass found during adversarial
+    not session_db_path (ADR-008 domain-policy bypass found during adversarial
     verification of the implementation procedure)."""
     with patch(
         "db.recovery._run_integrity_check",

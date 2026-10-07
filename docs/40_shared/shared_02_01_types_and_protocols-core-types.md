@@ -56,7 +56,7 @@ Auxiliary `TypedDict`s for representing tool call deltas during streaming (`Tool
 
 ## 4. `RagConfig` (`shared/types.py`)
 
-Covers semantic cache settings, search parameters (`top_k_search`, `rag_top_k`), re-ranking parameters (`use_rerank`, `top_k_rerank`, `rag_min_score`, `use_rrf`, `rrf_k`), refinement settings (`max_tokens`, `max_chars_per_chunk`, `timeout`), and service URLs/authentication. Supports `@runtime_checkable` for `isinstance()` checks. Can be satisfied by a `SimpleNamespace` adapter. This is NOT a DTO for configuration files; use `mcp_servers.rag_pipeline.rag_pipeline_models.RagPipelineConfig` (MCP TOML) or `rag.models_config.*` (ingestion TOML) instead. MCP adapters refer to `build_rag_cfg_adapter()`. (Explicit in code)
+Covers search parameters (`top_k_search`, `rag_top_k`), re-ranking parameters (`use_rerank`, `top_k_rerank`, `rag_min_score`, `use_rrf`, `rrf_k`), refinement settings (`max_tokens`, `max_chars_per_chunk`, `timeout`), and service URLs/authentication. Supports `@runtime_checkable` for `isinstance()` checks. Can be satisfied by a `SimpleNamespace` adapter. This is NOT a DTO for configuration files; use `mcp_servers.rag_pipeline.rag_pipeline_models.RagPipelineConfig` (MCP TOML) or `rag.models_config.*` (ingestion TOML) instead. MCP adapters refer to `build_rag_cfg_adapter()`. (Explicit in code)
 
 ---
 

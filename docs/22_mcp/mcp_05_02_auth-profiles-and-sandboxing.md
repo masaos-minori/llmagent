@@ -14,10 +14,10 @@ related:
 ## `read_only` Flag (git-mcp)
 
 ```toml
-read_only = true   # default: all write tools return [DENIED]
+read_only = true   # default: write tools are disabled
 ```
 
-When set to `true`: `git_add`, `git_commit`, `git_checkout`, `git_pull`, and `git_push` will all return `[DENIED]` regardless of authorization. To enable writes, you must explicitly set it to `false`.
+When set to `true`: `git_add`, `git_commit`, `git_checkout`, `git_pull`, and `git_push` are reported as disabled (`disabled_reason` `read_only=true`) and `/v1/call_tool` rejects them with `Tool disabled: read_only=true`; the service-level guard returns `[DENIED] git-mcp is configured with read_only=true` as a second layer. To enable writes, you must explicitly set it to `false`. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `scripts/mcp_servers/git/git_service.py`)
 
 ---
 
@@ -73,17 +73,18 @@ secret in the TOML file — see the Production-Only Migration Procedure for the 
 ## Sandbox Backend (shell-mcp)
 
 ```toml
-# Development:
-shell_sandbox_backend = "none"    # RuntimeError at startup (regardless of environment); no isolation
-# Production:
+# Supported:
 shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
+# Rejected:
+shell_sandbox_backend = "none"      # rejected by Agent startup audit (RuntimeError); no isolation
 ```
 
-| Backend | Use Case | Required in Production? | Startup Behavior |
+| Backend | Use Case | Permitted? | Startup Behavior |
 |---|---|---|---|
-| `firejail` | Process isolation, restricted filesystem | **Yes** | `RuntimeError` if binary is missing |
-| `none` | Not permitted in any environment — no isolation | No | `RuntimeError` at startup, regardless of environment |
+| `firejail` | Process isolation, restricted filesystem | Yes | `RuntimeError` if binary is missing |
+| `none` | Not permitted — no isolation | No | Agent startup audit raises `RuntimeError` regardless of environment; shell-mcp itself accepts the value if started independently |
 
+- The code default and the checked-in `config/shell_mcp_server.toml` value are both `"firejail"`. (Explicit in code — `scripts/mcp_servers/shell/shell_models.py`)
 - `"firejail"`: Prepends `["firejail", "--private", "--net=none", "--noroot", "--"]` to `argv`.
 - `"none"`: No sandbox; only `RLIMIT_*` resource limits applied.
 

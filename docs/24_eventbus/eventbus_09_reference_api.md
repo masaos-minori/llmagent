@@ -167,11 +167,12 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `nack_event` | `def nack_event(conn, event_id, consumer_id) -> NackResult` | Increment delivery_failure_count and cycle_failure_count for an event. |
 |  | `ack_event_for_consumer` | `def ack_event_for_consumer(conn, event_id, consumer_id, now) -> tuple[bool, bool, int \| None]` | Acknowledge an event for a specific consumer atomically. |
 |  | `get_consumer_offset` | `def get_consumer_offset(conn, consumer_id) -> int` | Return the last-committed sequence offset for a consumer, or 0 if none exists. |
+|  | `get_resume_position` | `def get_resume_position(conn, consumer_id) -> int` | Compute the resume position for a reconnecting consumer. |
 | `scripts/eventbus/dlq.py` | `DlqEventRecord` | `class DlqEventRecord` | A single event record written to the dead-letter queue as a JSON file on disk. |
 |  | `sweep_orphans` | `def sweep_orphans(db, deadletter_dir, max_retry) -> int` | Sweep events that reached retry limit but were not promoted inline. |
 |  | `promote_single` | `def promote_single(db, deadletter_dir, event_id) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
 |  | `archive_dlq_record` | `def archive_dlq_record(deadletter_dir, event_id) -> bool` | Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json. |
-| `scripts/eventbus/dlq_repo.py` | `requeue_event` | `def requeue_event(conn, event_id) -> bool` | Increment dlq_requeue_count and clear dlq_at. Returns True if the event was found in DLQ. |
+| `scripts/eventbus/dlq_repo.py` | `requeue_event` | `def requeue_event(conn, event_id) -> bool` | Unused legacy helper with no callers; the active requeue path is redeliver_event(), which keeps dlq_at on the original row and inserts a new row. |
 |  | `redeliver_event` | `def redeliver_event(conn, event_id, now) -> tuple[bool, str \| None]` | Redeliver a dead-lettered event by inserting a new row with lineage. |
 | `scripts/eventbus/dlq_route.py` | `dlq_list` | `async def dlq_list(request, limit, offset) -> dict[str, Any]` | List dead-letter queue entries with pagination support. |
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |

@@ -20,10 +20,11 @@ Inventory of the SQLite databases in use, their configuration sources, schema au
 
 Backup and recovery operations are described in [db_06](db_06_api_and_operations-maintenance-and-rotation.md) and [db_07](db_07_api_and_operations-recovery-and-reference.md). No backup schedule is defined by the code in this repository.
 
-All databases are owned by the Agent team and use WAL journal mode, except as noted below.
+Each database is owned by a single component (see the **Owner** line of each section) and uses WAL journal mode, except as noted below.
 
 ## rag.sqlite
 
+- **Owner**: the RAG layer (`scripts/rag/`, `scripts/mcp_servers/rag_pipeline/`); the agent accesses it only through `rag-pipeline-mcp` and the admin-only maintenance services
 - **Config source**: `rag_db_path` (set in `config/agent.toml`, `config/rag_pipeline_mcp_server.toml`, `config/ingester.toml`, and `config/crawler.toml`; the values must refer to the same database)
 - **Schema authority**: `scripts/db/schema_sql.py` (`build_rag_schema_sql(dims)`)
 - **Lifecycle**: Created on first RAG pipeline use; persists until deleted
@@ -31,6 +32,7 @@ All databases are owned by the Agent team and use WAL journal mode, except as no
 
 ## session.sqlite
 
+- **Owner**: the Agent layer (`scripts/agent/`)
 - **Config source**: `session_db_path` in `config/agent.toml`
 - **Schema authority**: `scripts/db/schema_sql.py` (`build_session_schema_sql(dims)`)
 - **Lifecycle**: Created on first agent use; persists until deleted
@@ -38,6 +40,7 @@ All databases are owned by the Agent team and use WAL journal mode, except as no
 
 ## workflow.sqlite
 
+- **Owner**: the workflow engine in the Agent layer (`scripts/agent/workflow/`)
 - **Config source**: `workflow_db_path` (read by `scripts/db/config.py`; optional key of the `agent.toml` configuration, with a code-level default)
 - **Schema authority**: `scripts/db/schema_sql.py` (`build_workflow_schema_sql()`)
 - **Lifecycle**: Created on first workflow use; persists until deleted
@@ -45,6 +48,7 @@ All databases are owned by the Agent team and use WAL journal mode, except as no
 
 ## eventbus.sqlite
 
+- **Owner**: the EventBus service (`scripts/eventbus/`)
 - **Config source**: `eventbus_db_path` in `config/agent.toml` and `db_path` in `config/eventbus.toml` (the values must refer to the same database)
 - **Schema authority**: `scripts/db/schema_sql.py` (`build_eventbus_schema_sql()`)
 - **Lifecycle**: Created on first event bus use; persists until deleted
@@ -52,6 +56,7 @@ All databases are owned by the Agent team and use WAL journal mode, except as no
 
 ## mdq.sqlite
 
+- **Owner**: the `mdq-mcp` server (`scripts/mcp_servers/mdq/`)
 - **Config source**: `db_path` in `config/mdq_mcp_server.toml`
 - **Schema authority**: `scripts/mcp_servers/mdq/db_schema.py`
 - **Busy timeout**: `sqlite_busy_timeout` in the MDQ server configuration

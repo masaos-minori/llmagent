@@ -34,7 +34,7 @@ Documents the `AgentConfig` structure, configuration file ownership, and classif
 
 | File | Responsibility | Hot-Reloadable |
 |---|---|---|
-| `config/agent.toml` | Agent process settings | Mostly possible; `use_memory_layer`/`memory_embed_enabled` are startup-only; `diagnostics.*` does not support `/reload` |
+| `config/agent.toml` | Agent process settings | Mostly possible; `use_memory_layer`/`memory_embed_enabled` are startup-only; `diagnostics.*` is not applied by `/reload` but takes effect without restart on every `DiagnosticStore` save/fetch and is reported as `[LIVE]` |
 | `config/*_mcp_server.toml` | MCP server specific settings | Requires restart (on add/remove/rename) |
 
 ### Settings Requiring Restart

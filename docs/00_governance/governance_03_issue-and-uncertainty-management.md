@@ -67,14 +67,99 @@ Part 1 entries are reviewed quarterly, consistent with the cadence documented fo
 
 ### Active Items
 
-Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
+Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
 | ID | Title | Status | Severity | Area | Type | Source | Owner | First Found | Summary | Related |
 |----|-------|--------|----------|------|------|--------|-------|-------------|---------|---------|
-| DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap | `deploy/setup_services.sh` | Unassigned | Documentation review | `setup_services.sh` only echoes the LLM service names (its header comment says they are agent-managed subprocesses), and no repository code starts `embed-llm`/`agent-llm`, so the start procedure is undocumented | `docs/90_deployment/deployment_01_deployment.md` |
-| EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | A CONSUMER-role token with no `consumer_authorization`/`topic_authorization` configured is not restricted to any consumer_id (fail-open) | `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` |
-| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | `_nack_and_promote()` and the follow-up state lookup run under separate DB-lock acquisitions, so an event deleted in between yields 409 instead of 404 | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
-| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug | `scripts/eventbus/delivery_repo.py` | Unassigned | Documentation review | `nack_event()` has no idempotency guard for repeated NACKs of the same event by the same consumer, so repeated calls can drive the event toward DLQ promotion | `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` |
+| DESIGN-001 | ADR-002 Agent required-keys row lists keys absent from config/agent.toml | open | Low | Governance | document-code-mismatch | `docs/10_adr/ADR-002-config-isolation.md` | Unassigned | Documentation review | Agent row names keys absent from `config/agent.toml` | `docs/10_adr/ADR-002-config-isolation.md` |
+| AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap | `config/workflows/default.json` | Unassigned | Documentation review | Default workflow sets `require_approval` false; policy not enforced | `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` |
+| MCP-001 | git-mcp audit records are never emitted | open | Medium | MCP | implementation-bug | `scripts/mcp_servers/git/git_server.py` | Unassigned | Documentation review | `_audit_log()` rejects the keywords `call_tool` passes; no audit record | `docs/22_mcp/mcp_04_05_git.md`, `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
+| MCP-002 | git_pull and git_push schema contradicts the protected-branch validation | open | Medium | MCP | implementation-bug | `scripts/mcp_servers/git/git_tools.py` | Unassigned | Documentation review | Schema allows an empty `branch`; validation rejects it | `docs/22_mcp/mcp_04_05_git.md` |
+| DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap | `deploy/setup_services.sh` | Unassigned | Documentation review | No repository script starts `embed-llm`/`agent-llm` | `docs/90_deployment/deployment_01_deployment.md` |
+| EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap | `scripts/eventbus/auth.py` | Unassigned | ADR Known Deviations review | CONSUMER token without an allowlist is unrestricted (fail-open) | `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` |
+| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug | `scripts/eventbus/ack_route.py` | Unassigned | ADR Known Deviations review | Concurrent delete during NACK yields 409 instead of 404 | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
+| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug | `scripts/eventbus/delivery_repo.py` | Unassigned | Documentation review | No idempotency guard: repeated NACKs keep incrementing counters | `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` |
+| EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap | `scripts/eventbus/ack_route.py` | Unassigned | Documentation review | `/ack` and `/nack` do not enforce Consumer ID exclusivity | `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` |
+
+#### DESIGN-001
+
+- **ID**: DESIGN-001
+- **Title**: ADR-002 Agent required-keys row lists keys absent from config/agent.toml
+- **Status**: open
+- **Severity**: Low
+- **Area**: Governance
+- **Type**: document-code-mismatch
+- **Source**: `docs/10_adr/ADR-002-config-isolation.md`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/ADR-002-config-isolation.md`
+- **Related**: None
+- **Summary**: The Agent row of the per-process key table names keys that `config/agent.toml` does not contain.
+- **Current Description**: The other rows of the table were corrected against their files; the Agent row was not.
+- **Observed Implementation**: About a dozen listed keys appear nowhere in `config/agent.toml` (for example `title_llm_temperature`, `security_profile`).
+- **Impact**: A reader cannot tell which Agent keys are required, defaulted in code, or removed.
+- **Recommended Action**: Check each key against the agent configuration builders and rewrite the row.
+- **Resolution Target**: The Agent row matches `config/agent.toml` and the builders.
+
+#### AGENT-001
+
+- **ID**: AGENT-001
+- **Title**: Default workflow definition does not satisfy the documented require_approval policy
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `config/workflows/default.json`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`
+- **Related**: `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`
+- **Summary**: The documented policy requires workflow-level approval for some categories, but the bundled default sets `require_approval` to false and no code enforces the policy.
+- **Current Description**: agent_03_03 labels the policy operational only and notes the default does not meet it.
+- **Observed Implementation**: `WorkflowLoader` treats `require_approval` as optional (false when absent); `ProductionConfigValidator` has no rule for it.
+- **Impact**: A default deployment runs those stages without a workflow-level approval gate (the tool-level gate is separate).
+- **Recommended Action**: Either enforce the policy (validator rule and default definition) or reduce it to a recommendation.
+- **Resolution Target**: Policy, default definition and validator agree.
+
+#### MCP-001
+
+- **ID**: MCP-001
+- **Title**: git-mcp audit records are never emitted
+- **Status**: open
+- **Severity**: Medium
+- **Area**: MCP
+- **Type**: implementation-bug
+- **Source**: `scripts/mcp_servers/git/git_server.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/22_mcp/mcp_04_05_git.md`
+- **Related**: `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`
+- **Summary**: `call_tool` passes keyword arguments that `_audit_log()` does not accept, so no audit record is written.
+- **Current Description**: mcp_04_05 describes the audit fields; ADR-012 expects write-enforcement decisions to be audited.
+- **Observed Implementation**: `call_tool` passes `requested_target=`/`canonical_target=`; the `TypeError` is swallowed by `_audit_log_safe()` and only `audit_log failed` is logged. Tests mock `_audit_log`.
+- **Impact**: git-mcp writes leave no audit record.
+- **Recommended Action**: Align the `_audit_log()` signature with its callers and test the real function.
+- **Resolution Target**: Each git-mcp call writes an audit record, covered by a test.
+
+#### MCP-002
+
+- **ID**: MCP-002
+- **Title**: git_pull and git_push schema contradicts the protected-branch validation
+- **Status**: open
+- **Severity**: Medium
+- **Area**: MCP
+- **Type**: implementation-bug
+- **Source**: `scripts/mcp_servers/git/git_tools.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/22_mcp/mcp_04_05_git.md`
+- **Related**: `docs/22_mcp/mcp_04_05_git.md`
+- **Summary**: The tool schema and the service validation disagree about an empty `branch`.
+- **Current Description**: The schema describes an empty `branch` as the current or tracking branch.
+- **Observed Implementation**: `GitService._validate_protected()` rejects an empty `branch` for checkout, pull and push.
+- **Impact**: `git_pull`/`git_push` calls that rely on the schema default are rejected.
+- **Recommended Action**: Resolve the current branch before validation, or make `branch` required in the schema.
+- **Resolution Target**: Schema, validation and mcp_04_05 agree.
 
 #### DEPLOY-001
 
@@ -89,12 +174,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: Documentation review
 - **Target**: `docs/90_deployment/deployment_01_deployment.md`
 - **Related**: None
-- **Summary**: No script, unit file or configuration in the repository starts the `embed-llm` and `agent-llm` services, so the deployment documentation cannot describe how to start them.
-- **Current Description**: The deployment documentation states that `setup_services.sh` does not start the LLM services and that MCP servers are started by the agent; it gives no start procedure for the LLM services.
-- **Observed Implementation**: `deploy/setup_services.sh` loops over the service names and only echoes them, then queries their health endpoints. Its header comment says the LLM servers are started as agent-managed subprocesses, but the agent code starts only MCP servers (`startup_mode = "subprocess"`). No other repository file starts `llama-server`.
-- **Impact**: An operator following the repository documentation has no instruction for starting the LLM services that the agent and the RAG pipeline require.
-- **Recommended Action**: Decide where the LLM service start procedure lives (a repository script, an init script under `/opt/llm`, or operator-owned), document it in the deployment document, and correct the `setup_services.sh` header comment.
-- **Resolution Target**: The deployment document describes how `embed-llm` and `agent-llm` are started, consistent with `setup_services.sh`.
+- **Summary**: No repository script, unit file or configuration starts `embed-llm` and `agent-llm`.
+- **Current Description**: The deployment document says `setup_services.sh` does not start the LLM services and gives no start procedure.
+- **Observed Implementation**: `setup_services.sh` only echoes the service names and queries their health endpoints; its header comment says they are agent-managed subprocesses, but the agent starts only MCP servers.
+- **Impact**: An operator has no documented way to start the LLM services the agent and RAG pipeline require.
+- **Recommended Action**: Decide where the procedure lives, document it, and correct the script header comment.
+- **Resolution Target**: The deployment document describes how both LLM services are started.
 
 #### EVENTBUS-008
 
@@ -109,12 +194,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: ADR Known Deviations review
 - **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
 - **Related**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/10_adr/ADR-008-sqlite-4db-separation.md`
-- **Summary**: Bearer-token authentication and role-based authorization are implemented, but consumer-identity validation is fail-open for a token that has no consumer_id allowlist.
-- **Current Description**: The ADR set states that the EventBus authentication model is implemented (public bind is rejected by `EventBusConfig.__post_init__()`; Bearer-token authentication and role checks are attached in `scripts/eventbus/app.py`). The residual gap recorded under ADR-013 is the consumer_id allowlist: when no allowlist applies to the calling token, the consumer_id supplied by the caller is accepted as-is.
-- **Observed Implementation**: In `scripts/eventbus/auth.py`, `_populate_token_maps()` sets `allowed_consumer_ids` only on the CONSUMER-role token, and only when `consumer_authorization` or `topic_authorization` is configured; otherwise it is `None`. `require_consumer_identity()` raises 403 only when `allowed_consumer_ids is not None` and the consumer_id is absent from it, so `None` skips validation. The shared `auth_token` and `admin_token` are unrestricted by design.
-- **Impact**: A holder of an unrestricted CONSUMER token can act under any consumer_id (ACK, NACK, offset operations), which weakens per-consumer isolation within the same-host trust boundary.
-- **Recommended Action**: Decide whether a CONSUMER-role token with no allowlist should be rejected (fail-closed) or whether the unrestricted behavior is the accepted contract; then align `scripts/eventbus/auth.py` or ADR-013 accordingly.
-- **Resolution Target**: Implementation and ADR-013 agree on the behavior for a CONSUMER-role token without an allowlist.
+- **Summary**: A CONSUMER-role token with no allowlist is not restricted to any consumer_id (fail-open).
+- **Current Description**: ADR-013 states authentication is implemented; the consumer_id allowlist is the residual gap.
+- **Observed Implementation**: `_populate_token_maps()` sets `allowed_consumer_ids` only when `consumer_authorization` or `topic_authorization` is configured; `require_consumer_identity()` skips validation when it is `None`. The shared and admin tokens are unrestricted by design.
+- **Impact**: A holder of an unrestricted CONSUMER token can act under any consumer_id (ACK, NACK, offsets).
+- **Recommended Action**: Decide between rejecting such a token (fail-closed) and accepting the unrestricted contract, then align `auth.py` or ADR-013.
+- **Resolution Target**: Implementation and ADR-013 agree for a CONSUMER token without an allowlist.
 
 #### EVENTBUS-011
 
@@ -129,12 +214,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: ADR Known Deviations review
 - **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
 - **Related**: None
-- **Summary**: When an event is deleted between the NACK call and the follow-up state lookup, the route raises 409 "invalid NACK transition" instead of 404.
-- **Current Description**: ADR-006 records that `nack_event()` returns `(-2, -2)` for events already ACKed or DLQ'd and that the route converts this to HTTP 409, with a residual race when the event is deleted between the NACK call and the status check.
-- **Observed Implementation**: `nack_event()` in `scripts/eventbus/delivery_repo.py` returns `(-2, -2)` only when the row still exists. In `scripts/eventbus/ack_route.py`, the `failure_count == -2` branch re-reads `acked_at`/`dlq_at` in a separate `run_with_db_lock()` call; if the row is gone, the final `else` raises 409 "invalid NACK transition" rather than 404.
-- **Impact**: Low. Events are deleted only in rare cases; the effect is an incorrect status code for one request.
-- **Recommended Action**: Treat a missing row in the follow-up lookup as 404 (event not found), or perform the NACK and the state lookup under one lock acquisition.
-- **Resolution Target**: A NACK on an event deleted concurrently returns 404, covered by a test.
+- **Summary**: An event deleted between the NACK call and the follow-up lookup yields 409 instead of 404.
+- **Current Description**: ADR-006 records the `(-2, -2)` result for ACKed or DLQ'd events and a residual race on deletion.
+- **Observed Implementation**: `ack_route.py` re-reads `acked_at`/`dlq_at` in a separate `run_with_db_lock()` call; a missing row falls into the final `else` and raises 409 "invalid NACK transition".
+- **Impact**: Low: an incorrect status code for one request.
+- **Recommended Action**: Treat a missing row as 404, or run the NACK and the lookup under one lock acquisition.
+- **Resolution Target**: A NACK on a concurrently deleted event returns 404, covered by a test.
 
 #### EVENTBUS-012
 
@@ -149,12 +234,32 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: Documentation review
 - **Target**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
 - **Related**: None
-- **Summary**: A NACK of an event that is neither ACKed nor in the DLQ always increments `delivery_failure_count` and `cycle_failure_count`, even when the same consumer already NACKed it.
-- **Current Description**: The ACK/NACK documentation describes an ACK-then-NACK guard (HTTP 409) but no equivalent guard for a repeated NACK.
-- **Observed Implementation**: `nack_event()` in `scripts/eventbus/delivery_repo.py` applies its `UPDATE` whenever `acked_at IS NULL AND dlq_at IS NULL` (plus the per-consumer ACK guard when `consumer_id` is given). No per-consumer NACK-state check exists, so each call increments the counters.
-- **Impact**: A retried or duplicated NACK request can inflate the failure count and promote an event to the DLQ earlier than the configured retry limit implies.
-- **Recommended Action**: Decide whether NACK must be idempotent per consumer; if so, add a per-consumer guard in `nack_event()` and align the ACK/NACK documentation.
-- **Resolution Target**: Repeated NACKs from the same consumer for the same delivery attempt do not change the counters again, covered by a test.
+- **Summary**: A NACK of an event that is neither ACKed nor in the DLQ always increments `delivery_failure_count` and `cycle_failure_count`.
+- **Current Description**: The ACK/NACK documentation describes an ACK-then-NACK guard but none for a repeated NACK.
+- **Observed Implementation**: `nack_event()` applies its `UPDATE` whenever `acked_at IS NULL AND dlq_at IS NULL`; there is no per-consumer NACK-state check.
+- **Impact**: A duplicated NACK can promote an event to the DLQ earlier than the retry limit implies.
+- **Recommended Action**: Decide whether NACK must be idempotent per consumer; if so add a guard and align the documentation.
+- **Resolution Target**: Repeated NACKs for the same delivery attempt do not change the counters again, covered by a test.
+
+#### EVENTBUS-013
+
+- **ID**: EVENTBUS-013
+- **Title**: ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10)
+- **Status**: open
+- **Severity**: Medium
+- **Area**: EventBus
+- **Type**: design-gap
+- **Source**: `scripts/eventbus/ack_route.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Related**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
+- **Summary**: INV-10 forbids concurrent use of one `consumer_id`, but only `/subscribe` enforces it.
+- **Current Description**: The delivery-semantics document states that ACK does not detect a collision.
+- **Observed Implementation**: A second concurrent `/subscribe` gets 409 from the in-process broker registry; `/ack` and `/nack` check only the principal allowlist.
+- **Impact**: Two callers sharing a `consumer_id` through ACK overwrite each other's delivery state and progress.
+- **Recommended Action**: Bind ACK/NACK to the active subscription, or narrow INV-10 to the subscribe path; add a test.
+- **Resolution Target**: INV-10 and the ACK path agree, covered by a test.
 
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 

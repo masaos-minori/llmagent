@@ -23,7 +23,7 @@ related:
 **Purpose:** Local git repository operations with two-stage safety guards.
 **Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/git_mcp_server.toml`
-**Authentication:** No GITHUB_TOKEN required; uses local git credentials
+**Authentication:** No GITHUB_TOKEN required; uses local git credentials. Calls to the server itself are authenticated with the Bearer `auth_token` (resolved from `MCP_GIT_AUTH_TOKEN`), which must match the Agent-side `[mcp_servers.git]` entry. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `config/git_mcp_server.toml`)
 **Remote authorization:** `allowed_remote_urls` in `config/git_mcp_server.toml` lists the normalized remote URLs that `git_pull` and `git_push` may use. The list is fail-closed: an empty list denies every remote. It does not affect which tools are enabled, so `git_pull` and `git_push` stay listed but reject every call until a remote URL is added.
 
 **Tools:**
@@ -78,11 +78,13 @@ The "Tier" column does not exist within the `scripts/mcp_servers/git/` directory
 
 | Key | Notes |
 |---|---|
-| `allowed_repo_paths` | fail-closed; empty = reject all; paths are resolved via `Path.resolve()` |
-| `read_only` | Unless explicitly set to false, all write tools return `[DENIED]` |
+| `allowed_repo_paths` | fail-closed; empty = reject all; the caller's `repo_path` is resolved via `Path.resolve()` and checked for component-aware containment under a configured entry (configured entries are used as written, so list canonical absolute paths) |
+| `read_only` | Unless explicitly set to false, write tools are disabled (`Tool disabled: read_only=true` at `/v1/call_tool`; `[DENIED] git-mcp is configured with read_only=true` if the service guard is reached directly) |
 | `max_log_entries` | Limit on `git_log` entries |
 | `auth_token` | Bearer token for MCP server call authentication |
-| `protected_branches` | branches rejected for `git_checkout`/`git_pull`/`git_push`; empty = none protected |
+| `protected_branches` | branch names protected against write tools (see Protected branch authority); empty = none protected |
+| `allow_detached_head` | when true, the detached-HEAD precondition is skipped for non-dry-run write calls; default is fail-closed |
+| `allowed_remote_urls` | normalized remote URLs permitted for `git_pull`/`git_push`; empty = deny all |
 
 Current default values are defined in `config/git_mcp_server.toml`.
 
@@ -92,8 +94,9 @@ Current default values are defined in `config/git_mcp_server.toml`.
 
 ### Implementation Notes
 
-- The `GitConfig.audit_log_path` field is not referenced or written to anywhere in `GitService`/`server.py`. Actual call logs are output as JSON lines by `server.py::call_tool` via `mcp_servers.audit._audit_log` using the standard `logging.getLogger(__name__)` (module logger); there is no implementation for writing directly to a specified path. Unlike `github-mcp` (`service_security.py`), `shell-mcp` (`service.py`), and `file-delete-mcp` (`delete_service.py`), which have dedicated logic to open and append to `audit_log_path`, `git-mcp` has no equivalent implementation. (Explicit in code)
-- All five write tools (`git_add`/`git_commit`/`git_checkout`/`git_pull`/`git_push`) use a common path through `GitService`'s repository validation, checking `allowed_repo_paths` before passing through the write guard determined by the `_WRITE_TOOLS` frozenset (`service.py`). `git_checkout`/`git_pull`/`git_push` have one additional guard — `GitSecurityGuards._check_protected_branch()` enforcing `GitConfig.protected_branches` — but no guards for Dirty-Worktree rejection, Detached-HEAD control, Forced-Checkout rejection, Force-Push blocking, pull-strategy enforcement, or remote/ref value validation. (Explicit in code)
+- The `GitConfig.audit_log_path` field is not referenced or written to anywhere in `GitService`/`git_server.py`. Call logging is attempted by `git_server.py::call_tool` via `mcp_servers.audit._audit_log` using the standard `logging.getLogger(__name__)` (module logger); there is no implementation for writing directly to a specified path. Unlike `github-mcp` (`service_security.py`), `shell-mcp` (`service.py`), and `file-delete-mcp` (`delete_service.py`), which have dedicated logic to open and append to `audit_log_path`, `git-mcp` has no equivalent implementation. (Explicit in code)
+- All five write tools (`git_add`/`git_commit`/`git_checkout`/`git_pull`/`git_push`) use a common path through `GitService._run_tool()` in `git_service.py`: `_validate_repo()` checks `allowed_repo_paths` and then the `read_only` write guard determined by the `_WRITE_TOOLS` frozenset, and the call then runs through `WriteProtectionPipeline` (authorization, preconditions, HEAD re-check, execution, postcondition). `git_checkout`/`git_pull`/`git_push` additionally run `_validate_ref()` and `_validate_protected()` on the `branch` argument (and `_validate_ref()` on `remote`) before the pipeline. There is no Forced-Checkout rejection or pull-strategy enforcement; Force Push is not reachable because the schema has no `force` field. (Explicit in code — `scripts/mcp_servers/git/git_service.py`, `scripts/mcp_servers/git/repository_state.py`)
+- `GitSecurityGuards` in `git_security.py` is not a base class of `GitService` and is not used on the request path; the guards that run are the `GitService` methods and the `RepositoryState`/`WriteProtectionPipeline` checks. (Explicit in code — `scripts/mcp_servers/git/git_service.py`)
 - `git_commit` throws `GitServiceError("nothing staged to commit")` if `dry_run=false` and there are no staged changes. Other write tools do not have this type of "pre-execution condition check." (Explicit in code)
 - Since repositories are opened with `search_parent_directories=False` using `git.Repo`, `repo_path` must point to the repository root (the directory containing `.git`); providing a subdirectory results in a `GitServiceError` wrapping a `git.InvalidGitRepositoryError`. (Explicit in code)
 
@@ -107,11 +110,11 @@ Agent-side approval confirms user intent; it does not verify that a `git_checkou
 
 ### Common guard
 
-`GitSecurityGuards` (mixin on `GitService`) enforces, for every write tool: repository-path authorization against `allowed_repo_paths` (resolved via `Path.resolve()` before comparison, so symlink- and traversal-based escapes are rejected) and `read_only` rejection. Both checks run before dispatch to the tool handler, for all five write tools uniformly (Explicit in code). Additionally, `WriteProtectionPipeline.verify_authorization()` in `repository_state.py` performs a second-stage check of protected-branch status and ref validity using the `RepositoryState` captured during `_run_tool()`.
+`git_server.py::call_tool` rejects a disabled tool (reason `allowed_repo_paths is empty` or `read_only=true`) before anything else, then resolves `repo_path` via `Path.resolve()` and checks containment in `allowed_repo_paths` (symlink- and traversal-based escapes are rejected). `GitService._validate_repo()` repeats the allowlist check and rejects write tools when `read_only` is true. These checks cover all five write tools uniformly (Explicit in code). Additionally, `WriteProtectionPipeline` in `repository_state.py` runs `verify_authorization()` (protected current branch and ref validity), `verify_preconditions()`, a HEAD-identity re-check, and `verify_postcondition()` around the mutating call.
 
 ### Command-specific guard status: partially implemented
 
-A command-specific guard exists for protected-branch enforcement via `GitSecurityGuards._check_protected_branch()` / `GitService._validate_protected()`, enforcing `GitConfig.protected_branches` (configured in `config/git_mcp_server.toml`). However, no guard distinguishes `git_checkout`/`git_pull`/`git_push` from the other write tools or from each other for the following: Forced-Checkout rejection, Force-Push blocking, pull-strategy enforcement, or remote/ref value validation. `branch` and `remote` are passed through to GitPython as unvalidated strings.
+A command-specific guard exists for protected-branch enforcement via `GitService._validate_protected()` (requested branch) and `RepositoryState.verify_authorization()` (current branch), enforcing `GitConfig.protected_branches` (configured in `config/git_mcp_server.toml`). However, no guard distinguishes `git_checkout`/`git_pull`/`git_push` from the other write tools or from each other for the following: Forced-Checkout rejection, Force-Push blocking, pull-strategy enforcement, or remote/ref value validation. `branch` and `remote` are passed through to GitPython as unvalidated strings.
 
 ### `git_checkout` policy
 
@@ -130,7 +133,12 @@ A command-specific guard exists for protected-branch enforcement via `GitSecurit
 
 ### Protected branch authority
 
-`GitConfig.protected_branches` (a `list[str]`, configured via `git_mcp_server.toml`) is the policy source. `GitSecurityGuards._check_protected_branch()`, called from `GitService._validate_protected()`, enforces it before dispatch for `git_checkout`, `git_pull`, and `git_push` alike, rejecting a match with `[DENIED] {branch!r} is a protected branch`. Matching is exact-string only (`branch in protected_branches`) — unlike GitHub MCP's `protected_branches` (a distinct, unrelated setting on `GitHubConfig`), which supports fnmatch patterns; the two settings MUST NOT be assumed equivalent. One gap remains: an empty `branch` argument skips this check entirely (`_validate_protected()` short-circuits on falsy input). The current `config/git_mcp_server.toml` sets `protected_branches = ["main", "master", "release"]`, so these three branches are now protected.
+`GitConfig.protected_branches` (a `list[str]`, configured via `git_mcp_server.toml`) is the policy source and is enforced in two places (Explicit in code — `scripts/mcp_servers/git/git_service.py`, `scripts/mcp_servers/git/repository_state.py`):
+
+- Requested branch: `GitService._validate_protected()` rejects `git_checkout`, `git_pull`, and `git_push` when the `branch` argument equals a listed name (exact, case-sensitive string match) with `[DENIED] branch is a protected branch`. An empty `branch` is rejected with `[DENIED] branch must not be empty`; because the pull/push schemas default `branch` to an empty string, these two tools are rejected unless `branch` is supplied.
+- Current branch: `RepositoryState.verify_authorization()` (Stage 3 of the pipeline) rejects every write tool, including `git_add` and `git_commit`, when HEAD is on a listed branch (names are normalized to `refs/heads/<name>` and compared case-insensitively), with `[DENIED] {active_branch!r} is a protected branch`.
+
+Unlike GitHub MCP's `protected_branches` (a distinct, unrelated setting on `GitHubConfig`), which supports fnmatch patterns, the git-mcp list has no pattern support; the two settings MUST NOT be assumed equivalent.
 
 ### Approval level
 
@@ -138,7 +146,7 @@ A command-specific guard exists for protected-branch enforcement via `GitSecurit
 
 ### Structured rejection codes (current)
 
-Git MCP returns free-form strings, not stable codes: `[DENIED] git-mcp is configured with read_only=true` (read-only), `[DENIED] repo_path {path!r} is not in allowed_repo_paths` (repository-path), `[DENIED] {branch!r} is a protected branch` (protected-branch), `[DENIED] Ref {ref!r} looks like a CLI option` (option-injection via `_is_safe_ref()`/`_validate_ref()`), `[DENIED] worktree has uncommitted changes (dirty worktree)` (dirty worktree via `verify_preconditions()`), `[DENIED] repository is in a detached HEAD state` (detached HEAD via `verify_preconditions()`), and operation-specific messages from `verify_postcondition()` (e.g., `expected branch {requested_branch!r}, got {post_state.active_branch!r}` for checkout, `pull postcondition failed: unresolved merge conflicts remain` for pull, `push postcondition failed: {result}` for push). These lack a *stable rejection code* (as opposed to a free-form message) — still true.
+Git MCP returns free-form strings, not stable codes: `[DENIED] git-mcp is configured with read_only=true` (read-only), `[DENIED] repo_path not in allowed paths` (repository-path; `[DENIED] allowed_repo_paths is empty` when the list is empty), `[DENIED] branch is a protected branch` or `[DENIED] {active_branch!r} is a protected branch` (protected-branch; see Protected branch authority), `[DENIED] Ref {ref!r} looks like a CLI option` (option-injection via `_is_safe_ref()`/`_validate_ref()`), `[DENIED] worktree has uncommitted changes (dirty worktree)` (dirty worktree via `verify_preconditions()`), `[DENIED] repository is in a detached HEAD state` (detached HEAD via `verify_preconditions()`), and operation-specific messages from `verify_postcondition()` (e.g., `expected branch {requested_branch!r}, got {post_state.active_branch!r}` for checkout, `pull postcondition failed: unresolved merge conflicts remain` for pull, `push postcondition failed: {result}` for push). These lack a *stable rejection code* (as opposed to a free-form message) — still true.
 
 ### Postcondition verification: implemented
 
@@ -146,7 +154,10 @@ Git MCP returns free-form strings, not stable codes: `[DENIED] git-mcp is config
 
 ### Audit
 
-Every `/v1/call_tool` invocation is recorded via the shared `_audit_log()` helper (tool name, outcome, timestamp, session/request id). On a successful call, `target` is the resolved canonical repository path, also recorded separately as `canonical_target`; on a validation, path-containment, or precondition rejection, `target` is empty but the raw caller-supplied value is recorded as `requested_target`. Pre-operation and post-operation git state (branch, HEAD, conflict status) are not part of the audit record regardless. `audit_log_path` in `GitConfig` is present but unused — no code path writes to it.
+`git_server.py::call_tool` calls `_audit_log()` (through `_audit_log_safe()`) for every call that passes argument validation (a disabled-tool or schema-validation rejection is not audited). On a dispatched call, `target` is the resolved canonical repository path and `pre_condition`/`post_condition` carry the serialized `RepositoryState` (path, dirty flag, head type, active branch, untracked-file count, protected-branch flag, ref validity); on a path-resolution, path-containment, or repository-existence rejection, `target` is empty and `pre_condition`/`post_condition` are null. The call additionally passes `requested_target` (sanitized caller value) and `canonical_target`, but the shared `_audit_log()` signature in `scripts/mcp_servers/audit.py` has no such parameters, so the call raises `TypeError`, which `_audit_log_safe()` swallows and reports only as an `audit_log failed` error log line; as a result no audit record is currently emitted for git-mcp calls. `audit_log_path` in `GitConfig` is present but unused — no code path writes to it. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `scripts/mcp_servers/audit.py`)
+
+The audit-call failure described above is tracked as MCP-001 in `governance_03_issue-and-uncertainty-management.md`. The `git_pull`/`git_push` schema default for an empty `branch` conflicts with the validation described under Protected branch authority; this is tracked as MCP-002.
+
 
 ## Keywords
 

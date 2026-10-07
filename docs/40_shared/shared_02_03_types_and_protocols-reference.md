@@ -51,8 +51,8 @@ Defined in `mcp_servers/models.py` (NOT in `shared/`; the `mcp_servers` package 
 |---|---|---|---|---|
 | `TypedDict` | `LLMMessage`, `ArtifactEvent` | Mutable dict | No (unless `@runtime_checkable`) | Data transport; duck-typed |
 | `Protocol` | `RagConfig` | Depends on impl | Yes (if `@runtime_checkable`) | Structural contract; any object satisfying fields works |
-| frozen `dataclass` | `LLMUsage`, `LLMResponse`, `ActionResult`, `DbConfig` | Immutable | Yes | Value objects; hashable |
-| `dataclass` | `ShellPolicy` | Mutable | Yes | Configuration objects |
+| frozen `dataclass` | `LLMUsage`, `LLMResponse`, `ActionResult`, `DbConfig`, `ShellPolicy` | Immutable | Yes | Value objects; hashable |
+| `dataclass` (non-frozen) | `McpServerConfig` | Mutable | Yes | Mutable configuration records |
 | Pydantic model | `CallToolRequest`, `CallToolResponse` | Mutable | Yes | MCP HTTP request/response validation |
 
 **AI Guidance:** If a function accepts `RagConfig`, it should accept any object that satisfies the protocol (including `SimpleNamespace`), provided it has the required fields. Do not assume it must be an `AgentConfig`.

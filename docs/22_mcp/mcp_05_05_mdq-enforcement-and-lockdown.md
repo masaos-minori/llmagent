@@ -23,7 +23,7 @@ Automated pytest checks (`tests/test_mdq_rag_boundary.py`) verify the MDQ/RAG bo
 | `scripts/mcp_servers/rag_pipeline/` | `rag.sqlite` | Its own service | Normal operation |
 | Agent Layer | `session.sqlite` | `SQLiteHelper("session")` | Normal operation |
 | Agent Layer | `workflow.sqlite` | `SQLiteHelper("workflow")` | Normal operation |
-| Agent Layer | `rag.sqlite` | via `RagMaintenanceService` using `SQLiteHelper("rag")` | Admin-only `/db` command |
+| Agent Layer | `rag.sqlite` | via `RagMaintenanceService` using `SQLiteHelper("rag")` | `/session rag-consistency`, `/session rag-rebuild-fts`, `/session rag-rebuild-vec` commands |
 
 #### Prohibited Access Paths
 

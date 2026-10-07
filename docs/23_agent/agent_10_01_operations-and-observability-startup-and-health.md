@@ -44,7 +44,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 ## Key Constraints
 
 - Workflow definition files must always be loaded at startup. If they are missing or invalid, startup fails. Direct execution fallback is not supported.
-- Unreachable health probes are treated as startup failure (FATAL) regardless of environment.
+- Unreachable LLM/embedding health probes are treated as startup failure (FATAL).
 - Embedding dimension mismatches are treated as startup failures to prevent vector search data corruption.
 - During rolling upgrades for session startup, the new process's startup is verified before the old process is shut down; if issues arise, the old process is maintained.
 
@@ -62,7 +62,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 **Important Notes:**
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
 - `tool_definitions` follows a unified severity scheme: FATAL when in strict mode, WARNING otherwise (`security_profile` is always `PRODUCTION`, so it does not affect the severity).
-- Failure in `mcp_tool_discovery` is treated as FATAL regardless of environment. Since tool discovery failure makes all session tool calls impossible, it is critical.
+- `mcp_tool_discovery` follows the ADR-004 rule: an unreachable or invalid required MCP server (`McpServerConfig.required`), a missing required tool, a duplicate tool name, or an unexpected discovery exception is FATAL and aborts startup; an unreachable or invalid non-required server is WARNING and startup continues with that server's tools disabled. Drift and tool-definition findings are FATAL only in strict mode. See [mcp_06_09](../22_mcp/mcp_06_09_startup-validation-behavior-tool_definitions_strict.md).
 - `mcp_auth` ("1b. MCP authentication check", runs between the security audit and service-readiness checks): FATAL if any `[mcp_servers.*]` entry has an empty `auth_token`, listing every offending server key in one outcome. In practice this is unreachable via a real `McpServerConfig` — construction itself already rejects an empty `auth_token` (see [mcp_06_01](../22_mcp/mcp_06_01_configuration-file-inventory.md)) — so this check only fires for a `ctx` assembled some other way than the normal config-load path. `check_services()` does not short-circuit on an earlier FATAL: every check listed here always runs and reports independently; only the final aggregated `has_fatal` decides whether startup aborts.
 
 ### Restoration of Pending Post-Execution Approvals
@@ -92,7 +92,7 @@ When an MCP subprocess fails to start, the tail of its stderr is included in the
 
 ### Manual Recovery: workflow.sqlite / eventbus.sqlite
 
-When `workflow.sqlite` or `eventbus.sqlite` becomes corrupted (e.g., disk failure, unexpected shutdown), `recover_corruption()` returns `action="no_recovery_allowed"` for both — ADR-008 INV-18 prohibits automatic restoration for these two domains. Recovery is an operator action. Prefer restoring from a rotation-archive backup (below); fall back to the empty-state procedure only when no valid backup exists.
+When `workflow.sqlite` or `eventbus.sqlite` becomes corrupted (e.g., disk failure, unexpected shutdown), `recover_corruption()` returns `action="no_recovery_allowed"` for both — ADR-008 INV-18 prohibits automatic restoration for these two domains. Recovery is an operator action. Prefer restoring from a rotation-archive backup (below); fall back to recreating empty databases (Step 6) only when no valid backup exists.
 
 **Step 1 — Stop the agent process completely** (ensure no remaining subprocesses).
 
@@ -128,15 +128,14 @@ sqlite3 eventbus.sqlite "PRAGMA integrity_check;"
 ```
 Both must print `ok` again post-copy before starting the agent. Data committed after the backup's timestamp is lost — this is expected; note the gap when escalating if it matters operationally.
 
-**Step 6 — No valid backup available (all candidates missing or failing integrity check).** Fall back to reinitializing empty state — this is a last resort, not the default path:
+**Step 6 — No valid backup available (all candidates missing or failing integrity check).** Fall back to recreating empty databases — this is a last resort, not the default path. `recover_corruption()` has no reinitialization path for these domains (it only returns `no_recovery_allowed`), so the empty state is produced by removing the corrupted files and running the schema creation functions of `scripts/db/create_schema.py` (Explicit in code — `scripts/db/recovery.py`, `scripts/db/create_schema.py`). The corrupted content is not re-imported; Step 2's `.corrupted` copies are the only remaining record of it.
 ```bash
-sqlite3 workflow.sqlite ".dump" > workflow.sql 2>/dev/null || true
-sqlite3 eventbus.sqlite ".dump" > eventbus.sql 2>/dev/null || true
-rm -f workflow.sqlite eventbus.sqlite
-sqlite3 workflow.sqlite < workflow.sql 2>/dev/null || touch workflow.sqlite
-sqlite3 eventbus.sqlite < eventbus.sql 2>/dev/null || touch eventbus.sqlite
+rm -f workflow.sqlite workflow.sqlite-wal workflow.sqlite-shm
+rm -f eventbus.sqlite eventbus.sqlite-wal eventbus.sqlite-shm
+# From the deployment root, with PYTHONPATH set to the deployed scripts directory
+uv run python -c 'from db.create_schema import create_workflow_schema, create_eventbus_schema; create_workflow_schema(); create_eventbus_schema()'
 ```
-This clears all pending approvals and workflow state. If the data loss is significant, escalate before proceeding — this step is irreversible once the corrupted files are removed (Step 2's `.corrupted` copies are the only remaining record).
+The recreated databases contain schema only: all workflow state (tasks, attempts, processed events, artifacts) including all pending approvals, and all events, consumer delivery state, and offsets are lost. If the data loss is significant, escalate before proceeding — the removal is irreversible apart from the Step 2 copies.
 
 **Step 7 — Start the agent process again** and confirm normal startup (see Severity Mapping above).
 

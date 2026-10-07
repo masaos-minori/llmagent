@@ -133,7 +133,7 @@ An `approval_risk_rules` entry can raise a tool above its tier default (for exam
 ### git-mcp 
 
 **Responsibilities:**
-- Local Git operations (status, log, diff, branch, commit, push/pull)
+- Local Git operations (status, log, diff, branch, add, commit, checkout, pull, push)
 - Git history inspection
 
 **Explicit non-responsibilities:**

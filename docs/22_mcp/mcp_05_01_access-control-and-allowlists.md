@@ -62,8 +62,9 @@ allowed_dirs = ["/opt/llm", "/opt/llm/storage"]
 allowed_repo_paths = ["/opt/llm/myrepo"]
 ```
 
-- Paths are normalized with `Path.resolve()` at server startup.
-- Empty → Denies all repository access (fail-closed).
+- The caller-supplied `repo_path` is resolved with `Path.resolve()` per call and must be contained (component-aware) under a configured entry; configured entries are compared as written.
+- Empty → Denies all repository access (fail-closed); all git tools are reported disabled with reason `allowed_repo_paths is empty`.
+- `read_only` (default true) disables the write tools; `protected_branches` rejects write tools on matching branches; see [mcp_04_05_git.md](./mcp_04_05_git.md).
 
 ---
 
@@ -162,20 +163,21 @@ If a legitimate force-push (ref update) is required, do not enable this setting;
 
 ```toml
 # config/github_mcp_server.toml - require_pr_review
-require_pr_review = true   # default: PR review required
+require_pr_review = true   # default: merge requires an approved review
 ```
 
-- If `true`, write operations to protected branches require a pull request (direct commits disallowed).
-- If `false`, direct commits to protected branches are allowed (subject to other protections).
+- If `true`, `github_merge_pull_request` rejects the merge with `GitHubAuthorizationError` unless the pull request has at least one `APPROVED` review.
+- If `false`, a pull request can be merged without an approved review (subject to other protections).
+- It does not control direct commits: writes targeting a branch matched by `protected_branches` are rejected by `protected_branches`, independent of this setting. (Explicit in code — `scripts/mcp_servers/github/github_service_pull_requests.py`)
 
 **Production Example:**
 
 ```toml
-# Require PR review for all protected branch writes
+# Require an approved review before any pull request merge
 require_pr_review = true
 ```
 
-This ensures that changes to `main`, `master`, `release/*` branches must go through the standard code review process via pull requests.
+This ensures that a pull request cannot be merged through github-mcp without an approved review; keeping `main`, `master`, `release/*` out of direct writes is the job of `protected_branches`.
 
 ---
 

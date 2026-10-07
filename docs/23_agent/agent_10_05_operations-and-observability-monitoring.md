@@ -100,7 +100,7 @@ In addition to `session_summary` and `mid_turn_error`, the following `kind` valu
 | `parse_errors` | Number of SSE parse errors |
 | `heartbeat_timeouts` | Number of SSE heartbeat timeouts |
 | `reconnects` | Number of LLM transport reconnections |
-| `semantic_cache_hits` | Number of semantic cache hits |
+| `semantic_cache_hits` | Fixed counter that no code path increments (always 0); the RAG pipeline has no semantic cache |
 | `input_tokens` | Total input tokens (if available) |
 | `output_tokens` | Total output tokens (if available) |
 | `compress_count` | Number of times history was compressed |

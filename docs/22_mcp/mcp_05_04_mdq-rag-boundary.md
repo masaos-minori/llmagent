@@ -77,7 +77,7 @@ Neither system has direct access to the other's database. Each maintains its own
 The agent layer accesses both systems exclusively through **MCP tool calls**.
 
 1. **Primary Path (Recommended):** The agent calls tools via MCP routing (`ToolRouteResolver`). All tool calls pass through the MCP server abstraction layer.
-2. **Admin Bypass:** The `/db` command in the Agent REPL allows direct access to `rag.sqlite` for maintenance tasks. This is for administrators only and is not part of normal operation.
+2. **Admin Bypass:** The `/session rag-consistency`, `/session rag-rebuild-fts`, and `/session rag-rebuild-vec` commands in the Agent REPL access `rag.sqlite` directly through `RagMaintenanceService` for maintenance tasks. They are not part of normal operation.
 3. **Direct DB Access (Not Recommended):** Application code must NOT directly import `sqlite3` for `mdq.sqlite` or `rag.sqlite`. Always use MCP tools.
 
 ### RAG and Agent Responsibility Boundary

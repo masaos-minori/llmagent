@@ -47,9 +47,9 @@ Any `RuntimeError` is not caught by the caller's `except` block and propagates f
 
 When `WorkflowEngine(require_approval=True)` is used, the engine pauses after the `execute` stage completes and before the `verify` stage begins:
 
-**Production Operations Policy (Decided):** Whether `WorkflowDef.require_approval` is required is defined per operation category. Any production deployment whose default workflow can reach a category marked "Required" in the table below MUST explicitly set `require_approval: true` in the deployment's `config/workflows/*.json`. The bundled `config/workflows/default.json` ships with `require_approval: false` for local development; enabling it for production is done via an environment-specific override file.
+**Operations Policy (Decided):** Whether `WorkflowDef.require_approval` is required is defined per operation category. Any deployment whose workflow can reach a category marked "Required" in the table below MUST explicitly set `require_approval: true` in its `config/workflows/*.json`. This is an operational policy only: `WorkflowLoader` parses `require_approval` as an optional boolean that is false when absent, and `ProductionConfigValidator` has no `require_approval` rule, so neither enforces it (Explicit in code — scripts/agent/workflow/workflow_loader.py, scripts/shared/production_config_validator.py). The bundled `config/workflows/default.json` sets `require_approval` to false and therefore does not meet this policy for the "Required" categories; the workflow-level gate does not fire with it.
 
-| Operation Category | Approval Required in Production |
+| Operation Category | Workflow-level Approval Required |
 |---|---|
 | File write | Conditional (only if the same task also executes another "Required" category) |
 | File deletion | Required |
@@ -59,7 +59,7 @@ When `WorkflowEngine(require_approval=True)` is used, the engine pauses after th
 | CI/CD execution | Required |
 | Database maintenance | Gap — the corresponding tool is not yet implemented |
 
-**Local Development Exception:** Local/dev deployments may leave `require_approval: false` for all categories, since the tool-level pre-execution approval gate remains active.
+**Tool-level gate:** Independently of `require_approval`, the tool-level pre-execution approval gate (risk rules in `config/agent.toml`) remains active.
 
 **Approval Lifecycle (all paths):**
 - **approve**: `/approve <approval_id> [reason]` → `status=approved`, passes to the `verify` stage on the next run
@@ -145,7 +145,7 @@ During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is calle
 
 ### Default Behavior of Approval Gates
 
-In default production settings, approval gates are not triggered. Enabling approval gates requires configuration changes.
+With the bundled `config/workflows/default.json`, the workflow-level approval gate is not triggered; enabling it requires setting `require_approval` to true in the workflow definition. The tool-level pre-execution gate is unaffected.
 
 ## Operational Notes
 
@@ -154,7 +154,7 @@ In default production settings, approval gates are not triggered. Enabling appro
 
 ## Known Limitations
 
-- Default approval gates are disabled and require explicit configuration changes.
+- The workflow-level approval gate is disabled in the bundled workflow definition, and no code enforces the operations policy above; enabling it requires an explicit workflow definition change. This gap is tracked as AGENT-001 in `governance_03_issue-and-uncertainty-management.md`.
 - Only "fixed" backoff strategy is implemented for retries.
 
 ---

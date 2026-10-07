@@ -134,7 +134,7 @@ Rejected to prioritize Security and prevent configuration leakage across process
 
 ### Deployment Validation
 
-- Check the SHA256 checksum of each process's configuration file before and after deployment
+- Check the SHA256 checksum of `config/workflows/default.json` before and after deployment (`deploy/deploy.sh`)
 - Whether the deployed configuration files match the source
 
 ### Runtime Monitoring

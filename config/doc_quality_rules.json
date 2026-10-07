@@ -26,6 +26,11 @@
       "severity": "ERROR",
       "exempt_historical_context": false,
       "description": "change history, traceability or resolved-item marker in an active document (Current-Specification-Only Policy); state the current behavior instead"
+    },
+    "stale_db_rag_slash_commands": {
+      "pattern": "`/db\\b|`/rag search\\b|/db (?:health|vacuum|consistency|rag)\\b|/rag search\\b",
+      "severity": "ERROR",
+      "description": "removed slash command (there is no /db or /rag command; use /session health, /session vacuum, /session rag-consistency, /session rag-rebuild-fts or /session rag-rebuild-vec)"
     }
   }
 }

@@ -57,7 +57,7 @@ See `deploy/` for the current file layout.
 
 **Build scripts** — One-time setup operations: sqlite-vec extension compilation, Python script and configuration deployment, and SQLite schema initialization. Each runs sequentially; later steps depend on earlier ones completing successfully.
 
-**Service orchestration** — Starts MCP server group and LLM service group as independent subprocesses. Requires workflow definitions validated and database tables present before starting.
+**Service orchestration** — Runs the workflow pre-flight checks and starts the Event Bus; requires workflow definitions validated and database tables present before starting. MCP servers are started by the agent as subprocesses on agent startup. LLM services (`embed-llm`, `agent-llm`) are not started by any script in the repository and must already be running (see [deployment_01_deployment.md](../90_deployment/deployment_01_deployment.md)).
 
 **Agent launcher** — Starts the AgentREPL process. Prefers the production pyproject.toml over development alternatives. Dependent on service orchestration completing first.
 

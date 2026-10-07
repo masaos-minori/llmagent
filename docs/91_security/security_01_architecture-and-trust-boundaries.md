@@ -53,8 +53,8 @@ The following assets are protected by the security architecture:
 - **GitHub repositories**: GitHub MCP server restricts to `allowed_repos`
 - **CI/CD workflows**: CI/CD MCP server restricts to allowed workflows/repos
 - **DB files**: SQLite databases (agent, RAG, EventBus) protected by filesystem permissions and SQLite-level constraints
-- **Audit logs**: JSON-lines audit log files protected by filesystem permissions and retention policies
-- **Secrets**: API keys, tokens, encryption keys stored in config files with filesystem permissions
+- **Audit logs**: JSON-lines audit log files protected by filesystem permissions; no application-level retention or rotation is applied
+- **Secrets**: API keys and tokens held in the process environment and referenced from config files as `${ENV:VAR_NAME}`; config files contain references, not secret values
 
 ## Threat model
 
@@ -88,10 +88,10 @@ The threat model covers the following threat vectors:
 
 Secret lifecycle management covers:
 
-- **Provisioning**: Secrets provisioned via config files (`config/agent.toml`, `config/*_mcp_server.toml`) and environment variables; no hardcoded secrets in code
-- **Storage**: Secrets stored in config files with filesystem permissions (0600); no secrets in git history
-- **Rotation**: Operator replaces secret value in config and restarts affected services; no hot-reload for secrets (per `mcp_06_14_mcp-authentication-setup.md`)
-- **Revocation**: Removing secret from config and restarting services invalidates it immediately; no separate revocation list
+- **Provisioning**: Secrets are provisioned as environment variables; `config/agent.toml` and `config/*_mcp_server.toml` reference them with `${ENV:VAR_NAME}` (resolved by `resolve_env_ref()` in `scripts/shared/config_utils.py`, which raises `ValueError` when the variable is unset); no hardcoded secrets in code (Explicit in code — scripts/shared/config_utils.py)
+- **Storage**: Secret values live only in the process environment (or the operator's secret management); config files committed to git hold only `${ENV:VAR_NAME}` references, so no secret values enter git history. File permissions on config files are not enforced by application code
+- **Rotation**: Operator replaces the secret value in the environment (or secret source) and restarts affected services; no hot-reload for secrets (per `mcp_06_14_mcp-authentication-setup.md`)
+- **Revocation**: Removing the secret from the environment and restarting services invalidates it immediately; no separate revocation list
 
 *Source: `mcp_06_14_mcp-authentication-setup.md`*
 
@@ -109,10 +109,8 @@ Audit log redaction follows these rules:
 
 Audit retention policy:
 
-- **Retention period**: Configured via `retention_days` in `config/agent.toml` `[diagnostics]` section; the default is defined in `config/agent.toml`
-- **Purge mechanism**: Lazy purge on each `DiagnosticStore.save()` — deletes rows older than `retention_days` from `session_diagnostics` table
-- **Disabled purge**: `retention_days <= 0` disables automatic purge
-- **Audit log files**: JSON-lines files at `audit_log_file` path rotated by external logrotate; no application-level rotation
+- **Audit log files**: JSON-lines files at the `audit_log_file` path. No application-level retention, rotation, or cleanup exists; rotation and removal are left to the operator (no logrotate configuration is provided by the repository). (Explicit in code — `scripts/mcp_servers/audit.py`, `scripts/eventbus/audit.py`)
+- **Session diagnostics (separate from audit log files)**: `retention_days` in the `[diagnostics]` section of `config/agent.toml` governs `session_diagnostics` rows only. Rows older than `retention_days` are purged lazily on each `DiagnosticStore.save()`; `retention_days <= 0` disables the purge. (Explicit in code — `scripts/agent/config_dataclasses.py`)
 
 *Source: `mcp_06_05_reading-audit-logs.md`, `agent_10_02_operations-and-observability-audit-and-otel.md`*
 

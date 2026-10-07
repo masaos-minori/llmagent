@@ -19,7 +19,10 @@ from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a 
 
 
 def requeue_event(conn: sqlite3.Connection, event_id: str) -> bool:
-    """Increment dlq_requeue_count and clear dlq_at. Returns True if the event was found in DLQ."""
+    """Unused legacy helper with no callers; the active requeue path is redeliver_event(), which keeps dlq_at on the original row and inserts a new row.
+
+    Increments dlq_requeue_count and clears dlq_at in place. Returns True if the event was found in DLQ.
+    """
     cur = conn.execute(
         f"UPDATE events SET {_COL_DLQ_REQUEUE_COUNT} = {_COL_DLQ_REQUEUE_COUNT} + 1, {_COL_DLQ_AT} = NULL WHERE {_COL_EVENT_ID} = ? AND {_COL_DLQ_AT} IS NOT NULL",  # nosec B608 — column names are module-level constants, values parameterized
         (event_id,),

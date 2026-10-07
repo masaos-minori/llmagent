@@ -74,9 +74,13 @@ Each MCP server is an independent process that only reads its own configuration 
 
 #### Risk Rules
 
-- `none`: None by default
-- `medium`: write_file, edit_file, create_directory, move_file, github_* operations
-- `high`: delete_file, delete_directory, shell_run, github_push_files, github_merge_pull_request
+Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools without an entry fall back to the risk derived from their `tool_safety_tiers` tier (Explicit in code — scripts/agent/tool_policy.py `_TIER_TO_RISK`). Categories:
+
+- `none`: read-only tools and tools with no rule (tier-derived)
+- `medium`: local file mutation tools that do not delete (write, edit, create directory, move), and lower-impact GitHub changes (branch, pull request create/update, issue create, issue comment)
+- `high`: deletion tools, `shell_run`, GitHub content/merge changes (file create/update/delete, multi-file push, pull request merge), and git `git_checkout`/`git_pull`/`git_push`
+
+`ProductionConfigValidator` rejects a configuration in which the git tools `git_checkout`/`git_pull`/`git_push` resolve to a risk below high (Explicit in code — scripts/shared/production_config_validator.py `_check_approval_risk_floor()`). The per-tool mapping is in `[approval_risk_rules]` of `config/agent.toml` and the [MCP ownership matrix](../22_mcp/mcp_01_tool_ownership_matrix.md).
 
 #### Escalation
 
@@ -91,7 +95,7 @@ Each MCP server is an independent process that only reads its own configuration 
 
 - `tool_safety_tiers`: tool → READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN
 
-**CRITICAL**: The keys in tool_safety_tiers must be actual registered tool names, not server keys. Unknown keys are detected at startup: warning in local/dev environments, fatal RuntimeError in production.
+**CRITICAL**: The keys in tool_safety_tiers must be actual registered tool names, not server keys. Unknown keys are detected at startup and are fatal (config validation error), independent of any environment (Explicit in code — scripts/shared/production_config_validator.py `ProductionConfigValidator.validate()`, scripts/agent/config_builders.py `_run_production_validation()`).
 
 #### Dry Run
 
@@ -128,7 +132,7 @@ Each MCP server is an independent process that only reads its own configuration 
 
 ## Key Constraints
 
-- The keys in tool_safety_tiers must be actual registered tool names — unknown keys are fatal in production
+- The keys in tool_safety_tiers must be actual registered tool names — unknown keys are fatal at startup
 - `allowed_tools=[]` (empty) means "allow all"
 - `approval_github_allowed_repos=[]` (empty) means "deny all"
 - `/reload reports cfg.diagnostics.* changes under a distinct LIVE category; they take effect immediately on every DiagnosticStore save()/fetch() call without requiring a restart`

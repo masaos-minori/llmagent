@@ -142,7 +142,7 @@ See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_
 **Purpose:** GitHub API via PyGithub. Performs reads and writes to GitHub repositories.
 **Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/github_mcp_server.toml`
-**Authentication:** `GITHUB_TOKEN` environment variable (PAT); if unset, anonymous access with 60 req/hour.
+**Authentication:** `GITHUB_TOKEN` environment variable (PAT). If unset, every tool is reported disabled (`GITHUB_TOKEN is not set`) and `/v1/call_tool` rejects every call with `Tool disabled: GITHUB_TOKEN is not set`; there is no usable anonymous mode through the MCP tools. (Explicit in code — `scripts/mcp_servers/github/github_server.py`)
 
 **Tools:** All prefixed with `github_`: `github_search_repositories`, `github_get_file_contents`, `github_push_files`, `github_delete_file`, `github_list_branches`, `github_get_commit`, `github_list_issues`, `github_get_issue`, `github_create_issue`, `github_search_issues`, `github_list_pull_requests`, `github_get_pull_request`, `github_search_pull_requests`, `github_update_pull_request`, `github_merge_pull_request`, `github_list_commits`, `github_search_code`, `github_create_pull_request`, `github_create_branch`, `github_create_or_update_file`, `github_add_issue_comment`
 
@@ -177,7 +177,7 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 - PyGithub's `GithubException` is converted to domain exceptions in `service_security.py` based on status codes (404 → NotFound, 403 → Authorization, 409 → Conflict, 400/422 → Validation, others → Upstream). (Explicit in code)
 - `allow_force_push=false` only applies by rejecting `merge_method="rebase"` in `merge_pull_request` (it does not directly block other force-push equivalent operations). (Explicit in code)
 - `require_pr_review=true` ensures at least one `APPROVED` review exists when executing `merge_pull_request`. (Explicit in code)
-- When `GITHUB_TOKEN` is unset, it starts with an anonymous `Github()` client, returning `degraded` health status (`service_init.py`). (Explicit in code)
+- When `GITHUB_TOKEN` is unset, the process still starts and constructs an unauthenticated `Github()` client (with a startup warning about the unauthenticated API rate limit) and reports `degraded` health, but the disabled-tool gate in `/v1/call_tool` prevents any tool from using that client (`github_service_init.py`, `github_server.py`). (Explicit in code)
 
 ---
 

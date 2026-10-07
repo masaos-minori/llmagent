@@ -44,7 +44,7 @@ Step 2 is the **only** step that determines publish success. Steps 4-5 are best-
 
 When the JSONL append fails after a successful database commit:
 - **Event status**: Published (DB commit succeeded).
-- **Observable signal**: `eventbus_jsonl_append_failure_total` Prometheus Counter increments.
+- **Observable signal**: the warning log line below is the operator-visible signal. The in-process Prometheus Counter `eventbus_jsonl_append_failure_total` increments, but no endpoint exposes it (the service serves no Prometheus scrape endpoint and `/health` does not return this counter; see [eventbus_08](eventbus_08_configuration-and-operations.md)). (Explicit in code — `scripts/eventbus/publish_route.py`, `scripts/eventbus/health_route.py`)
 - **Log output**: Structured warning: `"eventbus: JSONL append failed (event still committed): {exc}"`.
 - **Recovery**: None automated. SQLite remains complete; the JSONL archive is missing the affected line.
 
@@ -55,19 +55,19 @@ Affected file paths:
 
 When the broker notification fails after a successful database commit:
 - **Event status**: Published (DB commit succeeded).
-- **Observable signal**: `eventbus_broker_notify_failure_total` Prometheus Counter increments.
+- **Observable signal**: the exception log line below is the operator-visible signal. The in-process Prometheus Counter `eventbus_broker_notify_failure_total` increments but is not exposed by any endpoint.
 - **Log output**: Structured exception log: `"publish broker notify error seq={seq}"`.
 - **Subscriber recovery**: Subscribers can recover missed notifications by reconnecting to `/subscribe` with `since_seq` (SQLite-backed replay). `/replay` is restricted to the operator role.
 
 ### Both Failures Simultaneously
 
-Both failures can occur simultaneously. Each is independently observable via its own Prometheus metric. The event is still published — only the side effects fail.
+Both failures can occur simultaneously. Each is independently recorded by its own in-process counter and its own log line; only the log lines are visible to an operator. The event is still published — only the side effects fail.
 
 ### Disk-Full Scenario
 
 - DB commit succeeds → event is published (canonical store updated).
-- JSONL append fails with `OSError` → metric incremented, warning logged.
-- Broker notification may succeed or fail independently → metric incremented if failed.
+- JSONL append fails with `OSError` → counter incremented, warning logged.
+- Broker notification may succeed or fail independently → counter incremented if failed.
 - Subscriber can recover via SQLite replay.
 
 ### Permission Failure Scenario
@@ -79,6 +79,8 @@ Same as disk-full — DB commit succeeds, JSONL append fails. No retry attempt (
 No reconcile or rebuild script exists in the repository. A failed JSONL append is not retried and is not backfilled, so the JSONL archive can diverge from SQLite. Because SQLite is the canonical store, recovery of event data means reading from SQLite (via `/subscribe` with `since_seq`, or `/replay` with the operator role), not from JSONL. Any rebuild of the JSONL archive from SQLite must be done manually.
 
 ## Metrics Reference
+
+These counters are registered in-process only; the service exposes no scrape endpoint and `/health` does not report them.
 
 | Metric Name | Type | Description |
 |-------------|------|-------------|

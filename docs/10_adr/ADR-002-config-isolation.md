@@ -138,7 +138,7 @@ This section is maintained in the companion document: [Alternatives Considered](
 - Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
 - Fail-Closed: abort startup when a configuration file is missing
-- Audit Log: record configuration loading events
+- Audit Log: `ConfigLoader` emits no configuration-loading audit event
 
 ## Per-Process Required Files and Keys
 
@@ -146,9 +146,9 @@ This section is maintained in the companion document: [Alternatives Considered](
 |---|---|---|---|
 | Agent | `config/agent.toml` | llm_url, http_timeout, llm_max_retries, llm_retry_base_delay, llm_temperature, llm_max_tokens, title_llm_temperature, title_llm_max_tokens, sse_heartbeat_timeout, sse_malformed_retry, sse_reconnect_max, llm_stream_retry_on_heartbeat_timeout, llm_stream_retry_on_malformed_chunk, tokenize_url, context_token_limit, context_char_limit, context_compress_turns, history_protect_turns, budget_warn_ratio, llm_compress_temperature, llm_compress_max_tokens, embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, serial_tool_calls, tool_definitions_strict, routing_drift_strict, tool_dedup_max_repeats, tool_cycle_detect_window, tool_error_max_consecutive, tool_error_retry_max, tool_concurrency_limits, masked_fields, plan_blocked_tools, max_tool_turns, tool_result_max_llm_chars, tool_results_turn_max_chars, tool_definitions, system_prompts, allowed_tools, use_memory_layer, memory_jsonl_dir, memory_max_inject_semantic, memory_max_inject_episodic, memory_min_importance, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only, mcp_servers, security_profile, security_lockdown_enabled, approval_risk_rules, approval_protected_paths, approval_high_risk_branches, approval_shell_safe_prefixes, approval_resource_keys, approval_dry_run_tools, tool_safety_tiers, allowed_root, approval_github_allowed_repos, gitops_push_blocked, otel_enabled, otel_endpoint, otel_service_name, audit_log_file, structured_log, agent_memory_max_startup_snippets | llm_url, tokenize_url, embed_url, allowed_root, encryption_key, otel_endpoint, otel_service_name, audit_log_file, system_prompt_tool |
 | MCP Server (each) | `config/<name>_mcp_server.toml` | mcp_servers, security_profile, security_lockdown_enabled, http_host, http_port, app_module, own_config_file | security_profile, security_lockdown_enabled, http_host, http_port |
-| Crawler | `config/crawler.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
-| Chunk Splitter | `config/chunk_splitter.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
-| Ingester | `config/ingester.toml` | embed_url, use_refiner, refiner_max_tokens, refiner_timeout, refiner_max_chars_per_chunk, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only | embed_url, memory_embed_enabled, memory_dedup_threshold, memory_max_content_chars, memory_embed_timeout_sec, memory_retention_days, memory_fts_limit, memory_rrf_k, memory_recency_days, memory_local_only |
+| Crawler | `config/crawler.toml` | rag_src_dir, crawl_delay, max_depth, min_chunk, fetch_retry, target_urls | — |
+| Chunk Splitter | `config/chunk_splitter.toml` | rag_src_dir, min_chunk, max_chunk, en_stopwords, ja_stop_pos | — |
+| Ingester | `config/ingester.toml` | rag_src_dir, embed_url, embed_retry | — |
 | EventBus | `config/eventbus.toml` (loaded through ConfigLoader without `restrict_to()`; see Implementation Notes) | *N/A* | *N/A* |
 
 ## Invariants
@@ -164,7 +164,7 @@ None
 
 ### Note: The Restriction Is Unconditional
 
-Every process entry point always calls `ConfigLoader.restrict_to("agent.toml")`; no environment variable disables the restriction, and reading a non-permitted file is always rejected.
+Every process entry point except EventBus calls `ConfigLoader.restrict_to()` with its own configuration file (the Agent with `agent.toml`, an MCP server with its `own_config_file`, the crawler, chunk_splitter, and ingester with their own files); no environment variable disables the restriction, and reading a non-permitted file is rejected. EventBus relies on the local invariant described in Implementation Notes.
 
 ## Failure Policy
 
@@ -191,7 +191,7 @@ Not applicable (this ADR defines no retry policy of its own)
 ## Data Ownership and Persistence
 
 - **System of Record**: each process's configuration files (TOML format)
-- **Derived Data**: regenerable derived data (SHA256 checksums of configuration files)
+- **Derived Data**: none (deployment verifies a SHA256 checksum only for `config/workflows/default.json`)
 - **Ownership**: each process (owner of its configuration files)
 - **Persistence**: file system (`config/` directory)
 - **Transaction Boundary**: per configuration-file load
@@ -216,7 +216,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: DESIGN-001 — tracked in governance_03 Part 1 (Agent required-keys row)
 
 ## Review Triggers
 

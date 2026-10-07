@@ -102,7 +102,7 @@ one shared-secret value.
 
 Current default values are defined in the config files and code symbols listed above.
 
-**Note:** Comments within `config/shell_mcp_server.toml` include operational guidance stating: "In production environments, set `shell_sandbox_backend = \"firejail\"` and ensure the `firejail` binary is available in your PATH" (If `firejail` is not found when unset, a `RuntimeError` occurs: `mcp_servers/shell/service_static_helpers.py`). However, this value is a config file parameter and does not automatically switch based on the `security_profile` (Explicit in code).
+**Note:** Comments within `config/shell_mcp_server.toml` include operational guidance stating: "In production environments, set `shell_sandbox_backend = \"firejail\"` and ensure the `firejail` binary is available in your PATH" (if the `firejail` binary is not found while `"firejail"` is configured, a `RuntimeError` occurs: `scripts/mcp_servers/shell/shell_service_static_helpers.py`). However, this value is a config file parameter and does not automatically switch based on the `security_profile` (Explicit in code).
 
 ## Keywords
 

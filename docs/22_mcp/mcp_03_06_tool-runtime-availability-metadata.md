@@ -79,7 +79,7 @@ The following table shows how /v1/tools response fields map to RuntimeTool field
 
 ## 5. Dispatch rule
 
-Disabled tools must be rejected by `/v1/call_tool` before reaching the dispatch table (server-side gate). The response shape is `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`.
+Every server except `mdq` rejects disabled tools at `/v1/call_tool` before reaching the dispatch table (server-side gate). The response shape is `CallToolResponse(result="Tool disabled: <reason>", is_error=True)`. `mdq` only reports `enabled`/`disabled_reason` in `/v1/tools`; its `/v1/call_tool` has no such gate and relies on the per-path `allowed_dirs` authorization (`MdqAuthorizationError`) instead. (Explicit in code — `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/mcp_servers/git/git_server.py`)
 
 ## 6. RuntimeToolRegistry (agent-side)
 

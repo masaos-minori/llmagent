@@ -188,7 +188,7 @@ Do not record line numbers; reference by File Path and Symbol name.
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: MCP-001 — tracked in governance_03 Part 1 (git-mcp audit records are not emitted)
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 

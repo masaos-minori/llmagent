@@ -74,7 +74,7 @@ Checks that run automatically inside `check_rag_consistency()` / `check_session_
 Repair actions the logical-verification stage only **recommends** but does not itself perform (operator-triggered):
 
 - `/session rag-rebuild-fts` — rebuilds the RAG FTS index.
-- `/session rag-reindex-chunks` — rebuilds chunk-vector mappings.
+- `/session rag-rebuild-vec` — rebuilds the RAG vector index.
 - Manual session data repair (operator action required).
 
 ### 9.6 Dry Run contract

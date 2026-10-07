@@ -45,15 +45,13 @@ related:
 | `rag_top_k` | Number of final results |
 | `rag_min_score` | Minimum threshold for rerank score |
 | `max_chunks_per_doc` | Max chunks per document in final results |
-| `semantic_cache_max_size` | Limit on semantic cache entries |
-| `semantic_cache_threshold` | Cosine similarity threshold for semantic cache |
 | `refiner_max_tokens` | Max tokens for context refinement |
 | `refiner_max_chars_per_chunk` | Max characters per chunk for context refinement |
 | `refiner_timeout` | Context refinement timeout (seconds) |
 
 Current default values are defined in `config/rag_pipeline_mcp_server.toml` and `RagPipelineConfig`.
 
-**Standalone Configuration Fields:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `mqe_n_queries`, `mqe_prompt_template`, `rerank_prompt_template`, `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`, `rrf_k`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`, `semantic_cache_max_size`, `semantic_cache_threshold`, `refiner_max_tokens`, `refiner_max_chars_per_chunk`, `refiner_timeout`
+**Standalone Configuration Fields:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `mqe_n_queries`, `mqe_prompt_template`, `rerank_prompt_template`, `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`, `rrf_k`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`, `refiner_max_tokens`, `refiner_max_chars_per_chunk`, `refiner_timeout`
 
 **Note:** host/port/http_timeout are not configuration keys of `config/rag_pipeline_mcp_server.toml`, because `RagPipelineConfig` does not load them. The values are hardcoded: `http_host` (MCPServer base class), `http_port` (`rag_pipeline/rag_pipeline_server.py`), `http_timeout` (`rag_pipeline/rag_pipeline_service.py`).
 
@@ -61,7 +59,7 @@ Current default values are defined in `config/rag_pipeline_mcp_server.toml` and 
 **Design Note:** To prevent HTTP loops, `rag_service_url = ""` is hardcoded in `build_rag_cfg_adapter()`.
 **Logs:** `rag-mcp.log` (in the log directory)
 **Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): None / Layer3 (Dedicated): None — does not write audit logs
-**Usage Scenarios:** All RAG searches; the `/rag search` command goes through this server.
+**Usage Scenarios:** All RAG searches; RAG tool calls from the agent go through this server.
 
 **Tool Status:** All tools are "production" (not stub/experimental).
 

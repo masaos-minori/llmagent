@@ -32,7 +32,7 @@ source:
 | `SearchStage` | Results returned | No matching chunks (empty result) | DB error or embedding failure |
 | `FusionStage` | RRF merge applied | `use_rrf=False`; raw results used | Merge error |
 | `RerankStage` | Cross-encoder rerank applied | `use_rerank=False`; RRF scores used | LLM call failed |
-| `HttpAugment` | Remote RAG service returned result | `http_result_kind`: `"remote_nonempty"` (success) / `"remote_empty"` (valid empty) / `"in_process_fallback"` (failure) | HTTP error / no context |
+| `HttpAugment` | Remote RAG service returned a result (non-empty or valid empty) | Remote call produced no result: the reason string reported by the HTTP call (default `in-process fallback`) | HTTP error / no context |
 | `Refiner` | Refiner compressed chunks | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) | LLM call failed |
 
 ### Status Values
@@ -49,8 +49,10 @@ When applicable, two additional entries appear in `last_stage_results`.
 
 | stage_name | Appears when | fallback_reason on fallback |
 |---|---|---|
-| `HttpAugment` | `rag_service_url` is configured | `http_result_kind`: `"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` |
+| `HttpAugment` | `rag_service_url` is configured | The reason string reported by the HTTP call when it produced no result (default `in-process fallback`) |
 | `Refiner` | `use_refiner=True` | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) |
+
+The HTTP result classification is exposed separately as `get_diagnostics()["http_result_kind"]`, which carries the `HttpResultKind` enum (`success` / `empty` / `error` / `not_used` / `auth_error`); the internal string literals of `HttpAugment` are not part of any external surface (see [rag_03_03](../21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md)). (Explicit in code — `scripts/rag/http_augment.py`, `scripts/rag/pipeline.py`)
 
 ## RAG Ingestion Diagnostics
 

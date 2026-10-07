@@ -19,7 +19,7 @@ The tool definitions check is executed at agent startup, comparing the `tool_def
 | Scenario | `strict = false` | `strict = true` |
 |---|---|---|
 | **Partial Reachability** — Some servers respond | Validation proceeds for reachable servers; unreachable servers are logged as `WARNING` | Same — only compares reachable tools; any mismatch in reachable tools triggers a `RuntimeError` |
-| **Total Unreachability** — No servers respond | Validation is skipped; `INFO: "All MCP servers unreachable ... skipping tool definition check"` — **Regardless of environment: SKIPPED outcome means all tool calls will fail for that session** | `RuntimeError: "Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]"` |
+| **Total Unreachability** — No servers respond | Validation is skipped; `INFO: "All MCP servers unreachable ... skipping tool definition check"` — a SKIPPED outcome of this check means tool calls to unreachable servers fail for that session; whether startup continues is decided separately by the per-server `required` rule below | `RuntimeError: "Strict mode: all MCP servers unreachable — cannot validate tool definitions. Unreachable servers: [...]"` |
 | **Tool Mismatch** — Reachable but names differ | `WARNING` per direction (missing_in_server / extra_on_servers) | `RuntimeError: "Strict mode: tool definition mismatch detected. Mismatches: .... Unreachable servers: ...."` |
 
 ### Startup validation statuses
@@ -35,22 +35,28 @@ Displayed via `write_fatal()` with `[fatal]` prefix for visual distinction.
 Example: required server discovery failed.
 
 #### SKIPPED
-Discovery was skipped entirely. Regardless of environment, this may indicate a full-session tool-call outage.
+Discovery was skipped entirely. This may indicate a full-session tool-call outage.
 Displayed via `write_warning()` with `[SKIPPED]` prefix.
 Example: MCP discovery skipped due to missing configuration.
 
-### Environment-specific behavior differences
+### Discovery failure handling (per-server `required` flag)
 
-MCP discovery behavior differs based on validation strictness (`tool_definitions_strict`), not environment:
+MCP discovery follows the ADR-004 rule: an unavailable required server aborts startup; an unavailable non-required server is disabled and startup continues. The outcome depends on `McpServerConfig.required` and on `tool_definitions_strict`, not on any environment name (Explicit in code — scripts/agent/services/mcp_tool_discovery.py `McpToolDiscoveryService.discover_all()`, `_escalate_unreachable_findings()`).
+
+**Unreachable servers and invalid `/v1/tools` responses or entries (per server):**
+- `required = true`: FATAL outcome, startup blocked
+- `required = false`: WARNING outcome, startup continues; the server's tools are missing from the `RuntimeToolRegistry` (disabled)
+
+**Required tools:** a `tool_names` entry of a required server that is absent from the discovery results is FATAL.
 
 **Duplicate tools:**
-- Always FATAL, startup blocked (exception to the `is_fatal = strict` scheme)
+- Always FATAL, startup blocked, independent of `required` and `strict` (safety/integrity failure, ADR-004 Decision Group 2)
 
-**Unreachable servers and other non-duplicate findings:**
+**Routing drift, tool-definition mismatch, malformed capabilities:**
 - `strict = true`: FATAL outcome, startup blocked
-- `strict = false`: WARNING outcome, startup continues; tools of unreachable servers are missing from the `RuntimeToolRegistry`
+- `strict = false`: WARNING outcome, startup continues
 
-This difference exists because non-strict mode is designed to be more forgiving during iteration, while strict enforcement prevents partial functionality.
+`ProductionConfigValidator` rejects `tool_definitions_strict = false` (Explicit in code — scripts/shared/production_config_validator.py `_REQUIRED_STRICT_KEYS`), so the strict-false rows describe the check's own behavior rather than a supported production setting.
 
 **Key Points:**
 - Tool name mismatches in `strict` mode trigger a `RuntimeError`.

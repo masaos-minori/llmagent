@@ -120,17 +120,17 @@ The following indicators suggest a need for re-evaluation.
 
 ### Corpus Size
 
-- **When the `chunks` table grows large:** KNN scan time in `chunks_vec` increases linearly with corpus size. Monitor `/rag search` latency as the corpus grows. *(Note: Actual thresholds depend on hardware and embedding dimensions.)*
-- **When the DB file grows large:** Latency for `VACUUM`, backups, and WAL checkpoints will increase, and `/db vacuum` will take longer.
+- **When the `chunks` table grows large:** KNN scan time in `chunks_vec` increases linearly with corpus size. Monitor RAG query latency as the corpus grows. *(Note: Actual thresholds depend on hardware and embedding dimensions.)*
+- **When the DB file grows large:** Latency for `VACUUM`, backups, and WAL checkpoints will increase, and `/session vacuum` will take longer.
 
 ### Write Concurrency
 
 - When multiple `RagIngester` processes write to the same `rag.sqlite`, they are serialized at the WAL layer. If ingestion throughput becomes a bottleneck, SQLite write serialization may become a constraint.
-- **Indicator:** WAL files grow faster than checkpointing can shrink them. Monitor via `/db health`.
+- **Indicator:** WAL files grow faster than checkpointing can shrink them. Monitor via `/session health`.
 
 ### FTS5 Search Latency
 
-- **Indicator:** `/rag search` latency is consistently higher than the deployment's accepted latency. Since FTS5 BM25 scales with document count, search speed may decrease with very large corpora.
+- **Indicator:** RAG query latency is consistently higher than the deployment's accepted latency. Since FTS5 BM25 scales with document count, search speed may decrease with very large corpora.
 
 ### Operational Complexity Indicators
 
@@ -148,7 +148,7 @@ Consider architectural review if two or more apply:
 - [ ] Ingestion queue depth keeps growing faster than it drains
 - [ ] Multiple teams or processes require simultaneous write access
 
-Monitor these indicators during normal operation using `/db health` and `/session rag-consistency`.
+Monitor these indicators during normal operation using `/session health` and `/session rag-consistency`.
 
 ### Considerations when limits are approached
 

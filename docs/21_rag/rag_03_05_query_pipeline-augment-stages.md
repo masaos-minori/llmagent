@@ -166,8 +166,6 @@ Note: This rationale is design reasoning, not derived from measured retry-latenc
 
 Both reasons can be verified as follows:
 - Displayed at INFO level in application logs (augment: refiner fallback (reason=...))
-- Displayed as `[warn] refiner fallback: <reason>` in `/rag search` output
-- Displayed as `~ Refiner: fallback — <reason>` and summary line `[refiner] fallback: N time(s)` in the stage results of `/rag search --debug`
 - Available via `pipeline.get_diagnostics()["fallback_reasons"]`, `["refiner_fallback_count"]`, and `["refiner_exception_count"]`
 
 **Related fields in get_diagnostics() (Explicit in code — scripts/rag/pipeline.py):**

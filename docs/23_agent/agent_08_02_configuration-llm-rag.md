@@ -70,12 +70,6 @@ Documents the structure and constraints of LLM and RAG configurations.
 - `max_chunks_per_doc`: Maximum number of chunks per document in results.
 - `rrf_k`: Reciprocal Rank Fusion (RRF) constant for the RAG pipeline.
 
-#### Semantic Cache
-
-- `use_semantic_cache`: Enables semantic cache.
-- `semantic_cache_threshold`: Cosine similarity threshold for a cache hit.
-- `semantic_cache_max_size`: Maximum number of cache entries (FIFO eviction).
-
 #### Refiner
 
 - `use_refiner`: Compresses chunks with an LLM after reranking.
@@ -91,7 +85,6 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 ## Key Constraints
 
-- `rag.use_semantic_cache=True` → `rag.embed_url` must not be empty.
 - `memory.memory_embed_enabled=True` → `rag.embed_url` must not be empty.
 
 ## Keywords

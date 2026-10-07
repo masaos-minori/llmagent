@@ -53,7 +53,7 @@ Provides guidance on determining which chapters to open as the entry point for t
 | `/v1/call_tool`, Bearer authentication, and audit log formats | `mcp_02` |
 | Tool routing, ToolExecutor, and adding new servers | `mcp_03` (config defaults are in `mcp_06` Major Default Values) |
 | Handling of tool enabled/disabled_reason, config_dependent, and RuntimeToolRegistry | `mcp_03_06` |
-| Tools provided by web-search/github/shell/mdq MCPs. MDQ-mcp FTS5 search is production-ready; hybrid search is unimplemented | `mcp_04` (mdq-mcp only has FTS5 search implemented) |
+| Tools provided by web-search/github/shell/mdq MCPs. mdq-mcp FTS5 search is production-ready; hybrid search is unimplemented | `mcp_04` (mdq-mcp only has FTS5 search implemented) |
 | allowed_dirs/allowed_repos, fail-closed/fail-open, dry_run, risk tiers, MDQ/RAG boundary | `mcp_05` |
 | Config file list, health verification, default values, startup warnings, failure diagnosis | `mcp_06` |
 | Naming convention for tool schema modules, TOOL_LIST exports, and cleanup of _MCP_TOOLS references | `mcp_07` |

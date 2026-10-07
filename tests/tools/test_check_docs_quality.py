@@ -534,3 +534,25 @@ class TestExemptHistoricalContextOption:
             assert len(cdq._CUSTOM_RULES["strict_rule"](_DOCS_DIR, [doc])) == 1
         finally:
             cdq._CUSTOM_RULES.clear()
+
+
+class TestStaleSlashCommandRule:
+    @pytest.mark.parametrize(
+        "line",
+        [
+            "Run `/db vacuum` during a maintenance window.",
+            "Check `/db health` for WAL growth.",
+            "The `/rag search` command goes through this server.",
+        ],
+    )
+    def test_removed_commands_are_reported(self, line: str) -> None:
+        issues = _run_live_rule("stale_db_rag_slash_commands", [line])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
+
+    def test_current_commands_are_not_reported(self) -> None:
+        lines = [
+            "Run `/session vacuum` during a maintenance window.",
+            "Use `/session rag-consistency` to check the index.",
+        ]
+        assert _run_live_rule("stale_db_rag_slash_commands", lines) == []

@@ -368,6 +368,7 @@ Record any discrepancy between this ADR and the current implementation, configur
 - **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (authentication model per ADR-013)
 - **Known Issue**: EVENTBUS-011 — tracked in governance_03 Part 1 (NACK on a concurrently deleted event)
 - **Known Issue**: EVENTBUS-012 — tracked in governance_03 Part 1 (duplicate NACK from the same consumer)
+- **Known Issue**: EVENTBUS-013 — tracked in governance_03 Part 1 (ACK/NACK do not enforce Consumer ID exclusivity)
 
 ## Review Triggers
 

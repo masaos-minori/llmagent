@@ -37,7 +37,7 @@ The agent unconditionally verifies the existence of workflow definition files be
 **Important Notes:**
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
 - `tool_definitions` follows a unified severity scheme: FATAL when in strict mode (`tool_definitions_strict`), WARNING otherwise.
-- Failure in `mcp_tool_discovery` is treated as FATAL regardless of environment. Since tool discovery failure makes all session tool calls impossible, it is critical.
+- `mcp_tool_discovery` failure for a required MCP server (`McpServerConfig.required`) is FATAL and aborts startup; for a non-required server it is WARNING and startup continues with that server's tools disabled (ADR-004).
 
 ### SIGINT/SIGTERM Interruption During Startup Sequence
 
@@ -202,7 +202,7 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 
 - **Partial completions:** LLM responses interrupted during streaming are recorded. See [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md) for details.
 - **HB timeouts:** SSE heartbeat timeouts (potential LLM overload).
-- **Semantic cache hits:** Number of semantic cache hits (RAG pipeline only).
+- **Semantic cache hits:** Fixed counter field (`stat_semantic_cache_hits`) that is only reset and displayed; no code path increments it, so it is always 0. The RAG pipeline has no semantic cache. (Explicit in code — `scripts/agent/context.py`, `scripts/agent/commands/cmd_config_stats.py`)
 - **Approval pending:** Displayed only if `ctx.workflow.approval_pending=True`.
 
 **Implementation Notes:**
