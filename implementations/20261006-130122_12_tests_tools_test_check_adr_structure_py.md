@@ -110,10 +110,10 @@ Revert `tests/tools/test_check_adr_structure.py` to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-005 / AC-5 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | test_check_adr_structure.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy/bandit + pytest |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-144916 | 20261007-144916 | REQ-005 / AC-5 Archive as completed: required coverage fulfilled by rel001/rel002 commits (suite passes). Procedure steps diverged from landed implementation. |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-144916 | 20261007-144916 | test_check_adr_structure.py Coverage present in current tests; see Notes for step 1. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-144916 | 20261007-144916 | ruff/mypy/bandit + pytest Full suite EXIT=0 (8087 passed, 20 skipped). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-144916 | 20261007-144916 | N/A: no docs/00_index.md task-scope mapping for tests/tools/ |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
