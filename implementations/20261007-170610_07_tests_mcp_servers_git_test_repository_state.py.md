@@ -253,10 +253,10 @@ fresh repo in the test as in `test_git_service_dispatch.py`'s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix real `verify_authorization()` call (line 148) | Pending | — | — | new signature |
-| 2 | Update tests broken by single-snapshot rewrite (REQ-006) | Pending | — | — | behavior change |
-| 3 | Add destination-based Stage 3 rejection test (Test 4) | Pending | — | — | REQ-002/005 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Fix real `verify_authorization()` call (line 148) | Completed | — | 20261008-081539 | new signature Verified: real verify_authorization() call at L151 already passes operation context (tool_name+requested_branch) per REQ-002; applied by repository_state.py own document. No edit needed. |
+| 2 | Update tests broken by single-snapshot rewrite (REQ-006) | Completed | — | 20261008-081539 | behavior change Removed dead patch.object(RepositoryState,'snapshot') wrapper in test_pipeline_run_proceeds_to_stage_5_when_auth_passes (single-snapshot run() no longer calls snapshot()). Drift test already re-scoped to test_head_drift_not_rejected_with_single_snapshot. Behavior change: Stage 5b TOCTOU re-check dropped (Plan Gap recorded). |
+| 3 | Add destination-based Stage 3 rejection test (Test 4) | Completed | — | 20261008-081539 | REQ-002/005 Added TestStage3DestinationProtection: protected destination rejected at Stage 3 without pre-pipeline check; unprotected allowed. Real temp repo exercises _normalize_branch_name/_is_protected_branch. |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-081539 | 77 pass (test_repository_state), 342 pass (git-mcp). ruff/format clean. mypy clean on additions (pre-existing otel_tracer unused-ignore out of scope). No new lint-imports/bandit regressions. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
