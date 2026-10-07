@@ -10,13 +10,13 @@ tags:
   - mcp-server
   - llm-service
 related:
-  - overview-arch-02-pipelines.md
-  - overview-arch-03-features.md
+  - overview_01_02-arch-pipelines.md
+  - overview_01_03-arch-features.md
 ---
 
 # Overview & Architecture
 
-File Structure → [`overview-files-01-build.md`](overview-files-01-build.md), [`overview-files-02-rag.md`](overview-files-02-rag.md), [`overview-files-03-scripts.md`](overview-files-03-scripts.md), [`overview-files-04-shared.md`](overview-files-04-shared.md), [`overview-files-05-config.md`](overview-files-05-config.md), [`overview-files-06-misc.md`](overview-files-06-misc.md)
+File Structure → [`overview_02_files.md`](overview_02_files.md)
 
 ## 1. Overview & Purpose
 

@@ -24,7 +24,7 @@ notes = "Incremental migration at service startup for eventbus.sqlite, backed by
 [[canonical_sources]]
 decision_target = "overview.architecture-overview"
 claim_type = "documentation-metadata"
-source_paths = ["docs/01_overview/overview-arch-01-process.md"]
+source_paths = ["docs/01_overview/overview_01_01-arch-process.md"]
 area = "Overview"
 notes = "Architecture process overview; candidate replacement for docs/architecture.md."
 

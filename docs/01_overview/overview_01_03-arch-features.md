@@ -10,13 +10,13 @@ tags:
   - sqlite-vec
   - diagnostic-store
 related:
-  - overview-arch-01-process.md
-  - overview-arch-02-pipelines.md
+  - overview_01_01-arch-process.md
+  - overview_01_02-arch-pipelines.md
 ---
 
 # Overview & Architecture
 
-File Structure → [`overview-files-01-build.md`](overview-files-01-build.md), [`overview-files-02-rag.md`](overview-files-02-rag.md), [`overview-files-03-scripts.md`](overview-files-03-scripts.md), [`overview-files-04-shared.md`](overview-files-04-shared.md), [`overview-files-05-config.md`](overview-files-05-config.md), [`overview-files-06-misc.md`](overview-files-06-misc.md)
+File Structure → [`overview_02_files.md`](overview_02_files.md)
 
 ## 2.4 Agent Features & Commands List
 
@@ -40,7 +40,7 @@ Details → [`agent_07_01_cli-and-commands-cli-reference.md`](../23_agent/agent_
 | Dependency Injection Hub (AgentContext) | `scripts/agent/` |
 | Diagnostic Store (turn/session statistics) | `scripts/agent/` |
 
-Refer to the `overview-files-03-scripts.md` for detailed file structure.
+Refer to the `overview_02_files.md` for detailed file structure.
 
 ### Implementation Notes
 

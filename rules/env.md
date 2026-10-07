@@ -60,7 +60,7 @@ eventbus → 他の全レイヤーから完全に独立（shared にすら依存
 | `scripts/rag/` | `docs/21_rag/rag_00_document-guide.md` |
 | `scripts/shared/` | `docs/40_shared/shared_00_document-guide.md` |
 
-ファイル単位の詳細一覧: `docs/01_overview/overview_00_document-guide.md`（→ `overview-files-*.md`）
+ファイル単位の詳細一覧: `docs/01_overview/overview_00_document-guide.md`（→ `overview_02_files.md`）
 
 Config directory resolution: `scripts/shared/config_loader.py` の `Path(__file__).resolve().parent.parent.parent / "config"`。本番: `/opt/llm/scripts/shared/config_loader.py` → `/opt/llm/config/`。
 

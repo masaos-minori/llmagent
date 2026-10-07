@@ -7,35 +7,25 @@ tags:
   - introduction
   - index
 related:
-  - overview-arch-01-process.md
-  - overview-arch-02-pipelines.md
-  - overview-arch-03-features.md
-  - overview-files-01-build.md
-  - overview-files-02-rag.md
-  - overview-files-03-scripts.md
-  - overview-files-04-shared.md
-  - overview-files-05-config.md
-  - overview-files-06-misc.md
+  - overview_01_01-arch-process.md
+  - overview_01_02-arch-pipelines.md
+  - overview_01_03-arch-features.md
+  - overview_02_files.md
 ---
 
 # Overview, Architecture, and File Structure (Index)
 
 | File | Content |
 |---|---|
-| [overview-arch-01-process.md](overview-arch-01-process.md) | Process Architecture (LLM service, MCP server, separation of configuration) |
-| [overview-arch-02-pipelines.md](overview-arch-02-pipelines.md) | Pipeline Architecture (Ingestion/Search pipeline, turn processing order, workflow mode) |
-| [overview-arch-03-features.md](overview-arch-03-features.md) | Feature Architecture (Implemented features, implementation notes) |
-| [overview-files-01-build.md](overview-files-01-build.md) | Build and Model related file structure |
-| [overview-files-02-rag.md](overview-files-02-rag.md) | RAG related file structure |
-| [overview-files-03-scripts.md](overview-files-03-scripts.md) | File structure under scripts directory |
-| [overview-files-04-shared.md](overview-files-04-shared.md) | Shared infrastructure file structure |
-| [overview-files-05-config.md](overview-files-05-config.md) | Configuration file structure |
-| [overview-files-06-misc.md](overview-files-06-misc.md) | Other file structures |
+| [overview_01_01-arch-process.md](overview_01_01-arch-process.md) | Process Architecture (LLM service, MCP server, separation of configuration) |
+| [overview_01_02-arch-pipelines.md](overview_01_02-arch-pipelines.md) | Pipeline Architecture (Ingestion/Search pipeline, turn processing order, workflow mode) |
+| [overview_01_03-arch-features.md](overview_01_03-arch-features.md) | Feature Architecture (Implemented features, implementation notes) |
+| [overview_02_files.md](overview_02_files.md) | File structure (build/models, RAG, scripts, shared infrastructure, configuration, miscellaneous) |
 
 ## Implementation Intent
 
-- Architecture is split by H2 boundaries: process, pipelines, features → `[overview-arch-01-process.md](overview-arch-01-process.md)`, `[overview-arch-02-pipelines.md](overview-arch-02-pipelines.md)`, `[overview-arch-03-features.md](overview-arch-03-features.md)`
-- File structure is split by logical directory boundaries: build, rag, scripts, shared, config, misc → `[overview-files-01-build.md](overview-files-01-build.md)`, `[overview-files-02-rag.md](overview-files-02-rag.md)`, `[overview-files-03-scripts.md](overview-files-03-scripts.md)`, `[overview-files-04-shared.md](overview-files-04-shared.md)`, `[overview-files-05-config.md](overview-files-05-config.md)`, `[overview-files-06-misc.md](overview-files-06-misc.md)`
+- Architecture is split by H2 boundaries: process, pipelines, features → `[overview_01_01-arch-process.md](overview_01_01-arch-process.md)`, `[overview_01_02-arch-pipelines.md](overview_01_02-arch-pipelines.md)`, `[overview_01_03-arch-features.md](overview_01_03-arch-features.md)`
+- File structure is split by logical directory boundaries: build, rag, scripts, shared, config, misc → `[overview_02_files.md](overview_02_files.md)`
 - This file is the system-wide overview index. Refer to the following catalogs for each detailed document set
 
 ## Canonical Sources

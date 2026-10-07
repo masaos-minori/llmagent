@@ -77,8 +77,8 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 
 | Task scope | Reference docs |
 |---|---|
-| System-wide architecture overview | `01_overview/overview_00_document-guide.md` (indexes `overview-arch-*.md`) |
-| File / module layout | `01_overview/overview_00_document-guide.md` (indexes `overview-files-*.md`) |
+| System-wide architecture overview | `01_overview/overview_00_document-guide.md` (indexes `overview_01_*-arch-*.md`) |
+| File / module layout | `01_overview/overview_00_document-guide.md` (indexes `overview_02_files.md`) |
 | `tools/` scripts overview (CI checks, doc formatting, historical doc migration) | `tools/TOOL_DESCRIPTIONS.md` |
 | Documentation set index / navigation | `00_index.md` |
 | Deployment / env setup | `90_deployment/deployment_01_deployment.md` + `rules/env.md` |

@@ -59,7 +59,7 @@ cmake --build build --config Release -j$(nproc)
 
 Place model files under the models directory of the production install root (the same root `deploy/deploy.sh` populates). File names must match the names used in each service configuration (e.g., `model-path`).
 
-> **Canonical source** — This section is the canonical source for model provisioning. `docs/01_overview/overview-files-01-build.md` and `docs/21_rag/rag_05_01-configuration-reference.md` refer to this.
+> **Canonical source** — This section is the canonical source for model provisioning. `docs/01_overview/overview_02_files.md` and `docs/21_rag/rag_05_01-configuration-reference.md` refer to this.
 
 Two model roles are required: an embedding model (served as `embed-llm`) and a chat LLM (served as `agent-llm`). The embedding model must match the embedding dimension used by the RAG schema (see `scripts/db/store_protocols.py::get_embedding_dims()`). The concrete model files and quantizations are operator choices recorded in each LLM service's start configuration, not in this document.
 
