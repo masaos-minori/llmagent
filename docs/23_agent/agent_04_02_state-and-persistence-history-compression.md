@@ -108,7 +108,7 @@ Even during fallback truncation, character limits are strictly enforced.
 
 ## Keywords
 
-HistoryManager compression
-compression trigger
-compression selection
-data classification
+- HistoryManager compression
+- compression trigger
+- compression selection
+- data classification

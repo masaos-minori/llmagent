@@ -121,9 +121,9 @@ Messages constructed by the LLM client's streaming aggregation logic consist onl
 
 ## Keywords
 
-LLM invocation and tool loop
-TurnLoopState
-guard methods
-error handling
-validated history append
-append_message
+- LLM invocation and tool loop
+- TurnLoopState
+- guard methods
+- error handling
+- validated history append
+- append_message

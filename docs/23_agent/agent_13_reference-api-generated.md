@@ -21,7 +21,9 @@ threshold. Do not hand-edit between the guard comments — run the generator.
 
 ## Keywords
 
-agent, api-reference, generated
+- agent
+- api-reference
+- generated
 
 ## Module Class/Function Reference (auto-generated)
 

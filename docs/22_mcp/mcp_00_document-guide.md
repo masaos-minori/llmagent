@@ -132,8 +132,8 @@ None currently known. Open items are tracked in `governance_03_issue-and-uncerta
 
 ## Keywords
 
-mcp
-documentation
-guide
-routing
-file-index
+- mcp
+- documentation
+- guide
+- routing
+- file-index

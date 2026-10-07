@@ -117,6 +117,6 @@ The Memory layer uses `session.sqlite` and is independent of `rag.sqlite`.
 
 ## Keywords
 
-platform databases
-StateStore methods
-task/attempt/approval/artifact operations
+- platform databases
+- StateStore methods
+- task/attempt/approval/artifact operations

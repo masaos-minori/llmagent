@@ -100,13 +100,13 @@ Verify: `firejail --version`
 
 ## Keywords
 
-mcp
-security
-safety-model
-auth-token
-security-profile
-production
-firejail
-sandbox-backend
-resource-limits
-output-limits
+- mcp
+- security
+- safety-model
+- auth-token
+- security-profile
+- production
+- firejail
+- sandbox-backend
+- resource-limits
+- output-limits

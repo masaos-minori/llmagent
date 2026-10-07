@@ -91,10 +91,10 @@ These counters are registered in-process only; the service exposes no scrape end
 
 ## Keywords
 
-publish
-durability
-recovery
-jsonl
-sqlite
-metrics
-prometheus
+- publish
+- durability
+- recovery
+- jsonl
+- sqlite
+- metrics
+- prometheus

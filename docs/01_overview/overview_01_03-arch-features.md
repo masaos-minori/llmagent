@@ -72,10 +72,10 @@ Current-session counters can be viewed with the `/stats` command; the saved reco
 
 ## Keywords
 
-feature-architecture
-implemented-features
-agent-context
-memory-layer
-tool-routing
-sqlite-vec
-diagnostic-store
+- feature-architecture
+- implemented-features
+- agent-context
+- memory-layer
+- tool-routing
+- sqlite-vec
+- diagnostic-store

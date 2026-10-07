@@ -122,4 +122,4 @@ The "Unknown tool" error originates from `ToolRouteResolver.resolve()` which rai
 
 ## Keywords
 
-configuration
+- configuration

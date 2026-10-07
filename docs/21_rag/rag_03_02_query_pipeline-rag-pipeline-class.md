@@ -75,6 +75,6 @@ This classification result can be verified here:
 
 ## Keywords
 
-rag-pipeline-class
-http-mode
-rag
+- rag-pipeline-class
+- http-mode
+- rag

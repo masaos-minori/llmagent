@@ -14,10 +14,10 @@ related:
 
 ## Keywords
 
-agent control plane
-responsibility boundaries
-orchestrator
-workflow engine
+- agent control plane
+- responsibility boundaries
+- orchestrator
+- workflow engine
 
 ## Status
 

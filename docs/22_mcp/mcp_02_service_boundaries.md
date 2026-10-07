@@ -177,7 +177,7 @@ For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership 
 
 ## Keywords
 
-mcp
-service-boundaries
-responsibilities
-capabilities
+- mcp
+- service-boundaries
+- responsibilities
+- capabilities

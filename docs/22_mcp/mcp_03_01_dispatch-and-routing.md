@@ -168,12 +168,12 @@ Drift detection only; not used for routing. See [ADR-003](../10_adr/ADR-003-runt
 
 ## Keywords
 
-mcp
-routing
-lifecycle
-ToolRouteResolver
-ToolRegistry
-tool dispatch
-routing drift
-startup_mode gate
-HALF_OPEN trial dispatch
+- mcp
+- routing
+- lifecycle
+- ToolRouteResolver
+- ToolRegistry
+- tool dispatch
+- routing drift
+- startup_mode gate
+- HALF_OPEN trial dispatch

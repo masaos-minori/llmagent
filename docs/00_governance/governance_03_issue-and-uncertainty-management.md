@@ -506,7 +506,7 @@ An exception past its expiration date is treated as an unexplained finding (see
 
 ## Non-Goals
 
-Topics explicitly excluded from this document:
+Excluded topics:
 
 - Resolving individual items — resolution requires separate investigation
 - Modifying source documents during extraction — this document is read-only relative to sources
@@ -515,9 +515,9 @@ Topics explicitly excluded from this document:
 
 ## Keywords
 
-known issues
-needs confirmation
-inconsistencies
-template
-evidence labels
-resolution workflow
+- known issues
+- needs confirmation
+- inconsistencies
+- template
+- evidence labels
+- resolution workflow

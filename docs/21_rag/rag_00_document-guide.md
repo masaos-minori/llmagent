@@ -101,8 +101,8 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 
 ## Keywords
 
-rag
-documentation
-guide
-routing
-file-index
+- rag
+- documentation
+- guide
+- routing
+- file-index

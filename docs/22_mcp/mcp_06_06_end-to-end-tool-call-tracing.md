@@ -107,4 +107,4 @@ While serialization reduces concurrency, it prevents race conditions on shared r
 
 ## Keywords
 
-configuration
+- configuration

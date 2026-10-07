@@ -61,6 +61,6 @@ All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. M
 
 ## Keywords
 
-memory category
-mdq category
-skill category
+- memory category
+- mdq category
+- skill category

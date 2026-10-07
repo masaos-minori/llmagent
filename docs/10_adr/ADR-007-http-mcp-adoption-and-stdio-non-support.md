@@ -25,10 +25,10 @@ related:
 
 ## Keywords
 
-mcp
-http transport
-stdio
-health check
+- mcp
+- http transport
+- stdio
+- health check
 
 ## Status
 

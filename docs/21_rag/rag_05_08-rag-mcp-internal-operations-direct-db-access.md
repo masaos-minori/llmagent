@@ -56,4 +56,4 @@ For current CLI usage, run `crawler.py --help`, `chunk_splitter.py --help`, or `
 
 ## Keywords
 
-configuration
+- configuration

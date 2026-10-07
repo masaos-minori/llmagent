@@ -91,11 +91,11 @@ result = await dispatch_tool(dispatch_table, name, args)
 
 ## Keywords
 
-mcp
-protocol
-transport
-audit
-error
-HealthRegistry
-TransportError
-dispatch_tool
+- mcp
+- protocol
+- transport
+- audit
+- error
+- HealthRegistry
+- TransportError
+- dispatch_tool

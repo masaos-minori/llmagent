@@ -228,15 +228,15 @@ These warnings occur in two independent layers: the Agent layer and the cicd-mcp
 
 ## Keywords
 
-mcp
-security
-safety-model
-access-control
-allowed-dirs
-allowed-repos
-allowed-repo-paths
-protected-branches
-path-denylist
-command-allowlist
-workflow-allowlist
-read-only
+- mcp
+- security
+- safety-model
+- access-control
+- allowed-dirs
+- allowed-repos
+- allowed-repo-paths
+- protected-branches
+- path-denylist
+- command-allowlist
+- workflow-allowlist
+- read-only

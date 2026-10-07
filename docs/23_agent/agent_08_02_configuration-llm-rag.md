@@ -87,5 +87,5 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 ## Keywords
 
-LLMConfig
-RAGConfig
+- LLMConfig
+- RAGConfig

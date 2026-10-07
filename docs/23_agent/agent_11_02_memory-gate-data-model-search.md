@@ -141,12 +141,12 @@ Overview:
 
 ## Keywords
 
-activation gate
-disabled behavior by module
-MemoryEntry
-MemorySnippet
-JSONL format
-FTS5
-KNN
-hybrid RRF
-disabled behavior
+- activation gate
+- disabled behavior by module
+- MemoryEntry
+- MemorySnippet
+- JSONL format
+- FTS5
+- KNN
+- hybrid RRF
+- disabled behavior

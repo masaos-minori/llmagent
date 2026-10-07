@@ -123,4 +123,4 @@ The launcher guards against accidentally starting a server whose port is already
 
 ## Keywords
 
-configuration
+- configuration

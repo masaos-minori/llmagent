@@ -98,6 +98,6 @@ StageResult = TypedDict with keys:
 
 ## Keywords
 
-pipeline-context
-search-diagnostics
-rag
+- pipeline-context
+- search-diagnostics
+- rag

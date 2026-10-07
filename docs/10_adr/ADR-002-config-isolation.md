@@ -18,11 +18,11 @@ related:
 
 ## Keywords
 
-configuration
-config isolation
-per-process ownership
-secrets
-environment variables
+- configuration
+- config isolation
+- per-process ownership
+- secrets
+- environment variables
 
 ## Status
 

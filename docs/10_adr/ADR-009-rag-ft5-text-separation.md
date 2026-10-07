@@ -24,10 +24,10 @@ related:
 
 ## Keywords
 
-rag
-fts5
-text separation
-chunks
+- rag
+- fts5
+- text separation
+- chunks
 
 ## Status
 

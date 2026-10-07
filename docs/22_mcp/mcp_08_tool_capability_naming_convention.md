@@ -89,8 +89,8 @@ This is a proposed standard convention. Currently, no MCP servers in production 
 
 ## Keywords
 
-mcp
-tool-schema
-capabilities
-naming-convention
-policy
+- mcp
+- tool-schema
+- capabilities
+- naming-convention
+- policy

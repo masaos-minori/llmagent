@@ -130,7 +130,7 @@ Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty
 
 ### Implementation Details (file-read-mcp)
 
-- `FileReadConfig.from_dict` (`read_github_models.py`) interprets TOML's `max_read_bytes` as **KB** (`max_file_size_kb = max_read_bytes // 1024`). The effective limit is therefore `max_read_bytes // 1024 * 1024` bytes, which can differ from the TOML value when it is not a multiple of 1024. (Explicit in code)
+- `FileReadConfig.from_dict` (`file/read_models.py`) reads `max_read_bytes` as a byte count and applies it unchanged; `max_file_size_kb` belongs to the GitHub MCP server only. (Explicit in code)
 - Read-only errors are `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 or 422 as registered in `file/read_server.py`'s validation-error handler) in addition to `read_text_file` rejecting simultaneous `head`/`tail` arguments via Pydantic model validation (ValueError → FastAPI standard 422). (Explicit in code)
 
 ---
@@ -183,6 +183,8 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 
 ## Keywords
 
-mcp
-server-catalog
-web-search-mcp, file-read-mcp, github-mcp
+- mcp
+- server-catalog
+- web-search-mcp
+- file-read-mcp
+- github-mcp

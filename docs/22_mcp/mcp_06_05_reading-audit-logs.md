@@ -130,4 +130,4 @@ grep '"tool":"shell_run"' <log_dir>/audit.log
 
 ## Keywords
 
-configuration
+- configuration

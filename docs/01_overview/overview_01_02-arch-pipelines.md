@@ -87,10 +87,10 @@ See [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) for rati
 
 ## Keywords
 
-pipeline-architecture
-ingestion-pipeline
-query-pipeline
-rag
-turn-processing
-workflow-mode
-startup-mode
+- pipeline-architecture
+- ingestion-pipeline
+- query-pipeline
+- rag
+- turn-processing
+- workflow-mode
+- startup-mode

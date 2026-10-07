@@ -106,5 +106,5 @@ Current default values are defined in the config files and code symbols listed a
 
 ## Keywords
 
-configuration
-defaults
+- configuration
+- defaults

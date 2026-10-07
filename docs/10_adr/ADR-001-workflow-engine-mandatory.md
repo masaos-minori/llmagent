@@ -17,10 +17,10 @@ related:
 
 ## Keywords
 
-workflow engine
-mandatory
-execution control plane
-state transitions
+- workflow engine
+- mandatory
+- execution control plane
+- state transitions
 
 ## Status
 

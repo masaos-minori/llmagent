@@ -9,7 +9,7 @@ related:
   - rag_05_01-configuration-reference.md
 ---
 
-# 4. Error Handling Reference
+# 12. Error Handling Reference
 
 ## Crawler
 
@@ -113,5 +113,5 @@ All RAG-layer error classes, including `RagRerankError` and `RagPipelineError`, 
 
 ## Keywords
 
-configuration
-exception-hierarchy
+- configuration
+- exception-hierarchy

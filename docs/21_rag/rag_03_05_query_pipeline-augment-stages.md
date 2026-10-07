@@ -179,7 +179,7 @@ Both reasons can be verified as follows:
 
 ## Keywords
 
-rerank-stage
-augment-stage
-refiner-fallback
-rag
+- rerank-stage
+- augment-stage
+- refiner-fallback
+- rag

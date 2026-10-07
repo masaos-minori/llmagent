@@ -29,7 +29,7 @@ The following four metadata fields are required in every document's front matter
   document guides.
 - **category** — Not a valid front-matter key. Do not use this field.
 
-`keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key.
+`keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key. The section body is a bulleted list with one term per item (no comma-separated lines and no sub-headings).
 
 ## Recommended Additional Fields
 
@@ -212,10 +212,10 @@ execution (a test failing, a config load erroring), not by review.
 
 ## Keywords
 
-metadata
-terminology
-glossary
-link rules
-markdown syntax
-front matter
-evidence labels
+- metadata
+- terminology
+- glossary
+- link rules
+- markdown syntax
+- front matter
+- evidence labels

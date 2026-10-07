@@ -48,7 +48,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 ## Keywords
 
-document-manager
-etag-manager
-doc_id
-rag
+- document-manager
+- etag-manager
+- doc_id
+- rag

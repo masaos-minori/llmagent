@@ -126,7 +126,7 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 
 ## Keywords
 
-approval flow
-risk classification
-plan mode
-tool result cache
+- approval flow
+- risk classification
+- plan mode
+- tool result cache

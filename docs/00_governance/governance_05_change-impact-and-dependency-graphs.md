@@ -158,7 +158,7 @@ Not cycle-checked: this is a matrix, not a directed graph.
 
 ## Keywords
 
-change impact
-RACI
-dependency graph
-governance
+- change impact
+- RACI
+- dependency graph
+- governance

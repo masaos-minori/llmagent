@@ -54,7 +54,7 @@ A group of commands for displaying and monitoring configuration files. `/reload`
 
 ## Keywords
 
-slash command reference
-session category
-mcp category
-config/stats category
+- slash command reference
+- session category
+- mcp category
+- config/stats category

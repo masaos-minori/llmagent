@@ -128,5 +128,5 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 
 ## Keywords
 
-ToolConfig
-MemoryConfig
+- ToolConfig
+- MemoryConfig

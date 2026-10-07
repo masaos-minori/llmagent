@@ -71,6 +71,6 @@ Check the following categories in the `ConfigReloadOutcome` output:
 
 ## Keywords
 
-configuration loading
-config file ownership
-hot-reload eligibility
+- configuration loading
+- config file ownership
+- hot-reload eligibility

@@ -69,8 +69,8 @@ The module is a library module: it attaches no log handler, and the caller contr
 
 ## Keywords
 
-shared-utilities
-unicode-normalization
-cosine-similarity
-prompt-injection
-rag
+- shared-utilities
+- unicode-normalization
+- cosine-similarity
+- prompt-injection
+- rag

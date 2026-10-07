@@ -228,7 +228,7 @@ See [Preflight Gate Coverage](#preflight-gate-coverage) above for the enumerated
 
 ## Keywords
 
-agent
-runtime
-architecture
-lifecycle
+- agent
+- runtime
+- architecture
+- lifecycle

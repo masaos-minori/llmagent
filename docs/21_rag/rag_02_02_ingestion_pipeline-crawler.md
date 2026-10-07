@@ -45,14 +45,14 @@ TypedDict field set used for crawl output JSON files.
 
 `max_depth` and `max_pages` bound the crawl's BFS traversal to prevent
 unbounded growth in processing time, storage, and external-site load — see
-[section 1.1 Configuration Reference](rag_05_01-configuration-reference.md)
+[section 9.1 Configuration Reference](rag_05_01-configuration-reference.md)
 for the current operational values. No historical rationale for the
 specific limit values is recorded in this repository; `config/crawler.toml`'s
 own inline comment states these are unvalidated heuristics.
 `skip_nofollow` controls whether nofollow-marked links are excluded from
 the BFS queue.
 
-> For a full list of parameters, see [section 1.1 Configuration Reference](rag_05_01-configuration-reference.md).
+> For a full list of parameters, see [section 9.1 Configuration Reference](rag_05_01-configuration-reference.md).
 
 ### 2.1.2 `crawl_file` Behavior
 
@@ -130,15 +130,15 @@ See [rag_05_03-logging.md](rag_05_03-logging.md) for details.
 
 ### 2.7 Configuration (`config/crawler.toml`)
 
-See [rag_05_01-configuration-reference.md section 1.1](rag_05_01-configuration-reference.md).
+See [rag_05_01-configuration-reference.md section 9.1](rag_05_01-configuration-reference.md).
 
 ---
 
 ## Keywords
 
-web-crawler
-bfs-crawl
-conditional-get
-local-file-ingestion
-crawler
-rag
+- web-crawler
+- bfs-crawl
+- conditional-get
+- local-file-ingestion
+- crawler
+- rag

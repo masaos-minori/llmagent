@@ -8,13 +8,13 @@ related:
   - rag_00_document-guide.md
 ---
 
-# 1. Configuration Reference
+# 9. Configuration Reference
 
 Crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes, reading only their respective configuration files. There are no shared configuration files. If multiple processes require the same DB path or external service URL, they must specify them individually in their respective configuration files.
 
 → For details on the Process Separation Policy: [ADR-002](../10_adr/ADR-002-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
-## 1.1 `config/crawler.toml`
+## 9.1 `config/crawler.toml`
 
 Used by: `crawler.py` only
 
@@ -37,7 +37,7 @@ This file is the owner of the current operational values; the code defaults are 
 | `target_urls` | List of pairs in `[[url, lang], ...]` format. Used when `--url` is not specified |
 | `min_chunk` | Minimum chunk size (characters). Chunks smaller than this are discarded as noise |
 
-## 1.2 `config/chunk_splitter.toml`
+## 9.2 `config/chunk_splitter.toml`
 
 Used by: `chunk_splitter.py` only
 
@@ -52,7 +52,7 @@ Used by: `chunk_splitter.py` only
 | `en_stopwords` | English stopwords to exclude from FTS5 indexing and chunking |
 | `ja_stop_pos` | Sudachi POS categories treated as stopwords in Japanese FTS5 indexing |
 
-## 1.3 `config/ingester.toml`
+## 9.3 `config/ingester.toml`
 
 Used by: `ingester.py` only
 
@@ -70,7 +70,7 @@ Used by: `ingester.py` only
 
 **Note:** `strict_artifact_validation` is not a setting (`RagIngester.__init__` does not read it, and artifact validation function calls do not specify `strict`). Rejection of chunks with missing required fields is always enabled via Python defaults in the artifact validation function.
 
-## 1.4 `config/rag_pipeline_mcp_server.toml`
+## 9.4 `config/rag_pipeline_mcp_server.toml`
 
 Used by: `rag-pipeline-mcp` only (the rag-pipeline MCP server process). Loaded via `RagPipelineConfig.from_dict()` in `mcp_servers/rag_pipeline/rag_pipeline_models.py`. Does NOT use `agent.toml` (as stated in the header comment).
 
@@ -128,7 +128,7 @@ only when a key is absent from the `.toml` file.
 > `config/rag_pipeline_mcp_server.toml`. Any modification must be made in the
 > corresponding source file.
 
-## 1.5 `config/agent.toml`
+## 9.5 `config/agent.toml`
 
 Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `AgentConfig`.
 
@@ -156,4 +156,4 @@ Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `Ag
 
 ## Keywords
 
-configuration
+- configuration

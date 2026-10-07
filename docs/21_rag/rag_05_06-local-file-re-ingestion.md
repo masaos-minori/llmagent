@@ -10,7 +10,7 @@ related:
 ---
 
 
-# 6. Local file re-ingestion
+# 14. Local file re-ingestion
 
 ## Initial Ingestion
 
@@ -67,8 +67,8 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 ## Keywords
 
-configuration
-file-ingestion
-crawler
-etag
-sha256
+- configuration
+- file-ingestion
+- crawler
+- etag
+- sha256

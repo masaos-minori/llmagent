@@ -40,5 +40,5 @@ File index for this chapter (07 CLI and Commands).
 
 ## Keywords
 
-CLI reference index
-chapter 07 file index
+- CLI reference index
+- chapter 07 file index

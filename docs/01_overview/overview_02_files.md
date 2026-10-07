@@ -189,29 +189,29 @@ Per-MCP-server configuration files under `conf.d/`: operational credentials for 
 
 ## Keywords
 
-file-structure
-build
-llama-cpp
-models
-gguf
-deployment
-rag
-rag-src
-crawler
-chunk-splitter
-ingester
-embedding
-scripts
-agent
-mcp-server
-shared
-db
-sqlite
-configuration
-toml
-agent-toml
-mcp-server-config
-rag-config
-eventbus
-logs
-system-configuration
+- file-structure
+- build
+- llama-cpp
+- models
+- gguf
+- deployment
+- rag
+- rag-src
+- crawler
+- chunk-splitter
+- ingester
+- embedding
+- scripts
+- agent
+- mcp-server
+- shared
+- db
+- sqlite
+- configuration
+- toml
+- agent-toml
+- mcp-server-config
+- rag-config
+- eventbus
+- logs
+- system-configuration

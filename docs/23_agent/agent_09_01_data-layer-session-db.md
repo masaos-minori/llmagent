@@ -98,8 +98,8 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 ## Keywords
 
-session.sqlite
-session_diagnostics
-SessionMessageRepository
-SQLiteSessionStore
-session retention
+- session.sqlite
+- session_diagnostics
+- SessionMessageRepository
+- SQLiteSessionStore
+- session retention

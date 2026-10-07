@@ -51,5 +51,5 @@ A group of commands for managing context information and history.
 
 ## Keywords
 
-context category
-plan category
+- context category
+- plan category

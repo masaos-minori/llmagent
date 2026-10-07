@@ -13,10 +13,10 @@ related:
 
 ## Keywords
 
-reference document
-document class
-generated reference
-disposition
+- reference document
+- document class
+- generated reference
+- disposition
 
 ## Status
 

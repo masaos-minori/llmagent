@@ -93,9 +93,9 @@ AgentREPL.run()
 
 ## Keywords
 
-mcp
-tool error
-transport error
-lifecycle flow
-health check
-restart
+- mcp
+- tool error
+- transport error
+- lifecycle flow
+- health check
+- restart

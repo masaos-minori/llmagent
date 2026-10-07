@@ -89,10 +89,10 @@ Even if `tool_names` is omitted or incomplete, routing is still determined by `/
 
 ## Keywords
 
-mcp
-lifecycle
-process introspection
-new mcp server
-tool_constants
-tool_safety_tiers
-deploy
+- mcp
+- lifecycle
+- process introspection
+- new mcp server
+- tool_constants
+- tool_safety_tiers
+- deploy

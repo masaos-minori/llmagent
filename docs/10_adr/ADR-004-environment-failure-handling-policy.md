@@ -21,10 +21,10 @@ related:
 
 ## Keywords
 
-failure handling
-environment policy
-startup validation
-health check
+- failure handling
+- environment policy
+- startup validation
+- health check
 
 ## Status
 

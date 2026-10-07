@@ -16,10 +16,10 @@ related:
 
 ## Keywords
 
-git mcp
-write protection
-server-side enforcement
-protected branch
+- git mcp
+- write protection
+- server-side enforcement
+- protected branch
 
 ## Status
 

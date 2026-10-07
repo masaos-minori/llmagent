@@ -84,11 +84,11 @@ None
 
 ## Keywords
 
-memory layer
-memory modes
-optional memory layer
-FTS5 fallback
-embedding endpoint
-deduplication
-on_session_stop
-ctx.services.memory
+- memory layer
+- memory modes
+- optional memory layer
+- FTS5 fallback
+- embedding endpoint
+- deduplication
+- on_session_stop
+- ctx.services.memory

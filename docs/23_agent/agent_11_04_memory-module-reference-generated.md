@@ -25,7 +25,10 @@ listing. Do not hand-edit between the guard comments — run the generator.
 
 ## Keywords
 
-agent, memory, api-reference, generated
+- agent
+- memory
+- api-reference
+- generated
 
 ## Module Class/Function Reference (auto-generated)
 

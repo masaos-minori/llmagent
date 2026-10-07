@@ -152,5 +152,5 @@ Do not change `requires_serial` or `resource_scope_kind`/`resource_scope_keys` v
 
 ## Keywords
 
-health-reasons
-scheduling
+- health-reasons
+- scheduling

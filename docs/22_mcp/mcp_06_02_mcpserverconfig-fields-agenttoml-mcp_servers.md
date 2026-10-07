@@ -49,6 +49,6 @@ field's values are filtered through a denylist that rejects `LD_PRELOAD`,
 
 ## Keywords
 
-configuration
-McpServerConfig
-key
+- configuration
+- McpServerConfig
+- key

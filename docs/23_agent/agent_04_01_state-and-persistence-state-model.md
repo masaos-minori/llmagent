@@ -107,9 +107,9 @@ All write operations must go through `RepositoryGateway`. Direct calls that bypa
 
 ## Keywords
 
-AgentContext state model
-ConversationState
-TurnState
-WorkflowState
-RuntimeStats
-session persistence
+- AgentContext state model
+- ConversationState
+- TurnState
+- WorkflowState
+- RuntimeStats
+- session persistence

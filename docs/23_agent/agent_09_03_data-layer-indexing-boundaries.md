@@ -82,7 +82,7 @@ Managed by `agent/workflow/state_store.py`:
 
 ## Keywords
 
-FTS5 index
-workflow.sqlite
-non-message persistence boundaries
-context manager pattern
+- FTS5 index
+- workflow.sqlite
+- non-message persistence boundaries
+- context manager pattern

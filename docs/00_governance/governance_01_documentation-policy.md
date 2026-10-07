@@ -375,10 +375,10 @@ This document does not cover:
 
 ## Keywords
 
-documentation
-policy
-governance
-canonical source
-ADR
-conflict resolution
-RACI
+- documentation
+- policy
+- governance
+- canonical source
+- ADR
+- conflict resolution
+- RACI

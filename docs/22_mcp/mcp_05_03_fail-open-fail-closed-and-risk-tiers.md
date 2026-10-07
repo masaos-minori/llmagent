@@ -110,9 +110,9 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 
 ## Keywords
 
-fail-open
-fail-closed
-dry-run
-risk tiers
-approval
-MCP safety model
+- fail-open
+- fail-closed
+- dry-run
+- risk tiers
+- approval
+- MCP safety model

@@ -107,7 +107,7 @@ Returned by `RagPipeline.run()`.
 
 ## Keywords
 
-rag-repository
-rag-scorer
-rag-llm
-rag
+- rag-repository
+- rag-scorer
+- rag-llm
+- rag

@@ -169,14 +169,14 @@ if __name__ == "__main__":
 
 ## Keywords
 
-mcp
-protocol
-transport
-call_tool
-CallToolRequest
-CallToolResponse
-MCPServer
-X-Session-Id
-X-Request-Id
-dispatch
-make_health_response
+- mcp
+- protocol
+- transport
+- call_tool
+- CallToolRequest
+- CallToolResponse
+- MCPServer
+- X-Session-Id
+- X-Request-Id
+- dispatch
+- make_health_response

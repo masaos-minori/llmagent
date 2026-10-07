@@ -25,10 +25,10 @@ related:
 
 ## Keywords
 
-sqlite
-database separation
-recovery policy
-backup
+- sqlite
+- database separation
+- recovery policy
+- backup
 
 ## Status
 

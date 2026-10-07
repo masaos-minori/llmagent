@@ -162,11 +162,11 @@ Troubleshooting:
 | Constraint | Value | Source |
 |---|---|---|
 | Language Detection | CJK ratio above a threshold → `ja`; otherwise `en`; falls back to the language hint for very short text | `crawler.py` |
-| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §1.2](rag_05_01-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
-| Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §1.2](rag_05_01-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
+| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference §9.2](rag_05_01-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
+| Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference §9.2](rag_05_01-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
 | Embedding Dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB | `scripts/db/store_protocols.py` |
-| Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §1.1](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
-| Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §1.1](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
+| Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference §9.1](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
+| Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference §9.1](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
 | Database | SQLite single node only | Architecture |
 
 Note: No empirical basis or trade-off analysis for these constraint values is recorded in this repository's code, configuration files, or ADRs. If these values are tuned, verify the change against actual retrieval quality/performance for your intended use case rather than assuming a known-good adjustment — this documentation set does not currently provide quality-impact guidance for any of them.
@@ -218,8 +218,8 @@ For details on responsibilities of these components, please refer to `docs/21_ra
 
 ## Keywords
 
-rag
-system
-overview
-architecture
-pipeline
+- rag
+- system
+- overview
+- architecture
+- pipeline

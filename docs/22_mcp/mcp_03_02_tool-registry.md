@@ -106,13 +106,13 @@ Batch execution parallel/serial determination is delegated to `agent/tool_runner
 
 ## Keywords
 
-mcp
-routing
-ToolRegistry
-ToolSpec
-concurrency limits
-side effect detection
-routing drift
-tool safety tiers
-RuntimeToolRegistry
-McpToolDiscoveryService
+- mcp
+- routing
+- ToolRegistry
+- ToolSpec
+- concurrency limits
+- side effect detection
+- routing drift
+- tool safety tiers
+- RuntimeToolRegistry
+- McpToolDiscoveryService

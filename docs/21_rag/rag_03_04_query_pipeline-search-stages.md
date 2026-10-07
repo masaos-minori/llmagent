@@ -100,7 +100,7 @@ Note: No quantitative benchmark data (recall@k/precision@k or other metrics) com
 
 ## Keywords
 
-mqe-stage
-search-stage
-fusion-stage
-rag
+- mqe-stage
+- search-stage
+- fusion-stage
+- rag

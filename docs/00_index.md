@@ -153,8 +153,8 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 
 ## Keywords
 
-documentation
-navigation
-overview
-index
-knowledge-base
+- documentation
+- navigation
+- overview
+- index
+- knowledge-base

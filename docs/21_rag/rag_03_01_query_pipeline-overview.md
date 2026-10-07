@@ -91,6 +91,6 @@ Stages modify `ctx` in-place and do not return values.
 
 ## Keywords
 
-pipeline-overview
-pipeline-stage
-rag
+- pipeline-overview
+- pipeline-stage
+- rag

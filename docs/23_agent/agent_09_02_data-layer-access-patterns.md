@@ -69,6 +69,6 @@ To prevent orphaned records, `delete_document()` enforces a strict deletion orde
 
 ## Keywords
 
-RAG MCP internal path
-document access patterns
-responsibility boundary
+- RAG MCP internal path
+- document access patterns
+- responsibility boundary

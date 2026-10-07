@@ -134,11 +134,11 @@ If the result exceeds the response size limit (`MCP_MAX_RESPONSE_BYTES`):
 
 ## Keywords
 
-mcp
-protocol
-transport
-auth
-bearer
-health
-truncation
-repl_health
+- mcp
+- protocol
+- transport
+- auth
+- bearer
+- health
+- truncation
+- repl_health

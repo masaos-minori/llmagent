@@ -60,7 +60,7 @@ These tests cover individual stages (`MqeStage`/`SearchStage`/`FusionStage`/`Rer
 
 ## Keywords
 
-rag-tests
-quality-regression
-refiner-diagnostics
-rag
+- rag-tests
+- quality-regression
+- refiner-diagnostics
+- rag

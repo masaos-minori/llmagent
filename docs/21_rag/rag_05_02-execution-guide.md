@@ -10,9 +10,9 @@ related:
 ---
 
 
-# 2. Execution Guide
+# 10. Execution Guide
 
-## 2.1 Prerequisites
+## 10.1 Prerequisites
 
 ```bash
 # Ensure embed-llm is running
@@ -22,7 +22,7 @@ curl -s http://127.0.0.1:<PORT>/health
 ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml
 ```
 
-## 2.2 Step 1: Crawling
+## 10.2 Step 1: Crawling
 
 ```bash
 # Crawl all URLs specified in crawler.toml
@@ -32,7 +32,7 @@ uv run python scripts/rag/ingestion/crawler.py
 uv run python scripts/rag/ingestion/crawler.py --url "https://example.com/" --lang en
 ```
 
-## 2.3 Step 2: Chunk Splitting
+## 10.3 Step 2: Chunk Splitting
 
 ```bash
 # Batch split unprocessed files
@@ -42,7 +42,7 @@ uv run python scripts/rag/ingestion/chunk_splitter.py
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
 ```
 
-## 2.4 Step 3: Embedding and Storage
+## 10.4 Step 3: Embedding and Storage
 
 ```bash
 # Embed and save to DB
@@ -58,7 +58,7 @@ uv run python scripts/rag/ingestion/ingester.py --force
 - `chunk_splitter.py`: Deletes existing chunks and regenerates them.
 - `ingester.py`: Deletes `chunks_vec` rows and then the `documents` row (rows in `chunks` are removed by `ON DELETE CASCADE`) for the target URL, then re-inserts them.
 
-### 2.5 RAG Consistency Check (`db/rag_consistency.py`)
+### 10.5 RAG Consistency Check (`db/rag_consistency.py`)
 
 `check_rag_consistency`, `is_consistent`, and `summarize_issues` are defined in `scripts/db/rag_consistency.py`. (Explicit in code)
 
@@ -90,7 +90,7 @@ See `RagConsistencyReport` in `scripts/db/models.py` for exact fields.
 - This function is read-only and does not repair inconsistencies.
 - Performance: The `NOT IN` subquery for orphan detection is O(vec × chunks). For large datasets, run this during maintenance windows.
 
-### 2.6 Additional Options for `crawler.py`
+### 10.6 Additional Options for `crawler.py`
 
 - `--targets-file PATH`: Specifies a TOML file in the `[[url, lang], ...]` format, overriding the `target_urls` in the configuration file (`config/crawler.toml`). Cannot be used with `--url` (exits with `parser.error`).
   (Explicit in code) — From the `main()` argument definition in `scripts/rag/ingestion/crawler.py`.
@@ -100,4 +100,4 @@ See `RagConsistencyReport` in `scripts/db/models.py` for exact fields.
 
 ## Keywords
 
-configuration
+- configuration

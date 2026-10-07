@@ -71,4 +71,4 @@ MCP discovery follows the ADR-004 rule: an unavailable required server aborts st
 
 ## Keywords
 
-configuration
+- configuration

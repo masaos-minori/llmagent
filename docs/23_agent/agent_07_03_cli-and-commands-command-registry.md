@@ -88,6 +88,6 @@ Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corres
 
 ## Keywords
 
-CommandRegistry
-responsibility boundary
-known limitation
+- CommandRegistry
+- responsibility boundary
+- known limitation

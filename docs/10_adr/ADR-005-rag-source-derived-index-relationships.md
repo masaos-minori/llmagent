@@ -23,11 +23,11 @@ related:
 
 ## Keywords
 
-rag
-source data
-derived index
-chunks
-fts
+- rag
+- source data
+- derived index
+- chunks
+- fts
 
 ## Status
 

@@ -116,10 +116,10 @@ If the LLM endpoint returns a chunk containing a `usage` field, data is extracte
 
 ## Keywords
 
-agent
-llm
-streaming
-response
-reconnect
-transport-error
-llm-client
+- agent
+- llm
+- streaming
+- response
+- reconnect
+- transport-error
+- llm-client

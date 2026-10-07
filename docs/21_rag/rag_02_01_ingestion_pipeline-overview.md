@@ -92,9 +92,9 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 ## Keywords
 
-ingestion-pipeline
-execution-guide
-crawler
-chunk-splitter
-ingester
-rag
+- ingestion-pipeline
+- execution-guide
+- crawler
+- chunk-splitter
+- ingester
+- rag

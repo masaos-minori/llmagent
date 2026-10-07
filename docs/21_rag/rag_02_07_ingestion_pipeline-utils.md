@@ -61,9 +61,9 @@ For exhaustive signature and constant detail, see `scripts/rag/ingestion/crawler
 
 ## Keywords
 
-crawler-utils
-chunk-english-mixin
-chunk-japanese-mixin
-chunk-utils
-pipeline-utils
-rag
+- crawler-utils
+- chunk-english-mixin
+- chunk-japanese-mixin
+- chunk-utils
+- pipeline-utils
+- rag

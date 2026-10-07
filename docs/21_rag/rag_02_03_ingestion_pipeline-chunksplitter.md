@@ -193,13 +193,13 @@ aborting the **entire file**, not one chunk.
 
 ### 3.7 Configuration
 
-See [rag_05_01-configuration-reference.md section 1.1](rag_05_01-configuration-reference.md).
+See [rag_05_01-configuration-reference.md section 9.2](rag_05_01-configuration-reference.md).
 
 ## Keywords
 
-chunk-splitter
-chunking-strategies
-sudachi
-markdown-heading
-crawler
-rag
+- chunk-splitter
+- chunking-strategies
+- sudachi
+- markdown-heading
+- crawler
+- rag

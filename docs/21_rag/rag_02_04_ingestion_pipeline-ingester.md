@@ -119,7 +119,7 @@ Configuration details → [rag_02_06_ingestion_pipeline-supporting-components.md
 
 ## Keywords
 
-ingester
-embedding
-sqlite
-rag
+- ingester
+- embedding
+- sqlite
+- rag

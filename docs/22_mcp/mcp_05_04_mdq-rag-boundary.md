@@ -134,13 +134,13 @@ Use `mdq-mcp` only for Markdown-specific structural queries where embedding qual
 
 ## Keywords
 
-mcp
-security
-safety-model
-mdq
-rag
-mdq-rag-boundary
-routing
-classifier
-data-ownership
-migration-criteria
+- mcp
+- security
+- safety-model
+- mdq
+- rag
+- mdq-rag-boundary
+- routing
+- classifier
+- data-ownership
+- migration-criteria

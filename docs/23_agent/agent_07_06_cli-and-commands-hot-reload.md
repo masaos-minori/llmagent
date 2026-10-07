@@ -64,6 +64,6 @@ The reload subcommand reads the base configuration files and applies changes as 
 
 ## Keywords
 
-hot-reload scope
-reload subcommand
-change classification
+- hot-reload scope
+- reload subcommand
+- change classification

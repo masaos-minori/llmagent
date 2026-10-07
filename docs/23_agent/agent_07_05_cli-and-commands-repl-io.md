@@ -61,4 +61,4 @@ Documents the design intent and operational decisions for the REPL input/output 
 
 ## Keywords
 
-REPL input/output model
+- REPL input/output model

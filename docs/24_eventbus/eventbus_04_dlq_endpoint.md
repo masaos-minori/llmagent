@@ -173,9 +173,9 @@ Requeue uses a lineage model: each requeue creates a new event row with `redeliv
 
 ## Keywords
 
-dlq
-dead-letter queue
-requeue
-redelivery
-lineage model
-concurrency
+- dlq
+- dead-letter queue
+- requeue
+- redelivery
+- lineage model
+- concurrency

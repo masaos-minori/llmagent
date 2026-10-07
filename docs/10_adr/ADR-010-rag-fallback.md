@@ -20,10 +20,10 @@ related:
 
 ## Keywords
 
-rag
-fallback
-http service
-in-process
+- rag
+- fallback
+- http service
+- in-process
 
 ## Status
 

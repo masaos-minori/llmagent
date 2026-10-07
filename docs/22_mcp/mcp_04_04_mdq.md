@@ -115,6 +115,6 @@ Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotF
 
 ## Keywords
 
-mcp
-server-catalog
-mdq-mcp
+- mcp
+- server-catalog
+- mdq-mcp

@@ -177,11 +177,11 @@ An `approval_risk_rules` entry can raise a tool above its tier default (for exam
 
 ## Keywords
 
-mcp
-tools
-ownership
-matrix
-routing
+- mcp
+- tools
+- ownership
+- matrix
+- routing
 
 ## Server Port & Tool Reference (auto-generated)
 

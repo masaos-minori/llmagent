@@ -28,4 +28,4 @@ When adding a new server:
 
 ## Keywords
 
-configuration
+- configuration

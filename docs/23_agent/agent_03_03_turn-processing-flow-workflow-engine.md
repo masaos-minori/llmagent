@@ -183,9 +183,9 @@ With the bundled `config/workflows/default.json`, the workflow-level approval ga
 
 ## Keywords
 
-partial-completion model
-workflowengine integration
-state changes per turn
-turn-state mutation reference
-ADR-001
-workflow execution mandatory
+- partial-completion model
+- workflowengine integration
+- state changes per turn
+- turn-state mutation reference
+- ADR-001
+- workflow execution mandatory

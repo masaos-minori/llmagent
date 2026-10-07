@@ -22,12 +22,12 @@ related:
 
 ## Keywords
 
-eventbus
-sqlite
-persistence
-sse
-delivery
-dlq
+- eventbus
+- sqlite
+- persistence
+- sse
+- delivery
+- dlq
 
 ## Status
 

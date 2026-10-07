@@ -72,7 +72,7 @@ RAG search is not provided as a slash command — it is automatically called by 
 
 ## Keywords
 
-workflow category
-debug/audit category
-git/diff category
-compact/export category
+- workflow category
+- debug/audit category
+- git/diff category
+- compact/export category

@@ -102,6 +102,7 @@ The cicd server computes `enabled`/`disabled_reason` via `_cicd_tool_availabilit
 
 ## Keywords
 
-mcp
-server-catalog
-rag-pipeline-mcp, cicd-mcp
+- mcp
+- server-catalog
+- rag-pipeline-mcp
+- cicd-mcp

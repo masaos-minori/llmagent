@@ -122,8 +122,8 @@ A row whose Verification Status is "Not verified" is Non-Blocking, because a gat
 
 ## Keywords
 
-adr
-architecture decision record
-invariant
-verification matrix
-dependency graph
+- adr
+- architecture decision record
+- invariant
+- verification matrix
+- dependency graph

@@ -10,7 +10,7 @@ related:
 ---
 
 
-# 3. Logging
+# 11. Logging
 
 | Script | Log file | Log levels |
 |---|---|---|
@@ -42,4 +42,4 @@ only by `crawler.py` and is unaffected by this.
 
 ## Keywords
 
-configuration
+- configuration

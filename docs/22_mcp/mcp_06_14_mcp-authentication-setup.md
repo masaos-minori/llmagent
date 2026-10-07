@@ -74,4 +74,4 @@ the deployment document.
 
 ## Keywords
 
-configuration
+- configuration

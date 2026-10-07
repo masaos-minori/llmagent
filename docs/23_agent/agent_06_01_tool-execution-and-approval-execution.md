@@ -95,15 +95,15 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 
 ## Keywords
 
-ToolExecutor
-parallel vs sequential execution
-DAG tool scheduler
-tool argument validation
-tool call preparation phase
-PreparedToolCall
-fail-closed
-validated history append/extend
-ExecutionPlan
-ScheduledGroup
-force_serial
-global:write scope
+- ToolExecutor
+- parallel vs sequential execution
+- DAG tool scheduler
+- tool argument validation
+- tool call preparation phase
+- PreparedToolCall
+- fail-closed
+- validated history append/extend
+- ExecutionPlan
+- ScheduledGroup
+- force_serial
+- global:write scope

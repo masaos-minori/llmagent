@@ -141,7 +141,7 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 
 ## Keywords
 
-MCPConfig
-ApprovalConfig
-ObservabilityConfig
-DiagnosticsConfig
+- MCPConfig
+- ApprovalConfig
+- ObservabilityConfig
+- DiagnosticsConfig

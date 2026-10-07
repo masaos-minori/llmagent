@@ -37,7 +37,7 @@ To verify the export contract:
 
 ## Keywords
 
-mcp
-tool-schema
-export
-policy
+- mcp
+- tool-schema
+- export
+- policy

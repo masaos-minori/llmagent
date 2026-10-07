@@ -40,4 +40,4 @@ Refer to `mcp_05_01_access-control-and-allowlists.md` for the complete table of 
 
 ## Keywords
 
-configuration
+- configuration

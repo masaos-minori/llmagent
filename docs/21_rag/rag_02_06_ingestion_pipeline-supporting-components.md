@@ -63,12 +63,12 @@ the `ValueError` conditions in the shared error-handling reference table.
 
 ## 4.10 Configuration (`config/ingester.toml`)
 
-See [rag_05_01-configuration-reference.md section 1.2](rag_05_01-configuration-reference.md).
+See [rag_05_01-configuration-reference.md section 9.3](rag_05_01-configuration-reference.md).
 
 ---
 
 ## Keywords
 
-etag-manager
-ingestion-configuration
-rag
+- etag-manager
+- ingestion-configuration
+- rag

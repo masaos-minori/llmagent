@@ -371,12 +371,12 @@ Same as the Non-Goals in [governance_01_documentation-policy.md](governance_01_d
 
 ## Keywords
 
-documentation checks
-validation
-automated checks
-manual checks
-quality assurance
-consistency
-ADR compliance
-evidence validation
-verification matrix
+- documentation checks
+- validation
+- automated checks
+- manual checks
+- quality assurance
+- consistency
+- ADR compliance
+- evidence validation
+- verification matrix

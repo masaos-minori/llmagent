@@ -20,4 +20,4 @@ The `required` flag takes effect later, at live `/v1/tools` discovery (`scripts/
 
 ## Keywords
 
-configuration
+- configuration

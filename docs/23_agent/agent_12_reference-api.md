@@ -208,9 +208,9 @@ Always null-check before accessing memory services.
 
 ## Keywords
 
-AgentREPL
-Orchestrator
-AgentContext
-AgentSession
-reference API
-agent runtime
+- AgentREPL
+- Orchestrator
+- AgentContext
+- AgentSession
+- reference API
+- agent runtime

@@ -26,4 +26,4 @@ related:
 
 ## Keywords
 
-configuration
+- configuration

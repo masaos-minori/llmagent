@@ -119,9 +119,9 @@ The actual connection destinations for `agent-llm`/`embed-llm` are set as indivi
 
 ## Keywords
 
-process-architecture
-system-overview
-agent
-mcp-server
-llm-service
-configuration-isolation
+- process-architecture
+- system-overview
+- agent
+- mcp-server
+- llm-service
+- configuration-isolation

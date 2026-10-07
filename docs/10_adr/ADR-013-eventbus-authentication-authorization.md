@@ -19,12 +19,12 @@ related:
 
 ## Keywords
 
-eventbus
-authentication
-authorization
-bearer-token
-security-boundary
-five-role-model
+- eventbus
+- authentication
+- authorization
+- bearer-token
+- security-boundary
+- five-role-model
 
 ## Status
 

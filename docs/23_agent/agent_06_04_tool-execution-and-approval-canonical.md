@@ -99,6 +99,6 @@ If a workflow fails after some steps are completed, the workflow engine records 
 
 ## Keywords
 
-canonical approval model
-ADR-001
-partial completion persistence
+- canonical approval model
+- ADR-001
+- partial completion persistence

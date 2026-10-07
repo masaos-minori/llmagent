@@ -123,6 +123,8 @@ Current default values are defined in `config/shell_mcp_server.toml`.
 
 ## Keywords
 
-mcp
-server-catalog
-file-write-mcp, file-delete-mcp, shell-mcp
+- mcp
+- server-catalog
+- file-write-mcp
+- file-delete-mcp
+- shell-mcp

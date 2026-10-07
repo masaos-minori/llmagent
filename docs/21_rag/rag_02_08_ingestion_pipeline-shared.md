@@ -93,7 +93,7 @@ There is no recorded rationale or measurement/load-testing data for this limit; 
 
 ## Keywords
 
-chunk-japanese
-pipeline-utils
-fts5
-rag
+- chunk-japanese
+- pipeline-utils
+- fts5
+- rag

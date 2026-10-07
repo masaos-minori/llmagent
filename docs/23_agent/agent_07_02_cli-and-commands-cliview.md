@@ -60,6 +60,6 @@ To document the responsibilities of `CLIView`, which handles only the presentati
 
 ## Keywords
 
-CLIView
-responsibility boundary
-callbacks
+- CLIView
+- responsibility boundary
+- callbacks

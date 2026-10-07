@@ -217,12 +217,12 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 
 ## Keywords
 
-deployment
-environment
-setup
-installation
-provisioning
-operations
-llama-cpp
-sqlite-vec
-db-initialization
+- deployment
+- environment
+- setup
+- installation
+- provisioning
+- operations
+- llama-cpp
+- sqlite-vec
+- db-initialization

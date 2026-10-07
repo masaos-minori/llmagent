@@ -80,4 +80,4 @@ Run `/session rag-rebuild-fts` to re-sync `chunks_fts` from the `chunks` table.
 
 ## Keywords
 
-configuration
+- configuration

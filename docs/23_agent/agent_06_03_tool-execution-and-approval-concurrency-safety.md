@@ -91,8 +91,8 @@ See Known Limitations in [agent_06_02_tool-execution-and-approval-approval.md](a
 
 ## Keywords
 
-safety controls summary
-ToolLoopGuard
-concurrency limits
-fail-closed execution policy
-workflow approval recovery
+- safety controls summary
+- ToolLoopGuard
+- concurrency limits
+- fail-closed execution policy
+- workflow approval recovery

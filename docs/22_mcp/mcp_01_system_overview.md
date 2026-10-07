@@ -181,10 +181,10 @@ MCP server processes (mcp_servers/<name>/<name>_server.py)
 
 ## Keywords
 
-mcp
-system
-overview
-architecture
-health-registry
-half-open
-circuit-breaker
+- mcp
+- system
+- overview
+- architecture
+- health-registry
+- half-open
+- circuit-breaker

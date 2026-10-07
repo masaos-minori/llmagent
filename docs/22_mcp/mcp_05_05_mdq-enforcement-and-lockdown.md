@@ -73,17 +73,17 @@ Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as
 
 ## Keywords
 
-mcp
-security
-safety-model
-mdq-rag-boundary-enforcement
-deny-all
-lockdown
-fail-open
-fail-closed
-security-audit
-mdq-allowed-dirs
-authorize-path
-mdq-authorization-error
-fts-consistency-check
-fts-rebuild
+- mcp
+- security
+- safety-model
+- mdq-rag-boundary-enforcement
+- deny-all
+- lockdown
+- fail-open
+- fail-closed
+- security-audit
+- mdq-allowed-dirs
+- authorize-path
+- mdq-authorization-error
+- fts-consistency-check
+- fts-rebuild

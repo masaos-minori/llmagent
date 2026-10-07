@@ -133,11 +133,11 @@ The session title generation task scheduled on the first turn manages consecutiv
 
 ## Keywords
 
-one-turn processing flow
-memory injection detail
-mdq/rag mode classification
-system prompt sync detail
-validated history append/insert
-validated tool result/denied-message append
-workflow engine mandatory execution path
-history compression detail
+- one-turn processing flow
+- memory injection detail
+- mdq/rag mode classification
+- system prompt sync detail
+- validated history append/insert
+- validated tool result/denied-message append
+- workflow engine mandatory execution path
+- history compression detail
