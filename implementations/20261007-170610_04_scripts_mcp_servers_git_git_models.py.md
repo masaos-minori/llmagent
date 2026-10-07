@@ -104,10 +104,10 @@ dependencies, not targets:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-004: branch required in GitPullRequest/GitPushRequest |
-| 2 | Add or update tests per Validation plan | Pending | — | — | test_git_models.py own row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc updates are Rows 8-10 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-073225 | REQ-004: branch required in GitPullRequest/GitPushRequest Post-hoc archive: code landed in fbfa4d416; verified vs source; 307 tests pass |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-073225 | test_git_models.py own row Post-hoc archive: code landed in fbfa4d416; verified vs source; 307 tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-073225 | Post-hoc archive: code landed in fbfa4d416; verified vs source; 307 tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-073225 | N/A: doc updates are Rows 8-10 Post-hoc archive: code landed in fbfa4d416; verified vs source; 307 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
