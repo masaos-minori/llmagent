@@ -92,8 +92,8 @@ Candidate `masaos-minori/llmagent` is UNCONFIRMED and requires maintainer sign-o
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Resolve UNK-02 with a maintainer (confirm `owner/repo` names) | Pending | — | — | Human decision gate; required before writing |
-| 2 | Populate `allowed_repos` per Implementation > Procedure | Pending | — | — | REQ-002, REQ-004, REQ-006 |
+| 1 | Resolve UNK-02 with a maintainer (confirm `owner/repo` names) | Completed | 20261007-111425 | 20261007-111425 | Human decision gate; required before writing Maintainer confirmed allowlist values |
+| 2 | Populate `allowed_repos` per Implementation > Procedure | Completed | 20261007-111425 | 20261007-111425 | REQ-002, REQ-004, REQ-006 Edited+validated: TOML parses, other keys unchanged, DENY-ALL removed, 813 tests pass |
 | 3 | Deploy via `bash deploy/deploy.sh` + startup verification | Pending | — | — | REQ-005; shared deployment step across all three config docs |
 
 ### Blocker Log
