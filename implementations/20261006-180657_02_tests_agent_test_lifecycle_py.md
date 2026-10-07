@@ -99,10 +99,10 @@ Locate the method with `rg -n 'def test_invalid_transition_from_stopped_shows_ta
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `assert "STOPPED" in msg` to `test_invalid_transition_from_stopped_shows_targets` (lines 670-677) | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Run `uv run pytest tests/agent/test_lifecycle.py::TestAssertValidTransition` | Pending | — | — | REQ-002 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: no docs reference the test | Pending | — | |
+| 1 | Add `assert "STOPPED" in msg` to `test_invalid_transition_from_stopped_shows_targets` (line 678) | Completed | 20261007 | 20261007 | REQ-001; committed 8fe9059c2 |
+| 2 | Run `uv run pytest tests/agent/test_lifecycle.py::TestAssertValidTransition` | Completed | 20261007 | 20261007 | 5 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`): ruff, mypy, targeted+full suite, diff-cover | Completed | 20261007 | 20261007 | ruff clean; mypy scope is scripts/ only (tests/ out of scope, no new error); diff-cover exit 0 (test-only change, N/A) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007 | 20261007 | N/A: no docs reference the test |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
