@@ -95,8 +95,8 @@ Note: the example comment still shows `/opt/llm`; do not copy it into the live v
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Resolve UNK-01 with a maintainer (confirm absolute paths; verify each is a git work tree; exclude `/opt/llm`) | Pending | — | — | Human decision gate; required before writing |
-| 2 | Populate `allowed_repo_paths` per Implementation > Procedure | Pending | — | — | REQ-001, REQ-004, REQ-006 |
+| 1 | Resolve UNK-01 with a maintainer (confirm absolute paths; verify each is a git work tree; exclude `/opt/llm`) | Completed | 20261007-111425 | 20261007-111425 | Human decision gate; required before writing Maintainer confirmed allowlist values |
+| 2 | Populate `allowed_repo_paths` per Implementation > Procedure | Completed | 20261007-111425 | 20261007-111425 | REQ-001, REQ-004, REQ-006 Edited+validated: TOML parses, other keys unchanged, DENY-ALL removed, 813 tests pass |
 | 3 | Deploy via `bash deploy/deploy.sh` + startup verification | Pending | — | — | REQ-005; shared deployment step across all three config docs |
 
 ### Blocker Log
