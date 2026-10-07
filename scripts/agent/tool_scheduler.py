@@ -25,10 +25,9 @@ ScheduledBatches, each holding ScheduledGroups, plus the SerializationEvents the
 plan implies) instead of a metadata/return-value pair that could drift apart.
 
 NOTE — is_side_effect() (shared/tool_executor_helpers.py) is a separate,
-unrelated mechanism: it now backs only the TTL-cache-bypass check in
-shared/tool_executor.py. It no longer drives any batch-level parallel/serial
-decision in execute_all_tool_calls() — that decision now flows entirely
-through this module's phase-building (requires_serial barriers and
+unrelated helper: it has no production caller (only tests call it) and takes no part
+in the parallel/serial decision of execute_all_tool_calls(). That decision flows
+entirely through this module's phase-building (requires_serial barriers and
 resource-scope conflicts, described above) plus the force_serial input. Do not
 conflate is_side_effect() with ToolSpec.requires_serial when reasoning about
 tool-call concurrency.
