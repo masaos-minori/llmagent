@@ -58,7 +58,6 @@ None currently known.
 | `project` | `str` | Project name for context filtering |
 | `repo` | `str` | Repository name for context filtering |
 | `branch` | `str` | Git branch for context filtering |
-
 | `content` | `str` | Full text of the message |
 | `summary` | `str` | Short summary of the content |
 | `tags` | `list[str]` | Keyword tags for classification |

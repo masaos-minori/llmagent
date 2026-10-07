@@ -127,11 +127,12 @@ HTTP is the only supported transport (Explicit in code — `scripts/shared/mcp_c
 | `ToolExecutor` | `shared/tool_executor.py` | Routing, concurrent execution, health registry |
 | `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name → server_key (references only `RuntimeToolRegistry.resolve()`) |
 | `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **Sole routing authority**. Constructed via live `/v1/tools` discovery using McpToolDiscoveryService |
-The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` for details. |
 | `ToolRegistry` | `shared/tool_registry.py` | Seed data for drift detection regarding tool definitions and ownership (constructed at import from frozenset in `tool_constants.py`; not used for routing) |
 | `McpServerConfig` | `shared/mcp_config.py` | Transport settings per server |
 | `McpServerHealthRegistry` | `shared/mcp_health.py` | Server status: HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN (re-exported by `shared/mcp_config.py`) |
 | `HttpTransport` | `shared/http_transport.py` | HTTP POST to MCP servers |
+
+The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` for details. |
 
 ---
 
@@ -145,7 +146,7 @@ agent/factory.py
        → uses McpServerConfig (shared/mcp_config.py)
        → uses McpServerHealthRegistry (shared/mcp_health.py)
 
-MCP server processes (mcp_servers/<name>/server.py)
+MCP server processes (mcp_servers/<name>/<name>_server.py)
    → inherit MCPServer (scripts/mcp_servers/server.py)
    → use CallToolRequest / CallToolResponse (scripts/mcp_servers/models.py)
   → implement dispatch(name, args) → DispatchResult

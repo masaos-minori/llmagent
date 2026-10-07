@@ -34,7 +34,7 @@ from rag.pipeline import RagPipeline, RagPipelineError
 > **Note**: `fetch_full_document` is not provided by `rag/pipeline.py`. Its actual implementation is defined in `rag/repository.py` (`from rag.repository import fetch_full_document`). Similarly, `sanitize_document` is a function from `rag/utils.py` and does not exist in `rag.pipeline`. Actual imports in test and implementation code are only `from rag.pipeline import RagPipeline, RagPipelineError`.
 > (Explicit in code — `scripts/rag/pipeline.py` import statements, `fetch_full_document()` function in `scripts/rag/repository.py`)
 
-The constructor of this class configures it bypassing `module_cfg`. Please refer to the source code for details.
+The constructor of this class is configured by passing `module_cfg`. Please refer to the source code for details.
 
 Refer to the source code for a list of public attributes and methods.
 

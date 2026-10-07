@@ -94,7 +94,7 @@ Schema evolution rules per database are defined in sections 8 through 8d. For `e
 
 ## 9a. AI Reference Guide
 
-rag.sqlite schema location: db_02 section 5; session.sqlite schema location: db_02 section 6; SQLiteHelper supports workflow.sqlite: yes (target="workflow", not documented in spec, see section 4); embedding dimension fixed by `scripts/db/store_protocols.py::get_embedding_dims()`; schema initializer: `create_schema()` — idempotent DDL-only initialization, not migration; DB triggers documented: `chunks_fts` auto-sync triggers (db_02 section 5), `memories_fts` auto-sync triggers (db_02 section 6).
+rag.sqlite schema location: db_02 section 5; session.sqlite schema location: db_02 section 6; SQLiteHelper supports workflow.sqlite: yes (target="workflow"; see section 8a); embedding dimension fixed by `scripts/db/store_protocols.py::get_embedding_dims()`; schema initializer: `create_schema()` — idempotent DDL-only initialization, not migration; DB triggers documented: `chunks_fts` auto-sync triggers (db_02 section 5), `memories_fts` auto-sync triggers (db_02 section 6).
 
 ---
 

@@ -23,7 +23,7 @@ related:
 
 ---
 
-## 4.10 DocumentManager (`scripts/rag/ingestion/document_manager.py`)
+## 4.8 DocumentManager (`scripts/rag/ingestion/document_manager.py`)
 
 `DocumentManager` manages the lifecycle of documents for `RagIngester`: detection of existing documents, ETag refresh, document deletion, and post-ingestion consistency reporting. (Explicit in code — `scripts/rag/ingestion/document_manager.py`)
 

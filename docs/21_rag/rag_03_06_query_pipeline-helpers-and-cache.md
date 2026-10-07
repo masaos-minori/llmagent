@@ -32,7 +32,7 @@ For the status of the semantic cache feature, see the Semantic Cache section of 
 
 ---
 
-## 7a. Helper Classes
+## 7. Helper Classes
 
 ### 7.1 RagRepository (`scripts/rag/repository.py`)
 

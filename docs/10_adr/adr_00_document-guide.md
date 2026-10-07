@@ -52,7 +52,7 @@ No confirmed deviations.
 | ADR status & dependencies | `adr-index.md` |
 | Documentation policy for ADRs | `governance_01_documentation-policy.md` |
 
-## Canonical Source Rule
+## Canonical Sources
 
 See [Documentation Policy](../00_governance/governance_01_documentation-policy.md) for ADR naming conventions, status definitions, and section header rules.
 

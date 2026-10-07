@@ -42,7 +42,7 @@ uv run python scripts/rag/ingestion/chunk_splitter.py
 uv run python scripts/rag/ingestion/chunk_splitter.py --force
 ```
 
-## 2.4 Embedding and Storage
+## 2.4 Step 3: Embedding and Storage
 
 ```bash
 # Embed and save to DB
@@ -92,7 +92,7 @@ See `RagConsistencyReport` in `scripts/db/models.py` for exact fields.
 
 ### 2.6 Additional Options for `crawler.py`
 
-- `--targets-file PATH`: Specifies a TOML file in the `[[url, lang], ...]` format, overriding the `target_urls` in the configuration file (`config/crawler.toml`). Cannot be used with `--url` (`exits with `parser.error`).
+- `--targets-file PATH`: Specifies a TOML file in the `[[url, lang], ...]` format, overriding the `target_urls` in the configuration file (`config/crawler.toml`). Cannot be used with `--url` (exits with `parser.error`).
   (Explicit in code) — From the `main()` argument definition in `scripts/rag/ingestion/crawler.py`.
 
 ---

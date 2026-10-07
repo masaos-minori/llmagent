@@ -25,14 +25,14 @@ related:
 
 ---
 
-## 4.8 ETagManager (`scripts/rag/ingestion/etag_manager.py`)
+## 4.9 ETagManager (`scripts/rag/ingestion/etag_manager.py`)
 
 `ETagManager` manages updates for existing document ETags and Last-Modified timestamps. It provides freshness guards: if `new_fetched_at` is older than the stored `fetched_at`, the input data is considered stale and the existing DB values are preserved. There is one update mode:
 - **Freshness Mode:** Overwrites ETag/Last-Modified when freshness is confirmed.
 
 For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager public methods) and `config/ingester.toml` (configuration parameters).
 
-### 4.8.1 Freshness Comparison: Edge Cases and Error Handling
+### 4.9.1 Freshness Comparison: Edge Cases and Error Handling
 
 - **Only update mode:** Freshness Mode (above) is `ETagManager`'s only update mode.
 - **Timestamp format:** both the incoming and stored `fetched_at` are parsed via
@@ -61,7 +61,7 @@ for how callers rely on this contract, and
 [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md) for
 the `ValueError` conditions in the shared error-handling reference table.
 
-## 4.9 Configuration (`config/ingester.toml`)
+## 4.10 Configuration (`config/ingester.toml`)
 
 See [rag_05_01-configuration-reference.md section 1.2](rag_05_01-configuration-reference.md).
 

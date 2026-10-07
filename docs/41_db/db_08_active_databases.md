@@ -20,7 +20,7 @@ Inventory of the SQLite databases in use, their configuration sources, schema au
 
 Backup and recovery operations are described in [db_06](db_06_api_and_operations-maintenance-and-rotation.md) and [db_07](db_07_api_and_operations-recovery-and-reference.md). No backup schedule is defined by the code in this repository.
 
-Each database is owned by a single component (see the **Owner** line of each section) and uses WAL journal mode, except as noted below.
+Each database is owned by a single component (see the **Owner** line of each section) and uses WAL journal mode.
 
 ## rag.sqlite
 

@@ -289,9 +289,9 @@ for the authorization model decision and role definitions.
 ### Loopback-only Binding
 
 **Note**: The EventBus process already enforces loopback-only binding via
-`EventBusConfig.__post_init__` and `_LoopbackVerifyingServer` — both confirmed by
-direct read. This predates the authentication/authorization work described above
-and remains in effect as defense-in-depth.
+`EventBusConfig.__post_init__` and `_LoopbackVerifyingServer` (Explicit in code).
+It is independent of the authentication/authorization controls described above and
+acts as defense-in-depth.
 
 ## Keywords
 

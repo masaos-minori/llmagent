@@ -65,7 +65,7 @@ See [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) for 
 
 ### Manual Procedure
 
-1. Subclass `MCPServer` in `scripts/mcp_servers/<name>/server.py` and override `dispatch()`.
+1. Subclass `MCPServer` in `scripts/mcp_servers/<name>/<name>_server.py` and override `dispatch()`.
 2. Add a `GET /v1/tools` endpoint that returns tool definitions including the `server_key` field and the schema-2.0 fields (required for routing).
 3. Add the tool name to the frozenset in `shared/tool_constants.py` (owned by this server; static seed for drift detection, not a routing input).
 4. Add the LLM schema to `[[tool_definitions]]` in `config/agent.toml` (OpenAI function-calling format).

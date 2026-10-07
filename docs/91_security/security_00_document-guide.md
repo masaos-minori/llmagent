@@ -34,7 +34,7 @@ This directory contains security-related documentation including system security
 | MCP authentication setup | `mcp_06_14_mcp-authentication-setup.md` |
 | Pre-production fail-open checklist | `mcp_06_13_pre-production-fail-open-checklist.md` |
 
-## Canonical Source Rule
+## Canonical Sources
 
 See [System Security Architecture and Trust Boundaries](security_01_architecture-and-trust-boundaries.md) for the primary security architecture overview.
 

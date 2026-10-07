@@ -59,7 +59,7 @@ RagPipeline.augment(query)
 
 **Identity vs Truthiness (Explicit in code):** Results for HTTP mode and the refiner are determined using identity checks (`is not None`), not truthiness checks. Therefore, an empty string `""` returned by HTTP mode is treated as a valid result, and fallback only occurs when `None` is explicitly returned. This allows distinguishing between "searched but found 0 results" and "not yet searched."
 
-**On DB Connection Failure (Explicit in code):** If opening the DB from `self._rag_db_path` raises `sqlite3.OperationalError` or `sqlite3.DatabaseError`, the DB connection layer wraps it in `RuntimeError` and `augment()` raises a `RagPipelineError` (it catches and falls back, it doesn't just swallow the error).
+**On DB Connection Failure (Explicit in code):** If opening the DB from `self._rag_db_path` raises `sqlite3.OperationalError` or `sqlite3.DatabaseError`, the DB connection layer wraps it in `RuntimeError` and `augment()` raises a `RagPipelineError` (the error is surfaced to the caller, not swallowed and not followed by a fallback).
 
 ### MCP Server Call Path
 

@@ -181,7 +181,7 @@ restate it here by hand.
 
 `config/documentation_canonical_sources.toml` is the system of record for
 canonical-source ownership and the sole authoritative per-area mapping. Area guides (each area's own
-"Canonical Source Rule(s)" section) must not maintain an independent,
+"Canonical Sources" section) must not maintain an independent,
 hand-edited canonical-source mapping going forward — new or changed canonical
 mappings are recorded in the registry, not restated by hand per area.
 

@@ -57,7 +57,7 @@ These documents describe the implementation of `scripts/eventbus/`. Use them whe
 | API details, types & schemas | `eventbus_08` |
 | Known issues & specification inconsistencies | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: EventBus) |
 
-## Canonical Source Rule
+## Canonical Sources
 
 See EventBus runtime-behavior and EventBus persistence-schema in the Canonical Source Registry.
 
