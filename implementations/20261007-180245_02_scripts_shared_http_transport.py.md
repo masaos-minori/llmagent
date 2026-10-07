@@ -136,10 +136,10 @@ twice, while read-tool retry behavior stays unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per target table | N/A — docs are Row 5 | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-215232 | 20261007-215232 | http_transport.py: per-call uuid + X-Idempotency-Key header on every call/retry (REQ-005); write-tool RequestError retry gated on key presence (REQ-006); added _WRITE_TOOLS classification mirroring dispatch.py |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-215232 | 20261007-215232 | Fixed 2 directly-broken auth-header assertions (exact-dict -> membership) as a necessary consequence of the X-Idempotency-Key addition; new idempotency/retry behavioral tests authored under procedure 04 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-215232 | 20261007-215232 | ruff format/check + mypy + bandit all clean; lint-imports shows pre-existing shared->agent broken contract (out of scope) |
+| 4 | Update documentation, if in scope per target table | Completed | — | — | Not applicable here: docs are Row 5 (procedure 05). No doc change in this code-only cycle. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
