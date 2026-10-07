@@ -73,6 +73,7 @@ removed (REQ-002 / AC-2).
 
 ### Details
 
+- Adversarial verification (20261007): Already applied in commit `4316bc537`; the line numbers in this procedure match the pre-migration file, but the block no longer exists (file is now 411 lines). Link-set diff: all Specifications targets are in `related:`; Related ADRs are top-level; no file link lost. Implementation Reference `HttpTransport.call_tool()` was corrected to `HttpTransport.call()` in a later commit (`call_tool` does not exist in `scripts/shared/http_transport.py`). All referenced symbols/files/tests and `related:` targets exist (except the ADR-008 note above). Pre-migration block was lines 391-425; the line numbers below are historical.
 - Block layout (current): `## Related Documents`(391) → `### Related ADRs`(393),
   `### Specifications`(398), `### Known Issues`(411), `### Implementation References`(415);
   `## Completion Checklist`(425).
@@ -119,10 +120,10 @@ Revert this file to the pre-this-change commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002 / AC-2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc-only migration |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_docs_structure.py + check_adr_structure.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261007-145313 | 20261007-145313 | REQ-002 / AC-2 adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 2 | Add or update tests per Validation plan | Completed | 20261007-145313 | 20261007-145313 | N/A: doc-only migration adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261007-145313 | 20261007-145313 | check_docs_structure.py + check_adr_structure.py adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261007-145313 | 20261007-145313 | adversarial verification: already applied in 4316bc537, no link lost; no edit needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
