@@ -36,7 +36,7 @@ async def _do_ack(
     _identity: Principal | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Common ack logic shared by /ack and /events/{event_id}/ack."""
-    logger.warning("DEBUG _do_ack: _principal=%r, _identity=%r", _principal, _identity)
+    logger.debug("DEBUG _do_ack: _principal=%r, _identity=%r", _principal, _identity)
     if not event_id:
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
@@ -49,7 +49,7 @@ async def _do_ack(
     # REQ-002: Validate principal owns the consumer_id
     if (
         _principal
-        and _principal.allowed_consumer_ids
+        and _principal.allowed_consumer_ids is not None
         and consumer_id not in _principal.allowed_consumer_ids
     ):
         logger.warning(
@@ -133,7 +133,7 @@ async def nack(
     # REQ-008: Validate principal owns the consumer_id
     if (
         _principal
-        and _principal.allowed_consumer_ids
+        and _principal.allowed_consumer_ids is not None
         and consumer_id not in _principal.allowed_consumer_ids
     ):
         logger.warning(
