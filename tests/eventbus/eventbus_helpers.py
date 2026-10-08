@@ -11,7 +11,10 @@ from fastapi.testclient import TestClient
 
 
 def make_eventbus_client(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, max_retry: int = 3
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    max_retry: int = 3,
+    sse_idle_timeout: float | None = None,
 ) -> Any:
     from eventbus import app as eb_app
     from eventbus.config import EventBusConfig
@@ -25,6 +28,10 @@ def make_eventbus_client(
         max_retry=max_retry,
         auth_token="test-token",
     )
+    if sse_idle_timeout is not None:
+        # The constructor validates the idle timeout against the heartbeat
+        # interval, so a short value is assigned after construction.
+        object.__setattr__(cfg, "sse_idle_timeout", sse_idle_timeout)
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"

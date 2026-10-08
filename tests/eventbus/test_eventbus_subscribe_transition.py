@@ -21,7 +21,7 @@ from fastapi.testclient import TestClient
 
 @pytest.fixture
 def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
-    with make_eventbus_client(tmp_path, monkeypatch) as c:
+    with make_eventbus_client(tmp_path, monkeypatch, sse_idle_timeout=1.0) as c:
         yield c
 
 
