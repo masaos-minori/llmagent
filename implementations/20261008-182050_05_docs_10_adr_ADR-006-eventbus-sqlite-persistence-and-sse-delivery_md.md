@@ -47,8 +47,10 @@ Update INV-10 text in ADR-006
 ### Details
 
 **For `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` (REQ-006)**:
-- Revise INV-10 from "Concurrent use of the same Consumer ID is prohibited." to "a consumer ID may be used only by the principal bound to it by token"
-- Scope: applies to ACK and NACK paths (not just `/subscribe`)
+- Source verification (Step 4a): Current INV-10 (line 234) already reads "A non-empty Consumer ID has at most one active `GET /subscribe` connection. On ACK and NACK, a caller may use only the `consumer_id` values bound to its token (ADR-013 INV-02)."
+- The ACK/NACK token-binding semantics this procedure targets are ALREADY documented. The premise that INV-10 currently reads "Concurrent use of the same Consumer ID is prohibited." is stale: that phrase describes the subscribe-exclusivity clause, while the ACK/NACK token binding is already present.
+- The proposed replacement wording ("a consumer ID may be used only by the principal bound to it by token") is semantically equivalent to the existing ACK/NACK sentence and would drop the explicit "On ACK and NACK" scope and the ADR-013 reference. No revision is warranted.
+- Correction: this cycle produces zero edits; REQ-006 (INV-10 revised) is already satisfied by the current source.
 
 ## Compatibility considerations
 
@@ -105,10 +107,10 @@ Update INV-10 text in ADR-006
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-232354 | Step 4a finding: INV-10 already documents ACK/NACK token binding (line 234); procedure premise is stale. Zero edits required. Procedure/Details corrected to reflect this. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-232354 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-232354 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-232354 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
