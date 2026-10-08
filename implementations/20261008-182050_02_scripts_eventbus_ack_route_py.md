@@ -106,10 +106,10 @@ Replace truthiness check in `_do_ack()` with `is not None` plus membership check
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-224019 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-224019 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-224019 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-224019 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
