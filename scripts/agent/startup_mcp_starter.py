@@ -109,6 +109,17 @@ class McpServerStarter:
                     )
                     if result is not None:
                         last_startup_time = result
+                    else:
+                        # Subprocess start failed — apply decision matrix
+                        if not cfg.required:
+                            # required=false: disable server and continue
+                            await self.disable_server(key, cfg)
+                            continue
+                        else:
+                            # required=true: raise FATAL (existing behavior preserved)
+                            raise RuntimeError(
+                                f"MCP subprocess {key!r} failed to start after retry"
+                            )
         return self._spawned_subprocesses
 
     async def verify_health(self) -> None:
@@ -140,6 +151,21 @@ class McpServerStarter:
                 ) as client:
                     resp = await client.get(url)
                     if resp.status_code != httpx.codes.OK:
+                        # Parse 503 body for degraded-but-live detection
+                        if resp.status_code == 503:
+                            content_type = resp.headers.get("content-type", "")
+                            if "application/json" in content_type:
+                                try:
+                                    body = resp.json()
+                                    liveness = body.get("liveness", False)
+                                    if liveness:
+                                        logger.info(
+                                            "Post-startup health check: %r is degraded but live",
+                                            server_key,
+                                        )
+                                        continue
+                                except httpx.DecodingError:
+                                    pass  # Not valid JSON — treat as down
                         raise RuntimeError(f"HTTP {resp.status_code}")
                     logger.info("Post-startup health check passed for %r", server_key)
             except Exception:  # noqa: BLE001 — any health-check failure triggers retry rather than aborting startup
@@ -183,6 +209,17 @@ class McpServerStarter:
                 "Post-startup health check passed for %r (after retry)",
                 server_key,
             )
+
+    async def disable_server(self, server_key: str, cfg: McpServerConfig) -> None:
+        """Disable a non-required server: mark is_disabled, remove from routing."""
+        logger.warning(
+            "Disabling MCP server %r (required=false, startup failed)",
+            server_key,
+        )
+        # Mark the server as disabled
+        cfg.startup_mode = StartupMode.NONE
+        # Remove from routing by clearing tool_names
+        cfg.tool_names = []
 
     async def _interruptible_sleep(self, delay: float) -> bool:
         """Sleep for `delay` seconds, racing against `_shutdown_event`.

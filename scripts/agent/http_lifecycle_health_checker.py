@@ -63,9 +63,14 @@ class HealthChecker:
         target_url = url or getattr(cfg, "health_url", _DEFAULT_HEALTH_URL)
         if target_url is None:
             target_url = _DEFAULT_HEALTH_URL
+        # Build headers — add Bearer token if cfg has auth_token
+        headers: dict[str, str] = {}
+        auth_token = getattr(cfg, "auth_token", "")
+        if auth_token:
+            headers["Authorization"] = f"Bearer {auth_token}"
         try:
             async with httpx.AsyncClient(timeout=timeout, **client_kwargs) as client:
-                response = await client.get(target_url)
+                response = await client.get(target_url, headers=headers)
                 if response.status_code == 200:
                     logger.debug("Health check passed at %s", target_url)
                     return True
