@@ -69,7 +69,7 @@ for the functions it currently uses.
 
 ### FTS5 / LLM Content Separation
 
-See [ADR-009](../10_adr/ADR-009-rag-ft5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
+See [ADR-009](../10_adr/ADR-009-rag-fts5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
 
 Japanese chunks store two versions:
 - `chunks.content` — Original text (passed as context to the LLM)

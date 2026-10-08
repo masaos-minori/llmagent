@@ -34,7 +34,7 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-006 | EventBus SQLite Persistence and SSE Delivery | Accepted | `10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
 | ADR-007 | Adoption of HTTP MCP and Non-Support of stdio | Accepted | `10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md` |
 | ADR-008 | Separating SQLite into Four Databases | Accepted | `10_adr/ADR-008-sqlite-4db-separation.md` |
-| ADR-009 | Separating RAG FTS5 Search Text from LLM Presentation Text | Accepted | `10_adr/ADR-009-rag-ft5-text-separation.md` |
+| ADR-009 | Separating RAG FTS5 Search Text from LLM Presentation Text | Accepted | `10_adr/ADR-009-rag-fts5-text-separation.md` |
 | ADR-010 | In-Process Fallback When External RAG Execution Fails | Accepted | `10_adr/ADR-010-rag-fallback.md` |
 | ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `10_adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
 | ADR-013 | EventBus Authentication and Authorization | Accepted | `10_adr/ADR-013-eventbus-authentication-authorization.md` |

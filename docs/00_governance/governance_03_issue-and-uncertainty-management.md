@@ -80,7 +80,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/rag/ingestion/chunk_japanese.py`
 - **Owner**: Unassigned
 - **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-009-rag-ft5-text-separation.md`
+- **Target**: `docs/10_adr/ADR-009-rag-fts5-text-separation.md`
 - **Related**: None
 - **Summary**: Sentences that normalize to nothing are dropped, so `content` is lost for them.
 - **Current Description**: ADR-009 INV-05 says normalization never costs original text.

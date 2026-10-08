@@ -19,7 +19,7 @@ related:
   - governance_04_documentation-checks.md
   - ADR-005-rag-source-derived-index-relationships.md
   - ADR-008-sqlite-4db-separation.md
-  - ADR-009-rag-ft5-text-separation.md
+  - ADR-009-rag-fts5-text-separation.md
   - ADR-010-rag-fallback.md
 ---
 
@@ -54,7 +54,7 @@ Read this file first to determine which chapter you should open.
 | What are `RawHit`, `MergedHit`, and `RankedHit`? | `rag_04` |
 | What are the configuration parameters? | `rag_05` |
 | Are there any known bugs or behavioral inconsistencies? | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |
-| What are the established design invariants regarding FTS5/LLM content separation and table responsibilities? | [ADR-009](../10_adr/ADR-009-rag-ft5-text-separation.md) / [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) |
+| What are the established design invariants regarding FTS5/LLM content separation and table responsibilities? | [ADR-009](../10_adr/ADR-009-rag-fts5-text-separation.md) / [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md) |
 
 ---
 
