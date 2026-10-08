@@ -36,6 +36,21 @@ def _disable_dispatch_duplicate_cache(monkeypatch):
     monkeypatch.setattr(dispatch, "_is_side_effecting", lambda name: False)
 
 
+def _snapshot_service_state(service):
+    """Snapshot a GitService's attributes for later restoration.
+
+    The service holds the very same GitConfig object as ``git_server._cfg``.
+    Deep-copying that object and restoring the copy would silently detach the
+    service from ``_cfg``: later tests that patch ``_cfg`` (for example the
+    allowed remote URLs) would no longer reach the service, so their result
+    would depend on which fixture ran earlier. Keep the config by reference.
+    """
+    return {
+        key: value if key == "_config" else copy.deepcopy(value)
+        for key, value in service.__dict__.items()
+    }
+
+
 class TestGitSecurityCompliance:
     @pytest.fixture
     def svc(self) -> GitService:
@@ -1826,7 +1841,7 @@ class TestNewlyReachableToolsViaHTTP:
         # that ran afterward in the same session, once any test using this
         # fixture had run at all.
         cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
-        svc_snap = copy.deepcopy(git_server._service.__dict__)
+        svc_snap = _snapshot_service_state(git_server._service)
         # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
@@ -1947,7 +1962,7 @@ class TestRemoteAuthorizationViaHTTP:
         # that ran afterward in the same session, once any test using this
         # fixture had run at all.
         cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
-        svc_snap = copy.deepcopy(git_server._service.__dict__)
+        svc_snap = _snapshot_service_state(git_server._service)
         # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
@@ -2132,7 +2147,7 @@ class TestGitServiceErrorHandlerIdentity:
         # that ran afterward in the same session, once any test using this
         # fixture had run at all.
         cfg_snap = copy.deepcopy(git_server._cfg.__dict__)
-        svc_snap = copy.deepcopy(git_server._service.__dict__)
+        svc_snap = _snapshot_service_state(git_server._service)
         # Modify attributes IN PLACE (app holds refs to these objects)
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
