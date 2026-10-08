@@ -72,8 +72,8 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 6. stdio is not a valid transport value: the configuration schema accepts only `http`. (Explicit in code — `scripts/shared/mcp_config.py` `TransportType`)
 7. Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
 8. MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
-9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`)
-10. Fault isolation, operational monitoring, independent deployment, and placement on separate hosts take priority over the cost of HTTP Serialization and Socket communication.
+9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Every MCP server verifies the Bearer token on every endpoint, except as listed in Exceptions. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`)
+10. Fault isolation, operational monitoring, independent deployment take priority over the cost of HTTP Serialization and Socket communication.
 
 ### Scope
 
@@ -98,11 +98,11 @@ With HTTP, MCP servers can be started, stopped, Health Checked, and monitored in
 
 ### 2. Second Reason for Adoption — Security
 
-With HTTP, security controls through authentication (Bearer Token) and TLS become possible. These controls are difficult with stdio.
+With HTTP, each server can authenticate every caller with a Bearer token and reject requests that do not carry it. A stdio channel offers no comparable per-request authentication point.
 
-### 3. Third Reason for Adoption — Portability
+### 3. Third Reason for Adoption — Deployment Independence
 
-With HTTP, placement on separate hosts becomes possible. Even if an MCP server is deployed on a separate host, it can communicate with the same protocol.
+With HTTP, a server can be restarted, upgraded, or replaced without restarting the Agent, and its health can be probed by tools other than the Agent.
 
 ## Alternatives Considered
 
@@ -122,8 +122,7 @@ Officially support the stdio Transport and use stdin/stdout for communication be
 
 - No fault isolation
 - Operational monitoring is difficult
-- Authentication and TLS are difficult
-- No placement on separate hosts
+- No per-request authentication point
 - No independent deployment
 
 #### Reason for Rejection
@@ -194,16 +193,15 @@ Rejected to prioritize Security and prevent unauthenticated access.
 - Independent lifecycle management of MCP servers becomes possible
 - Fault isolation is ensured
 - Operational monitoring becomes easier
-- Security controls through authentication and TLS become possible
-- Placement on separate hosts becomes possible
+- Per-request authentication with a Bearer token becomes possible
 - Independent deployment becomes possible
 
 ### Negative Consequences
 
 - HTTP Serialization overhead
 - Socket communication cost
-- Authentication must be implemented
-- TLS configuration is required
+- Authentication tokens must be provisioned for every server
+- Placement on a separate host is not possible without designing TLS/mTLS (see Review Triggers)
 
 ### Operational Consequences
 
@@ -226,9 +224,13 @@ Rejected to prioritize Security and prevent unauthenticated access.
 - INV-06: stdio is not a valid transport value in the configuration schema.
 - INV-07: Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
 - INV-08: MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
-- INV-09: MCP servers bind only to a loopback address and require a non-empty authentication token; exposure beyond localhost is not supported.
-- INV-10: Fault isolation, operational monitoring, independent deployment, and placement on separate hosts take priority over the cost of HTTP Serialization and Socket communication.
+- INV-09: MCP servers bind only to a loopback address. Every enabled server entry carries a non-empty authentication token, and every MCP server rejects requests without a matching Bearer token, except as listed in Exceptions.
+- INV-10: Fault isolation, operational monitoring, and independent deployment take priority over the cost of HTTP Serialization and Socket communication.
 - INV-11: The names of the MCP server liveness states managed by McpServerHealthRegistry (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN) are not changed implicitly, because multiple callers outside the Transport layer compare them directly.
+
+## Exceptions
+
+- mdq-mcp attaches the authentication middleware with an empty token and does not verify Bearer tokens at the HTTP layer. Its security boundary is the fail-closed `allowed_dirs` path authorization (see `mcp_05_05_mdq-enforcement-and-lockdown.md`). The Agent-side `auth_token` for mdq must still be non-empty. Changing this exception requires a decision recorded in this ADR.
 
 ## Failure Policy
 
@@ -245,10 +247,10 @@ Rejected to prioritize Security and prevent unauthenticated access.
 
 ### Retry Policy
 
-- Retry target: HTTP 429/502/503/504
+- Retry target: HTTP 429/502/503/504 and transport-level request errors other than timeouts (for example, connection errors)
 - Retry count: bounded
-- Backoff: increasing delay between attempts (`scripts/shared/http_transport.py`)
-- Errors not retried: timeouts, other HTTP status codes
+- Backoff: increasing delay between attempts for retryable HTTP statuses (`scripts/shared/http_transport.py`)
+- Errors not retried: timeouts and other HTTP status codes
 
 ### Fallback Policy
 
@@ -324,8 +326,8 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 
 ## Implementation Notes
 
-- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding and a Bearer-token authentication middleware.
-- `HttpTransport.call()` posts to `/v1/call_tool` with a bounded retry for 429/502/503/504; timeouts and other HTTP status errors surface as `TransportError`.
+- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Each server module attaches the Bearer-token authentication middleware through `attach_auth_middleware()`; mdq-mcp attaches it with an empty token (see Exceptions) and rag-pipeline-mcp does not attach it (MCP-005).
+- `HttpTransport.call()` posts to `/v1/call_tool` with a bounded retry for 429/502/503/504 and for transport request errors other than timeouts; timeouts and other HTTP status errors surface as `TransportError`.
 - `ToolTransportInvoker.invoke()` applies the per-server Semaphore and records success or failure in `McpServerHealthRegistry`.
 - `TransportType` accepts only `http`; the startup mode (`none`, `persistent`, `subprocess`) selects how the process is launched, not the transport.
 
@@ -333,7 +335,7 @@ This chapter is not a basis for design decisions. See Implementation References 
 
 ## Known Deviations
 
-No confirmed deviations.
+- **Known Issue**: MCP-005 — tracked in governance_03 Part 1 (rag-pipeline-mcp does not attach the Bearer authentication middleware; violates INV-09)
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -367,6 +369,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-08)**: The removal of the TLS and separate-host claims, the mdq-mcp authentication exception, and the MCP-005 deviation were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -404,7 +407,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [x] Discrepancies with the current implementation are registered as Known Issues
+- [x] Discrepancies with the current implementation are registered as Known Issues (MCP-005)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
 - [x] The ADR is registered in the ADR index and the Document Guides of related areas
