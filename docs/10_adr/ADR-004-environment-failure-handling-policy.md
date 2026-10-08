@@ -172,11 +172,11 @@ This section is maintained in the companion document: [Verification](adr_04_fail
 
 - For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale (companion document `adr_04_failure-handling-supporting-sections.md`).
 - Retry policy when an MCP server is unreachable: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry. Subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). `HealthChecker.startup_poll()` in `scripts/agent/http_lifecycle_health_checker.py` has no production caller (Explicit in code).
-- The subprocess startup path does not read `required`, so a failed non-required server still aborts startup (AGENT-004; Explicit in code — `scripts/agent/startup_mcp_starter.py`).
+- When a subprocess fails to start after the retry, `McpServerStarter` disables a non-required server (`disable_server()` sets the startup mode to none and clears its tool names) and continues, and aborts startup for a required server (Explicit in code — `scripts/agent/startup_mcp_starter.py`). The ledger entry AGENT-004 was still open when this note was written.
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision Details #18 and INV-09)
+- **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision Details #18 and INV-09; the spawn-failure path now disables such a server, and the ledger entry awaits closure)
 
 ## Review Triggers
 
