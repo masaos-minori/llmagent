@@ -126,10 +126,10 @@ that break once `X-Idempotency-Key` is added.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per target table | N/A — docs are Row 5 | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261008-092417 | 20261008-092417 | Assertion conversion at lines 232/252 landed in c433c3c68 (idem01 Rows 1-2); retry-test additions (procedure steps 3-4) applied this cycle. |
+| 2 | Add or update tests per Validation plan | Completed | 20261008-092417 | 20261008-092417 | Added TestHttpTransportIdempotencyRetry: retry-reuse (REQ-005) and write-vs-read retry-distinction (REQ-006) methods. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261008-092426 | 20261008-092426 | ruff clean; pytest pass (incl. new TestHttpTransportIdempotencyRetry); mypy no new errors (pre-existing line 109 arg-type untouched; scripts/ unused-ignore out of scope). |
+| 4 | Update documentation, if in scope per target table | N/A — docs are Row 5 | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
