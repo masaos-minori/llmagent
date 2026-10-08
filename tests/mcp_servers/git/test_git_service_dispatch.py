@@ -17,7 +17,7 @@ from unittest.mock import MagicMock, patch
 import git
 import pytest
 from mcp_servers.git.errors import GitServiceError
-from mcp_servers.git.git_models import GitPullRequest, GitPushRequest
+from mcp_servers.git.git_models import GitConfig, GitPullRequest, GitPushRequest
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.repository_state import RepositoryState
 from pydantic import ValidationError
@@ -27,11 +27,19 @@ def _svc(
     allowed: list[str] | None = None,
     read_only: bool = True,
     max_log: int = 50,
+    allowed_remote_urls: list[str] | None = None,
 ) -> GitService:
-    return GitService(
+    cfg = GitConfig(
         allowed_repo_paths=allowed if allowed is not None else [],
         read_only=read_only,
         max_log_entries=max_log,
+        allowed_remote_urls=allowed_remote_urls or [],
+    )
+    return GitService(
+        allowed_repo_paths=cfg.allowed_repo_paths,
+        read_only=cfg.read_only,
+        max_log_entries=cfg.max_log_entries,
+        _config=cfg,
     )
 
 
@@ -255,9 +263,11 @@ class TestGitPull:
 
     @pytest.mark.asyncio
     async def test_dry_run_fetch(self) -> None:
-        from mcp_servers.git.git_models import GitConfig
-
-        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        svc = _svc(
+            allowed=["/opt/repos"],
+            read_only=False,
+            allowed_remote_urls=["https://example.com/repo.git"],
+        )
         mock_repo = MagicMock()
         mock_repo.git.fetch.return_value = "up to date"
         origin = MagicMock()
@@ -275,12 +285,6 @@ class TestGitPull:
         snap.audit.return_value = {}
         with (
             patch.object(RepositoryState, "snapshot", return_value=snap),
-            patch(
-                "mcp_servers.git.format_output.GitConfig.load",
-                return_value=GitConfig(
-                    allowed_remote_urls=["https://example.com/repo.git"]
-                ),
-            ),
         ):
             result = await svc.git_pull(
                 {"repo_path": "/opt/repos/proj", "dry_run": True, "branch": "main"}
@@ -290,9 +294,11 @@ class TestGitPull:
 
     @pytest.mark.asyncio
     async def test_pull_result(self) -> None:
-        from mcp_servers.git.git_models import GitConfig
-
-        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        svc = _svc(
+            allowed=["/opt/repos"],
+            read_only=False,
+            allowed_remote_urls=["https://example.com/repo.git"],
+        )
         mock_repo = MagicMock()
         mock_repo.is_dirty.return_value = False
         mock_repo.head.is_detached = False
@@ -313,12 +319,6 @@ class TestGitPull:
         snap.audit.return_value = {}
         with (
             patch.object(RepositoryState, "snapshot", return_value=snap),
-            patch(
-                "mcp_servers.git.format_output.GitConfig.load",
-                return_value=GitConfig(
-                    allowed_remote_urls=["https://example.com/repo.git"]
-                ),
-            ),
         ):
             result = await svc.git_pull(
                 {"repo_path": "/opt/repos/proj", "branch": "main"}

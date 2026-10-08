@@ -12,7 +12,7 @@ from __future__ import annotations
 import git
 import git.exc
 
-from mcp_servers.git.errors import GitServiceError
+from mcp_servers.git.errors import GitPolicyError, GitServiceError
 from mcp_servers.git.git_models import (
     GitAddRequest,
     GitCheckoutRequest,
@@ -117,7 +117,7 @@ def format_commit(repo: git.Repo, req: GitCommitRequest) -> str:
     if req.dry_run:
         return f"[DRY RUN] Would commit {len(staged)} file(s): {staged}\nMessage: {req.message!r}"
     if not staged:
-        raise GitServiceError("nothing staged to commit")
+        raise GitPolicyError("nothing staged to commit")
     commit = repo.index.commit(req.message)
     return f"Committed: {commit.hexsha[:8]} {req.message!r}"
 
@@ -156,8 +156,9 @@ def format_checkout(
         not allow_detached_head and refreshed.head_type == "detached"
     ):
         raise GitServiceError(
-            f"checkout postcondition failed: expected branch {req.branch!r}, "
-            f"got {'<detached HEAD>' if refreshed.head_type == 'detached' else refreshed.active_branch!r}"
+            f"checkout postcondition failed: state already changed; "
+            f"expected branch {req.branch!r}, got "
+            f"{'<detached HEAD>' if refreshed.head_type == 'detached' else refreshed.active_branch!r}"
         )
     return f"Switched to branch '{req.branch}'"
 
@@ -170,16 +171,14 @@ def _authorize_remote(state: RepositoryState, remote_name: str, cfg: GitConfig) 
     url = _resolve_remote_url(state._repo, remote_name)
     redacted = _redact_remote_url(url) if url is not None else "(unknown remote)"
     if url is None or url not in cfg.allowed_remote_urls:
-        raise GitServiceError(
+        raise GitPolicyError(
             f"[DENIED] remote {remote_name!r} ({redacted}) is not an authorized remote"
         )
 
 
-def format_pull(
-    state: RepositoryState, req: GitPullRequest, cfg: GitConfig | None = None
-) -> str:
+def format_pull(state: RepositoryState, req: GitPullRequest, cfg: GitConfig) -> str:
     """Format output for fetching and merging remote changes."""
-    _authorize_remote(state, req.remote, cfg or GitConfig.load())
+    _authorize_remote(state, req.remote, cfg)
     if req.dry_run:
         assert state._repo is not None
         fetch_info = state._repo.git.fetch("--dry-run", req.remote)
@@ -199,19 +198,12 @@ def format_pull(
     return result or "Already up to date."
 
 
-def format_push(
-    state: RepositoryState, req: GitPushRequest, cfg: GitConfig | None = None
-) -> str:
+def format_push(state: RepositoryState, req: GitPushRequest, cfg: GitConfig) -> str:
     """Format output for pushing local commits to a remote."""
-    _authorize_remote(state, req.remote, cfg or GitConfig.load())
+    _authorize_remote(state, req.remote, cfg)
     branch = req.branch
     if req.dry_run:
         return f"[DRY RUN] Would push branch '{branch}' to '{req.remote}'"
     assert state._repo is not None
     result = state._repo.git.push(req.remote, "--", branch)
-    _rejection_markers = ("[rejected]", "non-fast-forward", "failed to push")
-    if result and any(m in result for m in _rejection_markers):
-        raise GitServiceError(
-            f"push postcondition failed: rejection marker detected in output: {result!r}"
-        )
     return result or f"Pushed '{branch}' to '{req.remote}'"

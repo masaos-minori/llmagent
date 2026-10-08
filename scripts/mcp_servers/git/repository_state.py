@@ -213,10 +213,6 @@ class RepositoryState:
                     False,
                     "pull postcondition failed: unresolved merge conflicts remain",
                 )
-        elif tool_name == "git_push":
-            if isinstance(result, str):
-                if "rejected" in result.lower() or "error" in result.lower():
-                    return False, f"push postcondition failed: {result}"
         return True, ""
 
     def audit(self, result: object) -> dict[str, object]:

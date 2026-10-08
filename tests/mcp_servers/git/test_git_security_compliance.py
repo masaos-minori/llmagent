@@ -39,11 +39,18 @@ class TestGitSecurityCompliance:
     @pytest.fixture
     def svc(self) -> GitService:
         # Setup service with one allowed repo and one protected branch
-        return GitService(
+        cfg = GitConfig(
             allowed_repo_paths=["/tmp/repo"],
             read_only=False,
             max_log_entries=50,
             protected_branches=["main"],
+        )
+        return GitService(
+            allowed_repo_paths=cfg.allowed_repo_paths,
+            read_only=cfg.read_only,
+            max_log_entries=cfg.max_log_entries,
+            protected_branches=cfg.protected_branches,
+            _config=cfg,
         )
 
     def test_is_safe_ref(self, svc: GitService) -> None:
@@ -126,12 +133,20 @@ class TestGitSecurityCompliance:
 
     @pytest.fixture
     def svc_allow_detached(self) -> GitService:
-        return GitService(
+        cfg = GitConfig(
             allowed_repo_paths=["/tmp/repo"],
             read_only=False,
             max_log_entries=50,
             protected_branches=["main"],
             allow_detached_head=True,
+        )
+        return GitService(
+            allowed_repo_paths=cfg.allowed_repo_paths,
+            read_only=cfg.read_only,
+            max_log_entries=cfg.max_log_entries,
+            protected_branches=cfg.protected_branches,
+            allow_detached_head=cfg.allow_detached_head,
+            _config=cfg,
         )
 
     @pytest.fixture
@@ -282,14 +297,11 @@ class TestGitSecurityCompliance:
         origin.name = "origin"
         origin.url = "https://example.com/repo.git"
         snap._repo.remotes = [origin]
+        svc_allow_detached._config.allowed_remote_urls = [
+            "https://example.com/repo.git"
+        ]
         with (
             patch.object(RepositoryState, "snapshot", return_value=snap),
-            patch(
-                "mcp_servers.git.format_output.GitConfig.load",
-                return_value=GitConfig(
-                    allowed_remote_urls=["https://example.com/repo.git"]
-                ),
-            ),
         ):
             args = {
                 "repo_path": "/tmp/repo",
@@ -342,14 +354,9 @@ class TestGitSecurityCompliance:
         origin.name = "origin"
         origin.url = "https://example.com/repo.git"
         snap._repo.remotes = [origin]
+        svc._config.allowed_remote_urls = ["https://example.com/repo.git"]
         with (
             patch.object(RepositoryState, "snapshot", return_value=snap),
-            patch(
-                "mcp_servers.git.format_output.GitConfig.load",
-                return_value=GitConfig(
-                    allowed_remote_urls=["https://example.com/repo.git"]
-                ),
-            ),
         ):
             args = {
                 "repo_path": "/tmp/repo",
@@ -1738,9 +1745,11 @@ class TestDryRunAndDetachedHeadLivePath:
         original_read_only = git_server._cfg.read_only
         original_svc_paths = git_server._service._allowed_repo_paths
         original_svc_read_only = git_server._service._read_only
+        original_allowed_remote_urls = git_server._cfg.allowed_remote_urls
         try:
             git_server._cfg.allowed_repo_paths = [str(repo_dir)]
             git_server._cfg.read_only = False
+            git_server._cfg.allowed_remote_urls = [str(remote_dir)]
             git_server._service._allowed_repo_paths = [str(repo_dir)]
             git_server._service._read_only = False
             pull_response = client.post(
@@ -1770,6 +1779,7 @@ class TestDryRunAndDetachedHeadLivePath:
         finally:
             git_server._cfg.allowed_repo_paths = original_paths
             git_server._cfg.read_only = original_read_only
+            git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
             git_server._service._allowed_repo_paths = original_svc_paths
             git_server._service._read_only = original_svc_read_only
 
@@ -1828,8 +1838,18 @@ class TestNewlyReachableToolsViaHTTP:
         try:
             yield
         finally:
-            git_server._cfg.__dict__.update(cfg_snap)
-            git_server._service.__dict__.update(svc_snap)
+            # Restore the snapshot (attribute-by-attribute to avoid adding new keys)
+            for key, value in cfg_snap.items():
+                git_server._cfg.__dict__[key] = value
+            for key, value in svc_snap.items():
+                git_server._service.__dict__[key] = value
+            # Remove any attributes added during the test that aren't in the snapshot
+            for key in list(git_server._cfg.__dict__.keys()):
+                if key not in cfg_snap:
+                    del git_server._cfg.__dict__[key]
+            for key in list(git_server._service.__dict__.keys()):
+                if key not in svc_snap:
+                    del git_server._service.__dict__[key]
 
     @pytest.mark.parametrize(
         ("tool_name", "extra_args"),
@@ -1939,19 +1959,30 @@ class TestRemoteAuthorizationViaHTTP:
         try:
             yield
         finally:
-            git_server._cfg.__dict__.update(cfg_snap)
-            git_server._service.__dict__.update(svc_snap)
+            # Restore the snapshot (attribute-by-attribute to avoid adding new keys)
+            for key, value in cfg_snap.items():
+                git_server._cfg.__dict__[key] = value
+            for key, value in svc_snap.items():
+                git_server._service.__dict__[key] = value
+            # Remove any attributes added during the test that aren't in the snapshot
+            for key in list(git_server._cfg.__dict__.keys()):
+                if key not in cfg_snap:
+                    del git_server._cfg.__dict__[key]
+            for key in list(git_server._service.__dict__.keys()):
+                if key not in svc_snap:
+                    del git_server._service.__dict__[key]
 
     def test_pull_rejects_unauthorized_remote(self, client, enabled, repo_dir):
         """AC-1: an unauthorized remote URL is rejected, not silently allowed."""
         repo = git.Repo(str(repo_dir))
         repo.create_remote("origin", "https://evil.example.com/repo.git")
-        with patch(
-            "mcp_servers.git.format_output.GitConfig.load",
-            return_value=GitConfig(
-                allowed_remote_urls=["https://trusted.example.com/repo.git"]
-            ),
-        ):
+        from mcp_servers.git import git_server
+
+        original_allowed_remote_urls = getattr(
+            git_server._cfg, "allowed_remote_urls", []
+        )
+        git_server._cfg.allowed_remote_urls = ["https://trusted.example.com/repo.git"]
+        try:
             response = client.post(
                 "/v1/call_tool",
                 json={
@@ -1963,13 +1994,15 @@ class TestRemoteAuthorizationViaHTTP:
                     },
                 },
             )
-        # _authorize_remote() raises GitServiceError, which propagates
-        # uncaught through dispatch_tool() (it only converts ValueError) to
-        # git_server.py's registered @app.exception_handler(GitServiceError) —
-        # a 500 response with {"detail": str(exc)}, not a graceful
+        finally:
+            git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
+        # _authorize_remote() raises GitPolicyError, which is caught by
+        # dispatch_tool() and returned as a graceful error response
         # {"result": ..., "is_error": true} CallToolResponse.
-        assert response.status_code == 500
-        assert "not an authorized remote" in response.json()["detail"]
+        assert response.status_code == 200
+        body = response.json()
+        assert body.get("is_error") is True
+        assert "not an authorized remote" in body.get("result", "")
 
     def test_push_rejects_remote_changed_since_authorization(
         self, client, enabled, repo_dir
@@ -1978,12 +2011,13 @@ class TestRemoteAuthorizationViaHTTP:
         resolves to a different one — rejected, not allowed via the stale name."""
         repo = git.Repo(str(repo_dir))
         repo.create_remote("origin", "https://redirected.example.com/repo.git")
-        with patch(
-            "mcp_servers.git.format_output.GitConfig.load",
-            return_value=GitConfig(
-                allowed_remote_urls=["https://trusted.example.com/repo.git"]
-            ),
-        ):
+        from mcp_servers.git import git_server
+
+        original_allowed_remote_urls = getattr(
+            git_server._cfg, "allowed_remote_urls", []
+        )
+        git_server._cfg.allowed_remote_urls = ["https://trusted.example.com/repo.git"]
+        try:
             response = client.post(
                 "/v1/call_tool",
                 json={
@@ -1995,8 +2029,11 @@ class TestRemoteAuthorizationViaHTTP:
                     },
                 },
             )
-        assert response.status_code == 500
-        assert "not an authorized remote" in response.json()["detail"]
+        finally:
+            git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
+        body = response.json()
+        assert body.get("is_error") is True
+        assert "not an authorized remote" in body.get("result", "")
 
     def test_pull_rejection_never_leaks_raw_credential(self, client, enabled, repo_dir):
         """AC-3: an embedded credential must never appear in the rejection
@@ -2005,12 +2042,13 @@ class TestRemoteAuthorizationViaHTTP:
         repo.create_remote(
             "origin", "https://user:faketoken123@evil.example.com/repo.git"
         )
-        with patch(
-            "mcp_servers.git.format_output.GitConfig.load",
-            return_value=GitConfig(
-                allowed_remote_urls=["https://trusted.example.com/repo.git"]
-            ),
-        ):
+        from mcp_servers.git import git_server
+
+        original_allowed_remote_urls = getattr(
+            git_server._cfg, "allowed_remote_urls", []
+        )
+        git_server._cfg.allowed_remote_urls = ["https://trusted.example.com/repo.git"]
+        try:
             response = client.post(
                 "/v1/call_tool",
                 json={
@@ -2022,10 +2060,13 @@ class TestRemoteAuthorizationViaHTTP:
                     },
                 },
             )
-        assert response.status_code == 500
+        finally:
+            git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
         body = response.json()
-        assert "faketoken123" not in str(body)
-        assert "***@evil.example.com" in str(body)
+        assert body.get("is_error") is True
+        result_str = str(body.get("result", ""))
+        assert "faketoken123" not in result_str
+        assert "***@evil.example.com" in result_str
 
     def test_pull_authorized_remote_proceeds(self, client, enabled, repo_dir):
         """Sanity check: a remote resolving to an authorized URL is not rejected
@@ -2035,10 +2076,13 @@ class TestRemoteAuthorizationViaHTTP:
         git.Repo.init(str(remote_dir), bare=True)
         repo = git.Repo(str(repo_dir))
         repo.create_remote("origin", str(remote_dir))
-        with patch(
-            "mcp_servers.git.format_output.GitConfig.load",
-            return_value=GitConfig(allowed_remote_urls=[str(remote_dir)]),
-        ):
+        from mcp_servers.git import git_server
+
+        original_allowed_remote_urls = getattr(
+            git_server._cfg, "allowed_remote_urls", []
+        )
+        git_server._cfg.allowed_remote_urls = [str(remote_dir)]
+        try:
             response = client.post(
                 "/v1/call_tool",
                 json={
@@ -2046,6 +2090,8 @@ class TestRemoteAuthorizationViaHTTP:
                     "args": {"repo_path": str(repo_dir), "branch": "develop"},
                 },
             )
+        finally:
+            git_server._cfg.allowed_remote_urls = original_allowed_remote_urls
         assert response.json().get("is_error") is not True
 
 
@@ -2098,8 +2144,18 @@ class TestGitServiceErrorHandlerIdentity:
         try:
             yield
         finally:
-            git_server._cfg.__dict__.update(cfg_snap)
-            git_server._service.__dict__.update(svc_snap)
+            # Restore the snapshot (attribute-by-attribute to avoid adding new keys)
+            for key, value in cfg_snap.items():
+                git_server._cfg.__dict__[key] = value
+            for key, value in svc_snap.items():
+                git_server._service.__dict__[key] = value
+            # Remove any attributes added during the test that aren't in the snapshot
+            for key in list(git_server._cfg.__dict__.keys()):
+                if key not in cfg_snap:
+                    del git_server._cfg.__dict__[key]
+            for key in list(git_server._service.__dict__.keys()):
+                if key not in svc_snap:
+                    del git_server._service.__dict__[key]
 
     def test_induced_git_service_error_is_caught_by_registered_handler(
         self, client, enabled, repo_dir, monkeypatch

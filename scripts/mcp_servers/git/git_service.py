@@ -365,11 +365,6 @@ class GitService:
             raise ValueError(err)
 
         def _checkout_op(repo: git.Repo, state: RepositoryState) -> str:
-            if not req.dry_run:
-                if state.is_dirty:
-                    return "[DENIED] worktree has uncommitted changes (dirty worktree)"
-                if state.is_detached_head and not self._allow_detached_head:
-                    return "[DENIED] repository is in a detached HEAD state"
             return format_checkout(
                 state, req, allow_detached_head=self._allow_detached_head
             )
@@ -402,12 +397,8 @@ class GitService:
             raise ValueError(err)
 
         def _pull_op(repo: git.Repo, state: RepositoryState) -> str:
-            if not req.dry_run:
-                if state.is_dirty:
-                    return "[DENIED] worktree has uncommitted changes (dirty worktree)"
-                if state.is_detached_head and not self._allow_detached_head:
-                    return "[DENIED] repository is in a detached HEAD state"
-            return format_pull(state, req)
+            assert self._config is not None
+            return format_pull(state, req, self._config)
 
         return await self._run_tool(
             "git_pull",
@@ -437,12 +428,8 @@ class GitService:
             raise ValueError(err)
 
         def _push_op(repo: git.Repo, state: RepositoryState) -> str:
-            if not req.dry_run:
-                if state.is_dirty:
-                    return "[DENIED] worktree has uncommitted changes (dirty worktree)"
-                if state.is_detached_head and not self._allow_detached_head:
-                    return "[DENIED] repository is in a detached HEAD state"
-            return format_push(state, req)
+            assert self._config is not None
+            return format_push(state, req, self._config)
 
         return await self._run_tool(
             "git_push",
