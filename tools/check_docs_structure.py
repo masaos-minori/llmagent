@@ -85,7 +85,7 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # The Known Issue inventory grows with each active entry (17 template fields
     # per entry); the owner accepted this exception (2026-10-07) and re-accepted it
     # after the inventory changed (2026-10-08).
-    "governance_03_issue-and-uncertainty-management.md": 28414,
+    "governance_03_issue-and-uncertainty-management.md": 29832,
 }
 
 

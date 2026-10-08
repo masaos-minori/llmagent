@@ -32,17 +32,17 @@ Accepted
 
 ## Summary
 
-EventBus API establishes a fail-closed security boundary by adding Bearer-token authentication middleware, a five-role authorization model (publisher/consumer/operator/monitoring/admin) bound to caller identity, structured audit logging of authorization failures and privileged actions, and fail-closed configuration-key validation — while leaving the already-strict loopback-only bind enforcement untouched.
+EventBus API establishes a fail-closed security boundary by adding Bearer-token authentication resolved by per-route dependencies, a five-role authorization model (publisher/consumer/operator/monitoring/admin) bound to caller identity, structured audit logging of authorization failures and privileged actions, and fail-closed configuration-key validation — while leaving the already-strict loopback-only bind enforcement untouched.
 
 ## Context
 
 ### Problem
 
-EventBus routes in `scripts/eventbus/` authenticate and authorize callers via Bearer-token middleware and role-based authorization. Consumer identity validation is skipped for a token with no configured `consumer_id` allowlist entry (EVENTBUS-008; see Known Deviations). `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
+EventBus routes in `scripts/eventbus/` are intended to authenticate callers by Bearer token and authorize them by role. Roles are resolved by per-route dependencies and the HTTP middleware only assigns a request ID; `/health` and `/publish` are registered without a role dependency (EVENTBUS-016). Consumer identity validation is skipped for a token with no configured `consumer_id` allowlist entry (EVENTBUS-008; see Known Deviations). `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
 
 ### Current State
 
-Auth middleware (`attach_auth_middleware(app)`) is attached to all routes in `scripts/eventbus/app.py`. Each route requires role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation.
+`attach_auth_middleware(app)` (request-ID assignment only) is attached in `scripts/eventbus/app.py`. Routes other than `/health` and `/publish` require role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation.
 
 ### Constraints
 
@@ -53,7 +53,7 @@ Auth middleware (`attach_auth_middleware(app)`) is attached to all routes in `sc
 
 ## Assumptions
 
-- "Privileged replay" means all `/replay` calls require operator permission (simplest interpretation consistent with the Issue's Required Changes and Acceptance Criteria).
+- "Privileged replay" means all `/replay` calls require operator permission (all replay is treated as an operator action).
 - The token is stored as a plain string in config (following the existing `auth_token = "${ENV:...}"` convention used by every `*_mcp_server.toml` file).
 - Empty/missing `auth_token` must fail closed at startup.
 
@@ -61,7 +61,7 @@ Auth middleware (`attach_auth_middleware(app)`) is attached to all routes in `sc
 
 ### Decision Details
 
-1. **Authentication mechanism**: Bearer token, mirroring `scripts/mcp_servers/server.py::attach_auth_middleware()` pattern — a FastAPI `@app.middleware("http")` function checking `request.headers.get("Authorization", "")` against a configured token. Two kinds of token are accepted: the single shared `auth_token` (grants every role, suited to single-token deployments) and an optional per-role token (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role; `admin_token` grants every role, same as `auth_token`). A caller's actual role(s) are resolved from *which* configured token they presented (`scripts/eventbus/auth.py`'s `_TOKEN_PRINCIPAL_MAP`), not merely from having presented *a* valid token — `require_role(...)`'s `_check_role` rejects (403) a token whose resolved role(s) do not include the endpoint's required role, even when that token is otherwise valid.
+1. **Authentication mechanism**: Bearer token, resolved per route by FastAPI dependencies (`resolve_principal`, `require_role(...)`, `require_consumer_identity`): a missing or unknown token is rejected with 401 and a token whose roles do not include the route's role with 403. The HTTP middleware attached by `attach_auth_middleware()` only assigns `X-Request-Id`. Two kinds of token are accepted: the single shared `auth_token` (grants every role, suited to single-token deployments) and an optional per-role token (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role; `admin_token` grants every role, same as `auth_token`). A caller's actual role(s) are resolved from *which* configured token they presented (`scripts/eventbus/auth.py`'s `_TOKEN_PRINCIPAL_MAP`), not merely from having presented *a* valid token — `require_role(...)`'s `_check_role` rejects (403) a token whose resolved role(s) do not include the endpoint's required role, even when that token is otherwise valid. `auth_token` and `admin_token` are operator credentials and MUST NOT be distributed to publishers or consumers; role separation holds only for callers that hold a per-role token.
 2. **Authorization model**: Five roles — publisher, consumer, operator, monitoring, admin — each granted a fixed subset of routes:
    - Publisher: POST `/publish`
    - Consumer: GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack`
@@ -104,7 +104,7 @@ A security boundary with this risk profile requires an audit trail that identifi
 
 ### 4. Consistency with Existing Patterns
 
-The Bearer-token middleware mirrors `scripts/mcp_servers/server.py::attach_auth_middleware()`, and the audit record structure mirrors `scripts/mcp_servers/audit.py::AuditRecord` — both reimplemented locally per the isolation contract.
+The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py::attach_auth_middleware()` (EventBus resolves roles through dependencies rather than in the middleware), and the audit record structure mirrors `scripts/mcp_servers/audit.py::AuditRecord` — both reimplemented locally per the isolation contract.
 
 ## Alternatives Considered
 
@@ -158,9 +158,10 @@ ADR-002 documents the exception. Equivalent fail-closed validation is implemente
 - Clear separation of concerns between roles (publisher/consumer/operator/monitoring/admin).
 - Audit trail for security events without recording secrets.
 - Configuration typos and unknown keys are rejected rather than silently accepted.
-- Per-role tokens make the five-role model actually enforceable: a caller holding
+- Per-role tokens restrict a caller that holds only that token: a caller holding
   only a `consumer_token` cannot reach a `Role.PUBLISHER`/`Role.OPERATOR`-gated
-  route.
+  route. Because `auth_token` is mandatory and grants every role, role separation
+  depends on keeping it operator-only (INV-07).
 
 ### Negative Consequences
 
@@ -200,6 +201,7 @@ ADR-002 documents the exception. Equivalent fail-closed validation is implemente
 - INV-04: Unknown, missing, or incorrectly-typed configuration keys MUST be rejected by `load_config()`.
 - INV-05: Audit records MUST never include secret/token values.
 - INV-06: Loopback-only binding enforcement MUST remain unchanged.
+- INV-07: A token that grants every role (`auth_token`, `admin_token`) is never distributed to a publisher or consumer process.
 
 ## Exceptions
 
@@ -216,7 +218,7 @@ None.
 
 ### Fail-Open or Degraded Conditions
 
-- None for the authentication/authorization checks themselves; health endpoint (`/health`) remains accessible for monitoring.
+- None. `/health` is intended to require the Monitoring role (not enforced by the application today; EVENTBUS-016).
 
 ### Retry Policy
 
@@ -234,7 +236,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ### Automated Tests
 
-- **Test**: Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) — **Verifies**: INV-01 — **Type**: Integration — **Blocking**: Yes
+- **Test**: Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) — **Verifies**: INV-01 — **Type**: Integration — **Blocking**: Yes (these tests build their own fixture app with the role dependencies; they do not cover the production wiring of `/health` and `/publish`, tracked as EVENTBUS-016)
 - **Test**: Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) — **Verifies**: INV-03 (operator-gated routes) — **Type**: Integration — **Blocking**: Yes
 - **Test**: consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`; `consumer_id` allowlist gap tracked as EVENTBUS-008) — **Verifies**: INV-02 (topic access) — **Type**: Unit — **Blocking**: Yes
 - **Test**: `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) — **Verifies**: Decision Details #7 — **Type**: Unit — **Blocking**: Yes
@@ -242,6 +244,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - **Test**: `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) — **Verifies**: INV-04 — **Type**: Unit — **Blocking**: Yes
 - **Test**: `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) — **Verifies**: INV-06 — **Type**: Regression — **Blocking**: Yes
 - **Test**: audit records do not include token values (`test_no_credential_leakage_in_audit_records`) — **Verifies**: INV-05 — **Type**: Unit — **Blocking**: Yes
+- **Test**: none — **Verifies**: INV-07 — **Type**: Manual Review (deployment configuration review) — **Blocking**: Yes
 
 ## Implementation Notes
 
@@ -250,6 +253,8 @@ See Implementation References for the current file/symbol list.
 ## Known Deviations
 
 - **Known Issue**: EVENTBUS-008 — see `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
+- **Known Issue**: EVENTBUS-015 — tracked in governance_03 Part 1 (`auth_token` and `admin_token` grant every role; INV-07 depends on operator discipline only)
+- **Known Issue**: EVENTBUS-016 — tracked in governance_03 Part 1 (`/health` and `/publish` are registered without a role dependency; violates INV-01)
 
 ## Review Triggers
 
@@ -269,6 +274,7 @@ See Implementation References for the current file/symbol list.
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-08)**: The authentication description correction, INV-07, and the EVENTBUS-015 and EVENTBUS-016 deviations were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -283,7 +289,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/audit.py` — `AuditRecord`, `log_auth_failure()`, `log_privileged_action()`
 - `scripts/mcp_servers/server.py` — `attach_auth_middleware()` (precedent pattern)
 - `scripts/mcp_servers/audit.py` — `AuditRecord` (precedent pattern)
-- `scripts/eventbus/app.py` — middleware registration
+- `scripts/eventbus/app.py` — request-ID middleware registration and route dependencies
 - `scripts/eventbus/config.py` — fail-closed validation
 - Tests — `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
 
