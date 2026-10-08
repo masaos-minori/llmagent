@@ -37,6 +37,11 @@ def _make_admin_test_client(
         auth_token="unused-shared-superuser-tok",
         admin_token="admin-tok",
         consumer_token="consumer-tok",
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. These tests drive the allow-list through the
+        # /admin/topics/authorization endpoint (consumer id "c1"); this initial
+        # value only satisfies the startup fail-closed check.
+        consumer_authorization={"c1": ["topicA"]},
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (

@@ -59,6 +59,10 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         # Per-role tokens for principal-based auth
         publisher_token="publisher-token",
         consumer_token="consumer-token",
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. The manual Principal override below sets the
+        # actual consumer_id restriction (consumer-A); this satisfies startup.
+        consumer_authorization={"consumer-A": ["test"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",

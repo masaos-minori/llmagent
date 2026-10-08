@@ -26,6 +26,11 @@ def client(
         auth_token="shared-token",
         publisher_token="publisher-token",
         consumer_token="consumer-token",
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. {} yields an unrestricted consumer principal
+        # (allowed_consumer_ids=None), preserving these tests' multi-consumer-id
+        # usage; the fail-closed guarantee (rejecting None) is intact.
+        consumer_authorization={},
         operator_token="operator-token",
         admin_token="admin-token",
     )
@@ -61,6 +66,11 @@ def operator_client(
         auth_token="shared-token",
         publisher_token="publisher-token",
         consumer_token="consumer-token",
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. {} yields an unrestricted consumer principal
+        # (allowed_consumer_ids=None), preserving these tests' multi-consumer-id
+        # usage; the fail-closed guarantee (rejecting None) is intact.
+        consumer_authorization={},
         operator_token="operator-token",
         admin_token="admin-token",
     )
@@ -96,6 +106,10 @@ def principal_client(
         auth_token="shared-token",
         publisher_token="publisher-token",
         consumer_token="consumer-token",
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. The manual Principal override below governs the
+        # actual consumer_id restriction; topic "t" matches these subscribe tests.
+        consumer_authorization={"consumer-A": ["t"]},
         operator_token="operator-token",
         admin_token="admin-token",
     )
@@ -156,6 +170,10 @@ def _make_subscriber_client(
         max_retry=3,
         auth_token="shared-token",
         consumer_token="consumer-token",
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. {} yields an unrestricted consumer principal,
+        # preserving these SSE-stream tests' arbitrary consumer_id usage.
+        consumer_authorization={},
     )
     # Monkey-patch sse_idle_timeout since it's not a real EventBusConfig field
     object.__setattr__(cfg, "sse_idle_timeout", idle_timeout)
@@ -258,6 +276,10 @@ def test_subscribe_heartbeat_resets_idle_timeout(
         max_retry=3,
         auth_token="shared-token",
         consumer_token="consumer-token",
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. {} yields an unrestricted consumer principal,
+        # preserving these SSE-stream tests' arbitrary consumer_id usage.
+        consumer_authorization={},
     )
     object.__setattr__(cfg, "sse_heartbeat_interval", 0.1)
     object.__setattr__(cfg, "sse_idle_timeout", 0.5)
@@ -296,6 +318,10 @@ def test_sse_idle_timeout_loaded_from_config(
         max_retry=3,
         auth_token="shared-token",
         consumer_token="consumer-token",
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. {} yields an unrestricted consumer principal,
+        # preserving these SSE-stream tests' arbitrary consumer_id usage.
+        consumer_authorization={},
     )
     object.__setattr__(cfg, "sse_idle_timeout", 1.0)
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
@@ -622,8 +648,10 @@ class TestSubscribePrincipalValidation:
     ) -> None:
         """Subscribe endpoint requires consumer_id parameter."""
         resp = principal_client.get("/subscribe?topic=t")
-        # FastAPI returns 422 for missing required param
-        assert resp.status_code in (200, 422)
+        # Missing consumer_id is rejected: 422 if FastAPI treats it as a
+        # required param, or 400 from the route's mandatory-consumer_id check
+        # when the principal carries a consumer_id allow-list (principal_client).
+        assert resp.status_code in (400, 422)
 
     def test_subscribe_empty_topic_list_semantics(
         self, principal_client: TestClient

@@ -61,6 +61,12 @@ def _make_test_app(
         auth_token=token,
         publisher_token=publisher_token,
         consumer_token=consumer_token,
+        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
+        # consumer_authorization. The per-fixture Principal override below
+        # (lines ~94-102) governs the actual consumer_id/topic restriction; this
+        # value only satisfies the startup fail-closed check and mirrors that
+        # override's consumer ids.
+        consumer_authorization={"consumer_a": ["test"]},
         operator_token=operator_token,
         admin_token=admin_token,
     )
@@ -851,6 +857,38 @@ class TestPrincipalFieldValidation:
             _TOKEN_PRINCIPAL_MAP.pop(token, None)
 
 
+class TestFailClosedConsumerAuthorization:
+    """Regression (EVENTBUS-008 / ADR-013 INV-02): a consumer_token declared
+    without an explicit consumer_authorization MUST fail closed (raise
+    ValueError) at startup. An empty mapping {} is valid (deny-all); only None
+    is rejected — never weaken this guarantee."""
+
+    @staticmethod
+    def test_consumer_token_without_consumer_authorization_raises() -> None:
+        from eventbus.auth import _TOKEN_PRINCIPAL_MAP, _populate_token_maps
+        from eventbus.config import EventBusConfig
+
+        snapshot = dict(_TOKEN_PRINCIPAL_MAP)
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-failclosed.sqlite",
+                storage_dir="/tmp/test-eventbus-failclosed",
+                offsets_dir="/tmp/test-eventbus-failclosed",
+                deadletter_dir="/tmp/test-eventbus-failclosed",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="shared-token",
+                consumer_token="consumer-token",
+                # consumer_authorization intentionally omitted (defaults to None)
+            )
+            with pytest.raises(ValueError, match="consumer_authorization is missing"):
+                _populate_token_maps(cfg)
+        finally:
+            _TOKEN_PRINCIPAL_MAP.clear()
+            _TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+
 class TestAuditRecordValidation:
     """Tests for structured audit record emission on auth failures."""
 
@@ -1199,6 +1237,10 @@ class TestProductionRouteWiring:
                 eb_app.app.state.config,
                 publisher_token="prod-publisher-token",
                 consumer_token="prod-consumer-token",
+                # Fail-closed (ADR-013 INV-02): consumer_token requires a
+                # non-None consumer_authorization. These tests gate on ROLE only,
+                # so {} (unrestricted consumer) preserves their semantics.
+                consumer_authorization={},
                 monitoring_token="prod-monitoring-token",
             )
             eb_app.app.state.config = cfg
