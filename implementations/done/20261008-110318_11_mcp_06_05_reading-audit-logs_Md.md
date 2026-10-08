@@ -1,45 +1,46 @@
-# Implementation Procedure: Update MCP-001 status in governance tracker
+# Implementation Procedure: Update MCP audit log reading documentation
 
 ## Goal
 
-Move MCP-001 status from open to fixed in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (REQ-010). Defect tracker reflects resolution.
+Document record fields + audit-failure counter in `docs/22_mcp/mcp_06_05_reading-audit-logs.md` (REQ-010). Document new `/health` counter and record shape.
 
 ## Scope
 
-- Modify `docs/00_governance/governance_03_issue-and-uncertainty-management.md`:
-  - MCP-001 row (line 64): update status from "open" to "fixed".
+- Modify `docs/22_mcp/mcp_06_05_reading-audit-logs.md`:
+  - Lines 48, 63, 93: update record fields and add audit-failure counter documentation.
 
 ## Assumptions
 
-- MCP-001 is tracked in the governance tracker with a status column.
-- The fix addresses the audit record emission gap (every write-tool call now produces one audit record).
+- The audit log reading documentation currently documents the old record shape without `canonical_target`.
+- The `/health` endpoint does not currently document an audit-failure counter.
 
 ## Design decisions
 
-- **Status update**: Change MCP-001 status from "open" to "fixed" in the governance tracker.
-- **Resolution note**: Add a brief note referencing the implementation procedure that resolved the issue.
+- **Record fields**: Add `canonical_target` field documentation.
+- **Audit-failure counter**: Add documentation for the per-process audit-failure counter exposed in `/health` details.
+- **Outcome values**: Update outcome vocabulary to `"ok"`/`"error"`/`"rejected"`.
 
 ## Alternatives considered
 
-- Removing the MCP-001 entry entirely: rejected because it should remain documented as a resolved issue for historical traceability.
-- Moving MCP-001 to a "Resolved" section: rejected because the plan only requires updating the status in place.
+- Creating a separate section for the audit-failure counter: rejected because the plan requires adding it to the existing documentation.
 
 ## Implementation
 ### Target file
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`
+`docs/22_mcp/mcp_06_05_reading-audit-logs.md`
 
 ### Procedure
-1. Move MCP-001 status from open to fixed (REQ-010).
+1. Document record fields + audit-failure counter (REQ-010).
 
 ### Method
-Edit `docs/00_governance/governance_03_issue-and-uncertainty-management.md`:
-- MCP-001 row (line 64): Update status from "open" to "fixed".
-- Add resolution note referencing the implementation procedure.
+Edit `docs/22_mcp/mcp_06_05_reading-audit-logs.md`:
+- Lines 48, 63, 93: Update record fields and add audit-failure counter documentation.
+- Add `canonical_target` field documentation.
+- Add documentation for per-process audit-failure counter exposed in `/health` details.
+- Update outcome vocabulary to `"ok"`/`"error"`/`"rejected"`.
 
 ### Details
-- MCP-001 is tracked in the governance tracker with a status column.
-- The fix addresses the audit record emission gap (every write-tool call now produces one audit record).
-- The entry should remain documented as a resolved issue for historical traceability.
+- The audit log reading documentation currently documents the old record shape without `canonical_target`.
+- The `/health` endpoint does not currently document an audit-failure counter.
 
 ## Compatibility considerations
 
@@ -51,32 +52,33 @@ Edit `docs/00_governance/governance_03_issue-and-uncertainty-management.md`:
 
 ## Rollback considerations
 
-- Revert the status change — acceptable because it's a simple text edit.
+- Revert the documentation changes — acceptable because they are simple text edits.
 
 ## Validation plan
 
-- **Manual review**: Confirm the MCP-001 entry is updated with the correct resolution reference.
+- **Manual review**: Confirm the documentation accurately reflects the new record shape and counter.
 - **Documentation consistency**: `uv run python tools/check_docs_consistency.py --domain mcp` — confirm clean.
 
 ## Completion criteria
 
-- MCP-001 status in governance tracker is updated to "fixed".
-- A resolution note references the implementation procedure.
-- No other changes to the governance tracker beyond the MCP-001 entry.
+- Record fields include `canonical_target`.
+- Audit-failure counter documented in `/health` details.
+- Outcome vocabulary updated to `"ok"`/`"error"`/`"rejected"`.
+- No `"success"` string remains in the audit section.
 
 ## Out of scope
 
 - Modifying `ADR-012-git-mcp-server-side-write-enforcement.md` (covered in its own document).
 - Modifying `mcp_04_05_git.md` (covered in its own document).
-- Modifying `mcp_06_05_reading-audit-logs.md` (covered in its own document).
+- Modifying `governance_03_issue-and-uncertainty-management.md` (covered in its own document).
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move MCP-001 status open→fixed (`docs/00_governance/governance_03_issue-and-uncertainty-management.md`) | Pending | — | — | REQ-010 |
-| 2 | Run documentation consistency check | Pending | — | — | REQ-010 |
+| 1 | Update record fields + audit-failure counter docs (`docs/22_mcp/mcp_06_05_reading-audit-logs.md`) | Done | — | — | REQ-010 |
+| 2 | Run documentation consistency check | Done | — | — | REQ-010 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -117,4 +119,4 @@ Edit `docs/00_governance/governance_03_issue-and-uncertainty-management.md`:
 - **Source plan**: plans/20261007-191952_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261008-110318
-- **Related target files**: docs/00_governance/governance_03_issue-and-uncertainty-management.md
+- **Related target files**: docs/22_mcp/mcp_06_05_reading-audit-logs.md

@@ -61,7 +61,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-003 | Orchestrator continues in fallback mode when the workflow fails to load | open | Medium | Agent | design-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
-| MCP-001 | git-mcp audit records are never emitted | open | Medium | MCP | implementation-bug |
+| MCP-001 | git-mcp audit records are never emitted | fixed | Medium | MCP | implementation-bug |
 | MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
 | MCP-004 | git-mcp has no generic technical force-push block | open | Low | MCP | design-gap |
 | MCP-005 | rag-pipeline-mcp does not verify the Bearer token | open | High | MCP | implementation-bug |
@@ -197,7 +197,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 - **ID**: MCP-001
 - **Title**: git-mcp audit records are never emitted
-- **Status**: open
+- **Status**: fixed
 - **Severity**: Medium
 - **Area**: MCP
 - **Type**: implementation-bug
@@ -212,6 +212,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Only the path-containment rejection is recorded.
 - **Recommended Action**: Align the `_audit_log()` signature with its callers and test the real function.
 - **Resolution Target**: Each git-mcp call writes an audit record, covered by a test.
+- **Resolution Note**: Resolved by implementation procedures `_07_test_git_security_compliance_py`, `_08_test_git_service_dispatch_py`, and `_09_ADR-012_git-mcp-server-side-write-enforcement_md` (commit `ad3d062de`).
 
 #### MCP-003
 
