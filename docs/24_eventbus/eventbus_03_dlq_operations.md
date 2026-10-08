@@ -66,14 +66,14 @@ A hybrid model combining replay and push, streaming events to the caller.
 
 **SSE Event IDs:** Each event frame includes `id:<seq>` where `seq` is the monotonic sequence number. This enables `EventSource`-based clients to auto-reconnect by sending the `Last-Event-ID` header.
 
-**Reconnection with `Last-Event-ID`:** Clients can send the `HTTP Last-Event-ID` header with a sequence number to resume from that point. Precedence for determining `start_seq`:
-1. `since_seq` query parameter (highest priority)
-2. Resume position computed from the persisted consumer offset and the consumer's unacked events (from `consumer_id`; see the resume rules in `eventbus_05_dlq_offsets_and_delivery_semantics.md`)
-3. `Last-Event-ID` header value + 1 (lowest — fallback for `EventSource` clients)
+**Reconnection with `Last-Event-ID`:** Clients can send the `HTTP Last-Event-ID` header with a sequence number to resume from that point. Precedence for determining where replay starts:
+1. `since_seq` query parameter (highest priority): replay starts with the first event whose `seq` is greater than the value
+2. Resume position computed from the persisted consumer offset and the consumer's unacked events (from `consumer_id`; see the resume rules in `eventbus_05_dlq_offsets_and_delivery_semantics.md`): the first event delivered is exactly the resume position
+3. `Last-Event-ID` header value + 1 (lowest — fallback for `EventSource` clients): a header value of `L` resumes with event `L+1`
 
 If `Last-Event-ID` exceeds the current max seq in SQLite, the server returns HTTP 412 Precondition Failed with the current max seq in the response body.
 
-**Phase 1 — Replay**: Upon connection, events matching the topic filter where `seq > start_seq` are retrieved from SQLite in batches (`replay_batch_size`) and output as `id:<seq>\ndata: {...}\n\n` SSE frames.
+**Phase 1 — Replay**: Upon connection, events matching the topic filter that follow the starting position are retrieved from SQLite in batches (`replay_batch_size`), each batch continuing after the last event sent until a batch shorter than `replay_batch_size` ends the phase, and output as `id:<seq>\ndata: {...}\n\n` SSE frames.
 
 **Phase 2 — Live Push**: After replay completion, the process subscribes to the internal `EventBroker` and streams new events published via `POST /publish` to the SSE stream in real-time.
 
@@ -92,9 +92,9 @@ If `Last-Event-ID` exceeds the current max seq in SQLite, the server returns HTT
 The exact logic in the `subscribe()` function in `scripts/eventbus/subscribe_route.py` is as follows:
 
 ```
-start_seq = since_seq
-if consumer_id and start_seq == 0:
-    start_seq = get_resume_position(db, consumer_id)
+after_seq = since_seq            # replay delivers events with seq > after_seq
+if consumer_id and after_seq == 0:
+    after_seq = get_resume_position(db, consumer_id) - 1   # when a resume position exists
 ```
 
 Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Query(default=0)` declaration) are indistinguishable when a `consumer_id` is provided. Both resolve to "read from the computed resume position" (the lowest unacked `seq` at or below the stored offset, otherwise the stored offset plus one). Clients wanting to perform a full replay while providing a `consumer_id` cannot currently express this intent.

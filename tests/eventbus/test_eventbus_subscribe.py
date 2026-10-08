@@ -419,20 +419,124 @@ def test_last_event_id_above_max_returns_412(client: TestClient) -> None:
     assert resp.status_code == 412
 
 
+def _publish_events(client: TestClient, count: int) -> list[dict[str, Any]]:
+    """Publish *count* events through the publisher token and return the bodies."""
+    pub = _pub_client(client)
+    bodies = [_event("resume") for _ in range(count)]
+    for body in bodies:
+        assert pub.post("/publish", json=body).status_code == 200
+    return bodies
+
+
+def _subscribe_ids(
+    client: TestClient, query: str, headers: dict[str, str] | None = None
+) -> list[int]:
+    """Replay through /subscribe and return every id: value until the stream idles."""
+    resp = client.get(f"/subscribe?{query}", headers=headers or {}, timeout=5.0)
+    assert resp.status_code == 200
+    return _extract_first_n_event_ids(resp, n=1000)
+
+
+def _set_replay_batch_size(size: int) -> None:
+    from eventbus import app as eb_app
+
+    object.__setattr__(eb_app.app.state.config, "replay_batch_size", size)
+
+
+def _ack_for_consumer(bodies: list[dict[str, Any]], consumer_id: str) -> None:
+    """Acknowledge *bodies* for *consumer_id* directly in the database."""
+    from eventbus import app as eb_app
+    from eventbus.delivery_repo import ack_event_for_consumer
+
+    db = eb_app.app.state.db
+    for body in bodies:
+        ack_event_for_consumer(
+            db, body["event_id"], consumer_id, "2026-06-25T12:00:00Z"
+        )
+
+
 def test_since_seq_takes_precedence_over_consumer_offset(client: TestClient) -> None:
     """T-7: Reconnect with since_seq takes precedence over consumer offset."""
-    pass  # Placeholder — actual verification depends on Phase 1 implementation
+    bodies = _publish_events(client, 4)
+    _ack_for_consumer(bodies[:2], "resume-consumer")
+
+    ids = _subscribe_ids(client, "since_seq=1&consumer_id=resume-consumer")
+
+    assert ids == [2, 3, 4]
 
 
 def test_consumer_offset_used_when_since_seq_is_zero(client: TestClient) -> None:
-    """T-6: Reconnect with consumer offset resumes from the stored offset."""
-    pass  # Placeholder — actual verification depends on Phase 1 implementation
+    """T-6: Reconnect with consumer offset N replays from seq N+1."""
+    bodies = _publish_events(client, 4)
+    _ack_for_consumer(bodies[:2], "resume-consumer")
+
+    ids = _subscribe_ids(client, "consumer_id=resume-consumer")
+
+    assert ids == [3, 4]
+
+
+def test_out_of_order_ack_replays_lowest_unacked_first(client: TestClient) -> None:
+    """The lowest unacked event is replayed first, included, after an out-of-order ACK."""
+    bodies = _publish_events(client, 4)
+    _ack_for_consumer([bodies[2], bodies[1]], "resume-consumer")
+
+    ids = _subscribe_ids(client, "consumer_id=resume-consumer")
+
+    assert ids == [1, 2, 3, 4]
+
+
+def test_last_event_id_replays_the_next_event_first(client: TestClient) -> None:
+    """Last-Event-ID L replays from seq L+1 and keeps since_seq=0 semantics."""
+    _publish_events(client, 4)
+
+    ids = _subscribe_ids(client, "since_seq=0", {"Last-Event-ID": "2"})
+
+    assert ids == [3, 4]
+
+
+@pytest.mark.parametrize("batch_size", [2, 3])
+def test_backlog_larger_than_batch_is_replayed_completely_once(
+    client: TestClient, batch_size: int
+) -> None:
+    """Every event is replayed once and in order when the backlog exceeds a batch."""
+    _publish_events(client, 8)
+    _set_replay_batch_size(batch_size)
+
+    assert _subscribe_ids(client, "since_seq=0") == list(range(1, 9))
+    assert _subscribe_ids(client, "since_seq=2") == list(range(3, 9))
+    assert _subscribe_ids(client, "since_seq=0", {"Last-Event-ID": "1"}) == list(
+        range(2, 9)
+    )
+
+
+def test_events_published_during_replay_are_delivered_exactly_once(
+    client: TestClient,
+) -> None:
+    """The replay-to-live handoff neither drops nor repeats an event."""
+    import threading
+    import time
+
+    _publish_events(client, 3)
+    _set_replay_batch_size(2)
+
+    def _publish_later() -> None:
+        time.sleep(0.1)
+        _publish_events(client, 2)
+
+    worker = threading.Thread(target=_publish_later)
+    worker.start()
+    try:
+        ids = _subscribe_ids(client, "since_seq=0")
+    finally:
+        worker.join()
+
+    assert ids == [1, 2, 3, 4, 5]
 
 
 def test_last_event_id_fallback_when_since_seq_and_offset_are_zero(
     client: TestClient,
 ) -> None:
-    """T-5: Reconnect with Last-Event-ID N resumes from seq > N."""
+    """T-5: Reconnect with Last-Event-ID N replays from seq N+1."""
     pub = _pub_client(client)
     bodies = [_event("fallback") for _ in range(3)]
     for body in bodies:
@@ -448,9 +552,8 @@ def test_last_event_id_fallback_when_since_seq_and_offset_are_zero(
 
     event_ids = _extract_first_n_event_ids(resp)
 
-    assert len(event_ids) >= 1
-    assert event_ids[0] == 3, (
-        f"First event after Last-Event-ID=1 should have seq=3, got {event_ids[0]}"
+    assert event_ids == [2, 3], (
+        f"Last-Event-ID=1 must replay seq 2 and 3 in order, got {event_ids}"
     )
 
 

@@ -114,7 +114,7 @@ Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/a
 
 ### Resume Behavior
 
-Reconnecting with a `consumer_id` resumes from the computed resume position described in Monotonicity Guarantee (`lowest_unacked_seq` when an unacked event exists at or below the stored offset, otherwise `stored_offset + 1`). If no offsets have been acknowledged, it starts from `seq=0`. It is also possible to start from a specific position using `since_seq=N`.
+Reconnecting with a `consumer_id` resumes from the computed resume position described in Monotonicity Guarantee (`lowest_unacked_seq` when an unacked event exists at or below the stored offset, otherwise `stored_offset + 1`). The first event delivered on reconnect is exactly that position. If no offsets have been acknowledged, it starts from `seq=0`. It is also possible to start from a specific position using `since_seq=N`.
 
 ## Replay Semantics
 
@@ -124,11 +124,11 @@ When `since_seq=N` is provided, the replay operation returns events where `seq >
 
 ### Consumer Offset Precedence
 
-When no `since_seq` is provided but a `consumer_id` is provided, the replay operation resumes from the last acknowledged offset stored in the `consumer_offsets` table.
+When no `since_seq` is provided but a `consumer_id` is provided, the replay operation resumes from the computed resume position (see Resume Behavior), which is the first event delivered.
 
 ### Last-Event-ID Precedence
 
-When a `Last-Event-ID` header is provided, the replay operation uses it as a fallback for `EventSource`-based clients. The precedence order is: `since_seq` > consumer offset > `Last-Event-ID`.
+When a `Last-Event-ID` header is provided, the replay operation uses it as a fallback for `EventSource`-based clients. The precedence order is: `since_seq` > consumer offset > `Last-Event-ID`. A `Last-Event-ID` of `L` resumes with event `L+1`.
 
 ## Backpressure
 

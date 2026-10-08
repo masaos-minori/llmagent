@@ -119,18 +119,24 @@ async def subscribe(
                 detail=f"Last-Event-ID ({last_event_id}) exceeds current max seq ({max_seq})",
             )
 
-    # REQ-004: Implement precedence: since_seq > resume position > Last-Event-ID
-    # get_resume_position computes max(lowest_unacked_seq, stored_offset)
-    # ensuring no unacked event is skipped on reconnect after out-of-order ACKs.
-    start_seq = since_seq
-    if consumer_id and start_seq == 0:
+    # REQ-004: Implement precedence: since_seq > resume position > Last-Event-ID.
+    # Replay delivers events with seq greater than an exclusive lower bound
+    # (after_seq). The resume position is the first seq to deliver (the lowest
+    # unacked seq at or below the stored offset, else stored offset + 1), so it
+    # is converted to the exclusive bound by subtracting one; this keeps an
+    # unacked event from being skipped on reconnect after out-of-order ACKs.
+    after_seq = since_seq
+    if consumer_id and after_seq == 0:
         from eventbus.delivery_repo import get_resume_position
 
-        start_seq = get_resume_position(db, consumer_id)
+        resume_position = get_resume_position(db, consumer_id)
+        if resume_position > 0:
+            after_seq = resume_position - 1
 
-    # REQ-003: Fallback to Last-Event-ID only if both since_seq and consumer offset are unavailable
-    if start_seq == 0 and last_event_id is not None:
-        start_seq = last_event_id + 1
+    # REQ-003: Fallback to Last-Event-ID only if both since_seq and consumer
+    # offset are unavailable; Last-Event-ID L resumes with event L + 1.
+    if after_seq == 0 and last_event_id is not None:
+        after_seq = last_event_id
 
     try:
         sub = broker.subscribe(list(topic), consumer_id=consumer_id)
@@ -139,8 +145,9 @@ async def subscribe(
 
     async def _sse_gen() -> AsyncGenerator[str]:
         """Generate Server-Sent Events by replaying from SQLite and streaming live broker events."""
-        nonlocal start_seq
-        replay_ceil = start_seq
+        # Highest seq emitted by replay; the live phase discards anything at or
+        # below it, and each replay batch continues after it.
+        last_replayed = after_seq
         try:
             # Step 2: replay from SQLite in bounded batches
             cfg = request.app.state.config
@@ -154,10 +161,9 @@ async def subscribe(
                         lambda: list(
                             db.execute(
                                 f"SELECT seq, event_id, topic, payload, producer, published_at"
-                                f" FROM events WHERE seq > ? AND seq <= ? AND topic IN ({placeholders}) ORDER BY seq LIMIT ?",
+                                f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq LIMIT ?",
                                 (
-                                    start_seq,
-                                    replay_ceil + batch_size,
+                                    last_replayed,
                                     *topic,
                                     batch_size,
                                 ),
@@ -169,9 +175,9 @@ async def subscribe(
                         lambda: list(
                             db.execute(
                                 "SELECT seq, event_id, topic, payload, producer, published_at"
-                                " FROM events WHERE seq > ? AND seq <= ?"
+                                " FROM events WHERE seq > ?"
                                 " ORDER BY seq LIMIT ?",
-                                (start_seq, replay_ceil + batch_size, batch_size),
+                                (last_replayed, batch_size),
                             ).fetchall()
                         )
                     )
@@ -183,10 +189,7 @@ async def subscribe(
                     data = json_dumps(_row_to_dict(row))
                     # REQ-002: Emit id: field alongside data: field
                     yield f"id:{row['seq']}\ndata:{data}\n\n"
-                    if replay_ceil == 0 or row["seq"] < replay_ceil:
-                        replay_ceil = row["seq"]
-
-                start_seq = replay_ceil + 1
+                    last_replayed = row["seq"]
 
                 # If we got a full batch, more data may exist; release lock between batches
                 if len(rows) == batch_size:
@@ -249,7 +252,7 @@ async def subscribe(
                 event = get_task.result()
                 if event is None:
                     break
-                if event["seq"] <= replay_ceil:
+                if event["seq"] <= last_replayed:
                     continue  # duplicate from replay; discard
                 data = json_dumps(event)
                 # REQ-002: Emit id: field alongside data: field
@@ -266,7 +269,7 @@ async def subscribe(
             logger.info(
                 "subscribe disconnected consumer=%s seq=%d",
                 consumer_id,
-                replay_ceil,
+                last_replayed,
             )
         finally:
             broker.unsubscribe(sub)

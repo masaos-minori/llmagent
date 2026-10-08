@@ -429,3 +429,49 @@ class TestOutOfOrderAckNoSkipOnReconnect:
             assert resume_pos == 0
         finally:
             conn.close()
+
+
+def _reconnect_ids(client: TestClient, consumer_id: str) -> list[int]:
+    """Reconnect through /subscribe and return every replayed seq until idle."""
+    from eventbus import app as eb_app
+
+    object.__setattr__(eb_app.app.state.config, "sse_idle_timeout", 0.5)
+    resp = client.get(f"/subscribe?consumer_id={consumer_id}", timeout=5.0)
+    assert resp.status_code == 200
+    return [
+        int(line.split(":")[1].strip())
+        for line in resp.iter_lines()
+        if line.startswith("id:")
+    ]
+
+
+def _ack(client: TestClient, event: dict[str, Any], consumer_id: str) -> None:
+    from eventbus import app as eb_app
+    from eventbus.delivery_repo import ack_event_for_consumer
+
+    ack_event_for_consumer(
+        eb_app.app.state.db, event["event_id"], consumer_id, "2026-06-25T12:00:00Z"
+    )
+
+
+def test_reconnect_after_ordered_acks_replays_next_event_first(
+    client: TestClient,
+) -> None:
+    """In-order ACKs up to seq N: the reconnect replays N+1 first, in order."""
+    events = [_pub(client) for _ in range(4)]
+    _ack(client, events[0], "ordered-consumer")
+    _ack(client, events[1], "ordered-consumer")
+
+    assert _reconnect_ids(client, "ordered-consumer") == [3, 4]
+
+
+def test_reconnect_after_out_of_order_ack_replays_lowest_unacked_first(
+    client: TestClient,
+) -> None:
+    """A higher seq ACKed before a lower one: the reconnect starts at the lowest
+    unacked event, which is included, and continues in order."""
+    events = [_pub(client) for _ in range(4)]
+    _ack(client, events[2], "oof-route-consumer")
+    _ack(client, events[1], "oof-route-consumer")
+
+    assert _reconnect_ids(client, "oof-route-consumer") == [1, 2, 3, 4]
