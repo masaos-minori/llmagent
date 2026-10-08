@@ -44,7 +44,7 @@ The available roles are:
 | MONITORING | `${MONITORING_TOKEN}` | Health checks |
 | ADMIN | `${ADMIN_TOKEN}` | Admin endpoints (`/admin/*`, e.g. `POST /admin/topics/authorization`) |
 
-When per-role tokens are configured, each token grants only its own role. When the shared `auth_token` is set, it grants all roles. (Explicit in code — `scripts/eventbus/auth.py`)
+When per-role tokens are configured, each token grants only its own role. When the shared `auth_token` is set, it grants all roles. `auth_token` and `admin_token` grant every role (superuser-equivalent) and are operator credentials that MUST NOT be distributed to publisher or consumer processes; role separation holds only for callers that hold a per-role token. (Explicit in code — `scripts/eventbus/auth.py`; see ADR-013)
 
 ## Common Patterns
 

@@ -213,7 +213,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 - **ID**: EVENTBUS-008
 - **Title**: Consumer-role token without a consumer_id allowlist skips consumer-identity validation
-- **Status**: open
+- **Status**: resolved
 - **Severity**: Medium
 - **Area**: EventBus
 - **Type**: design-gap
@@ -224,10 +224,10 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Related**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/10_adr/ADR-008-sqlite-4db-separation.md`
 - **Summary**: A CONSUMER-role token with no allowlist is not restricted to any consumer_id (fail-open).
 - **Current Description**: ADR-013 treats the consumer_id allowlist as the residual gap.
-- **Observed Implementation**: `_populate_token_maps()` sets `allowed_consumer_ids` only when `consumer_authorization` or `topic_authorization` is configured; `require_consumer_identity()` skips validation when it is `None`.
-- **Impact**: An unrestricted CONSUMER token can act under any consumer_id.
-- **Recommended Action**: Decide between rejecting such a token (fail-closed) and accepting the unrestricted contract, then align `auth.py` or ADR-013.
-- **Resolution Target**: Implementation and ADR-013 agree for a CONSUMER token without an allowlist.
+- **Observed Implementation**: `_populate_token_maps()` rejects a `consumer_token` that has no `consumer_authorization` at startup (fail-closed, `auth.py` line 134); an empty mapping (`{}`) is the explicit deny-all choice. `require_consumer_identity()` therefore never sees `allowed_consumer_ids=None` for a configured CONSUMER token.
+- **Impact**: Previously an unrestricted CONSUMER token could act under any consumer_id.
+- **Recommended Action**: Resolved by fail-closed: reject a `consumer_token` without `consumer_authorization` at startup; keep `auth.py` and ADR-013 INV-02 aligned.
+- **Resolution Target**: Met: `auth.py` fails closed (rejects `consumer_token` without `consumer_authorization`; empty mapping = deny all) and ADR-013 INV-02 mandates fail-closed.
 
 #### EVENTBUS-011
 
@@ -284,9 +284,9 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Related**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
 - **Summary**: INV-10 forbids concurrent use of one `consumer_id`, but only `/subscribe` enforces it.
 - **Current Description**: The delivery-semantics document states ACK does not detect a collision.
-- **Observed Implementation**: A second concurrent `/subscribe` gets 409 from the in-process broker registry; `/ack` and `/nack` check only the principal allowlist.
+- **Observed Implementation**: `/ack` and `/nack` enforce that the caller may only use `consumer_id`s bound to its token (deny-all on an empty frozenset; `auth.py` fail-closed) — this is token binding, not exclusive use. A second concurrent `/subscribe` still gets 409 from the in-process broker registry; neither `/ack` nor `/nack` enforces that only one active connection holds a `consumer_id`.
 - **Impact**: Callers sharing a `consumer_id` overwrite each other's progress.
-- **Recommended Action**: Bind ACK/NACK to the active subscription, or narrow INV-10 to the subscribe path; add a test.
+- **Recommended Action**: Exclusive use remains unenforced on ACK/NACK: bind ACK/NACK to the active subscription, or narrow INV-10 to the subscribe path; add a test. Token binding (which `consumer_id`s a caller may use) is already enforced.
 - **Resolution Target**: INV-10 and the ACK path agree, covered by a test.
 
 #### EVENTBUS-014
@@ -326,7 +326,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Current Description**: ADR-013 defines five roles, each granted a fixed set of routes.
 - **Observed Implementation**: The principal map assigns every role to `auth_token` and to `admin_token`.
 - **Impact**: A publisher or consumer process given `auth_token` can call operator and admin routes.
-- **Recommended Action**: Keep these tokens operator-only and record that in ADR-013, or make per-role tokens sufficient.
+- **Recommended Action**: Keep these tokens operator-level and record the deployment policy in ADR-013 (DONE 2026-10-08: INV-07 and Decision Details #1 state they are operator credentials that MUST NOT be distributed to publisher/consumer processes), or make per-role tokens sufficient. The every-role property itself is managed by operator discipline, not code.
 - **Resolution Target**: ADR-013 and the deployment practice agree, or per-role tokens suffice.
 
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
