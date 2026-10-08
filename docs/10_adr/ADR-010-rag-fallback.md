@@ -71,12 +71,12 @@ The RAG pipeline depends heavily on the external RAG service, so a network failu
 9. Parse errors are logged and treated as empty results.
 10. Local DB access uses only `rag.sqlite`.
 11. Result consistency between the external RAG and the local RAG is not guaranteed, because each mode reads the corpus from its own configured database path.
-12. The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, and `HttpResultKind`.
+12. The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `auth_error` (internal to `HttpAugment`), and the public enums `ResultSource` and `HttpResultKind` (`SUCCESS`, `EMPTY`, `ERROR`, `NOT_USED`, `AUTH_ERROR`).
 
 ### Scope
 
-- **Target components**: `RagPipeline`, `HttpAugment`, `call_rag_service()`, `AugmentStage`
-- **Target processes**: the Agent process and the ingester process
+- **Target components**: `RagPipeline`, `AugmentRefiner`, `HttpAugment`, `call_rag_service()`, `AugmentStage`
+- **Target processes**: any process that constructs `RagPipeline` with a non-empty `rag_service_url`. The rag-pipeline MCP server always constructs it with an empty `rag_service_url`, so it never delegates; no other production caller of the HTTP mode exists (Confirmed by repository evidence — `RagPipeline` is constructed only in the rag-pipeline MCP service). The Agent REPL does not call `RagPipeline` directly, and the ingester does not use `augment()`.
 - **Target data**: `rag.sqlite`
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `RagPipeline.augment()`, `HttpAugment.run()`, `call_rag_service()`, `AugmentStage.run()`
@@ -193,7 +193,7 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
 
 - Performance may degrade during fallback
 - Result consistency is not guaranteed
-- Corpus synchronization costs arise
+- Both modes must be configured with the same `rag_db_path`; a divergent configuration is not detected
 - Complex error classification is required
 
 ### Operational Consequences
@@ -217,7 +217,7 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
 - INV-07: Parse errors are logged and treated as empty results.
 - INV-08: Local DB access uses only `rag.sqlite`.
 - INV-09: Result consistency between the external RAG and the local RAG is not guaranteed, because each mode reads the corpus from its own configured database path.
-- INV-10: The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `ResultSource`, and `HttpResultKind`.
+- INV-10: The result vocabulary is `remote_nonempty`, `remote_empty`, `in_process_fallback`, `auth_error`, `ResultSource`, and `HttpResultKind` (including `AUTH_ERROR`).
 
 ## Failure Policy
 
