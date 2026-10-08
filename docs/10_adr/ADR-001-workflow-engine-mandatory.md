@@ -309,7 +309,7 @@ See Implementation References for the file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-003 — tracked in governance_03 Part 1 (Orchestrator fallback mode when the workflow fails to load)
+No confirmed deviations.
 
 ## Review Triggers
 

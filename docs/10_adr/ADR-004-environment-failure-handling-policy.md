@@ -175,7 +175,7 @@ This section is maintained in the companion document: [Verification](adr_04_fail
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-003 — tracked in governance_03 Part 1 (Orchestrator fallback mode when the workflow fails to load)
+No confirmed deviations.
 
 ## Review Triggers
 

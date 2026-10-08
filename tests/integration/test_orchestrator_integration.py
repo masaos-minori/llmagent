@@ -414,7 +414,9 @@ class TestCompleteTurnExecution:
         orch._diagnostic_store = MagicMock()
         ctx.diagnostics = orch._diagnostic_store
 
-        with patch.object(orch, "_handle_memory_injection", AsyncMock()):
+        with patch.object(
+            orch._conversation_manager, "handle_memory_injection", AsyncMock()
+        ):
             with patch.object(
                 orch._llm_executor,
                 "handle_llm_turn",
@@ -437,7 +439,7 @@ class TestCompleteTurnExecution:
             )
         )
         orch = Orchestrator(ctx)
-        await orch._handle_history_compression()
+        await orch._conversation_manager.handle_history_compression()
         ctx.session.replace_messages.assert_called_once()
 
     @pytest.mark.asyncio
@@ -453,7 +455,7 @@ class TestCompleteTurnExecution:
             )
         )
         orch = Orchestrator(ctx)
-        await orch._handle_history_compression()
+        await orch._conversation_manager.handle_history_compression()
         ctx.session.replace_messages.assert_not_called()
 
 
@@ -679,7 +681,7 @@ class TestToolCallFlow:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        _answer, error_kind, _is_partial = await orch._process_turn(
+        _answer, error_kind, _is_partial = await orch._workflow_adapter._process_turn(
             "what headings are here?", ctx, 0.0
         )
 
@@ -720,8 +722,8 @@ class TestToolCallFlow:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        await orch._process_turn("first turn", ctx, 0.0)
-        await orch._process_turn("second turn", ctx, 0.0)
+        await orch._workflow_adapter._process_turn("first turn", ctx, 0.0)
+        await orch._workflow_adapter._process_turn("second turn", ctx, 0.0)
 
         assert len(seen_payloads) == 2
         second_payload = seen_payloads[1]
@@ -786,7 +788,7 @@ class TestApprovalWorkflowWithRealDB:
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
-            workflow_id, task = orch._init_workflow_task(
+            workflow_id, task = orch._workflow_adapter._init_workflow_task(
                 ctx, "test-session", existing_task_id="existing-task-id"
             )
             assert workflow_id == "existing-wf-id"
@@ -813,7 +815,7 @@ class TestApprovalWorkflowWithRealDB:
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
-            orch._init_workflow_task(
+            orch._workflow_adapter._init_workflow_task(
                 ctx, "test-session", existing_task_id="existing-task-id"
             )
             mock_audit.assert_not_called()
@@ -839,7 +841,7 @@ class TestApprovalWorkflowWithRealDB:
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
             with pytest.raises(RuntimeError, match="halted"):
-                orch._init_workflow_task(
+                orch._workflow_adapter._init_workflow_task(
                     ctx, "test-session", existing_task_id="halted-task-id"
                 )
             mock_create.assert_not_called()
@@ -884,7 +886,9 @@ class TestApprovalWorkflowWithRealDB:
         ctx.services_required.memory = memory
         orch = _make_orchestrator(ctx)
 
-        await orch._handle_memory_injection("what headings are here?")
+        await orch._conversation_manager.handle_memory_injection(
+            "what headings are here?"
+        )
 
         assert len(ctx.conv.history) == 1
         msg = ctx.conv.history[0]
@@ -901,7 +905,7 @@ class TestApprovalWorkflowWithRealDB:
         ctx.conv.system_prompt_content = ""
         orch = _make_orchestrator(ctx)
 
-        await orch._append_user_message("hello there")
+        await orch._conversation_manager.append_user_message("hello there")
 
         assert ctx.conv.history == [{"role": "user", "content": "hello there"}]
 
@@ -913,7 +917,7 @@ class TestApprovalWorkflowWithRealDB:
         ctx.conv.history = [{"role": "user", "content": "hi"}]
         orch = _make_orchestrator(ctx)
 
-        orch._sync_system_prompt()
+        orch._conversation_manager.sync_system_prompt()
 
         assert ctx.conv.history[0] == {
             "role": "system",
@@ -935,6 +939,6 @@ class TestApprovalWorkflowWithRealDB:
             "agent.conversation_state_manager.validate_message",
             return_value=ValidationResult(False, "forced failure"),
         ):
-            orch._sync_system_prompt()
+            orch._conversation_manager.sync_system_prompt()
 
         assert ctx.conv.history == [{"role": "user", "content": "hi"}]

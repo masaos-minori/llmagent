@@ -20,6 +20,7 @@ from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
 from agent.workflow import (
     WorkflowHaltError,
+    WorkflowLoadError,
     WorkflowPendingApprovalError,
     WorkflowTimeoutError,
 )
@@ -1242,7 +1243,9 @@ class TestAllowedToolsOverride:
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = ["write_file"]
         orch = Orchestrator(ctx, allowed_tools=["search_web"])
-        with patch.object(orch, "_handle_memory_injection", AsyncMock()):
+        with patch.object(
+            orch._conversation_manager, "handle_memory_injection", AsyncMock()
+        ):
             with patch.object(
                 orch._llm_executor,
                 "handle_llm_turn",
@@ -1257,7 +1260,9 @@ class TestAllowedToolsOverride:
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = ["read_text_file"]
         orch = _make_orchestrator(ctx)  # no allowed_tools override
-        with patch.object(orch, "_handle_memory_injection", AsyncMock()):
+        with patch.object(
+            orch._conversation_manager, "handle_memory_injection", AsyncMock()
+        ):
             with patch.object(
                 orch._llm_executor,
                 "handle_llm_turn",
@@ -1311,7 +1316,7 @@ class TestHandleHistoryCompressionPersist:
             )
         )
         orch = Orchestrator(ctx)
-        await orch._handle_history_compression()
+        await orch._conversation_manager.handle_history_compression()
         ctx.session.replace_messages.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1326,7 +1331,7 @@ class TestHandleHistoryCompressionPersist:
             )
         )
         orch = Orchestrator(ctx)
-        await orch._handle_history_compression()
+        await orch._conversation_manager.handle_history_compression()
         ctx.session.replace_messages.assert_not_called()
 
     @pytest.mark.asyncio
@@ -1344,7 +1349,7 @@ class TestHandleHistoryCompressionPersist:
             )
         )
         orch = Orchestrator(ctx)
-        await orch._handle_history_compression()
+        await orch._conversation_manager.handle_history_compression()
         ctx.session.replace_messages.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1370,7 +1375,7 @@ class TestHandleHistoryCompressionPersist:
             )
         )
         orch = Orchestrator(ctx)
-        await orch._handle_history_compression()
+        await orch._conversation_manager.handle_history_compression()
         saved = ctx.session.replace_messages.call_args[0][0]
         assert len(saved) == 3
         assert saved[0] == kept
@@ -1403,7 +1408,7 @@ class TestInitWorkflowTaskResumeReuse:
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
-            workflow_id, task = orch._init_workflow_task(
+            workflow_id, task = orch._workflow_adapter._init_workflow_task(
                 ctx, "test-session", existing_task_id="existing-task-id"
             )
             assert workflow_id == "existing-wf-id"
@@ -1431,7 +1436,7 @@ class TestInitWorkflowTaskResumeReuse:
         ):
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
-            orch._init_workflow_task(
+            orch._workflow_adapter._init_workflow_task(
                 ctx, "test-session", existing_task_id="existing-task-id"
             )
             mock_audit.assert_not_called()
@@ -1458,7 +1463,7 @@ class TestInitWorkflowTaskResumeReuse:
             orch = Orchestrator(ctx)
             orch._workflow_def = MagicMock(version="test-v1")
             with pytest.raises(RuntimeError, match="halted"):
-                orch._init_workflow_task(
+                orch._workflow_adapter._init_workflow_task(
                     ctx, "test-session", existing_task_id="halted-task-id"
                 )
             mock_create.assert_not_called()
@@ -1508,7 +1513,7 @@ class TestEphemeralMessageLifecycle:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        _answer, error_kind, _is_partial = await orch._process_turn(
+        _answer, error_kind, _is_partial = await orch._workflow_adapter._process_turn(
             "what headings are here?", ctx, 0.0
         )
 
@@ -1546,8 +1551,8 @@ class TestEphemeralMessageLifecycle:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        await orch._process_turn("what headings are here?", ctx, 0.0)
-        await orch._process_turn("second turn", ctx, 0.0)
+        await orch._workflow_adapter._process_turn("what headings are here?", ctx, 0.0)
+        await orch._workflow_adapter._process_turn("second turn", ctx, 0.0)
 
         assert len(seen_payloads) == 2
         second_payload = seen_payloads[1]
@@ -1569,7 +1574,7 @@ class TestClearPreviousTurnEphemeralMessages:
             {"role": "system", "content": "skill", "_skill_ephemeral": True},
         ]
         orch = _make_orchestrator(ctx)
-        orch._clear_previous_turn_ephemeral_messages()
+        orch._conversation_manager.clear_previous_turn_ephemeral_messages()
         assert ctx.conv.history == [{"role": "system", "content": "kept"}]
 
     def test_skill_ephemeral_only_message_removed_without_other_ephemeral_keys(
@@ -1583,7 +1588,7 @@ class TestClearPreviousTurnEphemeralMessages:
             {"role": "system", "content": "skill only", "_skill_ephemeral": True},
         ]
         orch = _make_orchestrator(ctx)
-        orch._clear_previous_turn_ephemeral_messages()
+        orch._conversation_manager.clear_previous_turn_ephemeral_messages()
         assert ctx.conv.history == [{"role": "system", "content": "kept"}]
 
     def test_non_ephemeral_messages_preserved(self) -> None:
@@ -1595,7 +1600,7 @@ class TestClearPreviousTurnEphemeralMessages:
             {"role": "assistant", "content": "hi there"},
         ]
         orch = _make_orchestrator(ctx)
-        orch._clear_previous_turn_ephemeral_messages()
+        orch._conversation_manager.clear_previous_turn_ephemeral_messages()
         assert len(ctx.conv.history) == 3
         assert ctx.conv.history[0] == {"role": "system", "content": "You are helpful."}
         assert ctx.conv.history[1] == {"role": "user", "content": "hello"}
@@ -1606,7 +1611,7 @@ class TestClearPreviousTurnEphemeralMessages:
         ctx = _make_ctx()
         ctx.conv.history = []
         orch = _make_orchestrator(ctx)
-        orch._clear_previous_turn_ephemeral_messages()
+        orch._conversation_manager.clear_previous_turn_ephemeral_messages()
         assert ctx.conv.history == []
 
     def test_mixed_ephemeral_and_non_ephemeral_in_same_message_removed(self) -> None:
@@ -1619,7 +1624,7 @@ class TestClearPreviousTurnEphemeralMessages:
             {"role": "system", "content": "kept"},
         ]
         orch = _make_orchestrator(ctx)
-        orch._clear_previous_turn_ephemeral_messages()
+        orch._conversation_manager.clear_previous_turn_ephemeral_messages()
         assert ctx.conv.history == [{"role": "system", "content": "kept"}]
 
 
@@ -1645,7 +1650,9 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
         ctx.services_required.memory = memory
         orch = _make_orchestrator(ctx)
 
-        await orch._handle_memory_injection("what headings are here?")
+        await orch._conversation_manager.handle_memory_injection(
+            "what headings are here?"
+        )
 
         assert len(ctx.conv.history) == 1
         msg = ctx.conv.history[0]
@@ -1661,7 +1668,7 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
         ctx.conv.system_prompt_content = ""  # skip system-prompt sync noise
         orch = _make_orchestrator(ctx)
 
-        await orch._append_user_message("hello there")
+        await orch._conversation_manager.append_user_message("hello there")
 
         assert ctx.conv.history == [{"role": "user", "content": "hello there"}]
 
@@ -1671,7 +1678,7 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
         ctx.conv.history = [{"role": "user", "content": "hi"}]
         orch = _make_orchestrator(ctx)
 
-        orch._sync_system_prompt()
+        orch._conversation_manager.sync_system_prompt()
 
         assert ctx.conv.history[0] == {
             "role": "system",
@@ -1694,7 +1701,7 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
             "agent.conversation_state_manager.validate_message",
             return_value=ValidationResult(False, "forced failure"),
         ):
-            orch._sync_system_prompt()
+            orch._conversation_manager.sync_system_prompt()
 
         assert ctx.conv.history == [{"role": "user", "content": "hi"}]
 
@@ -1723,7 +1730,9 @@ class TestDiscardAndLogConsecutiveFailures:
             patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
             for _ in range(4):
-                orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+                orch._bg_task_monitor.on_task_done(
+                    self._fake_task(RuntimeError("boom"))
+                )
 
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 4
         # Only the first failure logs a warning; 2nd-4th are silent until threshold
@@ -1739,11 +1748,13 @@ class TestDiscardAndLogConsecutiveFailures:
             patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
             for _ in range(BG_FAILURE_THRESHOLD - 1):
-                orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+                orch._bg_task_monitor.on_task_done(
+                    self._fake_task(RuntimeError("boom"))
+                )
             # 2nd-(N-1)th failures are silent (no logging)
             assert mock_warning.call_count == 1
             assert mock_error.call_count == 0
-            orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+            orch._bg_task_monitor.on_task_done(self._fake_task(RuntimeError("boom")))
 
         assert (
             orch._bg_task_monitor.get_consecutive_failures("test_bg_task")
@@ -1758,10 +1769,10 @@ class TestDiscardAndLogConsecutiveFailures:
         orch = _make_orchestrator(ctx)
 
         for _ in range(3):
-            orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+            orch._bg_task_monitor.on_task_done(self._fake_task(RuntimeError("boom")))
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 3
 
-        orch._discard_and_log(self._fake_task(None))
+        orch._bg_task_monitor.on_task_done(self._fake_task(None))
 
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 0
 
@@ -1772,14 +1783,16 @@ class TestDiscardAndLogConsecutiveFailures:
         orch = _make_orchestrator(ctx)
 
         for _ in range(3):
-            orch._discard_and_log(self._fake_task(RuntimeError("boom")))
+            orch._bg_task_monitor.on_task_done(self._fake_task(RuntimeError("boom")))
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 3
 
         with (
             patch("agent.bg_task_monitor.logger.warning") as mock_warning,
             patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
-            orch._discard_and_log(self._fake_task(asyncio.CancelledError()))
+            orch._bg_task_monitor.on_task_done(
+                self._fake_task(asyncio.CancelledError())
+            )
 
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 0
         mock_warning.assert_not_called()
@@ -1794,18 +1807,22 @@ class TestDiscardAndLogConsecutiveFailures:
         orch = _make_orchestrator(ctx, on_error=on_error)
 
         # First failure calls _on_error (not _notify_bg_failure_threshold) — skip it
-        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        orch._bg_task_monitor.on_task_done(
+            self._fake_task(RuntimeError("boom"), name="my_bg_task")
+        )
         assert on_error.call_count == 1
         on_error.reset_mock()
 
         # 2nd-(N-1)th failures are silent (no logging, no notifications)
         for _ in range(BG_FAILURE_THRESHOLD - 2):
-            orch._discard_and_log(
+            orch._bg_task_monitor.on_task_done(
                 self._fake_task(RuntimeError("boom"), name="my_bg_task")
             )
 
         # Nth failure (threshold) triggers _notify_bg_failure_threshold which calls _on_error
-        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        orch._bg_task_monitor.on_task_done(
+            self._fake_task(RuntimeError("boom"), name="my_bg_task")
+        )
         assert (
             orch._bg_task_monitor.get_consecutive_failures("my_bg_task")
             == BG_FAILURE_THRESHOLD
@@ -1817,7 +1834,9 @@ class TestDiscardAndLogConsecutiveFailures:
 
         # A (N+1)th consecutive failure must not notify again (only == threshold, not >=).
         on_error.reset_mock()
-        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        orch._bg_task_monitor.on_task_done(
+            self._fake_task(RuntimeError("boom"), name="my_bg_task")
+        )
         on_error.assert_not_called()
 
     def test_threshold_notification_falls_back_to_critical_log_on_error_raising(
@@ -1831,16 +1850,18 @@ class TestDiscardAndLogConsecutiveFailures:
         orch = _make_orchestrator(ctx, on_error=on_error)
 
         # First failure also calls _on_error — it will raise too (logged as ERROR)
-        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        orch._bg_task_monitor.on_task_done(
+            self._fake_task(RuntimeError("boom"), name="my_bg_task")
+        )
 
         with patch("agent.bg_task_monitor.logger.critical") as mock_critical:
             # 2nd-(N-1)th failures are silent
             for _ in range(BG_FAILURE_THRESHOLD - 2):
-                orch._discard_and_log(
+                orch._bg_task_monitor.on_task_done(
                     self._fake_task(RuntimeError("boom"), name="my_bg_task")
                 )
             # Nth failure triggers _notify_bg_failure_threshold which calls _on_error
-            orch._discard_and_log(
+            orch._bg_task_monitor.on_task_done(
                 self._fake_task(RuntimeError("boom"), name="my_bg_task")
             )
 
@@ -1858,19 +1879,23 @@ class TestDiscardAndLogConsecutiveFailures:
         orch = _make_orchestrator(ctx, pause_on_critical_failure=True)
 
         # First failure does NOT set pause state (only calls _on_error)
-        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
-        assert orch._bg_pause_state == {}
+        orch._bg_task_monitor.on_task_done(
+            self._fake_task(RuntimeError("boom"), name="my_bg_task")
+        )
+        assert orch._bg_task_monitor.bg_pause_state == {}
 
         # 2nd-(N-1)th failures are silent
         for _ in range(BG_FAILURE_THRESHOLD - 2):
-            orch._discard_and_log(
+            orch._bg_task_monitor.on_task_done(
                 self._fake_task(RuntimeError("boom"), name="my_bg_task")
             )
 
         # Nth failure triggers _notify_bg_failure_threshold which sets pause state
-        orch._discard_and_log(self._fake_task(RuntimeError("boom"), name="my_bg_task"))
+        orch._bg_task_monitor.on_task_done(
+            self._fake_task(RuntimeError("boom"), name="my_bg_task")
+        )
 
-        assert orch._bg_pause_state == {"my_bg_task": True}
+        assert orch._bg_task_monitor.bg_pause_state == {"my_bg_task": True}
 
     def test_threshold_reached_with_pause_disabled_leaves_pause_state_empty(
         self,
@@ -1881,11 +1906,11 @@ class TestDiscardAndLogConsecutiveFailures:
         orch = _make_orchestrator(ctx)
 
         for _ in range(5):
-            orch._discard_and_log(
+            orch._bg_task_monitor.on_task_done(
                 self._fake_task(RuntimeError("boom"), name="my_bg_task")
             )
 
-        assert orch._bg_pause_state == {}
+        assert orch._bg_task_monitor.bg_pause_state == {}
 
 
 class TestHandleTurnPauseGuard:
@@ -1900,7 +1925,7 @@ class TestHandleTurnPauseGuard:
         orch = _make_orchestrator(
             ctx, on_error=on_error, pause_on_critical_failure=True
         )
-        orch._bg_pause_state["my_bg_task"] = True
+        orch._bg_task_monitor.bg_pause_state["my_bg_task"] = True
 
         await orch.handle_turn("do something")
 
@@ -1919,7 +1944,7 @@ class TestHandleTurnPauseGuard:
         orch = _make_orchestrator(
             ctx, on_error=on_error, pause_on_critical_failure=True
         )
-        orch._bg_pause_state["my_bg_task"] = False
+        orch._bg_task_monitor.bg_pause_state["my_bg_task"] = False
 
         with patch.object(
             orch._workflow_adapter,
@@ -1974,7 +1999,7 @@ class TestHandleWorkflowEngineStatusPreservation:
                 "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
             ),
         ):
-            await orch._handle_workflow_engine("test line", ctx, time.time())
+            await orch._workflow_adapter.execute_turn("test line", time.time(), "")
 
         # The finally block should NOT have overwritten pending_approval
         calls = [
@@ -2017,7 +2042,7 @@ class TestHandleWorkflowEngineStatusPreservation:
                 "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
             ),
         ):
-            await orch._handle_workflow_engine("test line", ctx, time.time())
+            await orch._workflow_adapter.execute_turn("test line", time.time(), "")
 
         # The finally block should NOT have overwritten halted
         calls = [
@@ -2060,7 +2085,7 @@ class TestHandleWorkflowEngineStatusPreservation:
                 "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
             ),
         ):
-            await orch._handle_workflow_engine("test line", ctx, time.time())
+            await orch._workflow_adapter.execute_turn("test line", time.time(), "")
 
         # The finally block should NOT have overwritten halted
         calls = [
@@ -2109,7 +2134,7 @@ class TestHandleWorkflowEngineStatusPreservation:
         ):
             orch._state_store = mock_store
             orch._workflow_adapter._state_store = mock_store
-            await orch._handle_workflow_engine("test line", ctx, time.time())
+            await orch._workflow_adapter.execute_turn("test line", time.time(), "")
 
         # The finally block should have written 'completed'
         mock_store.update_task_status.assert_called_with("task-1", "completed")
@@ -2152,7 +2177,7 @@ class TestHandleWorkflowEngineStatusPreservation:
         ):
             orch._state_store = mock_store
             orch._workflow_adapter._state_store = mock_store
-            await orch._handle_workflow_engine("test line", ctx, time.time())
+            await orch._workflow_adapter.execute_turn("test line", time.time(), "")
 
         # The finally block should have written 'failed' because error_kind is set
         mock_store.update_task_status.assert_called_with("task-1", "failed")
@@ -2244,3 +2269,59 @@ class TestErrorKindPropagation:
         assert len(captured_events) > 0
         event_dict = json.loads(captured_events[-1])
         assert event_dict["error_kind"].startswith("CONNECT_ERROR")
+
+
+# ── Workflow load failure is fatal (ADR-001 Decision 4, ADR-004 INV-03) ───────
+
+
+class TestWorkflowLoadFailureIsFatal:
+    """A workflow definition that cannot be loaded stops Orchestrator
+    construction; there is no fallback mode."""
+
+    @pytest.mark.parametrize(
+        "load_error",
+        [
+            WorkflowLoadError("invalid JSON: unexpected token"),
+            FileNotFoundError("default.json is missing"),
+        ],
+    )
+    def test_construction_raises_runtime_error_with_path_and_cause(
+        self, load_error: Exception
+    ) -> None:
+        with patch("agent.orchestrator.WorkflowLoader") as loader_cls:
+            loader_cls.return_value.load.side_effect = load_error
+            with pytest.raises(RuntimeError) as excinfo:
+                Orchestrator(_make_ctx())
+
+        message = str(excinfo.value)
+        assert "default.json" in message
+        assert str(load_error) in message
+        assert excinfo.value.__cause__ is load_error
+
+    def test_no_workflow_engine_is_built_when_loading_fails(self) -> None:
+        with (
+            patch("agent.orchestrator.WorkflowLoader") as loader_cls,
+            patch("agent.orchestrator.WorkflowEngine") as engine_cls,
+        ):
+            loader_cls.return_value.load.side_effect = WorkflowLoadError("bad")
+            with pytest.raises(RuntimeError):
+                Orchestrator(_make_ctx())
+
+        engine_cls.assert_not_called()
+
+    def test_startup_surfaces_the_construction_error(self) -> None:
+        """The startup component initializer does not swallow the failure, so a
+        broken workflow definition aborts startup like a failed preflight."""
+        from agent.startup_component_init import ComponentInitializer
+
+        initializer = ComponentInitializer(_make_ctx(), MagicMock())
+        initializer._cmds = MagicMock()
+        with (
+            patch("agent.startup_component_init.init_tracer", return_value=None),
+            patch("agent.orchestrator.WorkflowLoader") as loader_cls,
+        ):
+            loader_cls.return_value.load.side_effect = WorkflowLoadError("bad json")
+            with pytest.raises(
+                RuntimeError, match="Workflow definition failed to load"
+            ):
+                initializer._init_orchestrator()

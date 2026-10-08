@@ -59,7 +59,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | RAG-002 | Japanese sentences with empty normalized text are dropped with their original text | open | Low | RAG | implementation-bug |
 | AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap |
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
-| AGENT-003 | Orchestrator continues in fallback mode when the workflow fails to load | open | Medium | Agent | design-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
 | MCP-001 | git-mcp audit records are never emitted | fixed | Medium | MCP | implementation-bug |
 | MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
@@ -72,26 +71,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap |
 | EVENTBUS-014 | `events.acked_at` is never written but is still read | open | Low | EventBus | implementation-bug |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
-
-#### AGENT-003
-
-- **ID**: AGENT-003
-- **Title**: Orchestrator continues in fallback mode when the workflow fails to load
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Agent
-- **Type**: design-gap
-- **Source**: `scripts/agent/orchestrator.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-001-workflow-engine-mandatory.md`
-- **Related**: `docs/10_adr/ADR-004-environment-failure-handling-policy.md`
-- **Summary**: `Orchestrator.__init__()` catches workflow load errors and runs with a stage-less workflow.
-- **Current Description**: ADR-001 and ADR-004 require startup to abort.
-- **Observed Implementation**: The preflight normally aborts first; otherwise the REPL starts in fallback mode.
-- **Impact**: The agent runs without workflow features.
-- **Recommended Action**: Abort startup on load failure, or record the exception in the ADRs.
-- **Resolution Target**: Startup aborts, or the ADRs record the exception.
 
 #### RAG-001
 

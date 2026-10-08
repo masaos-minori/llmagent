@@ -110,7 +110,7 @@ The session title generation task scheduled on the first turn manages consecutiv
 
 ### System Prompt Sync
 
-- `TurnCoordinator.sync_system_prompt()` (invoked via `Orchestrator._sync_system_prompt()`) is called in step ③, before user message addition.
+- The conversation state manager's system-prompt sync runs when the user message is appended in step ③, before the message is added.
 - If `ctx.conv.history[0]` is already in the `"system"` role, its `content` is overwritten.
 - New system messages are validated before insertion.
 

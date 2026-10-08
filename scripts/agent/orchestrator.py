@@ -3,22 +3,16 @@
 
 Turn-level orchestration facade.
 
-Composes six extracted concern classes (see
+Composes the extracted concern classes (see
 `issues/done/20260829-080923_refactor_001_orchestrator_separation.md`):
-  turnd_coordinator.py         — TurnCoordinator (turn lifecycle)
-  workflow_engine_adapter.py   — WorkflowEngineAdapter (workflow engine integration)
-  bg_task_monitor.py           — BgTaskMonitor (background task failure tracking)
-  llm_turn_executor.py         — LlmTurnExecutor (LLM streaming and result processing)
-  audit_event_emitter.py       — AuditEventEmitter (audit event construction)
+  workflow_engine_adapter.py    — WorkflowEngineAdapter (workflow engine integration)
+  bg_task_monitor.py            — BgTaskMonitor (background task failure tracking)
+  llm_turn_executor.py          — LlmTurnExecutor (LLM streaming and result processing)
+  audit_event_emitter.py        — AuditEventEmitter (audit event construction)
   conversation_state_manager.py — ConversationStateManager (conversation history manipulation)
 
-All other concerns are delegated to extracted concern classes:
-  bg_task_monitor.py      — BgTaskMonitor
-  audit_event_emitter.py  — AuditEventEmitter
-  conversation_state_manager.py — ConversationStateManager
-  turnd_coordinator.py    — TurnCoordinator
-  llm_turn_executor.py    — LlmTurnExecutor
-  workflow_engine_adapter.py — WorkflowEngineAdapter
+A workflow definition that cannot be loaded is a fatal construction error: there
+is no fallback mode (ADR-001 Decision 4, ADR-004 INV-03).
 
 ADR-014: Orchestrator arbitrates processing within a single turn; it delegates
 persistent task state, stage transitions, retries, and approval to
@@ -28,11 +22,9 @@ WorkflowEngine, and delegates the LLM/tool-call loop to LlmTurnExecutor.
 from __future__ import annotations
 
 import asyncio
-from collections.abc import Callable, Iterator
-from contextlib import contextmanager
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
-from shared.llm_exceptions import LLMTransportError
 from shared.logger import Logger
 
 from agent.audit_event_emitter import AuditEventEmitter
@@ -41,31 +33,19 @@ from agent.context import AgentContext
 from agent.conversation_state_manager import ConversationStateManager
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_turn_executor import LlmTurnExecutor
-from agent.mode_classification import classify_and_inject_mode
 from agent.output_tags import OutputTag
-from agent.turn_result import TurnResult
 from agent.workflow import (
     StateStore,
-    TaskRecord,
     WorkflowDef,
     WorkflowEngine,
     WorkflowLoader,
     WorkflowLoadError,
 )
+from agent.workflow.workflow_loader import WORKFLOWS_DIR
 from agent.workflow_engine_adapter import WorkflowEngineAdapter
 
 if TYPE_CHECKING:
     pass
-
-# Sentinel workflow definition for fallback mode.
-# Satisfies all downstream assertions (_wdef is not None, .version, .require_approval, .get_stage())
-# while preventing real workflow stage execution (stages=[], require_approval=False).
-_FALLBACK_WORKFLOW_DEF = WorkflowDef(
-    name="fallback",
-    version="0.0.0",
-    stages=[],
-    require_approval=False,
-)
 
 __all__ = ["BG_FAILURE_THRESHOLD", "Orchestrator"]
 
@@ -79,9 +59,8 @@ class Orchestrator:
     and side effects are routed via optional callbacks so this class has no
     direct I/O dependency.
 
-    A thin composition facade over six extracted concern classes (see module
-    docstring) — this class wires them together and preserves the previous
-    private-method surface as delegating wrappers for backward compatibility.
+    A thin composition facade over the extracted concern classes (see module
+    docstring) — this class only wires them together and arbitrates a turn.
     """
 
     def __init__(
@@ -145,17 +124,13 @@ class Orchestrator:
             on_llm_wait_start=on_llm_wait_start,
             on_llm_wait_end=on_llm_wait_end,
         )
-        self._fallback_mode = False
         try:
-            self._workflow_def: WorkflowDef | None = WorkflowLoader().load()
+            self._workflow_def: WorkflowDef = WorkflowLoader().load()
         except (WorkflowLoadError, FileNotFoundError) as exc:
-            logger.warning(
-                "%s Workflow loader failed: %s. REPL running in fallback mode.",
-                OutputTag.WORKFLOW,
-                exc,
-            )
-            self._fallback_mode = True
-            self._workflow_def = _FALLBACK_WORKFLOW_DEF
+            raise RuntimeError(
+                f"Workflow definition failed to load "
+                f"({WORKFLOWS_DIR / 'default.json'}): {exc}"
+            ) from exc
 
         _engine = (
             workflow_engine
@@ -189,13 +164,6 @@ class Orchestrator:
         if is_paused:
             await self._on_pause_blocked(paused_names)
             return
-        if self._fallback_mode:
-            if self._on_error:
-                self._on_error(
-                    RuntimeError(
-                        f"{OutputTag.WORKFLOW} Workflow features unavailable — REPL running in fallback mode."
-                    )
-                )
         await self._execute_turn(line)
 
     async def _execute_turn(self, line):
@@ -242,103 +210,3 @@ class Orchestrator:
 
     def _on_discard(self, task):
         self._bg_task_monitor.on_task_done(task)
-
-    # ── Backward-compatible delegating wrappers ─────────────────────────────
-    # Preserve the pre-refactor private method/attribute surface that existing
-    # tests call directly on an Orchestrator instance. Methods with no direct
-    # external caller (confirmed via `rg` against tests/ and scripts/) are not
-    # wrapped here — call the owning component directly instead.
-
-    def _clear_previous_turn_ephemeral_messages(self) -> None:
-        return self._conversation_manager.clear_previous_turn_ephemeral_messages()
-
-    def _sync_system_prompt(self) -> None:
-        return self._conversation_manager.sync_system_prompt()
-
-    async def _append_user_message(self, line: str) -> None:
-        return await self._conversation_manager.append_user_message(line)
-
-    async def _handle_workflow_engine(
-        self, line: str, ctx: AgentContext, turn_started_at: float
-    ) -> tuple[str, str | None, bool]:
-        return await self._workflow_adapter.execute_turn(line, turn_started_at, "")
-
-    async def _process_turn(
-        self, line: str, ctx: AgentContext, turn_started_at: float
-    ) -> tuple[str, str | None, bool]:
-        """Process a turn and return (answer, error_kind, is_partial)."""
-        answer = ""
-        error_kind = None
-        is_partial = False
-
-        with self._tool_override(self._allowed_tools):
-            self._clear_previous_turn_ephemeral_messages()
-            await self._conversation_manager.handle_memory_injection(line)
-            await classify_and_inject_mode(line, ctx)
-            await self._append_user_message(line)
-            await self._conversation_manager.handle_history_compression()
-
-            result: TurnResult = await self._llm_executor.handle_llm_turn(
-                ctx.conv.llm_url,
-                workflow_id=ctx.workflow.workflow_id or "",
-                task_id=ctx.workflow.current_task_id or "",
-                stage_id="execute",
-                attempt_id=ctx.turn.current_turn_id or "",
-            )
-            answer = result.answer
-            if result.action != "continue":
-                error_kind = result.error_kind or result.reason or result.action
-                if (
-                    isinstance(result.exception, LLMTransportError)
-                    and result.exception.partial_text
-                ):
-                    is_partial = True
-            elif result.persist_as_assistant:
-                ctx.session.save("assistant", answer)
-
-        return answer, error_kind, is_partial
-
-    @contextmanager
-    def _tool_override(self, allowed: list[str] | None) -> Iterator[None]:
-        """Temporarily override allowed_tools for the duration of a turn."""
-        original = self._ctx.cfg.tool.allowed_tools
-        if allowed is not None:
-            self._ctx.cfg.tool.allowed_tools = allowed
-        try:
-            yield
-        finally:
-            self._ctx.cfg.tool.allowed_tools = original
-
-    def _init_workflow_task(
-        self,
-        ctx: AgentContext,
-        session_id: str,
-        existing_task_id: str | None = None,
-        store: StateStore | None = None,
-    ) -> tuple[str, TaskRecord]:
-        return self._workflow_adapter._init_workflow_task(
-            ctx, session_id, existing_task_id, store
-        )
-
-    def _activate_workflow(self, ctx: AgentContext, task: TaskRecord) -> None:
-        return self._workflow_adapter._activate_workflow(ctx, task)
-
-    def _deactivate_workflow(self, ctx: AgentContext) -> None:
-        return self._workflow_adapter._deactivate_workflow(ctx)
-
-    async def _handle_memory_injection(self, line: str) -> None:
-        return await self._conversation_manager.handle_memory_injection(line)
-
-    async def _handle_history_compression(self) -> None:
-        return await self._conversation_manager.handle_history_compression()
-
-    def _discard_and_log(self, task: asyncio.Task[Any]) -> None:
-        return self._bg_task_monitor.on_task_done(task)
-
-    @property
-    def _bg_pause_state(self) -> dict[str, bool]:
-        return self._bg_task_monitor.bg_pause_state
-
-    @_bg_pause_state.setter
-    def _bg_pause_state(self, value: dict[str, bool]) -> None:
-        self._bg_task_monitor._bg_pause_state = value
