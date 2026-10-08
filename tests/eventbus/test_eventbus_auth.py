@@ -1163,3 +1163,92 @@ class TestUnified401ResponseFormat:
         assert "detail" in body
         # Only one "detail" field — no duplication
         assert set(body.keys()) == {"detail"}
+
+
+def _has_role_dependency(dependant: Any) -> bool:
+    """Return True if any dependency in the tree is a require_role() check."""
+    for sub in dependant.dependencies:
+        qualname = getattr(sub.call, "__qualname__", "")
+        if "require_role" in qualname or _has_role_dependency(sub):
+            return True
+    return False
+
+
+class TestProductionRouteWiring:
+    """Role enforcement through the production app object.
+
+    The other classes in this module build their own fixture app and attach the
+    role dependencies themselves, so they cannot detect a production route that
+    was registered without one (EVENTBUS-016). These tests use the production
+    app, so a missing dependency fails here.
+    """
+
+    @pytest.fixture
+    def prod_client(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
+        import dataclasses
+
+        from eventbus import app as eb_app
+        from eventbus.auth import _populate_token_maps
+        from eventbus_helpers import make_eventbus_client
+
+        with make_eventbus_client(tmp_path, monkeypatch) as client:
+            cfg = dataclasses.replace(
+                eb_app.app.state.config,
+                publisher_token="prod-publisher-token",
+                consumer_token="prod-consumer-token",
+                monitoring_token="prod-monitoring-token",
+            )
+            eb_app.app.state.config = cfg
+            _populate_token_maps(cfg)
+            yield client
+
+    @staticmethod
+    def _event() -> dict[str, Any]:
+        import uuid
+
+        return {
+            "event_id": str(uuid.uuid4()),
+            "topic": "test.topic",
+            "payload": {"key": "value"},
+            "producer": "test-producer",
+            "published_at": "2026-06-22T11:56:00Z",
+        }
+
+    def _call(self, client: Any, method: str, path: str, token: str | None) -> Any:
+        headers = {"Authorization": f"Bearer {token}"} if token else {}
+        client.headers.pop("Authorization", None)
+        if method == "GET":
+            return client.get(path, headers=headers)
+        return client.post(path, json=self._event(), headers=headers)
+
+    def test_every_production_api_route_has_a_role_dependency(self) -> None:
+        from eventbus import app as eb_app
+        from fastapi.routing import APIRoute
+
+        unprotected = [
+            route.path
+            for route in eb_app.app.routes
+            if isinstance(route, APIRoute) and not _has_role_dependency(route.dependant)
+        ]
+        assert unprotected == []
+
+    @pytest.mark.parametrize(
+        ("method", "path", "right_token", "wrong_token"),
+        [
+            ("GET", "/health", "prod-monitoring-token", "prod-consumer-token"),
+            ("POST", "/publish", "prod-publisher-token", "prod-consumer-token"),
+        ],
+    )
+    def test_route_enforces_role_through_production_app(
+        self,
+        prod_client: Any,
+        method: str,
+        path: str,
+        right_token: str,
+        wrong_token: str,
+    ) -> None:
+        assert self._call(prod_client, method, path, None).status_code == 401
+        assert self._call(prod_client, method, path, "unknown").status_code == 401
+        assert self._call(prod_client, method, path, wrong_token).status_code == 403
+        assert self._call(prod_client, method, path, right_token).status_code == 200
+        assert self._call(prod_client, method, path, "test-token").status_code == 200

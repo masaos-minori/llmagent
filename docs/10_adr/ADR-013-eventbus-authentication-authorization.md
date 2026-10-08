@@ -38,11 +38,11 @@ EventBus API establishes a fail-closed security boundary by adding Bearer-token 
 
 ### Problem
 
-EventBus routes in `scripts/eventbus/` are intended to authenticate callers by Bearer token and authorize them by role. Roles are resolved by per-route dependencies and the HTTP middleware only assigns a request ID; `/health` and `/publish` are registered without a role dependency (EVENTBUS-016). Consumer identity validation is skipped for a token with no configured `consumer_id` allowlist entry (EVENTBUS-008; see Known Deviations). `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
+EventBus routes in `scripts/eventbus/` are intended to authenticate callers by Bearer token and authorize them by role. Roles are resolved by per-route dependencies and the HTTP middleware only assigns a request ID. Consumer identity validation is skipped for a token with no configured `consumer_id` allowlist entry (EVENTBUS-008; see Known Deviations). `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
 
 ### Current State
 
-`attach_auth_middleware(app)` (request-ID assignment only) is attached in `scripts/eventbus/app.py`. Routes other than `/health` and `/publish` require role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation.
+`attach_auth_middleware(app)` (request-ID assignment only) is attached in `scripts/eventbus/app.py`. Each route requires role-based authentication via `Depends(require_role(...))`. Consumer-facing routes (/subscribe, /ack, /nack) additionally require `Depends(require_consumer_identity)` for consumer identity validation.
 
 ### Constraints
 
@@ -218,7 +218,7 @@ None.
 
 ### Fail-Open or Degraded Conditions
 
-- None. `/health` is intended to require the Monitoring role (not enforced by the application today; EVENTBUS-016).
+- None. `/health` requires the Monitoring role.
 
 ### Retry Policy
 
@@ -236,7 +236,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ### Automated Tests
 
-- **Test**: Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) — **Verifies**: INV-01 — **Type**: Integration — **Blocking**: Yes (these tests build their own fixture app with the role dependencies; they do not cover the production wiring of `/health` and `/publish`, tracked as EVENTBUS-016)
+- **Test**: Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) — **Verifies**: INV-01 — **Type**: Integration — **Blocking**: Yes (the fixture-app tests are complemented by `TestProductionRouteWiring`, which checks the production app's route dependencies and the 401/403/200 behavior of `/health` and `/publish`)
 - **Test**: Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) — **Verifies**: INV-03 (operator-gated routes) — **Type**: Integration — **Blocking**: Yes
 - **Test**: consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`; `consumer_id` allowlist gap tracked as EVENTBUS-008) — **Verifies**: INV-02 (topic access) — **Type**: Unit — **Blocking**: Yes
 - **Test**: `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) — **Verifies**: Decision Details #7 — **Type**: Unit — **Blocking**: Yes
@@ -254,7 +254,6 @@ See Implementation References for the current file/symbol list.
 
 - **Known Issue**: EVENTBUS-008 — see `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
 - **Known Issue**: EVENTBUS-015 — tracked in governance_03 Part 1 (`auth_token` and `admin_token` grant every role; INV-07 depends on operator discipline only)
-- **Known Issue**: EVENTBUS-016 — tracked in governance_03 Part 1 (`/health` and `/publish` are registered without a role dependency; violates INV-01)
 
 ## Review Triggers
 
@@ -274,7 +273,7 @@ See Implementation References for the current file/symbol list.
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The authentication description correction, INV-07, and the EVENTBUS-015 and EVENTBUS-016 deviations were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: The authentication description correction, INV-07, and the recorded deviations were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

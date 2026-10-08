@@ -72,7 +72,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap |
 | EVENTBUS-014 | `events.acked_at` is never written but is still read | open | Low | EventBus | implementation-bug |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
-| EVENTBUS-016 | `/health` and `/publish` are registered without a role dependency | open | High | EventBus | implementation-bug |
 
 #### AGENT-003
 
@@ -413,26 +412,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: A publisher or consumer process given `auth_token` can call operator and admin routes.
 - **Recommended Action**: Keep these tokens operator-only and record that in ADR-013, or make per-role tokens sufficient.
 - **Resolution Target**: ADR-013 and the deployment practice agree, or per-role tokens suffice.
-
-#### EVENTBUS-016
-
-- **ID**: EVENTBUS-016
-- **Title**: `/health` and `/publish` are registered without a role dependency
-- **Status**: open
-- **Severity**: High
-- **Area**: EventBus
-- **Type**: implementation-bug
-- **Source**: `scripts/eventbus/app.py`
-- **Owner**: Unassigned
-- **First Found**: 2026-10-08
-- **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
-- **Related**: `EVENTBUS-015`
-- **Summary**: Every EventBus route except these two has a role dependency, while these two accept requests without a token.
-- **Current Description**: ADR-013 INV-01 requires every route to reject unauthenticated requests, and the health reference requires the Monitoring role.
-- **Observed Implementation**: The route registration attaches no dependency to either route, their handlers call no authentication helper, and the authentication tests use a fixture app that adds the dependencies itself.
-- **Impact**: Any local process that can reach the loopback port can publish events and read health state without a token.
-- **Recommended Action**: Add the Publisher and Monitoring role dependencies to the two routes and test them against the production app.
-- **Resolution Target**: Both routes reject missing or wrong-role tokens in a test against the production app.
 
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 

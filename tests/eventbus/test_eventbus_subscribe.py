@@ -191,7 +191,7 @@ def _extract_first_n_event_ids(resp: Any, n: int = 10) -> list[int]:
 
 
 def test_health_ok(client: TestClient) -> None:
-    resp = client.get("/health")
+    resp = client.get("/health", headers={"Authorization": "Bearer shared-token"})
     assert resp.status_code == 200
     body = resp.json()
     assert body["status"] == "ok"
