@@ -370,6 +370,11 @@ class TestSubscribeAuth:
             operator_token=None,
             admin_token=None,
         )
+        # The subscribe stream under TestClient only ends when the server's idle
+        # timeout fires; use the validated minimum so these tests do not wait for
+        # the 60-second default. Assigned after construction because the
+        # cross-field check against sse_heartbeat_interval runs only there.
+        object.__setattr__(cls.cfg, "sse_idle_timeout", 1.0)
         cls.client = TestClient(cls.app, raise_server_exceptions=False)
         cls._cleanup = None
 
@@ -415,9 +420,7 @@ class TestSubscribeAuth:
                     break
 
         elapsed = time.time() - start_time
-        assert elapsed < 120, (
-            f"Stream did not close within expected timeout: {elapsed}s"
-        )
+        assert elapsed < 10, f"Stream did not close within expected timeout: {elapsed}s"
 
     def test_subscribe_without_token(self) -> None:
         """Unauthenticated request to /subscribe is rejected."""
