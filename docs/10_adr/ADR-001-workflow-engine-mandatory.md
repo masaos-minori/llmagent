@@ -59,7 +59,7 @@ This system executes tasks planned by the LLM. Some tools have side effects, som
 1. The WorkflowEngine is mandatory. The workflow definition file is a mandatory deployment artifact. If it is missing or fails validation, Agent startup is aborted.
 2. Every operation by the Agent that changes external state, executes a Tool, involves multiple steps, or requires approval runs under the management of the Workflow Engine.
 3. There is no workflow-disable mode.
-4. There is no direct execution path that bypasses the workflow.
+4. There is no direct execution path that bypasses the workflow, including a fallback path taken when the workflow definition fails to load.
 5. All Agent processing, including simple question answering, is placed under the management of the Workflow Engine. Simplicity of processing is not a reason to bypass the Workflow Engine.
 6. The basic states are defined as `plan -> execute -> approval -> verify -> complete/failed`. When approval is not required, approval may be skipped, but workflow management itself is never skipped.
 7. Execution success and verification success are distinguished.
@@ -303,6 +303,7 @@ Rejected to prioritize Recoverability and Data Integrity, because state must per
 ## Implementation Notes
 
 - Startup preflight checks for the workflow definition file and the workflow DB schema run before `Orchestrator` construction and abort startup on failure (Explicit in code — `scripts/agent/startup_component_init.py`).
+- `Orchestrator` construction raises when the workflow definition fails to load, so no fallback mode exists (Explicit in code — `scripts/agent/orchestrator.py`; verified by `tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal`).
 - `Orchestrator` constructs the `WorkflowEngine` from the loaded workflow definition and routes turns through it (Explicit in code — `scripts/agent/orchestrator.py`).
 
 See Implementation References for the file/symbol list.
@@ -341,6 +342,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-08)**: The wording of Decision Details #4, which now names the fallback path taken when the workflow definition fails to load as prohibited, was approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
