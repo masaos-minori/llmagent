@@ -213,7 +213,8 @@ class RagPipeline:
             while only explicit ``None`` triggers fallback.
 
         Fallback chain (each step produces the final result unless it returns None):
-            1. HTTP mode: ``call_rag_service()`` → str/"" (final) or None (fallback)
+            1. HTTP mode: ``call_rag_service()`` → str/"" (final), None (fallback), or
+               ``RagPipelineError`` on HTTP 401/403 (fail closed, no fallback)
             2. Search pipeline: semantic + FTS5 + RRF merge + rerank → reranked hits
             3. Refiner: ``refine_context()`` → refined text (final) or None (fallback)
             4. Raw chunks: ``_format_chunks(reranked)`` → formatted text (final)
@@ -232,27 +233,27 @@ class RagPipeline:
             - Updates ``self.last_fetch_result`` when HTTP stage is used
 
         Raises:
-            RagPipelineError: If the underlying database connection fails.
+            RagPipelineError: If the underlying database connection fails, or the
+                external RAG service rejects authentication (HTTP 401/403).
         """
         if not self._cfg.use_search:
             return ""
         # HTTP mode: delegate to external RAG service when rag_service_url is configured
         result = None
         if rag_url := self._cfg.rag_service_url:
-            result = await self._augment_refiner.run_http_augment(
-                query, history_context, rag_url
-            )
-            self.last_search_diagnostics = self._augment_refiner.search_diagnostics
-            self.last_stage_results = list(self._augment_refiner.last_stage_results)
+            try:
+                result = await self._augment_refiner.run_http_augment(
+                    query, history_context, rag_url
+                )
+            finally:
+                # Copy diagnostics even when RagPipelineError (auth failure) is raised
+                self.last_search_diagnostics = self._augment_refiner.search_diagnostics
+                self.last_stage_results = list(self._augment_refiner.last_stage_results)
             if result is not None:
                 fetch_result = getattr(self._augment_refiner, "last_fetch_result", None)
                 if fetch_result is not None:
                     self.last_fetch_result = cast(TwoStageFetchResult, fetch_result)
                 return result
-        assert result is None or result == "", (
-            f"HTTP augment returned unexpected falsy value: {result!r}; "
-            "expected str (non-empty or empty) or None"
-        )
         try:
             with RagDatabaseConnection(
                 rag_db_path=self._rag_db_path,

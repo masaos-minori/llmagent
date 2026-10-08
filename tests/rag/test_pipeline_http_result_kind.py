@@ -8,8 +8,10 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from rag.exceptions import RagPipelineError
 from rag.models_result import HttpResultKind, ResultSource
 from rag.pipeline import RagPipeline, SearchDiagnostics
+from rag.pipeline_service import CallRagResult
 from rag.types import PipelineRunResult
 
 
@@ -43,7 +45,7 @@ async def test_remote_nonempty(monkeypatch) -> None:
         set_fetch_result=None,
         set_fallback_reason=None,
     ):
-        return "context text", 200, 50.0
+        return CallRagResult("success", "context text", 200, 50.0)
 
     with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         await pipeline.augment("query")
@@ -77,7 +79,7 @@ async def test_remote_empty(monkeypatch) -> None:
         set_fetch_result=None,
         set_fallback_reason=None,
     ):
-        return "", 200, 30.0
+        return CallRagResult("empty", "", 200, 30.0)
 
     with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         with patch("rag.pipeline.SQLiteHelper.open") as mock_open:
@@ -118,7 +120,7 @@ async def test_in_process_fallback(monkeypatch) -> None:
     ):
         if set_fallback_reason:
             set_fallback_reason("connection error")
-        return None, 503, 100.0
+        return CallRagResult("transient_failure", None, 503, 100.0)
 
     with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         with patch("rag.pipeline.SQLiteHelper.open"):
@@ -177,3 +179,29 @@ async def test_no_http_mode(monkeypatch) -> None:
 
     diag = pipeline.get_diagnostics()
     assert diag["http_result_kind"] == HttpResultKind.NOT_USED
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status", [401, 403])
+async def test_auth_error_fails_closed_without_in_process_fallback(
+    monkeypatch, status: int
+) -> None:
+    """HTTP 401/403 -> RagPipelineError; in-process pipeline is never entered."""
+    pipeline = _make_pipeline()
+
+    async def mock_call_rag_service(*args, **kwargs):
+        if kwargs.get("set_fallback_reason"):
+            kwargs["set_fallback_reason"](f"http_auth_error: {status}")
+        return CallRagResult("auth_error", None, status, 0.0)
+
+    run_mock = AsyncMock()
+    monkeypatch.setattr(pipeline, "run", run_mock)
+
+    with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
+        with pytest.raises(RagPipelineError, match=str(status)):
+            await pipeline.augment("query")
+
+    run_mock.assert_not_called()
+    sd = pipeline.last_search_diagnostics
+    assert sd.http_result_kind == HttpResultKind.AUTH_ERROR
+    assert sd.remote_status_code == status

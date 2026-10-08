@@ -34,13 +34,15 @@ class TestCallToolEndpoint:
             return_value=httpx.Response(200, content=orjson.dumps({"result": "ctx"}))
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "query",
                 "",
                 set_fetch_result=_noop_fetch,
             )
+            result = outcome.result
+            status = outcome.status_code
         assert route.called
         assert "/v1/call_tool" in str(route.calls[0].request.url)
         assert result == "ctx"
@@ -53,13 +55,14 @@ class TestCallToolEndpoint:
             return_value=httpx.Response(200, content=orjson.dumps({"result": "ctx"}))
         )
         async with httpx.AsyncClient() as client:
-            result, _, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "query",
                 "",
                 set_fetch_result=_noop_fetch,
             )
+            result = outcome.result
         assert result == "ctx"
 
     @pytest.mark.asyncio
@@ -113,13 +116,15 @@ class TestResponseParsing:
             )
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
                 "",
                 set_fetch_result=_noop_fetch,
             )
+            result = outcome.result
+            status = outcome.status_code
         assert result == "augmented text"
         assert status == 200
 
@@ -130,13 +135,15 @@ class TestResponseParsing:
             return_value=httpx.Response(200, content=orjson.dumps({"result": None}))
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
                 "",
                 set_fetch_result=_noop_fetch,
             )
+            result = outcome.result
+            status = outcome.status_code
         assert result == ""
         assert status == 200
 
@@ -147,13 +154,14 @@ class TestResponseParsing:
             return_value=httpx.Response(200, content=orjson.dumps({"is_error": False}))
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
                 "",
                 set_fetch_result=_noop_fetch,
             )
+            result = outcome.result
         assert result == ""
 
     @pytest.mark.asyncio
@@ -163,13 +171,14 @@ class TestResponseParsing:
             return_value=httpx.Response(503, content=b'{"error": "unavailable"}')
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
                 "",
                 set_fetch_result=_noop_fetch,
             )
+            result = outcome.result
         assert result is None
 
     @pytest.mark.asyncio
@@ -179,13 +188,15 @@ class TestResponseParsing:
             return_value=httpx.Response(400, content=b'{"error": "bad request"}')
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
                 "",
                 set_fetch_result=_noop_fetch,
             )
+            result = outcome.result
+            status = outcome.status_code
         assert result is None
         assert status == 400
         assert route.call_count == 1
@@ -203,7 +214,7 @@ class TestFallbackReasonCallback:
             return_value=httpx.Response(400, content=b'{"error": "bad request"}')
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
@@ -211,6 +222,7 @@ class TestFallbackReasonCallback:
                 set_fetch_result=_noop_fetch,
                 set_fallback_reason=reasons.append,
             )
+            result = outcome.result
         assert result is None
         assert len(reasons) == 1
         assert reasons[0].startswith("http_client_error:")
@@ -228,7 +240,7 @@ class TestFallbackReasonCallback:
         )
         monkeypatch.setattr("asyncio.sleep", AsyncMock())
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
@@ -236,6 +248,7 @@ class TestFallbackReasonCallback:
                 set_fetch_result=_noop_fetch,
                 set_fallback_reason=reasons.append,
             )
+            result = outcome.result
         assert result is None
         assert len(reasons) == 1
         assert reasons[0].startswith("http_max_retries:")
@@ -248,7 +261,7 @@ class TestFallbackReasonCallback:
             return_value=httpx.Response(200, content=b"not-json")
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
@@ -256,6 +269,7 @@ class TestFallbackReasonCallback:
                 set_fetch_result=_noop_fetch,
                 set_fallback_reason=reasons.append,
             )
+            result = outcome.result
         assert result == ""
         assert len(reasons) == 0
 
@@ -268,13 +282,14 @@ class TestReturnedStatusCode:
             return_value=httpx.Response(400, content=b'{"error": "bad request"}')
         )
         async with httpx.AsyncClient() as client:
-            _, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
                 "",
                 set_fetch_result=_noop_fetch,
             )
+            status = outcome.status_code
         assert status == 400
 
 
@@ -290,7 +305,7 @@ class TestAuthErrorHandling:
             return_value=httpx.Response(401, content=b'{"error": "unauthorized"}')
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
@@ -298,6 +313,8 @@ class TestAuthErrorHandling:
                 set_fetch_result=_noop_fetch,
                 set_fallback_reason=reasons.append,
             )
+            result = outcome.result
+            status = outcome.status_code
         assert result is None
         assert status == 401
         assert route.call_count == 1
@@ -312,7 +329,7 @@ class TestAuthErrorHandling:
             return_value=httpx.Response(403, content=b'{"error": "forbidden"}')
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
@@ -320,6 +337,8 @@ class TestAuthErrorHandling:
                 set_fetch_result=_noop_fetch,
                 set_fallback_reason=reasons.append,
             )
+            result = outcome.result
+            status = outcome.status_code
         assert result is None
         assert status == 403
         assert route.call_count == 1
@@ -334,7 +353,7 @@ class TestAuthErrorHandling:
             return_value=httpx.Response(400, content=b'{"error": "bad request"}')
         )
         async with httpx.AsyncClient() as client:
-            result, status, _ = await call_rag_service(
+            outcome = await call_rag_service(
                 client,
                 RAG_URL,
                 "q",
@@ -342,6 +361,8 @@ class TestAuthErrorHandling:
                 set_fetch_result=_noop_fetch,
                 set_fallback_reason=reasons.append,
             )
+            result = outcome.result
+            status = outcome.status_code
         assert result is None
         assert status == 400
         assert route.call_count == 1
@@ -394,3 +415,86 @@ class TestFallbackMarkerLockGuard:
             f"unexpected: {sorted(found - self._IN_PROCESS_FALLBACK_FILES)}, "
             f"missing: {sorted(self._IN_PROCESS_FALLBACK_FILES - found)}"
         )
+
+
+# ── Bearer authentication, tagged results ───────────────────
+
+
+class TestBearerAuthAndKinds:
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_sends_bearer_authorization_header(self) -> None:
+        route = respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(200, content=orjson.dumps({"result": "ctx"}))
+        )
+        async with httpx.AsyncClient() as client:
+            outcome = await call_rag_service(
+                client, RAG_URL, "q", "", auth_token="s3cret"
+            )
+        headers = route.calls[0].request.headers
+        assert headers["Authorization"] == "Bearer s3cret"
+        assert "X-RAG-Token" not in headers
+        assert outcome.kind == "success"
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_no_authorization_header_when_token_empty(self) -> None:
+        route = respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(200, content=orjson.dumps({"result": "ctx"}))
+        )
+        async with httpx.AsyncClient() as client:
+            await call_rag_service(client, RAG_URL, "q", "")
+        headers = route.calls[0].request.headers
+        assert "Authorization" not in headers
+        assert "X-RAG-Token" not in headers
+
+    @pytest.mark.asyncio
+    @respx.mock
+    @pytest.mark.parametrize("status", [401, 403])
+    async def test_auth_failure_is_auth_error_without_retry(self, status: int) -> None:
+        route = respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(status)
+        )
+        async with httpx.AsyncClient() as client:
+            outcome = await call_rag_service(client, RAG_URL, "q", "")
+        assert outcome.kind == "auth_error"
+        assert outcome.result is None
+        assert outcome.status_code == status
+        assert route.call_count == 1
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_is_error_body_is_transient_failure(self) -> None:
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(
+                200, content=orjson.dumps({"result": "boom", "is_error": True})
+            )
+        )
+        reasons: list[str] = []
+        async with httpx.AsyncClient() as client:
+            outcome = await call_rag_service(
+                client, RAG_URL, "q", "", set_fallback_reason=reasons.append
+            )
+        assert outcome.kind == "transient_failure"
+        assert outcome.result is None
+        assert reasons == ["http_is_error"]
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_empty_result_kind(self) -> None:
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(
+            return_value=httpx.Response(200, content=orjson.dumps({"result": None}))
+        )
+        async with httpx.AsyncClient() as client:
+            outcome = await call_rag_service(client, RAG_URL, "q", "")
+        assert outcome.kind == "empty"
+        assert outcome.result == ""
+
+    @pytest.mark.asyncio
+    @respx.mock
+    async def test_other_4xx_is_transient_failure(self) -> None:
+        respx.post(f"{RAG_URL}/v1/call_tool").mock(return_value=httpx.Response(400))
+        async with httpx.AsyncClient() as client:
+            outcome = await call_rag_service(client, RAG_URL, "q", "")
+        assert outcome.kind == "transient_failure"
+        assert outcome.status_code == 400

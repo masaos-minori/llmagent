@@ -9,7 +9,7 @@ import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Literal
 
-from rag.pipeline_service import call_rag_service
+from rag.pipeline_service import CallRagKind, CallRagResult, call_rag_service
 
 if TYPE_CHECKING:
     import httpx
@@ -23,6 +23,16 @@ _HTTP_RESULT_KIND_MAP: dict[str, HttpResultKind] = {
     "remote_empty": HttpResultKind.EMPTY,
     "in_process_fallback": HttpResultKind.ERROR,
     "auth_error": HttpResultKind.AUTH_ERROR,
+}
+
+_KIND_TO_RESULT_KIND: dict[
+    CallRagKind,
+    Literal["remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"],
+] = {
+    "success": "remote_nonempty",
+    "empty": "remote_empty",
+    "auth_error": "auth_error",
+    "transient_failure": "in_process_fallback",
 }
 
 
@@ -90,11 +100,14 @@ class HttpAugment:
     async def run(self, query: str, history_context: str) -> HttpAugmentResult:
         """Run HTTP augment and return result.
 
-        Return value contract:
+        Return value contract (``HttpAugmentResult.result`` / ``http_result_kind``):
           - ``str`` (non-empty): valid augmented result
           - ``""`` (empty string): valid but empty result; caller should fall back
             to in-process search
-          - ``None``: augmentation failed; caller must use in-process search
+          - ``None`` with ``http_result_kind == "in_process_fallback"``: augmentation
+            failed; caller may use in-process search
+          - ``None`` with ``http_result_kind == "auth_error"``: HTTP 401/403; caller
+            MUST NOT fall back and must fail closed
 
         Identity-vs-truthiness note: ``""`` and ``None`` are both falsy but have
         different meanings.  ``""`` means the remote returned a valid response with
@@ -103,7 +116,7 @@ class HttpAugment:
         """
         t0 = time.perf_counter()
         http_fallback_reasons: list[str] = []
-        result, status_code, latency_ms = await call_rag_service(
+        outcome = await call_rag_service(
             self._http,
             self._rag_url,
             query,
@@ -112,10 +125,14 @@ class HttpAugment:
             set_fetch_result=lambda fr: self._set_fetch_result(fr),
             set_fallback_reason=http_fallback_reasons.append,
         )
-        assert result is None or isinstance(result, str), (
-            f"call_rag_service() returned unexpected type: {type(result).__name__} ({result!r}); "
-            "expected str or None"
-        )
+        if not isinstance(outcome, CallRagResult):
+            raise TypeError(
+                f"call_rag_service() returned unexpected type: {type(outcome).__name__} "
+                f"({outcome!r}); expected CallRagResult"
+            )
+        result = outcome.result
+        status_code = outcome.status_code
+        latency_ms = outcome.latency_ms
         elapsed = time.perf_counter() - t0
         http_status: Literal["success", "fallback"] = (
             "success" if result is not None else "fallback"
@@ -131,15 +148,9 @@ class HttpAugment:
         )
         self._http_result_kind: Literal[
             "remote_nonempty", "remote_empty", "in_process_fallback", "auth_error"
-        ] = (
-            "remote_nonempty"
-            if result and len(result) > 0
-            else "remote_empty"
-            if result == ""
-            else "in_process_fallback"
-        )
+        ] = _KIND_TO_RESULT_KIND[outcome.kind]
         if result is None:
-            if status_code in (401, 403):
+            if outcome.kind == "auth_error":
                 logger.warning(
                     "RAG service authentication error (%s), NOT falling back to in-process",
                     self._rag_url,

@@ -59,7 +59,45 @@ def fake_service(monkeypatch: pytest.MonkeyPatch) -> _FakeService:
 @pytest.fixture
 def client(fake_service: _FakeService) -> TestClient:
     # fake_service dependency ensures _service is patched before lifespan runs.
-    return TestClient(server.app)
+    return TestClient(
+        server.app, headers={"Authorization": f"Bearer {server._cfg.auth_token}"}
+    )
+
+
+class TestInboundAuth:
+    def test_server_has_a_non_empty_token_in_tests(self) -> None:
+        assert server._cfg.auth_token
+
+    def test_missing_authorization_header_is_rejected(
+        self, fake_service: _FakeService
+    ) -> None:
+        resp = TestClient(server.app).get("/v1/tools")
+        assert resp.status_code == 401
+        assert resp.json() == {"error": "Unauthorized"}
+
+    def test_wrong_token_is_rejected_before_dispatch(
+        self, fake_service: _FakeService
+    ) -> None:
+        handler = AsyncMock(return_value="ok result")
+        fake_service._dispatch_table["rag_run_pipeline"] = handler
+        resp = TestClient(server.app).post(
+            "/v1/call_tool",
+            json={"name": "rag_run_pipeline", "args": {}},
+            headers={"Authorization": "Bearer wrong-token"},
+        )
+        assert resp.status_code == 401
+        handler.assert_not_awaited()
+
+    def test_x_rag_token_header_is_not_accepted(
+        self, fake_service: _FakeService
+    ) -> None:
+        resp = TestClient(server.app).get(
+            "/v1/tools", headers={"X-RAG-Token": server._cfg.auth_token}
+        )
+        assert resp.status_code == 401
+
+    def test_correct_token_is_accepted(self, client: TestClient) -> None:
+        assert client.get("/v1/tools").status_code == 200
 
 
 class TestLifespan:

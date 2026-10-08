@@ -80,6 +80,17 @@ class TestRagPipelineConfigFromDict:
         assert cfg.refiner_timeout == 12.5
         assert cfg.rag_auth_token == "secret-token"
 
+    def test_auth_token_is_read_and_distinct_from_rag_auth_token(self) -> None:
+        """auth_token (inbound) and rag_auth_token (outbound) are separate fields."""
+        cfg = RagPipelineConfig.from_dict(
+            {"auth_token": "inbound", "rag_auth_token": "outbound"}
+        )
+        assert cfg.auth_token == "inbound"
+        assert cfg.rag_auth_token == "outbound"
+
+    def test_auth_token_defaults_to_empty(self) -> None:
+        assert RagPipelineConfig.from_dict({}).auth_token == ""
+
     def test_numeric_string_values_are_coerced(self) -> None:
         """from_dict wraps numeric fields in int()/float(); TOML round-trips
         or manually-built dicts may hand it stringly-typed numbers."""

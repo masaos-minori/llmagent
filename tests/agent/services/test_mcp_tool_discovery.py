@@ -11,6 +11,7 @@ Also includes real-app schema validation tests against each MCP server's
 
 from __future__ import annotations
 
+from types import ModuleType
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -34,6 +35,13 @@ from shared.tool_registry import (
     _reset_registry_for_testing,
     get_registry,
 )
+
+
+def _server_auth_headers(module: ModuleType) -> dict[str, str]:
+    """Bearer header for servers whose test config carries a non-empty inbound token."""
+    token = getattr(getattr(module, "_cfg", None), "auth_token", "") or ""
+    return {"Authorization": f"Bearer {token}"} if token else {}
+
 
 _IN_SCOPE_SERVERS = [
     ("mcp_servers.mdq.mdq_server", "app", "mdq"),
@@ -1008,7 +1016,11 @@ class TestToolsEndpointSchemaVersion:
         from mcp_servers.server import MCP_TOOL_SCHEMA_VERSION
 
         module = importlib.import_module(import_path)
-        client = TestClient(getattr(module, app_attr), raise_server_exceptions=True)
+        client = TestClient(
+            getattr(module, app_attr),
+            raise_server_exceptions=True,
+            headers=_server_auth_headers(module),
+        )
         body = client.get("/v1/tools").json()
         assert "schema_version" in body, (
             f"[{server_key}] /v1/tools response missing schema_version"
@@ -1027,7 +1039,11 @@ class TestToolsEndpointToolShape:
         import importlib
 
         module = importlib.import_module(import_path)
-        client = TestClient(getattr(module, app_attr), raise_server_exceptions=True)
+        client = TestClient(
+            getattr(module, app_attr),
+            raise_server_exceptions=True,
+            headers=_server_auth_headers(module),
+        )
         body = client.get("/v1/tools").json()
         for tool in body.get("tools", []):
             name = tool.get("name")

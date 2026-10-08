@@ -326,7 +326,7 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 
 ## Implementation Notes
 
-- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Each server module attaches the Bearer-token authentication middleware through `attach_auth_middleware()`; mdq-mcp attaches it with an empty token (see Exceptions) and rag-pipeline-mcp does not attach it (MCP-005).
+- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Each server module attaches the Bearer-token authentication middleware through `attach_auth_middleware()`; mdq-mcp attaches it with an empty token (see Exceptions) and rag-pipeline-mcp attaches it with its own `auth_token` (`MCP_RAG_PIPELINE_AUTH_TOKEN`).
 - `HttpTransport.call()` posts to `/v1/call_tool` with a bounded retry for 429/502/503/504 and for transport request errors other than timeouts; timeouts and other HTTP status errors surface as `TransportError`.
 - `ToolTransportInvoker.invoke()` applies the per-server Semaphore and records success or failure in `McpServerHealthRegistry`.
 - `TransportType` accepts only `http`; the startup mode (`none`, `persistent`, `subprocess`) selects how the process is launched, not the transport.
@@ -335,7 +335,7 @@ This chapter is not a basis for design decisions. See Implementation References 
 
 ## Known Deviations
 
-- **Known Issue**: MCP-005 — tracked in governance_03 Part 1 (rag-pipeline-mcp does not attach the Bearer authentication middleware; violates INV-09)
+No confirmed deviations.
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -369,7 +369,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The removal of the TLS and separate-host claims, the mdq-mcp authentication exception, and the MCP-005 deviation were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: The removal of the TLS and separate-host claims, the mdq-mcp authentication exception, and the then-registered MCP-005 deviation were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -407,7 +407,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [x] Discrepancies with the current implementation are registered as Known Issues (MCP-005)
+- [x] Discrepancies with the current implementation are registered as Known Issues (no confirmed deviations)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
 - [x] The ADR is registered in the ADR index and the Document Guides of related areas

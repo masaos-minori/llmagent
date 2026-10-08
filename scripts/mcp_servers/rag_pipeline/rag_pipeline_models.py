@@ -61,6 +61,7 @@ class RagPipelineConfig:
     refiner_max_chars_per_chunk: int = 300
     refiner_timeout: float = 30.0
     rag_auth_token: str = ""
+    auth_token: str = ""
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> RagPipelineConfig:
@@ -89,6 +90,7 @@ class RagPipelineConfig:
             refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 300)),
             refiner_timeout=float(d.get("refiner_timeout", 30.0)),
             rag_auth_token=str(d.get("rag_auth_token", "")),
+            auth_token=str(d.get("auth_token", "")),
         )
 
     @classmethod

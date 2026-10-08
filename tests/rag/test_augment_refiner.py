@@ -17,6 +17,7 @@ from rag.augment import AugmentRefiner
 from rag.models_config import RagConfigImpl
 from rag.models_data import TwoStageFetchResult
 from rag.models_result import HttpResultKind, SearchDiagnostics
+from rag.pipeline_service import CallRagResult
 from shared.types import RagConfig
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
@@ -513,7 +514,7 @@ class TestRunHttpAugment:
                 set_fetch_result = kwargs.get("set_fetch_result")
                 if set_fetch_result:
                     set_fetch_result(mock_selected_hits)
-                return ("context", 200, 100.0)
+                return CallRagResult("success", "context", 200, 100.0)
 
             mock_call_rag_service.side_effect = side_effect
 
@@ -547,7 +548,7 @@ class TestRunHttpAugment:
                 set_fallback_reason = kwargs.get("set_fallback_reason")
                 if set_fallback_reason:
                     set_fallback_reason("http_max_retries: 3 attempts failed")
-                return (None, None, 0.0)
+                return CallRagResult("transient_failure", None, None, 0.0)
 
             mock_call_rag_service.side_effect = side_effect
 

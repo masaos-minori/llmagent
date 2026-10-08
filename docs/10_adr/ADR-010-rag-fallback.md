@@ -293,11 +293,11 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
   - **Blocking**: Yes
   - **Implementation**: `tests/rag/test_rag_pipeline_service.py::TestFallbackReasonCallback::test_json_parse_error_does_not_call_set_fallback_reason`
 
-- **Test**: The external call returns no result for 401/403 and records an authentication reason (the caller-level behavior is not tested; see Known Deviations)
+- **Test**: The external call is tagged `auth_error` for 401/403 and records an authentication reason; `augment()` raises `RagPipelineError` and never enters the in-process pipeline
   - **Verifies**: INV-04
   - **Type**: Unit
   - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_403_no_fallback`
+  - **Implementation**: `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_403_no_fallback`, `tests/rag/test_pipeline_http_result_kind.py::test_auth_error_fails_closed_without_in_process_fallback`
 
 ### Startup Validation
 
@@ -331,7 +331,7 @@ This chapter is not a basis for design decisions.
 
 ## Known Deviations
 
-- **Known Issue**: RAG-001 — tracked in governance_03 Part 1 (HTTP 401/403 still falls back to the in-process pipeline)
+No confirmed deviations.
 
 ## Review Triggers
 
@@ -398,11 +398,11 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-02, INV-08, INV-09, INV-10 have no automated test; INV-04 for 401/403 and INV-05 are only partly verified)
+- [ ] Each Invariant has a corresponding Verification (INV-02, INV-08, INV-09, INV-10 have no automated test; INV-05 is only partly verified)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [ ] Discrepancies with the current implementation are registered as Known Issues (the 401/403 Known Issue above is not yet registered in `governance_03_issue-and-uncertainty-management.md`)
+- [x] Discrepancies with the current implementation are registered as Known Issues (no confirmed deviations)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
 - [x] The ADR is registered in the ADR index and the Document Guides of related areas

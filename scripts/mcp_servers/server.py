@@ -11,6 +11,7 @@ Audit log helpers live in mcp/audit.py.
 from __future__ import annotations
 
 import dataclasses
+import hmac
 import logging
 import uuid
 from collections.abc import Callable, Sequence
@@ -112,7 +113,10 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
         """Return True when no token is required or the Bearer header matches."""
         if not token:
             return True
-        return request.headers.get("Authorization", "") == f"Bearer {token}"
+        presented = request.headers.get("Authorization", "")
+        return hmac.compare_digest(
+            presented.encode("utf-8"), f"Bearer {token}".encode()
+        )
 
     @app.middleware("http")
     async def _auth_middleware(request: Request, call_next):  # noqa: ANN001,ANN202 — FastAPI middleware protocol

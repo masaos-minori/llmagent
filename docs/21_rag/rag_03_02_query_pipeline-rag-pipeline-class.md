@@ -48,22 +48,22 @@ If `rag_service_url` is not empty, `augment()` delegates to an external RAG serv
 
 | Behavior | Details |
 |---|---|
-| Authentication | If `rag_auth_token != ""` the `X-RAG-Token: {rag_auth_token}` header is added (default: no header) |
-| Timeout | Fixed per-HTTP-attempt timeout (connection + read), hardcoded in `call_rag_service()` |
+| Authentication | If `rag_auth_token != ""` the `Authorization: Bearer {rag_auth_token}` header is added (default: no header); the legacy `X-RAG-Token` header is no longer sent |
+| Timeout | Fixed per-HTTP-attempt timeout (connection + read), the module constant `_REQUEST_TIMEOUT_SECONDS` in `scripts/rag/pipeline_service.py` |
 | Retries | Bounded retries for 5xx or transport errors with exponential backoff; no retries for 4xx or JSON parsing errors |
-| Fallback | If `None` is returned → In-process pipeline; if "" (empty context) → accepted as valid result |
+| Fallback | `transient_failure` (HTTP 5xx or transport error after retries, other 4xx, or `is_error` true) → In-process pipeline; `empty` ("" context) → accepted as valid result; `auth_error` (HTTP 401/403) → `RagPipelineError`, no in-process fallback (fail closed) |
 | Prevention of infinite delegation | The MCP adapter hardcodes `rag_service_url=""`, so the in-process `augment()` will not re-delegate |
-| Return value | `call_rag_service()` returns `(context: str ∣ None, status_code: int ∣ None, elapsed_ms: float)` — `status_code` and `elapsed_ms` can be used for diagnostics |
+| Return value | `call_rag_service()` returns a `CallRagResult(kind, result, status_code, latency_ms)` — `kind` is `success`, `empty`, `auth_error` or `transient_failure`; `status_code` and `latency_ms` can be used for diagnostics |
 
 `RagConfig` Protocol (`shared/types.py`) configuration fields:
 - `rag_service_url: str` — URL of the remote endpoint; if empty string, HTTP mode is disabled
-- `rag_auth_token: str` — An arbitrary bearer token for the `X-RAG-Token` header; "" = no authentication (default)
+- `rag_auth_token: str` — Bearer token sent as `Authorization: Bearer` to the external RAG service; "" = no authentication (default)
 
 #### `call_rag_service()` Function (`scripts/rag/pipeline_service.py`)
 
 `call_rag_service()` is an `async` coroutine. It takes the shared async HTTP client, the RAG service URL, the query and the history context, plus keyword-only options for the auth token and for callbacks that receive the fetched hits and the fallback reason.
 
-Returns `(context, status_code, elapsed_ms)`: `context` is the augmented text or `None`; `status_code` is the HTTP response code or `None`; `elapsed_ms` is total time in milliseconds.
+Returns a frozen `CallRagResult(kind, result, status_code, latency_ms)`: `kind` is `success`, `empty`, `auth_error` or `transient_failure`; `result` is the augmented text, `""` for `empty`, or `None` for failures; `status_code` is the HTTP response code or `None`; `latency_ms` is total time in milliseconds. HTTP 401/403 yields `auth_error`, which `HttpAugment` maps to `http_result_kind="auth_error"` and `AugmentRefiner.run_http_augment` converts to `RagPipelineError`.
 
 The `"remote_empty"` case is NOT a fallback, it is a **SUCCESS**. It means the remote service responded with HTTP 200 but found no relevant context. In this case, the in-process pipeline is not executed. Do not confuse this with actual fallback events; both `remote_nonempty` and `remote_empty` have `fallback_reason = None`.
 

@@ -29,6 +29,12 @@ sqlite_busy_timeout_ms = 30000
 # rag_pipeline/service.py. All three happened to match this file's former values by
 # coincidence. Re-add only alongside an implementation that actually reads them.
 
+# auth_token: inbound Bearer token required on every request to this server,
+# resolved from the MCP_RAG_PIPELINE_AUTH_TOKEN environment variable. Must match
+# config/agent.toml [mcp_servers.rag_pipeline].auth_token. Distinct from
+# rag_auth_token, which is the outbound token sent to an external RAG service.
+auth_token = "${ENV:MCP_RAG_PIPELINE_AUTH_TOKEN}"
+
 # Pipeline stage flags
 use_mqe    = true
 use_rrf    = true

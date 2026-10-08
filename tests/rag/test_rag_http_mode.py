@@ -13,6 +13,7 @@ import httpx
 import pytest
 from rag.models_result import HttpResultKind, ResultSource, SearchDiagnostics
 from rag.pipeline import RagPipeline
+from rag.pipeline_service import CallRagResult
 from rag.types import PipelineRunResult
 
 
@@ -40,7 +41,7 @@ async def test_remote_empty_sets_result_source_remote() -> None:
     pipeline = _make_pipeline()
 
     async def mock_call_rag_service(*args, **kwargs):
-        return "", 200, 30.0
+        return CallRagResult("empty", "", 200, 30.0)
 
     with patch("rag.http_augment.call_rag_service", mock_call_rag_service):
         await pipeline.augment("query")
@@ -59,7 +60,7 @@ async def test_remote_empty_does_not_trigger_in_process(monkeypatch) -> None:
     pipeline = _make_pipeline()
 
     async def mock_call_rag_service(*args, **kwargs):
-        return "", 200, 5.0
+        return CallRagResult("empty", "", 200, 5.0)
 
     run_mock = AsyncMock()
     monkeypatch.setattr(pipeline, "run", run_mock)
@@ -83,7 +84,7 @@ async def test_in_process_fallback_sets_result_source_fallback(monkeypatch) -> N
     mock_db.__exit__ = MagicMock(return_value=False)
 
     async def mock_call_rag_service(*args, **kwargs):
-        return None, 503, 100.0
+        return CallRagResult("transient_failure", None, 503, 100.0)
 
     monkeypatch.setattr(
         pipeline,
@@ -129,7 +130,7 @@ async def test_fallback_reason_propagated_to_diagnostics(monkeypatch) -> None:
     async def mock_call_rag_service(*args, **kwargs):
         if kwargs.get("set_fallback_reason"):
             kwargs["set_fallback_reason"]("connection refused")
-        return None, 503, 100.0
+        return CallRagResult("transient_failure", None, 503, 100.0)
 
     monkeypatch.setattr(
         pipeline,

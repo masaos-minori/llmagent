@@ -23,6 +23,7 @@ from typing import TYPE_CHECKING, Any
 import httpx
 from shared.types import RagConfig, RagHit
 
+from rag.exceptions import RagPipelineError
 from rag.http_augment import HttpAugment, _map_http_result_kind
 from rag.llm_client import RagLLM
 from rag.models_data import TwoStageFetchResult
@@ -71,7 +72,12 @@ class AugmentRefiner:
         history_context: str,
         rag_url: str,
     ) -> str | None:
-        """Run HTTP augment via HttpAugment and return result or None for fallback."""
+        """Run HTTP augment via HttpAugment and return result or None for fallback.
+
+        Raises:
+            RagPipelineError: The remote service answered 401/403; the caller must
+                fail closed instead of falling back to in-process search.
+        """
         http_aug = HttpAugment(
             self._http,
             rag_url,
@@ -96,6 +102,11 @@ class AugmentRefiner:
         # Apply stage result from HttpAugment
         if http_aug.stage_result is not None:
             self._last_stage_results.append(http_aug.stage_result)
+        if result.http_result_kind == "auth_error":
+            raise RagPipelineError(
+                f"RAG service rejected authentication "
+                f"(HTTP {result.status_code}); not falling back to in-process search"
+            )
         http_result: str | None = result.result
         return http_result
 

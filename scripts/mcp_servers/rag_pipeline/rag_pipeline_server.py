@@ -47,6 +47,8 @@ from mcp_servers.rag_pipeline.rag_pipeline_tools import TOOL_LIST
 from mcp_servers.server import (
     MCPServer,
     ToolArgs,
+    _FastAPIApp,
+    attach_auth_middleware,
     build_tools_response,
     extract_request_context,
 )
@@ -88,6 +90,8 @@ app = FastAPI(
     description="RAG Pipeline MCP server — multi-format semantic retrieval, production-ready",
     lifespan=_lifespan,
 )
+
+attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token or "")
 
 
 @app.exception_handler(RagPipelineServiceError)

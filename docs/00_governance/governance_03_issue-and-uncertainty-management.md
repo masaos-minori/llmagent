@@ -55,14 +55,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type |
 |----|-------|--------|----------|------|------|
-| RAG-001 | HTTP 401/403 from the RAG service still falls back to the in-process pipeline | open | Medium | RAG | implementation-bug |
 | RAG-002 | Japanese sentences with empty normalized text are dropped with their original text | open | Low | RAG | implementation-bug |
 | AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap |
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
 | MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
 | MCP-004 | git-mcp has no generic technical force-push block | open | Low | MCP | design-gap |
-| MCP-005 | rag-pipeline-mcp does not verify the Bearer token | open | High | MCP | implementation-bug |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
 | EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug |
@@ -70,26 +68,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap |
 | EVENTBUS-014 | `events.acked_at` is never written but is still read | open | Low | EventBus | implementation-bug |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
-
-#### RAG-001
-
-- **ID**: RAG-001
-- **Title**: HTTP 401/403 from the RAG service still falls back to the in-process pipeline
-- **Status**: open
-- **Severity**: Medium
-- **Area**: RAG
-- **Type**: implementation-bug
-- **Source**: `scripts/rag/pipeline_service.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-010-rag-fallback.md`
-- **Related**: None
-- **Summary**: ADR-010 forbids falling back on 401/403, but the code falls back.
-- **Current Description**: Decision 6 and INV-04 say authentication failures do not fall back.
-- **Observed Implementation**: `call_rag_service()` returns `None` for 401/403; `HttpAugment.run()` reports it as `in_process_fallback`; the pipeline then runs in-process. A mocked 401 confirmed this.
-- **Impact**: Authentication failures are hidden behind a local result.
-- **Recommended Action**: Surface `AUTH_ERROR` and skip the fallback, then test the caller-level behavior.
-- **Resolution Target**: A 401/403 produces `AUTH_ERROR` with no fallback, covered by a test.
 
 #### RAG-002
 
@@ -210,26 +188,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: No independent technical guard against a forced update exists beyond those two layers.
 - **Recommended Action**: Add a regression test that refspec forms are rejected, or record the current layering as accepted in ADR-012.
 - **Resolution Target**: Force-push prevention is covered by a test or recorded as accepted in ADR-012.
-
-#### MCP-005
-
-- **ID**: MCP-005
-- **Title**: rag-pipeline-mcp does not verify the Bearer token
-- **Status**: open
-- **Severity**: High
-- **Area**: MCP
-- **Type**: implementation-bug
-- **Source**: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`
-- **Owner**: Unassigned
-- **First Found**: 2026-10-08
-- **Target**: `docs/10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md`
-- **Related**: None
-- **Summary**: ADR-007 requires every MCP server to verify the Bearer token, but this server builds its app without the authentication middleware.
-- **Current Description**: ADR-007 INV-09 requires a non-empty authentication token; the agent configuration supplies a token entry for this server.
-- **Observed Implementation**: The app is created without attaching the authentication middleware, while the git, cicd, web_search and mdq servers attach it.
-- **Impact**: Any local process that can reach the loopback port can call the tools without a token.
-- **Recommended Action**: Attach the middleware and add a test, or record an exception in ADR-007.
-- **Resolution Target**: Requests without a matching token are rejected, covered by a test.
 
 #### DEPLOY-001
 
