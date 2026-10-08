@@ -155,6 +155,7 @@ class TestProbeAllHealthTimeoutZero:
         )
 
         captured_kwargs: dict[str, object] = {}
+        captured_headers: list[dict[str, str] | None] = []
 
         class _FakeAsyncClient:
             def __init__(self, **kwargs: object) -> None:
@@ -166,7 +167,13 @@ class TestProbeAllHealthTimeoutZero:
             async def __aexit__(self, *args: object) -> None:
                 pass
 
-            async def get(self, url: str, timeout: object = None) -> MagicMock:
+            async def get(
+                self,
+                url: str,
+                timeout: object = None,
+                headers: dict[str, str] | None = None,
+            ) -> MagicMock:
+                captured_headers.append(headers)
                 resp = MagicMock()
                 resp.status_code = 200
                 resp.json.return_value = {"tools": []}
@@ -185,3 +192,5 @@ class TestProbeAllHealthTimeoutZero:
         timeout_val = captured_kwargs["timeout"]
         assert isinstance(timeout_val, httpx.Timeout)
         assert timeout_val.read is None
+        # The health probe authenticates with the server's configured token
+        assert captured_headers == [{"Authorization": "Bearer test-token"}]

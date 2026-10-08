@@ -22,7 +22,9 @@ logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
 async def _probe_mcp_health_detail(
-    http: httpx.AsyncClient, base_url: str
+    http: httpx.AsyncClient,
+    base_url: str,
+    headers: dict[str, str] | None = None,
 ) -> McpHealthProbeResult:
     """Probe /health and return a structured McpHealthProbeResult.
 
@@ -30,7 +32,10 @@ async def _probe_mcp_health_detail(
     On JSON parse failure falls back to restart_recommended=False, operator_action_required=False.
     """
     try:
-        resp = await http.get(f"{base_url}/health", timeout=5.0)
+        if headers:
+            resp = await http.get(f"{base_url}/health", timeout=5.0, headers=headers)
+        else:
+            resp = await http.get(f"{base_url}/health", timeout=5.0)
     except (httpx.HTTPError, OSError, TimeoutError):
         return McpHealthProbeResult(
             reachable=False,

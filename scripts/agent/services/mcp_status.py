@@ -101,7 +101,9 @@ class McpStatusService:
             detail_summary,
             parse_failure_reason,
             probe_result,
-        ) = await self._get_http_status_with_interpretation(probe, cfg.url)
+        ) = await self._get_http_status_with_interpretation(
+            probe, cfg.url, cfg.auth_headers()
+        )
         health = _resolve_health_state(ctx, key).value.upper()
         lifecycle = ctx.services_required.lifecycle
         lifecycle_state = lifecycle.get_transport_state(key).value
@@ -160,12 +162,15 @@ class McpStatusService:
         return result
 
     async def _get_http_status(
-        self, probe: httpx.AsyncClient, url: str
+        self,
+        probe: httpx.AsyncClient,
+        url: str,
+        headers: dict[str, str] | None = None,
     ) -> tuple[McpAvailability, str, bool, bool, str]:
         """Probe the MCP server health endpoint and return availability with details."""
         if not url:
             return McpAvailability.NO_URL, "", False, False, ""
-        probe_result = await _probe_mcp_health_detail(probe, url)
+        probe_result = await _probe_mcp_health_detail(probe, url, headers)
         sandbox = ""
         reason = ""
         if probe_result.body and isinstance(probe_result.body, dict):
@@ -198,7 +203,10 @@ class McpStatusService:
         )
 
     async def _get_http_status_with_interpretation(
-        self, probe: httpx.AsyncClient, url: str
+        self,
+        probe: httpx.AsyncClient,
+        url: str,
+        headers: dict[str, str] | None = None,
     ) -> tuple[
         McpAvailability,
         str,
@@ -238,7 +246,7 @@ class McpStatusService:
                     body={},
                 ),
             )
-        probe_result = await _probe_mcp_health_detail(probe, url)
+        probe_result = await _probe_mcp_health_detail(probe, url, headers)
         sandbox = ""
         reason = ""
         self_reported_status = ""

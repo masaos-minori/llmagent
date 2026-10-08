@@ -302,3 +302,25 @@ def test_valid_string_transport_rejected() -> None:
     """'http' is a valid transport string value but not a TransportType instance — must be rejected."""
     with pytest.raises(ValueError):
         McpServerConfig("http", "http://127.0.0.1:8000")
+
+
+class TestAuthHeaders:
+    """McpServerConfig.auth_headers() builds the Bearer header used by health probes."""
+
+    def _cfg(self, token: str) -> McpServerConfig:
+        return McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://localhost:8080",
+            startup_mode=StartupMode.PERSISTENT,
+            auth_token=token,
+        )
+
+    def test_returns_bearer_header_for_non_empty_token(self) -> None:
+        assert self._cfg("s3cret").auth_headers() == {"Authorization": "Bearer s3cret"}
+
+    def test_returns_empty_dict_for_empty_token(self) -> None:
+        cfg = self._cfg("placeholder")
+        cfg.auth_token = (
+            ""  # bypass __post_init__ validation, which rejects "" at construction
+        )
+        assert cfg.auth_headers() == {}

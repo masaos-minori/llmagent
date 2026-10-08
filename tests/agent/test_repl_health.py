@@ -1028,3 +1028,21 @@ class TestCheckWorkflowSchema:
         result = check_workflow_schema(db_path=nonexistent)
         assert result.valid is False
         assert result.error is not None and "Workflow DB not found" in result.error
+
+
+class TestProbeMcpHealthDetailHeaders:
+    @pytest.mark.asyncio
+    async def test_forwards_headers_to_the_health_request(self) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        resp = MagicMock()
+        resp.status_code = 200
+        resp.json.return_value = {"status": "ok", "ready": True}
+        http.get = _async_result(resp)
+
+        await _probe_mcp_health_detail(
+            http, "http://localhost:8000", {"Authorization": "Bearer s3cret"}
+        )
+
+        assert http.get.call_args.kwargs["headers"] == {
+            "Authorization": "Bearer s3cret"
+        }

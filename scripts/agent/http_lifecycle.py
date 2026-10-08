@@ -126,7 +126,9 @@ class HttpServerLifecycleManager:
             return True
         url = cfg.url.rstrip("/") + "/health"
         try:
-            result = await HealthChecker.verify_running_async(server_key, cfg, url=url)
+            result = await HealthChecker.verify_running_async(
+                server_key, cfg, url=url, headers=cfg.auth_headers()
+            )
             self._last_health_check[server_key] = time.monotonic()
             return result
         except (httpx.HTTPError, OSError) as exc:
@@ -406,7 +408,7 @@ class HttpServerLifecycleManager:
             cfg.startup_timeout_sec, MCPSERVER_HEALTH_TIMEOUT
         )
         async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout=hc_timeout)
+            timeout=httpx.Timeout(timeout=hc_timeout), headers=cfg.auth_headers()
         ) as client:
             while time.monotonic() < deadline:
                 if proc.poll() is not None:

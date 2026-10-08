@@ -43,6 +43,7 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 
 ## Key Constraints
 
+- MCP server `/health` endpoints require the server's Bearer token. The startup readiness poll (`HttpServerLifecycleManager._health_poll_until_ready`), the post-startup verification (`McpServerStarter.verify_health`), the liveness re-check (`verify_running_async`) and the `/mcp` status probe send `Authorization: Bearer <auth_token>` built by `McpServerConfig.auth_headers()`; a missing or wrong token yields HTTP 401 and is treated as unhealthy.
 - Workflow definition files must always be loaded at startup. If they are missing or invalid, startup fails. Direct execution fallback is not supported.
 - Unreachable LLM/embedding health probes are treated as startup failure (FATAL).
 - Embedding dimension mismatches are treated as startup failures to prevent vector search data corruption.

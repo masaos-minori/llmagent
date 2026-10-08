@@ -138,3 +138,71 @@ class TestHealthPollClientLifecycle:
                         )
 
         assert len(instantiated) == 2
+
+
+def _auth_required_route(token: str):
+    """respx side effect: 200 only when the Bearer token matches, else 401."""
+    import httpx
+
+    def _handler(request: httpx.Request) -> httpx.Response:
+        if request.headers.get("Authorization") == f"Bearer {token}":
+            return httpx.Response(200, json={"status": "ok"})
+        return httpx.Response(401, json={"error": "Unauthorized"})
+
+    return _handler
+
+
+class TestHealthProbesSendBearerToken:
+    """REQ-002 / REQ-005: startup poll and liveness check authenticate."""
+
+    @pytest.mark.asyncio
+    async def test_liveness_check_passes_with_correct_token(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        import respx
+
+        cfg = _make_cfg(auth_token="s3cret")
+        with (
+            respx.mock as router,
+            patch.object(mgr, "verify_running", return_value=True),
+        ):
+            router.get("http://localhost:8080/health").mock(
+                side_effect=_auth_required_route("s3cret")
+            )
+            assert await mgr.verify_running_async("srv", cfg) is True
+
+    @pytest.mark.asyncio
+    async def test_liveness_check_fails_with_wrong_token(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        import respx
+
+        cfg = _make_cfg(auth_token="wrong")
+        with (
+            respx.mock as router,
+            patch.object(mgr, "verify_running", return_value=True),
+        ):
+            router.get("http://localhost:8080/health").mock(
+                side_effect=_auth_required_route("s3cret")
+            )
+            assert await mgr.verify_running_async("srv", cfg) is False
+
+    @pytest.mark.asyncio
+    async def test_startup_poll_succeeds_with_correct_token(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        import time
+
+        import respx
+
+        cfg = _make_cfg(auth_token="s3cret")
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        with respx.mock as router:
+            route = router.get("http://localhost:8080/health").mock(
+                side_effect=_auth_required_route("s3cret")
+            )
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=time.monotonic() + 5, shutdown_event=None
+            )
+        assert route.called
+        assert route.calls[0].request.headers["Authorization"] == "Bearer s3cret"

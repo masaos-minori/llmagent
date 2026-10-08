@@ -116,6 +116,12 @@ class McpServerConfig:
         """Whether this server requires health checks."""
         return self.startup_mode.has_health_check
 
+    def auth_headers(self) -> dict[str, str]:
+        """Return the Bearer Authorization header for this server, or {} when no token is set."""
+        if not self.auth_token:
+            return {}
+        return {"Authorization": f"Bearer {self.auth_token}"}
+
     @property
     def requires_cmd(self) -> bool:
         """Whether this server has a launch command configured."""

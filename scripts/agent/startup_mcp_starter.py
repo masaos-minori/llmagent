@@ -135,7 +135,9 @@ class McpServerStarter:
                 )
             url = cfg.url.rstrip("/") + "/health"
             try:
-                async with httpx.AsyncClient(timeout=5.0) as client:
+                async with httpx.AsyncClient(
+                    timeout=5.0, headers=cfg.auth_headers()
+                ) as client:
                     resp = await client.get(url)
                     if resp.status_code != httpx.codes.OK:
                         raise RuntimeError(f"HTTP {resp.status_code}")
@@ -173,7 +175,7 @@ class McpServerStarter:
     ) -> None:
         """Verify health of a single MCP subprocess server."""
         url = cfg.url.rstrip("/") + "/health"
-        async with httpx.AsyncClient(timeout=5.0) as client:
+        async with httpx.AsyncClient(timeout=5.0, headers=cfg.auth_headers()) as client:
             resp = await client.get(url)
             if resp.status_code != httpx.codes.OK:
                 raise RuntimeError(f"HTTP {resp.status_code}")
