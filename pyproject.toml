@@ -115,6 +115,13 @@ warn_unused_ignores = true
 module = ["agent.signal_handler"]
 disable_error_code = ["attr-defined"]
 
+# opentelemetry-sdk re-exports its public names dynamically; mypy reports attr-defined
+# for them on a cold cache but a different set on a warm cache, so no per-line ignore
+# can be right for both. Typing the package as Any gives the same result on every run.
+[[tool.mypy.overrides]]
+module = ["opentelemetry.*"]
+follow_imports = "skip"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
