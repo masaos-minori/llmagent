@@ -62,15 +62,16 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-003 | Orchestrator continues in fallback mode when the workflow fails to load | open | Medium | Agent | design-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
 | MCP-001 | git-mcp audit records are never emitted | open | Medium | MCP | implementation-bug |
-| MCP-002 | git_pull and git_push schema contradicts the protected-branch validation | open | Medium | MCP | implementation-bug |
 | MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
-| MCP-004 | git-mcp ref and remote validation is weaker than ADR-012 INV-01 | open | Low | MCP | design-gap |
+| MCP-004 | git-mcp has no generic technical force-push block | open | Low | MCP | design-gap |
+| MCP-005 | rag-pipeline-mcp does not verify the Bearer token | open | High | MCP | implementation-bug |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
 | EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug |
 | EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug |
 | EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap |
 | EVENTBUS-014 | `events.acked_at` is never written but is still read | open | Low | EventBus | implementation-bug |
+| EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
 
 #### AGENT-003
 
@@ -212,26 +213,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Align the `_audit_log()` signature with its callers and test the real function.
 - **Resolution Target**: Each git-mcp call writes an audit record, covered by a test.
 
-#### MCP-002
-
-- **ID**: MCP-002
-- **Title**: git_pull and git_push schema contradicts the protected-branch validation
-- **Status**: open
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: implementation-bug
-- **Source**: `scripts/mcp_servers/git/git_tools.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/22_mcp/mcp_04_05_git.md`
-- **Related**: `docs/22_mcp/mcp_04_05_git.md`
-- **Summary**: The tool schema and the service validation disagree about an empty `branch`.
-- **Current Description**: The schema and the validation disagree about an empty `branch`.
-- **Observed Implementation**: `GitService._validate_protected()` rejects an empty `branch` for checkout, pull and push.
-- **Impact**: Calls relying on the schema default are rejected.
-- **Recommended Action**: Resolve the current branch before validation, or make `branch` required in the schema.
-- **Resolution Target**: Schema, validation and mcp_04_05 agree.
-
 #### MCP-003
 
 - **ID**: MCP-003
@@ -255,7 +236,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 #### MCP-004
 
 - **ID**: MCP-004
-- **Title**: git-mcp ref and remote validation is weaker than ADR-012 INV-01
+- **Title**: git-mcp has no generic technical force-push block
 - **Status**: open
 - **Severity**: Low
 - **Area**: MCP
@@ -264,13 +245,33 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: Unassigned
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`
-- **Related**: `MCP-002`
-- **Summary**: INV-01 requires a safe ref/remote-name pattern; the code rejects only a leading `-`.
-- **Current Description**: ADR-012 INV-01 says unsafe values must be rejected.
-- **Observed Implementation**: `_validate_ref()` rejects a leading `-`; no pattern check exists and empty values pass it.
-- **Impact**: Unusual ref or remote names reach the git command.
-- **Recommended Action**: Add the pattern check, or narrow INV-01 to what is enforced.
-- **Resolution Target**: INV-01 and `_validate_ref()` agree, covered by a test.
+- **Related**: None
+- **Summary**: The write allow-list closes the refspec vector, but forced updates are prevented only by the absent force parameter and that allow-list.
+- **Current Description**: ADR-012 requires a force push to be rejected through the normal `git_push` path.
+- **Observed Implementation**: `git_push` exposes no force field, the write allow-list rejects refspec forms before any git call, and the protected-branch check applies to the push destination.
+- **Impact**: No independent technical guard against a forced update exists beyond those two layers.
+- **Recommended Action**: Add a regression test that refspec forms are rejected, or record the current layering as accepted in ADR-012.
+- **Resolution Target**: Force-push prevention is covered by a test or recorded as accepted in ADR-012.
+
+#### MCP-005
+
+- **ID**: MCP-005
+- **Title**: rag-pipeline-mcp does not verify the Bearer token
+- **Status**: open
+- **Severity**: High
+- **Area**: MCP
+- **Type**: implementation-bug
+- **Source**: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`
+- **Owner**: Unassigned
+- **First Found**: 2026-10-08
+- **Target**: `docs/10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md`
+- **Related**: None
+- **Summary**: ADR-007 requires every MCP server to verify the Bearer token, but this server builds its app without the authentication middleware.
+- **Current Description**: ADR-007 INV-09 requires a non-empty authentication token; the agent configuration supplies a token entry for this server.
+- **Observed Implementation**: The app is created without attaching the authentication middleware, while the git, cicd, web_search and mdq servers attach it.
+- **Impact**: Any local process that can reach the loopback port can call the tools without a token.
+- **Recommended Action**: Attach the middleware and add a test, or record an exception in ADR-007.
+- **Resolution Target**: Requests without a matching token are rejected, covered by a test.
 
 #### DEPLOY-001
 
@@ -391,6 +392,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: The event-level ACK guard in NACK never triggers.
 - **Recommended Action**: Remove the dead helper, column and checks, or write the column on ACK.
 - **Resolution Target**: No code reads `events.acked_at` without a writer.
+
+#### EVENTBUS-015
+
+- **ID**: EVENTBUS-015
+- **Title**: Shared auth_token and admin_token grant every role
+- **Status**: open
+- **Severity**: Medium
+- **Area**: EventBus
+- **Type**: design-gap
+- **Source**: `scripts/eventbus/auth.py`
+- **Owner**: Unassigned
+- **First Found**: 2026-10-08
+- **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
+- **Related**: `EVENTBUS-008`
+- **Summary**: The mandatory shared token and the admin token map to every role, so per-role separation holds only for callers that hold per-role tokens.
+- **Current Description**: ADR-013 defines five roles, each granted a fixed set of routes.
+- **Observed Implementation**: The principal map assigns every role to `auth_token` and to `admin_token`.
+- **Impact**: A publisher or consumer process given `auth_token` can call operator and admin routes.
+- **Recommended Action**: Keep these tokens operator-only and record that in ADR-013, or make per-role tokens sufficient.
+- **Resolution Target**: ADR-013 and the deployment practice agree, or per-role tokens suffice.
 
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 
