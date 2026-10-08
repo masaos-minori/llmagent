@@ -123,10 +123,10 @@ keeping the doc in sync with the implemented behavior (REQ-008).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per target table | Pending — Row 5 is this doc | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261008-093132 | 20261008-093132 | Added 'Idempotency and retry' subsection to Tool Call Dispatch Flow (key ownership, empty-key rule, cache keying, TTL/eviction, error/dry-run non-caching, write-tool retry). |
+| 2 | Add or update tests per Validation plan | Completed | 20261008-093242 | 20261008-093242 | N/A: docs-only change (Row 5); no tests required by validation plan. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261008-093242 | 20261008-093242 | check_docs_quality/structure/content_policy/consistency(mcp)/japanese all clean. |
+| 4 | Update documentation, if in scope per target table | Completed | 20261008-093242 | 20261008-093242 | This doc is the deliverable; edited docs/22_mcp/mcp_03_01_dispatch-and-routing.md. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
