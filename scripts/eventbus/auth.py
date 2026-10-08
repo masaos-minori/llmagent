@@ -125,6 +125,15 @@ def _populate_token_maps(config: Any) -> None:
     consumer_allowed_topics: frozenset[str] | None = None
     consumer_authorization = getattr(config, "consumer_authorization", None)
     topic_authorization = getattr(config, "topic_authorization", None)
+
+    # Fail-closed: consumer_token requires consumer_authorization
+    consumer_token = getattr(config, "consumer_token", None)
+    if consumer_token and not consumer_authorization:
+        raise ValueError(
+            "consumer_token is configured but consumer_authorization is missing. "
+            "Add consumer_authorization to config/eventbus.toml before starting."
+        )
+
     if consumer_authorization or topic_authorization:
         ids: set[str] = set(consumer_authorization or {})
         topics: set[str] = set()
