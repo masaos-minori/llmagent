@@ -12,7 +12,8 @@ Found while running the EventBus suite for the health and publish route fix. The
 ## Problem
 - `test_keyset_pagination_no_duplicate_at_boundary`, `test_live_path_catches_events_after_replay`, `test_reconnect_with_consumer_offset_resumes_correctly`, and `test_since_seq_precedence_over_consumer_offset` fail with a pytest-timeout after 40 to 60 seconds.
 - The EventBus suite takes about seven minutes in total, which slows every EventBus change and hides real regressions behind known failures.
-- The cause is unknown: possibilities include an SSE stream that never ends in the test client, a missing idle-timeout setting for these tests, or a stale test scenario.
+- Likely cause (found while fixing the replay logic): the module's client fixture does not shorten the SSE idle timeout, whose default is 60 seconds, so each blocking subscribe call waits a full minute and exceeds the test timeout; the replay fix did not change the result. Confirm by setting a short idle timeout in these tests.
+- Other possibilities that remain: an SSE stream that never ends in the test client, or a stale test scenario. Original note: possibilities include an SSE stream that never ends in the test client, a missing idle-timeout setting for these tests, or a stale test scenario.
 
 ## Reason for Change
 A suite that always contains known failures cannot gate changes, and the long runtime discourages running it. The tests were last edited in a stale-scenario cleanup commit, which suggests the scenarios may not match current behavior.
