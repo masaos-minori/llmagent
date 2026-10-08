@@ -47,9 +47,11 @@ Update Known Issues (EVENTBUS-008, EVENTBUS-013, EVENTBUS-015)
 ### Details
 
 **For `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (REQ-005, REQ-006)**:
-- Update EVENTBUS-008 entry: mark as resolved or note the implementation change
-- Update EVENTBUS-013 entry: note the ACK/NACK consumer-ID exclusivity enforcement
-- Update EVENTBUS-015 entry: note the operator-only constraint documentation update
+- SOURCE VERIFICATION (Step 4a) — all three entries verified against source before editing:
+  - EVENTBUS-008: `auth.py` line 134 rejects a `consumer_token` without `consumer_authorization` at startup (fail-closed); empty mapping (`{}`) = deny all. The fail-open gap is therefore closed at runtime. Marked Status: **resolved**.
+  - EVENTBUS-013: `ack_route.py` enforces `consumer_id` TOKEN BINDING on `/ack` and `/nack` (deny-all on empty frozenset), which is DISTINCT from EXCLUSIVE USE. Exclusive use (one active connection per `consumer_id`) is still not enforced on ACK/NACK. Kept Status: **open**; recorded the token-binding enforcement and the explicit distinction.
+  - EVENTBUS-015: ADR-013 already records the operator-only deployment policy (INV-07, Decision Details #1). Recorded in the entry; kept Status: **open** (the every-role property is a fundamental property managed by operator discipline, not resolvable by code).
+- Correction: the procedure's phrase "ACK/NACK consumer-ID exclusivity enforcement" (EVENTBUS-013) is imprecise — ACK/NACK enforce token binding, not exclusivity. The entry now states this correctly to avoid conflating the two concerns.
 
 ## Compatibility considerations
 
@@ -106,10 +108,10 @@ Update Known Issues (EVENTBUS-008, EVENTBUS-013, EVENTBUS-015)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-234433 | Step 4a: EVENTBUS-008 resolved via fail-closed (auth.py:134); EVENTBUS-013 kept open (token binding enforced, exclusive use still unenforced); EVENTBUS-015 kept open (ADR-013 already documents operator policy). Procedure wording corrected (binding vs exclusivity). |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-234433 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-234433 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-234433 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
