@@ -22,7 +22,6 @@ from shared.mcp_config import (
     SecurityProfile,  # noqa: F401 — used by build_agent_config
     _build_mcp_servers,  # noqa: F401 — used by config_reload.py (lazy import)
 )
-from shared.production_config_validator import ProductionConfigValidator
 from shared.tool_registry import get_registry
 
 from agent.config_dataclasses import (
@@ -44,6 +43,7 @@ from agent.constants import (
     _DEFAULT_RESOURCE_KEYS,
     _DEFAULT_SHELL_SAFE_PREFIXES,
 )
+from agent.production_config_validator import ProductionConfigValidator
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import (
     _get_bool,

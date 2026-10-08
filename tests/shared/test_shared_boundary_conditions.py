@@ -12,10 +12,10 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from shared.config_loader import ConfigLoader
-from shared.production_config_validator import (
+from agent.production_config_validator import (
     ProductionConfigValidator,
 )
+from shared.config_loader import ConfigLoader
 
 
 class TestDictMergeConflictResolution:

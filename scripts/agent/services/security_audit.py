@@ -13,9 +13,9 @@ from typing import TypeVar
 
 from shared.logger import Logger
 from shared.mcp_config import TransportType
-from shared.production_config_validator import ProductionConfigValidator
 
 from agent.context import AgentContext
+from agent.production_config_validator import ProductionConfigValidator
 from agent.security_audit_config import (
     load_cicd_audit_config,
     load_git_audit_config,

@@ -493,7 +493,7 @@ class TestBuildAgentConfig:
         with (
             caplog.at_level(logging.ERROR, logger="agent.config_builders"),
             patch(
-                "shared.production_config_validator.ProductionConfigValidator.validate"
+                "agent.production_config_validator.ProductionConfigValidator.validate"
             ) as mock_validate,
         ):
             mock_validate.return_value = MagicMock(errors=["error1"], warnings=[])

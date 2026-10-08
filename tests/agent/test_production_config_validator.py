@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 import pytest
+from agent.production_config_validator import ProductionConfigValidator
 from shared.mcp_config import SecurityProfile
-from shared.production_config_validator import ProductionConfigValidator
 
 
 class TestProductionConfigValidatorStrictKeys:
@@ -454,10 +454,10 @@ class TestProductionConfigValidatorConfigValidationResultIdentity:
 
     def test_config_validation_result_identity(self) -> None:
         """REQ-004: production_config_validator.ConfigValidationResult IS shared.config_validator.ConfigValidationResult."""
-        from shared.config_validator import ConfigValidationResult as CVResult
-        from shared.production_config_validator import (
+        from agent.production_config_validator import (
             ConfigValidationResult as PCVResult,
         )
+        from shared.config_validator import ConfigValidationResult as CVResult
 
         assert PCVResult is CVResult
 
@@ -475,7 +475,7 @@ class TestProductionConfigValidatorValidKeySetUnchanged:
 
     def test_valid_key_set_unchanged_after_schema_consolidation(self) -> None:
         """REQ-006: the valid-key set is unchanged after consolidating _get_valid_production_keys()."""
-        from shared.production_config_validator import _get_valid_production_keys
+        from agent.production_config_validator import _get_valid_production_keys
 
         keys = _get_valid_production_keys()
         assert "agent_memory_max_startup_snippets" in keys

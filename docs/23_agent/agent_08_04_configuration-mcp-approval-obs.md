@@ -78,7 +78,7 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 - `medium`: local file mutation tools that do not delete (write, edit, create directory, move), and lower-impact GitHub changes (branch, pull request create/update, issue create, issue comment)
 - `high`: deletion tools, `shell_run`, GitHub content/merge changes (file create/update/delete, multi-file push, pull request merge), and git `git_checkout`/`git_pull`/`git_push`
 
-`ProductionConfigValidator` rejects a configuration in which the git tools `git_checkout`/`git_pull`/`git_push` resolve to a risk below high (Explicit in code — scripts/shared/production_config_validator.py `_check_approval_risk_floor()`). The per-tool mapping is in `[approval_risk_rules]` of `config/agent.toml` and the [MCP ownership matrix](../22_mcp/mcp_01_tool_ownership_matrix.md).
+`ProductionConfigValidator` rejects a configuration in which the git tools `git_checkout`/`git_pull`/`git_push` resolve to a risk below high (Explicit in code — scripts/agent/production_config_validator.py `_check_approval_risk_floor()`). The per-tool mapping is in `[approval_risk_rules]` of `config/agent.toml` and the [MCP ownership matrix](../22_mcp/mcp_01_tool_ownership_matrix.md).
 
 #### Escalation
 
@@ -93,7 +93,7 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 
 - `tool_safety_tiers`: tool → READ_ONLY/WRITE_SAFE/WRITE_DANGEROUS/ADMIN
 
-**CRITICAL**: The keys in tool_safety_tiers must be actual registered tool names, not server keys. Unknown keys are detected at startup and are fatal (config validation error), independent of any environment (Explicit in code — scripts/shared/production_config_validator.py `ProductionConfigValidator.validate()`, scripts/agent/config_builders.py `_run_production_validation()`).
+**CRITICAL**: The keys in tool_safety_tiers must be actual registered tool names, not server keys. Unknown keys are detected at startup and are fatal (config validation error), independent of any environment (Explicit in code — scripts/agent/production_config_validator.py `ProductionConfigValidator.validate()`, scripts/agent/config_builders.py `_run_production_validation()`).
 
 #### Dry Run
 
@@ -131,7 +131,7 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 ## Key Constraints
 
 - The keys in tool_safety_tiers must be actual registered tool names — unknown keys are fatal at startup
-- `allowed_tools=[]` (empty) means "allow all" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so startup exits (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/shared/production_config_validator.py`)
+- `allowed_tools=[]` (empty) means "allow all" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so startup exits (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`)
 - `approval_github_allowed_repos=[]` (empty) means "deny all"
 - `/reload reports cfg.diagnostics.* changes under a distinct LIVE category; they take effect immediately on every DiagnosticStore save()/fetch() call without requiring a restart`
 

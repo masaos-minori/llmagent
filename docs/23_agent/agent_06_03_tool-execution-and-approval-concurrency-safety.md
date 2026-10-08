@@ -28,7 +28,7 @@ Documents responsibility separation for safety controls, design decisions for `T
 
 | Control | Config field | Behavior |
 |---|---|---|
-| `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; at runtime (`check_preflight()`) an empty list performs no whitelist check, so all tools are allowed. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error in production (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/shared/production_config_validator.py`) |
+| `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; at runtime (`check_preflight()`) an empty list performs no whitelist check, so all tools are allowed. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error in production (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`) |
 | `allowed_root` | `cfg.approval.allowed_root` | Path jail; if empty, disabled |
 | `approval_github_allowed_repos` | `cfg.approval.*` | GitHub write allowlist; if empty, all are rejected (**Fail-closed**) |
 | `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | Automatic rejection in plan mode |

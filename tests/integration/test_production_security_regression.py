@@ -54,7 +54,7 @@ def test_strict_configuration_validation_via_real_startup() -> None:
     a disposable, in-memory config -- production-profile strict validation
     already exists today, independent of the three pending dependency Plans.
     """
-    from shared.production_config_validator import ProductionConfigValidator
+    from agent.production_config_validator import ProductionConfigValidator
 
     config = {
         "tool_definitions_strict": False,

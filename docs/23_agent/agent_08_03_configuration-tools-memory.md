@@ -123,7 +123,7 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 
 - If `tool_definitions_strict=True`, any reachable server schema mismatch causes startup failure.
 - If `routing_drift_strict=True`, routing drift causes startup failure.
-- `allowed_tools=[]` (empty) means "all allowed" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so an explicit allowlist is required (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/shared/production_config_validator.py`).
+- `allowed_tools=[]` (empty) means "all allowed" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so an explicit allowlist is required (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`).
 - `memory_embed_enabled=True` → `rag.embed_url` must not be empty.
 
 ## Keywords

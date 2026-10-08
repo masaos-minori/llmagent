@@ -3,7 +3,7 @@
 Shared overrides for tests that call build_agent_config()/ProductionConfigValidator
 against a minimal config dict. ProductionConfigValidator unconditionally requires
 tool_definitions_strict/routing_drift_strict, and a non-empty allowed_tools
-(scripts/shared/production_config_validator.py), so any minimal test config dict
+(scripts/agent/production_config_validator.py), so any minimal test config dict
 must merge this in unless the test specifically exercises the missing-flags error
 path (see tests/agent/test_config_builders.py's _MIN_CFG, which intentionally
 omits these).

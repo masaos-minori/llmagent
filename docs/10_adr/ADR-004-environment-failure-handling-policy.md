@@ -162,7 +162,7 @@ This section is maintained in the companion document: [Consequences](adr_04_fail
 The strict-default behavior enforces INV-01 and INV-02 at startup time:
 
 1. **INV-01**: the same strict checks run in every environment; for example, a missing required configuration file (`agent.toml`) raises `ConfigMissingError` (Explicit in code — `scripts/shared/config_loader.py`).
-2. **INV-02**: `ProductionConfigValidator` rejects a configuration whose strict keys (`tool_definitions_strict`, `routing_drift_strict`) are not true, independent of any environment name (Explicit in code — `scripts/shared/production_config_validator.py`).
+2. **INV-02**: `ProductionConfigValidator` rejects a configuration whose strict keys (`tool_definitions_strict`, `routing_drift_strict`) are not true, independent of any environment name (Explicit in code — `scripts/agent/production_config_validator.py`).
 
 ## Verification
 
@@ -220,7 +220,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 - `scripts/agent/startup.py` — `StartupOrchestrator.run()`
 - `scripts/shared/mcp_config.py` — `McpServerConfig`
-- `scripts/shared/production_config_validator.py` — `ProductionConfigValidator.validate()`
+- `scripts/agent/production_config_validator.py` — `ProductionConfigValidator.validate()`
 - `scripts/agent/services/mcp_tool_discovery.py` — `McpToolDiscoveryService.discover_all()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry`
 - `scripts/agent/services/mcp_health.py` — `check_service_health()`

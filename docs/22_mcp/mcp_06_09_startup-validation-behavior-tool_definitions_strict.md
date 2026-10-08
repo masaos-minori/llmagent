@@ -56,7 +56,7 @@ MCP discovery follows the ADR-004 rule: an unavailable required server aborts st
 - `strict = true`: FATAL outcome, startup blocked
 - `strict = false`: WARNING outcome, startup continues
 
-`ProductionConfigValidator` rejects `tool_definitions_strict = false` (Explicit in code — scripts/shared/production_config_validator.py `_REQUIRED_STRICT_KEYS`), so the strict-false rows describe the check's own behavior rather than a supported production setting.
+`ProductionConfigValidator` rejects `tool_definitions_strict = false` (Explicit in code — scripts/agent/production_config_validator.py `_REQUIRED_STRICT_KEYS`), so the strict-false rows describe the check's own behavior rather than a supported production setting.
 
 **Key Points:**
 - Tool name mismatches in `strict` mode trigger a `RuntimeError`.

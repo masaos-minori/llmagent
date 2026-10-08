@@ -1,4 +1,4 @@
-"""scripts/shared/production_config_validator.py"""
+"""scripts/agent/production_config_validator.py"""
 
 from __future__ import annotations
 

@@ -454,7 +454,7 @@ class TestUnknownTopLevelKeyRejection:
 
     def test_unknown_top_level_key_rejected_in_production(self) -> None:
         """Assert that an unknown/mistyped top-level config key is rejected in production."""
-        from shared.production_config_validator import ProductionConfigValidator
+        from agent.production_config_validator import ProductionConfigValidator
 
         validator = ProductionConfigValidator()
         result = validator.validate({"unknown_mistyped_key": "value"})
@@ -463,7 +463,7 @@ class TestUnknownTopLevelKeyRejection:
 
     def test_known_keys_pass_in_production(self) -> None:
         """Assert that known keys derived from dataclass fields pass validation."""
-        from shared.production_config_validator import ProductionConfigValidator
+        from agent.production_config_validator import ProductionConfigValidator
 
         # llm_url is a field name in LLMConfig; include required strict keys
         validator = ProductionConfigValidator()
