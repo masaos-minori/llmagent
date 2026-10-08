@@ -340,6 +340,80 @@ class TestHttpTransportErrors:
             await transport.call("my_tool", {})
 
 
+class TestHttpTransportIdempotencyRetry:
+    @pytest.mark.asyncio
+    async def test_retry_reuses_single_idempotency_key(self) -> None:
+        """REQ-005: one X-Idempotency-Key per logical call, reused across retries."""
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            auth_token="my-token",
+        )
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+
+        def _resp(status: int) -> MagicMock:
+            m = MagicMock()
+            m.status_code = status
+            m.content = b'{"result":"ok","is_error":false}'
+            m.raise_for_status = MagicMock()
+            m.headers = {}
+            return m
+
+        # 503 (retryable) then 200 (success)
+        mock_http.post = AsyncMock(side_effect=[_resp(503), _resp(200)])
+
+        transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc", cfg)
+        with patch("shared.http_transport.asyncio.sleep"):
+            await transport.call("my_tool", {})
+
+        keys = [
+            c.kwargs["headers"]["X-Idempotency-Key"]
+            for c in mock_http.post.call_args_list
+        ]
+        assert len(keys) == 2
+        assert all(k for k in keys)  # every attempt carries a non-empty key
+        assert len(set(keys)) == 1  # identical value reused across retries
+
+    @pytest.mark.asyncio
+    async def test_write_and_read_retry_call_counts(self) -> None:
+        """REQ-006: write tool retries when a key is present; read retry unchanged.
+
+        The transport always generates a per-call key, so a state-mutating write
+        with a present key retries exactly like a read tool: post is called
+        _RETRY_MAX times before the exhaustion TransportError is raised.
+        """
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:8000",
+            auth_token="",
+        )
+        req = httpx.Request("POST", "http://127.0.0.1:8000/v1/call_tool")
+
+        def _always_fail(*args: Any, **kwargs: Any) -> None:
+            raise httpx.ConnectError("refused", request=req)
+
+        async def _count_post_calls(name: str) -> int:
+            calls: list[int] = []
+
+            def _record(*args: Any, **kwargs: Any) -> None:
+                calls.append(1)
+                _always_fail(*args, **kwargs)
+
+            mock_http = AsyncMock(spec=httpx.AsyncClient)
+            mock_http.post = AsyncMock(side_effect=_record)
+            transport = HttpTransport(mock_http, "http://127.0.0.1:8000", "svc", cfg)
+            with patch("shared.http_transport.asyncio.sleep"):
+                with pytest.raises(TransportError):
+                    await transport.call(name, {})
+            return len(calls)
+
+        write_calls = await _count_post_calls("git_commit")
+        read_calls = await _count_post_calls("my_tool")
+
+        assert write_calls == HttpTransport._RETRY_MAX
+        assert read_calls == HttpTransport._RETRY_MAX
+
+
 class TestSetSessionId:
     @pytest.mark.asyncio
     async def test_session_id_injected_into_http_transport_header(self) -> None:
