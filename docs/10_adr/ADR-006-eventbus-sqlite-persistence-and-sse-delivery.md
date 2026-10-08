@@ -74,12 +74,11 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 9. At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not.
 10. The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 11. The following delivery rules apply:
-    - Reject `new_offset <= current_offset` (Monotonicity Invariant); enforced by atomic SQL statement against per-consumer offset table
-    - Prohibit concurrent use of same Consumer ID (Conflict Detection Required)
-    - Detect Consumer ID collisions
-    - ACK persistence failure → error response + no redelivery (Fail-Closed)
-    - Unify DLQ promotion paths → inline promotion prioritized; background loop supplements
-    - Replay-to-Live switch → Consumers must process idempotently by event_id
+    - 11a. Reject `new_offset <= current_offset` (Monotonicity Invariant); enforced by an atomic SQL statement against the per-consumer offset table.
+    - 11b. A non-empty Consumer ID may have only one active `GET /subscribe` connection at a time; a second concurrent connection is rejected (Conflict Detection Required). Exclusivity on `POST /events/{event_id}/ack` and `POST /nack` is provided by binding the caller's token to its permitted `consumer_id` values (ADR-013), not by binding the call to a live connection.
+    - 11c. When ACK persistence fails, an error response is returned and neither the delivery state nor the offset advances; the event therefore remains eligible for redelivery (At-Least-Once).
+    - 11d. DLQ promotion paths are unified: inline promotion is prioritized and the background loop supplements it.
+    - 11e. On the Replay-to-Live switch, Consumers must process idempotently by `event_id`.
 12. Authentication and authorization of EventBus callers follow ADR-013. Independently of authentication, the EventBus accepts only a loopback bind address; a non-loopback host fails configuration validation. (Explicit in code — `scripts/eventbus/config.py` `_validate_deployment_mode()`)
 13. The ACK Offset is a high-water mark of acknowledged `seq` values, not a contiguous low-water mark. On resume, the position is the lowest unacknowledged `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1`; no unacknowledged event is skipped, and already-acknowledged events are fast-forwarded. Consumers need not ACK in strict `seq` order.
 
@@ -232,9 +231,9 @@ Security requires preventing unintended Event reception.
 - INV-07: At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not.
 - INV-08: The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 - INV-09: `new_offset <= current_offset` is rejected.
-- INV-10: Concurrent use of the same Consumer ID is prohibited.
-- INV-11: Consumer ID collisions are detected.
-- INV-12: When ACK persistence fails, an error response is returned and the Event is not redelivered.
+- INV-10: A non-empty Consumer ID has at most one active `GET /subscribe` connection. On ACK and NACK, a caller may use only the `consumer_id` values bound to its token (ADR-013 INV-02).
+- INV-11: A second concurrent `GET /subscribe` with an active Consumer ID is detected and rejected with HTTP 409.
+- INV-12: When ACK persistence fails, an error response is returned, the delivery state and offset are not advanced, and the Event stays eligible for redelivery.
 - INV-13: DLQ promotion prefers inline promotion; the background loop only supplements it.
 - INV-14: When switching from Replay to Live, Consumers are required to process idempotently by event_id.
 - INV-15: The EventBus binds only to a loopback address; a non-loopback host fails configuration validation.
@@ -388,10 +387,11 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (authentication model per ADR-013)
+- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (a CONSUMER token without a `consumer_id` allowlist is unrestricted, so the ACK/NACK binding of INV-10 is not enforced for it)
 - **Known Issue**: EVENTBUS-011 — tracked in governance_03 Part 1 (NACK on a concurrently deleted event)
 - **Known Issue**: EVENTBUS-012 — tracked in governance_03 Part 1 (duplicate NACK from the same consumer)
-- **Known Issue**: EVENTBUS-013 — tracked in governance_03 Part 1 (ACK/NACK do not enforce Consumer ID exclusivity)
+- **Known Issue**: EVENTBUS-013 — tracked in governance_03 Part 1 (ACK and NACK check only the principal allowlist and do not enforce exclusive use of a Consumer ID)
+- **Known Issue**: EVENTBUS-014 — tracked in governance_03 Part 1 (`events.acked_at` is never written but is still read)
 
 ## Review Triggers
 
@@ -402,7 +402,6 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-- Consumer ID exclusivity must also be enforced on ACK and NACK (EVENTBUS-013)
 - The EventBus authentication model (ADR-013) changes
 - Persistent storage moves away from a single local SQLite database
 - A change from At-Least-Once Delivery to Exactly-Once Delivery becomes necessary
@@ -422,6 +421,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-08)**: The reinterpretation of INV-12 (a failed ACK is not treated as success and the event stays eligible for redelivery, consistent with INV-07) and the narrowed scope of INV-10 and INV-11 were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

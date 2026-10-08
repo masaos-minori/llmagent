@@ -73,6 +73,7 @@ Japanese BM25 search requires normalization by morphological analysis, but the c
 9. Changes to the Tokenizer or normalization method do not change the original LLM-facing text.
 10. Text that is not Japanese-normalized, including Markdown heading chunks, has `normalized_content = NULL` and is indexed by `content`.
 11. AugmentStage outputs only `content` and does not output `normalized_content` to the LLM Context.
+12. A sentence whose normalization succeeds but yields empty text keeps its original text in `content`, with `normalized_content = NULL`.
 
 ### Scope
 
@@ -102,7 +103,7 @@ The context presented to the LLM must use the original readable text. Presenting
 
 ### 3. Third Reason for Adoption — Data Integrity
 
-Keeping `content` as a separate, never-replaced field prevents the original text from being lost to normalization. Because the original text cannot be restored from `normalized_content`, `content` is always a reliable source of information.
+Keeping `content` as a separate, never-replaced field guarantees that every stored chunk carries its original text. When normalization fails for a file, the file is skipped as a whole rather than indexed with altered or partial text, so a stored chunk is never a lossy copy. Because the original text cannot be restored from `normalized_content`, `content` is always a reliable source of information.
 
 ## Alternatives Considered
 
@@ -187,7 +188,7 @@ Rejected to prioritize Search Quality and enable search in all languages.
 
 - Japanese search accuracy improves
 - The quality of context presented to the LLM improves
-- Data loss on normalization failure is prevented
+- A stored chunk never loses its original text to normalization; a file whose normalization fails is skipped and must be re-chunked after the cause is fixed
 - Changes to the Tokenizer or normalization method do not affect the original LLM-facing text
 
 ### Negative Consequences
@@ -218,6 +219,7 @@ Rejected to prioritize Search Quality and enable search in all languages.
 - INV-08: Changes to the Tokenizer or normalization method do not change the original LLM-facing text.
 - INV-09: Text that is not Japanese-normalized, including Markdown heading chunks, has `normalized_content = NULL` and is indexed by `content`.
 - INV-10: AugmentStage outputs only `content` and does not output `normalized_content` to the LLM Context.
+- INV-11: A sentence whose normalized text is empty keeps its original text in `content` with `normalized_content = NULL`.
 
 ## Failure Policy
 
@@ -310,7 +312,7 @@ Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, c
 
 - Investigation of consistency-check mismatches
 - Consistency-check verification before deployment
-- INV-05, INV-06, INV-08, INV-09 have no dedicated automated test
+- INV-05, INV-06, INV-08, INV-09, INV-11 have no dedicated automated test
 
 ## Implementation Notes
 
@@ -325,7 +327,7 @@ This chapter is not a basis for design decisions.
 
 ## Known Deviations
 
-- **Known Issue**: RAG-002 — tracked in governance_03 Part 1 (Japanese sentences with empty normalized text are dropped)
+- **Known Issue**: RAG-002 — tracked in governance_03 Part 1 (Japanese sentences with empty normalized text are dropped together with their original text; violates INV-11)
 
 ## Review Triggers
 
@@ -357,6 +359,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-08)**: The addition of Decision Details #12 and INV-11 and the narrowed data-integrity rationale were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -395,11 +398,11 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-05, INV-06, INV-08, INV-09 have no automated test)
+- [ ] Each Invariant has a corresponding Verification (INV-05, INV-06, INV-08, INV-09, INV-11 have no automated test)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [ ] Discrepancies with the current implementation are registered as Known Issues (the Known Issue above is not yet registered in `governance_03_issue-and-uncertainty-management.md`)
+- [x] Discrepancies with the current implementation are registered as Known Issues (RAG-002)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
 - [x] The ADR is registered in the ADR index and the Document Guides of related areas

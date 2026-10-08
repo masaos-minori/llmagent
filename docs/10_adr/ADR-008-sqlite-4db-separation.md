@@ -38,6 +38,8 @@ Accepted
 
 This ADR canonicalizes the decision to separate data with different update frequencies, failure scopes, retention periods, and recovery methods into four SQLite DBs. It defines the responsibilities of `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, and `eventbus.sqlite`, and explains that cross-DB Transactions are not used and how consistency is ensured. It limits the scope of sqlite-vec and organizes the Backup, Recovery, and retention policy per DB. It also canonicalizes the safety boundary for recovery from physical corruption (failure classification, independent verification of backup candidates, Atomic replacement, a no-change guarantee for Dry Run, and a recovery policy per persistence domain).
 
+mdq.sqlite, owned by mdq-mcp, is a separate derived store outside the four platform persistence domains of this ADR; its policy is recorded under "Out of Scope" and "Derived Stores Outside the Four Domains".
+
 ## Context
 
 ### Problem
@@ -54,7 +56,7 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
-- No migration mechanism exists; a Schema change requires recreating the whole DB (out of scope for this ADR)
+- `rag.sqlite` and `session.sqlite` have no migration mechanism and are recreated on a schema change; `workflow.sqlite` and `eventbus.sqlite` apply incremental additive migrations (`db_03` sections 8a and 8b). Migration design is out of scope for this ADR.
 
 ## Assumptions
 
@@ -85,7 +87,7 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 | System of record | documents, chunks, FTS5, Vector Index | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, approvals, processed events | events, offsets, deliveries, DLQ state |
 | Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none |
 | Owning component | RAG team | Agent team | Workflow team | EventBus team |
-| Required service stop scope | RAG process | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process |
+| Required service stop scope | Agent process, rag-pipeline-mcp, and any running ingester | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process |
 | Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | none through `recover_corruption()` (returns `no_recovery_allowed` before any check) | none through `recover_corruption()` (returns `no_recovery_allowed` before any check) |
 | Supported recovery source | verified backup from operator for `documents`/`chunks`; FTS5 and Vector Index rebuilt from `chunks` (Decision Detail #20) | verified backup from operator | none (auto-restore prohibited per Decision Detail #20) | none (auto-restore prohibited per Decision Detail #20) |
 | Automatic restore allowed or prohibited | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | allowed only inside an operator-initiated `recover_corruption()` call (per Decision Detail #20) | prohibited (INV-18) | prohibited (INV-18) |
@@ -95,8 +97,8 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 | WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup |
 | Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | not applicable (no automated restore) | not applicable (no automated restore) |
 | Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling; pending approvals are recovered by `_recover_pending_approvals()` at Agent startup) | none automated (manual operator handling) |
-| Service restart condition | RAG process restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore |
-| Rollback condition | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails | atomic replacement enables rollback if restore fails |
+| Service restart condition | Agent process, rag-pipeline-mcp, and any ingester restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore |
+| Rollback condition | atomic replacement leaves the original intact if a restore fails | atomic replacement leaves the original intact if a restore fails | not applicable (no automated restore) | not applicable (no automated restore) |
 | Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) |
 | Data-loss disclosure requirement | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported |
 
@@ -125,6 +127,11 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 19. Corrupted DB is set aside as diagnostic copy before replacement. Retention/deletion left to operator manual judgment; no automatic deletion.
 20. Recovery policy defined per persistence domain: `rag.sqlite` derived indexes (FTS5, Vector Index) rebuilt from canonical data (`chunks` table), with canonical tables restored from a verified backup; `session.sqlite` restored from backup; `workflow.sqlite` and `eventbus.sqlite` prohibit automatic restore—manual operator handling only (no silent re-initialization).
 
+### Derived Stores Outside the Four Domains
+
+- mdq.sqlite is owned by mdq-mcp and holds only documents, chunks, an FTS5 index and indexing state derived from Markdown files under `allowed_dirs`. It is rebuilt from those files by `index_paths` and `refresh_index`, and it is not backed up or restored by `recover_corruption()` or `rotate_all_dbs()` (Explicit in code — `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/indexer.py`, `scripts/db/recovery.py`, `scripts/db/rotation.py`).
+- Adding a store that is a system of record for any data requires extending the Recovery Policy Matrix of this ADR before deployment.
+
 ### Scope
 
 - **Target components**: `DbConfig`, `SQLiteHelper`, `create_schema()`, `db/recovery.py`, `db/maintenance.py`
@@ -142,6 +149,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 - Migration and Schema versioning strategy
 - Continuous backup verification and replication design
 - Monitoring and metrics design (handled by a separate ADR)
+- mdq.sqlite (a rebuildable derived index; see Derived Stores Outside the Four Domains)
 
 ## Rationale
 
@@ -213,7 +221,7 @@ This chapter is not a basis for design decisions. See Implementation References 
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (EventBus authentication model)
+No confirmed deviations.
 
 ## Review Triggers
 
@@ -225,7 +233,7 @@ This chapter is not a basis for design decisions. See Implementation References 
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
 - sqlite-vec is needed in a database other than `rag.sqlite`
-- A fifth persistence domain is added or two domains are merged (a recovery policy must then be defined for it)
+- A store that is a system of record is added outside the four domains, mdq.sqlite starts holding data that cannot be rebuilt, or two domains are merged (a recovery policy must then be defined for it)
 - Persistent storage moves to something other than files
 - A migration mechanism or a replicated storage foundation is introduced
 - The backup strategy changes from periodic file copies to another method
@@ -247,6 +255,7 @@ This chapter is not a basis for design decisions. See Implementation References 
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-08)**: The Derived Stores section and the corrected Recovery Policy Matrix rows were approved as a task-level approval decision (repository administrator instruction); reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

@@ -53,7 +53,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 - Target environment: single host, one Agent process and multiple MCP server processes
 - Expected scale: limited concurrency
 - Trust boundary: privileges granted only within each process
-- External dependencies: MCP servers, the Embedding service, external search and RAG services, and the Observability output destination (classified as mandatory or non-mandatory by the applicable Specification)
+- External dependencies: MCP servers, the Embedding service, external search and RAG services, and the Observability output destination (classified as mandatory or non-mandatory by the per-server `required` field and its classification table in `agent_08_04` (MCP Configuration))
 - Re-evaluate if assumptions no longer hold: multi-host configuration, distributed execution, integration with an external orchestrator or service supervisor
 
 ## Decision
@@ -76,7 +76,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 10. **Criteria for non-mandatory components**: a component may be non-mandatory only if all true: absence does not prevent safe core processing; absence bypasses none of auth/authz/approval/Routing/audit/Config Isolation/data integrity controls; failure can be localized to known set of functions; related functions/Tools can be reliably disabled; calls targeting the function can be rejected Fail-Closed; disabled state and impact are observable; other mandatory components remain safe and internally consistent; any Fallback explicitly defined by an Accepted ADR.
 11. A component must not be treated as non-mandatory merely because startup is technically possible.
 12. When a component's mandatoriness is undefined or cannot be determined: do not assume non-mandatory. Do not use undefined classification as grounds for continuing startup. Treat as unresolved design/configuration error.
-13. **Division of classification responsibility**: this ADR defines classification criteria and failure handling contract. Approved classification of each component recorded by applicable Startup/Agent/MCP Specification. Configuration provides effective values only within range the approved Specification permits. Startup validation verifies effective classification before using it to decide whether startup continues. Configuration alone cannot weaken a mandatory component to non-mandatory without an approved architecture or Specification change.
+13. **Division of classification responsibility**: this ADR defines classification criteria and failure handling contract. Approved classification of each MCP server is recorded in the classification table of `agent_08_04`; the `required` field in `config/agent.toml` must match it. Configuration provides effective values only within the range that classification permits. Startup validation verifies effective classification before using it to decide whether startup continues. Configuration alone cannot weaken a mandatory component to non-mandatory without an approved architecture or Specification change.
 ### Group 4: Startup Fail-Fast Boundary
 
 14. Fail-Fast at startup (startup aborted): Missing/Invalid Workflow definition; Required DB connection failure; DB Schema inconsistency; RuntimeToolRegistry initialization failure; Duplicate Tool ownership; Unavailable required MCP server; Invalid auth/authz/Allowlist/Safety Tier config; Missing Secret; Config Isolation violation; Unestablishable approval control; Environment configuration validation failure; Undeterminable component mandatoriness.
@@ -121,7 +121,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 - Startup Orchestrator's own precondition checks (Health Checks, pre-startup validation)
 - Existing StartupCheckStatus (OK/WARNING/FATAL/SKIPPED) removal
 - Existing pipeline.add_fatal()/add_warning() removal
-- Concrete mandatory/non-mandatory assignment of individual components (defined by applicable Specification)
+- Concrete mandatory/non-mandatory assignment of individual components (recorded in the classification table of `agent_08_04`)
 - New configuration keys or configuration models
 - RuntimeToolRegistry, Routing, availability concepts redesign (ADR-003)
 - RAG Fallback changes (ADR-010)
@@ -171,11 +171,12 @@ This section is maintained in the companion document: [Verification](adr_04_fail
 ## Implementation Notes
 
 - For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale (companion document `adr_04_failure-handling-supporting-sections.md`).
-- Retry policy when an MCP server is unreachable: unreachable-handling paths (`scripts/shared/mcp_health.py`, `scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) contain no retry logic; the only retry implementation (`scripts/agent/http_lifecycle_health_checker.py::HealthChecker.startup_poll()`) has no callers (Explicit in code).
+- Retry policy when an MCP server is unreachable: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry. Subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). `HealthChecker.startup_poll()` in `scripts/agent/http_lifecycle_health_checker.py` has no production caller (Explicit in code).
+- The subprocess startup path does not read `required`, so a failed non-required server still aborts startup (AGENT-004; Explicit in code — `scripts/agent/startup_mcp_starter.py`).
 
 ## Known Deviations
 
-No confirmed deviations.
+- **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision Details #18 and INV-09)
 
 ## Review Triggers
 
@@ -206,6 +207,7 @@ Re-evaluate when:
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names not recorded)
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-08)**: The replacement of the references to a non-existent Specification in Decision Details #13 with the classification table of `agent_08_04` was approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -224,6 +226,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/agent/services/mcp_tool_discovery.py` — `McpToolDiscoveryService.discover_all()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry`
 - `scripts/agent/services/mcp_health.py` — `check_service_health()`
+- `scripts/agent/startup_mcp_starter.py` — `McpServerStarter`
+- `scripts/agent/http_lifecycle_health_checker.py` — `HealthChecker.startup_poll()`
 - `config/agent.toml` — configuration file
 - Tests — `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`
 

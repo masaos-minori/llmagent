@@ -38,7 +38,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 ### Constraints
 
 - Git MCP wraps local `git` operations via GitPython; it does not shell out through a shell interpreter (no shell-injection vector), but GitPython still passes argument strings to `git`'s own CLI option parser.
-- Approval is enforced client-side in the Agent process (`agent/tool_policy.py`, `tool_approval.py`); the Git MCP HTTP endpoint itself has no dependency on Agent-side approval state and accepts calls authenticated only by an optional Bearer token.
+- Approval is enforced client-side in the Agent process (`agent/tool_policy.py`, `tool_approval.py`); the Git MCP HTTP endpoint itself has no dependency on Agent-side approval state and accepts calls authenticated by the Bearer token required by ADR-007 INV-09.
 
 ## Assumptions
 
@@ -50,8 +50,8 @@ Approval and technical safety are different concerns: Agent-side approval confir
 ### Decision Details
 
 1. Approval and technical safety are separate layers. Agent-side approval MUST NOT be treated as a substitute for Git MCP's own validation, and Git MCP MUST NOT assume a call it receives was already approved.
-2. `branch` and `remote` arguments MUST be validated against a safe-ref pattern before being passed to `git`; values that would be interpreted as command-line options (e.g., leading `-`) MUST be rejected.
-3. Force Push MUST be rejected by the normal `git_push` operation. If Force Push is ever required operationally, it MUST be implemented as a separate, more strongly authorized administrative capability with its own approval and audit requirements — not as a mode of the normal tool.
+2. `branch` and `remote` arguments MUST be validated against a safe pattern before being passed to `git`. A branch value MUST be a plain branch name: values containing refspec syntax (a leading `+`, `:`, or a `refs/` prefix), revision syntax (`^`, `~`, `..`, `@{`), whitespace or control characters, and values read as options (a leading `-`) MUST be rejected. A remote value MUST match a remote-name pattern.
+3. Force Push MUST NOT be reachable through the normal `git_push` operation, either by a parameter or by refspec syntax in an argument. If Force Push is ever required operationally, it MUST be implemented as a separate, more strongly authorized administrative capability with its own approval and audit requirements — not as a mode of the normal tool.
 4. A protected-branch policy MUST be enforced by Git MCP itself for `git_checkout`/`git_push`/`git_pull` against configured protected branches, independent of any Agent-side branch-name checks (which apply only to `github_*` tools, not local git).
 5. `git_checkout`/`git_pull` MUST reject execution against a Dirty Worktree unless a documented safe exception applies; Detached HEAD MUST be rejected unless explicitly permitted by policy.
 6. Postcondition verification MUST confirm the resulting branch/HEAD and detect unresolved conflicts before reporting success; a non-zero `git` exit status alone does not guarantee the repository ended up in the intended state.
@@ -130,13 +130,13 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 - Operators configuring Git MCP define a protected-branch list, analogous to GitHub MCP's existing configuration.
 
 ### Security Consequences
-- Closes the option-injection vector for ref-shaped arguments (`branch`, `remote`, `commit`, `ref`) on the tools that accept them, by rejecting values that start with `-`.
+- Closes the option-injection and refspec vectors for ref-shaped arguments: write tools reject structural, revision, `refs/` and `HEAD` forms through the safe-ref allow-list and option-shaped values through the Stage 5 ref-validity precondition; read tools reject values that start with `-` (Explicit in code — `scripts/mcp_servers/git/git_service.py`, `scripts/mcp_servers/git/repository_state.py`).
 - Audit records identify the affected repository and capture the pre- and post-condition state: every call that passes argument validation is audited, with the canonical repository path in the `target` field. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `scripts/mcp_servers/audit.py`)
 
 ## Invariants
 
-- INV-01: `branch`/`remote` values MUST be rejected if they do not match a safe ref/remote-name pattern.
-- INV-02: `git_push` MUST NOT perform a forced update through the normal tool path.
+- INV-01: `branch`/`remote` values that do not match the safe patterns of Decision Details #2 MUST be rejected.
+- INV-02: `git_push` MUST NOT perform a forced update through the normal tool path, including through refspec syntax in an argument.
 - INV-03: `git_checkout`/`git_push`/`git_pull` against a configured protected branch MUST be rejected unless a separately approved policy explicitly allows it.
 - INV-04: Agent-side approval state MUST NOT be assumed or required by Git MCP's own validation logic — the two checks are independent.
 
@@ -168,7 +168,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 ### Automated Tests
 - **Test**: `git_checkout`/`git_pull`/`git_push` reject a `branch`/`remote` value shaped like a CLI option (`test_is_safe_ref`, `test_git_pull_unsafe_remote`, `test_git_show_unsafe_ref`) — **Verifies**: INV-01 — **Type**: Regression — **Blocking**: Yes
 - **Test**: write tools reject malformed `branch`/`remote` through the `git check-ref-format --branch`-equivalent allow-list (`TestWriteRefAllowlist::test_rejected_branch_forms`, `test_rejected_remote_forms`; `TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`); read-tool ref tests (`test_is_safe_ref`, `test_git_show_unsafe_ref`) remain for the option-injection-only check — **Verifies**: INV-01 — **Type**: Regression — **Blocking**: Yes
-- **Test**: `git_push` exposes no `force` parameter, so a forced update is unreachable through the normal path — **Verifies**: INV-02 — **Type**: Unit — **Blocking**: Yes
+- **Test**: `git_push` rejects branch values carrying refspec or revision syntax (`+main`, `HEAD:main`, `refs/heads/main`, `main~1`) before any GitPython call (`TestWriteRefAllowlist::test_rejected_branch_forms`; `TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`) — **Verifies**: INV-01, INV-02 — **Type**: Regression — **Blocking**: Yes
 - **Test**: push/checkout/pull against a configured protected branch is rejected (`test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_git_pull_protected_branch`, `test_write_tools_reject_shipped_protected_branches`; `TestLiveCallToolAuthorization`: `test_checkout_protected_branch_denied`, `test_pull_protected_branch_denied`, `test_push_protected_branch_denied`, `test_checkout_non_protected_branch_allowed`, `test_pull_non_protected_branch_allowed`, `test_push_non_protected_branch_allowed`, `test_checkout_implicit_target_denied`, `test_pull_implicit_target_denied`, `test_push_implicit_target_denied`); a protected destination is also rejected when reached directly through the pipeline (`test_repository_state.py::TestStage3DestinationProtection`; `test_git_service_dispatch.py::TestDestinationBasedProtection`), and checkout away from a protected branch is allowed — **Verifies**: INV-03 — **Type**: Integration — **Blocking**: Yes
 - **Test**: Dirty Worktree / Detached HEAD are rejected (or explicitly allowed) per policy (`test_git_checkout_dirty_worktree_denied`, `test_git_pull_dirty_worktree_denied`, `test_git_checkout_detached_head_denied`, `test_git_pull_detached_head_denied`, `test_git_checkout_detached_head_allowed`, `test_git_pull_detached_head_allowed`; `TestDryRunAndDetachedHeadLivePath`: `test_dry_run_checkout_skips_dirty_and_detached_precondition`, `test_dry_run_checkout_protected_branch_still_denied`, `test_non_dry_run_detached_head_denied_then_allowed`, `test_dry_run_pull_and_push_skip_dirty_precondition`) — **Verifies**: Decision Details #5 — **Type**: Integration — **Blocking**: Yes
 - **Test**: Postcondition verification runs on the live path and cannot be bypassed (`TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`) — **Verifies**: Decision Details #6 — **Type**: Integration — **Blocking**: Yes
@@ -182,7 +182,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **MCP-004 — residual known deviation.** The force-push-via-`branch` vector is now closed server-side: the write-tool allow-list rejects `+main` and other refspec forms before any GitPython call, and Stage 3 rejects a push onto a protected destination. Retained as a known deviation for the residual "no generic technical Force-Push block" point — no `force` field exists, so there is nothing to guard for ordinary pushes.
+- **Known Issue**: MCP-004 — tracked in governance_03 Part 1 (git-mcp has no generic technical force-push block; the refspec vector is closed by the write allow-list and forced updates are otherwise prevented only by the absent force parameter)
 
 ## Review Triggers
 
@@ -200,6 +200,7 @@ See Implementation References for the current file/symbol list.
 - **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-08)**: The wording of Decision Details #2 and #3 and of INV-01 and INV-02 (refspec and revision syntax rejected; forced update unreachable by parameter or refspec) was approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
