@@ -47,8 +47,9 @@ Update documentation comments for operator-only tokens
 ### Details
 
 **For `config/eventbus.toml` (read-only)**:
-- Update documentation comments for `auth_token` and `admin_token` to explicitly state they are operator-only credentials
-- Current comments describe them as granting ALL roles but do not state the operator-only constraint
+- Source verification (Step 4a): `auth_token` (lines 10-14) and `admin_token` (line 29) already accurately document that they grant ALL roles (shared / superuser credential). ADR-013 line 64 independently confirms both grant every role.
+- The "operator-only" framing in this procedure is template drift and contradicts the source. No comment change is required — the config is already correctly documented.
+- Correction: this cycle produces zero config edits; the deliverable is satisfied by the existing accurate comments.
 
 ## Compatibility considerations
 
@@ -105,10 +106,10 @@ Update documentation comments for operator-only tokens
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-230923 | Step 4a finding: config comments already accurate (all-roles/superuser); "operator-only" is template drift contradicting source. Zero config edits required. Procedure/Details corrected to reflect this. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-230923 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-230923 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-230923 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
