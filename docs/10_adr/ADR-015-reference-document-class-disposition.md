@@ -36,7 +36,7 @@ Mechanical-content removal against Reference-class documents requires knowing wh
 - **Option B**: Treat Reference documents as generated artifacts (auto-produced from code/docstrings; hand-editing prohibited).
 - **Option C**: Keep the status quo and accept drift between Reference documents and the code they describe.
 
-`tools/generate_reference_table.py` already implements Option B's pattern for MCP/RAG/deployment reference tables (guard-commented blocks, format `<!-- AUTO-GENERATED: <generator>.py <purpose> -->`, e.g. `GUARD_START_MCP`/`GUARD_START_DEPLOYMENT`, refreshed from `config/agent.toml` and source).
+`tools/generate_reference_table.py` already implements Option B's pattern through its `DOMAIN_GENERATORS` (see Implementation Notes for the current domains) (guard-commented blocks, format `<!-- AUTO-GENERATED: <generator>.py <purpose> -->`, e.g. `GUARD_START_MCP`/`GUARD_START_DEPLOYMENT`, refreshed from `config/agent.toml` and source).
 
 ### Constraints
 
@@ -45,7 +45,7 @@ Mechanical-content removal against Reference-class documents requires knowing wh
 
 ## Assumptions
 
-- The existing `rag`/`mcp`/`deployment` generator pattern in `tools/generate_reference_table.py` is a working, adoptable precedent for Reference-class documents generally, not specific to those three domains.
+- The existing generator pattern in `tools/generate_reference_table.py` is adoptable for Reference-class content in any domain.
 - The same generator pattern is reused for further domains (the generator also covers `agent`, `eventbus`, and `memory`).
 
 ## Decision
@@ -56,7 +56,7 @@ Adopt **Option B**: Reference-class documents are treated as generated artifacts
 
 ### Scope
 
-Applies to any `docs/*.md` document classified `class: Reference` per `docs/00_governance/governance_01_documentation-policy.md`'s Document Classification, once tooling exists to generate its content.
+Applies to every document that carries a generated guarded block (a `<!-- AUTO-GENERATED: <generator>.py <purpose> -->` comment). Such a document SHOULD also declare `class: Reference` in its front matter; the guarded block, not the class field, decides where this ADR applies.
 
 ### Out of Scope
 
@@ -74,7 +74,7 @@ A generated projection is not a competing copy: the code remains the sole canoni
 
 ### 3. Reuses a working precedent — Consistency
 
-`tools/generate_reference_table.py` already implements this pattern successfully for three domains (`rag`/`mcp`/`deployment`); extending it is lower-risk than inventing a new mechanism.
+`tools/generate_reference_table.py` already implements this pattern for several domains; extending it is lower-risk than inventing a new mechanism.
 
 ## Alternatives Considered
 
@@ -84,7 +84,7 @@ Remove the "Reference" document class entirely, replacing existing Reference doc
 
 ### Alternative C: Keep the status quo
 
-Leave Reference-class documents hand-maintained and accept ongoing drift risk, treating each drift instance as a documentation bug to fix individually (per `rules/coding.md`'s "Documentation notes" classification). Rejected: this is exactly the problem the source issue identifies — the mechanical-content removal policy has no answer for Reference-class content under this option, since removing it would delete real information with no generation path to replace it.
+Leave Reference-class documents hand-maintained and accept ongoing drift risk, treating each drift instance as a documentation bug to fix individually (per `rules/coding.md`'s "Documentation notes" classification). Rejected: the mechanical-content removal policy has no answer for Reference-class content under this option, since removing it would delete real information with no generation path to replace it.
 
 ## Consequences
 
@@ -136,6 +136,7 @@ Not applicable.
 - **Approved By**: repository owner
 - **Approval Date**: 2026-09-19
 - **Approval Reference**: Reviewed and approved via chat (Claude Code session llmagent-73), content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
+- **Decision Change (2026-10-08)**: The change of the Scope from documents classified `class: Reference` to documents carrying a generated guarded block was approved as a task-level approval decision (repository administrator instruction); the Named Approval Record above is unchanged and individual reviewer names are not recorded for this change.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 
@@ -169,3 +170,4 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The Owner and required Reviewers are defined (see Approval Record — review completed through a Named Approval Record)
 - [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)
+- [ ] The documents listed in Implementation Notes declare `class: Reference` in their front matter
