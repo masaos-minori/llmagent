@@ -47,8 +47,9 @@ Update auth model documentation
 ### Details
 
 **For `docs/24_eventbus/eventbus_02_api-reference-index.md` (REQ-005)**:
-- Update the Authentication Model section to explicitly state that `auth_token` and `admin_token` are operator-only credentials
-- Clarify that role separation holds only for callers that hold a per-role token
+- Source verification (Step 4a): Current Authentication Model (line 47) stated that per-role tokens grant only their own role and the shared `auth_token` grants all roles, but did NOT state that `auth_token`/`admin_token` are operator credentials that MUST NOT be distributed to publisher/consumer processes. This is a real gap (unlike docs 05/06, which were already satisfied).
+- Applied: appended to line 47 that `auth_token` and `admin_token` grant every role (superuser-equivalent) and are operator credentials that MUST NOT be distributed to publisher or consumer processes; role separation holds only for callers that hold a per-role token.
+- Wording uses ADR-013's precise phrasing ("operator credentials that MUST NOT be distributed..."), NOT the imprecise "operator-only" used in the procedure title. The every-role property itself is a fundamental property; the operator-only constraint is a deployment policy, documented as such.
 
 ## Compatibility considerations
 
@@ -105,10 +106,10 @@ Update auth model documentation
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-234433 | Step 4a: Authentication Model lacked operator-credential guidance; added per ADR-013 precise wording (line 47). Real change applied. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-234433 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-234433 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-234433 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
