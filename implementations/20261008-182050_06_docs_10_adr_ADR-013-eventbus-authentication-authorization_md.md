@@ -47,9 +47,13 @@ Document operator-only constraint for `auth_token`/`admin_token` in ADR-013
 ### Details
 
 **For `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` (REQ-005)**:
-- Document operator-only constraint for `auth_token`/`admin_token` in Decision Details #1
-- Update INV-07 description to clarify the operator-only constraint
-- Update Known Deviations section to reflect EVENTBUS-015 resolution
+- Source verification (Step 4a): All three requested items are ALREADY present in the current ADR-013.
+  - Decision Details #1 (line 64): "auth_token and admin_token are operator credentials and MUST NOT be distributed to publishers or consumers; role separation holds only for callers that hold a per-role token."
+  - INV-07 (line 204): "A token that grants every role (auth_token, admin_token) is never distributed to a publisher or consumer process."
+  - Known Deviations (line 256): "EVENTBUS-015 — tracked in governance_03 Part 1 (auth_token and admin_token grant every role; INV-07 depends on operator discipline only)"
+- The "operator-only" framing is not a factual error here: ADR-013 documents these as superuser/every-role tokens whose distribution to publisher/consumer processes is a deployment policy enforced by operator discipline (INV-07 / EVENTBUS-015). This is internally consistent with config/eventbus.toml and the fail-closed model.
+- Note: the procedure's word "resolution" for EVENTBUS-015 is imprecise — it remains an open known deviation (operator discipline only, no code enforcement). The desired outcome (recorded in Known Deviations) is already achieved; no edit is needed.
+- Correction: this cycle produces zero edits; REQ-005 is already satisfied by the current source.
 
 ## Compatibility considerations
 
@@ -106,10 +110,10 @@ Document operator-only constraint for `auth_token`/`admin_token` in ADR-013
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261008-232458 | Step 4a finding: all three REQ-005 items (Decision Details #1, INV-07, EVENTBUS-015) already present in ADR-013. Operator-only framing is a valid deployment-policy statement (consistent with config + fail-closed). Zero edits required. Procedure/Details corrected to reflect this. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261008-232458 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261008-232458 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261008-232458 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
