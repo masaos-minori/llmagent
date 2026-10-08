@@ -60,7 +60,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap |
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
-| MCP-001 | git-mcp audit records are never emitted | fixed | Medium | MCP | implementation-bug |
 | MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
 | MCP-004 | git-mcp has no generic technical force-push block | open | Low | MCP | design-gap |
 | MCP-005 | rag-pipeline-mcp does not verify the Bearer token | open | High | MCP | implementation-bug |
@@ -171,27 +170,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: A non-required server can still block startup.
 - **Recommended Action**: Apply `required` to spawn failures, or record the exception in ADR-004.
 - **Resolution Target**: Spawn failures follow `required`, or ADR-004 records the exception.
-
-#### MCP-001
-
-- **ID**: MCP-001
-- **Title**: git-mcp audit records are never emitted
-- **Status**: fixed
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: implementation-bug
-- **Source**: `scripts/mcp_servers/git/git_server.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/22_mcp/mcp_04_05_git.md`
-- **Related**: `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`
-- **Summary**: `call_tool` passes keyword arguments that `_audit_log()` does not accept, so most audit records are not written.
-- **Current Description**: mcp_04_05 describes audit fields that are never written.
-- **Observed Implementation**: `call_tool` passes `requested_target=`/`canonical_target=`; the `TypeError` is swallowed by `_audit_log_safe()` and only `audit_log failed` is logged. Tests mock `_audit_log`.
-- **Impact**: Only the path-containment rejection is recorded.
-- **Recommended Action**: Align the `_audit_log()` signature with its callers and test the real function.
-- **Resolution Target**: Each git-mcp call writes an audit record, covered by a test.
-- **Resolution Note**: Resolved by implementation procedures `_07_test_git_security_compliance_py`, `_08_test_git_service_dispatch_py`, and `_09_ADR-012_git-mcp-server-side-write-enforcement_md` (commit `ad3d062de`).
 
 #### MCP-003
 

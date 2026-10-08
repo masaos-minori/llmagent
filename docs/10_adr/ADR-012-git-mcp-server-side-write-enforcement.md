@@ -131,7 +131,7 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 
 ### Security Consequences
 - Closes the option-injection vector for ref-shaped arguments (`branch`, `remote`, `commit`, `ref`) on the tools that accept them, by rejecting values that start with `-`.
-- Intended: audit records identify the affected repository and capture pre/post-condition state, with canonical repository identity in the `target` field. Currently git-mcp audit records for dispatched calls are not written (the `_audit_log()` call raises `TypeError`, which is swallowed); see MCP-001 in `governance_03_issue-and-uncertainty-management.md`. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `scripts/mcp_servers/audit.py`)
+- Audit records identify the affected repository and capture the pre- and post-condition state: every call that passes argument validation is audited, with the canonical repository path in the `target` field. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `scripts/mcp_servers/audit.py`)
 
 ## Invariants
 
@@ -182,8 +182,6 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- MCP-001 — git-mcp audit records are now emitted for every write-tool call.
-- **MCP-002 — resolved.** The `git_pull`/`git_push` schema contradiction (an empty `branch` default that always failed `_validate_protected("")`) is closed: `branch` is now required in both request schemas, so the empty-branch default no longer reaches validation. Resolution target met.
 - **MCP-004 — residual known deviation.** The force-push-via-`branch` vector is now closed server-side: the write-tool allow-list rejects `+main` and other refspec forms before any GitPython call, and Stage 3 rejects a push onto a protected destination. Retained as a known deviation for the residual "no generic technical Force-Push block" point — no `force` field exists, so there is nothing to guard for ordinary pushes.
 
 ## Review Triggers
