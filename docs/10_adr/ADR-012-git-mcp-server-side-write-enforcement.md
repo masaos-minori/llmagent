@@ -182,7 +182,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: MCP-001 — tracked in governance_03 Part 1 (git-mcp audit records are not emitted)
+- MCP-001 — git-mcp audit records are now emitted for every write-tool call.
 - **MCP-002 — resolved.** The `git_pull`/`git_push` schema contradiction (an empty `branch` default that always failed `_validate_protected("")`) is closed: `branch` is now required in both request schemas, so the empty-branch default no longer reaches validation. Resolution target met.
 - **MCP-004 — residual known deviation.** The force-push-via-`branch` vector is now closed server-side: the write-tool allow-list rejects `+main` and other refspec forms before any GitPython call, and Stage 3 rejects a push onto a protected destination. Retained as a known deviation for the residual "no generic technical Force-Push block" point — no `force` field exists, so there is nothing to guard for ordinary pushes.
 

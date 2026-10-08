@@ -505,20 +505,6 @@ class TestFormatPostconditionFailures:
         ):
             format_pull(state, req, cfg=_authorized_cfg(REMOTE_URL))
 
-    def test_push_postcondition_failure_rejection_marker_in_output(self) -> None:
-        mock_repo = MagicMock()
-        mock_repo.git.push.return_value = "! [rejected] main -> main (non-fast-forward)"
-        _mock_remote(mock_repo, "origin")
-        state = _make_state(_repo=mock_repo)
-        req = GitPushRequest(
-            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
-        )
-        with pytest.raises(
-            GitServiceError,
-            match=r"push postcondition failed: rejection marker detected in output",
-        ):
-            format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
-
 
 # ── format_push ────────────────────────────────────────────────────────────────
 

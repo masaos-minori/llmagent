@@ -91,10 +91,10 @@ Edit `tests/mcp_servers/git/test_git_service_dispatch.py`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add additive-schema test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Pending | — | — | REQ-001 |
-| 2 | Add postcondition-message test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Pending | — | — | REQ-006 |
-| 3 | Add config-injection test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Pending | — | — | REQ-007 |
-| 4 | Run validation sequence (ruff, mypy, pytest) | Pending | — | — | REQ-001, REQ-006, REQ-007 |
+| 1 | Add additive-schema test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Done | — | — | REQ-001 |
+| 2 | Add postcondition-message test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Done | — | — | REQ-006 |
+| 3 | Add config-injection test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Done | — | — | REQ-007 |
+| 4 | Run validation sequence (ruff, mypy, pytest) | Done | — | — | REQ-001, REQ-006, REQ-007 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -111,10 +111,10 @@ Edit `tests/mcp_servers/git/test_git_service_dispatch.py`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | |
+| 2 | Add or update tests per Validation plan | Done | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

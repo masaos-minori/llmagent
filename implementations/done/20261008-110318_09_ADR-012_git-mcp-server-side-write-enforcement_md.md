@@ -76,8 +76,8 @@ Edit `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Close MCP-001 in Known Deviations (`docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`) | Pending | — | — | REQ-010 |
-| 2 | Run documentation consistency check | Pending | — | — | REQ-010 |
+| 1 | Close MCP-001 in Known Deviations (`docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`) | Done | — | — | REQ-010 |
+| 2 | Run documentation consistency check | Done | — | — | REQ-010 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -94,10 +94,10 @@ Edit `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | |
+| 2 | Add or update tests per Validation plan | Done | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

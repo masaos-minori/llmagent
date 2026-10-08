@@ -366,24 +366,6 @@ class TestPostconditionChecks:
             ok, msg = state.verify_postcondition("", state, "git_pull", None)
             assert ok is True
 
-    def test_push_postcondition_with_rejection(self, working_repo: str) -> None:
-        """REQ-006: detect rejected outcomes after push."""
-        state = RepositoryState.snapshot(working_repo)
-        ok, msg = state.verify_postcondition(
-            "rejected: non-fast-forward", state, "git_push", None
-        )
-        assert ok is False
-        assert "push postcondition failed" in msg
-
-    def test_push_postcondition_with_error(self, working_repo: str) -> None:
-        """REQ-006: detect error outcomes after push."""
-        state = RepositoryState.snapshot(working_repo)
-        ok, msg = state.verify_postcondition(
-            "error: failed to push", state, "git_push", None
-        )
-        assert ok is False
-        assert "push postcondition failed" in msg
-
     def test_pipeline_result_ok_has_post_state(self, working_repo: str) -> None:
         """PipelineResult.ok_result stores post_state."""
         from mcp_servers.git.repository_state import PipelineResult

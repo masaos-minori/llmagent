@@ -106,14 +106,14 @@ Edit `tests/mcp_servers/git/test_git_service_dispatch.py`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add real-audit integration tests for every outcome (`tests/mcp_servers/git/test_git_security_compliance.py`) | Pending | — | — | REQ-009 |
-| 2 | Add remote-rejection HTTP test (`tests/mcp_servers/git/test_git_security_compliance.py`) | Pending | — | — | REQ-009 |
-| 3 | Add health-counter test (`tests/mcp_servers/git/test_git_security_compliance.py`) | Pending | — | — | REQ-009 |
-| 4 | Update mocked-audit test at line 673 to new signature (`tests/mcp_servers/git/test_git_security_compliance.py`) | Pending | — | — | REQ-009 |
-| 5 | Add additive-schema test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Pending | — | — | REQ-001 |
-| 6 | Add postcondition-message test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Pending | — | — | REQ-006 |
-| 7 | Add config-injection test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Pending | — | — | REQ-007 |
-| 8 | Run validation sequence (ruff, mypy, pytest) | Pending | — | — | REQ-009 |
+| 1 | Add real-audit integration tests for every outcome (`tests/mcp_servers/git/test_git_security_compliance.py`) | Done | — | — | REQ-009 |
+| 2 | Add remote-rejection HTTP test (`tests/mcp_servers/git/test_git_security_compliance.py`) | Done | — | — | REQ-009 |
+| 3 | Add health-counter test (`tests/mcp_servers/git/test_git_security_compliance.py`) | Done | — | — | REQ-009 |
+| 4 | Update mocked-audit test at line 673 to new signature (`tests/mcp_servers/git/test_git_security_compliance.py`) | Done | — | — | REQ-009 |
+| 5 | Add additive-schema test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Done | — | — | REQ-001 |
+| 6 | Add postcondition-message test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Done | — | — | REQ-006 |
+| 7 | Add config-injection test (`tests/mcp_servers/git/test_git_service_dispatch.py`) | Done | — | — | REQ-007 |
+| 8 | Run validation sequence (ruff, mypy, pytest) | Done | — | — | REQ-009 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -130,10 +130,10 @@ Edit `tests/mcp_servers/git/test_git_service_dispatch.py`:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | |
+| 2 | Add or update tests per Validation plan | Done | — | — | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

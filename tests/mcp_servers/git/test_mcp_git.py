@@ -325,6 +325,15 @@ class TestGitPush:
         from mcp_servers.git.git_models import GitConfig
 
         svc = _svc(allowed=["/opt/repos"], read_only=False)
+        # Set _config so _push_op's assert self._config is not None passes
+        svc._config = GitConfig(
+            allowed_repo_paths=["/opt/repos"],
+            read_only=False,
+            max_log_entries=50,
+            protected_branches=[],
+            allow_detached_head=False,
+            allowed_remote_urls=["https://example.com/repo.git"],
+        )
         mock_repo = MagicMock()
         mock_repo.active_branch.name = "main"
         origin = MagicMock()
@@ -342,15 +351,7 @@ class TestGitPush:
         snap.verify_preconditions.return_value = (True, "")
         snap.verify_postcondition.return_value = (True, "")
         snap.audit.return_value = {}
-        with (
-            patch.object(RepositoryState, "snapshot", return_value=snap),
-            patch(
-                "mcp_servers.git.format_output.GitConfig.load",
-                return_value=GitConfig(
-                    allowed_remote_urls=["https://example.com/repo.git"]
-                ),
-            ),
-        ):
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
             result = await svc.git_push(
                 {"repo_path": "/opt/repos/proj", "branch": "main", "dry_run": True}
             )

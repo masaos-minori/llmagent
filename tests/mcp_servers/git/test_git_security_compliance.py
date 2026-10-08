@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import copy
+import logging
 import stat
 import tempfile
 from pathlib import Path
@@ -677,7 +678,7 @@ class TestHTTPSiblingPathRejection:
             original = git_server._cfg.allowed_repo_paths
             try:
                 git_server._cfg.allowed_repo_paths = [str(allowed_dir)]
-                with patch("mcp_servers.git.git_server._audit_log") as mock_audit:
+                with patch("mcp_servers.audit._audit_log") as mock_audit:
                     resp = client.post(
                         "/v1/call_tool",
                         json={
@@ -2184,3 +2185,210 @@ class TestGitServiceErrorHandlerIdentity:
         assert response.json() == {
             "detail": "induced failure for handler-identity test"
         }
+
+    @pytest.mark.asyncio
+    async def test_real_audit_success_outcome(self, client, monkeypatch, caplog):
+        """REQ-009: real-audit integration test — success outcome emits one record."""
+        from mcp_servers.git import git_server
+        from mcp_servers.git.repository_state import RepositoryState
+
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/allowed/repo"
+        snap.is_dirty = False
+        snap.head_type = "branch"
+        snap.active_branch = "develop"
+        snap.untracked_file_count = 0
+        snap.protected_branch = False
+        snap.ref_valid = True
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "develop"
+        snap.repo.is_dirty.return_value = False
+
+        monkeypatch.setattr(
+            git_server, "_validate_pre_snapshot", lambda path: (True, "")
+        )
+        monkeypatch.setattr(RepositoryState, "snapshot", lambda *a, **kw: snap)
+
+        original_read_only = git_server._cfg.read_only
+        original_svc_read_only = git_server._service._read_only
+        original_allowed = git_server._cfg.allowed_repo_paths
+        original_svc_allowed = git_server._service._allowed_repo_paths
+        try:
+            git_server._cfg.read_only = False
+            git_server._service._read_only = False
+            git_server._cfg.allowed_repo_paths = ["/tmp/allowed"]
+            git_server._service._allowed_repo_paths = ["/tmp/allowed"]
+            caplog.set_level(logging.INFO)
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_status",
+                    "args": {"repo_path": "/tmp/allowed/repo"},
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body.get("is_error") is not True
+            # Verify audit record was emitted via caplog
+            assert any("mcp_tool_exec" in record.message for record in caplog.records)
+        finally:
+            git_server._cfg.read_only = original_read_only
+            git_server._service._read_only = original_svc_read_only
+            git_server._cfg.allowed_repo_paths = original_allowed
+            git_server._service._allowed_repo_paths = original_svc_allowed
+
+    @pytest.mark.asyncio
+    async def test_real_audit_rejected_outcome(self, client, monkeypatch, caplog):
+        """REQ-009: real-audit integration test — rejected outcome emits one record."""
+        from mcp_servers.git import git_server
+        from mcp_servers.git.repository_state import RepositoryState
+
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/allowed/repo"
+        snap.is_dirty = False
+        snap.head_type = "branch"
+        snap.active_branch = "main"
+        snap.untracked_file_count = 0
+        snap.protected_branch = True
+        snap.ref_valid = True
+        snap.verify_authorization.return_value = (
+            False,
+            "[DENIED] main is a protected branch",
+        )
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "main"
+        snap.repo.is_dirty.return_value = False
+
+        monkeypatch.setattr(
+            git_server, "_validate_pre_snapshot", lambda path: (True, "")
+        )
+        monkeypatch.setattr(RepositoryState, "snapshot", lambda *a, **kw: snap)
+
+        original_read_only = git_server._cfg.read_only
+        original_svc_read_only = git_server._service._read_only
+        original_allowed = git_server._cfg.allowed_repo_paths
+        original_svc_allowed = git_server._service._allowed_repo_paths
+        original_protected = git_server._cfg.protected_branches
+        try:
+            git_server._cfg.read_only = False
+            git_server._service._read_only = False
+            git_server._cfg.allowed_repo_paths = ["/tmp/allowed"]
+            git_server._service._allowed_repo_paths = ["/tmp/allowed"]
+            git_server._cfg.protected_branches = ["main"]
+            caplog.set_level(logging.INFO)
+            resp = client.post(
+                "/v1/call_tool",
+                json={
+                    "name": "git_checkout",
+                    "args": {
+                        "repo_path": "/tmp/allowed/repo",
+                        "branch": "main",
+                        "create": False,
+                        "dry_run": False,
+                    },
+                },
+            )
+            assert resp.status_code == 200
+            body = resp.json()
+            assert body.get("is_error") is True
+            assert "protected branch" in str(body.get("result", "")).lower()
+            # Verify audit record was emitted via caplog
+            assert any("mcp_tool_exec" in record.message for record in caplog.records)
+        finally:
+            git_server._cfg.read_only = original_read_only
+            git_server._service._read_only = original_svc_read_only
+            git_server._cfg.allowed_repo_paths = original_allowed
+            git_server._service._allowed_repo_paths = original_svc_allowed
+            git_server._cfg.protected_branches = original_protected
+
+    @pytest.mark.asyncio
+    async def test_health_endpoint_includes_audit_failure_count(
+        self, client, monkeypatch
+    ):
+        """REQ-009: health endpoint returns _audit_failure_count in details."""
+        from mcp_servers.git import git_server
+
+        original_count = git_server._audit_failure_count
+        try:
+            git_server._audit_failure_count = 42
+            resp = client.get("/health")
+            assert resp.status_code == 200
+            body = resp.json()
+            details = body.get("details", {})
+            assert details.get("audit_failure_count") == 42
+        finally:
+            git_server._audit_failure_count = original_count
+
+    @pytest.mark.asyncio
+    async def test_health_counter_increments_on_audit_failure(
+        self, client, monkeypatch
+    ):
+        """REQ-009: forcing _audit_log to raise increments the counter."""
+        from mcp_servers.git import git_server
+        from mcp_servers.git.repository_state import RepositoryState
+
+        original_count = git_server._audit_failure_count
+        try:
+            git_server._audit_failure_count = 0
+
+            snap = MagicMock(spec=RepositoryState)
+            snap.path = "/tmp/allowed/repo"
+            snap.is_dirty = False
+            snap.head_type = "branch"
+            snap.active_branch = "develop"
+            snap.untracked_file_count = 0
+            snap.protected_branch = False
+            snap.ref_valid = True
+            snap.verify_authorization.return_value = (True, "")
+            snap.verify_preconditions.return_value = (True, "")
+            snap.verify_postcondition.return_value = (True, "")
+            snap.audit.return_value = {}
+            snap.repo = MagicMock()
+            snap.repo.active_branch.name = "develop"
+            snap.repo.is_dirty.return_value = False
+
+            monkeypatch.setattr(
+                git_server, "_validate_pre_snapshot", lambda path: (True, "")
+            )
+            monkeypatch.setattr(RepositoryState, "snapshot", lambda *a, **kw: snap)
+
+            original_read_only = git_server._cfg.read_only
+            original_svc_read_only = git_server._service._read_only
+            original_allowed = git_server._cfg.allowed_repo_paths
+            original_svc_allowed = git_server._service._allowed_repo_paths
+            try:
+                git_server._cfg.read_only = False
+                git_server._service._read_only = False
+                git_server._cfg.allowed_repo_paths = ["/tmp/allowed"]
+                git_server._service._allowed_repo_paths = ["/tmp/allowed"]
+                # Force _audit_log (called by _audit_log_safe) to raise
+                with patch(
+                    "mcp_servers.git.git_server._audit_log",
+                    side_effect=Exception("boom"),
+                ):
+                    resp = client.post(
+                        "/v1/call_tool",
+                        json={
+                            "name": "git_status",
+                            "args": {"repo_path": "/tmp/allowed/repo"},
+                        },
+                    )
+                    assert resp.status_code == 200
+                    body = resp.json()
+                    assert body.get("is_error") is not True
+                # Verify counter incremented
+                assert git_server._audit_failure_count == 1
+            finally:
+                git_server._cfg.read_only = original_read_only
+                git_server._service._read_only = original_svc_read_only
+                git_server._cfg.allowed_repo_paths = original_allowed
+                git_server._service._allowed_repo_paths = original_svc_allowed
+        finally:
+            git_server._audit_failure_count = original_count

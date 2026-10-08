@@ -752,3 +752,104 @@ class TestGitPullPushBranchRequired:
     def test_push_accepts_branch(self) -> None:
         req = GitPushRequest(repo_path="/x", branch="main")
         assert req.branch == "main"
+
+    @pytest.mark.asyncio
+    async def test_additive_schema_audit_record_fields(self) -> None:
+        """REQ-001: _build_audit_record accepts requested_target and canonical_target."""
+        from mcp_servers.audit import _build_audit_record
+
+        record = _build_audit_record(
+            session_id="sess-1",
+            request_id="req-1",
+            action="git_status",
+            target="/opt/repos/proj",
+            outcome="ok",
+            requested_target="/opt/repos/proj",
+            canonical_target="/opt/repos/proj",
+        )
+        assert record["canonical_target"] == "/opt/repos/proj"
+
+    @pytest.mark.asyncio
+    async def test_postcondition_message_contains_resulting_state(self) -> None:
+        """REQ-006: checkout postcondition failure message includes resulting state."""
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
+        snap.is_dirty = False
+        snap.head_type = "detached"
+        snap.active_branch = "HEAD"
+        snap.untracked_file_count = 0
+        snap.protected_branch = False
+        snap.ref_valid = True
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (
+            False,
+            "checkout postcondition failed: state already changed; expected branch 'dev', got '<detached HEAD>'",
+        )
+        snap.audit.return_value = {}
+        snap.repo = MagicMock()
+        snap.repo.active_branch.name = "HEAD"
+        snap.repo.is_dirty.return_value = False
+
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            with pytest.raises(GitServiceError, match="state already changed"):
+                await svc.git_checkout(
+                    {
+                        "repo_path": "/opt/repos/proj",
+                        "branch": "dev",
+                        "create": False,
+                        "dry_run": False,
+                    }
+                )
+
+    @pytest.mark.asyncio
+    async def test_config_injection_format_pull_uses_passed_cfg(self) -> None:
+        """REQ-007: format_pull uses the passed _cfg and ignores a divergent config."""
+        from mcp_servers.git.format_output import format_pull
+
+        mock_cfg = MagicMock()
+        mock_cfg.allowed_remote_urls = ["https://example.com/repo.git"]
+
+        mock_state = MagicMock()
+        mock_state._repo = MagicMock()
+        mock_state._repo.git.pull.return_value = "Already up to date."
+        mock_state._repo.index.unmerged_blobs.return_value = []
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        mock_state._repo.remotes = [origin]
+
+        req = GitPullRequest(
+            repo_path="/opt/repos/proj", remote="origin", branch="main"
+        )
+
+        result = format_pull(mock_state, req, mock_cfg)
+        assert result == "Already up to date."
+        # Verify the mock_cfg was used (not GitConfig.load())
+        assert mock_cfg.allowed_remote_urls == ["https://example.com/repo.git"]
+
+    @pytest.mark.asyncio
+    async def test_config_injection_format_push_uses_passed_cfg(self) -> None:
+        """REQ-007: format_push uses the passed _cfg and ignores a divergent config."""
+        from mcp_servers.git.format_output import format_push
+
+        mock_cfg = MagicMock()
+        mock_cfg.allowed_remote_urls = ["https://example.com/repo.git"]
+
+        mock_state = MagicMock()
+        mock_state._repo = MagicMock()
+        mock_state._repo.git.push.return_value = "Pushed 'main' to 'origin'"
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        mock_state._repo.remotes = [origin]
+
+        req = GitPushRequest(
+            repo_path="/opt/repos/proj", remote="origin", branch="main"
+        )
+
+        result = format_push(mock_state, req, mock_cfg)
+        assert result == "Pushed 'main' to 'origin'"
+        # Verify the mock_cfg was used (not GitConfig.load())
+        assert mock_cfg.allowed_remote_urls == ["https://example.com/repo.git"]
