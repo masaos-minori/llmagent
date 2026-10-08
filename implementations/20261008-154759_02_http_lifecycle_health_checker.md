@@ -141,10 +141,10 @@ In `startup_poll()` (lines 85-137), the Bearer token is already handled by `veri
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261008-184949 | 20261008-184949 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261008-185016 | 20261008-185016 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261008-185016 | 20261008-185016 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261008-185016 | 20261008-185016 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
