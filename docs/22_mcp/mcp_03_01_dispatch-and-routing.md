@@ -48,6 +48,19 @@ LLM returns tool_call
 - If the health registry returns a `HALF_OPEN` state, the block by `is_unavailable` is skipped to allow one trial dispatch (circuit breaker half-open attempt). (Explicit in code)
 - `ToolTransportInvoker.invoke()` exists as a separate general-purpose method providing health checks, lifecycle activation, and semaphore control similar to internal dispatch, but it does not include the `startup_mode` gate. (Explicit in code)
 
+### Idempotency and retry
+
+The `X-Idempotency-Key` request header gives a logical call a stable identity on the server: it drives server-side de-duplication of state-mutating calls and lets the Agent reuse one key across that call's retries.
+
+- **Key ownership:** the caller/Agent generates one idempotency key per logical call. `HttpTransport.call()` emits it as the `X-Idempotency-Key` header and reuses the same value on every retry of that call, so a re-sent write keeps a single identity. (Explicit in code)
+- **Empty-key rule:** a call with no key (empty or `None`) is never de-duplicated — it always executes and is never stored. The guard applies to side-effecting tools. (Explicit in code)
+- **Cache keying:** a successful result is stored keyed by the idempotency key plus the resolved tool name plus a normalized hash of the arguments. Reusing a key with different tool or argument content is rejected as an error rather than served. (Explicit in code)
+- **TTL and eviction:** cached results carry a fixed time-to-live; the cache is bounded to a maximum entry count and evicts oldest-first past that bound, dropping expired entries first. (Explicit in code)
+- **Error and dry-run results are never cached**, so a failed or dry-run call always re-executes. (Explicit in code)
+- **Write-tool retry:** a write-tool post-send retry is gated on idempotency-key presence (a blind write retry without a dedup key risks double execution); read-tool retry is unchanged. `call()` always emits a per-call key, so write retries carry a stable key. (Explicit in code)
+
+Authoritative implementation: `dispatch.py::dispatch_tool()` with its `_duplicate_cache` (server-side dedup) and `http_transport.py::call()` (per-call key generation and retry).
+
 ---
 
 ## Tool resolution and LLM visibility
