@@ -275,7 +275,10 @@ async def nack(
 ) -> dict[str, Any]:
     """Negatively acknowledge an event, triggering retry logic."""
     result: dict[str, Any] = await nack_route(
-        request, event_id=event_id, consumer_id=consumer_id
+        request,
+        event_id=event_id,
+        consumer_id=consumer_id,
+        _principal=_principal,
     )
     return result
 
