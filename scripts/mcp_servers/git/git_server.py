@@ -30,8 +30,8 @@ from shared.formatters import fmt_kvlog
 from shared.tool_constants import GIT_WRITE_TOOLS
 
 from mcp_servers.audit import _audit_log
-from mcp_servers.dispatch import dispatch_tool
-from mcp_servers.git.errors import GitServiceError
+from mcp_servers.dispatch import DispatchResult, dispatch_tool
+from mcp_servers.git.errors import GitPolicyError, GitServiceError
 from mcp_servers.git.git_models import (
     GitConfig,
 )
@@ -104,11 +104,16 @@ def _sanitize_for_audit(value: str) -> str:
     return "/".join(["***"] + parts[-2:])
 
 
+_audit_failure_count: int = 0
+
+
 def _audit_log_safe(logger: logging.Logger, **kwargs: Any) -> None:
     """Wrap _audit_log so its own failure cannot mask the original response."""
+    global _audit_failure_count
     try:
         _audit_log(logger, **kwargs)
     except Exception:  # noqa: BLE001 — audit failure must never propagate
+        _audit_failure_count += 1
         logger.error("audit_log failed: %s", kwargs.get("action", "unknown"))
 
 
@@ -243,12 +248,24 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     pre_state = RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
     )
-    result = await dispatch_tool(
-        _service.get_dispatch_table(),
-        req.name,
-        req.args,
-        idempotency_key=idempotency_key,
-    )
+    result: DispatchResult | None = None
+    outcome: str = ""
+    policy_exc: GitPolicyError | None = None
+    try:
+        result = await dispatch_tool(
+            _service.get_dispatch_table(),
+            req.name,
+            req.args,
+            idempotency_key=idempotency_key,
+        )
+    except GitPolicyError as exc:
+        policy_exc = exc
+        outcome = "rejected"
+    except GitServiceError:
+        outcome = "error"
+        raise
+    else:
+        outcome = "rejected" if result.is_error else "ok"
     post_state = RepositoryState.snapshot(
         resolved, protected_branches=_cfg.protected_branches, active_ref=active_ref
     )
@@ -260,13 +277,16 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         request_id=request_id,
         action=req.name,
         target=resolved,
-        outcome="rejected" if result.is_error else "success",
+        outcome=outcome,
         server_key="git",
         pre_condition=_serialize_state(pre_state),
         post_condition=_serialize_state(post_state),
         requested_target=_sanitize_for_audit(repo_path),
         canonical_target=resolved,
     )
+    if policy_exc is not None:
+        return CallToolResponse(result=str(policy_exc), is_error=True)
+    assert result is not None
     return CallToolResponse(
         result=result.output,
         is_error=result.is_error,
@@ -282,7 +302,10 @@ async def health() -> JSONResponse:
             deps["git"] = "git not found in PATH"
     except OSError:
         deps["git"] = "check failed"
-    details: dict[str, object] = {"service": "git-mcp"}
+    details: dict[str, object] = {
+        "service": "git-mcp",
+        "audit_failure_count": _audit_failure_count,
+    }
     result: JSONResponse = make_health_response(deps, details)
     return result
 

@@ -9,3 +9,7 @@ from __future__ import annotations
 
 class GitServiceError(RuntimeError):
     """Raised on general git service errors."""
+
+
+class GitPolicyError(GitServiceError):
+    """Raised on policy rejections (not execution failures)."""

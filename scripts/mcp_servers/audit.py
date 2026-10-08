@@ -54,6 +54,7 @@ class AuditRecord(TypedDict):
     detail: NotRequired[str]
     pre_condition: NotRequired[dict[str, object]]
     post_condition: NotRequired[dict[str, object]]
+    canonical_target: NotRequired[str]
 
 
 def _build_audit_record(
@@ -67,6 +68,8 @@ def _build_audit_record(
     error_type: str = "",
     pre_condition: dict[str, object] | None = None,
     post_condition: dict[str, object] | None = None,
+    requested_target: str = "",
+    canonical_target: str = "",
 ) -> AuditRecord:
     """Build the structured record for one MCP tool execution audit event.
 
@@ -81,6 +84,8 @@ def _build_audit_record(
         error_type: Failure-mode identifier (see module docstring for vocabularies).
         pre_condition: Pre-condition state snapshot (optional).
         post_condition: Post-condition state snapshot (optional).
+        requested_target: Redacted repo path before resolution (optional).
+        canonical_target: Resolved repo path (optional).
     """
     record: AuditRecord = {
         "event": "mcp_tool_exec",
@@ -108,6 +113,8 @@ def _build_audit_record(
             for k, v in post_condition.items()
             if isinstance(v, (str, int, float, bool, type(None)))
         }
+    if canonical_target:
+        record["canonical_target"] = canonical_target
     return record
 
 
@@ -123,6 +130,8 @@ def _audit_log(
     error_type: str = "",
     pre_condition: dict[str, object] | None = None,
     post_condition: dict[str, object] | None = None,
+    requested_target: str = "",
+    canonical_target: str = "",
 ) -> None:
     """Emit one JSON-lines audit record for an MCP tool execution.
 
@@ -138,6 +147,8 @@ def _audit_log(
         error_type: Failure-mode identifier (see module docstring for vocabularies).
         pre_condition: Pre-condition state snapshot (optional).
         post_condition: Post-condition state snapshot (optional).
+        requested_target: Redacted repo path before resolution (optional).
+        canonical_target: Resolved repo path (optional).
     """
     record = _build_audit_record(
         session_id=session_id,
@@ -150,5 +161,7 @@ def _audit_log(
         error_type=error_type,
         pre_condition=pre_condition,
         post_condition=post_condition,
+        requested_target=requested_target,
+        canonical_target=canonical_target,
     )
     server_logger.info(orjson.dumps(record, option=orjson.OPT_SORT_KEYS).decode())
