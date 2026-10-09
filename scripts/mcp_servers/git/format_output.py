@@ -176,8 +176,20 @@ def _authorize_remote(state: RepositoryState, remote_name: str, cfg: GitConfig) 
         )
 
 
-def format_pull(state: RepositoryState, req: GitPullRequest, cfg: GitConfig) -> str:
-    """Format output for fetching and merging remote changes."""
+def format_pull(
+    state: RepositoryState,
+    req: GitPullRequest,
+    cfg: GitConfig,
+    timeout: float | None = None,
+) -> str:
+    """Format output for fetching and merging remote changes.
+
+    ``timeout`` (seconds) is accepted for configuration parity with the caller.
+    Actual enforcement happens at the async boundary in ``GitService``: the
+    blocking call runs on a worker thread via ``asyncio.to_thread`` and is
+    wrapped in ``asyncio.wait_for(timeout)``, so this synchronous helper cannot
+    apply the deadline itself. ``None`` (the default) means no enforcement.
+    """
     _authorize_remote(state, req.remote, cfg)
     if req.dry_run:
         assert state._repo is not None
@@ -198,8 +210,20 @@ def format_pull(state: RepositoryState, req: GitPullRequest, cfg: GitConfig) -> 
     return result or "Already up to date."
 
 
-def format_push(state: RepositoryState, req: GitPushRequest, cfg: GitConfig) -> str:
-    """Format output for pushing local commits to a remote."""
+def format_push(
+    state: RepositoryState,
+    req: GitPushRequest,
+    cfg: GitConfig,
+    timeout: float | None = None,
+) -> str:
+    """Format output for pushing local commits to a remote.
+
+    ``timeout`` (seconds) is accepted for configuration parity with the caller.
+    Actual enforcement happens at the async boundary in ``GitService``: the
+    blocking call runs on a worker thread via ``asyncio.to_thread`` and is
+    wrapped in ``asyncio.wait_for(timeout)``, so this synchronous helper cannot
+    apply the deadline itself. ``None`` (the default) means no enforcement.
+    """
     _authorize_remote(state, req.remote, cfg)
     branch = req.branch
     if req.dry_run:

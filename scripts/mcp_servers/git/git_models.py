@@ -24,6 +24,24 @@ logger = logging.getLogger(__name__)
 # ──────────────────────────────────────────────────────────────────────────────
 
 
+def _optional_real(d: dict[str, Any], key: str) -> float | None:
+    """Return ``d[key]`` as ``float``, or ``None`` when absent.
+
+    Accepts both int and float (TOML distinguishes them); rejects ``bool`` and
+    other types. Kept local so ``shared.config_utils.get_typed`` (whose
+    ``expected_type`` parameter is typed as a single ``type``) is left
+    untouched.
+    """
+    value = d.get(key)
+    if value is None:
+        return None
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise ValueError(
+            f"'{key}' must be a number, got {type(value).__name__}: {value!r}"
+        )
+    return float(value)
+
+
 @dataclasses.dataclass
 class GitConfig:
     """Typed configuration for the Git MCP server."""
@@ -36,6 +54,12 @@ class GitConfig:
     audit_log_path: str = ""
     allow_detached_head: bool = False
     allowed_remote_urls: list[str] = dataclasses.field(default_factory=list)
+    # Per-operation network timeouts (seconds) for the blocking pull/push
+    # writes. Enforced at the async boundary in GitService (_run_tool) via
+    # asyncio.wait_for; None disables enforcement. See Plan
+    # plans/20261008-160546_plan.md REQ-003.
+    push_timeout: float | None = None
+    pull_timeout: float | None = None
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> GitConfig:
@@ -58,6 +82,8 @@ class GitConfig:
         allowed_remote_urls = get_typed(
             d, "allowed_remote_urls", list, "a list", default=[]
         )
+        push_timeout = _optional_real(d, "push_timeout")
+        pull_timeout = _optional_real(d, "pull_timeout")
         return cls(
             allowed_repo_paths=[os.path.expanduser(str(p)) for p in allowed],
             read_only=read_only,
@@ -67,6 +93,8 @@ class GitConfig:
             protected_branches=list(protected_branches),
             allow_detached_head=allow_detached_head,
             allowed_remote_urls=list(allowed_remote_urls),
+            push_timeout=push_timeout,
+            pull_timeout=pull_timeout,
         )
 
     @classmethod

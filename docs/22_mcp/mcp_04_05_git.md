@@ -85,6 +85,8 @@ The "Tier" column does not exist within the `scripts/mcp_servers/git/` directory
 | `protected_branches` | branch names protected against write tools (see Protected branch authority); empty = none protected |
 | `allow_detached_head` | when true, the detached-HEAD precondition is skipped for non-dry-run write calls; default is fail-closed |
 | `allowed_remote_urls` | normalized remote URLs permitted for `git_pull`/`git_push`; empty = deny all |
+| `pull_timeout` | Optional timeout (seconds) for `git_pull`; when the underlying call exceeds it, the operation raises `TimeoutError`. Unset = no timeout. |
+| `push_timeout` | Optional timeout (seconds) for `git_push`; when the underlying call exceeds it, the operation raises `TimeoutError`. Unset = no timeout. |
 
 Current default values are defined in `config/git_mcp_server.toml`.
 
@@ -110,7 +112,7 @@ Agent-side approval confirms user intent; it does not verify that a `git_checkou
 
 ### Common guard
 
-`git_server.py::call_tool` rejects a disabled tool (reason `allowed_repo_paths is empty` or `read_only=true`) before anything else, then resolves `repo_path` via `Path.resolve()` and checks containment in `allowed_repo_paths` (symlink- and traversal-based escapes are rejected). `GitService._validate_repo()` repeats the allowlist check and rejects write tools when `read_only` is true. These checks cover all five write tools uniformly (Explicit in code). Additionally, `WriteProtectionPipeline` in `repository_state.py` runs `verify_authorization()` (protected destination and ref validity), `verify_preconditions()`, a HEAD-identity re-check, and `verify_postcondition()` around the mutating call.
+`git_server.py::call_tool` rejects a disabled tool (reason `allowed_repo_paths is empty` or `read_only=true`) before anything else, then resolves `repo_path` via `Path.resolve()` and checks containment in `allowed_repo_paths` (symlink- and traversal-based escapes are rejected). `GitService._validate_repo()` repeats the allowlist check and rejects write tools when `read_only` is true. These checks cover all five write tools uniformly (Explicit in code). Additionally, `WriteProtectionPipeline` in `repository_state.py` runs `verify_authorization()` (protected destination and ref validity), `verify_preconditions()`, a HEAD-identity re-check, and `verify_postcondition()` around the mutating call. Each write runs inside that pipeline on a worker thread (`asyncio.to_thread`) rather than on the event loop, so `/health` and read tools stay responsive while a slow `git_pull`/`git_push` is in flight; the pipeline also holds a per-repository serialisation lock, so writes to the same repository are ordered one at a time. Network writes carry a configurable per-operation deadline — `git_pull`/`git_push` raise `TimeoutError` once `pull_timeout`/`push_timeout` elapses — while local writes (`git_add`/`git_commit`/`git_checkout`) run without one.
 
 ### Command-specific guard status: partially implemented
 

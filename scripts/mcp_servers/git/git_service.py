@@ -11,6 +11,7 @@ Split layout:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import re
@@ -247,7 +248,15 @@ class GitService:
         if tool_name in GIT_READ_TOOLS:
             return self._wrap_git_op(tool_name, lambda: op(state.repo, state))
         pipeline = WriteProtectionPipeline(state)
-        pipeline_result = pipeline.run(
+        # REQ-001: run the write pipeline on a worker thread so the blocking
+        # GitPython call (and the per-repo lock it acquires) never blocks the
+        # event loop; /health and read tools stay responsive during a push/pull.
+        # REQ-003: enforce a per-operation timeout at this async boundary via
+        # asyncio.wait_for. The blocking call is synchronous, so the deadline
+        # cannot be applied inside format_pull/format_push (see their docstrings).
+        timeout = self._write_timeout(tool_name)
+        dispatch = asyncio.to_thread(
+            pipeline.run,
             tool_name,
             lambda: op(state.repo, state),
             dry_run,
@@ -256,9 +265,28 @@ class GitService:
             protected_branches=self._protected_branches,
             active_ref=active_ref,
         )
+        pipeline_result = (
+            await asyncio.wait_for(dispatch, timeout)
+            if timeout is not None
+            else await dispatch
+        )
         if pipeline_result.ok:
             return pipeline_result.output
         raise ValueError(pipeline_result.rejection_message)
+
+    def _write_timeout(self, tool_name: str) -> float | None:
+        """Return the network-write timeout (seconds) for a tool, or None.
+
+        REQ-003: only network writes (pull/push) carry a configured deadline;
+        local writes (add/commit/checkout) run without one.
+        """
+        if self._config is None:
+            return None
+        if tool_name == "git_pull":
+            return self._config.pull_timeout
+        if tool_name == "git_push":
+            return self._config.push_timeout
+        return None
 
     # ── Read-only tools ───────────────────────────────────────────────────────
 

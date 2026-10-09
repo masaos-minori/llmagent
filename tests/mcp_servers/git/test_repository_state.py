@@ -7,6 +7,7 @@ and guard integration with GitService handlers.
 
 from __future__ import annotations
 
+import asyncio
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -446,6 +447,22 @@ class TestGetRepoLock:
         from mcp_servers.git.repository_state import _get_repo_lock
 
         assert _get_repo_lock("/tmp/repo-b") is not _get_repo_lock("/tmp/repo-c")
+
+    def test_get_repo_lock_is_threading_lock(self) -> None:
+        """REQ-002 resolution: the per-repo lock stays a ``threading.Lock``.
+
+        ``WriteProtectionPipeline.run()`` acquires the lock inside a worker
+        thread (the write path is dispatched via ``asyncio.to_thread``), and an
+        ``asyncio.Lock`` cannot be acquired from a worker thread. Per-repo
+        serialisation is therefore preserved with a ``threading.Lock``.
+        """
+        from mcp_servers.git.repository_state import _get_repo_lock
+
+        lock = _get_repo_lock("/tmp/repo-lock-type")
+        assert not isinstance(lock, asyncio.Lock)
+        # Positive check: a threading lock supports non-blocking acquire/release.
+        assert lock.acquire(blocking=False)
+        lock.release()
 
 
 # ── Stage 5b HEAD-identity re-check (REQ-006) ────────────────────────────────

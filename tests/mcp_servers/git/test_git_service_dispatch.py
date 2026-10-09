@@ -12,6 +12,8 @@ validate->open->wrap pattern); they must pass unchanged before and after.
 
 from __future__ import annotations
 
+import asyncio
+import threading
 from unittest.mock import MagicMock, patch
 
 import git
@@ -686,6 +688,131 @@ class TestGitPushRefRejectionBeforeGit:
             await svc.git_push(
                 {"repo_path": "/opt/repos/proj", "branch": bad, "remote": "origin"}
             )
+
+
+def _pull_snap(mock_repo: MagicMock) -> MagicMock:
+    """Build a mocked RepositoryState that routes through mock_repo."""
+    snap = MagicMock(spec=RepositoryState)
+    snap.path = "/tmp/repo-offload"
+    snap._repo = mock_repo
+    snap.is_dirty = False
+    snap.is_detached_head = False
+    snap.verify_authorization.return_value = (True, "")
+    snap.verify_preconditions.return_value = (True, "")
+    snap.verify_postcondition.return_value = (True, "")
+    snap.audit.return_value = {}
+    return snap
+
+
+class TestWriteOffloadAndTimeout:
+    """REQ-001 (event-loop offload) + REQ-003 (per-operation timeout)."""
+
+    @pytest.mark.asyncio
+    async def test_write_runs_on_worker_thread_not_loop(self) -> None:
+        """REQ-001: the blocking write executes on a worker thread, not the
+        event-loop thread.
+
+        This asserts thread identity directly (the robust discriminator): the
+        slow Git call records the thread it runs on, and that thread must differ
+        from the thread running the event loop. Removing the ``to_thread``
+        dispatch would run the write on the loop thread and fail this assertion.
+        A concurrent health-style coroutine additionally proves the loop stays
+        responsive while the write is blocked in the worker thread.
+        """
+        started = threading.Event()
+        release = threading.Event()
+        seen_threads: list[threading.Thread] = []
+
+        def slow_pull(*_a, **_k) -> str:
+            seen_threads.append(threading.current_thread())
+            started.set()
+            release.wait(timeout=5)
+            return "up to date"
+
+        mock_repo = MagicMock()
+        mock_repo.git.pull.side_effect = slow_pull
+        mock_repo.index.unmerged_blobs.return_value = []
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        mock_repo.remotes = [origin]
+        snap = _pull_snap(mock_repo)
+
+        svc = _svc(
+            allowed=["/opt/repos"],
+            read_only=False,
+            allowed_remote_urls=["https://example.com/repo.git"],
+        )
+
+        with patch.object(RepositoryState, "snapshot", return_value=snap):
+            loop_thread = threading.current_thread()
+            task = asyncio.create_task(
+                svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
+            )
+            # Poll without blocking the loop until the write enters slow_pull.
+            for _ in range(200):
+                if started.is_set():
+                    break
+                await asyncio.sleep(0.01)
+            assert started.is_set(), "slow write did not start"
+
+            assert seen_threads, "write never executed the blocking call"
+            assert seen_threads[0] is not loop_thread, (
+                "write ran on the event-loop thread; not offloaded via to_thread"
+            )
+
+            # While the write is blocked in the worker thread, a concurrent
+            # health-style coroutine must still complete promptly.
+            health_done = asyncio.Event()
+
+            async def health_probe() -> None:
+                await asyncio.sleep(0.05)
+                health_done.set()
+
+            probe_task = asyncio.create_task(health_probe())
+            await asyncio.wait_for(probe_task, timeout=2.0)
+            assert health_done.is_set()
+
+            release.set()
+            await asyncio.wait_for(task, timeout=2.0)
+
+    @pytest.mark.asyncio
+    async def test_slow_pull_raises_timeout(self) -> None:
+        release = threading.Event()
+
+        def slow_pull(*_a, **_k) -> str:
+            release.wait(timeout=5)
+            return "up to date"
+
+        mock_repo = MagicMock()
+        mock_repo.git.pull.side_effect = slow_pull
+        mock_repo.index.unmerged_blobs.return_value = []
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = "https://example.com/repo.git"
+        mock_repo.remotes = [origin]
+        snap = _pull_snap(mock_repo)
+
+        cfg = GitConfig(
+            allowed_repo_paths=["/opt/repos"],
+            read_only=False,
+            allowed_remote_urls=["https://example.com/repo.git"],
+            pull_timeout=0.1,
+        )
+        svc = GitService(
+            allowed_repo_paths=cfg.allowed_repo_paths,
+            read_only=cfg.read_only,
+            max_log_entries=cfg.max_log_entries,
+            _config=cfg,
+        )
+
+        with (
+            patch.object(RepositoryState, "snapshot", return_value=snap),
+            pytest.raises(asyncio.TimeoutError),
+        ):
+            await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
+        # Unblock the orphaned worker thread so it does not leak.
+        release.set()
 
 
 class TestDestinationBasedProtection:
