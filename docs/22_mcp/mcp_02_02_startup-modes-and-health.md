@@ -91,10 +91,10 @@ There is no automatic restart of MCP servers. For manual recovery procedures, se
 
 ## Bearer Authentication
 
-If `McpServerConfig.auth_token` is not empty:
+Every HTTP MCP server MUST have a non-empty `McpServerConfig.auth_token`; Agent startup rejects an enabled HTTP server whose `auth_token` is empty. The only exception is mdq-mcp, which intentionally passes an empty token (see `mcp_05_05_mdq-enforcement-and-lockdown.md`). With a non-empty token:
 - **Server-side**: `attach_auth_middleware(app, token)` registers middleware and validates `Authorization: Bearer <token>`. Mismatched requests receive an HTTP 401.
 - **Client-side**: `HttpTransport` injects `Authorization: Bearer <token>` into all POST requests.
-- If `auth_token` is empty: Authentication checks are skipped; only `X-Request-Id` injection is active.
+- Empty token (mdq-mcp only, or a standalone test run): `attach_auth_middleware()` skips the authentication check and only injects `X-Request-Id`.
 
 ---
 

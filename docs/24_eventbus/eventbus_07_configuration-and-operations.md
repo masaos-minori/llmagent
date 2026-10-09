@@ -108,7 +108,7 @@ above.
 EVENTBUS_CONFIG_PATH=<path-to-eventbus.toml> python -m eventbus.app
 ```
 
-Or `uvicorn eventbus.app:app --host <loopback-host>`.
+Do not start the server with `uvicorn` directly. Starting through `python -m eventbus.app` is required because it runs the post-start loopback verification, which a direct `uvicorn` invocation bypasses (see `eventbus_06_persistence_schema_and_replay.md`).
 
 ---
 

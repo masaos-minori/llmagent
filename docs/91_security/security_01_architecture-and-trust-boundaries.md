@@ -174,7 +174,8 @@ Prompt injection responsibility is distributed across layers:
 | MCP server degraded | Capability degraded | Operator intervention required |
 | Workflow schema missing | Agent startup fails | Run `bash deploy/init_db.sh` |
 | Workflow definition invalid | Agent startup fails | Fix JSON per validation error |
-| Embedding service down | RAG degraded to fts-only | Restart embed-llm service |
+| Embedding service unreachable at startup | Startup aborts with FATAL | Restore embed-llm, then restart the Agent |
+| Embedding service down at runtime | Affected searches fall back to FTS; the memory layer becomes degraded when its circuit opens | Restart embed-llm service |
 | Memory layer circuit open | Memory degraded | Wait for cooldown, then verify |
 | Database corruption | Data loss risk | Restore from backup |
 | Network partition | Multiple capabilities affected | Verify network connectivity |
@@ -199,7 +200,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 
 | Scenario | Degraded State | Recovery |
 |---|---|---|
-| Embedding API down (HTTP 503) | fts-only mode | Restart embed-llm |
+| Embedding API down (HTTP 503) at runtime | Affected searches fall back to FTS; memory circuit open means degraded | Restart embed-llm |
 | Embedding dimension mismatch | Chunk skipped, WARNING logged | Verify the embedding model's output matches `scripts/db/store_protocols.py::get_embedding_dims()` (a fixed code-level constant, not a config key) |
 | Vector store corruption | RAG unavailable | Restore from backup |
 | FTS index desync (`fts_gap != 0`) | Search results incomplete | Run `/session rag-consistency` to inspect (`scripts/db/rag_consistency.py` is a library module, not a CLI entry point) |
@@ -215,7 +216,7 @@ When embedding is unavailable: existing documents remain searchable via FTS, new
 | Mode | Condition | Behavior |
 |---|---|---|
 | disabled | `use_memory_layer=false` | No memory operations |
-| fts-only | `embed_client.enabled=False` | FTS search only, no embeddings |
+| fts-only | `memory_embed_enabled=false` or no embedding client (configuration only; never entered because of a health-check failure) | FTS search only, no embeddings |
 | degraded | `circuit_open=True` | Circuit breaker open, skip embedding |
 | hybrid | Normal operation | Full embedding + vector search |
 
@@ -240,7 +241,7 @@ Degraded conditions: `circuit_open=True` after more than `failure_threshold` con
 | Shell Execution | shell-mcp | shell-mcp degraded / unavailable |
 | Document Retrieval | rag-pipeline-mcp (+ embed-llm) | embed-llm down / rag-pipeline-mcp unavailable |
 | GitHub Operations | github-mcp | github-mcp degraded / unavailable |
-| Memory Search | Agent memory store (embed-llm optional) | embed-llm down: search continues in fts-only mode |
+| Memory Search | Agent memory store (embed-llm optional) | embed-llm unreachable at startup: FATAL; down at runtime: per-search FTS fallback, degraded when the circuit opens |
 
 *Source: `agent/startup.py`*
 
