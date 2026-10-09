@@ -96,11 +96,12 @@ and `schema_sql.py` rows. See Design decisions for the relationship to
 
 ## Execution Status
 
+### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_COL_LAST_NACK_ATTEMPT` constant to _constants.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `_COL_LAST_NACK_ATTEMPT` constant to _constants.py | Completed | 20261009-182622 | 20261009-182622 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261009-182622 | 20261009-182622 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261009-182622 | 20261009-182622 |  |
 | 4 | Update documentation | N/A | — | — | Docs handled by REQ-006 rows |
 
 ### Blocker Log
