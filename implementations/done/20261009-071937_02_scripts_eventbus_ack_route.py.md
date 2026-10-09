@@ -119,9 +119,9 @@ decisions for coordination with the `delivery_repo.py` and `dlq.py` rows.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement REQ-003/REQ-004 changes in ack_route.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement REQ-003/REQ-004 changes in ack_route.py | Completed | 2026-10-09 | 2026-10-09 | `_nack_and_promote()` returns `tuple[NackOutcome, int, bool]` with atomic `-2` subtype determination under the same lock as the NACK increment (REQ-003, closes EVENTBUS-011); dropped the `events.acked_at` read (REQ-004); `_ack_and_offset()` returns the 4-tuple from `ack_event_for_consumer`; ACK path returns 409 via `ERR_EVENT_IN_DLQ` when `dlq=True` |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-09 | 2026-10-09 | `test_eventbus_ack_nack.py` absorbs the 4-tuple contract; 22/22 pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-09 | 2026-10-09 | ruff/mypy (426 files)/lint-imports/bandit clean. NOTE: the coupled 4-tuple contract (file 01) + per-consumer NACK idempotency (REQ-001) made 6 direct-unpack sites in `test_eventbus_offsets.py`/`test_eventbus_restart_resume.py` and 3 DLQ-promotion tests (`test_eventbus_dlq.py`, `test_eventbus_dlq_pagination.py`, `test_eventbus_concurrent.py`) obsolete (they encoded pre-idempotency double-NACK behavior). Updated those 9 call sites/tests to the new contract (4-value unpacking; distinct consumers to reach the DLQ threshold). Full `tests/eventbus/` = 337 passed, 1 skipped. |
 | 4 | Update documentation | N/A | — | — | Docs handled by REQ-006 rows |
 
 ### Blocker Log
