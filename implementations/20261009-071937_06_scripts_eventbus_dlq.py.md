@@ -123,18 +123,19 @@ decision. See Design decisions.
 
 ## Execution Status
 
+### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement REQ-002 promotion change in dlq.py | Deferred | — | — | ADR-006 decided per-consumer (commit 4a24dd3c1, 2026-10-09). Deferred pending ack_route inline-gate switch + per-consumer DLQ-marker schema (both out-of-scope for this row); dlq.py alone cannot enforce per-consumer gating without them. |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation | N/A | — | — | Docs handled by REQ-006 rows |
+| 1 | Implement REQ-002 promotion change in dlq.py | Completed | 2026-10-10 | 2026-10-10 | Landed in commit 4b58334a0 (fix: gate DLQ promotion on per-consumer failure count), bundled with the ack_route.py inline-gate and delivery_repo.py changes. Current dlq.py gates promotion on per-consumer `consumer_delivery_failure_count` via `_all_attempted_consumers_exceeded`; shared `delivery_failure_count` ignored. Adversarial-verified against committed source. |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-10 | 2026-10-10 | `TestReq002PerConsumerDlqPromotion` (3 tests) in `tests/eventbus/test_eventbus_ack_nack.py` covers the completion criterion (consumer A's NACKs must not advance consumer B's DLQ timer). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-10 | 2026-10-10 | ruff format/check clean, mypy clean, lint-imports contracts kept, bandit 0 High / 0 Medium (3 Low), pytest 340 passed / 1 skipped. |
+| 4 | Update documentation | Completed | 2026-10-10 | 2026-10-10 | Updated `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md` to reflect per-consumer promotion gating (was stale shared-counter claims). quality/structure/content_policy/japanese checkers pass. |
 
 ### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | REQ-002 DLQ-promotion source depends on the per-event vs per-consumer decision deferred to ADR-006 | Yes | 2026-10-09 | ADR-006 now decides per-consumer (commit 4a24dd3c1). Implementation itself deferred pending ack_route inline-gate + per-consumer DLQ-marker schema (see Execution Status notes). |
+| 1 | REQ-002 DLQ-promotion source depends on the per-event vs per-consumer decision deferred to ADR-006 | Yes | 2026-10-09 | ADR-006 now decides per-consumer (commit 4a24dd3c1). Implementation landed in commit 4b58334a0 (bundled with the ack_route.py inline-gate and delivery_repo.py changes); see Execution Status notes. |
 
 ### Work Items Created
 
