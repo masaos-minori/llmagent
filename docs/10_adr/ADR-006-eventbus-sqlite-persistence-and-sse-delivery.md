@@ -212,7 +212,7 @@ Security requires preventing unintended Event reception.
 
 ### Operational Consequences
 
-- DLQ promotion happens inline on `POST /nack`, with a periodic background sweep as a safety net; a DLQ event is returned to delivery through `POST /dlq/{event_id}/requeue`.
+- DLQ promotion happens inline on `POST /nack`, with a periodic background sweep as a safety net; a DLQ event is returned to delivery through `POST /dlq/{event_id}/requeue`. Promotion is gated on the per-consumer failure count, and each DLQ unit is keyed per consumer so one consumer's repeated NACKs never promote an Event shared by other consumers.
 - Health state (database availability, DLQ task state) is exposed through the health endpoint.
 
 ### Security Consequences
