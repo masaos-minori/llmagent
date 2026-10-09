@@ -1,9 +1,10 @@
 ## Goal
 
 Update the EventBus runtime DDL mirror `scripts/db/schema_sql.py` (`_EVENTBUS_SCHEMA`)
-to drop the `events.acked_at` column (`REQ-004`) and add the per-consumer NACK-attempt
-column `consumer_delivery.last_nack_attempt` (`REQ-001`), keeping it byte-for-byte
-consistent with `scripts/eventbus/schema.sql`.
+to drop the `events.acked_at` column (`REQ-004`), add the per-consumer NACK-attempt
+column `consumer_delivery.last_nack_attempt` (`REQ-001`), and relocate the per-consumer
+failure counter `consumer_delivery_failure_count` from `events` to
+`consumer_delivery` (`REQ-002`), keeping it consistent with `scripts/eventbus/schema.sql`.
 
 ## Scope
 
@@ -32,10 +33,10 @@ See Design decisions for the `acked_at` migration and column-placement questions
 - Keep the `idx_consumer_delivery_consumer_ack` index on
   `(consumer_id, acked_at)` if present in this block — it supports the per-consumer
   ACK lookups used by `ack_event_for_consumer()` and the NACK guard.
-- Column placement: `consumer_delivery_failure_count` currently lives on the `events`
-  table. The source issue intends per-consumer failure counting in `consumer_delivery`.
-  Resolve this with the `REQ-002` / ADR-006 decision before relocating it; this row
-  does not move it.
+- Relocate `consumer_delivery_failure_count` from `events` to `consumer_delivery`
+  (`REQ-002`): add it to the `consumer_delivery` table block. The `_EVENTBUS_SCHEMA`
+  `events` block never carried this column (pre-existing divergence from
+  `schema.sql`); leave the `events` block untouched except for the `acked_at` removal.
 
 ## Alternatives considered
 
@@ -54,8 +55,11 @@ See Design decisions for the `acked_at` migration and column-placement questions
 1. `REQ-004` — Delete the `acked_at TEXT` line from the `events` table block inside
    `_EVENTBUS_SCHEMA` (line 242).
 2. `REQ-001` — Add `last_nack_attempt TEXT` to the `consumer_delivery` table block
-   (after `acked_at`, line 259).
-3. Mirror both changes in `scripts/eventbus/schema.sql` via its own row — do not edit
+   (after `acked_at`).
+3. `REQ-002` — Add `consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0` to the
+   `consumer_delivery` table block (after `last_nack_attempt`). The `events` block never
+   carried this column; do not add it there.
+4. Mirror all changes in `scripts/eventbus/schema.sql` via its own row — do not edit
    that file here.
 
 ### Method
@@ -69,8 +73,10 @@ See Design decisions for the `acked_at` migration and column-placement questions
 ### Details
 
 - Do not touch any other table block or the surrounding `_WORKFLOW_MIGRATIONS` list.
-- The `last_nack_attempt` column name must match `_COL_LAST_NACK_ATTEMPT` added in the
-  `_constants.py` row.
+- Leave the `events` block's pre-existing divergence from `schema.sql`
+  (`published_at` default, missing `consumer_id`) untouched — out of scope.
+- The `last_nack_attempt` and `consumer_delivery_failure_count` column names must match
+  `_COL_LAST_NACK_ATTEMPT` / `_COL_CONSUMER_DELIVERY_FAILURE_COUNT` in `_constants.py`.
 
 ## Compatibility considerations
 
@@ -97,14 +103,17 @@ See Design decisions for the `acked_at` migration and column-placement questions
 
 - `events.acked_at` absent from `_EVENTBUS_SCHEMA`.
 - `consumer_delivery.last_nack_attempt` present in `_EVENTBUS_SCHEMA`.
+- `consumer_delivery_failure_count` present in the `_EVENTBUS_SCHEMA` `consumer_delivery`
+  block (and absent from its `events` block, where it was never defined).
 - `schema.sql` mirror updated (via its row).
 
 ## Out of scope
 
 - Migration of existing databases: `schema.py::_migrate` needs an
-  `ALTER TABLE events DROP COLUMN acked_at` (and the `last_nack_attempt` add is
-  covered by fresh DDL). `schema.py` is an additional target file not listed in the
-  Plan's `Implementation Target Files` — flag as a Plan Gap / re-freeze before
+  `ALTER TABLE events DROP COLUMN acked_at` and an `ALTER TABLE consumer_delivery ADD
+  COLUMN` for both `last_nack_attempt` and `consumer_delivery_failure_count` (the latter
+  two are covered by fresh DDL). `schema.py` is an additional target file not listed in
+  the Plan's `Implementation Target Files` — flag as a Plan Gap / re-freeze before
   executing the migration step.
 - `schema.sql` edits (its own row).
 
@@ -113,9 +122,9 @@ See Design decisions for the `acked_at` migration and column-placement questions
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement REQ-001/REQ-004 DDL changes in schema_sql.py | Completed | 20261009-183722 | 20261009-183722 | DDL by load; pre-existing schema.sql vs schema_sql.py divergence (published_at default, events.consumer_id/consumer_delivery_failure_count) left untouched (out of scope) |
-| 2 | Add or update tests per Validation plan | Completed | 20261009-183722 | 20261009-183722 |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261009-183722 | 20261009-183722 |  |
+| 1 | Implement REQ-001/REQ-002/REQ-004 DDL changes in schema_sql.py | Completed | 20261009-191624 | 20261009-191624 | acked_at removed from events; last_nack_attempt + consumer_delivery_failure_count added to consumer_delivery; pre-existing schema.sql vs schema_sql.py divergence (published_at default, events.consumer_id) left untouched (out of scope) |
+| 2 | Add or update tests per Validation plan | Completed | 20261009-191624 | 20261009-191624 | DDL validated by loading build_eventbus_schema_sql() into a fresh SQLite DB |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261009-191624 | 20261009-191624 | ruff format/check, mypy, bandit all clean |
 | 4 | Update documentation | N/A | — | — | Docs handled by REQ-006 rows |
 
 ### Blocker Log
@@ -133,7 +142,7 @@ See Design decisions for the `acked_at` migration and column-placement questions
 ## Traceability
 
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-004`, `REQ-001`
+- **Requirement ID**: `REQ-004`, `REQ-001`, `REQ-002`
 - **Source issue**: `issues/done/20261007-154016_ebnack01_fix-eventbus-ack-and-nack-state-management.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261008-160952_plan.md`
