@@ -331,7 +331,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Current Description**: ADR-013 INV-02 forbids acting as another `consumer_id`.
 - **Observed Implementation**: A `consumer_token` without `consumer_authorization` is rejected at startup. With empty `consumer_authorization` and `topic_authorization` mappings, the CONSUMER token gets `allowed_consumer_ids=None` (unrestricted), as do `auth_token` and `admin_token`.
 - **Impact**: An unrestricted principal can use any `consumer_id`.
-- **Recommended Action**: Deny all consumers on an empty mapping (or reject it at startup) and fix the code comment that calls it deny-all.
+- **Recommended Action**: Deny all consumers on an empty mapping, or reject it at startup.
 - **Resolution Target**: Every CONSUMER token has a non-empty allowlist or is denied, covered by a test.
 
 #### EVENTBUS-011
