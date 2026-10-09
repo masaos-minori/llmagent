@@ -8,7 +8,6 @@ execute_one_tool_call(), log_approval_decision(), and run_approval_checks().
 
 from __future__ import annotations
 
-import subprocess
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 

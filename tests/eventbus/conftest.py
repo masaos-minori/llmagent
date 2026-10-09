@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Generator
+from collections.abc import Generator
 
 import pytest
 
@@ -18,9 +18,8 @@ def _ensure_route_helpers_metrics_registered() -> None:
     client fixture), restoring them ensures subsequent tests see their
     expected counters/histograms.
     """
-    from prometheus_client import REGISTRY
-
     import eventbus.route_helpers as rh
+    from prometheus_client import REGISTRY
 
     for obj in (rh._db_lock_wait_time, rh._db_query_duration, rh._db_lock_contention):
         if obj not in REGISTRY._collector_to_names:
@@ -31,7 +30,7 @@ def _ensure_route_helpers_metrics_registered() -> None:
 
 
 @pytest.fixture(autouse=True)
-def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     """Preserve auth module-level state across tests.
 
     _TOKEN_PRINCIPAL_MAP is populated at runtime by
@@ -47,7 +46,7 @@ def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, 
 
 
 @pytest.fixture(autouse=True)
-def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None, None, None]:
+def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     """Preserve auth module-level state across tests.
 
     _TOKEN_PRINCIPAL_MAP is populated at runtime by
