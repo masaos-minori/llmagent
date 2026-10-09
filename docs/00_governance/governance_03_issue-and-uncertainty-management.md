@@ -57,7 +57,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 |----|-------|--------|----------|------|------|
 | RAG-002 | Japanese sentences with empty normalized text are dropped with their original text | open | Low | RAG | implementation-bug |
 | RAG-006 | Refiner settings in config/agent.toml are validated but never read by the Agent | open | Low | RAG | design-gap |
-| AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap |
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
 | AGENT-005 | Approval and audit operation-type classification reads static tool-name sets before RuntimeToolRegistry | open | Medium | Agent | design-gap |
@@ -113,26 +112,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Editing these keys has no effect on refiner behavior.
 - **Recommended Action**: Remove the unused keys from `config/agent.toml` and `RAGConfig`, or wire them to a consumer.
 - **Resolution Target**: Every refiner key in `config/agent.toml` has a consumer, or the keys are removed.
-
-#### AGENT-001
-
-- **ID**: AGENT-001
-- **Title**: Default workflow definition does not satisfy the documented require_approval policy
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Agent
-- **Type**: design-gap
-- **Source**: `config/workflows/default.json`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`
-- **Related**: `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`
-- **Summary**: The documented policy requires workflow-level approval for some categories, but the bundled default sets `require_approval` to false and no code enforces the policy.
-- **Current Description**: agent_03_03 labels the policy operational only.
-- **Observed Implementation**: `WorkflowLoader` treats `require_approval` as optional (false when absent); `ProductionConfigValidator` has no rule for it.
-- **Impact**: A default deployment has no workflow-level approval gate (the tool-level gate is separate).
-- **Recommended Action**: Either enforce the policy (validator rule and default definition) or reduce it to a recommendation.
-- **Resolution Target**: Policy, default definition and validator agree.
 
 #### AGENT-002
 
