@@ -82,7 +82,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 ### Scope
 
 - **Target components**: `DocumentManager` (ingestion), `DocumentManager` (rag_pipeline MCP server), `RagMaintenanceService`, `check_rag_consistency()`
-- **Target processes**: the Agent process and the ingester process
+- **Target processes**: the Agent process, the ingester process, and the rag-pipeline MCP server process (its document deletion path)
 - **Target data**: the `documents` table, the `chunks` table, the `chunks_fts` virtual table, the `chunks_vec` virtual table
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `DocumentManager.delete_existing_document()`, `delete_document_chain()`, rag_pipeline `DocumentManager.delete_document()`, `RagMaintenanceService.reconcile_url()`, `RagMaintenanceService.rebuild_fts()`

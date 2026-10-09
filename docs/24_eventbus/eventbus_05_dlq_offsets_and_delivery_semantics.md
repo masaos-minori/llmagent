@@ -29,12 +29,13 @@ The server detects a collision only on live subscriptions:
 
 - A second concurrent `/subscribe` connection using the same non-empty `consumer_id` as an already-active connection is rejected with HTTP 409. Only one active connection per non-empty `consumer_id` is permitted at a time. The check is an in-process registry of active subscriptions in the broker (Explicit in code — `scripts/eventbus/broker.py`, `scripts/eventbus/subscribe_route.py`). Separately, the legacy offset-file migration (`migrate_legacy_offsets()`) refuses to proceed when two legacy files map to the same sanitized consumer ID.
 
-The ACK endpoint is not bound to a connection, so it does not detect a collision:
+The ACK endpoint is not bound to a connection, so it does not detect a collision. It restricts `consumer_id` only through the caller token's `consumer_id` allowlist (ADR-013 INV-02):
 
-- ACKs that carry the same `consumer_id` are all accepted, whichever caller sends them, and share a single offset row.
+- A caller whose token carries an allowlist may ACK only the `consumer_id` values bound to that token; any other value is rejected with HTTP 403.
+- ACKs that carry the same `consumer_id` from callers without an allowlist (the shared and admin tokens, and a CONSUMER token when `consumer_authorization` is an empty mapping) are all accepted, and share a single offset row.
 - That offset only moves forward: the highest acknowledged `seq` wins, regardless of the order of the ACKs.
 - Consumers that share an ID through ACK can therefore overwrite each other's progress, so one of them may skip events on resume.
-- ADR-006 INV-10 (concurrent use of the same Consumer ID is prohibited) is therefore enforced only on the `/subscribe` path, not on the ACK path. (Explicit in code — `scripts/eventbus/ack_route.py`, `scripts/eventbus/delivery_repo.py::ack_event_for_consumer`) This gap is tracked as EVENTBUS-013 in `governance_03_issue-and-uncertainty-management.md`.
+- ADR-006 INV-10 has two parts: at most one active `GET /subscribe` connection per non-empty Consumer ID, and ACK/NACK use limited to the `consumer_id` values bound to the caller's token. The first part is enforced on the `/subscribe` path only. The second part is not enforced for a caller without a `consumer_id` allowlist. (Explicit in code — `scripts/eventbus/ack_route.py`, `scripts/eventbus/delivery_repo.py::ack_event_for_consumer`) This gap is tracked as EVENTBUS-013 in `governance_03_issue-and-uncertainty-management.md`.
 
 To avoid collisions, use unique, stable consumer IDs per instance. Do not use volatile IDs such as PIDs.
 

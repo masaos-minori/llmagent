@@ -62,7 +62,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 
 ### Scope
 
-- **Components**: `scripts/mcp_servers/git/git_service.py`, `git_security.py`, `format_output.py`, `git_server.py`, `git_models.py`, `repository_state.py`.
+- **Components**: `scripts/mcp_servers/git/git_service.py`, `format_output.py`, `git_server.py`, `git_models.py`, `repository_state.py`.
 - **Tools**: `git_checkout`, `git_pull`, `git_push` specifically; `git_add`/`git_commit` are lower-risk and out of scope for command-specific guards beyond the existing common guard.
 
 ### Out of Scope
@@ -182,7 +182,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: MCP-004 — tracked in governance_03 Part 1 (git-mcp has no generic technical force-push block; the refspec vector is closed by the write allow-list and forced updates are otherwise prevented only by the absent force parameter)
+No confirmed deviations.
 
 ## Review Triggers
 
@@ -211,7 +211,6 @@ Not applicable.
 ## Implementation References
 
 - `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `RepositoryState.snapshot()`, `WriteProtectionPipeline`, `WriteProtectionPipeline.run()`
-- `scripts/mcp_servers/git/git_security.py` — `GitSecurityGuards`, dispatch table
 - `scripts/mcp_servers/git/git_service.py` — `GitService`, `GitService.get_dispatch_table()`
 - `scripts/mcp_servers/git/format_output.py` — `format_checkout()`, `format_pull()`, `format_push()`
 - `scripts/mcp_servers/git/git_server.py` — `call_tool()` endpoint, audit logging

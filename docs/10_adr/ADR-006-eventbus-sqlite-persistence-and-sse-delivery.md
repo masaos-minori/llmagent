@@ -390,7 +390,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (a principal without a `consumer_id` allowlist is unrestricted, namely the CONSUMER token when `consumer_authorization` is an empty mapping and the shared `auth_token`/`admin_token`, so the ACK/NACK binding of INV-10 is not enforced for it)
 - **Known Issue**: EVENTBUS-011 — tracked in governance_03 Part 1 (NACK on a concurrently deleted event)
 - **Known Issue**: EVENTBUS-012 — tracked in governance_03 Part 1 (duplicate NACK from the same consumer)
-- **Known Issue**: EVENTBUS-013 — tracked in governance_03 Part 1 (ACK and NACK check only the principal allowlist and do not enforce exclusive use of a Consumer ID)
+- **Known Issue**: EVENTBUS-013 — tracked in governance_03 Part 1 (ACK and NACK are not bound to the active subscription of a `consumer_id`; they check only the principal allowlist)
 - **Known Issue**: EVENTBUS-014 — tracked in governance_03 Part 1 (`events.acked_at` is never written but is still read)
 
 ## Review Triggers

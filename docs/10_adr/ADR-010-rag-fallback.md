@@ -323,8 +323,8 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
 
 ## Implementation Notes
 
-- `RagPipeline.augment()` delegates to `HttpAugment` when `rag_service_url` is set; a non-`None` result (including `""`) is returned as final, and `None` makes `augment()` run the in-process pipeline.
-- `call_rag_service()` posts to the RAG service, retries 5xx and transport errors a bounded number of times, returns `""` for an empty or unparsable response, and returns `None` for exhausted retries and for 4xx.
+- `RagPipeline.augment()` delegates to `HttpAugment` when `rag_service_url` is set. `HttpAugment.run()` returns a non-`None` result (including `""`) as final, and returns `None` for a `transient_failure` outcome, which makes `augment()` run the in-process pipeline. An `auth_error` outcome returns `None` without a fallback, and `augment()` raises `RagPipelineError`.
+- `call_rag_service()` posts to the RAG service, retries 5xx and transport errors a bounded number of times, and returns a `CallRagResult(kind, result, status_code, latency_ms)`. `kind` is `success`, `empty` (`result` is `""` for an empty or unparsable response), `auth_error` (HTTP 401/403, no retry, `result` is `None`), or `transient_failure` (exhausted retries, other 4xx, or `is_error`; `result` is `None`).
 - `HttpAugment.run()` classifies the outcome (`remote_nonempty`, `remote_empty`, `in_process_fallback`) and `run_http_augment()` records `ResultSource` and `HttpResultKind` in the search diagnostics.
 - The rag_pipeline MCP server builds its pipeline configuration with an empty `rag_service_url`, so a call served by the external service never delegates again.
 
