@@ -54,8 +54,8 @@ def ack_event(
         if newly_acked:
             return True, True
         exists = conn.execute(
-            f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",
-            (event_id,),  # nosec B608 — column names are module-level constants, values parameterized
+            f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
+            (event_id,),
         ).fetchone()
         if exists:
             return True, False
@@ -107,7 +107,7 @@ def nack_event(
             )
             params.extend([consumer_id, event_id])
 
-        sql = f"UPDATE events SET {update_clause} WHERE {where_clause}"
+        sql = f"UPDATE events SET {update_clause} WHERE {where_clause}"  # nosec B608 — column names and clause fragments are module-level constants, values parameterized
         cur = conn.execute(sql, params)
         conn.commit()
         if cur.rowcount == 0:

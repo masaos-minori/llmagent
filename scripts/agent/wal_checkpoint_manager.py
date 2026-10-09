@@ -17,6 +17,7 @@ import logging
 import os
 import shutil
 import sqlite3
+import tempfile
 import time
 import uuid
 from typing import TYPE_CHECKING
@@ -138,7 +139,7 @@ class WalCheckpointManager:
                         )
                         return wal_backup_path, errors
                     wal_file = f"{db_path}-wal"
-                    backup_dir = os.path.dirname(db_path) or "/tmp"
+                    backup_dir = os.path.dirname(db_path) or tempfile.gettempdir()
                     if not os.path.isdir(backup_dir) or not os.access(
                         backup_dir, os.W_OK
                     ):

@@ -160,7 +160,7 @@ async def subscribe(
                     rows = await run_with_db_lock(
                         lambda: list(
                             db.execute(
-                                f"SELECT seq, event_id, topic, payload, producer, published_at"
+                                f"SELECT seq, event_id, topic, payload, producer, published_at"  # nosec B608 — column names are literals, placeholders and bounds are parameterized
                                 f" FROM events WHERE seq > ? AND topic IN ({placeholders}) ORDER BY seq LIMIT ?",
                                 (
                                     last_replayed,

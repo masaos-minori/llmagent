@@ -85,6 +85,9 @@ include = ["agent*", "db*", "eventbus*", "mcp_servers*", "rag*", "shared*", "too
 [tool.ruff]
 line-length = 88
 target-version = "py313"
+# implementations/ holds generated implementation-procedure documents that use a
+# `.py` filename suffix but contain Markdown. ruff must not parse them as source.
+exclude = ["implementations/"]
 
 [tool.ruff.lint]
 select = ["E", "W", "F", "I", "UP", "BLE001"]
