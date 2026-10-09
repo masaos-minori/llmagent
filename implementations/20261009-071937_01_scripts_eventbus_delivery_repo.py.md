@@ -134,16 +134,16 @@ Design decisions for cross-row coordination with the `ack_route.py`, `schema.sql
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement REQ-001/REQ-005/REQ-004 changes in delivery_repo.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement REQ-001/REQ-005/REQ-004 changes in delivery_repo.py | Completed | 2026-10-09 | 2026-10-09 | `ack_event_for_consumer()` now returns 4-tuple `(found, newly_acked, seq, dlq)`; existence-first (no orphan rows), COALESCE `acked_at`, DLQ→`dlq=True`; `ack_event()` removed; per-consumer NACK idempotency via `_is_repeat_nack`/`_record_consumer_nack`/`_current_failure_counts` |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-09 | 2026-10-09 | Removed 4 `ack_event` tests; updated 5 direct `ack_event_for_consumer` call sites to 4-value unpacking; added REQ-001 repeat-count and REQ-005 (not-found/DLQ/first-acked_at/reset) direct tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-09 | 2026-10-09 | ruff/mypy/lint-imports/bandit clean on changed files; 13 direct unit tests pass. NOTE: `ack_route.py:74` mypy error + HTTP ack tests fail pending file 02 (see Blocker Log) |
 | 4 | Update documentation | N/A | — | — | Docs handled by REQ-006 rows |
 
 ### Blocker Log
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | `ack_route.py` still unpacks the old 3-tuple from `ack_event_for_consumer()` → mypy error at line 74 + HTTP ack tests raise `ValueError: too many values to unpack (expected 3, got 4)`. Coupled change owned by file 02 (`ack_route.py`). Source changes held uncommitted until file 02 completes. | No | — |
 
 ### Work Items Created
 
