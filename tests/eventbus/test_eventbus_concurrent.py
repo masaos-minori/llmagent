@@ -176,10 +176,13 @@ class TestConcurrentDlqRequeue:
         finally:
             loop.close()
 
-        # Nack 3 times to promote to DLQ
-        for _ in range(3):
+        # Nack by three distinct consumers to promote to DLQ. Per-consumer NACK
+        # idempotency (REQ-001) counts each consumer once, so three consumers are
+        # needed to reach the DLQ threshold (max_retry=3).
+        for consumer_id in ("consumer-A", "consumer-B", "consumer-C"):
             resp = client.post(
-                "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+                "/nack",
+                params={"event_id": event_id, "consumer_id": consumer_id},
             )
             assert resp.status_code == 200
 

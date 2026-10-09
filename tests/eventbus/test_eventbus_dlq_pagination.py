@@ -104,22 +104,18 @@ def test_dlq_pagination(client: TestClient) -> None:
     for event_id in events:
         _simulate_delivery(client, event_id, "consumer-A")
 
-    # Promote all to DLQ (first nack per event — increments failure count; second nack promotes to DLQ)
+    # Promote all to DLQ. Per-consumer NACK idempotency (REQ-001) counts each
+    # consumer once, so two distinct consumers per event drive the shared
+    # delivery_failure_count to the DLQ threshold (max_retry=2).
     nack_headers = {"Authorization": "Bearer consumer-token"}
     for event_id in events:
-        r = client.post(
-            "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
-            headers=nack_headers,
-        )
-        assert r.status_code == 200
-    for event_id in events:
-        r = client.post(
-            "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
-            headers=nack_headers,
-        )
-        assert r.status_code == 200
+        for consumer_id in ("consumer-A", "consumer-B"):
+            r = client.post(
+                "/nack",
+                params={"event_id": event_id, "consumer_id": consumer_id},
+                headers=nack_headers,
+            )
+            assert r.status_code == 200
 
     dlq_headers = {"Authorization": "Bearer operator-token"}
     r = client.get("/dlq?limit=100&offset=0", headers=dlq_headers)

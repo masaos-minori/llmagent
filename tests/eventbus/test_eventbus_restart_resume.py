@@ -220,11 +220,11 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
     )
     assert seq1 < seq2 < seq3
 
-    _, newly_acked_a, _ = ack_event_for_consumer(
+    _, newly_acked_a, _, _ = ack_event_for_consumer(
         db, "evt-resume-1", "resume-consumer", "2026-06-25T12:00:00Z"
     )
     assert newly_acked_a
-    _, newly_acked_b, _ = ack_event_for_consumer(
+    _, newly_acked_b, _, _ = ack_event_for_consumer(
         db, "evt-resume-2", "resume-consumer", "2026-06-25T12:00:00Z"
     )
     assert newly_acked_b
@@ -339,11 +339,11 @@ class TestOutOfOrderAckNoSkipOnReconnect:
             assert seq1 < seq2 < seq3
 
             # ACK out of order: ack seq3 before seq2
-            _, newly_acked_c, _ = ack_event_for_consumer(
+            _, newly_acked_c, _, _ = ack_event_for_consumer(
                 conn, "evt-oof-3", "oof-consumer", "2026-10-04T00:00:00Z"
             )
             assert newly_acked_c
-            _, newly_acked_b, _ = ack_event_for_consumer(
+            _, newly_acked_b, _, _ = ack_event_for_consumer(
                 conn, "evt-oof-2", "oof-consumer", "2026-10-04T00:00:00Z"
             )
             assert newly_acked_b
@@ -393,11 +393,11 @@ class TestOutOfOrderAckNoSkipOnReconnect:
             )
 
             # ACK in order
-            _, newly_acked_a, _ = ack_event_for_consumer(
+            _, newly_acked_a, _, _ = ack_event_for_consumer(
                 conn, "evt-ok-1", "ok-consumer", "2026-10-04T00:00:00Z"
             )
             assert newly_acked_a
-            _, newly_acked_b, _ = ack_event_for_consumer(
+            _, newly_acked_b, _, _ = ack_event_for_consumer(
                 conn, "evt-ok-2", "ok-consumer", "2026-10-04T00:00:00Z"
             )
             assert newly_acked_b

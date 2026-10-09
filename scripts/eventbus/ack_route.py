@@ -3,7 +3,7 @@
 
 import logging
 import sqlite3
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import HTTPException, Query, Request
 
@@ -25,6 +25,9 @@ from eventbus.route_helpers import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Outcome of the locked NACK operation in nack(): routes 404 vs 409 subtypes.
+NackOutcome = Literal["not_found", "already_acked", "in_dlq", "invalid", "ok"]
 
 
 async def _do_ack(
@@ -61,20 +64,24 @@ async def _do_ack(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
-    def _ack_and_offset() -> tuple[bool, bool, int | None]:
+    def _ack_and_offset() -> tuple[bool, bool, int | None, bool]:
         """Acknowledge an event atomically (delivery + offset in one transaction).
 
         ack_event_for_consumer() requires a non-empty consumer_id (it tracks
         a per-consumer offset). The consumer-less ack_event() path has been
-        removed — all consumer-scoped operations must be attributable.
+        removed — all consumer-scoped operations must be attributable. The 4th
+        tuple element (dlq) is True when the event is in the DLQ; the caller
+        must return 409 (REQ-005).
         """
         from eventbus.db import ack_event_for_consumer  # noqa: PLC0415
 
         now = now_iso()
-        found, newly_acked, seq = ack_event_for_consumer(db, event_id, consumer_id, now)
-        return (found, newly_acked, seq)
+        return ack_event_for_consumer(db, event_id, consumer_id, now)
 
-    found, newly_acked, seq = await run_with_db_lock(_ack_and_offset)
+    found, newly_acked, seq, dlq = await run_with_db_lock(_ack_and_offset)
+    # An event already in the DLQ is dead — reject the ACK with 409 (REQ-005).
+    if dlq:
+        raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
     # Check found first: ack_event_for_consumer()'s INSERT OR IGNORE into
     # consumer_delivery has no FK enforcement against events, so
     # newly_acked can be True even for a nonexistent event_id (found=False,
@@ -148,8 +155,15 @@ async def nack(
     db = get_db(request)
     cfg = get_config(request)
 
-    def _nack_and_promote() -> tuple[int, bool]:
-        """Nack an event and promote to DLQ if max retries exceeded.
+    def _nack_and_promote() -> tuple[NackOutcome, int, bool]:
+        """Nack an event and resolve invalid-transition state under one lock.
+
+        State determination ('already acknowledged' from
+        consumer_delivery.acked_at, 'in DLQ' from events.dlq_at) runs inside
+        the same lock acquisition as the NACK increment, so the snapshot is
+        atomic with the increment (eliminates the delete-in-between race,
+        EVENTBUS-011). The events.acked_at column was removed (REQ-004);
+        per-consumer ACK state lives solely in consumer_delivery.
 
         DLQ promotion is gated on delivery_failure_count (the lifetime
         failure counter), not cycle_failure_count (which resets per
@@ -157,45 +171,43 @@ async def nack(
         tests/eventbus/test_eventbus_dlq_promotion.py for the intended
         semantics.
         """
+        from eventbus.dlq import promote_single  # noqa: PLC0415
+
         nack_result = _nack_event(db, event_id, consumer_id)
-        failure_count = nack_result.delivery_failure_count
-        if failure_count == -1:
-            return (-1, False)
-        promoted = False
-        if failure_count >= cfg.max_retry:
-            from eventbus.dlq import promote_single  # noqa: PLC0415
-
-            promoted = promote_single(db, cfg.deadletter_dir, event_id)
-        return (failure_count, promoted)
-
-    failure_count, promoted = await run_with_db_lock(_nack_and_promote)
-    if failure_count == -1:
-        raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)
-    if failure_count == -2:
-        # Invalid transition: event is already ACKed or DLQ'd
-        # Determine which state by checking the event directly
-        # First check per-consumer ACK (REQ-001, REQ-003)
-        consumer_row = await run_with_db_lock(
-            lambda: db.execute(
+        count = nack_result.delivery_failure_count
+        if count == -1:
+            return ("not_found", -1, False)
+        if count == -2:
+            # Per-consumer guard rejected this NACK (already acked) or the
+            # event is DLQ'd; distinguish the subtype under the same lock.
+            consumer_row = db.execute(
                 "SELECT acked_at FROM consumer_delivery "
                 "WHERE consumer_id = ? AND event_id = ?",
                 (consumer_id, event_id),
             ).fetchone()
-        )
-        if consumer_row and consumer_row["acked_at"] is not None:
-            raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
-        # Then check events-level state
-        row = await run_with_db_lock(
-            lambda: db.execute(
-                "SELECT acked_at, dlq_at FROM events WHERE event_id = ?", (event_id,)
+            if consumer_row is not None and consumer_row["acked_at"] is not None:
+                return ("already_acked", -2, False)
+            event_row = db.execute(
+                "SELECT dlq_at FROM events WHERE event_id = ?",
+                (event_id,),
             ).fetchone()
-        )
-        if row and row["acked_at"] is not None:
-            raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
-        elif row and row["dlq_at"] is not None:
-            raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
-        else:
-            raise HTTPException(status_code=409, detail="invalid NACK transition")
+            if event_row is not None and event_row["dlq_at"] is not None:
+                return ("in_dlq", -2, False)
+            return ("invalid", -2, False)
+        promoted = False
+        if count >= cfg.max_retry:
+            promoted = promote_single(db, cfg.deadletter_dir, event_id)
+        return ("ok", count, promoted)
+
+    outcome, failure_count, promoted = await run_with_db_lock(_nack_and_promote)
+    if outcome == "not_found":
+        raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)
+    if outcome == "already_acked":
+        raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
+    if outcome == "in_dlq":
+        raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
+    if outcome == "invalid":
+        raise HTTPException(status_code=409, detail="invalid NACK transition")
     logger.info(
         "event nacked event_id=%s delivery_failure_count=%d", event_id, failure_count
     )

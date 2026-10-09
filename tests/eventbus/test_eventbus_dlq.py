@@ -194,8 +194,10 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
     assert r.json()["delivery_failure_count"] == 1
     assert "dlq_promoted" not in r.json()
 
-    # Second nack — delivery_failure_count becomes 2, hits threshold, inline promote
-    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
+    # Distinct consumer: per-consumer NACK idempotency (REQ-001) counts each
+    # consumer once, so a second consumer drives the count to the threshold and
+    # triggers inline DLQ promotion.
+    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer-2")
     assert r.status_code == 200
     assert r.json()["delivery_failure_count"] == 2
     assert r.json().get("dlq_promoted") is True

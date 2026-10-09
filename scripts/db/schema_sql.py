@@ -239,7 +239,6 @@ CREATE TABLE IF NOT EXISTS events (
     payload                TEXT    NOT NULL,
     producer               TEXT    NOT NULL,
     published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    acked_at               TEXT,
     delivery_failure_count INTEGER NOT NULL DEFAULT 0,
     cycle_failure_count    INTEGER NOT NULL DEFAULT 0,
     redelivered_from       TEXT,
@@ -257,6 +256,8 @@ CREATE TABLE IF NOT EXISTS consumer_delivery (
     consumer_id          TEXT    NOT NULL,
     event_id             TEXT    NOT NULL,
     acked_at             TEXT,
+    last_nack_attempt    TEXT,
+    consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (consumer_id, event_id)
 );
 

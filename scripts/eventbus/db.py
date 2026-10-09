@@ -4,7 +4,6 @@
 from eventbus.db_conn import check_db, get_db_lock, open_db
 from eventbus.delivery_repo import (
     NackResult,
-    ack_event,
     ack_event_for_consumer,
     get_consumer_offset,
     get_resume_position,
@@ -32,7 +31,6 @@ __all__ = [
     "fetch_dlq",
     "count_dlq",
     # Delivery repository
-    "ack_event",
     "nack_event",
     "ack_event_for_consumer",
     "get_consumer_offset",

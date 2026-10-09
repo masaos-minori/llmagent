@@ -16,6 +16,7 @@ _COL_CYCLE_FAILURE_COUNT = "cycle_failure_count"
 _COL_DLQ_REQUEUE_COUNT = "dlq_requeue_count"
 _COL_REDISTRIBUTED_FROM = "redelivered_from"
 _COL_CONSUMER_DELIVERY_FAILURE_COUNT = "consumer_delivery_failure_count"
+_COL_LAST_NACK_ATTEMPT = "last_nack_attempt"
 _COL_CONSUMER_ID = "consumer_id"
 _COL_OFFSET = "offset"
 
@@ -29,6 +30,7 @@ __all__ = [
     "_COL_DLQ_REQUEUE_COUNT",
     "_COL_REDISTRIBUTED_FROM",
     "_COL_CONSUMER_DELIVERY_FAILURE_COUNT",
+    "_COL_LAST_NACK_ATTEMPT",
     "_COL_CONSUMER_ID",
     "_COL_OFFSET",
 ]

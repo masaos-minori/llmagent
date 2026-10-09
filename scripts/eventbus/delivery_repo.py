@@ -17,6 +17,8 @@ from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a 
     _COL_DELIVERY_FAILURE_COUNT,
     _COL_DLQ_AT,
     _COL_EVENT_ID,
+    _COL_LAST_NACK_ATTEMPT,
+    _COL_SEQ,
 )
 
 
@@ -32,39 +34,6 @@ class NackResult:
     cycle_failure_count: int | Literal[-2]
 
 
-def ack_event(
-    conn: sqlite3.Connection,
-    event_id: str,
-    now: str,
-) -> tuple[bool, bool]:
-    """Set acked_at on an event. Idempotent — will not overwrite existing ack.
-
-    Returns (found, newly_acked):
-      - (True, True)  = event found and newly acked
-      - (True, False) = event found but already acked
-      - (False, False) = event not found
-    """
-    try:
-        cur = conn.execute(
-            f"UPDATE events SET {_COL_ACKED_AT} = ? WHERE {_COL_EVENT_ID} = ? AND {_COL_ACKED_AT} IS NULL",  # nosec B608 — column names are module-level constants, values parameterized
-            (now, event_id),
-        )
-        conn.commit()
-        newly_acked = cur.rowcount > 0
-        if newly_acked:
-            return True, True
-        exists = conn.execute(
-            f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
-            (event_id,),
-        ).fetchone()
-        if exists:
-            return True, False
-        return False, False
-    except Exception:
-        conn.rollback()
-        raise
-
-
 def nack_event(
     conn: sqlite3.Connection,
     event_id: str,
@@ -72,65 +41,131 @@ def nack_event(
 ) -> NackResult:
     """Increment delivery_failure_count and cycle_failure_count for an event.
 
-    Only increments if the event is in Normal/Delivered state (acked_at IS NULL
-    AND dlq_at IS NULL). Events that are already ACKed or DLQ'd cannot have their
-    failure counts incremented — attempting to do so would corrupt state.
+    Only increments if the event is in Normal/Delivered state (dlq_at IS NULL).
+    Events that are already DLQ'd cannot have their failure counts incremented —
+    attempting to do so would corrupt state. The per-consumer ``acked_at`` state now
+    lives solely in ``consumer_delivery`` (``events.acked_at`` was dropped, REQ-004),
+    so the event-level guard is ``dlq_at`` only; a consumer that already ACKed is
+    rejected by the per-consumer guard below.
 
-    If consumer_id is provided, also increment the consumer-specific failure count.
+    If consumer_id is provided, also record the NACK on ``consumer_delivery``:
+    increment the per-consumer ``consumer_delivery_failure_count`` and key NACK
+    idempotency on the delivery attempt via ``last_nack_attempt`` (REQ-001). A NACK
+    that repeats the stored attempt identity is a no-op (counted once).
 
     Returns NackResult with:
-      - delivery_failure_count: current count on success, -1 if event not found
-      - cycle_failure_count: current count on success, -2 if event in invalid state
+      - delivery_failure_count: current shared count on success, -1 if event not found
+      - cycle_failure_count: current shared count on success, -2 if event in invalid state
     """
     try:
-        # Build the UPDATE statement with optional consumer-specific failure tracking
-        update_clause = (
-            f"{_COL_DELIVERY_FAILURE_COUNT} = {_COL_DELIVERY_FAILURE_COUNT} + 1, "
-            f"{_COL_CYCLE_FAILURE_COUNT} = {_COL_CYCLE_FAILURE_COUNT} + 1"
-        )
-        where_clause = (
-            f"{_COL_EVENT_ID} = ? AND {_COL_ACKED_AT} IS NULL AND {_COL_DLQ_AT} IS NULL"
-        )
-        params: list[str] = [event_id]
-
-        if consumer_id is not None:
-            # Also increment consumer-specific failure count
-            update_clause += f", {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} = {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} + 1"
-            # Per-consumer ACK guard: reject NACK if this consumer already ACKed
-            where_clause += (
-                " AND NOT EXISTS ("
-                "  SELECT 1 FROM consumer_delivery "
-                "  WHERE consumer_delivery.consumer_id = ? "
-                "  AND consumer_delivery.event_id = ? "
-                "  AND consumer_delivery.acked_at IS NOT NULL"
-                ")"
-            )
-            params.extend([consumer_id, event_id])
-
-        sql = f"UPDATE events SET {update_clause} WHERE {where_clause}"  # nosec B608 — column names and clause fragments are module-level constants, values parameterized
-        cur = conn.execute(sql, params)
-        conn.commit()
-        if cur.rowcount == 0:
-            existing = conn.execute(
-                f"SELECT {_COL_ACKED_AT}, {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
-                (event_id,),
-            ).fetchone()
-            if existing:
-                return NackResult(-2, -2)
-            return NackResult(-1, -1)
-        row = conn.execute(
-            f"SELECT {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
+        # Existence and DLQ state up front (acked_at no longer exists on events).
+        existing = conn.execute(
+            f"SELECT {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
             (event_id,),
         ).fetchone()
-        if row:
-            return NackResult(
-                int(row[_COL_DELIVERY_FAILURE_COUNT]),
-                int(row[_COL_CYCLE_FAILURE_COUNT]),
+        if existing is None:
+            return NackResult(-1, -1)
+        if existing[_COL_DLQ_AT] is not None:
+            return NackResult(-2, -2)
+
+        increment_shared = True
+        if consumer_id is not None:
+            # Per-consumer ACK guard: reject a NACK when this consumer already ACKed.
+            already_acked = conn.execute(
+                "SELECT 1 FROM consumer_delivery "
+                "WHERE consumer_id = ? AND event_id = ? AND acked_at IS NOT NULL",
+                (consumer_id, event_id),
+            ).fetchone()
+            if already_acked:
+                return NackResult(-2, -2)
+            # Idempotency: a NACK repeating the stored attempt identity is a no-op.
+            if _is_repeat_nack(conn, event_id, consumer_id):
+                increment_shared = False
+
+        if increment_shared:
+            conn.execute(
+                f"UPDATE events SET "
+                f"{_COL_DELIVERY_FAILURE_COUNT} = {_COL_DELIVERY_FAILURE_COUNT} + 1, "
+                f"{_COL_CYCLE_FAILURE_COUNT} = {_COL_CYCLE_FAILURE_COUNT} + 1 "
+                f"WHERE {_COL_EVENT_ID} = ? AND {_COL_DLQ_AT} IS NULL",  # nosec B608 — column names are module-level constants, values parameterized
+                (event_id,),
             )
-        return NackResult(-1, -1)
+            if consumer_id is not None:
+                _record_consumer_nack(conn, event_id, consumer_id)
+            conn.commit()
+
+        return _current_failure_counts(conn, event_id)
     except Exception:
         conn.rollback()
         raise
+
+
+def _is_repeat_nack(conn: sqlite3.Connection, event_id: str, consumer_id: str) -> bool:
+    """Return True if a NACK for the same delivery attempt was already recorded.
+
+    The attempt identity is the event ``seq`` captured in
+    ``consumer_delivery.last_nack_attempt``. A repeat NACK for the same attempt
+    (at-least-once redelivery of an unacked delivery) is counted once.
+    """
+    seq_row = conn.execute(
+        f"SELECT seq FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
+        (event_id,),
+    ).fetchone()
+    attempt_identity = (
+        str(seq_row["seq"]) if seq_row and seq_row["seq"] is not None else None
+    )
+    cd = conn.execute(
+        f"SELECT {_COL_LAST_NACK_ATTEMPT} FROM consumer_delivery "
+        f"WHERE consumer_id = ? AND event_id = ?",  # nosec B608 — column names are module-level constants, values parameterized
+        (consumer_id, event_id),
+    ).fetchone()
+    return (
+        cd is not None
+        and cd[_COL_LAST_NACK_ATTEMPT] is not None
+        and cd[_COL_LAST_NACK_ATTEMPT] == attempt_identity
+    )
+
+
+def _record_consumer_nack(
+    conn: sqlite3.Connection, event_id: str, consumer_id: str
+) -> None:
+    """Record a per-consumer NACK on ``consumer_delivery``.
+
+    Increments ``consumer_delivery_failure_count`` and stores the current attempt
+    identity in ``last_nack_attempt``. Callers must have already ruled out a repeat
+    NACK and an already-ACKed consumer.
+    """
+    seq_row = conn.execute(
+        f"SELECT seq FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
+        (event_id,),
+    ).fetchone()
+    attempt_identity = (
+        str(seq_row["seq"]) if seq_row and seq_row["seq"] is not None else None
+    )
+    conn.execute(
+        f"INSERT INTO consumer_delivery "
+        f"(consumer_id, event_id, acked_at, {_COL_LAST_NACK_ATTEMPT}, "
+        f"{_COL_CONSUMER_DELIVERY_FAILURE_COUNT}) VALUES (?, ?, NULL, ?, 1) "
+        f"ON CONFLICT(consumer_id, event_id) DO UPDATE SET "
+        f"{_COL_LAST_NACK_ATTEMPT} = excluded.{_COL_LAST_NACK_ATTEMPT}, "
+        f"{_COL_CONSUMER_DELIVERY_FAILURE_COUNT} = "
+        f"{_COL_CONSUMER_DELIVERY_FAILURE_COUNT} + 1",  # nosec B608 — column names are module-level constants, values parameterized
+        (consumer_id, event_id, attempt_identity),
+    )
+
+
+def _current_failure_counts(conn: sqlite3.Connection, event_id: str) -> NackResult:
+    """Read the current shared failure counts for an event after a NACK."""
+    row = conn.execute(
+        f"SELECT {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
+        (event_id,),
+    ).fetchone()
+    if row:
+        return NackResult(
+            int(row[_COL_DELIVERY_FAILURE_COUNT]),
+            int(row[_COL_CYCLE_FAILURE_COUNT]),
+        )
+    return NackResult(-1, -1)
 
 
 def ack_event_for_consumer(
@@ -138,17 +173,18 @@ def ack_event_for_consumer(
     event_id: str,
     consumer_id: str,
     now: str,
-) -> tuple[bool, bool, int | None]:
+) -> tuple[bool, bool, int | None, bool]:
     """Acknowledge an event for a specific consumer atomically.
 
     Performs the per-consumer delivery-state UPSERT and the per-consumer
     offset advancement in a single SQLite transaction. Commits once at the
     end (or rolls back on exception).
 
-    Returns (found, newly_acked, seq):
-      - (True, True, seq)  = event found, newly acked by this consumer
-      - (True, False, seq) = event found but already acked by this consumer
-      - (False, False, None) = event not found
+    Returns (found, newly_acked, seq, dlq):
+      - (True, True, seq, False)  = event found, newly acked by this consumer
+      - (True, False, seq, False) = event found but already acked by this consumer
+      - (False, False, None, False) = event not found (no write performed)
+      - (True, False, seq, True)  = event in the DLQ — caller must return 409
 
     Args:
         conn: SQLite connection (must be the shared eventbus connection).
@@ -164,57 +200,57 @@ def ack_event_for_consumer(
     seq: int | None = None
 
     try:
-        # Check if the delivery record exists and its acked_at status
+        # REQ-005: verify event existence BEFORE any write (no orphan rows on miss).
+        event_row = conn.execute(
+            f"SELECT {_COL_SEQ}, {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
+            (event_id,),
+        ).fetchone()
+        if event_row is None:
+            return (False, False, None, False)
+        seq = int(event_row[_COL_SEQ])
+
+        # REQ-005: reject ACKs for events already in the DLQ (signal 409 via dlq=True).
+        if event_row[_COL_DLQ_AT] is not None:
+            return (True, False, seq, True)
+
+        # Determine whether this ack is new (delivery pending or no row yet).
         existing = conn.execute(
-            "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            f"SELECT {_COL_ACKED_AT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
+            "WHERE consumer_id = ? AND event_id = ?",
             (consumer_id, event_id),
         ).fetchone()
-        # Pending delivery (acked_at IS NULL) counts as newly_acked
-        newly_acked = existing is None or existing["acked_at"] is None
-
-        # Per-consumer delivery-state UPSERT (idempotent)
-        conn.execute(
-            "INSERT INTO consumer_delivery "
-            "(consumer_id, event_id, acked_at) VALUES (?, ?, ?) "
-            "ON CONFLICT(consumer_id, event_id) DO UPDATE SET acked_at = excluded.acked_at",
-            (consumer_id, event_id, now),
-        )
+        newly_acked = existing is None or existing[_COL_ACKED_AT] is None
 
         if newly_acked:
-            # Get the event seq for offset tracking
-            row = conn.execute(
-                "SELECT seq FROM events WHERE event_id = ?",
-                (event_id,),
-            ).fetchone()
-            if row:
-                seq = int(row["seq"])
-                # Atomic monotonic offset advancement
-                conn.execute(
-                    "INSERT INTO consumer_offsets(consumer_id, offset) "
-                    "VALUES (?, ?) "
-                    "ON CONFLICT(consumer_id) DO UPDATE SET "
-                    "offset = excluded.offset "
-                    "WHERE excluded.offset > consumer_offsets.offset",
-                    (consumer_id, seq),
-                )
+            # Per-consumer delivery-state UPSERT: preserve the first acked_at
+            # (COALESCE, never overwrite) and reset last_nack_attempt so a later
+            # NACK starts a fresh attempt (REQ-001). consumer_delivery_failure_count
+            # is intentionally NOT reset — it accumulates across attempts.
+            conn.execute(
+                "INSERT INTO consumer_delivery "
+                f"(consumer_id, event_id, {_COL_ACKED_AT}) VALUES (?, ?, ?) "
+                "ON CONFLICT(consumer_id, event_id) DO UPDATE SET "
+                f"{_COL_ACKED_AT} = CASE WHEN consumer_delivery.{_COL_ACKED_AT} IS NULL "
+                f"THEN excluded.{_COL_ACKED_AT} ELSE consumer_delivery.{_COL_ACKED_AT} END, "
+                f"{_COL_LAST_NACK_ATTEMPT} = NULL",  # nosec B608 — column names are module-level constants
+                (consumer_id, event_id, now),
+            )
+            # Atomic monotonic offset advancement
+            conn.execute(
+                "INSERT INTO consumer_offsets(consumer_id, offset) "
+                "VALUES (?, ?) "
+                "ON CONFLICT(consumer_id) DO UPDATE SET "
+                "offset = excluded.offset "
+                "WHERE excluded.offset > consumer_offsets.offset",
+                (consumer_id, seq),
+            )
 
         conn.commit()
     except Exception:
         conn.rollback()
         raise
 
-    if newly_acked:
-        # seq is None only if event_id didn't actually exist in `events`
-        # (consumer_delivery has no FK enforcement), which per the documented
-        # contract means "not found" rather than a successful new ack.
-        return (seq is not None), True, seq
-
-    # Event exists but was already acked by this consumer
-    row = conn.execute(
-        "SELECT seq FROM events WHERE event_id = ?",
-        (event_id,),
-    ).fetchone()
-    return True, False, (int(row["seq"]) if row else None)
+    return (True, newly_acked, seq, False)
 
 
 def get_consumer_offset(conn: sqlite3.Connection, consumer_id: str) -> int:

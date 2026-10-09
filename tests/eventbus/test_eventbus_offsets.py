@@ -133,7 +133,7 @@ def test_ack_writes_offset(client: TestClient, tmp_path: Path) -> None:
     assert inserted
 
     # Acknowledge with consumer_id — should advance offset atomically
-    found, newly_acked, result_seq = ack_event_for_consumer(
+    found, newly_acked, result_seq, _ = ack_event_for_consumer(
         db, "evt-001", consumer_id, now
     )
     assert found
@@ -409,7 +409,9 @@ class TestSqliteOffsetMonotonicity:
         assert seq1 < seq2
 
         # Acknowledge evt-mono-2 first (higher seq)
-        _, newly_acked, _ = ack_event_for_consumer(db, "evt-mono-2", consumer_id, now)
+        _, newly_acked, _, _ = ack_event_for_consumer(
+            db, "evt-mono-2", consumer_id, now
+        )
         assert newly_acked
 
         # Verify offset was set to seq2
@@ -421,7 +423,9 @@ class TestSqliteOffsetMonotonicity:
         assert int(row["offset"]) == seq2
 
         # Try to acknowledge evt-mono-1 (lower seq) — should NOT update offset
-        _, newly_acked, _ = ack_event_for_consumer(db, "evt-mono-1", consumer_id, now)
+        _, newly_acked, _, _ = ack_event_for_consumer(
+            db, "evt-mono-1", consumer_id, now
+        )
         assert newly_acked  # Event was newly acked (different event)
 
         # Offset should still be seq2 (not moved backward)
@@ -576,7 +580,7 @@ class TestConsumerOffsetsTable:
             db.commit()
 
             now = "2026-06-22T13:00:00Z"
-            found, newly_acked, seq = ack_event_for_consumer(
+            found, newly_acked, seq, _ = ack_event_for_consumer(
                 db, ev["event_id"], "consumer-a", now
             )
             assert found is True
@@ -607,7 +611,7 @@ class TestConsumerOffsetsTable:
             db.commit()
 
             now = "2026-06-22T13:00:00Z"
-            found1, _, seq1 = ack_event_for_consumer(
+            found1, _, seq1, _ = ack_event_for_consumer(
                 db, ev["event_id"], "consumer-b", now
             )
             assert found1 is True
@@ -630,7 +634,7 @@ class TestConsumerOffsetsTable:
             db.commit()
 
             now_later = "2026-06-22T14:00:00Z"
-            found2, newly_acked2, seq2 = ack_event_for_consumer(
+            found2, newly_acked2, seq2, _ = ack_event_for_consumer(
                 db, ev2["event_id"], "consumer-b", now_later
             )
             assert found2 is True
@@ -642,7 +646,7 @@ class TestConsumerOffsetsTable:
             assert offset_after_second == seq2
 
             # Attempt to advance with an older seq should be ignored
-            found3, newly_acked3, seq3 = ack_event_for_consumer(
+            found3, newly_acked3, seq3, _ = ack_event_for_consumer(
                 db, ev["event_id"], "consumer-b", now
             )
             assert found3 is True
