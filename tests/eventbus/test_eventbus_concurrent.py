@@ -161,30 +161,37 @@ class TestConcurrentDlqRequeue:
         event_id = body["event_id"]
         original_seq = resp.json()["seq"]
 
-        # Simulate delivery to consumer-A so /nack can accept requests
+        # Simulate one prior failure for consumer-A so a single NACK reaches
+        # max_retry. Under per-consumer gating (REQ-002) one consumer reaching
+        # its own budget promotes; the shared delivery_failure_count is not used
+        # for gating.
         from eventbus import app as eb_app
 
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             db = eb_app.app.state.db
+            cfg = eb_app.app.state.config
             db.execute(
-                "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+                "DELETE FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
                 ("consumer-A", event_id),
+            )
+            db.execute(
+                "INSERT INTO consumer_delivery "
+                "(consumer_id, event_id, acked_at, last_nack_attempt, consumer_delivery_failure_count) "
+                "VALUES ('consumer-A', ?, NULL, 'seeded-attempt', ?)",
+                (event_id, cfg.max_retry - 1),
             )
             db.commit()
         finally:
             loop.close()
 
-        # Nack by three distinct consumers to promote to DLQ. Per-consumer NACK
-        # idempotency (REQ-001) counts each consumer once, so three consumers are
-        # needed to reach the DLQ threshold (max_retry=3).
-        for consumer_id in ("consumer-A", "consumer-B", "consumer-C"):
-            resp = client.post(
-                "/nack",
-                params={"event_id": event_id, "consumer_id": consumer_id},
-            )
-            assert resp.status_code == 200
+        # Nack consumer-A once to reach max_retry and promote to DLQ.
+        resp = client.post(
+            "/nack",
+            params={"event_id": event_id, "consumer_id": "consumer-A"},
+        )
+        assert resp.status_code == 200
 
         results: list[dict[str, Any]] = []
 

@@ -44,19 +44,59 @@ def _build_dlq_record(row: sqlite3.Row, now: str) -> DlqEventRecord:
     )
 
 
-def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int) -> int:
-    """Shared promotion logic for sweep and inline paths."""
-    now = now_iso()
+def _all_attempted_consumers_exceeded(
+    db: sqlite3.Connection,
+    event_id: str,
+    max_retry: int,
+) -> bool:
+    """Return True when an event is promotable under per-consumer gating.
+
+    Per ADR-006, promotion is gated on the per-consumer failure count so one
+    consumer's repeated NACKs never promote an Event shared by other consumers.
+    The event is promotable only when every consumer that attempted delivery has
+    exceeded max_retry AND none has ACKed (an ACKed consumer succeeded regardless
+    of its accumulated failure count). Events with no consumer_delivery rows have
+    no attempts and are never promoted here.
+    """
     rows = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at,"
-        " delivery_failure_count, cycle_failure_count"
-        " FROM events WHERE delivery_failure_count >= ? AND dlq_at IS NULL",
+        "SELECT consumer_delivery_failure_count, acked_at FROM consumer_delivery "
+        "WHERE event_id = ?",
+        (event_id,),
+    ).fetchall()
+    if not rows:
+        return False
+    return all(
+        row["consumer_delivery_failure_count"] >= max_retry and row["acked_at"] is None
+        for row in rows
+    )
+
+
+def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int) -> int:
+    """Sweep promotion under per-consumer gating.
+
+    Promotes only events whose every attempting consumer has exceeded max_retry
+    (see _all_attempted_consumers_exceeded). The shared events.delivery_failure_count
+    is intentionally ignored: it accumulates across consumers and must not drive
+    promotion (REQ-002 / ADR-006).
+    """
+    now = now_iso()
+    candidate_rows = db.execute(
+        "SELECT seq, event_id, topic, payload, producer, published_at, "
+        "delivery_failure_count, cycle_failure_count "
+        "FROM events "
+        "WHERE event_id IN ("
+        "  SELECT DISTINCT event_id FROM consumer_delivery "
+        "  WHERE acked_at IS NULL AND consumer_delivery_failure_count >= ?"
+        ") "
+        "AND dlq_at IS NULL",
         (max_retry,),
     ).fetchall()
 
     promoted = 0
-    for row in rows:
+    for row in candidate_rows:
         event_id = row["event_id"]
+        if not _all_attempted_consumers_exceeded(db, event_id, max_retry):
+            continue
         record = _build_dlq_record(row, now)
         _atomic_write(deadletter_dir, event_id, record)
         cur = db.execute(

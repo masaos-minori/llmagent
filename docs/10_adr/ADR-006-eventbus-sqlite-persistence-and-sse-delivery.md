@@ -212,7 +212,7 @@ Security requires preventing unintended Event reception.
 
 ### Operational Consequences
 
-- DLQ promotion happens inline on `POST /nack`, with a periodic background sweep as a safety net; a DLQ event is returned to delivery through `POST /dlq/{event_id}/requeue`. Promotion is gated on the per-consumer failure count, and each DLQ unit is keyed per consumer so one consumer's repeated NACKs never promote an Event shared by other consumers.
+- DLQ promotion happens inline on `POST /nack`, with a periodic background sweep as a safety net; a DLQ event is returned to delivery through `POST /dlq/{event_id}/requeue`. Promotion is gated per consumer (see INV-13).
 - Health state (database availability, DLQ task state) is exposed through the health endpoint.
 
 ### Security Consequences
@@ -234,7 +234,7 @@ Security requires preventing unintended Event reception.
 - INV-10: A non-empty Consumer ID has at most one active `GET /subscribe` connection. On ACK and NACK, a caller may use only the `consumer_id` values bound to its token (ADR-013 INV-02).
 - INV-11: A second concurrent `GET /subscribe` with an active Consumer ID is detected and rejected with HTTP 409.
 - INV-12: When ACK persistence fails, an error response is returned, the delivery state and offset are not advanced, and the Event stays eligible for redelivery.
-- INV-13: DLQ promotion prefers inline promotion; the background loop only supplements it.
+- INV-13: DLQ promotion prefers inline promotion; the background loop only supplements it. An Event promotes only when every attempting consumer has exceeded max_retry (`consumer_delivery_failure_count`) and none has ACKed, so one consumer's NACKs never promote an Event shared by others; `events.dlq_at` stays event-level.
 - INV-14: When switching from Replay to Live, Consumers are required to process idempotently by event_id.
 - INV-15: The EventBus binds only to a loopback address; a non-loopback host fails configuration validation.
 - INV-16: The Delivery-State UPSERT and the Offset advancement in `ack_event_for_consumer()` are committed within a single transaction, and if either fails, both are rolled back.

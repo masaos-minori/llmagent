@@ -28,10 +28,13 @@ class NackResult:
 
     delivery_failure_count: int | Literal[-1] — -1 if event not found, otherwise current failure count.
     cycle_failure_count: int | Literal[-2] — -2 if event in invalid state, otherwise current cycle count.
+    consumer_delivery_failure_count: int — the nacking consumer's per-consumer failure count
+      (-1 when no consumer_id was supplied). Used to gate DLQ promotion per consumer (REQ-002).
     """
 
     delivery_failure_count: int | Literal[-1]
     cycle_failure_count: int | Literal[-2]
+    consumer_delivery_failure_count: int = -1
 
 
 def nack_event(
@@ -94,7 +97,7 @@ def nack_event(
                 _record_consumer_nack(conn, event_id, consumer_id)
             conn.commit()
 
-        return _current_failure_counts(conn, event_id)
+        return _current_failure_counts(conn, event_id, consumer_id)
     except Exception:
         conn.rollback()
         raise
@@ -154,18 +157,34 @@ def _record_consumer_nack(
     )
 
 
-def _current_failure_counts(conn: sqlite3.Connection, event_id: str) -> NackResult:
-    """Read the current shared failure counts for an event after a NACK."""
+def _current_failure_counts(
+    conn: sqlite3.Connection, event_id: str, consumer_id: str | None
+) -> NackResult:
+    """Read the current shared and per-consumer failure counts after a NACK.
+
+    The per-consumer count is read from ``consumer_delivery`` for the nacking
+    consumer; it stays -1 when no consumer_id was supplied.
+    """
     row = conn.execute(
         f"SELECT {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
         (event_id,),
     ).fetchone()
-    if row:
-        return NackResult(
-            int(row[_COL_DELIVERY_FAILURE_COUNT]),
-            int(row[_COL_CYCLE_FAILURE_COUNT]),
-        )
-    return NackResult(-1, -1)
+    if not row:
+        return NackResult(-1, -1)
+    consumer_count = -1
+    if consumer_id is not None:
+        cd_row = conn.execute(
+            f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "
+            f"WHERE consumer_id = ? AND event_id = ?",  # nosec B608 — column names are module-level constants, values parameterized
+            (consumer_id, event_id),
+        ).fetchone()
+        if cd_row:
+            consumer_count = int(cd_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT])
+    return NackResult(
+        int(row[_COL_DELIVERY_FAILURE_COUNT]),
+        int(row[_COL_CYCLE_FAILURE_COUNT]),
+        consumer_count,
+    )
 
 
 def ack_event_for_consumer(

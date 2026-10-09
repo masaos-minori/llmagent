@@ -100,6 +100,14 @@ class TestDLQPROMotionSemantics:
             "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
             (body["event_id"],),
         )
+        # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
+        # sweep can promote; the shared delivery_failure_count is copied through
+        # requeue lineage and asserted on separately.
+        db.execute(
+            "INSERT INTO consumer_delivery "
+            "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+            (body["event_id"],),
+        )
         db.commit()
 
         # Promote via the DLQ function
@@ -126,6 +134,14 @@ class TestDLQPROMotionSemantics:
             "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
             (body["event_id"],),
         )
+        # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
+        # sweep can promote; the shared delivery_failure_count is copied through
+        # requeue lineage and asserted on separately.
+        db.execute(
+            "INSERT INTO consumer_delivery "
+            "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+            (body["event_id"],),
+        )
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
@@ -150,6 +166,14 @@ class TestDLQPROMotionSemantics:
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
             "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+            (body["event_id"],),
+        )
+        # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
+        # sweep can promote; the shared delivery_failure_count is copied through
+        # requeue lineage and asserted on separately.
+        db.execute(
+            "INSERT INTO consumer_delivery "
+            "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
             (body["event_id"],),
         )
         db.commit()
@@ -188,18 +212,34 @@ class TestDLQPROMotionSemantics:
             "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
             (body["event_id"],),
         )
+        # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
+        # sweep can promote; the shared delivery_failure_count is copied through
+        # requeue lineage and asserted on separately.
+        db.execute(
+            "INSERT INTO consumer_delivery "
+            "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+            (body["event_id"],),
+        )
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
         dlq_file_1 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_1.exists()
 
-        # Requeue the event
+        # Requeue the event — new row inherits shared delivery_failure_count via lineage
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
+        new_event_id = resp.json()["new_event_id"]
 
-        # Next DLQ loop tick should re-promote
+        # Next DLQ loop tick should re-promote. Seed a giving-up consumer for the
+        # requeued row so the per-consumer sweep can promote it again.
         db = open_db(str(tmp_path / "eventbus.sqlite"))
+        db.execute(
+            "INSERT INTO consumer_delivery "
+            "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+            (new_event_id,),
+        )
+        db.commit()
         n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 

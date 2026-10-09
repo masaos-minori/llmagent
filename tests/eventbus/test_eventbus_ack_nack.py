@@ -244,7 +244,11 @@ class TestAckEvent:
         )
         db.commit()
         result = nack_event(db, ev["event_id"], consumer_id="consumer-A")
-        assert result == NackResult(delivery_failure_count=2, cycle_failure_count=2)
+        assert result == NackResult(
+            delivery_failure_count=2,
+            cycle_failure_count=2,
+            consumer_delivery_failure_count=2,
+        )
 
 
 @pytest.fixture
@@ -489,10 +493,18 @@ class TestNackEvent:
 
         # First NACK for consumer-A increments once.
         result1 = nack_event(db, ev["event_id"], consumer_id="consumer-A")
-        assert result1 == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+        assert result1 == NackResult(
+            delivery_failure_count=1,
+            cycle_failure_count=1,
+            consumer_delivery_failure_count=1,
+        )
         # Repeat NACK for the same attempt counts once (no further increment).
         result2 = nack_event(db, ev["event_id"], consumer_id="consumer-A")
-        assert result2 == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+        assert result2 == NackResult(
+            delivery_failure_count=1,
+            cycle_failure_count=1,
+            consumer_delivery_failure_count=1,
+        )
 
         row = db.execute(
             "SELECT consumer_delivery_failure_count FROM consumer_delivery "
@@ -568,7 +580,11 @@ class TestNackEvent:
 
         # Consumer B sends NACK — should succeed
         result = nack_event(db, ev["event_id"], consumer_id="consumer-B")
-        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+        assert result == NackResult(
+            delivery_failure_count=1,
+            cycle_failure_count=1,
+            consumer_delivery_failure_count=1,
+        )
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
@@ -741,3 +757,139 @@ class TestNackPrincipalValidation:
         with pytest_raises(HTTPException) as exc_info:
             await dep(mock_request, principal=mock_principals)
         assert exc_info.value.status_code == 403
+
+
+class TestReq002PerConsumerDlqPromotion:
+    """REQ-002 / ADR-006: DLQ promotion is per-consumer.
+
+    One consumer's repeated NACKs must never promote an Event shared by other
+    consumers. Promotion happens only when EVERY attempting consumer has given up
+    (exceeded max_retry) and none has ACKed.
+    """
+
+    def _seed_consumer(
+        self,
+        db: sqlite3.Connection,
+        event_id: str,
+        consumer_id: str,
+        count: int,
+        last_nack_attempt: str,
+    ) -> None:
+        db.execute(
+            "DELETE FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            (consumer_id, event_id),
+        )
+        db.execute(
+            "INSERT INTO consumer_delivery "
+            "(consumer_id, event_id, acked_at, last_nack_attempt, "
+            "consumer_delivery_failure_count) VALUES (?, ?, NULL, ?, ?)",
+            (consumer_id, event_id, last_nack_attempt, count),
+        )
+
+    def test_other_alive_consumer_blocks_promotion(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """A single consumer reaching max_retry does not promote while another is alive."""
+        from eventbus.db import open_db
+        from eventbus.dlq import sweep_orphans
+
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        ev = _event()
+        client.post("/publish", json=ev)
+
+        # Both consumers received the event. consumer-A has one prior failure;
+        # consumer-B is healthy (count 0).
+        self._seed_consumer(db, ev["event_id"], "consumer-A", 1, "seededA")
+        self._seed_consumer(db, ev["event_id"], "consumer-B", 0, "seededB")
+        db.commit()
+
+        # consumer-A reaches its own max_retry(2) via one NACK. consumer-B is
+        # still alive, so the shared Event must NOT be promoted.
+        r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=consumer-A")
+        assert r.status_code == 200
+        assert "dlq_promoted" not in r.json()
+
+        dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+        assert not dlq_file.exists()
+
+        # consumer-B's per-consumer count is untouched by consumer-A's NACK.
+        b_row = db.execute(
+            "SELECT consumer_delivery_failure_count FROM consumer_delivery "
+            "WHERE consumer_id = 'consumer-B' AND event_id = ?",
+            (ev["event_id"],),
+        ).fetchone()
+        assert b_row["consumer_delivery_failure_count"] == 0
+
+        # Sweep does not promote either: consumer-B is still alive.
+        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        assert n == 0
+        assert not dlq_file.exists()
+
+    def test_other_ack_prevents_promotion_even_after_max_retry(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """Definitive defect regression: consumer-A's repeated NACKs never promote
+        an Event that consumer-B has successfully ACKed."""
+        from eventbus.db import open_db
+        from eventbus.dlq import sweep_orphans
+
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        ev = _event()
+        client.post("/publish", json=ev)
+
+        self._seed_consumer(db, ev["event_id"], "consumer-A", 1, "seededA")
+        self._seed_consumer(db, ev["event_id"], "consumer-B", 0, "seededB")
+        db.commit()
+
+        dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+
+        # consumer-A reaches max_retry(2) -> gives up. But consumer-B is alive.
+        r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=consumer-A")
+        assert r.status_code == 200
+        assert "dlq_promoted" not in r.json()
+
+        # consumer-B processes the event successfully (ACK).
+        db.execute(
+            "UPDATE consumer_delivery SET acked_at = '2026-06-22T12:00:00Z' "
+            "WHERE consumer_id = 'consumer-B' AND event_id = ?",
+            (ev["event_id"],),
+        )
+        db.commit()
+
+        # consumer-A NACKs again (repeat, idempotent) — still not promoted.
+        r2 = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=consumer-A")
+        assert r2.status_code == 200
+        assert "dlq_promoted" not in r2.json()
+
+        # Sweep confirms: consumer-B's ACK blocks promotion.
+        n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+        assert n == 0
+        assert not dlq_file.exists()
+
+    def test_all_consumers_give_up_promotes(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """Positive control: once every consumer gives up, the Event is promoted."""
+        from eventbus.db import open_db
+
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        ev = _event()
+        client.post("/publish", json=ev)
+
+        self._seed_consumer(db, ev["event_id"], "consumer-A", 1, "seededA")
+        self._seed_consumer(db, ev["event_id"], "consumer-B", 1, "seededB")
+        db.commit()
+
+        dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+
+        # consumer-A reaches max_retry(2). consumer-B still alive -> not promoted.
+        r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=consumer-A")
+        assert r.status_code == 200
+        assert "dlq_promoted" not in r.json()
+        assert not dlq_file.exists()
+
+        # consumer-B reaches max_retry(2) -> all gave up -> promote.
+        r2 = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=consumer-B")
+        assert r2.status_code == 200
+        assert r2.json().get("dlq_promoted") is True
+        assert dlq_file.exists()

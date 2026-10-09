@@ -56,6 +56,15 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
     )
+    # Per-consumer sweep gating (REQ-002): promote only when an attempting
+    # consumer has exceeded max_retry. Seed one such consumer so the sweep can
+    # promote; the shared delivery_failure_count above is copied through requeue
+    # lineage and asserted on separately.
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+        (ev["event_id"],),
+    )
     db.commit()
 
     n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
@@ -78,6 +87,15 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
     )
+    # Per-consumer sweep gating (REQ-002): promote only when an attempting
+    # consumer has exceeded max_retry. Seed one such consumer so the sweep can
+    # promote; the shared delivery_failure_count above is copied through requeue
+    # lineage and asserted on separately.
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+        (ev["event_id"],),
+    )
     db.commit()
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
@@ -97,6 +115,15 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     client.post("/publish", json=ev)
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
+    )
+    # Per-consumer sweep gating (REQ-002): promote only when an attempting
+    # consumer has exceeded max_retry. Seed one such consumer so the sweep can
+    # promote; the shared delivery_failure_count above is copied through requeue
+    # lineage and asserted on separately.
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
         (ev["event_id"],),
     )
     db.commit()
@@ -140,6 +167,15 @@ def test_requeue_increments_dlq_requeue_count(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
     )
+    # Per-consumer sweep gating (REQ-002): promote only when an attempting
+    # consumer has exceeded max_retry. Seed one such consumer so the sweep can
+    # promote; the shared delivery_failure_count above is copied through requeue
+    # lineage and asserted on separately.
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+        (ev["event_id"],),
+    )
     db.commit()
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
@@ -169,10 +205,13 @@ def test_requeue_increments_dlq_requeue_count(
     assert orig_row["delivery_failure_count"] == 2
     assert orig_row["dlq_at"] is not None
 
-    # Exhaust retries again — should promote to DLQ
+    # Exhaust retries again — should promote to DLQ. The requeued row inherited
+    # the shared delivery_failure_count via lineage; seed a giving-up consumer
+    # for it so the per-consumer sweep can promote it again.
     db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (ev["event_id"],),
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+        (new_event_id,),
     )
     db.commit()
     n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
@@ -182,22 +221,31 @@ def test_requeue_increments_dlq_requeue_count(
 
 
 def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> None:
+    """A single consumer reaching its per-consumer max_retry promotes inline (REQ-002)."""
     from eventbus.db import open_db
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
 
-    # First nack — delivery_failure_count becomes 1, below threshold of 2
-    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
-    assert r.status_code == 200
-    assert r.json()["delivery_failure_count"] == 1
-    assert "dlq_promoted" not in r.json()
+    # Seed one prior failure for test-consumer (mismatched last_nack_attempt so
+    # the NACK is not treated as a REQ-001 repeat). The single NACK then brings
+    # its per-consumer count to max_retry(2).
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, acked_at, last_nack_attempt, consumer_delivery_failure_count) "
+        "VALUES ('test-consumer', ?, NULL, 'seeded-attempt', 1)",
+        (ev["event_id"],),
+    )
+    db.execute(
+        "UPDATE events SET delivery_failure_count = 1 WHERE event_id = ?",
+        (ev["event_id"],),
+    )
+    db.commit()
 
-    # Distinct consumer: per-consumer NACK idempotency (REQ-001) counts each
-    # consumer once, so a second consumer drives the count to the threshold and
-    # triggers inline DLQ promotion.
-    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer-2")
+    # Nack once — per-consumer count reaches max_retry(2); the single consumer
+    # has given up, so the event is promoted inline.
+    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
     assert r.status_code == 200
     assert r.json()["delivery_failure_count"] == 2
     assert r.json().get("dlq_promoted") is True
@@ -257,6 +305,15 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     client.post("/publish", json=ev)
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
+        (ev["event_id"],),
+    )
+    # Per-consumer sweep gating (REQ-002): promote only when an attempting
+    # consumer has exceeded max_retry. Seed one such consumer so the sweep can
+    # promote; the shared delivery_failure_count above is copied through requeue
+    # lineage and asserted on separately.
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
         (ev["event_id"],),
     )
     db.commit()
@@ -331,6 +388,15 @@ async def test_concurrent_requeue_same_event(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
     )
+    # Per-consumer sweep gating (REQ-002): promote only when an attempting
+    # consumer has exceeded max_retry. Seed one such consumer so the sweep can
+    # promote; the shared delivery_failure_count above is copied through requeue
+    # lineage and asserted on separately.
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+        (ev["event_id"],),
+    )
     db.commit()
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
@@ -391,6 +457,17 @@ async def test_concurrent_requeue_different_events(
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id IN (?, ?)",
         (ev1["event_id"], ev2["event_id"]),
+    )
+    # Per-consumer sweep gating (REQ-002): seed a giving-up consumer per event.
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+        (ev1["event_id"],),
+    )
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
+        (ev2["event_id"],),
     )
     db.commit()
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)

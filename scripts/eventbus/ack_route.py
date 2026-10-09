@@ -165,13 +165,18 @@ async def nack(
         EVENTBUS-011). The events.acked_at column was removed (REQ-004);
         per-consumer ACK state lives solely in consumer_delivery.
 
-        DLQ promotion is gated on delivery_failure_count (the lifetime
-        failure counter), not cycle_failure_count (which resets per
-        requeue/redeliver cycle) — see
-        tests/eventbus/test_eventbus_dlq_promotion.py for the intended
-        semantics.
+        DLQ promotion is gated on the nacking consumer's per-consumer failure
+        count (consumer_delivery_failure_count), not the shared
+        delivery_failure_count which accumulates across consumers (REQ-002 /
+        ADR-006). Promotion also requires that every consumer that attempted
+        delivery has given up, so one consumer's NACKs never promote an Event
+        shared by other consumers. cycle_failure_count (which resets per
+        requeue/redeliver cycle) is not used for gating.
         """
-        from eventbus.dlq import promote_single  # noqa: PLC0415
+        from eventbus.dlq import (  # noqa: PLC0415
+            _all_attempted_consumers_exceeded,
+            promote_single,
+        )
 
         nack_result = _nack_event(db, event_id, consumer_id)
         count = nack_result.delivery_failure_count
@@ -195,7 +200,14 @@ async def nack(
                 return ("in_dlq", -2, False)
             return ("invalid", -2, False)
         promoted = False
-        if count >= cfg.max_retry:
+        # REQ-002 / ADR-006: gate on the nacking consumer's own per-consumer
+        # failure count, and promote only when every consumer that attempted
+        # delivery has given up — so one consumer's NACKs never promote an
+        # Event shared by other consumers.
+        if (
+            nack_result.consumer_delivery_failure_count >= cfg.max_retry
+            and _all_attempted_consumers_exceeded(db, event_id, cfg.max_retry)
+        ):
             promoted = promote_single(db, cfg.deadletter_dir, event_id)
         return ("ok", count, promoted)
 
