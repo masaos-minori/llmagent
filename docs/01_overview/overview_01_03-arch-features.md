@@ -48,7 +48,7 @@ Refer to `overview_02_files.md` for the file structure.
 
 **Memory Layer Operating Modes**
 
-`MemoryServices.get_activation_mode()` returns one of the following modes based on the startup state: `disabled` (disabled in config), `fts-only` (embedding server unavailable), `degraded` (embedding circuit breaker open), or `hybrid` (normal operation). If semantic search is unavailable, it falls back to FTS only without treating it as an error. (Source: `agent/memory/services.py`)
+`MemoryServices.get_activation_mode()` returns one of the following modes based on the startup state: `disabled` (disabled in config), `fts-only` (embedding disabled by `memory_embed_enabled=false`, or no embedding client exists), `degraded` (embedding circuit breaker open), or `hybrid` (normal operation). An individual retrieval whose embedding call fails falls back to FTS for that retrieval without being treated as an error. An unreachable embedding service at startup is not a mode: the startup readiness check fails with a FATAL error (see `agent_10_01_operations-and-observability-startup-and-health.md`). (Source: `agent/memory/services.py`)
 
 **Tool Routing**
 

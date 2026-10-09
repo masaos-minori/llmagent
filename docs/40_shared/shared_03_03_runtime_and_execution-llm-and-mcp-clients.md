@@ -15,7 +15,7 @@ related:
 
 ## 9. `ToolExecutor` and Surrounding Concepts (`shared/tool_executor.py`)
 
-**Responsibility:** Core engine for tool dispatching — handles tool → server resolution, caching, concurrency limits, health gating, and transport communication.
+**Responsibility:** Core engine for tool dispatching — handles tool → server resolution, concurrency limits, health gating, and transport communication.
 
 **`ToolCallResult` Data Class (Result Contract, `shared/transport_dto.py`, frozen dataclass):** A frozen dataclass containing `output` (truncated if > `MCP_MAX_RESPONSE_BYTES`), `is_error`, `request_id` (X-Request-Id from MCP server, empty for cache hits), `server_key` (routing target), `source` ('mcp'/'cache'/empty), and `error_type` ('transport'/'tool'/empty). `error_type` is used by the health gate and error counter aggregation.
 
@@ -53,7 +53,7 @@ related:
 
 Both are defined in `shared/mcp_config.py`. For a full field reference, see [mcp_06_01_configuration-file-inventory.md](../22_mcp/mcp_06_01_configuration-file-inventory.md) and [agent_08_01_configuration-loading-agent-config.md](../23_agent/agent_08_01_configuration-loading-agent-config.md).
 
-**Overview:** Per-server transport config (transport, url, cmd, startup_mode, tool_names, auth_token, env) validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). Key field set from TOML section name, excluded from `==` comparison. `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch; `record_degraded(key, reason)` / `get_degraded_reason(key)` track "reachable but degraded" servers without incrementing the failure count.
+**Overview:** Per-server transport config (transport, url, cmd, startup_mode, tool_names, auth_token, env) validated by `__post_init__` (URL scheme, timeout range, `tool_names` uniqueness, env type). Key field set from TOML section name, excluded from `==` comparison. `McpServerHealthState`: `HEALTHY` / `DEGRADED` / `UNAVAILABLE` / `HALF_OPEN` / `UNKNOWN`. `McpServerHealthRegistry` tracks consecutive failures; `UNAVAILABLE` blocks dispatch. The registry stores no degraded reason (see section 9).
 
 > **Note:** `McpServerConfig.transport` uses the `TransportType` enum instead of a plain string. Related enums include `StartupMode` (none/persistent/subprocess) and `SecurityProfile` (a single `production` member; MCP auth enforcement is unconditional).
 

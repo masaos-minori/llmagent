@@ -46,7 +46,7 @@ Delivery semantics (offsets, resume position, state diagram) are in `eventbus_05
 
 ## POST /publish
 
-Publishes an event. Idempotent: duplicate `event_id`s are silently ignored.
+Publishes an event. Idempotent: a duplicate `event_id` with identical content is not stored again and returns the existing `seq`; a duplicate `event_id` with conflicting content is rejected with HTTP 409.
 
 **Reason for idempotency**: Even if re-published with the same `event_id`, existing rows are not updated due to the SQLite UNIQUE constraint, ensuring consumers do not receive the same event twice. This is an intentional design, not a bug.
 

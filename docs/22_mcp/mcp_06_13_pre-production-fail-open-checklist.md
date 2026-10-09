@@ -13,7 +13,7 @@ related:
 
 Before deploying to production, verify the following:
 
-- [ ] `tool_definitions_strict = true` (Default is `false`; explicitly enable in production to treat schema mismatches as fatal errors)
+- [ ] `tool_definitions_strict = true` (Required in production: `ProductionConfigValidator` rejects an absent or `false` value; schema mismatches are fatal errors)
 - [ ] `routing_drift_strict = true` (Treat routing drift as a fatal error)
 - [ ] `serial_tool_calls = false` (Default; DAG scheduling is always used. Setting to `true` forces every call into its own serial phase — see [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md))
 - [ ] `allowed_tools` is explicitly configured (Empty = allow all tools; should be whitelisted)

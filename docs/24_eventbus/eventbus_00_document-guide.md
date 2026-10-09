@@ -67,7 +67,7 @@ Known limitations, specification gaps, and pending items are centrally managed i
 
 ## Reference API
 
-`eventbus_09_*` files are Reference APIs containing detailed API specifications (type definitions, schemas, endpoint specifications). Refer to them as needed after verifying design decisions, but they are separate from the core design documentation.
+`eventbus_08_reference_api.md` is the Reference API containing detailed API specifications (type definitions, schemas, endpoint specifications). Refer to it as needed after verifying design decisions, but it is separate from the core design documentation.
 
 ## Governance
 
@@ -82,6 +82,7 @@ Cross-cutting documentation rules and policies:
 
 - [ADR-006](../10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md) — EventBus SQLite Persistence and SSE Delivery
 - [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
+- [ADR-013](../10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus Authentication and Authorization
 
 ## Keywords
 

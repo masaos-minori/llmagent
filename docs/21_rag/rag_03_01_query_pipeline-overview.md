@@ -37,14 +37,14 @@ RagPipeline.augment(query)
   → run(query, db, history_context)
       [1] MqeStage         — Expands query into N variants
       [2] SearchStage      — Executes KNN + BM25 per variant
-      [3] FusionStage      — Merges via RRF (Σ 1/(rrf_k+rank); rrf_k is configurable)
+      [3] FusionStage      — Merges via RRF (Σ 1/(rrf_k+rank); rrf_k is configurable), or deduplication only when use_rrf=False
       [4] RerankStage      — Scoring via Cross-Encoder; filtered by rag_min_score; limits chunks per document URL (`deduplicate_chunks`) after reranking
       [5] AugmentStage     — Formats as [RAG_CONTEXT_START]...[RAG_CONTEXT_END]
   → use_refiner=True? → refine_context() (compresses chunks; falls back to raw chunks on error)
   → Returns context block string
 ```
 
-**Caller:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` (`RagPipelineMCPService`). The Agent REPL does not call `RagPipeline` directly.
+**Caller:** `RagPipelineMCPService` in `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`. The Agent REPL does not call `RagPipeline` directly; it calls the `rag_run_pipeline` MCP tool.
 
 ### augment() Fallback Chain (`scripts/rag/pipeline.py`)
 
@@ -67,7 +67,7 @@ RagPipeline.augment(query)
 MCP Client
   → scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py (HTTP route)
     → RagPipelineMCPService.run_pipeline() (rag_pipeline_service.py)
-      → RagPipeline.run() (scripts/rag/pipeline.py)
+      → RagPipeline.augment() (scripts/rag/pipeline.py), which runs the in-process stages through RagPipeline.run()
 ```
 
 Detailed `RagPipeline` class info → [rag_03_02_query_pipeline-rag-pipeline-class.md](rag_03_02_query_pipeline-rag-pipeline-class.md)
