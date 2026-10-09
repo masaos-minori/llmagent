@@ -110,11 +110,12 @@ See Design decisions for the `acked_at` migration and column-placement questions
 
 ## Execution Status
 
+### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement REQ-001/REQ-004 DDL changes in schema_sql.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement REQ-001/REQ-004 DDL changes in schema_sql.py | Completed | 20261009-183722 | 20261009-183722 | DDL by load; pre-existing schema.sql vs schema_sql.py divergence (published_at default, events.consumer_id/consumer_delivery_failure_count) left untouched (out of scope) |
+| 2 | Add or update tests per Validation plan | Completed | 20261009-183722 | 20261009-183722 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261009-183722 | 20261009-183722 |  |
 | 4 | Update documentation | N/A | — | — | Docs handled by REQ-006 rows |
 
 ### Blocker Log
