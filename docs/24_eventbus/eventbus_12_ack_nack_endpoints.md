@@ -247,7 +247,7 @@ curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
 | ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer | 409 | `event already acknowledged` | NACK rejected; counters unchanged |
 | Unknown event ID (ACK) | `ack_event_for_consumer` returns `found = False` | 404 | `event not found` | None |
 | Unknown event ID (NACK) | `nack_event` returns `-1` | 404 | `event not found` | None |
-| Simultaneous ACK/NACK | Both run under `run_with_db_lock` and are serialized | 200/200 | Depends on lock order | The second call observes the first call's committed state |
+| Simultaneous ACK/NACK | Both run under `run_with_db_lock` and are serialized | 200, or 200 and 409 | Depends on lock order | The second call observes the first call's committed state. A NACK that runs after the ACK can return 409 (see "ACK followed by NACK"); an ACK that runs after the NACK returns 200 |
 
 ## Keywords
 

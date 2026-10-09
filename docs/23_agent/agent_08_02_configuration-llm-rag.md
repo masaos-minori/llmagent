@@ -61,14 +61,17 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 ### RAG Configuration
 
+#### Embedding Endpoint
+
+- `embed_url`: Embedding endpoint used by the Agent's memory embedding client and the `embed-llm` health check.
+
 #### Search Parameters
 
-- `top_k_search`: Number of vector/FTS search results.
-- `top_k_rerank`: Number of candidates for the cross-encoder.
-- `max_chunks_per_doc`: Maximum number of chunks per document in results.
-- `rrf_k`: Reciprocal Rank Fusion (RRF) constant for the RAG pipeline.
+`RAGConfig` has no search-stage parameters (`top_k_search`, `top_k_rerank`, `max_chunks_per_doc`, `rrf_k`, and similar). The RAG pipeline runs inside the rag-pipeline MCP server, and its search parameters are owned by `config/rag_pipeline_mcp_server.toml` (see `rag_05_01-configuration-reference.md`).
 
 #### Refiner
+
+The refiner settings below are parsed and validated by the Agent, but no Agent code path reads them (RAG-006 in `governance_03_issue-and-uncertainty-management.md`).
 
 - `use_refiner`: Compresses chunks with an LLM after reranking.
 - `refiner_max_tokens`: Maximum token count for the Refiner LLM.
@@ -77,7 +80,7 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 ## Responsibility Boundary
 
-- **Canonical Source**: LLM/RAG sections in `config/agent.toml`.
+- **Canonical Source**: LLM/RAG sections in `config/agent.toml` for Agent-owned settings; `config/rag_pipeline_mcp_server.toml` for RAG pipeline parameters.
 - **Validation**: `agent/services/config_validators.py`.
 - **Dataclasses**: `LLMConfig` / `RAGConfig` in `agent/config_dataclasses.py`.
 

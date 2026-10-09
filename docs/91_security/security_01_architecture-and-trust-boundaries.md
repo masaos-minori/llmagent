@@ -18,6 +18,7 @@ related:
   - mcp_06_13_pre-production-fail-open-checklist.md
   - mcp_06_14_mcp-authentication-setup.md
   - mcp_02_03_audit-logging-and-errors.md
+  - shared_03_01_runtime_and_execution-config-and-logging.md
   - mcp_06_05_reading-audit-logs.md
   - agent_10_02_operations-and-observability-audit-and-otel.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
@@ -80,7 +81,7 @@ The threat model covers the following threat vectors:
 | github | HTTP | Bearer token (required) | `allowed_repos` + `protected_branches` | `protected_branches` escalate to high risk |
 | cicd | HTTP | Bearer token (required) | Workflow allowlist | Workflow execution restricted to allowlisted workflows |
 | mdq | HTTP | None at HTTP layer (empty token skips auth by design; see `mcp_05_05_mdq-enforcement-and-lockdown.md`) | `allowed_dirs` allowlist (fail-closed) | Path traversal prevention via `Path.resolve()` |
-| rag-pipeline | HTTP | Bearer token (required) | Query/ingest separation | Ingestion requires separate config; query is read-only |
+| rag-pipeline | HTTP | Bearer token (required) | Tool safety tiers + approval | Search and list tools are `READ_ONLY`; `rag_delete_document` is `WRITE_DANGEROUS` and requires approval; no ingestion tool is exposed |
 
 *Source: `mcp_05_01_access-control-and-allowlists.md`, `mcp_05_02_auth-profiles-and-sandboxing.md`*
 
@@ -97,13 +98,13 @@ Secret lifecycle management covers:
 
 ## Log redaction rules
 
-Audit log redaction follows these rules:
+Log redaction follows these rules:
 
-- **Redacted fields**: `artifacts`, `rag_stage_outcomes` (list contents replaced with `{_redacted: true, count: N}`)
-- **Pattern-based redaction**: API keys, secrets, tokens, passwords, bearer tokens detected via regex in `mcp_02_03_audit-logging-and-errors.md` and redacted
-- **Preserved**: Non-sensitive fields, error messages without secrets, operational metadata
+- **Secret redaction in log records**: every configured logger applies `_RedactionFilter`, which redacts any `Bearer <token>` match and any exact match against a registered secret value. `register_secret()` is called for every resolved MCP `auth_token`, so a token does not reach a log line even if a caller logs a raw header or config value. No other pattern-based redaction (for example generic API-key or password regexes) exists.
+- **Session diagnostics payload**: list-valued sensitive fields (`artifacts`, `rag_stage_outcomes`, plus any fields configured in `[diagnostics]`) are replaced with `{_redacted: true, count: N}` by `DiagnosticStore`. This applies to `session_diagnostics` rows, not to MCP audit records.
+- **Preserved**: Non-sensitive fields and operational metadata.
 
-*Source: `mcp_02_03_audit-logging-and-errors.md`*
+*Source: `shared_03_01_runtime_and_execution-config-and-logging.md`* (Explicit in code — `scripts/shared/logger.py`, `scripts/agent/diagnostic_store.py`)
 
 ## Audit retention
 
@@ -154,7 +155,7 @@ Prompt injection responsibility is distributed across layers:
 
 | Boundary Crossing | Responsible Layer | Mechanism |
 |---|---|---|
-| User input → Agent | Agent | Input sanitization in `agent_06_01`; tool argument validation |
+| User input → Agent | Agent | Message structure validation when appended to history (disallowed keys are stripped); user-input content is not filtered for injection patterns |
 | Agent → LLM | Agent | System prompt construction; no user input in system prompt |
 | LLM output → Tool args | Agent | `validate_tool_arguments()` in `agent_06_01`; schema validation |
 | Tool args → MCP server | MCP | Path allowlist, command allowlist, schema validation |
@@ -239,15 +240,14 @@ Degraded conditions: `circuit_open=True` after more than `failure_threshold` con
 | Shell Execution | shell-mcp | shell-mcp degraded / unavailable |
 | Document Retrieval | rag-pipeline-mcp (+ embed-llm) | embed-llm down / rag-pipeline-mcp unavailable |
 | GitHub Operations | github-mcp | github-mcp degraded / unavailable |
-| Memory Search | embed-llm, rag-pipeline-mcp | embed-llm down / both unavailable |
+| Memory Search | Agent memory store (embed-llm optional) | embed-llm down: search continues in fts-only mode |
 
 *Source: `agent/startup.py`*
 
 ### Operator-facing examples
 
 ```
-WARNING [workflow] MCP server 'git-mcp' unavailable after 3 retries.
-Repository operations will be unavailable until the server recovers.
+[Retry exhausted] tool=<tool_name> status=<last retryable HTTP status> after <attempts> attempts
 ```
 ```
 [FATAL] Session schema missing. Run: bash deploy/init_db.sh to initialize the database.

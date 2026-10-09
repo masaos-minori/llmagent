@@ -172,11 +172,11 @@ This section is maintained in the companion document: [Verification](adr_04_fail
 
 - For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale (companion document `adr_04_failure-handling-supporting-sections.md`).
 - Retry policy when an MCP server is unreachable: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry. Subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). `HealthChecker.startup_poll()` in `scripts/agent/http_lifecycle_health_checker.py` has no production caller (Explicit in code).
-- When a subprocess fails to start after the retry, `McpServerStarter` disables a non-required server (`disable_server()` sets the startup mode to none and clears its tool names) and continues, and aborts startup for a required server (Explicit in code — `scripts/agent/startup_mcp_starter.py`). The ledger entry AGENT-004 was still open when this note was written.
+- When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required`. The `McpServerStarter` branch that would call `disable_server()` for a non-required server is not reached, because the helper never returns `None` (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). This is tracked as AGENT-004.
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision Details #18 and INV-09; the spawn-failure path now disables such a server, and the ledger entry awaits closure)
+- **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision Details #18 and INV-09)
 
 ## Review Triggers
 
@@ -227,6 +227,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry`
 - `scripts/agent/services/mcp_health.py` — `check_service_health()`
 - `scripts/agent/startup_mcp_starter.py` — `McpServerStarter`
+- `scripts/agent/shared/retry_helper.py` — `retry_once_with_delay()`
 - `scripts/agent/http_lifecycle_health_checker.py` — `HealthChecker.startup_poll()`
 - `config/agent.toml` — configuration file
 - Tests — `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`

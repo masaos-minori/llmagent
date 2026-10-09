@@ -56,9 +56,11 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | ID | Title | Status | Severity | Area | Type |
 |----|-------|--------|----------|------|------|
 | RAG-002 | Japanese sentences with empty normalized text are dropped with their original text | open | Low | RAG | implementation-bug |
+| RAG-006 | Refiner settings in config/agent.toml are validated but never read by the Agent | open | Low | RAG | design-gap |
 | AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap |
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
+| AGENT-005 | Approval and audit operation-type classification reads static tool-name sets before RuntimeToolRegistry | open | Medium | Agent | design-gap |
 | MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
 | MCP-004 | git-mcp has no generic technical force-push block | open | Low | MCP | design-gap |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
@@ -88,6 +90,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Original text of such sentences is missing from the index.
 - **Recommended Action**: Keep the original sentence in `content` when normalization is empty.
 - **Resolution Target**: `content` keeps every original sentence, covered by a test.
+
+#### RAG-006
+
+- **ID**: RAG-006
+- **Title**: Refiner settings in config/agent.toml are validated but never read by the Agent
+- **Status**: open
+- **Severity**: Low
+- **Area**: RAG
+- **Type**: design-gap
+- **Source**: `scripts/agent/config_builders.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/21_rag/rag_05_01-configuration-reference.md`
+- **Related**: `docs/10_adr/ADR-010-rag-fallback.md`
+- **Summary**: `use_refiner` and the `refiner_*` keys in `config/agent.toml` populate `RAGConfig`, but no Agent code path reads them.
+- **Current Description**: The keys appear in the Agent configuration as RAG settings.
+- **Observed Implementation**: Outside the RAG package, only `embed_url` is read from `AgentConfig.rag`. The rag-pipeline MCP server builds its pipeline configuration from `config/rag_pipeline_mcp_server.toml` and passes it explicitly, so `agent.toml` is never loaded by the pipeline.
+- **Impact**: Editing these keys in `config/agent.toml` has no effect on refiner behavior.
+- **Recommended Action**: Remove the unused keys from `config/agent.toml` and `RAGConfig`, or wire them to a consumer.
+- **Resolution Target**: Every refiner key in `config/agent.toml` has a consumer, or the keys are removed.
 
 #### AGENT-001
 
@@ -148,6 +170,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: A non-required server can still block startup.
 - **Recommended Action**: Apply `required` to spawn failures, or record the exception in ADR-004.
 - **Resolution Target**: Spawn failures follow `required`, or ADR-004 records the exception.
+
+#### AGENT-005
+
+- **ID**: AGENT-005
+- **Title**: Approval and audit operation-type classification reads static tool-name sets before RuntimeToolRegistry
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/tool_policy.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
+- **Related**: `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`
+- **Summary**: `classify_operation_type()` assigns WRITE, DELETE, EXECUTE and API_WRITE from the frozensets in `shared/tool_constants.py`, and consults `RuntimeToolRegistry` only to separate READ from UNKNOWN.
+- **Current Description**: ADR-003 INV-03 requires routing, approval and auditing to reference the same `RuntimeTool` for Safety Tier and Write attributes.
+- **Observed Implementation**: The operation type used by approval and audit does not read the `RuntimeTool` write attribute; only the READ/UNKNOWN decision does.
+- **Impact**: A tool name missing from the static sets and registered as a write tool in `RuntimeToolRegistry` is classified READ for approval and audit.
+- **Recommended Action**: Derive the operation type from `RuntimeTool`, or record the static-set classification as an accepted exception in ADR-003.
+- **Resolution Target**: Approval and audit classification reference `RuntimeTool`, or ADR-003 records the exception.
 
 #### MCP-003
 

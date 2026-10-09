@@ -133,24 +133,13 @@ only when a key is absent from the `.toml` file.
 
 Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `AgentConfig`.
 
-**RagConfig Protocol Fields** (injected via `AgentConfig`):
+`AgentConfig.rag` (`RAGConfig`) carries `embed_url` and the refiner settings (`use_refiner`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk`). It does not carry the search-stage parameters (`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`) or `rag_service_url`. Those are owned by `config/rag_pipeline_mcp_server.toml` (section 9.4).
 
-| Field | Description |
-|---|---|
-| `use_search` | Toggle RAG on/off |
-| `use_mqe` | Enable query expansion |
-| `use_rrf` | Enable RRF merging (`True`) to perform rank-weighted fusion, or just deduplication (`False`). **Quality Trade-off:** Setting `False` disables rank scoring, making all hits' `rrf_score` equal to `0.0`. You also lose additional ranking effects from MQE. Unless you want to minimize overhead, it is recommended to keep this `True`. If set to `False`, a warning `WARNING rag config warning: use_rrf=false degrades retrieval quality` will be output during pipeline startup. |
-| `use_rerank` | Enable reranking via cross-encoder |
-| `use_refiner` | Enable chunk compression via LLM |
-| `top_k_search` | KNN/FTS hits per query |
-| `top_k_rerank` | Cross-encoder candidates |
-| `rag_top_k` | Final number of chunks returned to LLM |
-| `rag_min_score` | Score threshold for cross-encoder |
-| `max_chunks_per_doc` | Max chunks per document |
-| `rag_service_url` | URL for external RAG service (empty = in-process) |
-| `refiner_max_tokens` | Max tokens for Refiner LLM |
-| `refiner_max_chars_per_chunk` | Max characters per chunk for Refiner |
-| `refiner_timeout` | Refiner LLM timeout (seconds) |
+- The Agent process consumes `embed_url` (memory embedding client and the `embed-llm` health check).
+- The refiner settings are parsed and validated, but no Agent code path reads them, because the pipeline stages run inside the rag-pipeline MCP server with its own configuration. This is tracked as RAG-006 in `governance_03_issue-and-uncertainty-management.md`.
+- `rag_service_url` is not a key of `config/agent.toml`, and no production process sets it to a non-empty value (see `ADR-010-rag-fallback.md` Scope).
+
+(Explicit in code — `scripts/agent/config_builders.py`, `scripts/agent/config_dataclasses.py`, `scripts/agent/factory.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`)
 
 ---
 
