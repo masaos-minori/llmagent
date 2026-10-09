@@ -21,7 +21,7 @@ Requires `Bearer ${CONSUMER_TOKEN}` in the Authorization header.
 
 Additionally, the caller must be authorized for the specific `consumer_id` being used — the `Principal.allowed_consumer_ids` field enforces this at the application layer when the principal has an allowlist (a `consumer_id` outside it is rejected with HTTP 403). A principal without an allowlist is not restricted. The CONSUMER token has no allowlist when `consumer_authorization` is an empty mapping; startup rejects a `consumer_token` with no `consumer_authorization` at all. The shared `auth_token` and `admin_token` are also unrestricted.
 
-On ACK, the per-consumer delivery record and the consumer offset are updated in one transaction, and offset advancement is monotonic: acknowledging an older event never moves the stored offset backwards. NACK increases `delivery_failure_count` and moves the event to the DLQ once it reaches `max_retry`.
+On ACK, the per-consumer delivery record and the consumer offset are updated in one transaction, and offset advancement is monotonic: acknowledging an older event never moves the stored offset backwards. NACK increments the per-consumer `consumer_delivery_failure_count`; per ADR-006 INV-10 the event is promoted to the DLQ once that per-consumer count reaches `max_retry` (per-consumer gating keyed on `(consumer_id, event_id)`).
 
 ## Acknowledge Event
 
@@ -190,7 +190,7 @@ Returned when the event does not exist.
 
 **HTTP 409 Conflict**
 
-Returned when the event has `events.acked_at` set, is already in the DLQ, or the requesting consumer has already ACKed via `consumer_delivery.acked_at`.
+Returned when the requesting consumer has already ACKed (`consumer_delivery.acked_at` set) or the event is already in the DLQ (`events.dlq_at`). ACK state is per-consumer; there is no event-level `acked_at` column.
 
 #### Response Schemas
 
@@ -242,7 +242,7 @@ curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
 | Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq}` | Sets `consumer_delivery.acked_at` and advances the consumer offset |
 | Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq, already_acked: true}` | No new delivery state; the offset never moves backwards |
 | Initial NACK | `nack_event` increases `delivery_failure_count` from 0 to 1 | 200 | `{event_id, delivery_failure_count}` | Counter increases; promoted to the DLQ when it reaches `max_retry` |
-| Duplicate NACK | No idempotency guard in `nack_event`; the counter increases on every call (tracked as EVENTBUS-012 in `governance_03_issue-and-uncertainty-management.md`) | 200 | `{event_id, delivery_failure_count}` | Counter keeps increasing, which can trigger DLQ promotion on a later call |
+| Duplicate NACK | `nack_event` is idempotent per delivery attempt: a NACK repeating the stored `last_nack_attempt` is a no-op | 200 | `{event_id, delivery_failure_count}` | Counters unchanged for a repeat NACK of the same delivery attempt |
 | NACK followed by ACK | The consumer's `consumer_delivery.acked_at` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq}` | ACK succeeds; `delivery_failure_count` keeps the value from the NACK |
 | ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer | 409 | `event already acknowledged` | NACK rejected; counters unchanged |
 | Unknown event ID (ACK) | `ack_event_for_consumer` returns `found = False` | 404 | `event not found` | None |

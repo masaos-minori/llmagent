@@ -89,7 +89,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### Duplicate NACK Behavior
 
-No idempotency guard exists in `nack_event`; `delivery_failure_count` increases with every call. This gap is tracked as EVENTBUS-012 in `governance_03_issue-and-uncertainty-management.md`.
+`nack_event` is idempotent per delivery attempt: a NACK that repeats the stored `consumer_delivery.last_nack_attempt` (the same delivery attempt) is a no-op and does not increment `delivery_failure_count`. Only a NACK for a new delivery attempt increments the counter.
 
 ### NACK followed by ACK
 

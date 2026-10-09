@@ -101,10 +101,10 @@ code rows (`delivery_repo.py`, `ack_route.py`, `schema.sql`, `schema_sql.py`,
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Post-implementation doc update |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261009-232009 | 20261009-232009 | Post-implementation doc update |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Documentation change |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs review applies |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261009-232009 | 20261009-232009 | Docs review applies |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261009-232009 | 20261009-232009 | This row |
 
 ### Blocker Log
 

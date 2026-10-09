@@ -388,10 +388,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 ## Known Deviations
 
 - **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (a principal without a `consumer_id` allowlist is unrestricted, namely the CONSUMER token when `consumer_authorization` is an empty mapping and the shared `auth_token`/`admin_token`, so the ACK/NACK binding of INV-10 is not enforced for it)
-- **Known Issue**: EVENTBUS-011 — tracked in governance_03 Part 1 (NACK on a concurrently deleted event)
-- **Known Issue**: EVENTBUS-012 — tracked in governance_03 Part 1 (duplicate NACK from the same consumer)
 - **Known Issue**: EVENTBUS-013 — tracked in governance_03 Part 1 (ACK and NACK are not bound to the active subscription of a `consumer_id`; they check only the principal allowlist)
-- **Known Issue**: EVENTBUS-014 — tracked in governance_03 Part 1 (`events.acked_at` is never written but is still read)
 
 ## Review Triggers
 
@@ -436,14 +433,14 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/broker.py` — `EventBroker.publish()`, `EventBroker.subscribe()`
 - `scripts/eventbus/publish_route.py` — `publish()`
 - `scripts/eventbus/subscribe_route.py` — `subscribe()`
-- `scripts/eventbus/delivery_repo.py` — `ack_event()`, `ack_event_for_consumer()`, `nack_event()`, `get_consumer_offset()`
+- `scripts/eventbus/delivery_repo.py` — `ack_event_for_consumer()`, `nack_event()`, `get_consumer_offset()`
 - `scripts/eventbus/event_repo.py` — `insert_event()`
 - `scripts/eventbus/offset_migrator.py` — `migrate_legacy_offsets()`
 - `scripts/eventbus/db.py` — facade that re-exports the functions above
 - `scripts/eventbus/dlq.py` — `promote_single()`, `sweep_orphans()`
 - `scripts/eventbus/config.py` — `_validate_deployment_mode()`
 - `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
-- `events` table — `seq`, `event_id`, `topic`, `payload`, `acked_at` (event-level column; not written by the ACK route), `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`
+- `events` table — `seq`, `event_id`, `topic`, `payload`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at` (no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`)
 - `consumer_delivery` table — `consumer_id`, `event_id`, `acked_at`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
 - Offset files — `{offsets_dir}/{sanitized_consumer_id}` (read only by `migrate_legacy_offsets()` at startup)

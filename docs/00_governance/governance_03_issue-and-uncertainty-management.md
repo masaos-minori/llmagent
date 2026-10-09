@@ -67,10 +67,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | DEPLOY-002 | Production uv run does not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
-| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug |
-| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug |
 | EVENTBUS-013 | ACK and NACK are not bound to the active subscription of a consumer_id | open | Medium | EventBus | design-gap |
-| EVENTBUS-014 | `events.acked_at` is never written but is still read | open | Low | EventBus | implementation-bug |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
 
 #### RAG-002
@@ -313,46 +310,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Deny all consumers on an empty mapping, or reject it at startup.
 - **Resolution Target**: Every CONSUMER token has a non-empty allowlist or is denied, covered by a test.
 
-#### EVENTBUS-011
-
-- **ID**: EVENTBUS-011
-- **Title**: NACK on a concurrently deleted event can return a misleading 409
-- **Status**: open
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: implementation-bug
-- **Source**: `scripts/eventbus/ack_route.py`
-- **Owner**: Unassigned
-- **First Found**: ADR Known Deviations review
-- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related**: None
-- **Summary**: An event deleted between the NACK call and the follow-up lookup yields 409 instead of 404.
-- **Current Description**: ADR-006 records the `(-2, -2)` result and a residual deletion race.
-- **Observed Implementation**: `ack_route.py` re-reads `acked_at`/`dlq_at` in a separate `run_with_db_lock()` call; a missing row falls into the final `else` and raises 409 "invalid NACK transition".
-- **Impact**: Low: one request returns the wrong status code.
-- **Recommended Action**: Treat a missing row as 404, or run the NACK and the lookup under one lock acquisition.
-- **Resolution Target**: A NACK on a concurrently deleted event returns 404, covered by a test.
-
-#### EVENTBUS-012
-
-- **ID**: EVENTBUS-012
-- **Title**: Duplicate NACK from the same consumer increments the failure counters on every call
-- **Status**: open
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: implementation-bug
-- **Source**: `scripts/eventbus/delivery_repo.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
-- **Related**: None
-- **Summary**: A NACK of an event that is neither ACKed nor in the DLQ always increments `delivery_failure_count` and `cycle_failure_count`.
-- **Current Description**: No guard exists for a repeated NACK, unlike ACK-then-NACK.
-- **Observed Implementation**: `nack_event()` applies its `UPDATE` whenever `acked_at IS NULL AND dlq_at IS NULL`; there is no per-consumer NACK-state check.
-- **Impact**: A duplicated NACK can promote an event to the DLQ early.
-- **Recommended Action**: Decide whether NACK must be idempotent per consumer; if so add a guard and align the documentation.
-- **Resolution Target**: Repeated NACKs for the same delivery attempt do not change the counters again, covered by a test.
-
 #### EVENTBUS-013
 
 - **ID**: EVENTBUS-013
@@ -372,26 +329,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Callers sharing a token and `consumer_id` overwrite each other's progress.
 - **Recommended Action**: Bind ACK and NACK to the active subscription, or record token-only binding as accepted in ADR-006; add a test.
 - **Resolution Target**: ADR-006 INV-10 and ACK/NACK behavior agree, covered by a test.
-
-#### EVENTBUS-014
-
-- **ID**: EVENTBUS-014
-- **Title**: `events.acked_at` is never written but is still read
-- **Status**: open
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: implementation-bug
-- **Source**: `scripts/eventbus/delivery_repo.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
-- **Related**: `EVENTBUS-012`
-- **Summary**: The ACK route writes only per-consumer state, yet NACK and a 409 branch test `events.acked_at`.
-- **Current Description**: The delivery-semantics document defines ACKed per consumer.
-- **Observed Implementation**: `ack_event_for_consumer()` writes `consumer_delivery` and `consumer_offsets`; `ack_event()`, the only writer of `events.acked_at`, has no caller.
-- **Impact**: The event-level ACK guard in NACK never triggers.
-- **Recommended Action**: Remove the dead helper, column and checks, or write the column on ACK.
-- **Resolution Target**: No code reads `events.acked_at` without a writer.
 
 #### EVENTBUS-015
 
