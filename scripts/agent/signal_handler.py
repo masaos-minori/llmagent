@@ -86,16 +86,25 @@ class SignalHandler:
                                 import ctypes  # noqa: PLC0414 — deferred import: only needed on ImportError path
                                 import ctypes.wintypes  # noqa: PLC0414 — deferred import
 
-                                @ctypes.WINFUNCTYPE(
+                                # Windows-only ctypes APIs are absent from POSIX typeshed stubs;
+                                # resolve by name so mypy/pyright accept the attribute access.
+                                _console_ctrl_winfunctype = getattr(
+                                    ctypes, "WINFUNCTYPE"
+                                )
+
+                                @_console_ctrl_winfunctype(
                                     ctypes.wintypes.BOOL, ctypes.wintypes.DWORD
                                 )
-                                def _console_ctrl_handler(ctrl_type: int) -> bool:
+                                def _console_ctrl_handler_ctypes(
+                                    ctrl_type: int,
+                                ) -> bool:
                                     if ctrl_type == win32con.CTRL_CLOSE_EVENT:
                                         loop.call_soon_threadsafe(_sigterm_handler)
                                     return True
 
-                                ctypes.windll.kernel32.SetConsoleCtrlHandler(
-                                    _console_ctrl_handler, True
+                                _console_ctrl_windll = getattr(ctypes, "windll")
+                                _console_ctrl_windll.kernel32.SetConsoleCtrlHandler(
+                                    _console_ctrl_handler_ctypes, True
                                 )
                                 logger.debug(
                                     "Registered Windows console control handler via ctypes for %s",
