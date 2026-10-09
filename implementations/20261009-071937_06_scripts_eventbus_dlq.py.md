@@ -125,7 +125,7 @@ decision. See Design decisions.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement REQ-002 promotion change in dlq.py | Blocked | — | — | Blocked on ADR-006 per-event/per-consumer decision |
+| 1 | Implement REQ-002 promotion change in dlq.py | Deferred | — | — | ADR-006 decided per-consumer (commit 4a24dd3c1, 2026-10-09). Deferred pending ack_route inline-gate switch + per-consumer DLQ-marker schema (both out-of-scope for this row); dlq.py alone cannot enforce per-consumer gating without them. |
 | 2 | Add or update tests per Validation plan | Pending | — | — | |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
 | 4 | Update documentation | N/A | — | — | Docs handled by REQ-006 rows |
@@ -134,7 +134,7 @@ decision. See Design decisions.
 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | REQ-002 DLQ-promotion source depends on the per-event vs per-consumer decision deferred to ADR-006 | No | — |
+| 1 | REQ-002 DLQ-promotion source depends on the per-event vs per-consumer decision deferred to ADR-006 | Yes | 2026-10-09 | ADR-006 now decides per-consumer (commit 4a24dd3c1). Implementation itself deferred pending ack_route inline-gate + per-consumer DLQ-marker schema (see Execution Status notes). |
 
 ### Work Items Created
 
