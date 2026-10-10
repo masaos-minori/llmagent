@@ -11,6 +11,7 @@ from pathlib import Path
 
 import orjson
 
+from eventbus._constants import _COL_CONSUMER_DELIVERY_FAILURE_COUNT
 from eventbus.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
@@ -28,7 +29,9 @@ class DlqEventRecord:
     published_at: str
     delivery_failure_count: int
     dlq_at: str
-    consumer_delivery_failure_count: int | None = None  # REQ-002: per-consumer failure count
+    consumer_delivery_failure_count: int | None = (
+        None  # REQ-002: per-consumer failure count
+    )
 
 
 def _build_dlq_record(
@@ -56,10 +59,6 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
     REQ-002: Uses per-consumer failure count for DLQ promotion. Promotes events
     where any consumer has reached the retry threshold.
     """
-    from eventbus._constants import (
-        _COL_CONSUMER_DELIVERY_FAILURE_COUNT,  # noqa: PLC0415
-    )
-
     now = now_iso()
     rows = db.execute(
         "SELECT DISTINCT e.seq, e.event_id, e.topic, e.payload, e.producer, e.published_at,"
@@ -79,7 +78,9 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
             f"WHERE event_id = ?",
             (event_id,),
         ).fetchone()
-        consumer_failure_count = int(consumer_row[0]) if consumer_row and consumer_row[0] else None
+        consumer_failure_count = (
+            int(consumer_row[0]) if consumer_row and consumer_row[0] else None
+        )
         record = _build_dlq_record(row, now, consumer_failure_count)
         _atomic_write(deadletter_dir, event_id, record)
         cur = db.execute(
