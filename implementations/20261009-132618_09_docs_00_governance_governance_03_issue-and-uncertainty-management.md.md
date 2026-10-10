@@ -1,14 +1,14 @@
 ## Goal
 
-Remove the resolved findings EVENTBUS-011, EVENTBUS-012, and EVENTBUS-014 from the Known Issues ledger in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (REQ-006), since REQ-003, REQ-001, and REQ-004 respectively resolve them.
+Confirm that `docs/00_governance/governance_03_issue-and-uncertainty-management.md` has no remaining references to the resolved findings EVENTBUS-011, EVENTBUS-012, and EVENTBUS-014 (REQ-006), since REQ-003, REQ-001, and REQ-004 respectively resolve them.
 
 ## Scope
 
-Modify `docs/00_governance/governance_03_issue-and-uncertainty-management.md` only:
+Verify `docs/00_governance/governance_03_issue-and-uncertainty-management.md` only. No functional edit is required for REQ-006 unless a Plan revision directs otherwise (see Out of scope / Plan Gap). Specifically:
 
-- Remove the ledger table rows for EVENTBUS-011, EVENTBUS-012, EVENTBUS-014.
-- Remove the corresponding `#### EVENTBUS-011`, `#### EVENTBUS-012`, `#### EVENTBUS-014` detail subsections.
-- Leave EVENTBUS-013 and EVENTBUS-015 (and all non-EventBus findings) untouched.
+- Confirm the ledger table has no rows for EVENTBUS-011, EVENTBUS-012, EVENTBUS-014. **Already confirmed** — only EVENTBUS-008, EVENTBUS-013, EVENTBUS-015 remain.
+- Confirm the detail subsections `#### EVENTBUS-011`, `#### EVENTBUS-012`, `#### EVENTBUS-014` are absent. **Already confirmed**.
+- Confirm EVENTBUS-013 and EVENTBUS-015 rows and detail sections remain intact. **Already confirmed**.
 
 Referenced/updated by other documents (not modified here): ADR-006 (row 7) and `eventbus_12` (row 8), which cross-reference the same findings.
 
@@ -34,10 +34,10 @@ Referenced/updated by other documents (not modified here): ADR-006 (row 7) and `
 
 ### Procedure
 
-1. Locate the ledger table; delete the rows for EVENTBUS-011, EVENTBUS-012, EVENTBUS-014 (current lines ~66-69).
-2. Locate and delete the detail subsections `#### EVENTBUS-011`, `#### EVENTBUS-012`, `#### EVENTBUS-014` (search by heading; they follow the table like other `#### <ID>` entries).
-3. Confirm EVENTBUS-013 and EVENTBUS-015 rows and detail sections remain intact.
-4. Verify no other section cross-references the removed findings in a way that becomes stale (e.g. prose mentioning EVENTBUS-012/014); update such references if present.
+1. Locate the ledger table; delete the rows for EVENTBUS-011, EVENTBUS-012, EVENTBUS-014 (current lines ~66-69). **Already completed** — only EVENTBUS-008, EVENTBUS-013, EVENTBUS-015 remain.
+2. Locate and delete the detail subsections `#### EVENTBUS-011`, `#### EVENTBUS-012`, `#### EVENTBUS-014` (search by heading; they follow the table like other `#### <ID>` entries). **Already completed**.
+3. Confirm EVENTBUS-013 and EVENTBUS-015 rows and detail sections remain intact. **Already confirmed**.
+4. Verify no other section cross-references the removed findings in a way that becomes stale (e.g. prose mentioning EVENTBUS-012/014); update such references if present. **Already confirmed** — `rg "EVENTBUS-011|EVENTBUS-012|EVENTBUS-014" docs/00_governance/governance_03_issue-and-uncertainty-management.md` returns no matches.
 
 ### Method
 
@@ -45,10 +45,10 @@ Referenced/updated by other documents (not modified here): ADR-006 (row 7) and `
 
 ### Details
 
-- EVENTBUS-011 resolves under REQ-003 (atomic NACK state).
-- EVENTBUS-012 resolves under REQ-001 (NACK idempotency).
-- EVENTBUS-014 resolves under REQ-004 (drop `events.acked_at`).
-- EVENTBUS-013 ("ACK and NACK do not enforce Consumer ID exclusivity") and EVENTBUS-015 are out of scope — retain.
+- EVENTBUS-011 resolves under REQ-003 (atomic NACK state). **Already resolved**.
+- EVENTBUS-012 resolves under REQ-001 (NACK idempotency). **Already resolved**.
+- EVENTBUS-014 resolves under REQ-004 (drop `events.acked_at`). **Already resolved**.
+- EVENTBUS-013 ("ACK and NACK do not enforce Consumer ID exclusivity") and EVENTBUS-015 are out of scope — retain. **Already retained**.
 
 ## Compatibility considerations
 
@@ -69,9 +69,9 @@ Referenced/updated by other documents (not modified here): ADR-006 (row 7) and `
 
 ## Completion criteria
 
-- EVENTBUS-011/012/014 absent from the ledger table and detail sections.
-- EVENTBUS-013/015 retained.
-- No stale cross-reference to the removed IDs.
+- EVENTBUS-011/012/014 absent from the ledger table and detail sections. **Already met**.
+- EVENTBUS-013/015 retained. **Already met**.
+- No stale cross-reference to the removed IDs. **Already met**.
 
 ## Out of scope
 
@@ -84,10 +84,10 @@ Referenced/updated by other documents (not modified here): ADR-006 (row 7) and `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | All items already consistent with REQ-006 |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
