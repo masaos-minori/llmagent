@@ -241,7 +241,7 @@ curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
 |---|---|---|---|---|
 | Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq}` | Sets `consumer_delivery.acked_at` and advances the consumer offset |
 | Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq, already_acked: true}` | No new delivery state; the offset never moves backwards |
-| Initial NACK | `nack_event` increases `delivery_failure_count` from 0 to 1 | 200 | `{event_id, delivery_failure_count}` | Counter increases; promoted to the DLQ when it reaches `max_retry` |
+| Initial NACK | `nack_event` increases `consumer_delivery_failure_count` from 0 to 1 | 200 | `{event_id, delivery_failure_count}` | Counter increases; promoted to the DLQ when it reaches `max_retry` |
 | Duplicate NACK | `nack_event` is idempotent per delivery attempt: a NACK repeating the stored `last_nack_attempt` is a no-op | 200 | `{event_id, delivery_failure_count}` | Counters unchanged for a repeat NACK of the same delivery attempt |
 | NACK followed by ACK | The consumer's `consumer_delivery.acked_at` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq}` | ACK succeeds; `delivery_failure_count` keeps the value from the NACK |
 | ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer | 409 | `event already acknowledged` | NACK rejected; counters unchanged |

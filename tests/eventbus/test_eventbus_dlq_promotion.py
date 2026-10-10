@@ -67,21 +67,35 @@ class TestDLQPROMotionSemantics:
     """Verify DLQ promotion uses delivery_failure_count, not retry_count."""
 
     def test_nack_increments_delivery_failure_count(self, client: TestClient) -> None:
-        """nack increments delivery_failure_count (not retry_count)."""
+        """NACK increments consumer_delivery_failure_count (not delivery_failure_count on events table).
 
+        Per-consumer model: delivery_failure_count/cycle_failure_count on events table
+        are no longer written to; only consumer_delivery_failure_count is authoritative.
+        """
         body = _event("dlq_promo")
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Nack the event to increment delivery_failure_count
+        # Nack the event to increment consumer_delivery_failure_count
         resp = client.post(
             "/nack",
             params={"event_id": body["event_id"], "consumer_id": "consumer-A"},
         )
         assert resp.status_code == 200, f"NACK failed: {resp.json()}"
 
-        dfc = _get_field(client, body["event_id"], "delivery_failure_count")
-        assert dfc == 1, f"Expected delivery_failure_count=1, got {dfc}"
+        # Check consumer_delivery_failure_count (authoritative under per-consumer model)
+        # Note: consumer_delivery_failure_count is on consumer_delivery table, not events
+        import eventbus.app as eb_app
+
+        db = eb_app.app.state.db
+        assert db is not None
+        row = db.execute(
+            "SELECT consumer_delivery_failure_count FROM consumer_delivery "
+            "WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", body["event_id"]),
+        ).fetchone()
+        cdc = row[0] if row else None
+        assert cdc == 1, f"Expected consumer_delivery_failure_count=1, got {cdc}"
 
     def test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry(
         self, client: TestClient, tmp_path: Path

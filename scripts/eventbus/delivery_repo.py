@@ -92,21 +92,18 @@ def nack_event(
                     (consumer_id, event_id),
                 ).fetchone()
                 if consumer_row:
-                    return NackResult(
-                        int(existing[_COL_DLQ_AT]) if existing else -1,
-                        -2,
-                        int(consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]),
-                    )
+                    # Read delivery_failure_count from events table (existing[_COL_DLQ_AT] is None here)
+                    row = conn.execute(
+                        f"SELECT {_COL_DELIVERY_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",
+                        (event_id,),
+                    ).fetchone()
+                    dfc = int(row[_COL_DELIVERY_FAILURE_COUNT]) if row else -1
+                    return NackResult(dfc, -2, int(consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]))
                 return NackResult(-1, -1)
 
-        # Update events table (delivery_failure_count, cycle_failure_count)
-        conn.execute(
-            f"UPDATE events SET {_COL_DELIVERY_FAILURE_COUNT} = {_COL_DELIVERY_FAILURE_COUNT} + 1, "
-            f"{_COL_CYCLE_FAILURE_COUNT} = {_COL_CYCLE_FAILURE_COUNT} + 1 "
-            f"WHERE {_COL_EVENT_ID} = ? AND {_COL_DLQ_AT} IS NULL",
-            (event_id,),
-        )
-
+        # Per-consumer model: only consumer_delivery_failure_count is authoritative for DLQ promotion.
+        # delivery_failure_count / cycle_failure_count on events table are kept for backward compat
+        # but no longer written to under the per-consumer model.
         # Update consumer_delivery table if consumer_id is provided
         if consumer_id is not None:
             conn.execute(

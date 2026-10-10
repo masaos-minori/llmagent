@@ -287,15 +287,17 @@ class TestNackEvent:
         )
         db.commit()
 
+        # Per-consumer model: delivery_failure_count/cycle_failure_count on events
+        # table are no longer written to; only consumer_delivery_failure_count is authoritative.
         result = nack_event(db, ev["event_id"])
-        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+        assert result == NackResult(delivery_failure_count=0, cycle_failure_count=0)
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
             (ev["event_id"],),
         ).fetchone()
-        assert row["delivery_failure_count"] == 1
-        assert row["cycle_failure_count"] == 1
+        assert row["delivery_failure_count"] == 0
+        assert row["cycle_failure_count"] == 0
 
     def test_nack_event_increments_again(self, db: sqlite3.Connection) -> None:
         from eventbus.db import nack_event
@@ -313,18 +315,20 @@ class TestNackEvent:
         )
         db.commit()
 
+        # Per-consumer model: delivery_failure_count/cycle_failure_count on events
+        # table are no longer written to; only consumer_delivery_failure_count is authoritative.
         result1 = nack_event(db, ev["event_id"])
-        assert result1 == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+        assert result1 == NackResult(delivery_failure_count=0, cycle_failure_count=0)
 
         result2 = nack_event(db, ev["event_id"])
-        assert result2 == NackResult(delivery_failure_count=2, cycle_failure_count=2)
+        assert result2 == NackResult(delivery_failure_count=0, cycle_failure_count=0)
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
             (ev["event_id"],),
         ).fetchone()
-        assert row["delivery_failure_count"] == 2
-        assert row["cycle_failure_count"] == 2
+        assert row["delivery_failure_count"] == 0
+        assert row["cycle_failure_count"] == 0
 
     def test_nack_event_not_found(self, db: sqlite3.Connection) -> None:
         from eventbus.db import nack_event
@@ -397,15 +401,17 @@ class TestNackEvent:
         assert newly_acked is True
 
         # Consumer B sends NACK — should succeed
+        # Per-consumer model: delivery_failure_count/cycle_failure_count on events
+        # table are no longer written to; only consumer_delivery_failure_count is authoritative.
         result = nack_event(db, ev["event_id"], consumer_id="consumer-B")
-        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1, consumer_failure_count=1)
+        assert result == NackResult(delivery_failure_count=0, cycle_failure_count=0, consumer_failure_count=1)
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
             (ev["event_id"],),
         ).fetchone()
-        assert row["delivery_failure_count"] == 1
-        assert row["cycle_failure_count"] == 1
+        assert row["delivery_failure_count"] == 0
+        assert row["cycle_failure_count"] == 0
 
     def test_nack_no_consumer_id_unaffected_by_consumer_acks(
         self, db: sqlite3.Connection
@@ -434,15 +440,17 @@ class TestNackEvent:
         assert newly_acked is True
 
         # NACK without consumer_id — should succeed (events-level only)
+        # Per-consumer model: delivery_failure_count/cycle_failure_count on events
+        # table are no longer written to; only consumer_delivery_failure_count is authoritative.
         result = nack_event(db, ev["event_id"])
-        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+        assert result == NackResult(delivery_failure_count=0, cycle_failure_count=0)
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
             (ev["event_id"],),
         ).fetchone()
-        assert row["delivery_failure_count"] == 1
-        assert row["cycle_failure_count"] == 1
+        assert row["delivery_failure_count"] == 0
+        assert row["cycle_failure_count"] == 0
 
     def test_nack_http_409_on_per_consumer_acked(
         self, principal_client: TestClient

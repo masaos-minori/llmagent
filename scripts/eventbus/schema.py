@@ -92,8 +92,8 @@ def _migrate(conn: Connection) -> None:
         else:
             raise
 
-    # Drop columns that were removed (REQ-004: acked_at; per-consumer migration: consumer_delivery_failure_count)
-    for col in ("acked_at", _COL_CONSUMER_DELIVERY_FAILURE_COUNT):
+    # Drop columns that were removed (REQ-004: acked_at; per-consumer migration: consumer_delivery_failure_count; legacy: retry_count)
+    for col in ("acked_at", _COL_CONSUMER_DELIVERY_FAILURE_COUNT, "retry_count"):
         try:
             conn.execute(f"ALTER TABLE events DROP COLUMN {col}")
             logger.info("migrated: dropped column %s from events", col)
@@ -139,7 +139,7 @@ def _migrate(conn: Connection) -> None:
             conn.execute(ddl)
             logger.info("migrated: created table %s", tbl_name)
         except Exception as exc:
-            if exc.args and "duplicate column name" in str(exc.args[0]).lower():
+            if exc.args and "already exists" in str(exc.args[0]).lower():
                 pass  # table already exists (unlikely but defensive)
             else:
                 raise
