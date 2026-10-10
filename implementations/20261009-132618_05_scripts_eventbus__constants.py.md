@@ -1,13 +1,13 @@
 ## Goal
 
-Provide the shared column-name constants that REQ-001's per-consumer delivery state needs: keep `_COL_CONSUMER_DELIVERY_FAILURE_COUNT` (now consumed by the per-consumer `consumer_delivery` column rather than the per-event `events` column) and add the `_COL_LAST_NACK_ATTEMPT` constant used for NACK idempotency.
+Confirm that `scripts/eventbus/_constants.py` is consistent with REQ-001's per-consumer delivery state: `_COL_CONSUMER_DELIVERY_FAILURE_COUNT` is present and unchanged, and `_COL_CONSUMER_LAST_NACK_ATTEMPT` is defined for NACK idempotency.
 
 ## Scope
 
-Modify `scripts/eventbus/_constants.py` only:
+Verify `scripts/eventbus/_constants.py` only. No functional edit is required for REQ-001 unless a Plan revision directs otherwise (see Out of scope / Plan Gap). Specifically:
 
-- Add `_COL_LAST_NACK_ATTEMPT = "last_nack_attempt"` to the shared column-constants block and to `__all__`.
-- Leave `_COL_CONSUMER_DELIVERY_FAILURE_COUNT = "consumer_delivery_failure_count"` (line 18) unchanged in value; its usage site moves from `events` to `consumer_delivery` under REQ-001/REQ-003 (see `delivery_repo.py`, row 1). No change to this constant's definition here.
+- Confirm `_COL_CONSUMER_DELIVERY_FAILURE_COUNT = "consumer_delivery_failure_count"` (line 17) is present and unchanged.
+- Confirm `_COL_CONSUMER_LAST_NACK_ATTEMPT = "consumer_last_nack_attempt"` (line 18) is present and exported in `__all__`.
 
 Referenced/updated by other documents (not modified here): the columns' DDL (`scripts/eventbus/schema.sql`, row 3; `scripts/db/schema_sql.py`, row 4) and the `nack_event()` / `ack_event_for_consumer()` logic that consumes these constants (`scripts/eventbus/delivery_repo.py`, row 1).
 
@@ -33,8 +33,8 @@ Referenced/updated by other documents (not modified here): the columns' DDL (`sc
 
 ### Procedure
 
-1. Add `_COL_LAST_NACK_ATTEMPT = "last_nack_attempt"` to the shared column-constants block (after `_COL_CONSUMER_DELIVERY_FAILURE_COUNT`, line 18).
-2. Add `"_COL_LAST_NACK_ATTEMPT"` to the `__all__` list.
+1. **Already completed**: `_COL_CONSUMER_DELIVERY_FAILURE_COUNT = "consumer_delivery_failure_count"` is present at line 17 and unchanged.
+2. **Already completed**: `_COL_CONSUMER_LAST_NACK_ATTEMPT = "consumer_last_nack_attempt"` is present at line 18 and exported in `__all__` at line 31.
 
 ### Method
 
@@ -42,7 +42,8 @@ Referenced/updated by other documents (not modified here): the columns' DDL (`sc
 
 ### Details
 
-- Do not modify `_COL_CONSUMER_DELIVERY_FAILURE_COUNT` (line 18); its reassignment to the per-consumer column happens at the usage site (`delivery_repo.py`, row 1).
+- **Already completed**: `_COL_CONSUMER_DELIVERY_FAILURE_COUNT` (line 17) is unchanged; its reassignment to the per-consumer column happens at the usage site (`delivery_repo.py`, row 1).
+- **Already completed**: `_COL_CONSUMER_LAST_NACK_ATTEMPT` (line 18) is defined and exported.
 - Keep the module docstring accurate: column names derive from the `events`/`consumer_delivery` DDL in `schema.sql`.
 
 ## Compatibility considerations
@@ -64,8 +65,8 @@ Referenced/updated by other documents (not modified here): the columns' DDL (`sc
 
 ## Completion criteria
 
-- `_COL_LAST_NACK_ATTEMPT` is defined in the shared block and present in `__all__`.
-- `_COL_CONSUMER_DELIVERY_FAILURE_COUNT` is unchanged in value.
+- **Already met**: `_COL_CONSUMER_LAST_NACK_ATTEMPT` is defined in the shared block and present in `__all__`.
+- **Already met**: `_COL_CONSUMER_DELIVERY_FAILURE_COUNT` is unchanged in value.
 
 ## Out of scope
 
@@ -77,10 +78,10 @@ Referenced/updated by other documents (not modified here): the columns' DDL (`sc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | All steps already completed in prior cycle |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No doc target for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
