@@ -80,10 +80,10 @@ Referenced/updated by other documents (not modified here): `nack_event()` / `ack
 
 ## Completion criteria
 
-- `ack_route.py` has no read of `events.acked_at` (SELECT list or branch).
-- The `-2` state is determined inside the same lock/transaction as the NACK increment; no separate `run_with_db_lock` probe remains in `nack()`.
-- DLQ promotion at line 165 uses the per-consumer count; response field reflects per-consumer semantics.
-- `_do_ack` debug log verified already `logger.debug(...)`.
+- **Already met**: `ack_route.py` has no read of `events.acked_at` (SELECT list or branch).
+- **Already met**: The `-2` state is determined inside the same lock/transaction as the NACK increment; no separate `run_with_db_lock` probe remains in `nack()`.
+- **Already met**: DLQ promotion at line 165 uses the per-consumer count; response field reflects per-consumer semantics.
+- **Already met**: `_do_ack` debug log verified already `logger.debug(...)`.
 
 ## Out of scope
 
@@ -97,10 +97,10 @@ Referenced/updated by other documents (not modified here): `nack_event()` / `ack
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | All steps already completed in prior cycle |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
