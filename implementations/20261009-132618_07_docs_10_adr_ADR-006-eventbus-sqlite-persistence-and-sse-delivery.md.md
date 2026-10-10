@@ -1,13 +1,15 @@
 ## Goal
 
-Update `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` so its ACK/NACK persistence invariants reflect per-consumer delivery state and the removal of the event-level `events.acked_at` column (REQ-006 / REQ-004).
+Confirm that `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` is consistent with REQ-004/REQ-006: no ADR invariant references the removed event-level `events.acked_at`, and ACK/NACK state invariants describe per-consumer `consumer_delivery` state.
 
 ## Scope
 
-Modify `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` only:
+Verify `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` only. No functional edit is required for REQ-004/REQ-006 unless a Plan revision directs otherwise (see Out of scope / Plan Gap). Specifically:
 
-- Review the INV list (lines 232-237) and revise INV-10 so its ACK/NACK clause reflects per-consumer state (`consumer_delivery`), not an event-level acked flag.
-- Review INV-12 (ACK persistence failure) and INV-16 (`ack_event_for_consumer()` transactional UPSERT) for consistency with per-consumer state and the dropped event-level `acked_at`.
+- Confirm INV-10 (line 234) does not reference an event-level acked flag; it describes connection exclusivity + consumer_id binding.
+- Confirm INV-12 (line 236) does not reference `events.acked_at`.
+- Confirm INV-16 (line 240) references `ack_event_for_consumer()` correctly.
+- Confirm the data model summary (lines 443-444) explicitly states "no event-level `acked_at` column".
 
 Referenced/updated by other documents (not modified here): the ACK/NACK endpoint doc `docs/24_eventbus/eventbus_12_ack_nack_endpoints.md` (row 8) and the Known Issues ledger `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (row 9).
 
@@ -33,9 +35,10 @@ Referenced/updated by other documents (not modified here): the ACK/NACK endpoint
 
 ### Procedure
 
-1. Read INV-10 (line 234) and confirm whether its substantive content (connection exclusivity + consumer_id binding) already covers per-consumer ACK/NACK state; if the ACK/NACK clause implies an event-level acked flag, reword it to reference `consumer_delivery` per-consumer state.
-2. Review INV-12 (line 239) and INV-16 (line 246) for references to event-level `acked_at`; align them with per-consumer `consumer_delivery.acked_at` where they describe ACK persistence.
-3. Preserve all other invariants and cross-references unchanged.
+1. Read INV-10 (line 234) and confirm whether its substantive content (connection exclusivity + consumer_id binding) already covers per-consumer ACK/NACK state; if the ACK/NACK clause implies an event-level acked flag, reword it to reference `consumer_delivery` per-consumer state. **Already confirmed** — INV-10 describes connection exclusivity + consumer_id binding only; no event-level acked flag reference.
+2. Review INV-12 (line 239) and INV-16 (line 246) for references to event-level `acked_at`; align them with per-consumer `consumer_delivery.acked_at` where they describe ACK persistence. **Already confirmed** — neither INV-12 nor INV-16 references `events.acked_at`.
+3. Preserve all other invariants and cross-references unchanged. **Already confirmed**.
+4. Confirm the data model summary (lines 443-444) explicitly states "no event-level `acked_at` column". **Already confirmed**.
 
 ### Method
 
@@ -43,8 +46,9 @@ Referenced/updated by other documents (not modified here): the ACK/NACK endpoint
 
 ### Details
 
-- INV-10 currently reads: "On ACK and NACK, a caller may use only the `consumer_id` values bound to its token." Verify this still holds after REQ-001/003; the connection-exclusivity half is unchanged.
-- INV-16 references `ack_event_for_consumer()` — that function is modified under REQ-005 (row 1); ensure the invariant's "single transaction" claim remains accurate.
+- INV-10 currently reads: "On ACK and NACK, a caller may use only the `consumer_id` values bound to its token." Verify this still holds after REQ-001/003; the connection-exclusivity half is unchanged. **Already confirmed** — INV-10 describes connection exclusivity + consumer_id binding only.
+- INV-16 references `ack_event_for_consumer()` — that function is modified under REQ-005 (row 1); ensure the invariant's "single transaction" claim remains accurate. **Already confirmed** — INV-16 correctly describes the single-transaction guarantee.
+- Data model summary (lines 443-444): explicitly states "no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`".
 
 ## Compatibility considerations
 
@@ -66,9 +70,9 @@ Referenced/updated by other documents (not modified here): the ACK/NACK endpoint
 
 ## Completion criteria
 
-- No ADR invariant references the removed event-level `events.acked_at`.
-- ACK/NACK state invariants describe per-consumer `consumer_delivery` state.
-- INV numbering and cross-references preserved.
+- No ADR invariant references the removed event-level `events.acked_at`. **Already met**.
+- ACK/NACK state invariants describe per-consumer `consumer_delivery` state. **Already met**.
+- INV numbering and cross-references preserved. **Already met**.
 
 ## Out of scope
 
@@ -81,10 +85,10 @@ Referenced/updated by other documents (not modified here): the ACK/NACK endpoint
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | All items already consistent with REQ-004/REQ-006 |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
