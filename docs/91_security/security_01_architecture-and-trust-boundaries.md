@@ -82,6 +82,7 @@ The threat model covers the following threat vectors:
 | cicd | HTTP | Bearer token (required) | Workflow allowlist | Workflow execution restricted to allowlisted workflows |
 | mdq | HTTP | None at HTTP layer (empty token skips auth by design; see `mcp_05_05_mdq-enforcement-and-lockdown.md`) | `allowed_dirs` allowlist (fail-closed) | Path traversal prevention via `Path.resolve()` |
 | rag-pipeline | HTTP | Bearer token (required) | Tool safety tiers + approval | Search and list tools are `READ_ONLY`; `rag_delete_document` is `WRITE_DANGEROUS` and requires approval; no ingestion tool is exposed |
+| web-search | HTTP | Bearer token (required; server-side key `browser_auth_token`) | `browser_allowed_domains` allowlist (fail-closed; empty disables `browser_fetch`) | `browser_fetch` additionally rejects loopback, link-local, private, reserved, and multicast IP literals regardless of the allowlist; `search_web` fetches no caller-specified URL (see `mcp_04_01_web-search-file-read-github.md`) |
 
 *Source: `mcp_05_01_access-control-and-allowlists.md`, `mcp_05_02_auth-profiles-and-sandboxing.md`*
 

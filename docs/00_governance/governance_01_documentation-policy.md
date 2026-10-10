@@ -335,14 +335,14 @@ The ADR list, dependency graph, and invariant verification matrix are maintained
 ## Merge Conditions
 
 ### Blocking Conditions (Prevent Merge)
-- Critical open issue exists in affected area
+- High-severity open Known Issue exists in affected area (Known Issue severity values are `High`, `Medium`, and `Low`; see `governance_03_issue-and-uncertainty-management.md` Severity Values)
 - RACI approval not obtained from accountable party (for ADRs, see ADR Acceptance
   Evidence Standard for what counts as approval)
 - Canonical source conflict unresolved
 - Test suite failing
 
 ### Non-Blocking Conditions (Allow Merge with Warning)
-- High-severity open issue exists in affected area
+- Medium-severity or Low-severity open Known Issue exists in affected area
 - Documentation outdated but code is correct
 - Config drift detected but no behavioral impact
 - Removed-name reintroduction detected by `check_compat_shims.py --check-removed-names` (`GV-017`), without an approved temporary exception (`docs/00_governance/governance_03_issue-and-uncertainty-management.md`)

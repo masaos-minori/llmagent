@@ -258,7 +258,7 @@ Initial approval (Decision Details #1 to #9):
 - **Approval Date**: 2026-08-20
 - **Approval Reference**: ADR-003 creation
 
-Task-level approval decision (Decision Details #10 to #15 and INV-04, which were added after the initial approval: the integration of the former ADR-013 content and the static `ToolRegistry` drift-validation rule):
+Task-level approval decision (Decision Details #10 to #15 and INV-04, which were added after the initial approval: the integration of the runtime tool-registry routing content and the static `ToolRegistry` drift-validation rule):
 
 - **Approved By**: repository owner
 - **Approval Date**: 2026-10-07

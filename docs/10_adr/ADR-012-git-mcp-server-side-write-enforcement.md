@@ -142,7 +142,7 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 
 ## Exceptions
 
-None.
+Not applicable.
 
 ## Failure Policy
 
@@ -206,7 +206,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Related ADRs
 
-Not applicable.
+- ADR-007: Adoption of HTTP MCP and Non-Support of stdio
 
 ## Implementation References
 

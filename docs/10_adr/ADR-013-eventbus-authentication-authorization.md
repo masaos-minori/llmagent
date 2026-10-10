@@ -205,7 +205,7 @@ ADR-002 documents the exception. Equivalent fail-closed validation is implemente
 
 ## Exceptions
 
-None.
+Not applicable.
 
 ## Failure Policy
 

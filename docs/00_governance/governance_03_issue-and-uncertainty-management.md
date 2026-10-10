@@ -67,7 +67,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | DEPLOY-002 | Production uv run does not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
-| EVENTBUS-013 | ACK and NACK are not bound to the active subscription of a consumer_id | open | Medium | EventBus | design-gap |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
 
 #### RAG-002
@@ -309,26 +308,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: An unrestricted principal can use any `consumer_id`.
 - **Recommended Action**: Deny all consumers on an empty mapping, or reject it at startup.
 - **Resolution Target**: Every CONSUMER token has a non-empty allowlist or is denied, covered by a test.
-
-#### EVENTBUS-013
-
-- **ID**: EVENTBUS-013
-- **Title**: ACK and NACK are not bound to the active subscription of a consumer_id
-- **Status**: open
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: `scripts/eventbus/ack_route.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
-- **Summary**: ACK and NACK check token binding but not the active subscription of the `consumer_id`.
-- **Current Description**: ADR-006 INV-10 allows one active `/subscribe` connection per consumer ID and binds ACK and NACK to the caller's token.
-- **Observed Implementation**: `/ack` and `/nack` reject a `consumer_id` outside the caller's allowlist. Only `/subscribe` gets 409 from the broker registry for a second connection.
-- **Impact**: Callers sharing a token and `consumer_id` overwrite each other's progress.
-- **Recommended Action**: Bind ACK and NACK to the active subscription, or record token-only binding as accepted in ADR-006; add a test.
-- **Resolution Target**: ADR-006 INV-10 and ACK/NACK behavior agree, covered by a test.
 
 #### EVENTBUS-015
 

@@ -74,9 +74,9 @@ Each MCP server is an independent process that only reads its own configuration 
 
 Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools without an entry fall back to the risk derived from their `tool_safety_tiers` tier (Explicit in code — scripts/agent/tool_policy.py `_TIER_TO_RISK`). Categories:
 
-- `none`: read-only tools and tools with no rule (tier-derived)
+- `none`: read-only tools and tools with no rule (tier-derived). A tool with no rule takes its tier-derived level: for example `rag_delete_document` is `WRITE_DANGEROUS` and therefore `medium`, not `high`, unless a rule sets otherwise (see `mcp_05_03_fail-open-fail-closed-and-risk-tiers.md`)
 - `medium`: local file mutation tools that do not delete (write, edit, create directory, move), and lower-impact GitHub changes (branch, pull request create/update, issue create, issue comment)
-- `high`: deletion tools, `shell_run`, GitHub content/merge changes (file create/update/delete, multi-file push, pull request merge), and git `git_checkout`/`git_pull`/`git_push`
+- `high`: local file and directory deletion tools, `shell_run`, GitHub content/merge changes (file create/update/delete, multi-file push, pull request merge), and git `git_checkout`/`git_pull`/`git_push`
 
 `ProductionConfigValidator` rejects a configuration in which the git tools `git_checkout`/`git_pull`/`git_push` resolve to a risk below high (Explicit in code — scripts/agent/production_config_validator.py `_check_approval_risk_floor()`). The per-tool mapping is in `[approval_risk_rules]` of `config/agent.toml` and the [MCP ownership matrix](../22_mcp/mcp_01_tool_ownership_matrix.md).
 
