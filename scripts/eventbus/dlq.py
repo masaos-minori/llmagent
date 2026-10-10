@@ -28,9 +28,14 @@ class DlqEventRecord:
     published_at: str
     delivery_failure_count: int
     dlq_at: str
+    consumer_delivery_failure_count: int | None = None  # REQ-002: per-consumer failure count
 
 
-def _build_dlq_record(row: sqlite3.Row, now: str) -> DlqEventRecord:
+def _build_dlq_record(
+    row: sqlite3.Row,
+    now: str,
+    consumer_delivery_failure_count: int | None = None,
+) -> DlqEventRecord:
     """Construct a DlqEventRecord from a SQLite row and current timestamp."""
     return DlqEventRecord(
         seq=row["seq"],
@@ -41,23 +46,41 @@ def _build_dlq_record(row: sqlite3.Row, now: str) -> DlqEventRecord:
         published_at=row["published_at"],
         delivery_failure_count=row["delivery_failure_count"],
         dlq_at=now,
+        consumer_delivery_failure_count=consumer_delivery_failure_count,
     )
 
 
 def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int) -> int:
-    """Shared promotion logic for sweep and inline paths."""
+    """Shared promotion logic for sweep and inline paths.
+
+    REQ-002: Uses per-consumer failure count for DLQ promotion. Promotes events
+    where any consumer has reached the retry threshold.
+    """
+    from eventbus._constants import (
+        _COL_CONSUMER_DELIVERY_FAILURE_COUNT,  # noqa: PLC0415
+    )
+
     now = now_iso()
     rows = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at,"
-        " delivery_failure_count, cycle_failure_count"
-        " FROM events WHERE delivery_failure_count >= ? AND dlq_at IS NULL",
+        "SELECT DISTINCT e.seq, e.event_id, e.topic, e.payload, e.producer, e.published_at,"
+        " e.delivery_failure_count, e.cycle_failure_count"
+        " FROM events e"
+        " JOIN consumer_delivery cd ON e.event_id = cd.event_id"
+        " WHERE cd.consumer_delivery_failure_count >= ? AND e.dlq_at IS NULL",
         (max_retry,),
     ).fetchall()
 
     promoted = 0
     for row in rows:
         event_id = row["event_id"]
-        record = _build_dlq_record(row, now)
+        # Get the per-consumer failure count for this event (max across consumers)
+        consumer_row = db.execute(
+            f"SELECT MAX({_COL_CONSUMER_DELIVERY_FAILURE_COUNT}) FROM consumer_delivery "
+            f"WHERE event_id = ?",
+            (event_id,),
+        ).fetchone()
+        consumer_failure_count = int(consumer_row[0]) if consumer_row and consumer_row[0] else None
+        record = _build_dlq_record(row, now, consumer_failure_count)
         _atomic_write(deadletter_dir, event_id, record)
         cur = db.execute(
             "UPDATE events SET dlq_at = ? WHERE event_id = ? AND dlq_at IS NULL",
@@ -71,9 +94,19 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
 
 
 def _shared_promote_single(
-    db: sqlite3.Connection, deadletter_dir: str, event_id: str
+    db: sqlite3.Connection,
+    deadletter_dir: str,
+    event_id: str,
+    consumer_failure_count: int | None = None,
 ) -> bool:
-    """Shared promotion logic for single inline promotion."""
+    """Shared promotion logic for single inline promotion.
+
+    Args:
+        db: Database connection.
+        deadletter_dir: Directory for DLQ files.
+        event_id: Event identifier.
+        consumer_failure_count: Per-consumer failure count (REQ-002).
+    """
     now = now_iso()
     row = db.execute(
         "SELECT seq, event_id, topic, payload, producer, published_at,"
@@ -84,7 +117,7 @@ def _shared_promote_single(
     if not row:
         return False
 
-    record = _build_dlq_record(row, now)
+    record = _build_dlq_record(row, now, consumer_failure_count)
     _atomic_write(deadletter_dir, event_id, record)
     cur = db.execute(
         "UPDATE events SET dlq_at = ? WHERE event_id = ? AND dlq_at IS NULL",
@@ -118,14 +151,21 @@ def promote_single(
     db: sqlite3.Connection,
     deadletter_dir: str,
     event_id: str,
+    consumer_failure_count: int | None = None,
 ) -> bool:
     """Promote one event to DLQ immediately (inline on nack threshold).
 
     Returns True if promoted, False if already in DLQ or not found.
     Write the JSON file before updating the DB row to preserve consistency:
     if _atomic_write fails, the DB row is not updated and the event remains live.
+
+    Args:
+        db: Database connection.
+        deadletter_dir: Directory for DLQ files.
+        event_id: Event identifier.
+        consumer_failure_count: Per-consumer failure count (REQ-002).
     """
-    return _shared_promote_single(db, deadletter_dir, event_id)
+    return _shared_promote_single(db, deadletter_dir, event_id, consumer_failure_count)
 
 
 def _atomic_write(deadletter_dir: str, event_id: str, record: DlqEventRecord) -> None:

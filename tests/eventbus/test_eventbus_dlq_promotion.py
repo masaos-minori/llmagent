@@ -83,10 +83,10 @@ class TestDLQPROMotionSemantics:
         dfc = _get_field(client, body["event_id"], "delivery_failure_count")
         assert dfc == 1, f"Expected delivery_failure_count=1, got {dfc}"
 
-    def test_dlq_promotion_when_delivery_failure_count_gte_max_retry(
+    def test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """Event is promoted to DLQ when delivery_failure_count >= max_retry."""
+        """Event is promoted to DLQ when consumer_delivery_failure_count >= max_retry."""
         from eventbus.db import open_db
         from eventbus.dlq import sweep_orphans
 
@@ -94,11 +94,16 @@ class TestDLQPROMotionSemantics:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Set delivery_failure_count to max_retry to trigger inline promotion
+        # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-            (body["event_id"],),
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, ?)",
+            ("consumer-A", body["event_id"], None),
+        )
+        db.execute(
+            "UPDATE consumer_delivery SET consumer_delivery_failure_count = 2 "
+            "WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", body["event_id"]),
         )
         db.commit()
 
@@ -109,10 +114,10 @@ class TestDLQPROMotionSemantics:
         dlq_file = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file.exists()
 
-    def test_requeue_returns_dlq_imminent_when_delivery_failure_count_gte_max_retry(
+    def test_requeue_returns_dlq_imminent_when_consumer_delivery_failure_count_gte_max_retry(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """Requeue of event at delivery_failure_count >= max_retry succeeds."""
+        """Requeue of event at consumer_delivery_failure_count >= max_retry succeeds."""
         from eventbus.db import open_db
         from eventbus.dlq import sweep_orphans
 
@@ -120,11 +125,16 @@ class TestDLQPROMotionSemantics:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Set delivery_failure_count to max_retry and promote to DLQ
+        # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-            (body["event_id"],),
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, ?)",
+            ("consumer-A", body["event_id"], None),
+        )
+        db.execute(
+            "UPDATE consumer_delivery SET consumer_delivery_failure_count = 2 "
+            "WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", body["event_id"]),
         )
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
@@ -135,10 +145,10 @@ class TestDLQPROMotionSemantics:
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
 
-    def test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count(
+    def test_dlq_requeue_increments_dlq_requeue_count_not_consumer_delivery_failure_count(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """DLQ requeue increments dlq_requeue_count but does NOT modify delivery_failure_count."""
+        """DLQ requeue increments dlq_requeue_count but does NOT modify consumer_delivery_failure_count."""
         from eventbus.db import open_db
         from eventbus.dlq import sweep_orphans
 
@@ -146,24 +156,37 @@ class TestDLQPROMotionSemantics:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Set delivery_failure_count to max_retry and promote to DLQ
+        # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-            (body["event_id"],),
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, ?)",
+            ("consumer-A", body["event_id"], None),
+        )
+        db.execute(
+            "UPDATE consumer_delivery SET consumer_delivery_failure_count = 2 "
+            "WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", body["event_id"]),
         )
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
-        dfc_before = _get_field(client, body["event_id"], "delivery_failure_count")
+        cdfc_before = db.execute(
+            "SELECT consumer_delivery_failure_count FROM consumer_delivery "
+            "WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", body["event_id"]),
+        ).fetchone()[0]
 
         # Requeue the event
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
 
-        dfc_after = _get_field(client, body["event_id"], "delivery_failure_count")
-        assert dfc_after == dfc_before, (
-            "delivery_failure_count should not change on requeue"
+        cdfc_after = db.execute(
+            "SELECT consumer_delivery_failure_count FROM consumer_delivery "
+            "WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", body["event_id"]),
+        ).fetchone()[0]
+        assert cdfc_after == cdfc_before, (
+            "consumer_delivery_failure_count should not change on requeue"
         )
 
         dlq_requeue_count = _get_field(client, body["event_id"], "dlq_requeue_count")
@@ -171,10 +194,10 @@ class TestDLQPROMotionSemantics:
             "dlq_requeue_count should be incremented on requeue"
         )
 
-    def test_dlq_loop_promotes_after_requeue_if_delivery_failure_count_still_gte_max_retry(
+    def test_dlq_loop_promotes_after_requeue_if_consumer_delivery_failure_count_still_gte_max_retry(
         self, client: TestClient, tmp_path: Path
     ) -> None:
-        """After requeue, next DLQ loop tick will re-promote if delivery_failure_count >= max_retry."""
+        """After requeue, next DLQ loop tick will re-promote if consumer_delivery_failure_count >= max_retry."""
         from eventbus.db import open_db
         from eventbus.dlq import sweep_orphans
 
@@ -182,11 +205,11 @@ class TestDLQPROMotionSemantics:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Set delivery_failure_count to max_retry and promote to DLQ
+        # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-            (body["event_id"],),
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            ("consumer-A", body["event_id"]),
         )
         db.commit()
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
@@ -197,9 +220,18 @@ class TestDLQPROMotionSemantics:
         # Requeue the event
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
+        data = resp.json()
+        new_event_id = data["new_event_id"]
+
+        # Create consumer_delivery record for the descendant event (required for REQ-002 per-consumer DLQ promotion)
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        db.execute(
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            ("consumer-A", new_event_id),
+        )
+        db.commit()
 
         # Next DLQ loop tick should re-promote
-        db = open_db(str(tmp_path / "eventbus.sqlite"))
         n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
         assert n == 1
 

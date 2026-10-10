@@ -151,51 +151,47 @@ async def nack(
     def _nack_and_promote() -> tuple[int, bool]:
         """Nack an event and promote to DLQ if max retries exceeded.
 
-        DLQ promotion is gated on delivery_failure_count (the lifetime
-        failure counter), not cycle_failure_count (which resets per
-        requeue/redeliver cycle) — see
-        tests/eventbus/test_eventbus_dlq_promotion.py for the intended
-        semantics.
+        DLQ promotion is gated on consumer_failure_count (the per-consumer
+        failure counter), not delivery_failure_count (the shared per-event
+        counter) — see REQ-002.
         """
-        nack_result = _nack_event(db, event_id, consumer_id)
+        # REQ-001: Generate attempt ID for NACK idempotency
+        import uuid  # noqa: PLC0415 — local import avoids circular dependency
+
+        attempt_id = str(uuid.uuid4())
+        nack_result = _nack_event(db, event_id, consumer_id, last_nack_attempt=attempt_id)
         failure_count = nack_result.delivery_failure_count
         if failure_count == -1:
             return (-1, False)
-        promoted = False
-        if failure_count >= cfg.max_retry:
-            from eventbus.dlq import promote_single  # noqa: PLC0415
-
-            promoted = promote_single(db, cfg.deadletter_dir, event_id)
-        return (failure_count, promoted)
-
-    failure_count, promoted = await run_with_db_lock(_nack_and_promote)
-    if failure_count == -1:
-        raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)
-    if failure_count == -2:
-        # Invalid transition: event is already ACKed or DLQ'd
-        # Determine which state by checking the event directly
-        # First check per-consumer ACK (REQ-001, REQ-003)
-        consumer_row = await run_with_db_lock(
-            lambda: db.execute(
+        if failure_count == -2:
+            # REQ-003: Determine -2 state atomically within the same transaction
+            # Check per-consumer ACK first (REQ-001, REQ-003)
+            consumer_row = db.execute(
                 "SELECT acked_at FROM consumer_delivery "
                 "WHERE consumer_id = ? AND event_id = ?",
                 (consumer_id, event_id),
             ).fetchone()
-        )
-        if consumer_row and consumer_row["acked_at"] is not None:
-            raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
-        # Then check events-level state
-        row = await run_with_db_lock(
-            lambda: db.execute(
-                "SELECT acked_at, dlq_at FROM events WHERE event_id = ?", (event_id,)
+            if consumer_row and consumer_row["acked_at"] is not None:
+                raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
+            # Then check events-level DLQ state only (REQ-004: events.acked_at removed)
+            row = db.execute(
+                "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()
-        )
-        if row and row["acked_at"] is not None:
-            raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
-        elif row and row["dlq_at"] is not None:
-            raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
-        else:
+            if row and row["dlq_at"] is not None:
+                raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
             raise HTTPException(status_code=409, detail="invalid NACK transition")
+        promoted = False
+        # REQ-002: Use per-consumer failure count for DLQ promotion
+        consumer_failure_count = nack_result.consumer_failure_count
+        if consumer_failure_count is not None and consumer_failure_count >= cfg.max_retry:
+            from eventbus.dlq import promote_single  # noqa: PLC0415
+
+            promoted = promote_single(db, cfg.deadletter_dir, event_id, consumer_failure_count)
+        return (consumer_failure_count if consumer_failure_count is not None else failure_count, promoted)
+
+    failure_count, promoted = await run_with_db_lock(_nack_and_promote)
+    if failure_count == -1:
+        raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)
     logger.info(
         "event nacked event_id=%s delivery_failure_count=%d", event_id, failure_count
     )

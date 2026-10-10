@@ -22,6 +22,7 @@ import sys
 from db.helper import SQLiteHelper
 from db.schema_sql import (
     WORKFLOW_SCHEMA_VERSION,
+    apply_eventbus_migrations,
     apply_workflow_migrations,
     build_eventbus_schema_sql,
     build_rag_schema_sql,
@@ -98,6 +99,11 @@ def create_eventbus_schema() -> None:
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute Event Bus schema DDL: %s", e)
             raise
+        assert db.conn is not None, (
+            "Event Bus DB connection must be open when applying migrations"
+        )
+        apply_eventbus_migrations(db.conn)
+        db.commit()
     logger.info("Event Bus schema created successfully.")
 
 

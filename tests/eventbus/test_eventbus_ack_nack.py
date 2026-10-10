@@ -45,96 +45,7 @@ def _simulate_delivery_http(client: Any, event_id: str, consumer_id: str) -> Non
 
 
 class TestAckEvent:
-    def test_ack_event_sets_acked_at(self, db: sqlite3.Connection) -> None:
-        from eventbus.db import ack_event
-
-        ev = _event()
-        db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
-            (
-                ev["event_id"],
-                ev["topic"],
-                json.dumps(ev["payload"]),
-                ev["producer"],
-                ev["published_at"],
-            ),
-        )
-        db.commit()
-
-        now = "2026-06-22T13:00:00Z"
-        found, newly_acked = ack_event(db, ev["event_id"], now)
-        assert found is True
-        assert newly_acked is True
-
-        row = db.execute(
-            "SELECT acked_at FROM events WHERE event_id = ?", (ev["event_id"],)
-        ).fetchone()
-        assert row["acked_at"] == now
-
-    def test_ack_event_idempotent(self, db: sqlite3.Connection) -> None:
-        from eventbus.db import ack_event
-
-        ev = _event()
-        db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
-            (
-                ev["event_id"],
-                ev["topic"],
-                json.dumps(ev["payload"]),
-                ev["producer"],
-                ev["published_at"],
-            ),
-        )
-        db.commit()
-
-        now = "2026-06-22T13:00:00Z"
-        found1, newly_acked1 = ack_event(db, ev["event_id"], now)
-        assert found1 is True
-        assert newly_acked1 is True
-
-        later = "2026-06-22T14:00:00Z"
-        found2, newly_acked2 = ack_event(db, ev["event_id"], later)
-        assert found2 is True
-        assert newly_acked2 is False
-
-        row = db.execute(
-            "SELECT acked_at FROM events WHERE event_id = ?", (ev["event_id"],)
-        ).fetchone()
-        assert row["acked_at"] == now
-
-    def test_ack_event_not_found(self, db: sqlite3.Connection) -> None:
-        from eventbus.db import ack_event
-
-        found, newly_acked = ack_event(db, "nonexistent-event", "2026-06-22T13:00:00Z")
-        assert found is False
-        assert newly_acked is False
-
-    def test_ack_event_already_acked(self, db: sqlite3.Connection) -> None:
-        from eventbus.db import ack_event
-
-        ev = _event()
-        db.execute(
-            "INSERT INTO events (event_id, topic, payload, producer, published_at, acked_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                ev["event_id"],
-                ev["topic"],
-                json.dumps(ev["payload"]),
-                ev["producer"],
-                ev["published_at"],
-                "2026-06-22T13:00:00Z",
-            ),
-        )
-        db.commit()
-
-        later = "2026-06-22T14:00:00Z"
-        found, newly_acked = ack_event(db, ev["event_id"], later)
-        assert found is True
-        assert newly_acked is False
-
-        row = db.execute(
-            "SELECT acked_at FROM events WHERE event_id = ?", (ev["event_id"],)
-        ).fetchone()
-        assert row["acked_at"] == "2026-06-22T13:00:00Z"
+    """Tests for ack_event_for_consumer — acked_at column removed from events table (REQ-004)."""
 
     def test_two_consumers_ack_same_event(self, tmp_path: Path) -> None:
         """Two distinct consumer_ids can each ACK the same event independently."""
@@ -487,7 +398,7 @@ class TestNackEvent:
 
         # Consumer B sends NACK — should succeed
         result = nack_event(db, ev["event_id"], consumer_id="consumer-B")
-        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1)
+        assert result == NackResult(delivery_failure_count=1, cycle_failure_count=1, consumer_failure_count=1)
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",

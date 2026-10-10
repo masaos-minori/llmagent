@@ -230,7 +230,7 @@ _EVENTBUS_SCHEMA: str = """
 PRAGMA journal_mode=WAL;
 
 -- Timestamps use ISO-8601 UTC Z suffix format: 2026-07-02T10:00:00Z
--- acked_at and dlq_at are nullable (unset until acknowledged/dead-lettered)
+-- dlq_at is nullable (unset until dead-lettered)
 
 CREATE TABLE IF NOT EXISTS events (
     seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -239,12 +239,12 @@ CREATE TABLE IF NOT EXISTS events (
     payload                TEXT    NOT NULL,
     producer               TEXT    NOT NULL,
     published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    acked_at               TEXT,
     delivery_failure_count INTEGER NOT NULL DEFAULT 0,
     cycle_failure_count    INTEGER NOT NULL DEFAULT 0,
     redelivered_from       TEXT,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
-    dlq_at                 TEXT
+    dlq_at                 TEXT,
+    consumer_id            TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
@@ -254,9 +254,11 @@ CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
 
 -- Per-consumer delivery state: tracks acked_at per (consumer_id, event_id)
 CREATE TABLE IF NOT EXISTS consumer_delivery (
-    consumer_id          TEXT    NOT NULL,
-    event_id             TEXT    NOT NULL,
-    acked_at             TEXT,
+    consumer_id                    TEXT    NOT NULL,
+    event_id                       TEXT    NOT NULL,
+    acked_at                       TEXT,
+    consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0,
+    consumer_last_nack_attempt     TEXT,
     PRIMARY KEY (consumer_id, event_id)
 );
 
@@ -272,6 +274,25 @@ def build_eventbus_schema_sql() -> str:
     """Return DDL for eventbus.sqlite (event bus message queue)."""
     return _EVENTBUS_SCHEMA
 
+
+_EVENTBUS_MIGRATIONS: list[tuple[str, str]] = [
+    (
+        "2026_add_consumer_delivery_failure_count",
+        "ALTER TABLE consumer_delivery ADD COLUMN consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0",
+    ),
+    (
+        "2026_add_consumer_last_nack_attempt",
+        "ALTER TABLE consumer_delivery ADD COLUMN consumer_last_nack_attempt TEXT",
+    ),
+    (
+        "2026_drop_events_acked_at",
+        "ALTER TABLE events DROP COLUMN acked_at",
+    ),
+    (
+        "2026_drop_events_consumer_delivery_failure_count",
+        "ALTER TABLE events DROP COLUMN consumer_delivery_failure_count",
+    ),
+]
 
 _WORKFLOW_MIGRATIONS: list[tuple[str, str]] = [
     ("2026_add_attempts_error_kind", "ALTER TABLE attempts ADD COLUMN error_kind TEXT"),
@@ -297,6 +318,28 @@ _WORKFLOW_MIGRATIONS: list[tuple[str, str]] = [
 def build_workflow_schema_sql() -> str:
     """Return DDL for workflow.sqlite (metadata DB)."""
     return _WORKFLOW_SCHEMA
+
+
+def apply_eventbus_migrations(conn: sqlite3.Connection) -> None:
+    """Apply incremental migrations to an existing eventbus.sqlite; idempotent.
+
+    Only swallows OperationalError for duplicate-column scenarios
+    (e.g. ALTER TABLE ... ADD COLUMN when the column already exists) and
+    for missing-column scenarios (e.g. ALTER TABLE ... DROP COLUMN when
+    the column was already dropped); all other OperationalErrors are
+    re-raised so broken migration SQL is never silently ignored.
+    """
+    for migration_id, stmt in _EVENTBUS_MIGRATIONS:
+        try:
+            conn.execute(stmt)
+        except sqlite3.OperationalError as exc:
+            if "duplicate column name" in str(exc):
+                logger.debug("Migration %s already applied: %s", migration_id, exc)
+            elif "no such column" in str(exc):
+                logger.debug("Migration %s already applied: %s", migration_id, exc)
+            else:
+                raise
+    conn.commit()
 
 
 def apply_workflow_migrations(conn: sqlite3.Connection) -> None:

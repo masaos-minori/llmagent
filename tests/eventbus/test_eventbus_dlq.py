@@ -52,6 +52,12 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
+    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-A", ev["event_id"]),
+    )
+    db.commit()
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
@@ -74,6 +80,12 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
+    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-A", ev["event_id"]),
+    )
+    db.commit()
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
@@ -95,6 +107,12 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
+    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-A", ev["event_id"]),
+    )
+    db.commit()
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
@@ -136,6 +154,12 @@ def test_requeue_increments_dlq_requeue_count(
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
+    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-A", ev["event_id"]),
+    )
+    db.commit()
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
@@ -170,14 +194,20 @@ def test_requeue_increments_dlq_requeue_count(
     assert orig_row["dlq_at"] is not None
 
     # Exhaust retries again — should promote to DLQ
+    # Need to create a consumer_delivery record for the new descendant event
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-A", new_event_id),
+    )
+    db.commit()
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (ev["event_id"],),
+        (new_event_id,),
     )
     db.commit()
     n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert n == 1
-    dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    dlq_file = tmp_path / "deadletter" / f"{new_event_id}.json"
     assert dlq_file.exists()
 
 
@@ -253,6 +283,12 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
+    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-A", ev["event_id"]),
+    )
+    db.commit()
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
@@ -325,6 +361,12 @@ async def test_concurrent_requeue_same_event(
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
     client.post("/publish", json=ev)
+    # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-A", ev["event_id"]),
+    )
+    db.commit()
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
         (ev["event_id"],),
@@ -386,6 +428,16 @@ async def test_concurrent_requeue_different_events(
     ev2 = _event(topic="t2")
     client.post("/publish", json=ev1)
     client.post("/publish", json=ev2)
+    # Create consumer_delivery records required for REQ-002 per-consumer DLQ promotion
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-A", ev1["event_id"]),
+    )
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        ("consumer-B", ev2["event_id"]),
+    )
+    db.commit()
     db.execute(
         "UPDATE events SET delivery_failure_count = 2 WHERE event_id IN (?, ?)",
         (ev1["event_id"], ev2["event_id"]),

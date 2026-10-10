@@ -91,6 +91,12 @@ class TestRequeueEdgeCases:
 
         # Promote to DLQ
         db = open_db(str(tmp_path / "eventbus.sqlite"))
+        # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+        db.execute(
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            ("consumer-A", body["event_id"]),
+        )
+        db.commit()
         db.execute(
             "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
             (body["event_id"],),
@@ -142,6 +148,12 @@ class TestRequeueEdgeCases:
 
         # Promote to DLQ with delivery_failure_count >= max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
+        # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
+        db.execute(
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            ("consumer-A", body["event_id"]),
+        )
+        db.commit()
         db.execute(
             "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
             (body["event_id"],),
@@ -194,6 +206,12 @@ class TestRequeueEdgeCases:
 
         # Promote to DLQ
         db = open_db(str(tmp_path / "eventbus.sqlite"))
+        # Create a consumer_delivery record (required for REQ-002 per-consumer DLQ promotion)
+        db.execute(
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            ("consumer-A", body["event_id"]),
+        )
+        db.commit()
         db.execute(
             "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
             (body["event_id"],),

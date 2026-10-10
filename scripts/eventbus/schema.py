@@ -13,6 +13,7 @@ _DEFAULT_BUSY_TIMEOUT_MS = 30_000
 # Shared column constants
 from eventbus._constants import (
     _COL_CONSUMER_DELIVERY_FAILURE_COUNT,
+    _COL_CONSUMER_LAST_NACK_ATTEMPT,
     _COL_CYCLE_FAILURE_COUNT,
     _COL_DELIVERY_FAILURE_COUNT,
     _COL_DLQ_REQUEUE_COUNT,
@@ -81,20 +82,6 @@ def _migrate(conn: Connection) -> None:
             else:
                 raise
 
-    # Add consumer-specific failure counter column
-    try:
-        conn.execute(
-            f"ALTER TABLE events ADD COLUMN {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} INTEGER NOT NULL DEFAULT 0"
-        )
-        logger.info(
-            "migrated: added column %s to events", _COL_CONSUMER_DELIVERY_FAILURE_COUNT
-        )
-    except Exception as exc:
-        if exc.args and "duplicate column name" in str(exc.args[0]):
-            pass  # column already exists
-        else:
-            raise
-
     # Add consumer_id column for tracking which consumer last received the event
     try:
         conn.execute("ALTER TABLE events ADD COLUMN consumer_id TEXT")
@@ -105,14 +92,16 @@ def _migrate(conn: Connection) -> None:
         else:
             raise
 
-    try:
-        conn.execute("ALTER TABLE events DROP COLUMN retry_count")
-        logger.info("migrated: dropped column retry_count from events")
-    except Exception as exc:
-        if exc.args and "no such column" in str(exc.args[0]).lower():
-            pass  # already dropped, or table created fresh without it
-        else:
-            raise
+    # Drop columns that were removed (REQ-004: acked_at; per-consumer migration: consumer_delivery_failure_count)
+    for col in ("acked_at", _COL_CONSUMER_DELIVERY_FAILURE_COUNT):
+        try:
+            conn.execute(f"ALTER TABLE events DROP COLUMN {col}")
+            logger.info("migrated: dropped column %s from events", col)
+        except Exception as exc:
+            if exc.args and "no such column" in str(exc.args[0]).lower():
+                pass  # already dropped, or table created fresh without it
+            else:
+                raise
 
     for idx in (
         "idx_events_dlq_at ON events(dlq_at)",
@@ -152,5 +141,25 @@ def _migrate(conn: Connection) -> None:
         except Exception as exc:
             if exc.args and "duplicate column name" in str(exc.args[0]).lower():
                 pass  # table already exists (unlikely but defensive)
+            else:
+                raise
+
+    # Add per-consumer failure tracking columns to consumer_delivery
+    for col, col_type, default in [
+        (
+            _COL_CONSUMER_DELIVERY_FAILURE_COUNT,
+            "INTEGER NOT NULL DEFAULT 0",
+            "0",
+        ),
+        (_COL_CONSUMER_LAST_NACK_ATTEMPT, "TEXT", "NULL"),
+    ]:
+        try:
+            conn.execute(
+                f"ALTER TABLE consumer_delivery ADD COLUMN {col} {col_type}"
+            )
+            logger.info("migrated: added column %s to consumer_delivery", col)
+        except Exception as exc:
+            if exc.args and "duplicate column name" in str(exc.args[0]):
+                pass  # column already exists
             else:
                 raise
