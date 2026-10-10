@@ -55,18 +55,11 @@ Default: use explicit paths.
 git add scripts/agent.py tests/test_agent.py
 ```
 
-Use `git add -A` only when the user says "all changes":
-
-```bash
-git add -A
-```
-
-Use explicit paths (or `git add -A` per the rule above) — never `git add .`, since it
-stages relative to the current directory and can pick up files outside the intended scope.
+See `skills/git-commit-and-sync/SKILL.md`, section "Core rules".
 
 Stage only files that implement the current instruction's change. A file `git status`
 shows as modified but that this instruction did not touch stays unstaged, unless the user
-has said "all changes" (see the `git add -A` rule above).
+has said "all changes".
 
 **Completed when**: every file the current instruction changed is identified as a path to
 stage (or the `-A` condition applies).

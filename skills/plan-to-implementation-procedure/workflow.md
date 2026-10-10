@@ -34,8 +34,8 @@ This is a document-only phase. Allowed operations:
   rewriting existing content) so repeated invocations against the same Plan share one
   timestamp — this is an expected side effect of that tool, not a violation of the
   document-only constraint.
-- Do not modify source code files.
-- Do not update documentation (`docs/*.md`) — this phase does not allow it.
+- See `skills/plan-to-implementation-procedure/SKILL.md` Purpose and `skills/DESIGN.md`,
+  section "Analysis-only phase constraint".
 - Do not modify files outside `implementations/` and the plan file being moved — the
   general prohibition is `AGENTS.md` Global Rule 5.
 

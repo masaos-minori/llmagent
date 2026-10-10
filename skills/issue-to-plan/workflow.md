@@ -21,8 +21,8 @@ This is a document-only phase. Allowed operations:
   Step 6.
 - Move the processed Issue file to `issues/done/` once Step 9's validation passes —
   no human approval is required for this move.
-- Do not modify source code files.
-- Do not update documentation (`docs/*.md`).
+- See `skills/issue-to-plan/SKILL.md` Purpose and `skills/DESIGN.md`, section
+  "Analysis-only phase constraint".
 - Do not modify files outside `plans/`, `issues/`, and the Issue file being moved
   (`issues/` -> `issues/done/`) — see `AGENTS.md` Global Rule 5.
 
