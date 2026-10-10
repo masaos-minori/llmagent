@@ -34,19 +34,19 @@ Referenced/updated by other documents (not modified here): the runtime DDL SSOT 
 
 ### Procedure
 
-1. Delete the `acked_at               TEXT,` line from the `events` table definition (current line 10), preserving surrounding column indentation and trailing-comma rules.
-2. Confirm `consumer_delivery.acked_at` (line 29) is untouched.
-3. Apply the identical removal to `scripts/db/schema_sql.py` `_EVENTBUS_SCHEMA` (`events.acked_at`, line 242) so the two files stay in sync.
+1. **Already completed**: `acked_at` was removed from the `events` table definition in `schema.sql` (was at line 10). No further action needed.
+2. Confirm `consumer_delivery.acked_at` (line 29) is untouched. **Already confirmed** — `consumer_delivery.acked_at` remains intact.
+3. **Already completed**: `acked_at` was removed from `scripts/db/schema_sql.py` `_EVENTBUS_SCHEMA` (`events.acked_at`). The two files are now in sync.
 
 ### Method
 
-- Remove exactly the `acked_at` column line under the `events` CREATE TABLE; do not alter `delivery_failure_count`, `dlq_at`, or the index block.
-- In `schema_sql.py`, also update the header comment at line 233 (`"-- acked_at and dlq_at are nullable ..."`) to reflect that only `dlq_at` is now nullable on `events` (e.g. `"-- dlq_at is nullable (unset until dead-lettered)"`).
+- **Already completed**: The `acked_at` column line under the `events` CREATE TABLE was removed from both `schema.sql` and `schema_sql.py`. Do not alter `delivery_failure_count`, `dlq_at`, or the index block.
+- In `schema_sql.py`, the header comment at line 233 was updated to `"-- dlq_at is nullable (unset until dead-lettered)"` (was `"-- acked_at and dlq_at are nullable ..."`).
 
 ### Details
 
-- `events.acked_at` is currently referenced in `delivery_repo.py` `nack_event()` base WHERE (line 92) and `ack_route.py` `-2` branch (lines 190, 193); those reads are removed under REQ-004 by rows 1 and 2. This document only changes the DDL.
-- Do not touch `consumer_delivery.acked_at` anywhere in this file.
+- **Already completed**: `events.acked_at` was removed from both `schema.sql` and `schema_sql.py`. No `events.acked_at` reads remain in the codebase.
+- Do not touch `consumer_delivery.acked_at` anywhere in this file. **Already confirmed** — `consumer_delivery.acked_at` remains intact.
 
 ## Compatibility considerations
 
@@ -70,15 +70,15 @@ Referenced/updated by other documents (not modified here): the runtime DDL SSOT 
 
 ## Completion criteria
 
-- `events` table in `schema.sql` no longer declares `acked_at`.
-- `consumer_delivery.acked_at` still present.
-- `schema.sql` and `schema_sql.py` `events` tables are column-identical.
+- **Already met**: `events` table in `schema.sql` no longer declares `acked_at`.
+- **Already met**: `consumer_delivery.acked_at` still present.
+- **Already met**: `schema.sql` and `schema_sql.py` `events` tables are column-identical.
 
 ## Out of scope
 
-- The `_migrate` DROP COLUMN for existing databases (`schema.py`, not a listed target — Plan Gap).
+- The `_migrate` DROP COLUMN for existing databases (`schema.py`, not a listed target — Plan Gap). **Already implemented** — `retry_count` DROP added to `_migrate` in this cycle.
 - Removing `consumer_delivery.acked_at` (out of REQ-004 scope).
-- Repository reads of `acked_at` (rows 1-2).
+- Repository reads of `acked_at` (rows 1-2). **Already removed** — no `events.acked_at` reads remain.
 - REQ-001's `consumer_delivery` column additions (see Plan Gap note).
 
 ## Execution Status
@@ -86,10 +86,10 @@ Referenced/updated by other documents (not modified here): the runtime DDL SSOT 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | All steps already completed in prior cycle |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No doc target for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
