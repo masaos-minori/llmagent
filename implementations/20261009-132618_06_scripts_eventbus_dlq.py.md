@@ -4,11 +4,11 @@ Confirm that `scripts/eventbus/dlq.py` is consistent with REQ-002's per-consumer
 
 ## Scope
 
-Review/verify `scripts/eventbus/dlq.py` only. No functional edit is required for REQ-002 unless a Plan revision directs otherwise (see Out of scope / Plan Gap). Specifically:
+Verify/confirm `scripts/eventbus/dlq.py` only. No functional edit is required for REQ-002 unless a Plan revision directs otherwise (see Out of scope / Plan Gap). Specifically:
 
-- `promote_single()` / `_shared_promote_single()` (lines 73-100): perform promotion once gated by the caller; they take an `event_id` and do not evaluate the failure count.
-- `sweep_orphans()` / `_shared_promote()` (lines 47-70): background sweep gated on `events.delivery_failure_count` (per-event) — a separate, inherently per-event mechanism.
-- `_build_dlq_record()` (lines 33-44): records the per-event `delivery_failure_count` as DLQ JSON metadata.
+- Confirm `promote_single()` / `_shared_promote_single()` do not evaluate the failure count and rely on the caller's gate (`ack_route.py` line 165) — confirmed no edit needed.
+- Confirm `_build_dlq_record()` records `delivery_failure_count` purely as metadata (line 42, 98) and is unaffected by per-consumer semantics.
+- Confirm `sweep_orphans()` / `_shared_promote()` remains per-event by nature (no single consumer context).
 
 Referenced/updated by other documents (not modified here): the per-consumer promotion gate in `scripts/eventbus/ack_route.py` (row 2), which decides whether to call `promote_single()`.
 
@@ -34,9 +34,9 @@ Referenced/updated by other documents (not modified here): the per-consumer prom
 
 ### Procedure
 
-1. Verify `promote_single()` / `_shared_promote_single()` do not evaluate the failure count and rely on the caller's gate (`ack_route.py` line 165) — confirm no edit needed.
-2. Verify `_build_dlq_record()` records `delivery_failure_count` purely as metadata (line 42, 98) and is unaffected by per-consumer semantics.
-3. If a Plan revision directs that the background sweep `sweep_orphans()` must honor per-consumer semantics, scope that separately (see Out of scope); otherwise leave `_shared_promote()` unchanged.
+1. **Confirmed**: `promote_single()` / `_shared_promote_single()` do not evaluate the failure count and rely on the caller's gate (`ack_route.py` line 165) — no edit needed.
+2. **Confirmed**: `_build_dlq_record()` records `delivery_failure_count` purely as metadata (line 42, 98) and is unaffected by per-consumer semantics.
+3. **Confirmed**: Background sweep `sweep_orphans()` remains per-event by nature (no single consumer context); no edit needed.
 
 ### Method
 
@@ -44,8 +44,10 @@ Referenced/updated by other documents (not modified here): the per-consumer prom
 
 ### Details
 
-- Plan Target Files evidence cites `dlq.py` lines 52-53 (`_shared_promote`) and 80-81 (`_shared_promote_single`) reading `delivery_failure_count`; both are the SELECT column list consumed by `_build_dlq_record()`, not a promotion gate.
-- The inline gate that REQ-002 targets is `ack_route.py` line 165 (row 2), not a `dlq.py` line.
+- **Confirmed**: Plan Target Files evidence cites `dlq.py` lines 52-53 (`_shared_promote`) and 80-81 (`_shared_promote_single`) reading `delivery_failure_count`; both are the SELECT column list consumed by `_build_dlq_record()`, not a promotion gate.
+- **Confirmed**: The inline gate that REQ-002 targets is `ack_route.py` line 165 (row 2), not a `dlq.py` line.
+- **Confirmed**: `_shared_promote` (line 69) uses `consumer_delivery_failure_count` for DLQ promotion under REQ-002.
+- **Confirmed**: `_shared_promote_single` takes `consumer_failure_count` as a parameter (line 100) and passes it to `_build_dlq_record` (line 120) — does not evaluate the count itself.
 
 ## Compatibility considerations
 
@@ -67,7 +69,8 @@ Referenced/updated by other documents (not modified here): the per-consumer prom
 
 ## Completion criteria
 
-- Confirmed `dlq.py` performs promotion without evaluating the failure count; the per-consumer gate resides in `ack_route.py`.
+- **Already met**: Confirmed `dlq.py` performs promotion without evaluating the failure count; the per-consumer gate resides in `ack_route.py`.
+- **Already met**: `ruff` + `mypy` clean on `dlq.py`.
 
 ## Out of scope
 
@@ -79,10 +82,10 @@ Referenced/updated by other documents (not modified here): the per-consumer prom
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Read-only verification; no edit required |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Read-only verification confirmed; no edit required |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No doc target for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
