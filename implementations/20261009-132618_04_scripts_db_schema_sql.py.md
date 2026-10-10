@@ -1,14 +1,14 @@
 ## Goal
 
-Remove the `events.acked_at` column from the runtime DDL source of truth, `_EVENTBUS_SCHEMA`, in `scripts/db/schema_sql.py`, so fresh installs of `eventbus.sqlite` no longer create it. Keep `consumer_delivery.acked_at` and stay column-identical with the reference `schema.sql` (row 3).
+Confirm that `scripts/db/schema_sql.py` `_EVENTBUS_SCHEMA` is consistent with REQ-004: `events.acked_at` has been removed from the runtime DDL SSOT, `consumer_delivery.acked_at` is retained, and the two files remain column-identical.
 
 ## Scope
 
-Modify `scripts/db/schema_sql.py` only:
+Verify `scripts/db/schema_sql.py` only. No functional edit is required for REQ-004 unless a Plan revision directs otherwise (see Out of scope / Plan Gap). Specifically:
 
-- Delete `acked_at               TEXT,` from the `events` table inside `_EVENTBUS_SCHEMA` (current line 242).
-- Update the header comment at line 233 (`"-- acked_at and dlq_at are nullable ..."`) to reflect that only `dlq_at` is now nullable on `events`.
-- Leave `consumer_delivery.acked_at` (line 259) unchanged.
+- Confirm `acked_at` is absent from the `events` table inside `_EVENTBUS_SCHEMA` (current line 242 is `delivery_failure_count`, not `acked_at`).
+- Confirm `consumer_delivery.acked_at` (line 259) is untouched.
+- Confirm the migration statement dropping `events.acked_at` (lines 288-289) is present.
 
 Referenced/updated by other documents (not modified here): the reference copy `scripts/eventbus/schema.sql` (row 3), the migration path that drops the column from existing databases (`scripts/eventbus/schema.py` `_migrate`), and repository reads of `events.acked_at` (`scripts/eventbus/delivery_repo.py` row 1, `scripts/eventbus/ack_route.py` row 2).
 
@@ -35,10 +35,10 @@ Referenced/updated by other documents (not modified here): the reference copy `s
 
 ### Procedure
 
-1. Inside `_EVENTBUS_SCHEMA` (line 229), delete the `acked_at               TEXT,` line from the `events` table (current line 242), preserving indentation/comma rules.
-2. Update the header comment at line 233 to remove the `acked_at` reference (e.g. `"-- dlq_at is nullable (unset until dead-lettered)"`).
-3. Confirm `consumer_delivery.acked_at` (line 259) is untouched.
-4. Mirror the identical removal in `scripts/eventbus/schema.sql` (row 3).
+1. **Already completed**: `acked_at` was removed from the `events` table inside `_EVENTBUS_SCHEMA`. Line 242 is now `delivery_failure_count`, not `acked_at`.
+2. Confirm `consumer_delivery.acked_at` (line 259) is untouched. **Already confirmed**.
+3. Confirm the migration statement dropping `events.acked_at` (lines 288-289) is present. **Already confirmed**.
+4. **Already completed**: Mirror removal applied to `scripts/eventbus/schema.sql` (row 3).
 
 ### Method
 
@@ -47,7 +47,7 @@ Referenced/updated by other documents (not modified here): the reference copy `s
 
 ### Details
 
-- After this edit, no fresh-install DDL declares `events.acked_at`. Existing databases still hold the column until the `_migrate` DROP runs (see Compatibility / Plan Gap).
+- **Already completed**: After this edit, no fresh-install DDL declares `events.acked_at`. Existing databases still hold the column until the `_migrate` DROP runs (see Compatibility / Plan Gap).
 - `_EVENTBUS_SCHEMA` is a module-level string literal (lines 229-268); edit within it only.
 
 ## Compatibility considerations
@@ -74,9 +74,9 @@ Referenced/updated by other documents (not modified here): the reference copy `s
 
 ## Completion criteria
 
-- `_EVENTBUS_SCHEMA` `events` table no longer declares `acked_at`.
-- `consumer_delivery.acked_at` retained.
-- `schema.sql` and `schema_sql.py` `events` tables column-identical.
+- **Already met**: `_EVENTBUS_SCHEMA` `events` table no longer declares `acked_at`.
+- **Already met**: `consumer_delivery.acked_at` retained.
+- **Already met**: `schema.sql` and `schema_sql.py` `events` tables column-identical.
 
 ## Out of scope
 
@@ -90,10 +90,10 @@ Referenced/updated by other documents (not modified here): the reference copy `s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | All steps already completed in prior cycle |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | No doc target for this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
