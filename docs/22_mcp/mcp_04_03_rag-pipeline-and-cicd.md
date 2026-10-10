@@ -18,7 +18,7 @@ related:
 
 ## rag-pipeline-mcp 
 
-**Purpose:** RAG search pipeline (MQE → Search → RRF → Rerank → Deduplication → Expansion).
+**Purpose:** RAG search pipeline (MQE → Search → Fusion → Rerank → Augment, followed by the optional Refiner).
 **Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/rag_pipeline_mcp_server.toml`
 
@@ -26,8 +26,10 @@ related:
 
 | Tool | Input | Output |
 |---|---|---|
-| `rag_run_pipeline` | `{query, history_context?, debug?}` | `augmented_text` + `selected_hits` |
-| `rag_debug_pipeline` | `{query, history_context?}` | All intermediate stage outputs |
+| `rag_run_pipeline` | `{query, history_context?, debug?}` | Plain text: the `augmented_text` context block, or a fixed no-results message when it is empty |
+| `rag_debug_pipeline` | `{query, history_context?, debug?}` | JSON summary: `query`, `queries`, hit counts per stage (`merged_count`, `reranked_count`, `selected_count`), `elapsed`, `augmented_text` |
+
+The tools return text through `POST /v1/call_tool` (`CallToolResponse`: `result`, `is_error`). The direct endpoints `POST /rag_run_pipeline` and `POST /rag_debug_pipeline` return the structured models, where `selected_hits` (the final selected chunks) is a field of the response body; `selected_hits` is not part of the `/v1/call_tool` result.
 | `rag_list_documents` | `{lang?, limit?}` | List of indexed documents |
 | `rag_delete_document` | `{url}` | Deletion confirmation |
 
@@ -48,10 +50,12 @@ related:
 | `refiner_max_tokens` | Max tokens for context refinement |
 | `refiner_max_chars_per_chunk` | Max characters per chunk for context refinement |
 | `refiner_timeout` | Context refinement timeout (seconds) |
+| `auth_token` | Inbound Bearer token required by this server (resolved from `MCP_RAG_PIPELINE_AUTH_TOKEN`) |
+| `rag_auth_token` | Outbound Bearer token sent to a remote RAG service; empty means no header |
 
 Current default values are defined in `config/rag_pipeline_mcp_server.toml` and `RagPipelineConfig`.
 
-**Standalone Configuration Fields:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `mqe_n_queries`, `mqe_prompt_template`, `rerank_prompt_template`, `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`, `rrf_k`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`, `refiner_max_tokens`, `refiner_max_chars_per_chunk`, `refiner_timeout`
+**Standalone Configuration Fields:** `llm_url`, `embed_url`, `rag_db_path`, `sqlite_vec_so`, `mqe_n_queries`, `mqe_prompt_template`, `rerank_prompt_template`, `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`, `rrf_k`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`, `refiner_max_tokens`, `refiner_max_chars_per_chunk`, `refiner_timeout`, `auth_token`, `rag_auth_token`
 
 **Note:** host/port/http_timeout are not configuration keys of `config/rag_pipeline_mcp_server.toml`, because `RagPipelineConfig` does not load them. The values are hardcoded: `http_host` (MCPServer base class), `http_port` (`rag_pipeline/rag_pipeline_server.py`), `http_timeout` (`rag_pipeline/rag_pipeline_service.py`).
 

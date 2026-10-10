@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 import os
+import tempfile
 from typing import IO
 
 logger = logging.getLogger(__name__)
@@ -43,7 +44,7 @@ class StderrLogManager:
             HttpStartupError: If the log directory cannot be created or opened.
         """
         # Determine log directory and filename based on server_key
-        log_dir = f"/tmp/mcp_server_logs/{server_key}"
+        log_dir = f"{tempfile.gettempdir()}/mcp_server_logs/{server_key}"
         log_file_path = f"{log_dir}/stderr.log"
 
         try:

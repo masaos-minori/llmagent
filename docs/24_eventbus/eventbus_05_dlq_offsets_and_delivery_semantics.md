@@ -29,12 +29,13 @@ The server detects a collision only on live subscriptions:
 
 - A second concurrent `/subscribe` connection using the same non-empty `consumer_id` as an already-active connection is rejected with HTTP 409. Only one active connection per non-empty `consumer_id` is permitted at a time. The check is an in-process registry of active subscriptions in the broker (Explicit in code — `scripts/eventbus/broker.py`, `scripts/eventbus/subscribe_route.py`). Separately, the legacy offset-file migration (`migrate_legacy_offsets()`) refuses to proceed when two legacy files map to the same sanitized consumer ID.
 
-The ACK endpoint is not bound to a connection, so it does not detect a collision:
+The ACK endpoint is not bound to a connection, so it does not detect a collision. It restricts `consumer_id` only through the caller token's `consumer_id` allowlist (ADR-013 INV-02):
 
-- ACKs that carry the same `consumer_id` are all accepted, whichever caller sends them, and share a single offset row.
+- A caller whose token carries an allowlist may ACK only the `consumer_id` values bound to that token; any other value is rejected with HTTP 403.
+- ACKs that carry the same `consumer_id` from callers without an allowlist (the shared and admin tokens, and a CONSUMER token when `consumer_authorization` is an empty mapping) are all accepted, and share a single offset row.
 - That offset only moves forward: the highest acknowledged `seq` wins, regardless of the order of the ACKs.
 - Consumers that share an ID through ACK can therefore overwrite each other's progress, so one of them may skip events on resume.
-- ADR-006 INV-10 (concurrent use of the same Consumer ID is prohibited) is therefore enforced only on the `/subscribe` path, not on the ACK path. (Explicit in code — `scripts/eventbus/ack_route.py`, `scripts/eventbus/delivery_repo.py::ack_event_for_consumer`) This gap is tracked as EVENTBUS-013 in `governance_03_issue-and-uncertainty-management.md`.
+- ADR-006 INV-10 has two parts: at most one active `GET /subscribe` connection per non-empty Consumer ID, and ACK/NACK use limited to the `consumer_id` values bound to the caller's token. The first part is enforced on the `/subscribe` path only. The second part is not enforced for a caller without a `consumer_id` allowlist. (Explicit in code — `scripts/eventbus/ack_route.py`, `scripts/eventbus/delivery_repo.py::ack_event_for_consumer`) This gap is tracked as EVENTBUS-013 in `governance_03_issue-and-uncertainty-management.md`.
 
 To avoid collisions, use unique, stable consumer IDs per instance. Do not use volatile IDs such as PIDs.
 
@@ -78,7 +79,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 ### NACK Postconditions
 
 - `delivery_failure_count` is incremented.
-- If `delivery_failure_count >= max_retry`, the event is promoted to the DLQ.
+- Promotion to the DLQ is gated on the **per-consumer** failure count (`consumer_delivery_failure_count`), not the shared `delivery_failure_count`. The event is promoted only when the nacking consumer's own `consumer_delivery_failure_count` reaches `>= max_retry` AND every consumer that attempted delivery has given up (none has ACKed). One consumer's repeated NACKs never promote an Event shared by other consumers.
 - The response body includes `{event_id, delivery_failure_count}`.
 
 ### NACK Error Responses
@@ -88,7 +89,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### Duplicate NACK Behavior
 
-No idempotency guard exists in `nack_event`; `delivery_failure_count` increases with every call. This gap is tracked as EVENTBUS-012 in `governance_03_issue-and-uncertainty-management.md`.
+`nack_event` is idempotent per delivery attempt: a NACK that repeats the stored `consumer_delivery.last_nack_attempt` (the same delivery attempt) is a no-op and does not increment `delivery_failure_count`. Only a NACK for a new delivery attempt increments the counter.
 
 ### NACK followed by ACK
 
@@ -156,11 +157,11 @@ Invalid combinations fail startup with actionable error messages naming both con
 
 ### Inline Promotion Path
 
-When a NACK occurs and `delivery_failure_count` reaches `>= max_retry`, the event is immediately promoted to the DLQ. The background DLQ loop (periodic) serves as a safety net to catch any events missed during inline processing.
+When a NACK occurs and the nacking consumer's `consumer_delivery_failure_count` reaches `>= max_retry` AND every consumer that attempted delivery has given up (none has ACKed), the event is immediately promoted to the DLQ. The background DLQ loop (periodic) serves as a safety net to catch any events missed during inline processing.
 
 ### Background Loop Promotion
 
-The background DLQ loop runs periodically and promotes events that were missed during inline processing. It checks each event's `delivery_failure_count` against `max_retry` and promotes events that meet the criteria.
+The background DLQ loop runs periodically and promotes events that were missed during inline processing. It considers only events whose every attempting consumer has `consumer_delivery_failure_count >= max_retry` and none has ACKed (an event with no `consumer_delivery` rows is never promoted). The shared `events.delivery_failure_count` is intentionally ignored for gating.
 
 ### Requeue Semantics
 
@@ -201,12 +202,13 @@ See [Inline Promotion Path](#inline-promotion-path) and [Background Loop Promoti
 
 ### Failure Count Split
 
-The system tracks two independent failure counters:
+The system tracks three independent failure counters:
 
-- **`delivery_failure_count`** (lifetime): Accumulates across the event's entire lifecycle, including after redelivery. This counter represents the total number of failures since the event was first published.
+- **`delivery_failure_count`** (lifetime): Accumulates across the event's entire lifecycle, including after redelivery. This counter represents the total number of failures since the event was first published. It is reported in the NACK response but is **not** used to gate DLQ promotion.
 - **`cycle_failure_count`** (cycle-scoped): Resets to 0 on each redelivery. It tracks failures within the current retry cycle and does not gate DLQ promotion.
+- **`consumer_delivery_failure_count`** (per-consumer): Tracks failures for a single `(consumer_id, event_id)` delivery record. This is the counter that gates DLQ promotion.
 
-DLQ promotion thresholds use `delivery_failure_count` (the lifetime counter), not `cycle_failure_count`. A redelivered event inherits the original's `delivery_failure_count`, so one whose count is already at or above `max_retry` is promoted again on its next NACK.
+DLQ promotion is gated on the per-consumer `consumer_delivery_failure_count`, not on `delivery_failure_count` or `cycle_failure_count`. Promotion additionally requires that every consumer that attempted delivery has given up (none has ACKed); see [Inline Promotion Path](#inline-promotion-path) and [Background Loop Promotion](#background-loop-promotion).
 
 ### Requeue (Redelivery)
 
@@ -247,9 +249,9 @@ At-least-once. Duplicate publishing is suppressed by the `event_id` UNIQUE const
 
 | State | Definition |
 |-------|------------|
-| Normal/Delivered | `events.dlq_at IS NULL`, `events.delivery_failure_count < max_retry`, and the consumer has no `consumer_delivery.acked_at` for the event |
+| Normal/Delivered | `events.dlq_at IS NULL` and not every consumer that attempted delivery has exhausted its per-consumer retry budget (see Failed) |
 | ACKed (per consumer) | `consumer_delivery.acked_at IS NOT NULL` for that `(consumer_id, event_id)` |
-| Failed | `events.dlq_at IS NULL`, `events.delivery_failure_count >= max_retry`, and the consumer has no `consumer_delivery.acked_at` for the event |
+| Failed | `events.dlq_at IS NULL` and every consumer that attempted delivery has `consumer_delivery_failure_count >= max_retry` with none ACKed (promotable under per-consumer gating) |
 | DLQ | `events.dlq_at IS NOT NULL` |
 
 ACK is recorded per consumer in `consumer_delivery.acked_at` and in `consumer_offsets`; the ACK route does not write the event-level `events.acked_at` column. (Explicit in code — `scripts/eventbus/ack_route.py` `_do_ack()`, `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`) The ACKed state therefore applies to the acknowledging consumer only; another consumer's NACK of the same event is not rejected by that ACK.
@@ -260,8 +262,8 @@ A requeue is not a state of the original row. Under the lineage model the origin
 
 ```
 Normal ──ACK──> ACKed
-Normal ──NACK──> Failed (if delivery_failure_count >= max_retry)
-Failed ──NACK──> Failed (increment delivery_failure_count)
+Normal ──NACK──> Failed (if the nacking consumer's `consumer_delivery_failure_count >= max_retry` AND every attempting consumer has given up)
+Failed ──NACK──> Failed (increment `consumer_delivery_failure_count`; promotion fires once every attempting consumer has given up)
 Failed ──ACK──> ACKed
 DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cycle_failure_count reset, delivery_failure_count preserved)
 ```

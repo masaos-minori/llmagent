@@ -93,6 +93,8 @@ def _validate(data: _WorkflowJson) -> None:
     backoff_sec = int(policy["backoff_sec"])
     if backoff_sec < 0:
         raise WorkflowLoadError("retry_policy.backoff_sec must be >= 0")
+    if data.get("require_approval") is not True:
+        raise WorkflowLoadError("require_approval must be true for this workflow")
 
 
 class WorkflowLoader:

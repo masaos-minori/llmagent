@@ -73,7 +73,7 @@ All high-risk tools that access filesystem or remote resources use a fail-closed
 Tools that execute commands (shell, git, github CLI) enforce command allowlists:
 
 - **Shell MCP**: `command_allowlist` in `config/shell_mcp_server.toml` — only listed command prefixes allowed (e.g., `ls`, `cat`, `grep`, `git log`, `git status`)
-- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, but ref-shaped arguments (`branch`, `remote`, `commit`, `ref`) are rejected only when they start with `-` (`GitService._validate_ref()`), not validated against a safe-value allowlist — see `mcp_04_05_git.md` Command-specific guard status. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see Layered protection model below).
+- **Git MCP**: no subcommand allowlist exists. The tool surface is a fixed, named dispatch table (`git_status`, `git_checkout`, `git_pull`, `git_push`, etc.) rather than a free-form command string, and ref-shaped arguments are validated by tool class: write tools validate `branch` against a safe-name allow-list (`GitService._validate_ref_allowlist()`) and `remote` against a remote-name pattern (`GitService._validate_remote()`), while read tools (`commit`, `ref`, and `git_log` `branch`) reject only values that start with `-` (`GitService._validate_ref()`) — see `mcp_04_05_git.md` Command-specific guard status. Approval is an Agent-side (client) concern, not something the Git MCP server itself checks (see Layered protection model below).
 - **GitHub MCP**: Uses GitHub API directly; no shell command execution
 
 *Source: `mcp_05_01_access-control-and-allowlists.md` Command Allowlist*
@@ -98,7 +98,7 @@ This normalizes:
 - Symlinks (resolved to target)
 - Redundant separators (`//`, `./`)
 
-The resolved absolute path is then checked against the allowlist using prefix matching. If the resolved path is not under any allowlisted root, access is denied.
+The resolved absolute path is then checked against the allowlist using component-aware containment (path components are compared, not string prefixes, so a sibling such as `/allowed-evil` is not inside an `/allowed` root). If the resolved path is not contained in any allowlisted root, access is denied.
 
 This generalizes the path-traversal prevention language currently found only in `mcp_04_04_mdq.md` / `mcp_05_05_mdq-enforcement-and-lockdown.md` to all filesystem-touching high-risk tools (file-write, file-delete, shell, git).
 
@@ -131,17 +131,7 @@ The following table summarizes the approval-to-tier mapping defined in `mcp_05_0
 
 All high-risk tool executions emit audit log entries with the following fields:
 
-| Field | Description |
-|---|---|
-| `event` | Event type (e.g., `tool_exec`) |
-| `task_id` | Agent task ID |
-| `tool` | Tool name (e.g., `write_file`) |
-| `mcp_request_id` | MCP request ID (if applicable) |
-| `is_error` | Boolean |
-| `error_type` | Error category (`transport`, `tool`, `validation`, etc.) |
-| `ts` | Timestamp (Unix epoch seconds, float) |
-| `session_id` | Agent session ID |
-| `tool_args` | Redacted tool arguments (per redaction rules) |
+Each MCP server emits one JSON-lines audit record per tool call. The record's field definitions (including `event`, `source`, `ts`, `session_id`, `request_id`, `tool`, `target`, `outcome`, `server_key`, `error_type`, and the optional `detail`) are owned by `mcp_02_03_audit-logging-and-errors.md` Audit Log Format and are not restated here. The record carries a server-specific `target` (repository slug, truncated command, or truncated query) rather than the full tool arguments.
 
 *Source: `mcp_02_03_audit-logging-and-errors.md`*
 
@@ -155,7 +145,6 @@ unconditionally in every environment.
 | Tool safety tiers unknown keys | Fatal error (fail-closed) |
 | `approval_github_allowed_repos` empty | Deny all GitHub write operations |
 | `tool_safety_tiers` missing keys | Fatal error |
-| `security_lockdown_enabled` | Enforces stricter defaults |
 | MCP server bind address | Loopback (`127.0.0.1`/`::1`) only, unconditionally — any other host raises `ValueError` at startup |
 | Bearer token (`auth_token`) | Required and non-empty for every HTTP MCP server — an empty token raises `ValueError` at startup |
 
@@ -180,7 +169,7 @@ The fail-closed posture applies to:
 
 This policy defines the common baseline. Tool-specific deviations are documented in each tool's own documentation with clear references back to this policy. Examples:
 
-- **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `mcp_05_01_access-control-and-allowlists.md`); `protected_branches` itself only exists for GitHub MCP, not Git MCP.
+- **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `mcp_05_01_access-control-and-allowlists.md`).
 - **Git MCP**: `GitConfig.protected_branches` and `GitService._check_protected_branch()` (called via `_validate_protected()`) enforce a protected-branch policy (tests: `test_git_security_compliance.py::test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_is_safe_ref`; `TestLiveCallToolAuthorization`: `test_checkout_protected_branch_denied`, `test_pull_protected_branch_denied`, `test_push_protected_branch_denied`, `test_checkout_non_protected_branch_allowed`, `test_pull_non_protected_branch_allowed`, `test_push_non_protected_branch_allowed`, `test_checkout_implicit_target_denied`, `test_pull_implicit_target_denied`, `test_push_implicit_target_denied`). The Force-Push block is not applicable because `git_push` exposes no `force` parameter. Dirty-Worktree/Detached-HEAD guards and postcondition verification are implemented (`TestDryRunAndDetachedHeadLivePath`: `test_dry_run_checkout_skips_dirty_and_detached_precondition`, `test_dry_run_checkout_protected_branch_still_denied`, `test_non_dry_run_detached_head_denied_then_allowed`, `test_dry_run_pull_and_push_skip_dirty_precondition`; `TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`) (see `governance_03_issue-and-uncertainty-management.md`).
 - **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `mcp_04_02_file-write-file-delete-shell.md`)
 

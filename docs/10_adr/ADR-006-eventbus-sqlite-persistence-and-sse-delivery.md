@@ -212,7 +212,7 @@ Security requires preventing unintended Event reception.
 
 ### Operational Consequences
 
-- DLQ promotion happens inline on `POST /nack`, with a periodic background sweep as a safety net; a DLQ event is returned to delivery through `POST /dlq/{event_id}/requeue`.
+- DLQ promotion happens inline on `POST /nack`, with a periodic background sweep as a safety net; a DLQ event is returned to delivery through `POST /dlq/{event_id}/requeue`. Promotion is gated per consumer (see INV-13).
 - Health state (database availability, DLQ task state) is exposed through the health endpoint.
 
 ### Security Consequences
@@ -234,7 +234,7 @@ Security requires preventing unintended Event reception.
 - INV-10: A non-empty Consumer ID has at most one active `GET /subscribe` connection. On ACK and NACK, a caller may use only the `consumer_id` values bound to its token (ADR-013 INV-02).
 - INV-11: A second concurrent `GET /subscribe` with an active Consumer ID is detected and rejected with HTTP 409.
 - INV-12: When ACK persistence fails, an error response is returned, the delivery state and offset are not advanced, and the Event stays eligible for redelivery.
-- INV-13: DLQ promotion prefers inline promotion; the background loop only supplements it.
+- INV-13: DLQ promotion prefers inline promotion; the background loop only supplements it. An Event promotes only when every attempting consumer has exceeded max_retry (`consumer_delivery_failure_count`) and none has ACKed, so one consumer's NACKs never promote an Event shared by others; `events.dlq_at` stays event-level.
 - INV-14: When switching from Replay to Live, Consumers are required to process idempotently by event_id.
 - INV-15: The EventBus binds only to a loopback address; a non-loopback host fails configuration validation.
 - INV-16: The Delivery-State UPSERT and the Offset advancement in `ack_event_for_consumer()` are committed within a single transaction, and if either fails, both are rolled back.
@@ -387,11 +387,8 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (a CONSUMER token without a `consumer_id` allowlist is unrestricted, so the ACK/NACK binding of INV-10 is not enforced for it)
-- **Known Issue**: EVENTBUS-011 — tracked in governance_03 Part 1 (NACK on a concurrently deleted event)
-- **Known Issue**: EVENTBUS-012 — tracked in governance_03 Part 1 (duplicate NACK from the same consumer)
-- **Known Issue**: EVENTBUS-013 — tracked in governance_03 Part 1 (ACK and NACK check only the principal allowlist and do not enforce exclusive use of a Consumer ID)
-- **Known Issue**: EVENTBUS-014 — tracked in governance_03 Part 1 (`events.acked_at` is never written but is still read)
+- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (a principal without a `consumer_id` allowlist is unrestricted, namely the CONSUMER token when `consumer_authorization` is an empty mapping and the shared `auth_token`/`admin_token`, so the ACK/NACK binding of INV-10 is not enforced for it)
+- **Known Issue**: EVENTBUS-013 — tracked in governance_03 Part 1 (ACK and NACK are not bound to the active subscription of a `consumer_id`; they check only the principal allowlist)
 
 ## Review Triggers
 
@@ -436,14 +433,14 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/broker.py` — `EventBroker.publish()`, `EventBroker.subscribe()`
 - `scripts/eventbus/publish_route.py` — `publish()`
 - `scripts/eventbus/subscribe_route.py` — `subscribe()`
-- `scripts/eventbus/delivery_repo.py` — `ack_event()`, `ack_event_for_consumer()`, `nack_event()`, `get_consumer_offset()`
+- `scripts/eventbus/delivery_repo.py` — `ack_event_for_consumer()`, `nack_event()`, `get_consumer_offset()`
 - `scripts/eventbus/event_repo.py` — `insert_event()`
 - `scripts/eventbus/offset_migrator.py` — `migrate_legacy_offsets()`
 - `scripts/eventbus/db.py` — facade that re-exports the functions above
 - `scripts/eventbus/dlq.py` — `promote_single()`, `sweep_orphans()`
 - `scripts/eventbus/config.py` — `_validate_deployment_mode()`
 - `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
-- `events` table — `seq`, `event_id`, `topic`, `payload`, `acked_at` (event-level column; not written by the ACK route), `delivery_failure_count`, `dlq_requeue_count`, `dlq_at`
+- `events` table — `seq`, `event_id`, `topic`, `payload`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at` (no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`)
 - `consumer_delivery` table — `consumer_id`, `event_id`, `acked_at`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
 - Offset files — `{offsets_dir}/{sanitized_consumer_id}` (read only by `migrate_legacy_offsets()` at startup)

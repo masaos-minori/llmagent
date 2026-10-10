@@ -39,6 +39,8 @@ This ADR canonicalizes the decision to fall back automatically to the in-process
 
 The RAG pipeline depends heavily on the external RAG service, so a network failure or a service outage stops the whole search function. In addition, because the distinction between an empty result and a technical failure is unclear, appropriate recovery is difficult.
 
+This problem applies only to a process that delegates over HTTP. No production process delegates today: the rag-pipeline MCP server always runs in-process, and no configuration file sets `rag_service_url`. This ADR therefore governs the delegation code path as a capability that is not currently exercised in production.
+
 ### Constraints
 
 - Execution on a single host with multiple processes is assumed
@@ -50,6 +52,7 @@ The RAG pipeline depends heavily on the external RAG service, so a network failu
 ## Assumptions
 
 - Target environment: a single host, multiple processes
+- The HTTP delegation mode has no production caller; the decisions below apply when a process is configured with a non-empty `rag_service_url`
 - Expected scale: limited concurrency
 - Trust boundary: the external RAG service authenticates callers with a token; the local mode needs no network access
 - External dependencies: the external RAG service is reachable over HTTP; it is the dependency whose failure triggers the fallback
@@ -320,8 +323,8 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
 
 ## Implementation Notes
 
-- `RagPipeline.augment()` delegates to `HttpAugment` when `rag_service_url` is set; a non-`None` result (including `""`) is returned as final, and `None` makes `augment()` run the in-process pipeline.
-- `call_rag_service()` posts to the RAG service, retries 5xx and transport errors a bounded number of times, returns `""` for an empty or unparsable response, and returns `None` for exhausted retries and for 4xx.
+- `RagPipeline.augment()` delegates to `HttpAugment` when `rag_service_url` is set. `HttpAugment.run()` returns a non-`None` result (including `""`) as final, and returns `None` for a `transient_failure` outcome, which makes `augment()` run the in-process pipeline. An `auth_error` outcome returns `None` without a fallback, and `augment()` raises `RagPipelineError`.
+- `call_rag_service()` posts to the RAG service, retries 5xx and transport errors a bounded number of times, and returns a `CallRagResult(kind, result, status_code, latency_ms)`. `kind` is `success`, `empty` (`result` is `""` for an empty or unparsable response), `auth_error` (HTTP 401/403, no retry, `result` is `None`), or `transient_failure` (exhausted retries, other 4xx, or `is_error`; `result` is `None`).
 - `HttpAugment.run()` classifies the outcome (`remote_nonempty`, `remote_empty`, `in_process_fallback`) and `run_http_augment()` records `ResultSource` and `HttpResultKind` in the search diagnostics.
 - The rag_pipeline MCP server builds its pipeline configuration with an empty `rag_service_url`, so a call served by the external service never delegates again.
 

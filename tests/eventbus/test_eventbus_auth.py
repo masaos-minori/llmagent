@@ -860,8 +860,8 @@ class TestPrincipalFieldValidation:
 class TestFailClosedConsumerAuthorization:
     """Regression (EVENTBUS-008 / ADR-013 INV-02): a consumer_token declared
     without an explicit consumer_authorization MUST fail closed (raise
-    ValueError) at startup. An empty mapping {} is valid (deny-all); only None
-    is rejected — never weaken this guarantee."""
+    ValueError) at startup. An empty mapping {} is accepted and leaves the consumer
+    token unrestricted; only None is rejected — never weaken this guarantee."""
 
     @staticmethod
     def test_consumer_token_without_consumer_authorization_raises() -> None:

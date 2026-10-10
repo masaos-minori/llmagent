@@ -126,16 +126,11 @@ def _populate_token_maps(config: Any) -> None:
     consumer_authorization = getattr(config, "consumer_authorization", None)
     topic_authorization = getattr(config, "topic_authorization", None)
 
-    # Fail-closed: a consumer_token must declare an explicit allow-list.
-    # A missing consumer_authorization is rejected (EVENTBUS-008 closure / ADR-013
-    # INV-02). An empty mapping ({}) is valid and means "deny all consumers" — it is
-    # an explicit deny-all choice, not an absent policy, so it is not rejected here.
     consumer_token = getattr(config, "consumer_token", None)
     if consumer_token and consumer_authorization is None:
         raise ValueError(
             "consumer_token is configured but consumer_authorization is missing. "
-            "Add consumer_authorization to config/eventbus.toml before starting, "
-            "or set it to an empty mapping ({}) to deny all consumers."
+            "Add consumer_authorization to config/eventbus.toml before starting."
         )
 
     if consumer_authorization or topic_authorization:

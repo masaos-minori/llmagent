@@ -46,8 +46,8 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 
 - **Component Responsibilities**:
   - Ingestion: Admin/Operator initiates crawling via `crawler.py`; `WebCrawler` performs BFS crawl of same-origin URLs producing `{yyyymmddhhmmss}-{slug}.json` artifacts; `ChunkSplitter` splits crawled content using language-aware strategies (JA: Sudachi / EN: sentence / code: blank-line); `RagIngester` generates embeddings via embed-llm and upserts into SQLite; processed chunks are moved to `rag-src/registered/`.
-  - Query: Agent turn invokes `RagPipeline.augment(query)` via MCP HTTP; RagPipeline executes MQE → Search → RRF → Rerank → Augment stages; KNN + BM25 search operates over SQLite (rag.db).
-- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (No automated retention or cleanup exists; cleanup mechanism design is out of scope — requires separate design decision.). RagPipeline owns the query execution lifecycle; SQLite (rag.db) owns the vector store layer.
+  - Query: the Agent calls the `rag_run_pipeline` MCP tool; `RagPipelineMCPService` calls `RagPipeline.augment(query)`; RagPipeline executes the MQE → Search → Fusion → Rerank → Augment stages, followed by the optional Refiner; KNN + BM25 search operates over `rag.sqlite`.
+- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (No automated retention or cleanup exists; cleanup mechanism design is out of scope — requires separate design decision.). RagPipeline owns the query execution lifecycle; SQLite (`rag.sqlite`) owns the vector store layer.
 - **Ownership rationale**: `rag` layer's authority over query execution derives from the repository's layered-architecture rule (`rules/env.md`); SQLite's ownership of the vector store layer derives from `ADR-005` (canonical-source/derived-index relationship) and `ADR-010` (in-process fallback model).
 - **Allowed Dependency Direction**: Ingestion: Admin → crawler.py → chunk_splitter.py → ingester.py → rag-src/registered/. Query: Agent → MCP → RagPipeline → KNN + BM25 → SQLite. No circular dependencies among pipeline stages.
 - **Process Separation**: Each ingestion stage (`crawler.py`, `chunk_splitter.py`, `ingester.py`) is a separate script with its own `main()` entry point and its own configuration file, and the stages hand off work through files (crawled JSON, chunked JSON, `rag-src/registered/`) rather than in-process calls, so each stage can be run, re-run or restarted on its own. (Explicit in code — `scripts/rag/ingestion/crawler.py`, `chunk_splitter.py`, `ingester.py`) In the Query Pipeline, the MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
@@ -59,7 +59,7 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 
 Each ingestion stage is a separate script that exchanges data with the next stage through files, so a stage can be re-run or restarted without re-running the others (Process Separation). In the Query Pipeline, the MCP server operates independently of the agent lifecycle, and each stage can be updated or restarted without affecting the entire system.
 
-#### Why SQLite (rag.db) owns the vector store layer
+#### Why SQLite (`rag.sqlite`) owns the vector store layer
 
 Per ADR-005, SQLite's `documents`/`chunks` tables are the canonical data and `chunks_fts`/`chunks_vec` are derived indexes. ADR-005's Rationale rests on three points: (1) Data Integrity — separating canonical from derived data prevents canonical data from being updated through a derived index; (2) Operability — the deletion-order invariant (`chunks_vec` before `documents`) prevents orphan records, and unified consistency checks and repair procedures leave operators without ambiguity; (3) Portability — because the indexes can be rebuilt from `documents` and `chunks`, FTS5 or the vector engine can be replaced. See [ADR-005](../10_adr/ADR-005-rag-source-derived-index-relationships.md).
 
@@ -112,18 +112,18 @@ config/crawler.toml [target_urls]
 
 ## Query Pipeline
 
-**5 Logical Stages executed per agent turn**
+**Logical stages executed per agent turn**
 
-Stages: MQE → Search → Fusion → Rerank → Augmentation. For details on each stage, see `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md` through `docs/21_rag/rag_03_05_query_pipeline-augment-stages.md`.
+Stages: MQE → Search → Fusion → Rerank → Augment, followed by the optional Refiner. For details on each stage, see `docs/21_rag/rag_03_02_query_pipeline-rag-pipeline-class.md` through `docs/21_rag/rag_03_05_query_pipeline-augment-stages.md`.
 
 - **MQE**: Query expansion via LLM — generates related queries to broaden retrieval scope.
 - **Search**: Hybrid retrieval — combines vector similarity search with FTS5 full-text search.
 - **Fusion**: Reciprocal Rank Fusion — merges results from multiple search backends into a single ranked list.
 - **Rerank**: Cross-Encoder reranking — re-scores fused results using a Cross-Encoder model for higher precision.
-- **Augmentation**: Context formatting — formats retrieved chunks into a prompt-ready block with URL/title metadata and sanitizes injection patterns.
+- **Augment**: Context formatting — formats retrieved chunks into a prompt-ready block with URL/title metadata and sanitizes injection patterns.
 
 **Entrypoint:** `RagPipeline.augment(query) -> str`
-**Caller:** `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py` (via MCP HTTP)
+**Caller:** `RagPipelineMCPService.run_pipeline()` in `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`, reached by the Agent through the `rag_run_pipeline` MCP tool
 
 ### Semantic Cache
 
@@ -197,7 +197,7 @@ For operators who prefer a quick reference without navigating away from this doc
 
 - **`rag_pipeline_service.py`**: Pipeline orchestration and error handling. The `RagPipelineMCPService` class wraps `RagPipeline`, manages lifecycle (start/stop), formats results for MCP tool responses, and maintains the dispatch table mapping tool names to service methods.
 
-- **`scripts/rag/pipeline.py`**: Core search logic and stage execution. The `RagPipeline` class orchestrates the MQE → Search → RRF → Rerank pipeline stages, implements the `augment()` method with its fallback chain (HTTP → search → refiner → raw chunks), and collects diagnostics.
+- **`scripts/rag/pipeline.py`**: Core search logic and stage execution. The `RagPipeline` class orchestrates the MQE → Search → Fusion → Rerank → Augment pipeline stages, implements the `augment()` method with its fallback chain (HTTP → search → refiner → raw chunks), and collects diagnostics.
 
 The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) → `rag_pipeline_service.py` (orchestration) → `scripts/rag/pipeline.py` (search execution).
 

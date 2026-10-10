@@ -93,7 +93,7 @@ Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recov
 - `record_failure()` increments the failure count; when it reaches `failure_threshold`, the state becomes `UNAVAILABLE`.
 - `is_unavailable()` is not just a simple getter. After transitioning to `UNAVAILABLE`, once `half_open_cooldown_sec` has passed, it transitions to `HALF_OPEN` without notifying the caller, allowing exactly one trial call (which returns `False`).
 - A failure during `HALF_OPEN` immediately reverts the state to `UNAVAILABLE` and resets the cooldown.
-- `record_success()` restores the state to `HEALTHY` and clears the failure count and degraded reason.
+- `record_success()` restores the state to `HEALTHY` and clears the failure count. The registry does not store a degraded reason (see `mcp_06_10_health-reasons-and-error-kinds.md`).
 
 The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or routing — it is merely reference information and not an input for routing (consistent with [mcp_06_02](mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md)).
 

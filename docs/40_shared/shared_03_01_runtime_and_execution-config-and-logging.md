@@ -42,7 +42,7 @@ The agent, each MCP server, crawler, ingester, and chunk_splitter operate as ind
 
 ## 2b. `RagConfigValidator` (`shared/config_validator.py`)
 
-The RAG validator returns a `ConfigValidationResult(errors, warnings)` (with an `ok` property) and checks cross-file consistency in the `rag` section (e.g., mismatch between `embedding_dim`/`vec_dim`, `use_rrf=False`, cache thresholds).
+The RAG validator returns a `ConfigValidationResult(errors, warnings)` (with an `ok` property) and performs two checks on the `rag` section: a warning when `use_rrf=false` (degrades retrieval quality), and an error when a removed semantic-cache key is still present (migration check). It does not check `embedding_dim`/`vec_dim` consistency or cache thresholds.
 
 The production configuration validator (`ProductionConfigValidator`) lives in the agent package (`agent/production_config_validator.py`); its rules are described in `agent_08_04_configuration-mcp-approval-obs.md`.
 

@@ -56,17 +56,18 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | ID | Title | Status | Severity | Area | Type |
 |----|-------|--------|----------|------|------|
 | RAG-002 | Japanese sentences with empty normalized text are dropped with their original text | open | Low | RAG | implementation-bug |
-| AGENT-001 | Default workflow definition does not satisfy the documented require_approval policy | open | Medium | Agent | design-gap |
+| RAG-006 | Refiner settings in config/agent.toml are validated but never read by the Agent | open | Low | RAG | design-gap |
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
+| AGENT-005 | Approval and audit operation-type classification reads static tool-name sets before RuntimeToolRegistry | open | Medium | Agent | design-gap |
+| AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
+| AGENT-007 | A diagnostic row that fails to decrypt is returned as ciphertext with only a warning | open | Low | Agent | design-gap |
+| AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
 | MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
-| MCP-004 | git-mcp has no generic technical force-push block | open | Low | MCP | design-gap |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
+| DEPLOY-002 | Production uv run does not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
-| EVENTBUS-011 | NACK on a concurrently deleted event can return a misleading 409 | open | Low | EventBus | implementation-bug |
-| EVENTBUS-012 | Duplicate NACK from the same consumer increments the failure counters on every call | open | Medium | EventBus | implementation-bug |
-| EVENTBUS-013 | ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10) | open | Medium | EventBus | design-gap |
-| EVENTBUS-014 | `events.acked_at` is never written but is still read | open | Low | EventBus | implementation-bug |
+| EVENTBUS-013 | ACK and NACK are not bound to the active subscription of a consumer_id | open | Medium | EventBus | design-gap |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
 
 #### RAG-002
@@ -83,31 +84,31 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Target**: `docs/10_adr/ADR-009-rag-fts5-text-separation.md`
 - **Related**: None
 - **Summary**: Sentences that normalize to nothing are dropped, so `content` is lost for them.
-- **Current Description**: ADR-009 INV-05 says normalization never costs original text.
+- **Current Description**: ADR-009 INV-11 says a sentence whose normalized text is empty keeps its original text in `content`.
 - **Observed Implementation**: `_split_into_ja_sentences()` drops a pair whose normalized text is empty, together with the original sentence.
 - **Impact**: Original text of such sentences is missing from the index.
 - **Recommended Action**: Keep the original sentence in `content` when normalization is empty.
 - **Resolution Target**: `content` keeps every original sentence, covered by a test.
 
-#### AGENT-001
+#### RAG-006
 
-- **ID**: AGENT-001
-- **Title**: Default workflow definition does not satisfy the documented require_approval policy
+- **ID**: RAG-006
+- **Title**: Refiner settings in config/agent.toml are validated but never read by the Agent
 - **Status**: open
-- **Severity**: Medium
-- **Area**: Agent
+- **Severity**: Low
+- **Area**: RAG
 - **Type**: design-gap
-- **Source**: `config/workflows/default.json`
+- **Source**: `scripts/agent/config_builders.py`
 - **Owner**: Unassigned
 - **First Found**: Documentation review
-- **Target**: `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`
-- **Related**: `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`
-- **Summary**: The documented policy requires workflow-level approval for some categories, but the bundled default sets `require_approval` to false and no code enforces the policy.
-- **Current Description**: agent_03_03 labels the policy operational only.
-- **Observed Implementation**: `WorkflowLoader` treats `require_approval` as optional (false when absent); `ProductionConfigValidator` has no rule for it.
-- **Impact**: A default deployment has no workflow-level approval gate (the tool-level gate is separate).
-- **Recommended Action**: Either enforce the policy (validator rule and default definition) or reduce it to a recommendation.
-- **Resolution Target**: Policy, default definition and validator agree.
+- **Target**: `docs/21_rag/rag_05_01-configuration-reference.md`
+- **Related**: `docs/10_adr/ADR-010-rag-fallback.md`
+- **Summary**: `use_refiner` and the `refiner_*` keys in `config/agent.toml` are not read by any Agent code path.
+- **Current Description**: The keys appear as Agent RAG settings.
+- **Observed Implementation**: Only `embed_url` is read from `AgentConfig.rag`; the rag-pipeline MCP server uses `config/rag_pipeline_mcp_server.toml`.
+- **Impact**: Editing these keys has no effect on refiner behavior.
+- **Recommended Action**: Remove the unused keys from `config/agent.toml` and `RAGConfig`, or wire them to a consumer.
+- **Resolution Target**: Every refiner key in `config/agent.toml` has a consumer, or the keys are removed.
 
 #### AGENT-002
 
@@ -149,6 +150,86 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Apply `required` to spawn failures, or record the exception in ADR-004.
 - **Resolution Target**: Spawn failures follow `required`, or ADR-004 records the exception.
 
+#### AGENT-005
+
+- **ID**: AGENT-005
+- **Title**: Approval and audit operation-type classification reads static tool-name sets before RuntimeToolRegistry
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/tool_policy.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
+- **Related**: `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`
+- **Summary**: `classify_operation_type()` reads the frozensets in `shared/tool_constants.py` first and uses `RuntimeToolRegistry` only for READ versus UNKNOWN.
+- **Current Description**: ADR-003 INV-03 requires approval and auditing to reference the same `RuntimeTool` attributes as routing.
+- **Observed Implementation**: The operation type does not read the `RuntimeTool` write attribute.
+- **Impact**: A tool name missing from the static sets and registered as a write tool in `RuntimeToolRegistry` is classified READ for approval and audit.
+- **Recommended Action**: Derive the operation type from `RuntimeTool`, or record the static-set classification as an accepted exception in ADR-003.
+- **Resolution Target**: Approval and audit classification reference `RuntimeTool`, or ADR-003 records the exception.
+
+#### AGENT-006
+
+- **ID**: AGENT-006
+- **Title**: Secret masking of MCP subprocess output recognizes only key=value forms
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/secrets_masker.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`
+- **Related**: None
+- **Summary**: Masking of MCP subprocess output matches only `key=value` forms.
+- **Current Description**: Documented only as a chapter-level limitation in agent_10_01.
+- **Observed Implementation**: `_mask_secrets()` matches `password`, `api_key`, `secret` and `token` as `key=value`; a Bearer header is not masked.
+- **Impact**: Other secret shapes can reach logs and reports.
+- **Recommended Action**: Extend the patterns or reuse the shared redaction registry.
+- **Resolution Target**: Registered secrets in subprocess output are masked, tested.
+
+#### AGENT-007
+
+- **ID**: AGENT-007
+- **Title**: A diagnostic row that fails to decrypt is returned as ciphertext with only a warning
+- **Status**: open
+- **Severity**: Low
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/diagnostic_store.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/23_agent/agent_09_01_data-layer-session-db.md`
+- **Related**: None
+- **Summary**: A failed decryption leaves the ciphertext in the returned row.
+- **Current Description**: Documented only as a chapter-level limitation in agent_09_01.
+- **Observed Implementation**: The loader logs a warning and keeps the Fernet token in `content`.
+- **Impact**: A wrong or rotated key is not surfaced to the caller.
+- **Recommended Action**: Mark the row undecryptable or raise, or record it as accepted.
+- **Resolution Target**: A decryption failure is visible to the caller, or the tolerance is recorded.
+
+#### AGENT-008
+
+- **ID**: AGENT-008
+- **Title**: /undo after a compressed session reload can undo fewer turns than expected
+- **Status**: open
+- **Severity**: Low
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/services/undo_service.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/23_agent/agent_04_02_state-and-persistence-history-compression.md`
+- **Related**: None
+- **Summary**: Compression replaces original messages with a summary, so fewer turns are undoable.
+- **Current Description**: Documented only as a chapter-level limitation in agent_04_02.
+- **Observed Implementation**: `undo_last_turn()` removes the last turn from history and DB rows and only warns when it removes a summary.
+- **Impact**: Original messages cannot be recovered after compression.
+- **Recommended Action**: Keep originals recoverable, or record the limitation as accepted.
+- **Resolution Target**: The undo range after compression is defined and tested.
+
 #### MCP-003
 
 - **ID**: MCP-003
@@ -168,26 +249,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: `workflow="ci.yml"` is rejected under the checked-in configuration.
 - **Recommended Action**: Decide the accepted form (file name or full path), then align the guard or normalization, the configuration value and comment, and the documentation.
 - **Resolution Target**: The allowlist form, the guard, the tool schema and the documentation agree.
-
-#### MCP-004
-
-- **ID**: MCP-004
-- **Title**: git-mcp has no generic technical force-push block
-- **Status**: open
-- **Severity**: Low
-- **Area**: MCP
-- **Type**: design-gap
-- **Source**: `scripts/mcp_servers/git/git_service.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`
-- **Related**: None
-- **Summary**: The write allow-list closes the refspec vector, but forced updates are prevented only by the absent force parameter and that allow-list.
-- **Current Description**: ADR-012 requires a force push to be rejected through the normal `git_push` path.
-- **Observed Implementation**: `git_push` exposes no force field, the write allow-list rejects refspec forms before any git call, and the protected-branch check applies to the push destination.
-- **Impact**: No independent technical guard against a forced update exists beyond those two layers.
-- **Recommended Action**: Add a regression test that refspec forms are rejected, or record the current layering as accepted in ADR-012.
-- **Resolution Target**: Force-push prevention is covered by a test or recorded as accepted in ADR-012.
 
 #### DEPLOY-001
 
@@ -209,11 +270,31 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Decide where the procedure lives, document it, and correct the script header comment.
 - **Resolution Target**: The deployment document describes how both LLM services are started.
 
+#### DEPLOY-002
+
+- **ID**: DEPLOY-002
+- **Title**: Production uv run does not exclude the dev dependency group
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Deployment
+- **Type**: operational-gap
+- **Source**: `deploy/deploy.sh`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/90_deployment/deployment_01_deployment.md`
+- **Related**: `DEPLOY-001`
+- **Summary**: The deployment scripts call `uv run` without excluding the `dev` dependency group.
+- **Current Description**: deployment_01 section 1.2 states that no script passes such a flag.
+- **Observed Implementation**: The deploy scripts call `uv run` with `UV_SYSTEM_CERTS=true` only; `pyproject.toml` has a `dev` group.
+- **Impact**: Development dependencies can be installed in production.
+- **Recommended Action**: Exclude the dev group in the production scripts, or document a separate production sync.
+- **Resolution Target**: Production excludes the dev group, or the production sync is documented.
+
 #### EVENTBUS-008
 
 - **ID**: EVENTBUS-008
 - **Title**: Consumer-role token without a consumer_id allowlist skips consumer-identity validation
-- **Status**: resolved
+- **Status**: open
 - **Severity**: Medium
 - **Area**: EventBus
 - **Type**: design-gap
@@ -222,57 +303,17 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: ADR Known Deviations review
 - **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
 - **Related**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/10_adr/ADR-008-sqlite-4db-separation.md`
-- **Summary**: A CONSUMER-role token with no allowlist is not restricted to any consumer_id (fail-open).
-- **Current Description**: ADR-013 treats the consumer_id allowlist as the residual gap.
-- **Observed Implementation**: `_populate_token_maps()` rejects a `consumer_token` that has no `consumer_authorization` at startup (fail-closed, `auth.py` line 134); an empty mapping (`{}`) is the explicit deny-all choice. `require_consumer_identity()` therefore never sees `allowed_consumer_ids=None` for a configured CONSUMER token.
-- **Impact**: Previously an unrestricted CONSUMER token could act under any consumer_id.
-- **Recommended Action**: Resolved by fail-closed: reject a `consumer_token` without `consumer_authorization` at startup; keep `auth.py` and ADR-013 INV-02 aligned.
-- **Resolution Target**: Met: `auth.py` fails closed (rejects `consumer_token` without `consumer_authorization`; empty mapping = deny all) and ADR-013 INV-02 mandates fail-closed.
-
-#### EVENTBUS-011
-
-- **ID**: EVENTBUS-011
-- **Title**: NACK on a concurrently deleted event can return a misleading 409
-- **Status**: open
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: implementation-bug
-- **Source**: `scripts/eventbus/ack_route.py`
-- **Owner**: Unassigned
-- **First Found**: ADR Known Deviations review
-- **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Related**: None
-- **Summary**: An event deleted between the NACK call and the follow-up lookup yields 409 instead of 404.
-- **Current Description**: ADR-006 records the `(-2, -2)` result and a residual deletion race.
-- **Observed Implementation**: `ack_route.py` re-reads `acked_at`/`dlq_at` in a separate `run_with_db_lock()` call; a missing row falls into the final `else` and raises 409 "invalid NACK transition".
-- **Impact**: Low: one request returns the wrong status code.
-- **Recommended Action**: Treat a missing row as 404, or run the NACK and the lookup under one lock acquisition.
-- **Resolution Target**: A NACK on a concurrently deleted event returns 404, covered by a test.
-
-#### EVENTBUS-012
-
-- **ID**: EVENTBUS-012
-- **Title**: Duplicate NACK from the same consumer increments the failure counters on every call
-- **Status**: open
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: implementation-bug
-- **Source**: `scripts/eventbus/delivery_repo.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
-- **Related**: None
-- **Summary**: A NACK of an event that is neither ACKed nor in the DLQ always increments `delivery_failure_count` and `cycle_failure_count`.
-- **Current Description**: No guard exists for a repeated NACK, unlike ACK-then-NACK.
-- **Observed Implementation**: `nack_event()` applies its `UPDATE` whenever `acked_at IS NULL AND dlq_at IS NULL`; there is no per-consumer NACK-state check.
-- **Impact**: A duplicated NACK can promote an event to the DLQ early.
-- **Recommended Action**: Decide whether NACK must be idempotent per consumer; if so add a guard and align the documentation.
-- **Resolution Target**: Repeated NACKs for the same delivery attempt do not change the counters again, covered by a test.
+- **Summary**: A principal without a consumer_id allowlist is not restricted to any consumer_id.
+- **Current Description**: ADR-013 INV-02 forbids acting as another `consumer_id`.
+- **Observed Implementation**: A `consumer_token` without `consumer_authorization` is rejected at startup. With empty `consumer_authorization` and `topic_authorization` mappings, the CONSUMER token gets `allowed_consumer_ids=None` (unrestricted), as do `auth_token` and `admin_token`.
+- **Impact**: An unrestricted principal can use any `consumer_id`.
+- **Recommended Action**: Deny all consumers on an empty mapping, or reject it at startup.
+- **Resolution Target**: Every CONSUMER token has a non-empty allowlist or is denied, covered by a test.
 
 #### EVENTBUS-013
 
 - **ID**: EVENTBUS-013
-- **Title**: ACK and NACK do not enforce Consumer ID exclusivity (ADR-006 INV-10)
+- **Title**: ACK and NACK are not bound to the active subscription of a consumer_id
 - **Status**: open
 - **Severity**: Medium
 - **Area**: EventBus
@@ -282,32 +323,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
 - **Related**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
-- **Summary**: INV-10 forbids concurrent use of one `consumer_id`, but only `/subscribe` enforces it.
-- **Current Description**: The delivery-semantics document states ACK does not detect a collision.
-- **Observed Implementation**: `/ack` and `/nack` enforce that the caller may only use `consumer_id`s bound to its token (deny-all on an empty frozenset; `auth.py` fail-closed) — this is token binding, not exclusive use. A second concurrent `/subscribe` still gets 409 from the in-process broker registry; neither `/ack` nor `/nack` enforces that only one active connection holds a `consumer_id`.
-- **Impact**: Callers sharing a `consumer_id` overwrite each other's progress.
-- **Recommended Action**: Exclusive use remains unenforced on ACK/NACK: bind ACK/NACK to the active subscription, or narrow INV-10 to the subscribe path; add a test. Token binding (which `consumer_id`s a caller may use) is already enforced.
-- **Resolution Target**: INV-10 and the ACK path agree, covered by a test.
-
-#### EVENTBUS-014
-
-- **ID**: EVENTBUS-014
-- **Title**: `events.acked_at` is never written but is still read
-- **Status**: open
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: implementation-bug
-- **Source**: `scripts/eventbus/delivery_repo.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md`
-- **Related**: `EVENTBUS-012`
-- **Summary**: The ACK route writes only per-consumer state, yet NACK and a 409 branch test `events.acked_at`.
-- **Current Description**: The delivery-semantics document defines ACKed per consumer.
-- **Observed Implementation**: `ack_event_for_consumer()` writes `consumer_delivery` and `consumer_offsets`; `ack_event()`, the only writer of `events.acked_at`, has no caller.
-- **Impact**: The event-level ACK guard in NACK never triggers.
-- **Recommended Action**: Remove the dead helper, column and checks, or write the column on ACK.
-- **Resolution Target**: No code reads `events.acked_at` without a writer.
+- **Summary**: ACK and NACK check token binding but not the active subscription of the `consumer_id`.
+- **Current Description**: ADR-006 INV-10 allows one active `/subscribe` connection per consumer ID and binds ACK and NACK to the caller's token.
+- **Observed Implementation**: `/ack` and `/nack` reject a `consumer_id` outside the caller's allowlist. Only `/subscribe` gets 409 from the broker registry for a second connection.
+- **Impact**: Callers sharing a token and `consumer_id` overwrite each other's progress.
+- **Recommended Action**: Bind ACK and NACK to the active subscription, or record token-only binding as accepted in ADR-006; add a test.
+- **Resolution Target**: ADR-006 INV-10 and ACK/NACK behavior agree, covered by a test.
 
 #### EVENTBUS-015
 
@@ -319,14 +340,14 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Type**: design-gap
 - **Source**: `scripts/eventbus/auth.py`
 - **Owner**: Unassigned
-- **First Found**: 2026-10-08
+- **First Found**: Documentation review
 - **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
 - **Related**: `EVENTBUS-008`
 - **Summary**: The mandatory shared token and the admin token map to every role, so per-role separation holds only for callers that hold per-role tokens.
 - **Current Description**: ADR-013 defines five roles, each granted a fixed set of routes.
 - **Observed Implementation**: The principal map assigns every role to `auth_token` and to `admin_token`.
 - **Impact**: A publisher or consumer process given `auth_token` can call operator and admin routes.
-- **Recommended Action**: Keep these tokens operator-level and record the deployment policy in ADR-013 (DONE 2026-10-08: INV-07 and Decision Details #1 state they are operator credentials that MUST NOT be distributed to publisher/consumer processes), or make per-role tokens sufficient. The every-role property itself is managed by operator discipline, not code.
+- **Recommended Action**: Keep these tokens operator-only and enforce that no publisher or consumer process receives them (for example by a deployment check against ADR-013 INV-07), or make per-role tokens sufficient so the every-role tokens are not needed.
 - **Resolution Target**: ADR-013 and the deployment practice agree, or per-role tokens suffice.
 
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.

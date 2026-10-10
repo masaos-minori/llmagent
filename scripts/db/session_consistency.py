@@ -66,7 +66,7 @@ def _check_read_smoke_test(db: SQLiteHelper) -> bool:
     ]
     for table in required_tables:
         try:
-            db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
+            db.execute(f"SELECT COUNT(*) FROM {table}").fetchone()  # nosec B608 — table names are hardcoded constants from required_tables, not user-controlled
         except sqlite3.Error:
             return False
     return True

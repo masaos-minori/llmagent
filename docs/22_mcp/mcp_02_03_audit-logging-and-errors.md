@@ -29,7 +29,7 @@ Each `POST /v1/call_tool` invocation outputs one JSON-lines audit record.
 | `request_id` | `X-Request-Id` (UUID injected by middleware) | Yes | `"-"` |
 | `tool` | `req.name` (tool name) | Yes | — |
 | `target` | Server-specific: repository slug / truncated command / truncated query (truncation length defined per server, e.g. `scripts/mcp_servers/shell/shell_server.py`, `scripts/mcp_servers/mdq/audit_target.py`) | Yes | — |
-| `outcome` | `"ok"` or `"error"` | Yes | — |
+| `outcome` | `"ok"`, `"error"`, or `"rejected"` (the call was rejected by a policy guard before or instead of execution; emitted by git-mcp) | Yes | — |
 | `detail` | Optional supplementary info | No | Omitted |
 | `server_key` | Server identifier (e.g., `"file_read"`, `"cicd"`, `"mdq"`, `"shell"`, `"github"`) | Yes | `""` |
 | `error_type` | Error classification for transport failures | Yes | `""` |

@@ -224,7 +224,7 @@ See Implementation References for the file/symbol list.
 
 ## Known Deviations
 
-No confirmed deviations.
+- **Known Issue**: AGENT-005 — tracked in governance_03 Part 1 (approval and audit operation-type classification reads the static tool-name sets in `tool_constants.py` before `RuntimeToolRegistry`; deviates from INV-03)
 
 ## Review Triggers
 

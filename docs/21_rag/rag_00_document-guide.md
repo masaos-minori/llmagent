@@ -50,7 +50,7 @@ Read this file first to determine which chapter you should open.
 | How does the query pipeline work (stages, RRF, reranking)? | `rag_03` |
 | What is the `RagPipeline` API? | `rag_03` |
 | How does `use_rrf` affect fusion mode? | `rag_03` |
-| What is the SQLite schema for the RAG database? | [db_08_active_databases.md](../41_db/db_08_active_databases.md) |
+| What is the SQLite schema for the RAG database (`rag.sqlite`)? | [db_02_architecture_and_schema-schema-reference.md](../41_db/db_02_architecture_and_schema-schema-reference.md) |
 | What are `RawHit`, `MergedHit`, and `RankedHit`? | `rag_04` |
 | What are the configuration parameters? | `rag_05` |
 | Are there any known bugs or behavioral inconsistencies? | `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: RAG) |

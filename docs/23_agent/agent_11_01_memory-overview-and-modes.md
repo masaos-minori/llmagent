@@ -50,7 +50,7 @@ The memory layer operates in four different modes, which can be checked via `/me
 **Conditions for each mode:**
 
 - **Hybrid mode**: Default when memory is enabled, the embedding endpoint is reachable, and returns valid embeddings.
-- **FTS-only**: When `memory_embed_enabled = false`, only FTS is used. Separately, an individual retrieval whose embedding call fails (network error, timeout, invalid response) falls back to FTS only for that retrieval; this happens automatically without manual intervention.
+- **FTS-only**: When `memory_embed_enabled = false` (or no embedding client exists), only FTS is used. This is a configuration state, not a reaction to a failed embedding health check: an unreachable embedding service at startup fails the readiness check (FATAL) instead of entering this mode. The mode table in `agent_08_03_configuration-tools-memory.md` is the canonical definition. Separately, an individual retrieval whose embedding call fails (network error, timeout, invalid response) falls back to FTS only for that retrieval; this happens automatically without manual intervention.
 - **Degraded mode**: When the embedding circuit breaker trips due to continuous failures. The circuit breaker threshold can be configured in `embedding_client.py`. Degraded mode uses the same FTS fallback as above but indicates an ongoing issue with the embedding service.
 - **Disabled**: When `use_memory_layer = false` is set in `config/agent.toml`. No memory search is performed regardless of embedding availability.
 

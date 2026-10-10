@@ -25,7 +25,7 @@ Primary store for all events. WAL mode is enabled to allow concurrent reads. DB 
 
 ## Schema
 
-Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `acked_at` (event-level column; not written by the ACK routes, which record acknowledgements per consumer in `consumer_delivery`), `delivery_failure_count`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ).
+Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `acked_at` (event-level column; not written by the ACK routes, which record acknowledgements per consumer in `consumer_delivery`), `delivery_failure_count`, `cycle_failure_count`, `redelivered_from`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ), `consumer_id`, `consumer_delivery_failure_count`. The authoritative column definitions are in `scripts/eventbus/schema.sql`.
 
 Schema migrations for existing databases are idempotent.
 
@@ -81,14 +81,16 @@ If the output is not `ok`, the database may be corrupted. Proceed to Step 5 (con
 
 ### Step 2: Validate sequence continuity
 
-Check for gaps in the sequence numbers:
+`seq` is an `AUTOINCREMENT` key and is not guaranteed to be contiguous: a rolled-back insert or a removed row leaves a gap. A gap in `seq` MUST NOT be treated as event loss, and `MAX(seq) - MIN(seq) != COUNT(*) - 1` is not a valid check.
+
+Compare the row count with the JSONL archive instead, which holds one line per unique event:
 
 ```bash
-sqlite3 /path/to/eventbus.sqlite "SELECT seq FROM events ORDER BY seq LIMIT 1;"
-sqlite3 /path/to/eventbus.sqlite "SELECT MAX(seq) FROM events;"
+sqlite3 /path/to/eventbus.sqlite "SELECT COUNT(*) FROM events;"
+wc -l < {storage_dir}/events.jsonl
 ```
 
-Compare the minimum and maximum `seq` values. If there are gaps (i.e., `MAX(seq) - MIN(seq) != COUNT(*) - 1`), some events may have been lost.
+A JSONL count lower than the row count is possible, because a failed archive append does not fail the publish. A JSONL count higher than the row count indicates an inconsistency.
 
 ### Step 3: Check consumer progress
 
@@ -132,8 +134,10 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 4. Start the EventBus process again:
    ```bash
-   uvicorn eventbus.app:app --host <loopback-host> --port <port> &
+   PYTHONPATH=/opt/llm/scripts python -m eventbus.app >> /opt/llm/logs/eventbus.log 2>&1 &
    ```
+
+   Start the process through `eventbus.app` as the entry point (the same command as `deploy/setup_services.sh`). Do not invoke `uvicorn` directly, because that bypasses the post-start check that the bound socket is a loopback address.
 
 5. Verify the process started successfully:
    ```bash

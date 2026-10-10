@@ -26,6 +26,7 @@ _VALID = {
         {"id": "verify", "timeout_sec": 10, "retryable": False},
     ],
     "retry_policy": {"max_attempts": 3, "backoff_sec": 1},
+    "require_approval": True,
 }
 
 
@@ -198,3 +199,39 @@ class TestWorkflowLoaderLoad:
         loader = WorkflowLoader(workflows_dir=workflows_dir)
         wdef = loader.load()
         assert {s.id for s in wdef.stages} == {"plan", "execute", "verify"}
+
+
+class TestRequireApprovalEnforcement:
+    """REQ-001: a workflow definition must carry require_approval: true at load time."""
+
+    def test_require_approval_absent_rejected(self, tmp_path: Path) -> None:
+        data = {k: v for k, v in _VALID.items() if k != "require_approval"}
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="require_approval must be true"):
+            loader.load()
+
+    def test_require_approval_false_rejected(self, tmp_path: Path) -> None:
+        data = dict(_VALID, require_approval=False)
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        with pytest.raises(WorkflowLoadError, match="require_approval must be true"):
+            loader.load()
+
+    def test_require_approval_true_accepted(self, tmp_path: Path) -> None:
+        data = dict(_VALID, require_approval=True)
+        _write_json(tmp_path, "default", data)
+        loader = WorkflowLoader(workflows_dir=tmp_path)
+        wdef = loader.load()
+        assert wdef.require_approval is True
+
+    def test_default_workflow_satisfies_require_approval(self) -> None:
+        """Shipped config/workflows/default.json sets require_approval: true."""
+        import pathlib
+
+        workflows_dir = (
+            pathlib.Path(__file__).parent.parent.parent.parent / "config" / "workflows"
+        )
+        loader = WorkflowLoader(workflows_dir=workflows_dir)
+        wdef = loader.load()
+        assert wdef.require_approval is True

@@ -159,7 +159,7 @@ MCP server processes (mcp_servers/<name>/<name>_server.py)
 | Constraint | Value | Source |
 |---|---|---|
 | Max response size | Fixed limit (`MCP_MAX_RESPONSE_BYTES`) | `scripts/mcp_servers/server.py` |
-| Auth header | `Authorization: Bearer <token>` (when `auth_token` is configured) | `scripts/mcp_servers/server.py` |
+| Auth header | `Authorization: Bearer <token>` (`auth_token` is required for every HTTP server except mdq-mcp) | `scripts/mcp_servers/server.py` |
 | Health threshold | Consecutive failures reaching `failure_threshold` → UNAVAILABLE | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
 | Circuit breaker recovery | `UNAVAILABLE` auto-transitions to `HALF_OPEN` (a trial state allowing one request) after `half_open_cooldown_sec` on `is_unavailable()`. | `shared/mcp_health.py` (`McpServerHealthRegistry`) |
 

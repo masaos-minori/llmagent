@@ -61,3 +61,44 @@ Reuse the loader; keep the change to the preflight and its tests. Report if the 
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261008-150558
 - **Related target files**: `scripts/agent/services/workflow_schema.py`, `tests/agent/test_startup_workflow_preflight.py`
+
+## Adversarial Verification Results
+
+Verified against current source on 2026-10-09. All core claims hold; one
+target-file discrepancy surfaced.
+
+### Confirmed
+- `check_workflow_definition` (`scripts/agent/services/workflow_schema.py:30-33`)
+  checks only `.exists()`; invalid JSON, wrong shape, and missing required
+  stages pass it.
+- Content validation already lives in the loader: `workflow_loader.py`
+  `_validate()` raises `WorkflowLoadError` for missing keys, wrong types,
+  empty/duplicate stages, missing required stages, and bad `retry_policy`;
+  `load()` raises `WorkflowLoadError` on parse errors and non-object JSON.
+- Startup call site: `startup_component_init.py:_check_workflow_definition`
+  calls `check_workflow_definition()`.
+- Last line of defense: `orchestrator.py:128-133` catches
+  `WorkflowLoadError`/`FileNotFoundError` and re-raises `RuntimeError` naming
+  the file and cause.
+- The loader is side-effect free (pure read + in-memory construct), so it can
+  be called from the preflight.
+
+### Discrepancy (needs resolution)
+- This issue lists `tests/agent/test_startup_workflow_preflight.py` as the
+  test target, but that file mocks `check_workflow_definition` and only tests
+  the wrapper `_check_workflow_definition`. Real-function content tests live in
+  `tests/agent/test_repl_health.py::TestCheckWorkflowDefinition`. Content
+  validation tests (malformed JSON, missing required stage) should be added to
+  `test_repl_health.py`, where the real function is exercised with real tmp
+  files.
+
+### Open decision (owner)
+- The issue frames this as a decision ("decide whether the preflight should
+  also validate the content"). Both paths are fatal with comparable messages
+  (preflight now vs. Orchestrator constructor). Proceeding in the issue's YES
+  direction, but final sign-off is the owner's.
+
+### Recorded decisions (2026-10-09)
+- Test target: `tests/agent/test_repl_health.py` (real function), not
+  `test_startup_workflow_preflight.py` (wrapper-only).
+- Direction: proceed with content validation (owner to confirm final sign-off).

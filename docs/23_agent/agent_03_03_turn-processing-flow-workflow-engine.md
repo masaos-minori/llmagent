@@ -47,7 +47,7 @@ Any `RuntimeError` is not caught by the caller's `except` block and propagates f
 
 When `WorkflowEngine(require_approval=True)` is used, the engine pauses after the `execute` stage completes and before the `verify` stage begins:
 
-**Operations Policy (Decided):** Whether `WorkflowDef.require_approval` is required is defined per operation category. Any deployment whose workflow can reach a category marked "Required" in the table below MUST explicitly set `require_approval: true` in its `config/workflows/*.json`. This is an operational policy only: `WorkflowLoader` parses `require_approval` as an optional boolean that is false when absent, and `ProductionConfigValidator` has no `require_approval` rule, so neither enforces it (Explicit in code — scripts/agent/workflow/workflow_loader.py, scripts/agent/production_config_validator.py). The bundled `config/workflows/default.json` sets `require_approval` to false and therefore does not meet this policy for the "Required" categories; the workflow-level gate does not fire with it.
+**Operations Policy (Decided):** Whether `WorkflowDef.require_approval` is required is defined per operation category. Any deployment whose workflow can reach a category marked "Required" in the table below MUST explicitly set `require_approval: true` in its `config/workflows/*.json`. This is enforced at startup: `WorkflowLoader._validate()` rejects any workflow definition whose `require_approval` is absent or `false` (`WorkflowLoadError`), so a misconfiguration fails startup rather than silently running without the workflow-level gate. The bundled `config/workflows/default.json` sets `require_approval: true` and therefore satisfies this policy for the "Required" categories.
 
 | Operation Category | Workflow-level Approval Required |
 |---|---|
@@ -154,7 +154,6 @@ With the bundled `config/workflows/default.json`, the workflow-level approval ga
 
 ## Known Limitations
 
-- The workflow-level approval gate is disabled in the bundled workflow definition, and no code enforces the operations policy above; enabling it requires an explicit workflow definition change. This gap is tracked as AGENT-001 in `governance_03_issue-and-uncertainty-management.md`.
 - Only "fixed" backoff strategy is implemented for retries.
 
 ---

@@ -61,7 +61,13 @@ def _publish_event(client: Any, ev: dict[str, Any]) -> None:
 
 
 def _simulate_delivery(client: Any, event_id: str, consumer_id: str) -> None:
-    """Insert a consumer_delivery record to simulate event delivery."""
+    """Insert a consumer_delivery record simulating one prior failed attempt.
+
+    Seeds consumer_delivery_failure_count=1 with a mismatched last_nack_attempt
+    so a subsequent NACK is not treated as a REQ-001 repeat and instead brings
+    the per-consumer count to max_retry(2), enabling per-consumer DLQ promotion
+    (REQ-002).
+    """
     import eventbus.app as eb_app
 
     db = eb_app.app.state.db
@@ -70,7 +76,9 @@ def _simulate_delivery(client: Any, event_id: str, consumer_id: str) -> None:
         (consumer_id, event_id),
     )
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, acked_at, last_nack_attempt, consumer_delivery_failure_count) "
+        "VALUES (?, ?, NULL, 'seeded-attempt', 1)",
         (consumer_id, event_id),
     )
     db.commit()
@@ -100,19 +108,14 @@ def test_dlq_pagination(client: TestClient) -> None:
         _publish_event(client, ev)
         events.append(ev["event_id"])
 
-    # Simulate delivery to consumer-A so /nack can accept the requests
+    # Simulate one prior failure per event so a single NACK reaches max_retry(2).
     for event_id in events:
         _simulate_delivery(client, event_id, "consumer-A")
 
-    # Promote all to DLQ (first nack per event — increments failure count; second nack promotes to DLQ)
+    # Promote all to DLQ. Under per-consumer gating (REQ-002) a single consumer
+    # reaching its own max_retry promotes; the shared delivery_failure_count is
+    # intentionally not used for promotion gating.
     nack_headers = {"Authorization": "Bearer consumer-token"}
-    for event_id in events:
-        r = client.post(
-            "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
-            headers=nack_headers,
-        )
-        assert r.status_code == 200
     for event_id in events:
         r = client.post(
             "/nack",

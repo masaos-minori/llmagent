@@ -22,5 +22,5 @@
       "max_attempts": 3,
       "backoff_sec": 1
     },
-    "require_approval": false
+    "require_approval": true
 }
