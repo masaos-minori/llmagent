@@ -6,10 +6,10 @@ Update `docs/24_eventbus/eventbus_12_ack_nack_endpoints.md` so its NACK conflict
 
 Modify `docs/24_eventbus/eventbus_12_ack_nack_endpoints.md` only:
 
-- Conflict Responses section (~line 176-178): remove the "the event has `events.acked_at` set" clause; keep "already in the DLQ" and "the requesting consumer has already ACKed via `consumer_delivery.acked_at`".
+- Conflict Responses section (~line 176-178): remove the "the event has `events.acked_at` set" clause; keep "already in the DLQ" and "the requesting consumer has already ACKed via `consumer_delivery.acked_at`". **Already confirmed** — line 193 already says "there is no event-level `acked_at` column".
 - ACK/NACK State Transition Table:
-  - "Duplicate NACK" row: replace "No idempotency guard in `nack_event`; the counter increases on every call (tracked as EVENTBUS-012...)" with the per-attempt idempotency behavior introduced by REQ-001.
-  - "Initial NACK" row: change "`delivery_failure_count`" to the per-consumer `consumer_delivery_failure_count` (REQ-002).
+  - "Duplicate NACK" row: replace "No idempotency guard in `nack_event`; the counter increases on every call (tracked as EVENTBUS-012...)" with the per-attempt idempotency behavior introduced by REQ-001. **Already confirmed** — line 245 already describes per-attempt idempotency.
+  - "Initial NACK" row: change "`delivery_failure_count`" to the per-consumer `consumer_delivery_failure_count` (REQ-002). **Already updated** — line 244 now references `consumer_delivery_failure_count`.
 
 Referenced/updated by other documents (not modified here): ADR-006 (row 7) and the Known Issues ledger `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (row 9).
 
@@ -35,10 +35,10 @@ Referenced/updated by other documents (not modified here): ADR-006 (row 7) and t
 
 ### Procedure
 
-1. In the Conflict Responses block, delete the phrase referencing `events.acked_at` set; retain the DLQ and `consumer_delivery.acked_at` conditions.
-2. In the State Transition Table, "Duplicate NACK" row: replace the "no idempotency guard ... EVENTBUS-012" description with the per-attempt idempotency (a NACK whose attempt ID equals `last_nack_attempt` is ignored; otherwise increment).
-3. In the State Transition Table, "Initial NACK" row: change the counter name from `delivery_failure_count` to `consumer_delivery_failure_count` and note promotion is gated per consumer.
-4. Verify the 409 response schemas block stays consistent with the revised Conflict Responses.
+1. In the Conflict Responses block, delete the phrase referencing `events.acked_at` set; retain the DLQ and `consumer_delivery.acked_at` conditions. **Already completed** — line 193 already says "there is no event-level `acked_at` column".
+2. In the State Transition Table, "Duplicate NACK" row: replace the "no idempotency guard ... EVENTBUS-012" description with the per-attempt idempotency (a NACK whose attempt ID equals `last_nack_attempt` is ignored; otherwise increment). **Already completed** — line 245 already describes per-attempt idempotency.
+3. In the State Transition Table, "Initial NACK" row: change the counter name from `delivery_failure_count` to `consumer_delivery_failure_count` and note promotion is gated per consumer. **Already completed** — line 244 now references `consumer_delivery_failure_count`.
+4. Verify the 409 response schemas block stays consistent with the revised Conflict Responses. **Already verified**.
 
 ### Method
 
@@ -46,8 +46,9 @@ Referenced/updated by other documents (not modified here): ADR-006 (row 7) and t
 
 ### Details
 
-- Current Conflict Responses text: "Returned when the event has `events.acked_at` set, is already in the DLQ, or the requesting consumer has already ACKed via `consumer_delivery.acked_at`." → after edit: "Returned when the event is already in the DLQ, or the requesting consumer has already ACKed via `consumer_delivery.acked_at`."
-- "Duplicate NACK" current text references EVENTBUS-012; that ledger entry is removed under REQ-001 (row 9). The table must no longer describe a non-idempotent NACK.
+- Current Conflict Responses text: "Returned when the event has `events.acked_at` set, is already in the DLQ, or the requesting consumer has already ACKed via `consumer_delivery.acked_at`." → after edit: "Returned when the event is already in the DLQ, or the requesting consumer has already ACKed via `consumer_delivery.acked_at`." **Already completed** — line 193 already says "there is no event-level `acked_at` column".
+- "Duplicate NACK" current text references EVENTBUS-012; that ledger entry is removed under REQ-001 (row 9). The table must no longer describe a non-idempotent NACK. **Already completed** — line 245 already describes per-attempt idempotency.
+- "Initial NACK" row: line 244 now references `consumer_delivery_failure_count` instead of `delivery_failure_count`.
 
 ## Compatibility considerations
 
@@ -68,9 +69,9 @@ Referenced/updated by other documents (not modified here): ADR-006 (row 7) and t
 
 ## Completion criteria
 
-- No reference to `events.acked_at` in the NACK Conflict Responses or state-transition table.
-- Duplicate-NACK row describes per-attempt idempotency; Initial-NACK row references the per-consumer count.
-- 409 response schemas remain consistent.
+- No reference to `events.acked_at` in the NACK Conflict Responses or state-transition table. **Already met**.
+- Duplicate-NACK row describes per-attempt idempotency; Initial-NACK row references the per-consumer count. **Already met**.
+- 409 response schemas remain consistent. **Already met**.
 
 ## Out of scope
 
@@ -83,10 +84,10 @@ Referenced/updated by other documents (not modified here): ADR-006 (row 7) and t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Line 244 updated to `consumer_delivery_failure_count`; other items already correct |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
