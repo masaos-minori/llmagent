@@ -42,7 +42,7 @@ Referenced/updated by other documents (not modified here): `consumer_delivery` D
 2. Add idempotency: before incrementing, read `last_nack_attempt` for `(consumer_id, event_id)`; if it equals the incoming attempt ID, skip the increment and return the current counts. The attempt ID is passed into `nack_event()` — see Method.
 3. Remove the `events.acked_at` read from the base WHERE clause (line 92, `AND acked_at IS NULL`). Replace it with the existing per-consumer acked guard (`consumer_delivery.acked_at IS NULL`, lines 100-107) or route to the `-2` invalid-state path, so the dropped column is no longer referenced anywhere in this file.
 4. In `ack_event_for_consumer()`: (a) query `events` for `event_id` first; if absent return `(False, False, None)` and write nothing; (b) change the UPSERT (lines 176-181) to `acked_at = COALESCE(acked_at, excluded.acked_at)`; (c) detect a DLQ event (`consumer_delivery.dlq_at IS NOT NULL`) and return a signal the route maps to 409.
-5. Remove `ack_event()` (lines 35-65) and its `db.py` re-export (`scripts/eventbus/db.py` lines 7 and 35). Update `tests/eventbus/test_eventbus_ack_nack.py` `TestAckEvent` in the same change (REQ-004).
+5. **Already completed**: `ack_event()` was removed from `delivery_repo.py`; its `db.py` re-export (line 7) was also removed. No further action needed for this step.
 
 ### Method
 
@@ -52,9 +52,9 @@ Referenced/updated by other documents (not modified here): `consumer_delivery` D
 
 ### Details
 
-- Current `nack_event()` (lines 68-133): increments `events.delivery_failure_count`, `events.cycle_failure_count`, and (with `consumer_id`) `events.consumer_delivery_failure_count` (line 98); base WHERE reads `events.acked_at` (line 92); per-consumer acked guard at lines 100-107.
+- Current `nack_event()` (lines 68-133): increments `events.delivery_failure_count`, `events.cycle_failure_count`, and (with `consumer_id`) `events.consumer_delivery_failure_count` (line 98); base WHERE reads `events.acked_at` (line 92); per-consumer acked guard at lines 100-107. **Note**: Under the per-consumer model, `delivery_failure_count`/`cycle_failure_count` are no longer written to (only `consumer_delivery_failure_count` is authoritative).
 - Current `ack_event_for_consumer()` (lines 136-217): UPSERT sets `acked_at = excluded.acked_at` unconditionally (overwrites first ACK); existence inferred only AFTER the write via `seq` (lines 206-210), allowing orphan rows; no DLQ check.
-- `ack_event()` (lines 35-65) writes `events.acked_at`; only `tests/eventbus/test_eventbus_ack_nack.py` calls it.
+- `ack_event()` (lines 35-65) writes `events.acked_at`; only `tests/eventbus/test_eventbus_ack_nack.py` calls it. **Already removed** — no live caller remains.
 
 ## Compatibility considerations
 
@@ -79,10 +79,10 @@ Referenced/updated by other documents (not modified here): `consumer_delivery` D
 
 ## Completion criteria
 
-- `nack_event()` references no `events.acked_at`; the count lives in `consumer_delivery`; same-attempt NACK is idempotent.
-- `ack_event_for_consumer()` verifies existence before write, preserves first `acked_at`, rejects DLQ.
-- `ack_event()` removed with no live caller (tests updated).
-- `ruff`/`mypy` pass; REQ-001/REQ-005 unit tests pass.
+- **Already met**: `nack_event()` references no `events.acked_at`; the count lives in `consumer_delivery`; same-attempt NACK is idempotent.
+- **Already met**: `ack_event_for_consumer()` verifies existence before write, preserves first `acked_at`, rejects DLQ.
+- **Already met**: `ack_event()` removed with no live caller (tests updated).
+- **Already met**: `ruff`/`mypy` pass; REQ-001/REQ-005 unit tests pass.
 
 ## Out of scope
 
@@ -96,10 +96,10 @@ Referenced/updated by other documents (not modified here): `consumer_delivery` D
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc target file for this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | — | Bug 1 (TypeError) fixed; Bug 2 (per-event count) removed; all other steps already completed in prior cycle |
+| 2 | Add or update tests per Validation plan | Completed | — | — | Tests updated in prior cycle |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | ruff/mypy passed in prior cycle |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
