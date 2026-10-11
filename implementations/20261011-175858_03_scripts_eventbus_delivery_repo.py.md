@@ -12,6 +12,8 @@
 - `seq` is assigned only inside `if newly_acked:`, so a duplicate ACK returns `(True, False, None)` although the docstring, `docs/24_eventbus/eventbus_12_ack_nack_endpoints.md`, and `test_offset_does_not_regress_on_older_seq` expect `(True, False, seq)`.
 - A scratch-worktree run with `MAX(consumer_delivery.acked, excluded.acked)` turned five more tests green (the ACK endpoint, repeated-ACK, NACK-after-ACK 409, and concurrent-ACK tests).
 
+- Correction found during execution: the UPSERT fix (`MAX`) was already applied upstream in commit `93179f0f7`, and the already-acked path at the end of `ack_event_for_consumer()` already returns `seq`. The `seq` hoist described below is therefore not needed and was not performed; the DLQ case `(True, False, None)` is distinguishable from already-acked by `seq is None`. Only the docstring change remained.
+
 ## Design decisions
 - Use `MAX(consumer_delivery.acked, excluded.acked)`: an existing `1` stays `1`, a pending `0` becomes `1`, and no schema change is needed.
 - Keep the existing-row read before the write so `newly_acked` still means "this call changed the row from missing/pending to acked".
@@ -73,12 +75,12 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Change the UPSERT to `MAX` | Pending | — | — | |
-| 2 | Hoist the `seq` lookup and keep the offset UPSERT under `newly_acked` | Pending | — | — | |
-| 3 | Correct the docstring | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | N/A: covered by existing tests listed in Validation plan and by procedures 01, 02, 05 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 6 | Update documentation, if in scope | Pending | — | — | N/A: documentation is handled by procedure 06 |
+| 1 | Change the UPSERT to `MAX` | Completed | 20261011-195047 | 20261011-195047 | Already applied upstream in 93179f0f7 (MAX in UPSERT) |
+| 2 | Hoist the `seq` lookup and keep the offset UPSERT under `newly_acked` | Completed | 20261011-195047 | 20261011-195047 | N/A (procedure correction): the already-acked path already returns seq; the tail of the function was missed when the Plan was written. No hoist needed; the DLQ case (True, False, None) is distinguishable from already-acked by seq is None |
+| 3 | Correct the docstring | Completed | 20261011-195047 | 20261011-195047 | Docstring now lists the DLQ case (True, False, None). Changed: scripts/eventbus/delivery_repo.py |
+| 4 | Add or update tests per Validation plan | Completed | 20261011-195047 | 20261011-195047 | N/A: covered by existing tests listed in Validation plan and by procedures 01, 02, 05 N/A: covered by existing tests and procedures 01, 02, 05 |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261011-195047 | 20261011-195047 | ruff check clean, lint-imports 5 kept, bandit no new findings; mypy 4 pre-existing errors in scripts/rag (unrelated) |
+| 6 | Update documentation, if in scope | Completed | 20261011-195047 | 20261011-195047 | N/A: documentation is handled by procedure 06 N/A: documentation handled by procedure 06 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
