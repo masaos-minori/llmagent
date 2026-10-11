@@ -71,11 +71,11 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the locked event query to return `seq` and `dlq_at` | Pending | — | — | |
-| 2 | Raise 409 with `ERR_EVENT_IN_DLQ` when `dlq_at` is set | Pending | — | — | |
-| 3 | Add or update tests per Validation plan | Pending | — | — | Covered by procedure 05 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Update documentation, if in scope | Pending | — | — | N/A: documentation is handled by procedure 06 |
+| 1 | Extend the locked event query to return `seq` and `dlq_at` | Completed | 20261011-195047 | 20261011-195047 | Locked query now selects seq and dlq_at |
+| 2 | Raise 409 with `ERR_EVENT_IN_DLQ` when `dlq_at` is set | Completed | 20261011-195047 | 20261011-195047 | 409 with ERR_EVENT_IN_DLQ when dlq_at is set. Changed: scripts/eventbus/ack_route.py |
+| 3 | Add or update tests per Validation plan | Completed | 20261011-195047 | 20261011-195047 | Covered by procedure 05 Covered by procedure 05 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261011-195047 | 20261011-195047 | Full suite 8200 passed; ruff check clean; lint-imports 5 kept |
+| 5 | Update documentation, if in scope | Completed | 20261011-195047 | 20261011-195047 | N/A: documentation is handled by procedure 06 N/A: documentation handled by procedure 06 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
