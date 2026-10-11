@@ -14,6 +14,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.context import ConversationState
 from agent.history import CompressResult
+from agent.llm_turn_executor import LlmTurnExecutor
 from agent.message_schema import ValidationResult
 from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
@@ -2325,3 +2326,22 @@ class TestWorkflowLoadFailureIsFatal:
                 RuntimeError, match="Workflow definition failed to load"
             ):
                 initializer._init_orchestrator()
+
+
+# ── INV-02: centralized LlmTurnExecutor creation (ADR-014) ───────────────────
+
+
+class TestSingleLlmTurnExecutorOwnership:
+    """INV-02 regression (ADR-014): the Orchestrator centralizes LlmTurnExecutor
+    creation — exactly one shared instance, held by no other component."""
+
+    def test_orchestrator_creates_single_shared_llm_turn_executor(self) -> None:
+        """The Orchestrator constructs a single LlmTurnExecutor and the workflow
+        adapter shares that same instance rather than building its own."""
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+
+        assert orch._llm_executor is not None
+        assert isinstance(orch._llm_executor, LlmTurnExecutor)
+        # Passed by reference to the adapter — no second instance is created.
+        assert orch._workflow_adapter._llm_executor is orch._llm_executor
