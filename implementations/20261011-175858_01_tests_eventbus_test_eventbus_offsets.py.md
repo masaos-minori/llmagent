@@ -65,11 +65,11 @@ N/A: test-only edit; no secrets, permissions, or runtime behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-read the file and skip sites already fixed by the pending procedure | Pending | — | — | |
-| 2 | Change the seven four-value unpack sites to three values | Pending | — | — | |
-| 3 | Add or update tests per Validation plan | Pending | — | — | N/A: this document edits existing tests only |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Update documentation, if in scope | Pending | — | — | N/A: no documentation change for this file |
+| 1 | Re-read the file and skip sites already fixed by the pending procedure | Completed | 20261011-195047 | 20261011-195047 | Already applied upstream in commit 93179f0f7; verified unpack sites use three values |
+| 2 | Change the seven four-value unpack sites to three values | Completed | 20261011-195047 | 20261011-195047 | Already applied upstream in 93179f0f7; no edit needed here |
+| 3 | Add or update tests per Validation plan | Completed | 20261011-195047 | 20261011-195047 | N/A: this document edits existing tests only N/A: existing tests only |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261011-195047 | 20261011-195047 | pytest tests/eventbus tests/db: 568 passed; full suite 8200 passed; ruff check clean |
+| 5 | Update documentation, if in scope | Completed | 20261011-195047 | 20261011-195047 | N/A: no documentation change for this file N/A: no documentation change for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
