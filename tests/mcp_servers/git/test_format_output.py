@@ -12,6 +12,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock
 
+import git
 import pytest
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.format_output import (
@@ -541,6 +542,31 @@ class TestFormatPush:
         )
         result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
         assert result == "Pushed 'main' to 'origin'"
+
+    def test_push_command_error_propagates(self) -> None:
+        """REQ-001: git.push failure propagates unchanged out of format_push."""
+        mock_repo = MagicMock()
+        mock_repo.git.push.side_effect = git.exc.GitCommandError(["git", "push"], 1)
+        _mock_remote(mock_repo, "origin")
+        state = _make_state(_repo=mock_repo)
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
+        )
+        with pytest.raises(git.exc.GitCommandError):
+            format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
+
+    def test_push_rejection_text_returned_unchanged(self) -> None:
+        """REQ-002: rejection-looking push output is returned unchanged."""
+        rejection = "remote: ![rejected] 'main' -> 'main' (non-fast-forward)"
+        mock_repo = MagicMock()
+        mock_repo.git.push.return_value = rejection
+        _mock_remote(mock_repo, "origin")
+        state = _make_state(_repo=mock_repo)
+        req = GitPushRequest(
+            repo_path=REPO_PATH, remote="origin", branch="main", dry_run=False
+        )
+        result = format_push(state, req, cfg=_authorized_cfg(REMOTE_URL))
+        assert result == rejection
 
 
 # ── Regression tests with real git.Repo ────────────────────────────────────────
