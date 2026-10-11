@@ -1,5 +1,5 @@
 ---
-title: "Agent CLI and Commands - Slash Commands: Workflow, Debug/Audit, Compact/Export"
+title: "Agent CLI and Commands - Slash Commands: Workflow, Debug/Audit, Compact"
 area: agent
 tags:
   - agent
@@ -24,7 +24,7 @@ related:
 
 ## Purpose
 
-Documents the purpose and side effects of slash commands in the Workflow, Debug/Audit, Git/Diff, and Compact/Export categories.
+Documents the purpose and side effects of slash commands in the Workflow, Debug/Audit, Git/Diff, and Compact categories.
 
 ## Design Intent
 
@@ -55,7 +55,9 @@ A group of commands related to debugging and audit logs.
 
 `/diff` only sees tool calls remaining in the current session's `ctx.conv.history`. If `/compact` or `/clear` is executed during a session, files written/edited prior to those operations fall outside the scope of `/diff` (a design trade-off; no DB-based change tracking is performed).
 
-### Compact / Export Category
+### Compact Category
+
+`/compact` forces immediate compression of the conversation history through `HistoryManager.force_compress()` (see `agent_04_02_state-and-persistence-history-compression.md`). It reports "Nothing to compact" when the history is too short. Session export is not a separate slash command; it is the `export` action of `/session`.
 
 RAG search is not provided as a slash command — it is automatically called by the LLM as the `rag_run_pipeline` tool during normal conversation (via MCP). There is no dedicated slash command for direct user invocation.
 
@@ -64,7 +66,7 @@ RAG search is not provided as a slash command — it is automatically called by 
 - **Workflow**: Post-execution approval gate management
 - **Debug/Audit**: Debug mode and audit logs
 - **Git/Diff**: Displaying file changes within a session
-- **Compact/Export**: History compression and export
+- **Compact**: History compression
 
 ## Known Limitations
 
@@ -75,4 +77,4 @@ RAG search is not provided as a slash command — it is automatically called by 
 - workflow category
 - debug/audit category
 - git/diff category
-- compact/export category
+- compact category

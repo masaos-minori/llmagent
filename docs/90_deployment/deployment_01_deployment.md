@@ -131,7 +131,7 @@ bash deploy/start_agent.sh
 `deploy/start_agent.sh` automatically detects whether to use the production install root or development (repository root) based on the presence of `pyproject.toml` in the production install root, and executes `python -m agent` (`scripts/agent/__main__.py`) in the corresponding root. (Explicit in code)
 
 > API Key Configuration:
-> - Web Search: DuckDuckGo — No API key required; `BRAVE_API_KEY` and `BING_API_KEY` (see `conf.d/web-search-mcp`) enable the optional providers
+> - Web Search: DuckDuckGo — No API key required. DuckDuckGo is the only search provider the server implements; `BRAVE_API_KEY` and `BING_API_KEY` in `conf.d/web-search-mcp` are not referenced by any code under `scripts/`
 > - GitHub Operations: Export `GITHUB_TOKEN` in shell or source `conf.d/github-mcp` before startup
 > - CI/CD: `conf.d/cicd-mcp` holds `GITHUB_TOKEN` for `cicd-mcp`
 >
@@ -157,12 +157,14 @@ The agent uses the SQLite databases listed below. Each has a path key in
 `agent.toml` or falls back to `DbConfig`'s Python-level default
 (`scripts/db/config.py`); see the auto-generated DB Path Reference below for which.
 
-| DB | Default path | Config key | Purpose |
-|---|---|---|---|
-| `rag.sqlite` | `db` dir of install root | `rag_db_path` | RAG documents, chunks, embeddings |
-| `session.sqlite` | `db` dir of install root | `session_db_path` | Agent sessions, messages |
-| `workflow.sqlite` | `db` dir of install root | `workflow_db_path` | Task tracking, event processing |
-| `eventbus.sqlite` | `db` dir of install root | `eventbus_db_path` | Event Bus records |
+| DB | Config key | Purpose |
+|---|---|---|
+| `rag.sqlite` | `rag_db_path` | RAG documents, chunks, embeddings |
+| `session.sqlite` | `session_db_path` | Agent sessions, messages |
+| `workflow.sqlite` | `workflow_db_path` | Task tracking, event processing |
+| `eventbus.sqlite` | `eventbus_db_path` | Event Bus records |
+
+Default paths are not stated here: the DB Path Reference below shows which keys are set in `agent.toml` and which fall back to a Python-level default.
 
 Schema details: `db_01_architecture_and_schema-overview-and-config.md`
 

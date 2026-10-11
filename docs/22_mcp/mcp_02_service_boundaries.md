@@ -56,7 +56,7 @@ Provides least-privilege access for deleting local files.
 ### rag-pipeline-mcp 
 
 **Responsibilities:**
-- RAG ingestion pipeline execution
+- RAG query pipeline execution (`rag_run_pipeline`, `rag_debug_pipeline`); no ingestion tool is exposed
 - Document indexing and retrieval
 - Pipeline debugging and diagnostics
 
@@ -162,7 +162,7 @@ For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership 
 
 ### Local vs Remote Git
 
-- `git-mcp`: Local Git operations only (no remote API calls)
+- `git-mcp`: Git operations through the local `git` CLI; `git_pull` and `git_push` communicate with the configured remote (gated by `allowed_remote_urls`), and no hosting-service API is called
 - `github-mcp`: Remote GitHub API operations only (no local Git commands)
 
 ### File Operations vs RAG

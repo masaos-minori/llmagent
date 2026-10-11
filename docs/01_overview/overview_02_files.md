@@ -169,7 +169,7 @@ MCP server configs define service-specific settings (allowlists, limits, auth to
 
 ## 3.6 Miscellaneous
 
-See `scripts/eventbus/` for the current file layout. See `conf.d/` for MCP server configuration files.
+See `scripts/eventbus/` for the current file layout. See `conf.d/` for per-server environment files holding operational credentials (the TOML configuration files are under `config/`).
 
 ### Event Bus Architecture
 
@@ -185,7 +185,7 @@ SQLite-based event store with WAL mode for concurrent access. Events are indexed
 
 ### Configuration Files (conf.d/)
 
-Per-MCP-server configuration files under `conf.d/`: operational credentials for CI/CD, git, GitHub, and web search providers. These files contain sensitive settings and are managed separately from code.
+Per-MCP-server environment files under `conf.d/`: operational credentials for CI/CD, git, GitHub, and web search providers. These files contain sensitive settings and are managed separately from code.
 
 ## Keywords
 

@@ -118,14 +118,14 @@ A claim whose truth has not yet been verified through evidence.
 | architecture-decision | Adopted Architecture Decision | Adopted architectural decision in accepted ADR | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design |
 | functional-requirement | Requirements | Normative requirement in an Accepted ADR or Registry-registered source | `docs/10_adr/ADR-{NNN}-*.md` or the Canonical Source Registry entry | Acceptance Test | Known Issues | No per-area `*_specification.md` is maintained |
 | external-behavior | External Behavior | Observable system behavior for external consumers | Canonical Source Registry entry | Acceptance Test, Integration Test, Runtime Log | Known Issues |  |
-| api-contract | API Contract | Formal interface contract | Official API Schema or Contract | Integration Test | Known Issues |  |
+| api-contract | API Contract | Formal interface contract | Canonical Source Registry entry, or the route and tool-definition source under `scripts/` | Integration Test | Known Issues |  |
 | runtime-behavior | Current Runtime Behavior | Current execution-time behavior | Source under `scripts/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design |
 | verification-contract | Expected Behavior | Executable assertions about expected behavior | `tests/` + the requirement source | ADR | Known Issues | Tests cannot silently redefine requirements |
 | production-effective-value | Effective Value in Production | Effective parameter value in deployment | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift |  |
-| configuration-schema | Configuration Structure | Valid configuration structure and constraints | Configuration Schema | Configuration Validation | Configuration Drift |  |
-| database-schema | DB Schema | Tables, columns, indexes, constraints | Schema Generator or official DDL | Schema Test | Known Issues |  |
+| configuration-schema | Configuration Structure | Valid configuration structure and constraints | Configuration loader and dataclass definitions under `scripts/` | Configuration Validation | Configuration Drift |  |
+| database-schema | DB Schema | Tables, columns, indexes, constraints | `scripts/db/schema_sql.py` (DDL builders) | Schema Test | Known Issues |  |
 | operational-procedure | Operational Procedures | Operator interaction guidance | Operations / Runbook | Operational Validation | Known Issues |  |
-| security-policy | Security Constraints | Security constraints and mandates | Governance + Security Policy Spec | Audit Evidence | Known Issues |  |
+| security-policy | Security Constraints | Security constraints and mandates | Accepted security ADRs (`docs/10_adr/ADR-007-*.md`, `ADR-012-*.md`, `ADR-013-*.md`) | Audit Evidence | Known Issues |  |
 | documentation-metadata | Documentation Metadata | Metadata on documentation assets | `docs/00_governance/governance_02_documentation-metadata.md` | Metadata Validator | Known Issues |  |
 | unconfirmed-claim | Unconfirmed Items | Unverified claim | Needs Confirmation inventory (`governance_03_issue-and-uncertainty-management.md`) | Investigation Evidence | Needs Confirmation |  |
 

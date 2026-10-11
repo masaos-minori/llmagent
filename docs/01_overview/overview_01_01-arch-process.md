@@ -36,7 +36,7 @@ The system consists of the following categories of processes: the Agent CLI REPL
 
 **Component responsibilities:**
 
-- **Agent CLI REPL** (`scripts/agent/__main__.py`): Orchestrates the user interaction loop — receives prompts, performs RAG search, invokes the LLM, executes MCP tools, and returns responses. This is the single entry point for all agent operations.
+- **Agent CLI REPL** (`scripts/agent/__main__.py`): Orchestrates the user interaction loop — receives prompts, obtains RAG context by calling the rag-pipeline MCP server, invokes the LLM, executes MCP tools, and returns responses. This is the single entry point for all agent operations.
 - **LLM services**: Provide chat/completion and embedding capabilities. The Agent CLI connects to these via HTTP; they operate independently of the agent lifecycle.
 - **MCP server group**: Each server implements a single-responsibility tool domain (file read/write/delete, shell execution, GitHub operations, RAG pipeline, CI/CD, MDQ compression, local git, web search). Servers communicate with the Agent CLI exclusively over HTTP POST `/v1/call_tool`.
 
@@ -45,7 +45,7 @@ The system consists of the following categories of processes: the Agent CLI REPL
 - The Agent CLI owns the conversation context (turn history, prompt construction, response assembly).
 - Each LLM service owns its model weights and inference state.
 - Each MCP server owns its tool-specific runtime state (e.g., file handles, connection pools).
-- Shared data (vector stores, SQLite databases) is accessed by multiple components but owned by the infrastructure layer, not any single process.
+- Shared data (vector stores, SQLite databases) is accessed by multiple components but each database has a single owning component (see `db_08_active_databases.md` and ADR-008), not a shared owner.
 
 **Allowed dependency direction:**
 

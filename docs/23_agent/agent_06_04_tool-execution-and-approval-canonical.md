@@ -1,5 +1,5 @@
 ---
-title: "Agent Tool Execution and Approval - Canonical Approval Model"
+title: "Agent Tool Execution and Approval - Approval Layers and Partial Completion"
 area: agent
 tags:
   - agent
@@ -19,11 +19,11 @@ related:
 
 ## Purpose
 
-Documents the Canonical Approval Model (ADR-001) and the persistence of partial completion.
+Documents the two approval layers (tool-level and workflow-level) and the persistence of partial completion. ADR-001 defines the Workflow Engine foundation and excludes redesign of the approval policy.
 
 ## Design Intent
 
-### Canonical Approval Model (ADR-001)
+### Approval Layers
 
 There are two approval layers in the agent: tool-level and workflow-level. They coexist without conflict.
 

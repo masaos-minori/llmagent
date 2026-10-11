@@ -86,6 +86,8 @@ one shared-secret value.
 |---|---|
 | `conf.d/github-mcp` | `GITHUB_TOKEN` |
 | `conf.d/cicd-mcp` | `GITHUB_TOKEN` |
+| `conf.d/web-search-mcp` | `BRAVE_API_KEY`, `BING_API_KEY` placeholders; not read by the server code (see `deployment_01_deployment.md`) |
+| `conf.d/git-mcp` | None (comments only) |
 
 ## Major Default Values
 

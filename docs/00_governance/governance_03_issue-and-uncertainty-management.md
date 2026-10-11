@@ -280,7 +280,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: Unassigned
 - **First Found**: ADR Known Deviations review
 - **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
-- **Related**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`, `docs/10_adr/ADR-008-sqlite-4db-separation.md`
+- **Related**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
 - **Summary**: A principal without a consumer_id allowlist is not restricted to any consumer_id.
 - **Current Description**: ADR-013 INV-02 forbids acting as another `consumer_id`.
 - **Observed Implementation**: A `consumer_token` without `consumer_authorization` is rejected at startup. With empty `consumer_authorization` and `topic_authorization` mappings, the CONSUMER token gets `allowed_consumer_ids=None` (unrestricted), as do `auth_token` and `admin_token`.

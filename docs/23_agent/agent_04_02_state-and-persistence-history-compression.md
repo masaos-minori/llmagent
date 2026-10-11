@@ -66,7 +66,7 @@ Key behaviors:
 - The summarized `[Conversation summary]` system message is persisted as a row with `role=system`.
 - Fallback truncation (discarding without summarization) also triggers persistence to maintain database consistency.
 - The in-memory `ctx.conv.history` remains the source of truth for the current session; database persistence serves as a backup for reloads.
-- `/history` and `/export` continue to operate against `ctx.conv.history`; no changes required.
+- `/history` and `/session export` continue to operate against `ctx.conv.history`; no changes required.
 - `stat_turns` counter and other in-memory statistics are reset upon reload (existing behavior).
 
 ## Responsibility Boundary
@@ -99,7 +99,7 @@ Even during fallback truncation, character limits are strictly enforced.
 
 ## Operational Notes
 
-- The `/compact` command is implemented by temporarily setting `char_limit` to `1` and `token_limit` to `0` when calling `compress()`. It does not have a dedicated path for ignoring limits; instead, it reuses existing `compress()` logic by forcing an "over-limit" state.
+- The `/compact` command calls `HistoryManager.force_compress()`, which temporarily sets `char_limit` to `1` and `token_limit` to `0`, calls `compress()`, and then restores the original limits. It has no separate compression path; it reuses `compress()` by forcing an "over-limit" state.
 - `stat_compress_count` and `stat_fallback_truncate_count` are counters maintained by the `HistoryManager` instance itself, not fields under `ctx.stats`. Display commands must access them via `ctx.services.hist_mgr`.
 
 ## Known Limitations

@@ -63,7 +63,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 ### ACK Postconditions
 
 - The consumer's `consumer_delivery.acked_at` is set to the current timestamp.
-- The consumer offset is updated using the SQL statement above, in the same transaction.
+- The consumer offset is updated using the monotonic offset statement described under Offset Semantics, in the same transaction.
 - The response body includes `{event_id, acked: true, seq: <int>}`; a duplicate ACK additionally includes `already_acked: true`.
 
 ### ACK Error Responses
@@ -175,7 +175,15 @@ Events are retained in SQLite until they are explicitly deleted or the database 
 
 ### Cleanup Procedure
 
-To clean up old events, use the following SQL command:
+Event deletion is a manual operator action outside the EventBus runtime; EventBus itself never deletes events (ADR-006). Before running the statement, stop the EventBus service and back up `eventbus.sqlite`.
+
+The schema defines no foreign keys, so the statement affects related data as follows:
+
+- `consumer_delivery` rows for the deleted events are not removed and remain as orphans.
+- DLQ rows (`events.dlq_at IS NOT NULL`) with a `seq` at or below the cutoff are deleted like any other event and can no longer be requeued.
+- `consumer_offsets` rows are not changed. Choose a cutoff at or below every consumer's committed offset so that no consumer loses undelivered events.
+
+Use the following SQL command:
 
 ```sql
 DELETE FROM events WHERE seq <= ?;
@@ -265,6 +273,7 @@ Normal ──ACK──> ACKed
 Normal ──NACK──> Failed (if the nacking consumer's `consumer_delivery_failure_count >= max_retry` AND every attempting consumer has given up)
 Failed ──NACK──> Failed (increment `consumer_delivery_failure_count`; promotion fires once every attempting consumer has given up)
 Failed ──ACK──> ACKed
+Failed ──promotion (inline on NACK, or the background DLQ loop)──> DLQ
 DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cycle_failure_count reset, delivery_failure_count preserved)
 ```
 

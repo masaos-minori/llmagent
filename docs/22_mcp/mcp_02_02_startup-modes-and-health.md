@@ -119,7 +119,7 @@ If the result exceeds the response size limit (`MCP_MAX_RESPONSE_BYTES`):
 
 | Server | `/health` Override |
 |---|---|
-| web-search-mcp | No overrides (returns `{"status":"ok","ready":true}`) |
+| web-search-mcp | `details.provider`, `details.browser_provider` (`browser_fetch` state is reported separately from `search_web`) |
 | github-mcp | `dependencies.github_token` (`"not_set"`) |
 | mdq-mcp | `details.service: "mdq-mcp"`, `details.document_count`, `details.chunk_count`, `details.fts_row_count`, `details.last_indexed`, `details.stale_document_count`; checks `documents`, `chunks`, `chunks_fts` tables and triggers `chunks_ai/ad/au`; stale detection via `documents.mtime_ns` (nanoseconds) |
 | shell-mcp | `dependencies.shell` (`"sh not found in PATH"`/`"check failed"`); `details.sandbox_backend` (`"firejail"` or `"none"`) |

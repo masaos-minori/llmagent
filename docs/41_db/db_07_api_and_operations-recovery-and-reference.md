@@ -52,7 +52,7 @@ Current implementation produces a structured classification via the `DbCondition
 
 Target sequence: detect and classify → preserve the damaged database → locate a candidate backup → validate the candidate independently → restore to a temporary location → verify the restored copy → atomically replace the target → reopen and verify → return a structured result → gate startup on the persistence-domain policy.
 
-**Current implementation gaps against this sequence** (Explicit in code — `db/recovery.py::_restore_from_backup`):
+**Current implementation status against this sequence** (Explicit in code — `db/recovery.py::_restore_from_backup`):
 
 - The damaged database IS preserved (`shutil.copy2` to a timestamped `_corrupt_` archive) on all recovery paths, including the no-backup path where `_run_integrity_check()` returns a failed-but-parseable result.
 - Backup integrity IS verified before use (`_run_integrity_check(backup, target)`). A corrupted backup is detected and rejected.

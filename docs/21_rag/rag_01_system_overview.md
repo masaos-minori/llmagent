@@ -201,7 +201,7 @@ For operators who prefer a quick reference without navigating away from this doc
 
 The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) → `rag_pipeline_service.py` (orchestration) → `scripts/rag/pipeline.py` (search execution).
 
-Note: External (HTTP-delegated) and local (in-process) RAG execution modes currently read the same corpus database (`rag_db_path`). Both `config/agent.toml` and `config/rag_pipeline_mcp_server.toml` (both set `rag_db_path`) are configured identically. This is a configuration convention, not an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
+Note: The rag-pipeline MCP server reads the corpus database through `rag_db_path` in `config/rag_pipeline_mcp_server.toml`, and the Agent reaches the same database only for admin-only maintenance through `rag_db_path` in `config/agent.toml`. HTTP delegation (`rag_service_url`) is not used in production (ADR-010). Both files are configured with the same path by convention, not by an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
 
 For details on responsibilities of these components, please refer to `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
 
