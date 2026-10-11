@@ -102,7 +102,7 @@ There is no disable, fallback, or workflow-optional mode.
 
 ### 2.3 Starting Services
 
-`deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services (it only echoes their names and later queries their health endpoints) or MCP servers.
+`deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services — it validates their remote `/health` endpoints (read from `config/agent.toml`) and blocks until both are healthy before proceeding, rather than spawning them — or MCP servers.
 
 No script, unit file or configuration in this repository starts the LLM services (`embed-llm`, `agent-llm`): they must already be running before the agent starts. The start procedure is outside the repository and is tracked as DEPLOY-001 in `governance_03_issue-and-uncertainty-management.md`.
 
@@ -117,12 +117,12 @@ MCP servers (ports defined per server in `config/agent.toml`) auto-start as agen
 bash deploy/setup_services.sh
 ```
 
-After the LLM services are running, verify connectivity to the health-check endpoints for both `embed-llm` and `agent-llm`:
+Once the LLM services are running, `setup_services.sh` validates their health automatically at deploy time; you can also verify connectivity manually for both `embed-llm` and `agent-llm`:
 
 ```bash
-# Illustrative: use the hosts/ports from llm.llm_url and rag.embed_url in config/agent.toml
-curl -s http://<host>:<port>/health   # embed-llm
-curl -s http://<host>:<port>/health   # agent-llm
+# Illustrative: use the base URLs from embed_url and llm_url in config/agent.toml
+curl -s http://<embed_base>/health   # embed-llm
+curl -s http://<llm_base>/health     # agent-llm
 
 bash deploy/start_agent.sh
 ```

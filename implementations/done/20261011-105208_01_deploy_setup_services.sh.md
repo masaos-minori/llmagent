@@ -87,9 +87,10 @@ services is actually gated rather than echoed (REQ-001, REQ-002, REQ-004).
   identical placeholder `echo` loops; line 7 comment claims local subprocess startup;
   `config/agent.toml` line 10 `embed_url = "http://192.168.11.238:8081"` and line 23
   `llm_url = "http://192.168.11.197:8080"`, mirrored in
-  `config/rag_pipeline_mcp_server.toml` lines 7/10; no `embed_llm` / `agent_llm`
-  module exists under `scripts/` (only `scripts/agent/services/mcp_health.py` matches,
-  which is an MCP health service, not an LLM service).
+  `config/rag_pipeline_mcp_server.toml` lines 7/10; no local LLM service module
+  exists under `scripts/` (the embed-llm and agent-llm services are remote; only
+  `scripts/agent/services/mcp_health.py` matches the search, which is an MCP health
+  service, not an LLM service).
 - Suggested (unconfirmed) retry budget — **needs confirmation (REQ-002)**: e.g. 30
   attempts x 5 s ~= 150 s, since the existing doc text says model load takes "数十秒".
   Final count / timeout / backoff must be confirmed with the operator before merge.
@@ -153,10 +154,10 @@ services is actually gated rather than echoed (REQ-001, REQ-002, REQ-004).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261011-123106 | 20261011-123106 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261011-123106 | 20261011-123106 | shellcheck clean; integration+fail-closed validated against local /health mock (no committed test: bash deploy script) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261011-123106 | 20261011-123106 | shellcheck 0.11.0 (static binary) clean; integration+fail-closed mock run passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | Out of scope: no docs edit for this file (bash script); deployment doc update is impl doc 02 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

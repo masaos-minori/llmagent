@@ -4,7 +4,7 @@
 # deploy.sh 実行後に実行すること。
 #
 # MCP サーバ (ports 8004-8014) はエージェント管理 subprocess として起動。
-# LLM サーバ (ports 8080-8081) もエージェント管理 subprocess として起動する。
+# LLM サーバ (ports 8080-8081) はリモートサービスです。本スクリプトは起動せず、スクリプト内でヘルス検証します。
 #
 # 使用例:
 #   bash deploy/setup_services.sh
@@ -69,18 +69,61 @@ echo ""
 
 echo "=== setup_services.sh: サービス設定開始 ==="
 
-# ── LLM サービスのサブプロセス起動 ─────────────────────────────────────────────
-# MCP サーバ (8004-8014) はエージェントが subprocess として管理するため登録不要
-echo "--- LLM サービスの起動 ---"
-for svc in embed-llm agent-llm; do
-    echo "  起動: ${svc}"
+# ── LLM サービスのヘルスチェック（リモート）─────────────────────────────────────
+# embed-llm / agent-llm はリモートサービス（本リポジトリは起動せず、ヘルスを検証するだけ）。
+# config/agent.toml の embed_url / llm_url から base を読み取り、/health が HTTP 200 かを確認する。
+echo "--- LLM サービスのヘルスチェック ---"
+
+# 待機上限（REQ-002: 未確定値。運用確認後に固定推奨）。既定値は 30 回 x 5 秒 ~= 150 秒。
+# 環境変数で上書き可能（デプロイ時の調整用）。
+LLM_HEALTH_RETRIES="${LLM_HEALTH_RETRIES:-30}"
+LLM_HEALTH_INTERVAL="${LLM_HEALTH_INTERVAL:-5}"
+
+read_llm_base() {
+    # config/agent.toml から指定キー(base URL)を uv run python で読み取る。
+    # 既存のスキーマ読み取りパターンと同様。キー欠落・エラー時は空文字を返す。
+    PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run python -c \
+        "import tomllib,sys
+try:
+    print(tomllib.load(open(sys.argv[1],'rb')).get('${1}','').rstrip('/'))
+except Exception:
+    pass" \
+        "${REPO_ROOT}/config/agent.toml" || true
+}
+
+EMBED_URL=$(read_llm_base embed_url)
+LLM_URL=$(read_llm_base llm_url)
+
+if [ -z "${EMBED_URL}" ] || [ -z "${LLM_URL}" ]; then
+    echo "[FATAL] LLM base URL(s) not configured in config/agent.toml (embed_url/llm_url)." >&2
+    exit 1
+fi
+
+HEALTH_URL_EMBED="${EMBED_URL}/health"
+HEALTH_URL_LLM="${LLM_URL}/health"
+
+code_embed=""
+code_llm=""
+ready=0
+for (( attempt=1; attempt<=LLM_HEALTH_RETRIES; attempt++ )); do
+    code_embed=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 "${HEALTH_URL_EMBED}" 2>/dev/null || true)
+    code_llm=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 "${HEALTH_URL_LLM}" 2>/dev/null || true)
+    if [ "${code_embed}" = "200" ] && [ "${code_llm}" = "200" ]; then
+        ready=1
+        break
+    fi
+    echo "  ...待機 (${attempt}/${LLM_HEALTH_RETRIES}): embed-llm=${code_embed:---}, agent-llm=${code_llm:---}"
+    sleep "${LLM_HEALTH_INTERVAL}"
 done
 
-# ── LLM サービス起動 (llama-agent はモデルロード後に手動起動) ─────────────────
-echo "--- LLM サービス起動 ---"
-for svc in embed-llm agent-llm; do
-    echo "  起動: ${svc}"
-done
+if [ "${ready}" -ne 1 ]; then
+    echo "[FATAL] LLM services did not become ready within ${LLM_HEALTH_RETRIES} attempts (~$((LLM_HEALTH_RETRIES * LLM_HEALTH_INTERVAL))s)." >&2
+    echo "  embed-llm (${HEALTH_URL_EMBED}): last status ${code_embed:-unreachable}" >&2
+    echo "  agent-llm (${HEALTH_URL_LLM}): last status ${code_llm:-unreachable}" >&2
+    exit 1
+fi
+
+echo "OK: remote LLM services healthy (embed-llm=${HEALTH_URL_EMBED}, agent-llm=${HEALTH_URL_LLM})"
 
 # ── Event Bus (port 8015) ──────────────────────────────────────────────────────
 echo "--- Event Bus 起動 ---"
@@ -92,8 +135,8 @@ echo "  Health: $(sleep 2 && curl -s http://127.0.0.1:8015/health 2>/dev/null ||
 
 # ── ヘルスチェック ────────────────────────────────────────────────────────────
 echo "--- ヘルスチェック (モデルロードに数十秒かかる場合があります) ---"
-echo "  embed-llm      (:8081): $(curl -s http://127.0.0.1:8081/health 2>/dev/null || echo 'まだ起動中')"
-echo "  agent-llm      (:8080): $(curl -s http://127.0.0.1:8080/health 2>/dev/null || echo 'まだ起動中')"
+echo "  embed-llm      : ${HEALTH_URL_EMBED} (上記ゲートで確認済み)"
+echo "  agent-llm      : ${HEALTH_URL_LLM} (上記ゲートで確認済み)"
 echo "  eventbus       (:8015): $(curl -s http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
 echo ""
 echo "  ※ MCP サーバ (ports 8004-8014) はエージェント起動時に自動起動します"
@@ -103,9 +146,8 @@ echo ""
 echo "=== setup_services.sh: 完了 ==="
 echo ""
 echo "次のステップ:"
-echo "  # LLM サービスのモデルロード完了を確認してから llama-agent を起動する"
-echo "  curl -s http://127.0.0.1:8081/health  # embed-llm"
-echo "  curl -s http://127.0.0.1:8080/health  # agent-llm"
+echo "  # LLM サービスのヘルスは本スクリプトで自動確認済み (config/agent.toml の embed_url / llm_url)"
+echo "  # llama-agent の起動はモデルロード完了後に行う"
 echo ""
 echo "  # ドキュメント収集・投入 (uv run を使用)"
 echo "  cd /opt/llm"
