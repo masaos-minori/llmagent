@@ -59,10 +59,8 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type |
 |----|-------|--------|----------|------|------|
-| RAG-002 | Japanese sentences with empty normalized text are dropped with their original text | open | Low | RAG | implementation-bug |
 | RAG-006 | Refiner settings in config/agent.toml are validated but never read by the Agent | open | Low | RAG | design-gap |
 | RAG-007 | chunks_vec has no foreign key to chunks | open | Low | RAG | design-gap |
-| AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
 | AGENT-005 | Approval and audit operation-type classification reads static tool-name sets before RuntimeToolRegistry | open | Medium | Agent | design-gap |
 | AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
@@ -75,26 +73,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
 | EVENTBUS-016 | Two EventBus DDL sources define slightly different schemas | open | Low | EventBus | design-gap |
 | SHARED-001 | shared/security package has no importers | open | Low | Shared/DB | design-gap |
-
-#### RAG-002
-
-- **ID**: RAG-002
-- **Title**: Japanese sentences with empty normalized text are dropped with their original text
-- **Status**: open
-- **Severity**: Low
-- **Area**: RAG
-- **Type**: implementation-bug
-- **Source**: `scripts/rag/ingestion/chunk_japanese.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-009-rag-fts5-text-separation.md`
-- **Related**: None
-- **Summary**: Sentences that normalize to nothing are dropped, so `content` is lost for them.
-- **Current Description**: ADR-009 INV-11 says a sentence whose normalized text is empty keeps its original text in `content`.
-- **Observed Implementation**: `_split_into_ja_sentences()` drops a pair whose normalized text is empty, together with the original sentence.
-- **Impact**: Original text of such sentences is missing from the index.
-- **Recommended Action**: Keep the original sentence in `content` when normalization is empty.
-- **Resolution Target**: `content` keeps every original sentence, covered by a test.
 
 #### RAG-006
 
@@ -135,26 +113,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: A deletion path that omits the explicit step leaves orphaned vector rows.
 - **Recommended Action**: Keep the ordering invariant tested, and revisit when `sqlite-vec` supports foreign keys.
 - **Resolution Target**: `sqlite-vec` supports foreign keys, or the limitation is recorded as accepted.
-
-#### AGENT-002
-
-- **ID**: AGENT-002
-- **Title**: No regression test for ADR-014 INV-02
-- **Status**: open
-- **Severity**: Low
-- **Area**: Agent
-- **Type**: operational-gap
-- **Source**: `scripts/agent/orchestrator.py`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-014-agent-control-plane-responsibility-boundaries.md`
-- **Related**: None
-- **Summary**: ADR-014 INV-02 (only the component that drives the LLM/tool-call loop creates `LlmTurnExecutor`) has no automated test.
-- **Current Description**: ADR-014 lists the test as not yet written.
-- **Observed Implementation**: `Orchestrator.__init__` creates only `_llm_executor` and passes it to the workflow adapter; no test asserts this.
-- **Impact**: A regression could go unnoticed.
-- **Recommended Action**: Add a unit test that `Orchestrator` constructs exactly one `LlmTurnExecutor`.
-- **Resolution Target**: A test covers ADR-014 INV-02.
 
 #### AGENT-004
 
