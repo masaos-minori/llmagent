@@ -81,10 +81,10 @@ Add the block in place. Do not alter `_assert_allowed_repo` or `__init__`. `Cicd
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add path-separator rejection in cicd_service_guards.py::_assert_allowed_workflow() (REQ-002) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add path-separator rejection in cicd_service_guards.py::_assert_allowed_workflow() (REQ-002) | Completed | — | 20261011-091023 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261011-091023 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261011-091023 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261011-091023 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
