@@ -168,6 +168,16 @@ class TestGuardDelegation:
         assert ok is True
         assert err == ""
 
+    def test_verify_postcondition_passes_for_any_push_result(
+        self, working_repo: str
+    ) -> None:
+        state = RepositoryState.snapshot(working_repo)
+        ok, err = state.verify_postcondition(
+            "Pushed 'main' to 'origin'", state, "git_push"
+        )
+        assert ok is True
+        assert err == ""
+
     def test_audit_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
         result = state.audit("success")
