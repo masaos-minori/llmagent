@@ -16,9 +16,10 @@ Fix 17 failing tests across 8 test files caused by the per-consumer delivery sta
 
 ## Assumptions
 
-- The implementation change in `delivery_repo.py` is correct: `ack_event_for_consumer()` now returns `(found, newly_acked, seq)` — 3 values, not 4.
+- The `delivery_repo.py` return-signature change is correct: `ack_event_for_consumer()` now returns `(found, newly_acked, seq)` — 3 values, not 4.
 - The `consumer_delivery_failure_count` column is the authoritative DLQ promotion metric (not `delivery_failure_count`).
 - Tests should be updated to match the new contract, not the other way around.
+- NOTE (corrected during execution): the premise "the implementation is fully correct" was only partially true. See `## Deviations from premise` below — one failing test traced to a real implementation bug, not a test/fixture issue.
 
 ## Design decisions
 
@@ -31,6 +32,25 @@ Fix 17 failing tests across 8 test files caused by the per-consumer delivery sta
 1. Restore the 4-value return from `ack_event_for_consumer()` — rejected because it reintroduces the `already_acked` redundancy that was intentionally removed.
 2. Update only the failing tests individually — chosen approach, minimal scope.
 3. Add a compatibility shim layer — rejected because it adds unnecessary complexity for a known breaking change.
+
+## Deviations from premise
+
+The initial premise was "only tests/fixtures need updating; the implementation is correct."
+Execution disproved that for one test.
+
+- **`test_eventbus_concurrent.py::TestConcurrentAck::test_concurrent_ack_same_event`** failed for a
+  real implementation bug, not a test issue.
+- **Root cause**: `ack_event_for_consumer()` upserted `consumer_delivery.acked` with
+  `COALESCE(consumer_delivery.acked, excluded.acked)`. For a pending row (`acked = 0`) this evaluates to
+  `COALESCE(0, 1) = 0`, so the row never transitions to `acked = 1`. Every concurrent ACK therefore reads
+  `acked = 0` and reports `newly_acked = True`, so `already_acked_count` is 0 instead of 9.
+- **Reproduction (SQLite, 10 iterations)**: COALESCE → `newly_acked 10/10`; MAX → `newly_acked 1/10`.
+- **Classification**: deterministic logic bug, not a race condition (fails regardless of call order).
+- **Fix** (implementation, not test): `acked = COALESCE(...)` → `acked = MAX(consumer_delivery.acked, excluded.acked)`
+  in `scripts/eventbus/delivery_repo.py`. This makes the pending→acked transition correct and never
+  downgrades a prior ack.
+- **Impact**: this is the one change to `scripts/eventbus/` under this procedure. All other changes are
+  test/fixture updates. Full suite: 8199 passed, 20 skipped, 0 failed.
 
 ## Implementation
 
@@ -152,7 +172,9 @@ Update each failing test to match the new `ack_event_for_consumer()` contract:
 
 ## Out of scope
 
-- Changes to `scripts/eventbus/delivery_repo.py` — the implementation is correct; only tests need updating.
+- Changes to `scripts/eventbus/delivery_repo.py` — OUT OF SCOPE EXCEPT for one implementation bug found
+  during execution (see `## Deviations from premise`): the `COALESCE`→`MAX` fix for the pending-ACK
+  transition. No other `delivery_repo.py` changes are in scope.
 - Changes to `scripts/eventbus/schema.py` — the schema migration is correct; only test fixtures need updating.
 - Changes to `scripts/eventbus/ack_route.py` — covered by separate implementation procedure document.
 - DLQ promotion logic changes — already implemented per REQ-002.
@@ -162,11 +184,12 @@ Update each failing test to match the new `ack_event_for_consumer()` contract:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Investigate root cause of test failures | Pending | — | — | |
-| 2 | Fix test assertions to match new API contract | Pending | — | — | |
-| 3 | Fix SQL column references in test fixtures | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Investigate root cause of test failures | Complete | 20261011-130000 | 20261011-133000 | Found two failure classes: (a) 4-value unpacking vs new 3-value return, (b) stale SQL column/binding refs in fixtures. Also found one real implementation bug (see Deviations). |
+| 2 | Fix implementation bug (COALESCE→MAX pending-ACK transition) | Complete | 20261011-133000 | 20261011-133500 | `scripts/eventbus/delivery_repo.py` only. One test (`test_concurrent_ack_same_event`) was an impl bug, not a test issue. Reproduced in SQLite. |
+| 3 | Fix test unpacking to match new 3-value API contract | Complete | 20261011-133500 | 20261011-134000 | `test_eventbus_offsets.py` (7), `test_eventbus_restart_resume.py` (6). |
+| 4 | Fix SQL column/binding refs in test fixtures | Complete | 20261011-134000 | 20261011-134500 | Column `last_nack_attempt`→`consumer_last_nack_attempt`, `acked` NULL→0, binding count 3→2 in `test_eventbus_dlq_promotion.py`. |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Complete | 20261011-134500 | 20261011-140000 | ruff/mypy/lint-imports/ast-grep(bare except via rg)/bandit(High:0) clean; full suite 8199 passed / 20 skipped / 0 failed. |
+| 6 | Correct documentation to reflect execution findings | Complete | 20261011-140000 | 20261011-140500 | Added `## Deviations from premise`; corrected "Out of scope" for `delivery_repo.py`. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
