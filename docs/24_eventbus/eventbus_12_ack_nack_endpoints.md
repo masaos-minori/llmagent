@@ -64,7 +64,7 @@ POST /events/{event_id}/ack
   "event_id": "evt-abc",
   "acked": true,
   "seq": 42,
-  "newly_acked": false
+  "already_acked": true
 }
 ```
 
@@ -75,7 +75,7 @@ POST /events/{event_id}/ack
 | `event_id` | string | The acknowledged event ID |
 | `acked` | boolean | Always `true` on success |
 | `seq` | integer | Event sequence number (included for idempotent consumers) |
-| `newly_acked` | boolean | Present and `false` if the event was already acknowledged |
+| `already_acked` | boolean | Absent on the first acknowledgement; `true` when the consumer had already acknowledged the event |
 
 ### Not Found Response
 
@@ -254,7 +254,7 @@ curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
 | Scenario | Behavior | HTTP Status | Response Body | Side Effects on Persistence |
 |---|---|---|---|---|
 | Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq}` | Sets `consumer_delivery.acked` and advances the consumer offset |
-| Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq, newly_acked: false}` | No new delivery state; the offset never moves backwards |
+| Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq, already_acked: true}` | No new delivery state; the offset never moves backwards |
 | Initial NACK | `nack_event` increases `consumer_delivery_failure_count` from 0 to 1 | 200 | `{event_id, delivery_failure_count}` | Counter increases; promoted to the DLQ when it reaches `max_retry` |
 | Duplicate NACK | `nack_event` is idempotent per delivery attempt: a NACK repeating the stored `last_nack_attempt` is a no-op | 200 | `{event_id, delivery_failure_count}` | Counters unchanged for a repeat NACK of the same delivery attempt |
 | NACK followed by ACK | The consumer's `consumer_delivery.acked` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq}` | ACK succeeds; `delivery_failure_count` keeps the value from the NACK |
