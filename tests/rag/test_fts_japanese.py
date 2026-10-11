@@ -161,6 +161,18 @@ class TestChunksAiTrigger:
         assert len(_fts_rowids(conn, '"unique_norm_token"')) == 1
         assert len(_fts_rowids(conn, '"unique_raw_token"')) == 0
 
+    def test_null_normalized_preserved_and_indexed_via_fallback(
+        self, db: _FakeSQLiteHelper
+    ) -> None:
+        conn = db._conn
+        doc_id = _insert_doc(conn)
+        _insert_chunk(conn, doc_id, "テスト", None)
+        stored = conn.execute(
+            "SELECT normalized_content FROM chunks WHERE doc_id=?", (doc_id,)
+        ).fetchone()
+        assert stored[0] is None
+        assert len(_fts_rowids(conn, '"テスト"')) == 1
+
 
 # ── _build_fts_query() ────────────────────────────────────────────────────────
 

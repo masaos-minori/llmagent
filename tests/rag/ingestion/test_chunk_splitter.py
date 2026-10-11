@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
 import orjson
 from rag.ingestion.chunk_japanese import ChunkJapaneseMixin
@@ -178,6 +179,34 @@ class TestJapaneseChunkOverlap:
         # strip removes leading space if overlap is empty — but overlap is not empty here
         assert mixin._orig_buf == "ccccc xyz"
         assert mixin._norm_buf == "CCCCC xyz"
+
+
+# ── TestEmptyNormalization (RAG-002 regression) ───────────────────────────────
+
+
+class TestEmptyNormalization:
+    """Regression tests that Japanese sentences whose normalized result is empty
+    are retained (not dropped) and surfaced with a NULL normalized value.
+
+    Covers RAG-002 / ADR-009 INV-11: normalization must not lose original text.
+    """
+
+    def test_empty_normalization_kept_not_dropped(self) -> None:
+        mixin = _make_ja_mixin()
+        with patch.object(mixin, "_normalize_ja_sentence", return_value=""):
+            pairs = mixin._split_into_ja_sentences("。")
+        assert pairs == [("。", None)]
+
+    def test_all_empty_normalization_chunk_surfaces_original_with_none(
+        self,
+    ) -> None:
+        mixin = _make_ja_mixin(_min_chunk=10)
+        with patch.object(mixin, "_normalize_ja_sentence", return_value=""):
+            chunks = mixin._chunk_japanese("。" * 11)
+        assert len(chunks) == 1
+        original, normalized = chunks[0]
+        assert original.count("。") == 11
+        assert normalized is None
 
 
 # ── Helpers for fetched_at propagation tests ───────────────────────────────────
