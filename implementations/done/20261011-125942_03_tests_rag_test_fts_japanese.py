@@ -91,7 +91,7 @@ N/A — this is a unit test for data integrity, not a security boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261012-081330 | 20261012-081330 |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261012-081330 | 20261012-081330 | Deviation: procedure suggested content='。' + MATCH '。', but unicode61 does not tokenize standalone punctuation (probe-verified), so that exact query would not match. Implemented splitter-level assertion (empty norm retained with NULL) + storage-level NULL-preserved-and-indexed test with indexable Japanese content instead, achieving the same RAG-002 invariant reliably. |
 | 2 | Add or update tests per Validation plan | Completed | 20261012-081330 | 20261012-081330 |  |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-081330 | 20261012-081330 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No docs/00_index.md mapping for this file |
