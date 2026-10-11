@@ -24,8 +24,12 @@ from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a 
 class NackResult:
     """Return value for nack_event().
 
-    delivery_failure_count: int | Literal[-1] — -1 if event not found, otherwise current count.
-    cycle_failure_count: int | Literal[-2] — -2 if event in invalid state, otherwise current count.
+    delivery_failure_count: int | Literal[-1] — -1 if event not found, -2 if event in invalid
+      state (already DLQ'd, or already ACKed by the consumer); otherwise the stored events-level
+      value, a legacy value that is not modified under the per-consumer model.
+    cycle_failure_count: int | Literal[-2] — same sentinels; otherwise the stored legacy value.
+      An idempotent repeat NACK of the same attempt returns -2 here while delivery_failure_count
+      holds the stored value.
     consumer_failure_count: int | None — per-consumer failure count when consumer_id was provided,
       None when consumer_id was not provided.
     """

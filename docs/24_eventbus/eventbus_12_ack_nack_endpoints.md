@@ -183,7 +183,7 @@ POST /nack
 | Field | Type | Description |
 |-------|------|-------------|
 | `event_id` | string | The NACK'd event ID |
-| `delivery_failure_count` | integer | Lifetime failure count after this NACK |
+| `delivery_failure_count` | integer | Per-consumer failure count after this NACK (for the consumer given in `consumer_id`) |
 | `dlq_promoted` | boolean | Present and `true` if the event was promoted to DLQ |
 
 ### Not Found Response
