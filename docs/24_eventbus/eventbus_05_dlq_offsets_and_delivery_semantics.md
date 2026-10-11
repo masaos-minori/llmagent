@@ -62,7 +62,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### ACK Postconditions
 
-- The consumer's `consumer_delivery.acked_at` is set to the current timestamp.
+- The consumer's `consumer_delivery.acked` flag is set (a later ACK never lowers it).
 - The consumer offset is updated using the monotonic offset statement described under Offset Semantics, in the same transaction.
 - The response body includes `{event_id, acked: true, seq: <int>}`; a duplicate ACK additionally includes `already_acked: true`.
 
@@ -74,7 +74,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 ### NACK Preconditions
 
 - The event must exist in the `events` table.
-- The event must not have been ACKed by the requesting consumer (`consumer_delivery.acked_at` unset for that consumer and event) and must not be in the DLQ (`events.dlq_at IS NULL`).
+- The event must not have been ACKed by the requesting consumer (`consumer_delivery.acked` not set for that consumer and event) and must not be in the DLQ (`events.dlq_at IS NULL`).
 
 ### NACK Postconditions
 
@@ -93,11 +93,11 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### NACK followed by ACK
 
-NACK does not set the consumer's `consumer_delivery.acked_at`, so a later ACK from the same consumer succeeds; `delivery_failure_count` remains at the value from NACK — No readjustment. (Explicit in code — `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`)
+NACK does not set the consumer's `consumer_delivery.acked` flag, so a later ACK from the same consumer succeeds; `delivery_failure_count` remains at the value from NACK — No readjustment. (Explicit in code — `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`)
 
 ### ACK followed by NACK
 
-`nack_event` checks `consumer_delivery.acked_at` for the requesting consumer when `consumer_id` is provided; a NACK from a consumer that has already ACKed the event is rejected with HTTP 409 `event already acknowledged`.
+`nack_event` checks `consumer_delivery.acked` for the requesting consumer when `consumer_id` is provided; a NACK from a consumer that has already ACKed the event is rejected with HTTP 409 `event already acknowledged`.
 
 ## Offset Semantics
 
@@ -111,7 +111,7 @@ INSERT INTO consumer_offsets(consumer_id, offset) VALUES (?, ?) ON CONFLICT(cons
 
 Offsets advance ONLY when a consumer explicitly calls `POST /events/{event_id}/ack?consumer_id={consumer_id}`. They do not advance automatically during streaming. Idempotent duplicate ACKs do not update the offset.
 
-**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. On reconnect, the resume position is computed from the stored offset and the set of unacked events at or below it: let `lowest_unacked_seq` be the minimum `seq` among events with `seq <= stored_offset` that the consumer has not acknowledged (`consumer_delivery.acked_at IS NULL`, or no `consumer_delivery` row for that consumer). If such an event exists, the resume position is `lowest_unacked_seq` (a position at or below `stored_offset`); otherwise it is `stored_offset + 1`. This ensures no unacked event is skipped on reconnect while still allowing fast-forward past already-acked events. For consumers that ACK in order, every event up to the offset is acked, so the resume position equals `stored_offset + 1` (fast-forward). For consumers with out-of-order ACKs, the low-water-mark fallback moves the resume position back to the lowest unacked event so that previously skipped events are re-delivered.
+**Note:** Offsets only advance based on the `seq` value provided during ACK. The offset is the highest acknowledged `seq` (a high-water mark), never a contiguous low-water mark, and it never moves backward. On reconnect, the resume position is computed from the stored offset and the set of unacked events at or below it: let `lowest_unacked_seq` be the minimum `seq` among events with `seq <= stored_offset` that the consumer has not acknowledged (`consumer_delivery.acked` not set, or no `consumer_delivery` row for that consumer). If such an event exists, the resume position is `lowest_unacked_seq` (a position at or below `stored_offset`); otherwise it is `stored_offset + 1`. This ensures no unacked event is skipped on reconnect while still allowing fast-forward past already-acked events. For consumers that ACK in order, every event up to the offset is acked, so the resume position equals `stored_offset + 1` (fast-forward). For consumers with out-of-order ACKs, the low-water-mark fallback moves the resume position back to the lowest unacked event so that previously skipped events are re-delivered.
 
 ### Resume Behavior
 
@@ -258,11 +258,11 @@ At-least-once. Duplicate publishing is suppressed by the `event_id` UNIQUE const
 | State | Definition |
 |-------|------------|
 | Normal/Delivered | `events.dlq_at IS NULL` and not every consumer that attempted delivery has exhausted its per-consumer retry budget (see Failed) |
-| ACKed (per consumer) | `consumer_delivery.acked_at IS NOT NULL` for that `(consumer_id, event_id)` |
+| ACKed (per consumer) | `consumer_delivery.acked` is set for that `(consumer_id, event_id)` |
 | Failed | `events.dlq_at IS NULL` and every consumer that attempted delivery has `consumer_delivery_failure_count >= max_retry` with none ACKed (promotable under per-consumer gating) |
 | DLQ | `events.dlq_at IS NOT NULL` |
 
-ACK is recorded per consumer in `consumer_delivery.acked_at` and in `consumer_offsets`; the ACK route does not write the event-level `events.acked_at` column. (Explicit in code — `scripts/eventbus/ack_route.py` `_do_ack()`, `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`) The ACKed state therefore applies to the acknowledging consumer only; another consumer's NACK of the same event is not rejected by that ACK.
+ACK is recorded per consumer in `consumer_delivery.acked` and in `consumer_offsets`; there is no event-level ACK state. (Explicit in code — `scripts/eventbus/ack_route.py` `_do_ack()`, `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`) The ACKed state therefore applies to the acknowledging consumer only; another consumer's NACK of the same event is not rejected by that ACK.
 
 A requeue is not a state of the original row. Under the lineage model the original row stays in the DLQ state (its `dlq_at` is preserved) and the requeue inserts a new row, which starts in the Normal/Delivered state.
 
@@ -280,7 +280,7 @@ DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cy
 ### Prohibited Transitions
 
 ```
-ACKed ✗ NACK → HTTP 409 "event already acknowledged" (applies when the requesting consumer has already ACKed via `consumer_delivery.acked_at`; the route also rejects an event whose `events.acked_at` is set, a column the ACK route does not write)
+ACKed ✗ NACK → HTTP 409 "event already acknowledged" (applies when the requesting consumer has already ACKed via `consumer_delivery.acked`)
 DLQ ✗ NACK → HTTP 409 "event already in dead letter queue"
 DLQ ✗ REQUEUE of an event that is not in the DLQ, or that was already requeued → HTTP 409 "event is not in DLQ"
 ```

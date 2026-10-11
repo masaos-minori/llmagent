@@ -134,8 +134,8 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request) -> dict[str, Any]` | Update `consumer_authorization`/`topic_authorization` at runtime and |
 | `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
 |  | `resolve_subscribe_identity` | `async def resolve_subscribe_identity(request, consumer_id, topic, principal) -> Principal` | — |
-|  | `health` | `async def health(request) -> JSONResponse` | Health check endpoint for the event bus service. |
-|  | `publish` | `async def publish(request) -> dict[str, Any]` | Publish a new event to the event bus. |
+|  | `health` | `async def health(request, _principal) -> JSONResponse` | Health check endpoint for the event bus service. |
+|  | `publish` | `async def publish(request, _principal) -> dict[str, Any]` | Publish a new event to the event bus. |
 |  | `replay` | `async def replay(request, since_seq, fmt, limit, offset, _principal) -> Any` | Replay events from a given sequence number via SSE or JSON. |
 |  | `subscribe` | `async def subscribe(request, topic, since_seq, consumer_id, _principal, _identity) -> Any` | Subscribe to events matching the specified topics via SSE. |
 |  | `dlq_list` | `async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]` | List dead-letter queue entries with pagination support. |
@@ -164,14 +164,13 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `open_db` | `def open_db(db_path) -> sqlite3.Connection` | Return a shared SQLite connection for the Event Bus. |
 |  | `check_db` | `def check_db(conn) -> bool` | Return True if the DB connection is usable. |
 | `scripts/eventbus/delivery_repo.py` | `NackResult` | `class NackResult` | Return value for nack_event(). |
-|  | `ack_event` | `def ack_event(conn, event_id, now) -> tuple[bool, bool]` | Set acked_at on an event. Idempotent — will not overwrite existing ack. |
-|  | `nack_event` | `def nack_event(conn, event_id, consumer_id) -> NackResult` | Increment delivery_failure_count and cycle_failure_count for an event. |
+|  | `nack_event` | `def nack_event(conn, event_id, consumer_id, last_nack_attempt) -> NackResult` | Increment delivery_failure_count and cycle_failure_count for an event. |
 |  | `ack_event_for_consumer` | `def ack_event_for_consumer(conn, event_id, consumer_id, now) -> tuple[bool, bool, int \| None]` | Acknowledge an event for a specific consumer atomically. |
 |  | `get_consumer_offset` | `def get_consumer_offset(conn, consumer_id) -> int` | Return the last-committed sequence offset for a consumer, or 0 if none exists. |
 |  | `get_resume_position` | `def get_resume_position(conn, consumer_id) -> int` | Compute the resume position for a reconnecting consumer. |
 | `scripts/eventbus/dlq.py` | `DlqEventRecord` | `class DlqEventRecord` | A single event record written to the dead-letter queue as a JSON file on disk. |
 |  | `sweep_orphans` | `def sweep_orphans(db, deadletter_dir, max_retry) -> int` | Sweep events that reached retry limit but were not promoted inline. |
-|  | `promote_single` | `def promote_single(db, deadletter_dir, event_id) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
+|  | `promote_single` | `def promote_single(db, deadletter_dir, event_id, consumer_failure_count) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
 |  | `archive_dlq_record` | `def archive_dlq_record(deadletter_dir, event_id) -> bool` | Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json. |
 | `scripts/eventbus/dlq_repo.py` | `requeue_event` | `def requeue_event(conn, event_id) -> bool` | Unused legacy helper with no callers; the active requeue path is redeliver_event(), which keeps dlq_at on the original row and inserts a new row. |
 |  | `redeliver_event` | `def redeliver_event(conn, event_id, now) -> tuple[bool, str \| None]` | Redeliver a dead-lettered event by inserting a new row with lineage. |
