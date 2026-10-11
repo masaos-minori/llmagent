@@ -20,7 +20,7 @@ When a change occurs, the following documents must be updated based on the chang
 
 - **Architecture change** — Update the Accepted ADR for the decision (see ADR Change Protocol) and the Reference documents in the affected area, update Guide documents for cross-area impacts, update Operations documents if operational behavior changes
 - **Configuration change** — Update Reference documents for the affected configuration, update the affected area's Reference documents if behavior changes, update Guide documents if cross-area impacts exist
-- **Command change** — Update Command Reference documents, update Guide documents for affected areas, update Known Issues if deprecations occur
+- **Command change** — Update Command Reference documents, update Guide documents for affected areas, update Known Issues if a documented command is removed or renamed
 - **Behavioral change** — Update the Reference documents describing the behavior, update Operations documents if observable behavior changes, update Known Issues if discrepancies are found
 - **Documentation-only change** — Update only the affected documents without triggering broader reviews
 

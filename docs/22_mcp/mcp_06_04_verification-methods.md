@@ -16,7 +16,7 @@ related:
 ### Health probes
 
 ```bash
-# Individual server health checks (all return 4-field nested format)
+# Individual server health checks (all return the nested format shown below)
 curl -s http://127.0.0.1:<web_search_port>/health | jq   # web-search: base response only
 curl -s http://127.0.0.1:<file_read_port>/health | jq   # file-read: dependencies.filesystem
 curl -s http://127.0.0.1:<github_port>/health | jq   # github: dependencies.github_token

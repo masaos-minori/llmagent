@@ -17,13 +17,13 @@ related:
 
 All functions accept a `SQLiteHelper` instance and delegate low-level operations to it. 
 
-`checkpoint_wal(db, mode=None) \rightarrow WalCheckpointCounts`: Flushes the Write-Ahead Log (WAL). The default mode is taken from `agent.toml::sqlite_wal_checkpoint_mode` (a code-level default applies when the key is absent). Invalid strings raise a `ValueError` via the `SQLiteHelper.checkpoint()` `_CHECKPOINT_MODES` check. 
+`checkpoint_wal(db, mode=None) -> WalCheckpointCounts`: Flushes the Write-Ahead Log (WAL). The default mode is taken from `agent.toml::sqlite_wal_checkpoint_mode` (a code-level default applies when the key is absent). Invalid strings raise a `ValueError` via the `SQLiteHelper.checkpoint()` `_CHECKPOINT_MODES` check. 
 
-`vacuum_db(db, mode=STRICT) \rightarrow MaintenanceResult`: Delegates to `db.vacuum()`. Must be called outside of an active transaction. 
+`vacuum_db(db, mode=STRICT) -> MaintenanceResult`: Delegates to `db.vacuum()`. Must be called outside of an active transaction. 
 
-`purge_old_sessions(db, cfg=None, mode=STRICT) \rightarrow MaintenanceResult`: Performs age-based and count-based session purging; commits internally. 
+`purge_old_sessions(db, cfg=None, mode=STRICT) -> MaintenanceResult`: Performs age-based and count-based session purging; commits internally. 
 
-`prune_old_memories(db, older_than_days, mode=STRICT) \rightarrow MaintenanceResult`: Deletes old memories via `SQLiteMemoryDeleteStore`. 
+`prune_old_memories(db, older_than_days, mode=STRICT) -> MaintenanceResult`: Deletes old memories via `SQLiteMemoryDeleteStore`. 
 
 `MaintenanceMode` (StrEnum): 
 - `STRICT` = `'strict'` (Default; exceptions propagate, preserving existing behavior).
@@ -53,11 +53,11 @@ if not result.success:
 ## 7. DB Rotation (`db/rotation.py`)
 
 From `db.rotation import rotate_session_db, rotate_workflow_db, rotate_eventbus_db, rotate_all_dbs, rotate_db`:
-- `rotate_session_db(archive_dir=None) \rightarrow Path`: Archives the session database with a timestamp suffix using the SQLite online backup API.
-- `rotate_workflow_db(archive_dir=None) \rightarrow Path`: Archives the workflow database with a timestamp suffix.
-- `rotate_eventbus_db(archive_dir=None) \rightarrow Path`: Archives the event bus database with a timestamp suffix.
-- `rotate_all_dbs(archive_dir=None) \rightarrow tuple[Path, Path, Path, Path]`: Archives all four databases (ADR-008), returning `(rag_dest, session_dest, workflow_dest, eventbus_dest)`.
-- `rotate_db(archive_dir=None) \rightarrow tuple[Path, Path]`: Archives both rag and session databases, returning `(rag_dest, session_dest)`.
+- `rotate_session_db(archive_dir=None) -> Path`: Archives the session database with a timestamp suffix using the SQLite online backup API.
+- `rotate_workflow_db(archive_dir=None) -> Path`: Archives the workflow database with a timestamp suffix.
+- `rotate_eventbus_db(archive_dir=None) -> Path`: Archives the event bus database with a timestamp suffix.
+- `rotate_all_dbs(archive_dir=None) -> tuple[Path, Path, Path, Path]`: Archives all four databases (ADR-008), returning `(rag_dest, session_dest, workflow_dest, eventbus_dest)`.
+- `rotate_db(archive_dir=None) -> tuple[Path, Path]`: Archives both rag and session databases, returning `(rag_dest, session_dest)`.
 
 The archive directory is read from `agent.toml::sqlite_archive_dir`, with a code-level default when the key is absent. The rotation format is `{stem}_{YYYYMMDD_HHMMSS}{suffix}` in the `archive_dir`. It uses the SQLite online backup API to ensure WAL integrity is preserved during rotation.
 
@@ -76,11 +76,11 @@ with SQLiteHelper('rag').open() as db:
             print(issue)
 ```
 
-`check_rag_consistency(db, embed_failed=0) \rightarrow RagConsistencyReport`: A read-only report containing chunk/FTS/vec row counts and orphan detection. Note that `embed_failed` (the number of embedding failures known by the caller) is passed in but not detected by this function itself.
+`check_rag_consistency(db, embed_failed=0) -> RagConsistencyReport`: A read-only report containing chunk/FTS/vec row counts and orphan detection. Note that `embed_failed` (the number of embedding failures known by the caller) is passed in but not detected by this function itself.
 
-`is_consistent(report) \rightarrow bool`: Returns `True` if there are no orphans and the FTS gap is zero.
+`is_consistent(report) -> bool`: Returns `True` if there are no orphans and the FTS gap is zero.
 
-`summarize_issues(report) \rightarrow list[str]`: Provides human-readable issue descriptions.
+`summarize_issues(report) -> list[str]`: Provides human-readable issue descriptions.
 
 **RagConsistencyReport (frozen dataclass):**
 Contains `chunks` (int), `fts` (int), `vec` (int), `orphan_vec_count` (int), `fts_gap` (int: `chunks - fts`; positive means missing FTS entries), `fts_orphan_count` (int: `fts - chunks`; positive means extra FTS entries/data loss risk), `embed_failed` (int=0, caller-supplied), `issues` (tuple[str,...], populated by `summarize_issues(report)`), and optional diagnostic identifiers: `affected_chunk_ids` (up to 10 chunk IDs missing from FTS), `affected_doc_ids` (up to 10 doc IDs whose chunks are missing from FTS), and `affected_orphan_chunk_ids`/`affected_orphan_urls` (up to 10 items for orphaned vector rows).

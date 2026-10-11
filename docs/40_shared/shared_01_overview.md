@@ -121,8 +121,9 @@ Critical constraint: `orjson.dumps()` returns `bytes` (`not str`). If a `str` is
 | `session.sqlite` | Agent conversation state + memory layer |
 | `workflow.sqlite` | Workflow engine task tracking |
 | `eventbus.sqlite` | Event Bus event/offset/delivery/DLQ state |
+| `mdq.sqlite` | MDQ index; owned by `mdq-mcp`, not one of the four platform databases (see `db_08_active_databases.md`) |
 
-All of these databases use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
+All of the four platform databases above use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) for the rationale behind the separation.
 
 ---
 
@@ -143,7 +144,7 @@ Constraints not already covered above (import direction, JSON library, HTTP clie
 
 `db/` provides typed, WAL-enabled SQLite access with FTS5 and sqlite-vec integration. It is the canonical source for schema definitions. `db/` depends only on `shared/`.
 
-All persistent data resides in SQLite files: `rag.sqlite` (RAG index), `session.sqlite` (conversation + memory), `workflow.sqlite` (task tracking), and `eventbus.sqlite` (event delivery state).
+All persistent data resides in SQLite files: `rag.sqlite` (RAG index), `session.sqlite` (conversation + memory), `workflow.sqlite` (task tracking), `eventbus.sqlite` (event delivery state), and the `mdq-mcp`-owned `mdq.sqlite`.
 
 ---
 

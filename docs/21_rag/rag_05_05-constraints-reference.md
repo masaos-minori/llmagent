@@ -28,7 +28,7 @@ related:
 | `chunking_strategy` validation scope | Any non-empty string accepted at parse time (`_validate_str`); the `"text"`/`"heading"` value set is a convention only and is intentionally not enforced. The value is persisted as document metadata and checked for consistency within a URL group; it is not used for dispatch, so a new strategy needs no parse-time change |
 
 **Evidence:**
-- CJK threshold, character count threshold, chunk size/overlap, embedding dims/endianness: Explicit in code (`scripts/rag/ingestion/crawler_utils.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/utils.py:floats_to_blob`, `config/agent.toml`, `config/ingester.toml`).
+- CJK threshold, character count threshold, chunk size/overlap, embedding dims/endianness: Explicit in code (`scripts/rag/ingestion/crawler_utils.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/utils.py:floats_to_blob`, `config/chunk_splitter.toml`).
 - Crawl depth and max pages: Explicit in code, but operational values in `config/crawler.toml` differ from code defaults.
 - `chunk_index`/`url`/`content` validation, `lang`/`chunking_strategy` parse-time non-enforcement: Explicit in code
   (`scripts/rag/ingestion/pipeline_utils.py` validator definitions, `read_crawl_json()`/`read_chunk_json()` call sites).

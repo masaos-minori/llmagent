@@ -36,7 +36,7 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 - MCP Wrapper: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`
 
 **Not Included:**
-- MDQ (Markdown Only Query) — A separate service. For boundary definitions, see [mcp_05 MDQ vs RAG Boundary](../22_mcp/mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)
+- MDQ (Markdown Context Compression Engine) — A separate service. For boundary definitions, see [mcp_05 MDQ vs RAG Boundary](../22_mcp/mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)
 - Agent REPL — Only calls the pipeline via MCP; does not contain RAG logic.
 - LLM and Embedding Servers — External services providing inference and vector generation.
 
@@ -212,7 +212,7 @@ For details on responsibilities of these components, please refer to `docs/21_ra
 | Ingestion Scripts (API, CLI, Config) | [rag_02_01_ingestion_pipeline-overview.md](rag_02_01_ingestion_pipeline-overview.md) |
 | Query Pipeline (API, Stage Details) | [rag_03_01_query_pipeline-overview.md](rag_03_01_query_pipeline-overview.md) |
 | Type Definitions | [rag_04_dto-models-types.md](rag_04_dto-models-types.md) |
-| DB Schema | [db_08_active_databases.md](../41_db/db_08_active_databases.md) |
+| DB Schema | [db_02_architecture_and_schema-schema-reference.md](../41_db/db_02_architecture_and_schema-schema-reference.md) |
 | Config, Execution Commands, Logs | [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md) |
 | Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
 

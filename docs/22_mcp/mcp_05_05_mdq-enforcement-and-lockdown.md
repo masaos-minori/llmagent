@@ -1,5 +1,5 @@
 ---
-title: "MCP Security and Safety Model: MDQ/RAG Boundary Enforcement, Fail-Open/Fail-Closed Defaults and Deny-All Lockdown"
+title: "MCP Security and Safety Model: MDQ/RAG Boundary Enforcement and mdq-mcp Path Authorization"
 area: mcp
 tags:
   - mcp
@@ -9,7 +9,7 @@ related:
   - mcp_05_04_mdq-rag-boundary.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
 ---
-# MCP Security and Safety Model: MDQ/RAG Boundary Enforcement, Fail-Open/Fail-Closed Defaults and Deny-All Lockdown
+# MCP Security and Safety Model: MDQ/RAG Boundary Enforcement and mdq-mcp Path Authorization
 
 ## Boundary Enforcement
 
@@ -77,13 +77,8 @@ Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as
 - security
 - safety-model
 - mdq-rag-boundary-enforcement
-- deny-all
-- lockdown
-- fail-open
 - fail-closed
 - security-audit
 - mdq-allowed-dirs
 - authorize-path
 - mdq-authorization-error
-- fts-consistency-check
-- fts-rebuild

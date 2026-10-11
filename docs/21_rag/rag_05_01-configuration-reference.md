@@ -64,7 +64,7 @@ Used by: `ingester.py` only
 | `sqlite_timeout` | SQLite connection timeout (seconds) |
 | `sqlite_busy_timeout_ms` | SQLite busy timeout (milliseconds) |
 | `embed_url` | Embedding API endpoint |
-| Embedding dimension | `scripts/db/store_protocols.py::get_embedding_dims()` — must match the actual deployed embedding model; see [deployment_01_deployment.md section 1.4](../90_deployment/deployment_01_deployment.md#14-obtaining-llm-models) for canonical model names |
+| Embedding dimension | `scripts/db/store_protocols.py::get_embedding_dims()` — must match the actual deployed embedding model; see [deployment_01_deployment.md section 1.4](../90_deployment/deployment_01_deployment.md#14-obtaining-llm-models) for model provisioning; concrete model names are operator choices recorded in each LLM service configuration |
 | `embed_retry` | Max embedding API retries (exponential backoff) |
 | `embed_workers` | Number of threads in `ThreadPoolExecutor` for parallel embedding |
 

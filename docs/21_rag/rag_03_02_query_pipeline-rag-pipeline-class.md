@@ -48,7 +48,7 @@ If `rag_service_url` is not empty, `augment()` delegates to an external RAG serv
 
 | Behavior | Details |
 |---|---|
-| Authentication | If `rag_auth_token != ""` the `Authorization: Bearer {rag_auth_token}` header is added (default: no header); the legacy `X-RAG-Token` header is no longer sent |
+| Authentication | If `rag_auth_token != ""` the `Authorization: Bearer {rag_auth_token}` header is added (default: no header); no other authentication header is sent |
 | Timeout | Fixed per-HTTP-attempt timeout (connection + read), the module constant `_REQUEST_TIMEOUT_SECONDS` in `scripts/rag/pipeline_service.py` |
 | Retries | Bounded retries for 5xx or transport errors with exponential backoff; no retries for 4xx or JSON parsing errors |
 | Fallback | `transient_failure` (HTTP 5xx or transport error after retries, other 4xx, or `is_error` true) → In-process pipeline; `empty` ("" context) → accepted as valid result; `auth_error` (HTTP 401/403) → `RagPipelineError`, no in-process fallback (fail closed) |

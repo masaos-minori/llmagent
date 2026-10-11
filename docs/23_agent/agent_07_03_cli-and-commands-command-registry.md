@@ -72,6 +72,8 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 
 Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corresponding handler in the appropriate mixin file.
 
+`AgentREPL.SLASH_COMMANDS` (for tab completion) is derived from `command_defs_list._COMMANDS` plus REPL-reserved commands via `completion_command_names()`, so it does not drift from the dispatch table.
+
 ## Responsibility Boundary
 
 - `CommandRegistry` is responsible **only for dispatching**. Command implementations are distributed among individual mixin classes.
@@ -84,7 +86,7 @@ Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corres
 
 ## Known Limitations
 
-- `AgentREPL.SLASH_COMMANDS` (for tab completion) is derived from `command_defs_list._COMMANDS` plus REPL-reserved commands via `completion_command_names()`, so it does not drift from the dispatch table.
+Not applicable.
 
 ## Keywords
 

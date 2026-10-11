@@ -117,7 +117,7 @@ Full details: [agent_06_01_tool-execution-and-approval-execution.md](agent_06_01
 - **Configuration:** Constructor parameters only — `warn_on_missing` (bool, default `False`), `strict_mode` (bool, default `False`), and `runtime_registry` (`RuntimeToolRegistry | None`, default `None`, the sole routing source `resolve()` consults). No `server_configs` parameter exists.
 - **On Failure:** If the tool name is not found in the registry, a `ValueError` is raised immediately without fallback.
 
-> **Evidence Classification: Explicit in code.** `ToolRouteResolver.resolve()` (`shared/route_resolver.py`) uses only `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`) and raises `ValueError` if no match is found. `ToolRegistry` is seed data for drift detection and is not used for routing decisions, and config `tool_names` is drift-verification metadata, not a routing input. See `mcp_03_01_dispatch-and-routing.md` (Reliable source of routing information).
+> `ToolRouteResolver.resolve()` (`shared/route_resolver.py`) uses only `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`) and raises `ValueError` if no match is found. `ToolRegistry` is seed data for drift detection and is not used for routing decisions, and config `tool_names` is drift-verification metadata, not a routing input. See `mcp_03_01_dispatch-and-routing.md` (Reliable source of routing information). (Explicit in code)
 
 Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing information](../22_mcp/mcp_03_01_dispatch-and-routing.md)
 
@@ -132,7 +132,7 @@ Full details: [mcp_03_01_dispatch-and-routing.md Reliable source of routing info
 - **Configuration:** `cfg.llm.context_char_limit`, `context_compress_turns`, `history_protect_turns`
 - **On Failure:** If LLM summarization fails (`HistoryCompressionError`) → If character limit exceeded, fall back to truncation starting from least important messages. If only token limit exceeded, return history unchanged.
 
-> **Evidence Classification: Explicit in code.** Summary LLM calls perform direct `self._http.post()` requests against the `httpx.AsyncClient` provided at construction, bypassing the `shared/llm_client.py::LLMClient` instance. If character limits are exceeded after a summarization failure, fallback truncation occurs (`stat_fallback_truncate_count` is incremented). If only token limits are exceeded, the history is returned unchanged.
+> Summary LLM calls perform direct `self._http.post()` requests against the `httpx.AsyncClient` provided at construction, bypassing the `shared/llm_client.py::LLMClient` instance. If character limits are exceeded after a summarization failure, fallback truncation occurs (`stat_fallback_truncate_count` is incremented). If only token limits are exceeded, the history is returned unchanged. (Explicit in code)
 
 Full details: [agent_04_02_state-and-persistence-history-compression.md](agent_04_02_state-and-persistence-history-compression.md)
 

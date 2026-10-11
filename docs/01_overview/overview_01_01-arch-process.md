@@ -75,7 +75,7 @@ Each process reads only its own configuration file. Common parameters (DB paths,
 
 #### Configuration File Isolation Policy
 
-Each process (Agent, each MCP server, crawler, ingester, chunk_splitter) operates independently and **only reads its own corresponding configuration file**. It does not read configuration files of other processes (including `agent.toml`). If multiple processes require common parameters like DB paths or external service URLs, do not create a shared file; instead, describe them individually in each process's configuration file.
+Each process (Agent, each MCP server, crawler, ingester, chunk_splitter, EventBus) operates independently and **only reads its own corresponding configuration file**. It does not read configuration files of other processes (including `agent.toml`). If multiple processes require common parameters like DB paths or external service URLs, do not create a shared file; instead, describe them individually in each process's configuration file.
 
 | Process | Configuration File |
 |---|---|
@@ -83,6 +83,7 @@ Each process (Agent, each MCP server, crawler, ingester, chunk_splitter) operate
 | Each MCP server | `config/<key>_mcp_server.toml` |
 | crawler | `config/crawler.toml` |
 | ingester | `config/ingester.toml` |
+| eventbus | `config/eventbus.toml` |
 | chunk_splitter | `config/chunk_splitter.toml` |
 
 Details → [ADR-002](../10_adr/ADR-002-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)

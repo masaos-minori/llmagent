@@ -79,7 +79,7 @@ This problem applies only to a process that delegates over HTTP. No production p
 ### Scope
 
 - **Target components**: `RagPipeline`, `AugmentRefiner`, `HttpAugment`, `call_rag_service()`, `AugmentStage`
-- **Target processes**: any process that constructs `RagPipeline` with a non-empty `rag_service_url`. The rag-pipeline MCP server always constructs it with an empty `rag_service_url`, so it never delegates; no other production caller of the HTTP mode exists (Confirmed by repository evidence — `RagPipeline` is constructed only in the rag-pipeline MCP service). The Agent REPL does not call `RagPipeline` directly, and the ingester does not use `augment()`.
+- **Target processes**: any process that constructs `RagPipeline` with a non-empty `rag_service_url`. The rag-pipeline MCP server always constructs it with an empty `rag_service_url`, so it never delegates; no other production caller of the HTTP mode exists (Explicit in code — `RagPipeline` is constructed only in the rag-pipeline MCP service). The Agent REPL does not call `RagPipeline` directly, and the ingester does not use `augment()`.
 - **Target data**: `rag.sqlite`
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `RagPipeline.augment()`, `HttpAugment.run()`, `call_rag_service()`, `AugmentStage.run()`

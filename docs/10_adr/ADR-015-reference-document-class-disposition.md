@@ -135,7 +135,7 @@ Not applicable.
 
 - **Approved By**: repository owner
 - **Approval Date**: 2026-09-19
-- **Approval Reference**: Reviewed and approved via chat (Claude Code session llmagent-73), content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
+- **Approval Reference**: Reviewed and approved by the repository owner via chat, content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
 - **Decision Change (2026-10-08)**: The change of the Scope from documents classified `class: Reference` to documents carrying a generated guarded block was approved as a task-level approval decision (repository administrator instruction); the Named Approval Record above is unchanged and individual reviewer names are not recorded for this change.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.

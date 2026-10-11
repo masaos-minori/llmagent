@@ -137,7 +137,7 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 
 ## Known Limitations
 
-`/reload reports cfg.diagnostics.* changes under a distinct LIVE category; they take effect immediately on every DiagnosticStore save()/fetch() call without requiring a restart`
+Not applicable.
 
 ## Keywords
 
