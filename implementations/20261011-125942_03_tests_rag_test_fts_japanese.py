@@ -91,9 +91,9 @@ N/A — this is a unit test for data integrity, not a security boundary change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261012-081330 | 20261012-081330 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261012-081330 | 20261012-081330 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-081330 | 20261012-081330 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No docs/00_index.md mapping for this file |
 
 ### Blocker Log
