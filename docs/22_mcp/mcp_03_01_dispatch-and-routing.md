@@ -45,7 +45,7 @@ LLM returns tool_call
 ### Implementation Notes (Current behavior)
 
 - Tool calls to a server with `startup_mode=none` return an error immediately before attempting health checks or lifecycle activation. (Explicit in code)
-- If the health registry returns a `HALF_OPEN` state, the block by `is_unavailable` is skipped to allow one trial dispatch (circuit breaker half-open attempt). (Explicit in code)
+- If the health registry returns a `HALF_OPEN` state, the block by `is_unavailable` is skipped to allow exactly one in-flight trial dispatch (circuit breaker half-open attempt). While that trial is in flight, further concurrent calls are rejected with an `"unavailable"` error result; the trial flag is released on success, failure, or cancellation so the slot never leaks. (Explicit in code — `scripts/shared/mcp_health.py::McpServerHealthRegistry.acquire_trial`, `scripts/shared/tool_transport_invoker.py::_check_health`)
 - `ToolTransportInvoker.invoke()` exists as a separate general-purpose method providing health checks, lifecycle activation, and semaphore control similar to internal dispatch, and runs the same pre-call gates as `ToolExecutor.execute()`, including the `startup_mode=none` check. (Explicit in code — `scripts/shared/tool_transport_invoker.py::_run_precall_gates`)
 
 ### Idempotency and retry

@@ -32,6 +32,10 @@ class McpServerHealthRegistry:
         self._failure_threshold = failure_threshold
         self._half_open_cooldown_sec = half_open_cooldown_sec
         self._unavailable_since: dict[str, float] = {}
+        # Servers with a HALF_OPEN trial currently in flight. At most one trial
+        # per server may dispatch while HALF_OPEN; this set enforces that single
+        # trial window.
+        self._half_open_trials: set[str] = set()
 
     def record_failure(self, server_key: str) -> McpServerHealthState:
         """Record a failure for the given server and update its health state."""
@@ -42,6 +46,7 @@ class McpServerHealthRegistry:
             self._states[server_key] = McpServerHealthState.UNAVAILABLE
             self._unavailable_since[server_key] = time.monotonic()
             if was_half_open:
+                self.release_trial(server_key)
                 logger.warning(
                     "Health: %r trial probe failed → UNAVAILABLE (cooldown reset)",
                     server_key,
@@ -66,6 +71,7 @@ class McpServerHealthRegistry:
         self._failure_counts[server_key] = 0
         self._unavailable_since.pop(server_key, None)
         if prev == McpServerHealthState.HALF_OPEN:
+            self.release_trial(server_key)
             logger.info("Health: %r trial probe succeeded → HEALTHY", server_key)
 
     def get_state(self, server_key: str) -> McpServerHealthState:
@@ -87,9 +93,35 @@ class McpServerHealthRegistry:
         since = self._unavailable_since.get(server_key, 0.0)
         if time.monotonic() - since >= self._half_open_cooldown_sec:
             self._states[server_key] = McpServerHealthState.HALF_OPEN
+            self.acquire_trial(server_key)
             logger.info(
                 "Health: %r transitioning UNAVAILABLE → HALF_OPEN (trial probe)",
                 server_key,
             )
             return False
         return True
+
+    def acquire_trial(self, server_key: str) -> bool:
+        """Mark a HALF_OPEN trial as in-flight for `server_key`.
+
+        Returns True if this call acquired the single trial slot (no trial was
+        already in flight), False if a trial is already in flight. Must be called
+        synchronously — with no `await` between the HALF_OPEN state check and this
+        call — so that a concurrent asyncio burst yields exactly one trial.
+        """
+        if server_key in self._half_open_trials:
+            return False
+        self._half_open_trials.add(server_key)
+        return True
+
+    def release_trial(self, server_key: str) -> None:
+        """Clear the HALF_OPEN trial flag for `server_key`.
+
+        Idempotent; safe to call on every exit path (success, failure, or
+        cancellation).
+        """
+        self._half_open_trials.discard(server_key)
+
+    def trial_in_flight(self, server_key: str) -> bool:
+        """Return whether a HALF_OPEN trial is currently in flight for `server_key`."""
+        return server_key in self._half_open_trials

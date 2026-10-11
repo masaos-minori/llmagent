@@ -128,19 +128,46 @@ class ToolTransportInvoker:
             error_type=error_type,
         )
 
-    def _check_health(self, server_key: str) -> ToolCallResult | None:
-        """Check MCP server health before dispatching; returns error result if unavailable."""
+    def _check_health(self, server_key: str) -> tuple[ToolCallResult | None, bool]:
+        """Return (error_result_or_None, owns_half_open_trial).
+
+        `owns_half_open_trial` is True when this call became the HALF_OPEN trial
+        owner — either by triggering the UNAVAILABLE->HALF_OPEN transition or by
+        claiming a free trial slot after a cancelled trial — and must therefore
+        release the trial flag on every exit path.
+        """
         if self._health_registry is None:
-            return None
+            return None, False
         state = self._health_registry.get_state(server_key)
         if state == McpServerHealthState.HALF_OPEN:
-            logger.info("Health: %r is HALF_OPEN — allowing trial dispatch", server_key)
-            return None
+            # A single trial is allowed per server while HALF_OPEN. If a trial is
+            # already in flight, reject concurrent dispatch; otherwise claim the
+            # free slot for this call.
+            if self._health_registry.acquire_trial(server_key):
+                logger.info("Health: %r claimed free HALF_OPEN trial slot", server_key)
+                return None, True
+            logger.warning("Health: %r HALF_OPEN trial already in progress", server_key)
+            return (
+                self._error_result(
+                    server_key,
+                    f"MCP server {server_key!r} has a HALF_OPEN trial already "
+                    "in progress",
+                    error_type="tool",
+                ),
+                False,
+            )
+        before_flight = self._health_registry.trial_in_flight(server_key)
         if self._health_registry.is_unavailable(server_key):
             msg = f"MCP server {server_key!r} is currently unavailable (health check failed)"
             logger.warning(msg)
-            return self._error_result(server_key, msg, error_type="tool")
-        return None
+            return self._error_result(server_key, msg, error_type="tool"), False
+        # is_unavailable() returned False. It only acquires a trial when it
+        # transitions UNAVAILABLE->HALF_OPEN; a newly-set flag means this call is
+        # the trial owner.
+        owns_trial = (
+            self._health_registry.trial_in_flight(server_key) and not before_flight
+        )
+        return None, owns_trial
 
     @staticmethod
     def _increment_counter(counter: dict[str, int], key: str) -> None:
@@ -208,35 +235,47 @@ class ToolTransportInvoker:
         args: dict[str, Any],
     ) -> ToolCallResult:
         """Run the pre-call gate chain: health → disabled → lifecycle → transport → semaphore → dispatch."""
-        if err := self._check_health(server_key):
-            return err
+        health_err, owns_half_open_trial = self._check_health(server_key)
+        if health_err is not None:
+            return health_err
 
-        # REQ-004: reject disabled servers at the shared invocation boundary
-        cfg = self._server_configs.get(server_key)
-        if cfg is not None and cfg.startup_mode == StartupMode.NONE:
-            msg = f"MCP server {server_key!r} is disabled (startup_mode=none) and cannot be used"
-            logger.warning(msg)
-            return self._error_result(server_key, msg, error_type="tool")
+        try:
+            # REQ-004: reject disabled servers at the shared invocation boundary
+            cfg = self._server_configs.get(server_key)
+            if cfg is not None and cfg.startup_mode == StartupMode.NONE:
+                msg = (
+                    f"MCP server {server_key!r} is disabled "
+                    "(startup_mode=none) and cannot be used"
+                )
+                logger.warning(msg)
+                return self._error_result(server_key, msg, error_type="tool")
 
-        if self._lifecycle is not None:
-            try:
-                await self._lifecycle.ensure_ready(server_key)
-            except Exception as e:
-                if isinstance(e, _PERMITTED_LIFECYCLE_EXCEPTIONS):
-                    return self._handle_lifecycle_error(server_key, e)
-                raise
+            if self._lifecycle is not None:
+                try:
+                    await self._lifecycle.ensure_ready(server_key)
+                except Exception as e:
+                    if isinstance(e, _PERMITTED_LIFECYCLE_EXCEPTIONS):
+                        return self._handle_lifecycle_error(server_key, e)
+                    raise
 
-        transport = self._transports.get(server_key)
-        if transport is None:
-            msg = self._transport_missing_msg(server_key)
-            logger.error(msg)
-            return self._error_result(server_key, msg, error_type="tool")
+            transport = self._transports.get(server_key)
+            if transport is None:
+                msg = self._transport_missing_msg(server_key)
+                logger.error(msg)
+                return self._error_result(server_key, msg, error_type="tool")
 
-        self._ensure_semaphores()
-        sem = (self._semaphores or {}).get(server_key)
-        return await self._invoke_and_record(
-            server_key, transport, tool_name, args, sem
-        )
+            self._ensure_semaphores()
+            sem = (self._semaphores or {}).get(server_key)
+            return await self._invoke_and_record(
+                server_key, transport, tool_name, args, sem
+            )
+        finally:
+            # Release the HALF_OPEN trial flag on every exit path so a cancelled
+            # or errored trial never leaks the single-trial slot. Success/failure
+            # paths also release via record_success/record_failure; this backstop
+            # covers exceptions and early returns. Idempotent.
+            if owns_half_open_trial and self._health_registry is not None:
+                self._health_registry.release_trial(server_key)
 
     async def invoke(
         self,

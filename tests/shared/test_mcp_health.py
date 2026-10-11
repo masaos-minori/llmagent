@@ -119,3 +119,68 @@ class TestHalfOpenTrialOutcomes:
 
         registry.record_success("srv")
         assert registry.get_state("srv") == McpServerHealthState.HEALTHY
+
+
+class TestHalfOpenSingleTrialFlag:
+    """Per-server in-flight trial flag: single-shot acquire, release on outcomes."""
+
+    def test_acquire_trial_is_single_shot(self) -> None:
+        registry = McpServerHealthRegistry()
+        assert registry.acquire_trial("srv") is True
+        assert registry.acquire_trial("srv") is False
+
+    def test_trial_in_flight_reflects_acquire_release(self) -> None:
+        registry = McpServerHealthRegistry()
+        assert registry.trial_in_flight("srv") is False
+        registry.acquire_trial("srv")
+        assert registry.trial_in_flight("srv") is True
+        registry.release_trial("srv")
+        assert registry.trial_in_flight("srv") is False
+
+    def test_release_trial_is_idempotent(self) -> None:
+        registry = McpServerHealthRegistry()
+        registry.release_trial("srv")  # no error when never acquired
+        registry.acquire_trial("srv")
+        registry.release_trial("srv")
+        registry.release_trial("srv")  # no error on double release
+
+    def test_is_unavailable_transition_sets_trial_flag(self) -> None:
+        """ACC-001: the UNAVAILABLE->HALF_OPEN transition atomically sets the flag."""
+        registry = McpServerHealthRegistry(
+            failure_threshold=1, half_open_cooldown_sec=0.0
+        )
+        registry.record_failure("srv")
+        assert registry.trial_in_flight("srv") is False
+
+        registry.is_unavailable("srv")  # transitions to HALF_OPEN
+
+        assert registry.get_state("srv") == McpServerHealthState.HALF_OPEN
+        assert registry.trial_in_flight("srv") is True
+
+    def test_successful_trial_releases_flag(self) -> None:
+        registry = McpServerHealthRegistry(
+            failure_threshold=1, half_open_cooldown_sec=0.01
+        )
+        registry.record_failure("srv")
+        time.sleep(0.02)
+        registry.is_unavailable("srv")  # -> HALF_OPEN, flag set
+        assert registry.trial_in_flight("srv") is True
+
+        registry.record_success("srv")
+
+        assert registry.get_state("srv") == McpServerHealthState.HEALTHY
+        assert registry.trial_in_flight("srv") is False
+
+    def test_failed_trial_releases_flag(self) -> None:
+        registry = McpServerHealthRegistry(
+            failure_threshold=1, half_open_cooldown_sec=0.01
+        )
+        registry.record_failure("srv")
+        time.sleep(0.02)
+        registry.is_unavailable("srv")  # -> HALF_OPEN, flag set
+        assert registry.trial_in_flight("srv") is True
+
+        registry.record_failure("srv")
+
+        assert registry.get_state("srv") == McpServerHealthState.UNAVAILABLE
+        assert registry.trial_in_flight("srv") is False

@@ -780,7 +780,13 @@ class TestToolExecutorHealthGate:
         registry.record_failure("file_read")
         assert registry.is_unavailable("file_read")
         _time.sleep(0.02)
-        assert not registry.is_unavailable("file_read")
+        # Transitioning to HALF_OPEN now atomically acquires the single-trial
+        # slot (acquire-at-transition). Free it here so the following
+        # _raw_execute() call — not this setup probe — becomes the trial owner,
+        # mirroring production where is_unavailable() is called inside
+        # _check_health() rather than as a separate setup step.
+        registry.is_unavailable("file_read")
+        registry.release_trial("file_read")
         assert registry.get_state("file_read") == McpServerHealthState.HALF_OPEN
         res = await ex._raw_execute("read_text_file", {})
         assert not res.is_error
