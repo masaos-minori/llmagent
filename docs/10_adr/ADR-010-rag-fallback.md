@@ -363,7 +363,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 
 ### Approval Record
 
-- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 

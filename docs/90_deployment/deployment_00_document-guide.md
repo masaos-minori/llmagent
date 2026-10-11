@@ -7,6 +7,8 @@ tags:
 related:
   - 00_index.md
   - overview_00_document-guide.md
+  - mcp_06_04_verification-methods.md
+  - mcp_06_05_reading-audit-logs.md
 ---
 # Deployment: Document Guide
 
@@ -27,7 +29,8 @@ These documents describe the deployment process, environment setup, and operatio
 | Environment setup & provisioning | `deployment_01_deployment.md` §1 |
 | DB initialization | `deployment_01_deployment.md` §3 |
 | Service configuration | `deployment_01_deployment.md` §2 |
-| Monitoring & health checks | `deployment_01_deployment.md` §2.4 |
+| Verifying MCP servers after startup | `deployment_01_deployment.md` §2.4 |
+| MCP health probes and audit log reading | `mcp_06_04_verification-methods.md`, `mcp_06_05_reading-audit-logs.md` |
 
 ## Canonical Sources
 
@@ -40,11 +43,6 @@ Known limitations, specification gaps, and pending items are centrally managed i
 ## Reference API
 
 No reference APIs exist in this directory. All files are deployment guides.
-
-## Related ADRs
-
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
-- [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
 
 ## Keywords
 

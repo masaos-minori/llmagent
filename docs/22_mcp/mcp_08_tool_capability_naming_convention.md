@@ -19,9 +19,9 @@ MCP tools can declare arbitrary capability metadata. A capability is a string in
 
 This naming convention is **optional**; existing tools are not required to adopt it. Discovery services allow the absence of this field ([see mcp_tool_discovery.py](mcp_03_06_tool-runtime-availability-metadata.md)).
 
-Related: [mcp_03_02_tool-registry.md](mcp_03_02_tool-registry.md) — Describes ownership and routing roles for `ToolRegistry` (distinct from the capability naming convention in this document).
+See [mcp_03_02_tool-registry.md](mcp_03_02_tool-registry.md): Describes ownership and routing roles for `ToolRegistry` (distinct from the capability naming convention in this document).
 
-Related: [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) — Describes the canonical name for `TOOL_LIST` exports (distinct from the capability naming convention in this document).
+See [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md): Describes the canonical name for `TOOL_LIST` exports (distinct from the capability naming convention in this document).
 
 ## Naming Convention
 
@@ -36,7 +36,7 @@ or
 - All segments must be lowercase.
 - Segments must not contain spaces or underscores.
 - Segments must be separated by dots.
-- Regex equivalent: `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`
+- Regex equivalent: `^[a-z][a-z0-9]*(\.[a-z][a-z0-9]*)+$`
 
 **Note**: This regex is for documentation purposes only; **no runtime regex validation is performed**. This document defines a shape convention and does not mandate validator implementation.
 

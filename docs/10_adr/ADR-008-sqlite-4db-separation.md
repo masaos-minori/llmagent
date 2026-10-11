@@ -86,7 +86,7 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 | Database file | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite |
 | System of record | documents, chunks, FTS5, Vector Index | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, approvals, processed events | events, offsets, deliveries, DLQ state |
 | Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none |
-| Owning component | RAG team | Agent team | Workflow team | EventBus team |
+| Owning component | RAG layer | Agent layer | Workflow engine (Agent layer) | EventBus service |
 | Required service stop scope | Agent process, rag-pipeline-mcp, and any running ingester | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process |
 | Supported diagnosis path | `_run_integrity_check()` + `check_rag_consistency()` | `_run_integrity_check()` | none through `recover_corruption()` (returns `no_recovery_allowed` before any check) | none through `recover_corruption()` (returns `no_recovery_allowed` before any check) |
 | Supported recovery source | verified backup from operator for `documents`/`chunks`; FTS5 and Vector Index rebuilt from `chunks` (Decision Detail #20) | verified backup from operator | none (auto-restore prohibited per Decision Detail #20) | none (auto-restore prohibited per Decision Detail #20) |
@@ -106,10 +106,10 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 
 ### Decision Details
 
-1. `rag.sqlite`: canonical store for documents, chunks, FTS5, and the Vector Index. Owned by the RAG team.
-2. `session.sqlite`: canonical store for Agent Sessions, Messages, and conversation state. Owned by the Agent team.
-3. `workflow.sqlite`: canonical store for Tasks, Attempts, Approvals, Artifacts, and processed Events. Owned by the Workflow team.
-4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus team.
+1. `rag.sqlite`: canonical store for documents, chunks, FTS5, and the Vector Index. Owned by the RAG layer.
+2. `session.sqlite`: canonical store for Agent Sessions, Messages, and conversation state. Owned by the Agent layer.
+3. `workflow.sqlite`: canonical store for Tasks, Attempts, Approvals, Artifacts, and processed Events. Owned by the workflow engine in the Agent layer.
+4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus service.
 5. Reasons for DB separation: differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 7. Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
@@ -252,7 +252,7 @@ No confirmed deviations.
 
 ### Approval Record
 
-- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Decision Change (2026-10-08)**: The Derived Stores section and the corrected Recovery Policy Matrix rows were approved as a task-level approval decision (repository administrator instruction); reviewer names are not recorded.

@@ -1,6 +1,7 @@
 ---
 title: "Event Bus: Reference API"
 area: eventbus
+class: Reference
 tags:
   - event-bus
   - api-reference

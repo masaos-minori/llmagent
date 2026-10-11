@@ -45,7 +45,7 @@ grep "op=delete_directory" <log_dir>/delete_audit.log
 grep '"event":"mcp_tool_exec"' <log_dir>/audit.log
 ```
 
-> **Note:** `cicd-mcp`, `git-mcp`, and `mdq-mcp` use the shared audit log only (no dedicated audit log files). They record via `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format. Each record includes `canonical_target` (the resolved canonical repository path) alongside `requested_target` (the sanitized caller-provided value). Outcome values are `"ok"` (operation succeeded), `"error"` (operation failed with an exception), or `"rejected"` (operation rejected by a policy guard before execution).
+> **Note:** `cicd-mcp`, `git-mcp`, and `mdq-mcp` use the shared audit log only (no dedicated audit log files). They record via `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format. Only git-mcp emits the optional `canonical_target`, `pre_condition`, and `post_condition` fields (see `mcp_02_03_audit-logging-and-errors.md`). Outcome values are `"ok"` (operation succeeded), `"error"` (operation failed with an exception), or `"rejected"` (operation rejected by a policy guard before execution).
 
 ## Server-specific Log Files
 

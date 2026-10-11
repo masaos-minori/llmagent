@@ -63,7 +63,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 ### Scope
 
 - **Components**: `scripts/mcp_servers/git/git_service.py`, `format_output.py`, `git_server.py`, `git_models.py`, `repository_state.py`.
-- **Tools**: `git_checkout`, `git_pull`, `git_push` specifically; `git_add`/`git_commit` are lower-risk and out of scope for command-specific guards beyond the existing common guard.
+- **Tools**: `git_checkout`, `git_pull`, `git_push` specifically; `git_add`/`git_commit` have no command-specific guard of their own, but the common write-protection check applies to them: it compares the current HEAD branch against the protected branches.
 
 ### Out of Scope
 
@@ -197,7 +197,7 @@ No confirmed deviations.
 
 ### Approval Record
 
-- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Decision Change (2026-10-08)**: The wording of Decision Details #2 and #3 and of INV-01 and INV-02 (refspec and revision syntax rejected; forced update unreachable by parameter or refspec) was approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.

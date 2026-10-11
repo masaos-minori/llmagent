@@ -41,6 +41,10 @@ High (safety or critical functionality; immediate attention), Medium (correctnes
 
 Unassigned, a specific person (`[Name]`), or Team.
 
+### First Found and Related Values
+
+`First Found` names the activity that surfaced the issue (for example, a documentation review); it is not a date. `Related` is `None` or a comma-separated list of Known Issue IDs and repository-relative document paths.
+
 ### Area Values
 
 Overview, Deployment, RAG, MCP, Agent, EventBus, Shared/DB, Governance
@@ -57,16 +61,20 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 |----|-------|--------|----------|------|------|
 | RAG-002 | Japanese sentences with empty normalized text are dropped with their original text | open | Low | RAG | implementation-bug |
 | RAG-006 | Refiner settings in config/agent.toml are validated but never read by the Agent | open | Low | RAG | design-gap |
+| RAG-007 | chunks_vec has no foreign key to chunks | open | Low | RAG | design-gap |
 | AGENT-002 | No regression test for ADR-014 INV-02 | open | Low | Agent | operational-gap |
 | AGENT-004 | A non-required subprocess MCP server aborts startup when it fails to spawn | open | Medium | Agent | design-gap |
 | AGENT-005 | Approval and audit operation-type classification reads static tool-name sets before RuntimeToolRegistry | open | Medium | Agent | design-gap |
 | AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
 | AGENT-007 | A diagnostic row that fails to decrypt is returned as ciphertext with only a warning | open | Low | Agent | design-gap |
 | AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
+| AGENT-009 | /skill messages lose the _ephemeral marker during append validation | open | Low | Agent | design-gap |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | DEPLOY-002 | Production uv run does not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
+| EVENTBUS-016 | Two EventBus DDL sources define slightly different schemas | open | Low | EventBus | design-gap |
+| SHARED-001 | shared/security package has no importers | open | Low | Shared/DB | design-gap |
 
 #### RAG-002
 
@@ -107,6 +115,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Editing these keys has no effect on refiner behavior.
 - **Recommended Action**: Remove the unused keys from `config/agent.toml` and `RAGConfig`, or wire them to a consumer.
 - **Resolution Target**: Every refiner key in `config/agent.toml` has a consumer, or the keys are removed.
+
+#### RAG-007
+
+- **ID**: RAG-007
+- **Title**: chunks_vec has no foreign key to chunks
+- **Status**: open
+- **Severity**: Low
+- **Area**: RAG
+- **Type**: design-gap
+- **Source**: `scripts/db/schema_sql.py`
+- **Owner**: Unassigned
+- **First Found**: ADR Known Deviations review
+- **Target**: `docs/10_adr/ADR-005-rag-source-derived-index-relationships.md`
+- **Related**: None
+- **Summary**: The `sqlite-vec` virtual table `chunks_vec` cannot declare a foreign key to `chunks`.
+- **Current Description**: ADR-005 requires derived index rows to follow their source rows.
+- **Observed Implementation**: Orphaned vector rows can exist after document deletion if the explicit `chunks_vec` deletion step is skipped; all deletion paths perform it.
+- **Impact**: A deletion path that omits the explicit step leaves orphaned vector rows.
+- **Recommended Action**: Keep the ordering invariant tested, and revisit when `sqlite-vec` supports foreign keys.
+- **Resolution Target**: `sqlite-vec` supports foreign keys, or the limitation is recorded as accepted.
 
 #### AGENT-002
 
@@ -228,6 +256,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Keep originals recoverable, or record the limitation as accepted.
 - **Resolution Target**: The undo range after compression is defined and tested.
 
+#### AGENT-009
+
+- **ID**: AGENT-009
+- **Title**: /skill messages lose the _ephemeral marker during append validation
+- **Status**: open
+- **Severity**: Low
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/commands/cmd_skill.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md`
+- **Related**: None
+- **Summary**: The `/skill` message carries `_ephemeral` and `_skill_ephemeral`, but only `_skill_ephemeral` survives history validation.
+- **Current Description**: Documented only as a chapter-level Known Limitation in the CLI skill-command chapter.
+- **Observed Implementation**: `TRUSTED_SOURCES["skill_mixin"]` authorizes only `_skill_ephemeral`, so `append_message()` removes `_ephemeral` with a warning log.
+- **Impact**: The orchestrator's generic `_ephemeral` pre-turn clearing does not remove injected skill messages at the start of the next turn.
+- **Recommended Action**: Authorize `_ephemeral` for the skill source, or make the pre-turn clearing also handle `_skill_ephemeral`, or record the behavior as accepted.
+- **Resolution Target**: Skill messages are cleared by one defined mechanism, with a test.
+
 #### DEPLOY-001
 
 - **ID**: DEPLOY-001
@@ -311,6 +359,46 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 
 
+#### EVENTBUS-016
+
+- **ID**: EVENTBUS-016
+- **Title**: Two EventBus DDL sources define slightly different schemas
+- **Status**: open
+- **Severity**: Low
+- **Area**: EventBus
+- **Type**: design-gap
+- **Source**: `scripts/db/schema_sql.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
+- **Related**: `EVENTBUS-015`
+- **Summary**: `eventbus.sqlite` can be created from two DDL sources that are not identical.
+- **Current Description**: The database documents name both `build_eventbus_schema_sql()` (used by `create_schema()`) and `scripts/eventbus/schema.sql` (used by the EventBus service when the `events` table is missing) as DDL sources.
+- **Observed Implementation**: The two differ in the `published_at` default and in one `consumer_delivery` index, which only `schema.sql` creates.
+- **Impact**: A database bootstrapped by `create_schema()` can differ from one created by the service at first startup.
+- **Recommended Action**: Make one source canonical and generate or load the other from it, or add a test that asserts the two stay equivalent.
+- **Resolution Target**: Both bootstrap paths produce the same schema.
+
+#### SHARED-001
+
+- **ID**: SHARED-001
+- **Title**: shared/security package has no importers
+- **Status**: open
+- **Severity**: Low
+- **Area**: Shared/DB
+- **Type**: design-gap
+- **Source**: `scripts/shared/security/__init__.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`
+- **Related**: None
+- **Summary**: `HighRiskToolPolicy`, `SecurityMode`, and `AuditLogger` are defined but no module under `scripts/` or `tests/` imports them.
+- **Current Description**: Documented only as a note in the Runtime Dependency Graph chapter.
+- **Observed Implementation**: The package exports its names from `__init__.py` and nothing imports the package.
+- **Impact**: No runtime path uses these classes, so any behavior they define does not take effect.
+- **Recommended Action**: Wire the package into the runtime and add it to the dependency graph, or remove it and align the security documents.
+- **Resolution Target**: The package is either imported by runtime code or removed.
+
 ## Part 2: Needs Confirmation Inventory
 
 ### Purpose
@@ -343,8 +431,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-| Item ID | Title | Category | Priority | Evidence | Required Decision |
-|---------|-------|----------|----------|----------|-------------------|
+Each active item is listed with all fifteen Inventory Entry Fields above.
 
 No active Needs Confirmation items remain.
 
@@ -385,6 +472,10 @@ Each active Configuration Drift entry must contain these 6 fields: ID, Decision 
 - **investigating** — Investigation underway
 
 An item is removed from this active inventory once it is resolved (deployed and approved values agree, or the approved value has been formally changed) or no longer applies to the current system; it is not retained here with a closed-out status.
+
+### Active Items
+
+No active Configuration Drift items remain.
 
 ## Resolution Rules
 

@@ -86,7 +86,7 @@ Full details: [agent_04_01_state-and-persistence-state-model.md](agent_04_01_sta
 
 - **Role:** HTTP communication with LLM. SSE streaming + retries.
 - **Primary API:** `await client.stream(url, history, tool_defs)`, `client.build_payload(...)`
-- **Caller:** `LlmTurnExecutor`, `HistoryManager` (via `call()`), `SessionTitleService`
+- **Caller:** `LlmTurnExecutor`, `SessionTitleService` (`HistoryManager` does not use it; see the HistoryManager section)
 - **Callee:** `RobustSSEParser`, `httpx.AsyncClient`
 - **Configuration:** `cfg.llm.*`
 - **On Failure:** Raises `LLMTransportError` with `partial_text` upon stream failure.
@@ -97,7 +97,7 @@ Full details: [agent_05_llm-and-streaming.md](agent_05_llm-and-streaming.md)
 
 ## ToolExecutor (`shared/tool_executor.py`)
 
-- **Role:** MCP tool routing, side-effect classification, and concurrency limits.
+- **Role:** MCP tool routing and concurrency limits. (The side-effect tool set in `tool_executor_helpers.py` is not used by the execution path.)
 - **Primary API:** `await executor.execute(tool_name, args) -> ToolCallResult`
 - **Caller:** `LlmTurnExecutor` (via `execute_all_tool_calls`)
 - **Callee:** `ToolRouteResolver`, `HttpTransport`, `McpServerHealthRegistry`
@@ -182,7 +182,7 @@ Full details: [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-sess
 ## AgentConfig (`agent/config_dataclasses.py`)
 
 - **Role:** Configuration container. Supports hot-reloading via `/reload`.
-- **Primary API:** `build_agent_config(cfg_override=None) -> AgentConfig`
+- **Primary API:** `build_agent_config(cfg_override=None) -> AgentConfig` (defined in `agent/config_builders.py`; the `AgentConfig` dataclass lives in `agent/config_dataclasses.py`)
 - **Caller:** Session initialization, config reloading
 - **Callee:** `ConfigLoader.load_all()`
 - **Configuration:** `config/agent.toml`

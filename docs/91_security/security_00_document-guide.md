@@ -36,7 +36,7 @@ This directory contains security-related documentation including system security
 
 ## Canonical Sources
 
-See [System Security Architecture and Trust Boundaries](security_01_architecture-and-trust-boundaries.md) for the primary security architecture overview.
+Canonical sources for this area are defined in the [Canonical Source Registry](../00_governance/governance_01_documentation-policy.md#canonical-source-registry): security constraints (`security-policy`) are normative in the Accepted security ADRs listed there. This area guide does not maintain an independent mapping. [System Security Architecture and Trust Boundaries](security_01_architecture-and-trust-boundaries.md) is an overview, not a canonical source.
 
 ## Known Issues / Deferred Items
 
@@ -45,12 +45,6 @@ Known limitations, specification gaps, and pending items are centrally managed i
 ## Reference API
 
 No reference APIs exist in this directory. All files are security policy/architecture documents.
-
-## Related ADRs
-
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
-- [ADR-013](../10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus Authentication and Authorization
-- [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
 
 ## Keywords
 

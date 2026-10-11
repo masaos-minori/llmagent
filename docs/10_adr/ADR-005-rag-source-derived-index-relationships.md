@@ -261,13 +261,13 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
   - **Verifies**: INV-02
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec` (TEST-DESIGN3-03)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec`
 
 - **Test**: Deleting `documents` cascades the deletion to `chunks`
   - **Verifies**: INV-02
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_canonical_deletion_leaves_no_orphans_and_cascades_chunks` (TEST-DESIGN3-04)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_canonical_deletion_leaves_no_orphans_and_cascades_chunks`
 
 - **Test**: The output of the FTS Trigger and of a manual rebuild match
   - **Verifies**: INV-03
@@ -279,7 +279,7 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
   - **Verifies**: INV-04
   - **Type**: Regression
   - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_consistency_check_detects_fts_gap` (TEST-DESIGN3-05)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_consistency_check_detects_fts_gap`
 
 - **Test**: The MCP deletion path removes `chunks_vec` and cascades to `chunks`
   - **Verifies**: INV-05
@@ -303,7 +303,7 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
   - **Verifies**: INV-01
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_chunks_fts_is_trigger_synced` (TEST-DESIGN3-02)
+  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_chunks_fts_is_trigger_synced`
 
 ### Startup Validation
 
@@ -341,11 +341,7 @@ This chapter is not a basis for design decisions.
 
 ## Known Deviations
 
-- **Known Issue**: `sqlite-vec` lacks FK constraints — `chunks_vec` has no foreign key pointing to `chunks`. This is a known architectural limitation of `sqlite-vec` virtual tables. Consequence: Orphaned vector records can exist after document deletion if the explicit `chunks_vec` deletion step is missed. Mitigation: All deletion code paths enforce the `chunks_vec` → `documents` ordering invariant.
-- **Type**: Architectural Limitation
-- **Summary**: `chunks_vec` has no FK constraint
-- **Impact**: An explicit deletion step is required
-- **Resolution Target**: Cannot be relaxed until sqlite-vec supports FK constraints
+- **Known Issue**: RAG-007 — tracked in governance_03 Part 1 (`chunks_vec` has no foreign key to `chunks`, an `sqlite-vec` limitation; all deletion paths enforce the `chunks_vec` → `documents` ordering)
 
 Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
@@ -376,7 +372,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 
 ### Approval Record
 
-- **Approved By**: Task-level approval decision (repository administrator; individual reviewer names are not recorded)
+- **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 
@@ -400,7 +396,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `chunks_fts` virtual table — FTS5 trigger synchronization
 - `chunks_vec` virtual table — sqlite-vec KNN index
 - Triggers — `chunks_ai`, `chunks_au`, `chunks_ad`, `chunks_vec_ad`
-- Tests — `tests/agent/services/test_rag_index_integrity.py` (TEST-DESIGN3-01 to 05)
+- Tests — `tests/agent/services/test_rag_index_integrity.py`
 - Tests — `tests/rag/ingestion/test_delete_chain.py`, `tests/rag/test_fts_sync.py`, `tests/mcp_servers/rag_pipeline/test_document_manager.py`, `tests/test_chunks_fts_invariant_lint.py`
 
 ## Completion Checklist

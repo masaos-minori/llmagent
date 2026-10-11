@@ -196,8 +196,8 @@ Re-evaluate when:
 
 ### Required Reviewers
 
-- Architect
-- Component Owner
+- Architecture Owner
+- Affected Component Owner
 - Security Reviewer: when security impact
 - Ops Reviewer: when ops/monitoring/recovery affected
 - Data Owner: when data/schema/retention affected

@@ -27,9 +27,8 @@ The following four metadata fields are required in every document's front matter
   for ADRs, which keep `## Related ADRs` and `## Implementation References` as ordinary
   top-level sections. Human-oriented navigation lives in the index and the per-area
   document guides.
-- **category** — Not a valid front-matter key. Do not use this field.
 
-`keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key. The section body is a bulleted list with one term per item (no comma-separated lines and no sub-headings).
+`category` is not a front-matter key either; do not use it. `keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key. The section body is a bulleted list with one term per item (no comma-separated lines and no sub-headings).
 
 ## Recommended Additional Fields
 
@@ -91,28 +90,15 @@ Topics explicitly excluded from this document:
 
 ## Terminology Glossary
 
-| Term | Preferred Form | Alternative Forms | Notes |
-|------|---------------|-------------------|-------|
-| Constraint | Constraint | constraint | Capitalize when referring to design constraints |
-| Decision | Decision | decision | Capitalize when referring to design decision |
-| Alternative | Alternative | alternative | Capitalize when referring to considered alternatives |
-| Trade-off | Trade-off | tradeoff | Hyphenate as noun; "tradeoff" acceptable as single word |
-| Standardization | Standardization | standardisation | Use American English spelling (z) per project convention |
-| Localization | Localization | Localisation | Use American English spelling (z) per project convention |
-| Authorization | Authorization | Authorisation | Use American English spelling (or) per project convention |
-| Behavior | Behavior | Behaviour | Use American English spelling (or) per project convention |
-| Optimize | Optimize | Optimise | Use American English spelling (ze) per project convention |
-| Organize | Organize | Organise | Use American English spelling (ze) per project convention |
+The glossary holds project-specific terms only (see the Compatibility and Lifecycle Terminology table below). General English words are not defined here; the one wording convention that applies to them is American English spelling (for example `Authorization`, `Behavior`, `Standardization`).
 
 ### Usage Rules
 
 1. **Proper nouns**: Always capitalize CamelCase terms (EventBus, ToolRegistry, WorkflowEngine).
 2. **Abbreviations**: Always use uppercase form (MQ, NC, DLQ, ACK, DTO, etc.).
-3. **Bilingual text**: Do not add non-English alternatives; all `docs/` text is English per `skills/DESIGN.md` Output language. Alternative forms are the English variants listed in the Terminology Glossary.
+3. **Bilingual text**: Do not add non-English alternatives; all `docs/` text is English per `skills/DESIGN.md` Output language.
 4. **Hyphenation**: Use hyphens for compound adjectives (at-least-once delivery, fail-closed mode).
 5. **Plurals**: Plural forms are acceptable when referring to multiple items (Known Issues, Needs Confirmations).
-6. **First occurrence**: On first use in a document, include both preferred and alternative forms: "Needs Confirmation (Requires Confirmation)".
-7. **Subsequent occurrences**: Use only the preferred form after first definition.
 
 ### Compatibility and Lifecycle Terminology
 

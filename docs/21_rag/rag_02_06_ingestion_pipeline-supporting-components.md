@@ -63,7 +63,7 @@ the `ValueError` conditions in the shared error-handling reference table.
 
 ## 4.10 Configuration (`config/ingester.toml`)
 
-See [rag_05_01-configuration-reference.md section 9.3](rag_05_01-configuration-reference.md).
+See [rag_05_01-configuration-reference.md, `config/ingester.toml`](rag_05_01-configuration-reference.md).
 
 ---
 

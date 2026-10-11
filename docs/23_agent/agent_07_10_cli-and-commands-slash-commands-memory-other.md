@@ -14,7 +14,7 @@ related:
   - agent_07_05_cli-and-commands-repl-io.md
   - agent_07_06_cli-and-commands-hot-reload.md
   - agent_07_07_cli-and-commands-slash-commands-session-mcp.md
-  - agent_07_08_cli-and-commands-slash-commands-context-db.md
+  - agent_07_08_cli-and-commands-slash-commands-context-plan.md
   - agent_07_09_cli-and-commands-slash-commands-workflow-debug.md
 ---
 
@@ -42,7 +42,7 @@ All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. M
 
 `/skill <name> [args]` passes the content of `skills/<name>/SKILL.md` to the next LLM turn. Re-running within the same session replaces the previous one.
 
-**Known Limitation:** The message constructed by `_cmd_skill()` has both `_ephemeral: True` and `_skill_ephemeral: True`, but since `TRUSTED_SOURCES["skill_mixin"]` only authorizes `_skill_ephemeral`, the `append_message()` validation fails, causing the `_ephemeral` key to be sanitized (removed, with a `warning` log) before saving. As a result, only `_skill_ephemeral: True` remains in history. This is a known and accepted behavior change; the impact is that the orchestrator's generic `_ephemeral`-based pre-turn clearing no longer automatically removes injected skill messages at the start of the next turn.
+**Known Limitation (Known Issue AGENT-009):** The message constructed by `_cmd_skill()` has both `_ephemeral: True` and `_skill_ephemeral: True`, but since `TRUSTED_SOURCES["skill_mixin"]` only authorizes `_skill_ephemeral`, the `append_message()` validation fails, causing the `_ephemeral` key to be sanitized (removed, with a `warning` log) before saving. As a result, only `_skill_ephemeral: True` remains in history. This is a known and accepted behavior change; the impact is that the orchestrator's generic `_ephemeral`-based pre-turn clearing no longer automatically removes injected skill messages at the start of the next turn.
 
 ### Other Category
 

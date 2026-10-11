@@ -78,12 +78,6 @@ Cross-cutting documentation rules and policies:
 - [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md)
 - [Documentation Checks](../00_governance/governance_04_documentation-checks.md)
 
-## Related ADRs
-
-- [ADR-006](../10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md) — EventBus SQLite Persistence and SSE Delivery
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
-- [ADR-013](../10_adr/ADR-013-eventbus-authentication-authorization.md) — EventBus Authentication and Authorization
-
 ## Keywords
 
 - eventbus

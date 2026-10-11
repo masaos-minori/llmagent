@@ -41,6 +41,8 @@ This index records no deviations of its own. Open deviations are recorded in the
 | ADR-014 | Responsibility Boundaries of the Agent Control Plane | Accepted | `10_adr/ADR-014-agent-control-plane-responsibility-boundaries.md` |
 | ADR-015 | Reference Document Class Disposition | Accepted | `10_adr/ADR-015-reference-document-class-disposition.md` |
 
+The number ADR-011 is unassigned: no ADR file carries it, and it is not referenced as a dependency by any ADR in this list.
+
 ## ADR Dependency Graph
 
 `A → B` means that ADR-A lists ADR-B under its Related ADRs and refers to it in its body.

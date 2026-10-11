@@ -183,6 +183,8 @@ Validates `docs/10_adr/*.md` structure:
 - Notes vs References path drift (a `scripts/`/`tests/` path in
   Implementation Notes absent from Implementation References → Warning;
   skipped if Notes cites zero such paths)
+- Section headings: only the headings of the ADR Section Header Standardization, in that order (Error)
+- Template instruction text and global `INV-NNN` invariant ids in an ADR body (Error)
 
 **Usage:**
 ```bash

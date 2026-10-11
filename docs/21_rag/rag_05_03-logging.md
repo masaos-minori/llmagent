@@ -1,5 +1,5 @@
 ---
-title: "3. Logging"
+title: "Logging"
 area: rag
 tags:
   - rag
@@ -10,7 +10,7 @@ related:
 ---
 
 
-# 11. Logging
+# Logging
 
 | Script | Log file | Log levels |
 |---|---|---|

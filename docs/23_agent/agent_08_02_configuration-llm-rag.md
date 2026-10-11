@@ -46,7 +46,7 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 #### Token Counting
 
-- `tokenize_url`: llamacpp `/tokenize` URL; `""` falls back to `chars // 4`.
+- `tokenize_url`: llamacpp `/tokenize` URL; `""` falls back to the category-aware estimate in `shared/token_estimation.py`.
 
 #### History Compression
 

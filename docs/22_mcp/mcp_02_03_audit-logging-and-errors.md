@@ -33,6 +33,9 @@ Each `POST /v1/call_tool` invocation outputs one JSON-lines audit record.
 | `detail` | Optional supplementary info | No | Omitted |
 | `server_key` | Server identifier (e.g., `"file_read"`, `"cicd"`, `"mdq"`, `"shell"`, `"github"`) | Yes | `""` |
 | `error_type` | Error classification for transport failures | Yes | `""` |
+| `canonical_target` | Resolved canonical repository path; emitted by git-mcp only | No | Omitted |
+| `pre_condition` | Serialized repository state before the operation; emitted by git-mcp only | No | Omitted |
+| `post_condition` | Serialized repository state after the operation; emitted by git-mcp only | No | Omitted |
 
 **Note:** github-mcp and shell-mcp write to both shared and dedicated audit logs. file-delete-mcp writes only a dedicated audit log. File read/write MCP servers do not write audit logs. Dedicated audit logs for github-mcp and shell-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
 

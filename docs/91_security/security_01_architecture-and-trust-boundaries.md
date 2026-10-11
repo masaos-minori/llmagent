@@ -210,7 +210,7 @@ Full failure-scenario table (missing definition, invalid JSON, checksum mismatch
 
 When embedding is unavailable: existing documents remain searchable via FTS, new documents cannot be indexed, `memory_embed_enabled` remains `true` but embeddings are not generated, and the system logs a WARNING on each failed embedding attempt.
 
-*Source: [rag_05_02-execution-guide.md](../21_rag/rag_05_02-execution-guide.md#105-rag-consistency-check-dbrag_consistencypy)*
+*Source: [rag_05_02-execution-guide.md](../21_rag/rag_05_02-execution-guide.md#rag-consistency-check-dbrag_consistencypy)*
 
 ### Memory layer failure behavior
 

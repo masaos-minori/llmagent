@@ -19,7 +19,7 @@ related:
 
 # Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`
 
-> `config_dependent` is adopted across `git`, `file_read`/`file_write`/`file_delete`, `github`, and `web_search` (`browser_fetch`). `enabled`/`disabled_reason` are carried into `RuntimeToolRegistry` by `_dedupe_and_build()` in `mcp_tool_discovery.py`. See `mcp_03_01_dispatch-and-routing.md` for details. (Explicit in code — `scripts/agent/services/mcp_tool_discovery.py`)
+> `config_dependent` is `true` for every tool of `git`, `github`, `cicd`, and `shell`, and for `browser_fetch` of `web_search`; it is `false` for the file servers, `mdq`, and `rag_pipeline` tools. `enabled`/`disabled_reason` are carried into `RuntimeToolRegistry` by `_dedupe_and_build()` in `mcp_tool_discovery.py`. See `mcp_03_01_dispatch-and-routing.md` for details. (Explicit in code — `scripts/agent/services/mcp_tool_discovery.py`)
 
 ## 1. `config_dependent` (static)
 

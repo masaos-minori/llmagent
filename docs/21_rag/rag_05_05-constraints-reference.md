@@ -1,5 +1,5 @@
 ---
-title: "5. Constraints Reference"
+title: "Constraints Reference"
 area: rag
 tags:
   - rag
@@ -10,7 +10,7 @@ related:
 ---
 
 
-# 13. Constraints Reference
+# Constraints Reference
 
 | Constraint | Value |
 |---|---|

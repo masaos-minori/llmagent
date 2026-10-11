@@ -1,6 +1,7 @@
 ---
 title: "Agent Reference API — Generated Class/Function Index"
 area: agent
+class: Reference
 tags:
   - agent
   - api-reference

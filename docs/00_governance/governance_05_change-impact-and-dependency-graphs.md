@@ -82,7 +82,7 @@ Enforced automatically by `tools/check_dependency_graph_cycles.py` (see
 Validation").
 
 Security is not a node in this graph: `scripts/shared/security/` (`HighRiskToolPolicy`,
-`SecurityMode`, `AuditLogger`) has no importers in `scripts/`/`tests/`, so no edge
+`SecurityMode`, `AuditLogger`) has no importers in `scripts/`/`tests/` (Known Issue SHARED-001), so no edge
 exists for it. If it is wired in later, add it to the node set in
 `tools/check_dependency_graph_cycles.py` together with its edge here.
 

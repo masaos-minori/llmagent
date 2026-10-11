@@ -193,7 +193,7 @@ aborting the **entire file**, not one chunk.
 
 ### 3.7 Configuration
 
-See [rag_05_01-configuration-reference.md section 9.2](rag_05_01-configuration-reference.md).
+See [rag_05_01-configuration-reference.md, `config/chunk_splitter.toml`](rag_05_01-configuration-reference.md).
 
 ## Keywords
 

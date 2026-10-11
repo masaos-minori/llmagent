@@ -18,7 +18,7 @@ related:
   - agent_07_10_cli-and-commands-slash-commands-memory-other.md
 ---
 
-# Agent CLI and Commands
+# Agent CLI and Commands - Slash Commands: Context, Plan
 
 - System Overview → [agent_01_system-overview.md](agent_01_system-overview.md)
 

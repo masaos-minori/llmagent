@@ -123,13 +123,6 @@ Cross-cutting documentation rules and policies:
 
 None currently known. Open items are tracked in `governance_03_issue-and-uncertainty-management.md` (Part 1, Area: MCP).
 
-## Related ADRs
-
-- [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md) — RuntimeToolRegistry as the Sole Routing Authority
-- [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) — Failure Handling Policy Across Environments
-- [ADR-007](../10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md) — Adoption of HTTP MCP and Non-Support of stdio
-- [ADR-012](../10_adr/ADR-012-git-mcp-server-side-write-enforcement.md) — Git MCP Server-Side Write Enforcement
-
 ## Keywords
 
 - mcp

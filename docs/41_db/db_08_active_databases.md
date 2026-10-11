@@ -50,7 +50,7 @@ Each database is owned by a single component (see the **Owner** line of each sec
 
 - **Owner**: the EventBus service (`scripts/eventbus/`)
 - **Config source**: `eventbus_db_path` in `config/agent.toml` and `db_path` in `config/eventbus.toml` (the values must refer to the same database)
-- **Schema authority**: `scripts/db/schema_sql.py` (`build_eventbus_schema_sql()`)
+- **Schema sources**: `scripts/db/schema_sql.py` (`build_eventbus_schema_sql()`) and `scripts/eventbus/schema.sql`; they differ slightly (Known Issue EVENTBUS-016)
 - **Lifecycle**: Created on first event bus use; persists until deleted
 - **Tables**: events, consumer_delivery, consumer_offsets
 

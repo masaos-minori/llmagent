@@ -71,7 +71,7 @@ class TestCommandDocsSync:
             ROOT
             / "docs"
             / "23_agent"
-            / "agent_07_08_cli-and-commands-slash-commands-context-db.md",
+            / "agent_07_08_cli-and-commands-slash-commands-context-plan.md",
             ROOT
             / "docs"
             / "23_agent"

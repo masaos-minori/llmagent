@@ -1,6 +1,7 @@
 ---
 title: "Memory Layer Reference — Generated Class/Function Index"
 area: agent
+class: Reference
 tags:
   - agent
   - memory

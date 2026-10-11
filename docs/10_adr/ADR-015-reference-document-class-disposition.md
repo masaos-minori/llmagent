@@ -170,4 +170,4 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The Owner and required Reviewers are defined (see Approval Record — review completed through a Named Approval Record)
 - [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)
-- [ ] The documents listed in Implementation Notes declare `class: Reference` in their front matter
+- [x] The documents listed in Implementation Notes declare `class: Reference` in their front matter

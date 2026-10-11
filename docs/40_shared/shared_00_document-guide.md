@@ -10,6 +10,14 @@ tags:
   - ai reference
 related:
   - governance_03_issue-and-uncertainty-management.md
+  - shared_01_overview.md
+  - shared_02_01_types_and_protocols-core-types.md
+  - shared_02_02_types_and_protocols-tool-and-execution-dto.md
+  - shared_02_03_types_and_protocols-reference.md
+  - shared_03_01_runtime_and_execution-config-and-logging.md
+  - shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
+  - shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
+  - shared_03_04_runtime_and_execution-caching-and-reference.md
 ---
 
 # Shared/DB Documentation Guide
@@ -88,10 +96,6 @@ Cross-cutting documentation rules and policies:
 5. Do NOT perform manual INSERTs because DB triggers automatically synchronize `chunks_fts`.
 6. `SQLiteHelper("workflow")` is enabled (see `db_01`).
 7. For details on `LLMClient`, see `agent_05_llm-and-streaming.md` (not covered by this document set).
-
-## Related ADRs
-
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
 
 ## Keywords
 

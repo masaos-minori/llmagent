@@ -105,7 +105,7 @@ HTTP status 429/503 are classified as `retryable=True` (`HTTP_STATUS_RETRYABLE`)
 
 ### Usage Statistical Limits
 
-If the LLM endpoint returns a chunk containing a `usage` field, data is extracted from `prompt_tokens` and `completion_tokens` fields, and the `on_usage(prompt_tokens, completion_tokens)` callback is invoked. If no `usage` is returned, statistics remain `None`. `/context` displays estimates based on `chars // 4`.
+If the LLM endpoint returns a chunk containing a `usage` field, data is extracted from `prompt_tokens` and `completion_tokens` fields, and the `on_usage(prompt_tokens, completion_tokens)` callback is invoked. If no `usage` is returned, statistics remain `None`. `/context` displays category-aware estimates from `shared/token_estimation.py`.
 
 ## Operational Notes
 

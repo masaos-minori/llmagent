@@ -1,5 +1,5 @@
 ---
-title: "4. Error Handling Reference"
+title: "Error Handling Reference"
 area: rag
 tags:
   - rag
@@ -7,9 +7,11 @@ tags:
 related:
   - rag_00_document-guide.md
   - rag_05_01-configuration-reference.md
+  - rag_02_01_ingestion_pipeline-overview.md
+  - rag_03_01_query_pipeline-overview.md
 ---
 
-# 12. Error Handling Reference
+# Error Handling Reference
 
 ## Crawler
 

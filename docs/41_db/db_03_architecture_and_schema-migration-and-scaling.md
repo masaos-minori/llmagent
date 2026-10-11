@@ -48,7 +48,7 @@ Incremental migration mechanisms like this do not exist for `rag.sqlite` or `ses
 evolution on `eventbus.sqlite` at every EventBus service startup, called from
 `_init_schema()` when the `events` table already exists. The base schema for
 `events`, `consumer_delivery`, and `consumer_offsets` is defined in
-`scripts/eventbus/schema.sql`; see `scripts/eventbus/schema.py` for the additive
+`scripts/eventbus/schema.sql` (and, for `create_schema()`, in `build_eventbus_schema_sql()`; see Known Issue EVENTBUS-016); see `scripts/eventbus/schema.py` for the additive
 migration logic that creates `consumer_delivery`/`consumer_offsets` on existing
 databases.
 

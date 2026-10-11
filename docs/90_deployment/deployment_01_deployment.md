@@ -1,6 +1,7 @@
 ---
 title: "Deployment Guide"
 area: deployment
+class: Reference
 tags:
   - deployment
   - environment

@@ -1,5 +1,5 @@
 ---
-title: "6. Local file re-ingestion"
+title: "Local file re-ingestion"
 area: rag
 tags:
   - rag
@@ -7,10 +7,11 @@ tags:
 related:
   - rag_00_document-guide.md
   - rag_05_01-configuration-reference.md
+  - rag_02_05_ingestion_pipeline-document-manager.md
 ---
 
 
-# 14. Local file re-ingestion
+# Local file re-ingestion
 
 ## Initial Ingestion
 
