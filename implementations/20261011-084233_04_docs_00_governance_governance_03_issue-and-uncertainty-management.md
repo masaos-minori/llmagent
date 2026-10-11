@@ -73,10 +73,10 @@ Delete the two locations; preserve surrounding entries (AGENT-008, DEPLOY-001) a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove MCP-003 from Known Issues ledger (REQ-003) | Pending | — | — | Sequence after REQ-001/REQ-002 verified |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation review only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove MCP-003 from Known Issues ledger (REQ-003) | Completed | — | 20261011-091023 | Sequence after REQ-001/REQ-002 verified |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261011-091023 | N/A: documentation review only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261011-091023 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261011-091023 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
