@@ -76,10 +76,10 @@ Edit the two locations; leave other servers' sections untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update mcp_05_01 examples to file-name form and drop MCP-003 reference (REQ-003) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation review only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Update mcp_05_01 examples to file-name form and drop MCP-003 reference (REQ-003) | Completed | — | 20261011-091023 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261011-091023 | N/A: documentation review only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261011-091023 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261011-091023 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
