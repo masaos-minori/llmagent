@@ -64,10 +64,10 @@ N/A: test-only; uses a temporary database and a test token.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_ack_dlq_event_returns_409` to `TestAckHttpBehavior` | Pending | — | — | |
-| 2 | Confirm the test fails before and passes after procedure 04 | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope | Pending | — | — | N/A: no documentation change for this file |
+| 1 | Add `test_ack_dlq_event_returns_409` to `TestAckHttpBehavior` | Completed | 20261011-195047 | 20261011-195047 | Added test_ack_dlq_event_returns_409 to TestAckHttpBehavior. Changed: tests/eventbus/test_eventbus_ack_nack.py. Stale detector flagged the new symbol as missing (false positive for a symbol this procedure creates) |
+| 2 | Confirm the test fails before and passes after procedure 04 | Completed | 20261011-195047 | 20261011-195047 | Failed before the route change (stash check), passes after |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261011-195047 | 20261011-195047 | ack_nack + ack_endpoint: 28 passed; full suite 8200 passed. Pre-existing ruff format diff in this file is unrelated |
+| 4 | Update documentation, if in scope | Completed | 20261011-195047 | 20261011-195047 | N/A: no documentation change for this file N/A: no documentation change for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
