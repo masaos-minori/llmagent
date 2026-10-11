@@ -172,7 +172,7 @@ class TestCrashBeforeAck:
             db = eb_app.app.state.db
             for eid in (body1["event_id"], body2["event_id"]):
                 db.execute(
-                    "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+                    "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 0)",
                     ("consumer-B", eid),
                 )
             db.commit()

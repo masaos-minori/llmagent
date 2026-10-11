@@ -64,7 +64,7 @@ POST /events/{event_id}/ack
   "event_id": "evt-abc",
   "acked": true,
   "seq": 42,
-  "already_acked": true
+  "newly_acked": false
 }
 ```
 
@@ -75,7 +75,7 @@ POST /events/{event_id}/ack
 | `event_id` | string | The acknowledged event ID |
 | `acked` | boolean | Always `true` on success |
 | `seq` | integer | Event sequence number (included for idempotent consumers) |
-| `already_acked` | boolean | Present and `true` if the event was already acknowledged |
+| `newly_acked` | boolean | Present and `false` if the event was already acknowledged |
 
 ### Not Found Response
 
@@ -190,7 +190,7 @@ Returned when the event does not exist.
 
 **HTTP 409 Conflict**
 
-Returned when the requesting consumer has already ACKed (`consumer_delivery.acked_at` set) or the event is already in the DLQ (`events.dlq_at`). ACK state is per-consumer; there is no event-level `acked_at` column.
+Returned when the requesting consumer has already ACKed (`consumer_delivery.acked` set) or the event is already in the DLQ (`events.dlq_at`). ACK state is per-consumer; there is no event-level `acked_at` column.
 
 #### Response Schemas
 
@@ -239,12 +239,12 @@ curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
 
 | Scenario | Behavior | HTTP Status | Response Body | Side Effects on Persistence |
 |---|---|---|---|---|
-| Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq}` | Sets `consumer_delivery.acked_at` and advances the consumer offset |
-| Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq, already_acked: true}` | No new delivery state; the offset never moves backwards |
+| Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq}` | Sets `consumer_delivery.acked` and advances the consumer offset |
+| Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq, newly_acked: false}` | No new delivery state; the offset never moves backwards |
 | Initial NACK | `nack_event` increases `consumer_delivery_failure_count` from 0 to 1 | 200 | `{event_id, delivery_failure_count}` | Counter increases; promoted to the DLQ when it reaches `max_retry` |
 | Duplicate NACK | `nack_event` is idempotent per delivery attempt: a NACK repeating the stored `last_nack_attempt` is a no-op | 200 | `{event_id, delivery_failure_count}` | Counters unchanged for a repeat NACK of the same delivery attempt |
-| NACK followed by ACK | The consumer's `consumer_delivery.acked_at` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq}` | ACK succeeds; `delivery_failure_count` keeps the value from the NACK |
-| ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked_at` for the requesting consumer | 409 | `event already acknowledged` | NACK rejected; counters unchanged |
+| NACK followed by ACK | The consumer's `consumer_delivery.acked` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq}` | ACK succeeds; `delivery_failure_count` keeps the value from the NACK |
+| ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked` for the requesting consumer | 409 | `event already acknowledged` | NACK rejected; counters unchanged |
 | Unknown event ID (ACK) | `ack_event_for_consumer` returns `found = False` | 404 | `event not found` | None |
 | Unknown event ID (NACK) | `nack_event` returns `-1` | 404 | `event not found` | None |
 | Simultaneous ACK/NACK | Both run under `run_with_db_lock` and are serialized | 200, or 200 and 409 | Depends on lock order | The second call observes the first call's committed state. A NACK that runs after the ACK can return 409 (see "ACK followed by NACK"); an ACK that runs after the NACK returns 200 |

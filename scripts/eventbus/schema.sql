@@ -20,11 +20,11 @@ CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
 CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
 CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
 
--- Per-consumer delivery state: tracks acked_at per (consumer_id, event_id)
+-- Per-consumer delivery state: tracks ACK state per (consumer_id, event_id)
 CREATE TABLE IF NOT EXISTS consumer_delivery (
     consumer_id                    TEXT    NOT NULL,
     event_id                       TEXT    NOT NULL,
-    acked_at                       TEXT,
+    acked                          INTEGER NOT NULL DEFAULT 0,
     consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0,
     consumer_last_nack_attempt     TEXT,
     PRIMARY KEY (consumer_id, event_id)
@@ -32,7 +32,7 @@ CREATE TABLE IF NOT EXISTS consumer_delivery (
 
 -- Index for efficient low-water-mark query in get_resume_position()
 CREATE INDEX IF NOT EXISTS idx_consumer_delivery_consumer_ack
-    ON consumer_delivery(consumer_id, acked_at);
+    ON consumer_delivery(consumer_id, acked);
 
 -- Per-consumer offset: tracks last-committed sequence offset per consumer
 CREATE TABLE IF NOT EXISTS consumer_offsets (

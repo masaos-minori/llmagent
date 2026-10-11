@@ -115,7 +115,7 @@ def _simulate_delivery(client: TestClient, event_id: str, consumer_id: str) -> N
         (consumer_id, event_id),
     )
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 0)",
         (consumer_id, event_id),
     )
     db.commit()
@@ -147,7 +147,7 @@ class TestAckEndpoint:
         assert data["seq"] is not None
 
         # Verify the per-consumer delivery state was written (check via DB
-        # state). ack_event_for_consumer() records acked_at on
+        # state). ack_event_for_consumer() records acked on
         # consumer_delivery, not on events — a single event can be acked
         # independently by multiple consumers, so events.acked_at is no
         # longer the source of truth once a consumer_id is supplied.
@@ -155,10 +155,10 @@ class TestAckEndpoint:
 
         db = eb_app.app.state.db
         row = db.execute(
-            "SELECT acked_at FROM consumer_delivery WHERE event_id = ? AND consumer_id = ?",
+            "SELECT acked FROM consumer_delivery WHERE event_id = ? AND consumer_id = ?",
             (body["event_id"], "consumer-A"),
         ).fetchone()
-        assert row is not None and row["acked_at"] is not None
+        assert row is not None and row["acked"] == 1
 
     def test_ack_event_without_consumer_id(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack without consumer_id returns 422."""

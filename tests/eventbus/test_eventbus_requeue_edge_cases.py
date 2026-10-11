@@ -93,7 +93,7 @@ class TestRequeueEdgeCases:
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
             ("consumer-A", body["event_id"]),
         )
         db.commit()
@@ -158,7 +158,7 @@ class TestRequeueEdgeCases:
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
             ("consumer-A", body["event_id"]),
         )
         db.commit()
@@ -232,7 +232,7 @@ class TestRequeueEdgeCases:
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         # Create a consumer_delivery record (required for REQ-002 per-consumer DLQ promotion)
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
             ("consumer-A", body["event_id"]),
         )
         db.commit()

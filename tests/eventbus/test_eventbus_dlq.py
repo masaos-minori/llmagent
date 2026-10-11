@@ -54,7 +54,7 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
     client.post("/publish", json=ev)
     # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
@@ -82,7 +82,7 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
     client.post("/publish", json=ev)
     # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
@@ -109,7 +109,7 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     client.post("/publish", json=ev)
     # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
@@ -156,7 +156,7 @@ def test_requeue_increments_dlq_requeue_count(
     client.post("/publish", json=ev)
     # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
@@ -196,7 +196,7 @@ def test_requeue_increments_dlq_requeue_count(
     # Exhaust retries again — should promote to DLQ
     # Need to create a consumer_delivery record for the new descendant event
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", new_event_id),
     )
     db.commit()
@@ -285,7 +285,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     client.post("/publish", json=ev)
     # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
@@ -363,7 +363,7 @@ async def test_concurrent_requeue_same_event(
     client.post("/publish", json=ev)
     # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
@@ -430,11 +430,11 @@ async def test_concurrent_requeue_different_events(
     client.post("/publish", json=ev2)
     # Create consumer_delivery records required for REQ-002 per-consumer DLQ promotion
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-A", ev1["event_id"]),
     )
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
         ("consumer-B", ev2["event_id"]),
     )
     db.commit()

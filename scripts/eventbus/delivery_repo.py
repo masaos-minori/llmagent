@@ -72,7 +72,7 @@ def nack_event(
             # Per-consumer ACK guard: reject NACK if this consumer already ACKed
             acked = conn.execute(
                 "SELECT 1 FROM consumer_delivery "
-                "WHERE consumer_id = ? AND event_id = ? AND acked_at IS NOT NULL",
+                "WHERE consumer_id = ? AND event_id = ? AND acked = 1",
                 (consumer_id, event_id),
             ).fetchone()
             if acked:
@@ -195,21 +195,21 @@ def ack_event_for_consumer(
         if dlq_row and dlq_row[_COL_DLQ_AT] is not None:
             return True, False, None
 
-        # Check if the delivery record exists and its acked_at status
+        # Check if the delivery record exists and its ACK status
         existing = conn.execute(
-            "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            "SELECT acked FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
             (consumer_id, event_id),
         ).fetchone()
-        # Pending delivery (acked_at IS NULL) counts as newly_acked
-        newly_acked = existing is None or existing["acked_at"] is None
+        # Pending delivery (acked = 0) counts as newly_acked
+        newly_acked = existing is None or existing["acked"] == 0
 
-        # REQ-005: Keep first acked_at via COALESCE — do not overwrite
+        # REQ-005: Keep first acked value via COALESCE — do not overwrite
         conn.execute(
             "INSERT INTO consumer_delivery "
-            "(consumer_id, event_id, acked_at) VALUES (?, ?, ?) "
+            "(consumer_id, event_id, acked) VALUES (?, ?, 1) "
             "ON CONFLICT(consumer_id, event_id) DO UPDATE SET "
-            "acked_at = COALESCE(consumer_delivery.acked_at, excluded.acked_at)",
-            (consumer_id, event_id, now),
+            "acked = COALESCE(consumer_delivery.acked, excluded.acked)",
+            (consumer_id, event_id),
         )
 
         if newly_acked:
@@ -289,7 +289,7 @@ def get_resume_position(conn: sqlite3.Connection, consumer_id: str) -> int:
         "SELECT MIN(e.seq) FROM events e "
         "LEFT JOIN consumer_delivery cd ON e.event_id = cd.event_id "
         "AND cd.consumer_id = ? "
-        "WHERE (cd.acked_at IS NULL OR cd.event_id IS NULL) "
+        "WHERE (cd.acked = 0 OR cd.event_id IS NULL) "
         "AND e.seq <= ?",
         (consumer_id, stored_offset),
     ).fetchone()

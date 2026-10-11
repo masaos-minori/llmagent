@@ -440,7 +440,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/config.py` — `_validate_deployment_mode()`
 - `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
 - `events` table — `seq`, `event_id`, `topic`, `payload`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at` (no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`)
-- `consumer_delivery` table — `consumer_id`, `event_id`, `acked_at`, PRIMARY KEY `(consumer_id, event_id)`
+- `consumer_delivery` table — `consumer_id`, `event_id`, `acked`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
 - Offset files — `{offsets_dir}/{sanitized_consumer_id}` (read only by `migrate_legacy_offsets()` at startup)
 - DLQ promotion paths — inline promotion (on `POST /nack`) and the periodic background loop

@@ -111,7 +111,7 @@ class TestDLQPROMotionSemantics:
         # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, ?)",
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
             ("consumer-A", body["event_id"], None),
         )
         db.execute(
@@ -142,7 +142,7 @@ class TestDLQPROMotionSemantics:
         # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, ?)",
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
             ("consumer-A", body["event_id"], None),
         )
         db.execute(
@@ -173,7 +173,7 @@ class TestDLQPROMotionSemantics:
         # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, ?)",
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
             ("consumer-A", body["event_id"], None),
         )
         db.execute(
@@ -222,7 +222,7 @@ class TestDLQPROMotionSemantics:
         # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
             ("consumer-A", body["event_id"]),
         )
         db.commit()
@@ -240,7 +240,7 @@ class TestDLQPROMotionSemantics:
         # Create consumer_delivery record for the descendant event (required for REQ-002 per-consumer DLQ promotion)
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at, consumer_delivery_failure_count) VALUES (?, ?, NULL, 2)",
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
             ("consumer-A", new_event_id),
         )
         db.commit()

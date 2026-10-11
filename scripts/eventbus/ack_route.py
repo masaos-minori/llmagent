@@ -159,7 +159,9 @@ async def nack(
         import uuid  # noqa: PLC0415 — local import avoids circular dependency
 
         attempt_id = str(uuid.uuid4())
-        nack_result = _nack_event(db, event_id, consumer_id, last_nack_attempt=attempt_id)
+        nack_result = _nack_event(
+            db, event_id, consumer_id, last_nack_attempt=attempt_id
+        )
         failure_count = nack_result.delivery_failure_count
         if failure_count == -1:
             return (-1, False)
@@ -167,13 +169,13 @@ async def nack(
             # REQ-003: Determine -2 state atomically within the same transaction
             # Check per-consumer ACK first (REQ-001, REQ-003)
             consumer_row = db.execute(
-                "SELECT acked_at FROM consumer_delivery "
+                "SELECT acked FROM consumer_delivery "
                 "WHERE consumer_id = ? AND event_id = ?",
                 (consumer_id, event_id),
             ).fetchone()
-            if consumer_row and consumer_row["acked_at"] is not None:
+            if consumer_row and consumer_row["acked"] == 1:
                 raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
-            # Then check events-level DLQ state only (REQ-004: events.acked_at removed)
+            # Then check events-level DLQ state only (REQ-004: events.acked_at removed; dlq_at is the authoritative DLQ indicator)
             row = db.execute(
                 "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()
@@ -183,11 +185,21 @@ async def nack(
         promoted = False
         # REQ-002: Use per-consumer failure count for DLQ promotion
         consumer_failure_count = nack_result.consumer_failure_count
-        if consumer_failure_count is not None and consumer_failure_count >= cfg.max_retry:
+        if (
+            consumer_failure_count is not None
+            and consumer_failure_count >= cfg.max_retry
+        ):
             from eventbus.dlq import promote_single  # noqa: PLC0415
 
-            promoted = promote_single(db, cfg.deadletter_dir, event_id, consumer_failure_count)
-        return (consumer_failure_count if consumer_failure_count is not None else failure_count, promoted)
+            promoted = promote_single(
+                db, cfg.deadletter_dir, event_id, consumer_failure_count
+            )
+        return (
+            consumer_failure_count
+            if consumer_failure_count is not None
+            else failure_count,
+            promoted,
+        )
 
     failure_count, promoted = await run_with_db_lock(_nack_and_promote)
     if failure_count == -1:

@@ -38,14 +38,14 @@ def _simulate_delivery_http(client: Any, event_id: str, consumer_id: str) -> Non
         (consumer_id, event_id),
     )
     db.execute(
-        "INSERT INTO consumer_delivery (consumer_id, event_id, acked_at) VALUES (?, ?, NULL)",
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 0)",
         (consumer_id, event_id),
     )
     db.commit()
 
 
 class TestAckEvent:
-    """Tests for ack_event_for_consumer — acked_at column removed from events table (REQ-004)."""
+    """Tests for ack_event_for_consumer — acked_at column replaced by acked boolean (REQ-004)."""
 
     def test_two_consumers_ack_same_event(self, tmp_path: Path) -> None:
         """Two distinct consumer_ids can each ACK the same event independently."""
@@ -80,18 +80,18 @@ class TestAckEvent:
 
         # Both deliveries recorded separately
         row_a = db.execute(
-            "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            "SELECT acked FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
             ("consumer_A", "evt-multi-ack"),
         ).fetchone()
         assert row_a is not None
-        assert row_a["acked_at"] == now
+        assert row_a["acked"] == 1
 
         row_b = db.execute(
-            "SELECT acked_at FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            "SELECT acked FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
             ("consumer_B", "evt-multi-ack"),
         ).fetchone()
         assert row_b is not None
-        assert row_b["acked_at"] == now
+        assert row_b["acked"] == 1
 
         # Offsets advanced independently
         row_off_a = db.execute(

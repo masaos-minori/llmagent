@@ -123,7 +123,7 @@ def _migrate(conn: Connection) -> None:
             "CREATE TABLE IF NOT EXISTS consumer_delivery ("
             "    consumer_id TEXT NOT NULL,"
             "    event_id TEXT NOT NULL,"
-            "    acked_at TEXT,"
+            "    acked INTEGER NOT NULL DEFAULT 0,"
             "    PRIMARY KEY (consumer_id, event_id)"
             ")",
         ),
