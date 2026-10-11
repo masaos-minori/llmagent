@@ -63,11 +63,11 @@ N/A: test-only edit; no secrets, permissions, or runtime behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-read the file and skip sites already fixed by the pending procedure | Pending | — | — | |
-| 2 | Change the six four-value unpack sites to three values | Pending | — | — | |
-| 3 | Add or update tests per Validation plan | Pending | — | — | N/A: this document edits existing tests only |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Update documentation, if in scope | Pending | — | — | N/A: no documentation change for this file |
+| 1 | Re-read the file and skip sites already fixed by the pending procedure | Completed | 20261011-195047 | 20261011-195047 | Already applied upstream in commit 93179f0f7 |
+| 2 | Change the six four-value unpack sites to three values | Completed | 20261011-195047 | 20261011-195047 | Already applied upstream in 93179f0f7; six sites verified as three-value |
+| 3 | Add or update tests per Validation plan | Completed | 20261011-195047 | 20261011-195047 | N/A: this document edits existing tests only N/A: existing tests only |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261011-195047 | 20261011-195047 | Full suite 8200 passed |
+| 5 | Update documentation, if in scope | Completed | 20261011-195047 | 20261011-195047 | N/A: no documentation change for this file N/A: no documentation change for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
