@@ -164,7 +164,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `open_db` | `def open_db(db_path) -> sqlite3.Connection` | Return a shared SQLite connection for the Event Bus. |
 |  | `check_db` | `def check_db(conn) -> bool` | Return True if the DB connection is usable. |
 | `scripts/eventbus/delivery_repo.py` | `NackResult` | `class NackResult` | Return value for nack_event(). |
-|  | `nack_event` | `def nack_event(conn, event_id, consumer_id, last_nack_attempt) -> NackResult` | Increment delivery_failure_count and cycle_failure_count for an event. |
+|  | `nack_event` | `def nack_event(conn, event_id, consumer_id, last_nack_attempt) -> NackResult` | Record a per-consumer NACK failure for an event. |
 |  | `ack_event_for_consumer` | `def ack_event_for_consumer(conn, event_id, consumer_id, now) -> tuple[bool, bool, int \| None]` | Acknowledge an event for a specific consumer atomically. |
 |  | `get_consumer_offset` | `def get_consumer_offset(conn, consumer_id) -> int` | Return the last-committed sequence offset for a consumer, or 0 if none exists. |
 |  | `get_resume_position` | `def get_resume_position(conn, consumer_id) -> int` | Compute the resume position for a reconnecting consumer. |

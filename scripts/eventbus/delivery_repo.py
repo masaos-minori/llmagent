@@ -41,20 +41,23 @@ def nack_event(
     consumer_id: str | None = None,  # Optional — for consumer-specific failure tracking
     last_nack_attempt: str | None = None,  # REQ-001: idempotency key for NACK
 ) -> NackResult:
-    """Increment delivery_failure_count and cycle_failure_count for an event.
+    """Record a per-consumer NACK failure for an event.
 
-    Only increments if the event is in Normal/Delivered state (no dlq_at).
-    Events that are already DLQ'd cannot have their failure counts incremented
-    — attempting to do so would corrupt state.
+    When consumer_id is provided, the consumer's failure count is incremented and
+    its last NACK attempt marker is stored. The events-level delivery_failure_count
+    and cycle_failure_count are legacy values: they are not modified here and are
+    returned as stored.
 
-    If consumer_id is provided, also increment the consumer-specific failure count.
+    Nothing is recorded if the event is already DLQ'd (has dlq_at) or, when
+    consumer_id is provided, if that consumer has already ACKed the event —
+    attempting to do so would corrupt state.
     NACK is idempotent per delivery attempt: if the same consumer has already
     NACKed this event for the same attempt ID (last_nack_attempt matches), the
     count is not incremented again.
 
     Returns NackResult with:
-      - delivery_failure_count: current count on success, -1 if event not found
-      - cycle_failure_count: current count on success, -2 if event in invalid state
+      - delivery_failure_count: stored events-level value on success, -1 if event not found
+      - cycle_failure_count: stored events-level value on success, -2 if event in invalid state
       - consumer_failure_count: per-consumer count when consumer_id was provided
     """
     try:
