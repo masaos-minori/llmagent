@@ -162,10 +162,10 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 
 ### Automated Tests
 
-- **Test**: A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance (no such test exists)
+- **Test**: A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance (added in `tests/agent/test_orchestrator.py`)
   - **Verifies**: INV-02
   - **Type**: Unit
-  - **Blocking**: No (no test exists; tracked as AGENT-002 in `governance_03_issue-and-uncertainty-management.md`)
+  - **Blocking**: No (INV-02 regression test added in `tests/agent/test_orchestrator.py`)
 
 ### Startup Validation
 
@@ -195,8 +195,6 @@ INV-01 and INV-03 have no automated tests and depend only on code review (Manual
 See Implementation References for the current file/symbol list.
 
 ## Known Deviations
-
-- **Known Issue**: AGENT-002 — tracked in governance_03 Part 1 (no regression test for INV-02)
 
 ## Review Triggers
 
@@ -250,7 +248,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Negative Consequences are recorded
 - [x] Verifiable Invariants are defined
 - [x] Each Invariant has a corresponding Verification
-- [ ] Automatable verification does not rely only on Manual Review (INV-01 and INV-03 rely only on Manual Review; INV-02 has no test yet)
+- [x] Automatable verification does not rely only on Manual Review (INV-01 and INV-03 rely only on Manual Review; INV-02 has a unit test)
 - [x] The ADR does not contradict related Specifications
 - [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)

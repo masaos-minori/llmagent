@@ -327,8 +327,6 @@ This chapter is not a basis for design decisions.
 
 ## Known Deviations
 
-- **Known Issue**: RAG-002 — tracked in governance_03 Part 1 (Japanese sentences with empty normalized text are dropped together with their original text; violates INV-11)
-
 ## Review Triggers
 
 Re-evaluate this ADR when any of the following conditions occurs.
