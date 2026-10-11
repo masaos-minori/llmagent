@@ -20,9 +20,11 @@ import git
 import pytest
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import GitConfig, GitPullRequest, GitPushRequest
-from mcp_servers.git.git_service import GitService
+from mcp_servers.git.git_service import GitService, build_service
 from mcp_servers.git.repository_state import RepositoryState
 from pydantic import ValidationError
+
+REMOTE_URL = "https://example.com/repo.git"
 
 
 def _svc(
@@ -687,6 +689,49 @@ class TestGitPushRefRejectionBeforeGit:
         ):
             await svc.git_push(
                 {"repo_path": "/opt/repos/proj", "branch": bad, "remote": "origin"}
+            )
+
+
+class TestGitPushServiceError:
+    @pytest.mark.asyncio
+    async def test_push_command_error_becomes_service_error(self, tmp_path) -> None:
+        """REQ-003: push error surfaces as GitServiceError naming the tool."""
+        repo_dir = tmp_path / "push_repo"
+        repo_dir.mkdir()
+        mock_repo = MagicMock()
+        mock_repo.git.push.side_effect = git.exc.GitCommandError(["git", "push"], 1)
+        origin = MagicMock()
+        origin.name = "origin"
+        origin.url = REMOTE_URL
+        mock_repo.remotes = [origin]
+        state = RepositoryState(
+            path=str(repo_dir),
+            is_dirty=False,
+            head_type="branch",
+            active_branch="feature/x",
+            untracked_file_count=0,
+            protected_branch=False,
+            ref_valid=True,
+            _repo=mock_repo,
+        )
+        cfg = GitConfig(
+            allowed_repo_paths=[str(repo_dir)],
+            read_only=False,
+            allowed_remote_urls=[REMOTE_URL],
+            protected_branches=[],
+            allow_detached_head=True,
+        )
+        svc = build_service(cfg)
+        with (
+            patch.object(RepositoryState, "snapshot", return_value=state),
+            pytest.raises(GitServiceError, match="git_push failed"),
+        ):
+            await svc.git_push(
+                {
+                    "repo_path": str(repo_dir),
+                    "remote": "origin",
+                    "branch": "feature/x",
+                }
             )
 
 
