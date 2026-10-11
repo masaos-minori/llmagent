@@ -36,23 +36,23 @@ class ChunkJapaneseMixin:
     _norm_buf: str
     _result: list[tuple[str, str]]
 
-    def _chunk_japanese(self, text: str) -> list[tuple[str, str]]:
+    def _chunk_japanese(self, text: str) -> list[tuple[str, str | None]]:
         """Split Japanese text into (original, normalized) chunk pairs via NFKC normalization, sentence splitting, and Sudachi morphological analysis."""
         text = normalize_unicode(text)
         text = re.sub(r"\n{3,}", "\n\n", text).strip()
         pairs = self._split_into_ja_sentences(text)
         return self._merge_ja_sentence_pairs(pairs)
 
-    def _split_into_ja_sentences(self, text: str) -> list[tuple[str, str]]:
-        """Split Japanese text at clause boundaries (。！？ and newlines); returns (original, normalized) pairs with empty pairs discarded."""
-        pairs: list[tuple[str, str]] = []
+    def _split_into_ja_sentences(self, text: str) -> list[tuple[str, str | None]]:
+        """Split Japanese text at clause boundaries (。！？ and newlines); keeps every non-empty sentence and maps an empty normalized result to None so downstream COALESCE falls back to the original text."""
+        pairs: list[tuple[str, str | None]] = []
         for raw in re.split(r"(?<=[。！？\n])", text):
             original = raw.strip()
             if not original:
                 continue
             normalized = self._normalize_ja_sentence(original)
-            if normalized:
-                pairs.append((original, normalized))
+            normalized_value = normalized if normalized else None
+            pairs.append((original, normalized_value))
         return pairs
 
     def _normalize_ja_sentence(self, text: str) -> str:
@@ -77,25 +77,27 @@ class ChunkJapaneseMixin:
 
     def _merge_ja_sentence_pairs(
         self,
-        pairs: list[tuple[str, str]],
-    ) -> list[tuple[str, str]]:
-        """Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured."""
+        pairs: list[tuple[str, str | None]],
+    ) -> list[tuple[str, str | None]]:
+        """Accumulate (original, normalized) sentence pairs into chunk pairs by original text length; applies overlap from buffer tail when configured. Empty normalized results (None) are preserved and surfaced as NULL so downstream COALESCE falls back to the original text."""
         if not pairs:
             return []
-        result: list[tuple[str, str]] = []
+        result: list[tuple[str, str | None]] = []
         self._orig_buf = ""
         self._norm_buf = ""
         for orig, norm in pairs:
+            norm_str = norm if norm is not None else ""
             if len(self._orig_buf) + len(orig) + 1 <= self._max_chunk:
-                self._append_to_buffer(orig, norm)
+                self._append_to_buffer(orig, norm_str)
             elif len(self._orig_buf) >= self._min_chunk:
-                self._emit_and_start_new(orig, norm)
+                self._emit_and_start_new(orig, norm_str)
             else:
-                self._reset_buffer(orig, norm)
+                self._reset_buffer(orig, norm_str)
         if not self._orig_buf:
             return result
         if len(self._orig_buf) >= self._min_chunk:
-            result.append((self._orig_buf, self._norm_buf))
+            norm_out = self._norm_buf or None
+            result.append((self._orig_buf, norm_out))
         elif result:
             self._merge_tail_into_last()
         return result

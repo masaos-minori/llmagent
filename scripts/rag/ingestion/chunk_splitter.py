@@ -199,13 +199,15 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
             logger.error("skip %s: %s", src_path.name, e)
             return None
 
-    def _build_chunk_list(self, data: ChunkDocument) -> list[tuple[str, str, str]]:
+    def _build_chunk_list(
+        self, data: ChunkDocument
+    ) -> list[tuple[str, str, str | None]]:
         """Extract content from a crawl record and split into (chunk_type, content, normalized_content) triples; normalized populated only for Japanese text."""
         lang = data.lang
         content = data.content
         code_blocks = data.code_blocks
 
-        text_triples: list[tuple[str, str, str]] = self._build_text_triples(
+        text_triples: list[tuple[str, str, str | None]] = self._build_text_triples(
             data, lang, content
         )
         code_triples: list[tuple[str, str, str]] = self._build_code_triples(code_blocks)
@@ -214,7 +216,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     def _build_text_triples(
         self, data: ChunkDocument, lang: str, content: str
-    ) -> list[tuple[str, str, str]]:
+    ) -> list[tuple[str, str, str | None]]:
         """Build text triples from content; delegates to markdown/English/Japanese chunkers."""
         if not content:
             return []
@@ -232,7 +234,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
 
     def _write_chunk_files(
         self,
-        chunks: list[tuple[str, str, str]],
+        chunks: list[tuple[str, str, str | None]],
         data: ChunkDocument,
         src_path: Path,
         chunking_strategy: str = "text",
