@@ -310,6 +310,22 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   or documentation file its own row when it requires modification, rather than folding
   it into the row for the source file it accompanies. Every `Repository Evidence`
   entry must cite what Step 3's inspection actually found — do not infer it.
+- Generate the `Affected areas` table per `templates/plan.md`: one row for every
+  `Implementation Target Files` row, so that the `File` column is a subset of those rows,
+  with all six columns populated (`File`, `Change`, `Blast Radius`, `Churn (30d)`,
+  `Bus Factor`, `deploy.sh Impact`). `Change` is `Modify`, `Create`, or `Delete`;
+  `Blast Radius` is a qualitative `Low`, `Medium`, or `High`; `deploy.sh Impact` always
+  states a value from `skills/DESIGN.md` Change-impact table. Path A: judge
+  `Blast Radius` qualitatively from Step 3's direct verification and mark `Churn (30d)`
+  and `Bus Factor` `N/A`. Path B: take `Blast Radius` from the dependency graphing and
+  `Churn (30d)` and `Bus Factor` from the historical analysis in `workflow-path-b.md`,
+  and mark a column `N/A` when the tool that would fill it is unavailable.
+- Generate the `Risks` section: extract a potential risk from each Constraint and each
+  repository evidence finding mapped to Risks in Step 4, and write each as
+  `- **Risk**: {description} → **Mitigation**: {description}`. This step writes the
+  Plan's inline `Risks` section; Step 6 refines that same section and files
+  `issues/{timestamp}_risks.md` only for a Risk that still lacks a complete mitigation.
+  A separate file never replaces the inline section.
 - Every claim must be backed by evidence gathered above (or, for Path A, by Step 3's
   direct verification).
 - Implementation steps must be small enough to be independently revertable.
@@ -415,8 +431,16 @@ from Step 2.
 Verify every Requirement ID is traceable to its Issue source/evidence, an implementation
 step, an acceptance criterion, and a test/validation item.
 
+Verify the `Affected areas` table: every row's `File` is one of the
+`Implementation Target Files` rows, and all six columns (`File`, `Change`,
+`Blast Radius`, `Churn (30d)`, `Bus Factor`, `deploy.sh Impact`) are populated or
+marked `N/A`.
+
+Verify the `Risks` section: every Risk entry has a corresponding Mitigation.
+
 **Completed when**: every item in the preserved-information list above is present in the
-Plan, and every Requirement ID is traceable to all four of its required links.
+Plan, and every Requirement ID is traceable to all four of its required links. The
+`Affected areas` and `Risks` checks above must also pass.
 
 ### Step 8b: Validate and freeze Implementation Target Files
 
