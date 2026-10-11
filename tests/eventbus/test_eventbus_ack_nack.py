@@ -238,6 +238,38 @@ class TestAckHttpBehavior:
         )
         assert resp.status_code == 404
 
+    def test_ack_dlq_event_returns_409(self, client: Any) -> None:
+        """POST /events/{id}/ack for an event already in the DLQ returns 409 and writes nothing."""
+        import eventbus.app as eb_app
+
+        body = _event()
+        resp = client.post("/publish", json=body)
+        assert resp.status_code == 200
+
+        db = eb_app.app.state.db
+        db.execute(
+            "UPDATE events SET dlq_at = ? WHERE event_id = ?",
+            ("2026-10-11T00:00:00Z", body["event_id"]),
+        )
+        db.commit()
+
+        resp = client.post(
+            f"/events/{body['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
+        assert resp.status_code == 409
+        assert resp.json()["detail"] == "event already in dead letter queue"
+
+        delivery = db.execute(
+            "SELECT acked FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", body["event_id"]),
+        ).fetchone()
+        assert delivery is None or delivery["acked"] == 0
+        offset = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("consumer-A",),
+        ).fetchone()
+        assert offset is None
+
     def test_two_consumers_ack_same_event_independently(self, client: Any) -> None:
         """Two distinct consumer_ids can each ACK the same event_id independently (REQ-001)."""
         body = _event()
@@ -404,7 +436,9 @@ class TestNackEvent:
         # Per-consumer model: delivery_failure_count/cycle_failure_count on events
         # table are no longer written to; only consumer_delivery_failure_count is authoritative.
         result = nack_event(db, ev["event_id"], consumer_id="consumer-B")
-        assert result == NackResult(delivery_failure_count=0, cycle_failure_count=0, consumer_failure_count=1)
+        assert result == NackResult(
+            delivery_failure_count=0, cycle_failure_count=0, consumer_failure_count=1
+        )
 
         row = db.execute(
             "SELECT delivery_failure_count, cycle_failure_count FROM events WHERE event_id = ?",
