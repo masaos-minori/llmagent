@@ -20,9 +20,11 @@ logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
 
 def check_workflow_definition(workflows_dir: Path | None = None) -> None:
-    """Raise RuntimeError if the workflow definition file is missing."""
+    """Raise RuntimeError if the workflow definition file is missing or invalid."""
     from agent.workflow.workflow_loader import (  # lazy to avoid circular import
         WORKFLOWS_DIR,
+        WorkflowLoader,
+        WorkflowLoadError,
     )
 
     target_dir = workflows_dir if workflows_dir is not None else WORKFLOWS_DIR
@@ -31,6 +33,12 @@ def check_workflow_definition(workflows_dir: Path | None = None) -> None:
         raise RuntimeError(
             f"Workflow definition file not found: {workflow_file}. Deploy config/workflows/default.json to fix this."
         )
+    try:
+        WorkflowLoader(workflows_dir=target_dir).load("default")
+    except (WorkflowLoadError, ValueError, TypeError, AttributeError) as exc:
+        raise RuntimeError(
+            f"Workflow definition invalid: {workflow_file}: {exc}"
+        ) from exc
 
 
 # ── Workflow schema constants ─────────────────────────────────────────────────

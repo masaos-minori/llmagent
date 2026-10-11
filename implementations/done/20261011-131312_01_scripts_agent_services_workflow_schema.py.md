@@ -121,7 +121,7 @@ Key points:
   `AttributeError` from `s.get("id")` (`workflow_loader.py:68`) when a stage entry is
   not a dict. These are why the `except` is broadened.
 - Call site `startup_component_init.py:_check_workflow_definition` (lines 88-94) catches
-  `RuntimeError` and logs it; last line of defense `orchestrator.py:129` catches
+  `RuntimeError` and logs it; last line of defense in `scripts/agent/orchestrator.py` (line 129) catches
   `(WorkflowLoadError, FileNotFoundError)` and re-raises `RuntimeError` at line 130.
   Failure remains fatal; the change only moves it earlier to preflight.
 - The loader is side-effect free (pure read + in-memory construct), so calling it from
@@ -182,10 +182,10 @@ Key points:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261011-155040 | Validated per toolchain; 16 pre-existing unrelated eventbus failures; stale-detector false positive corrected; no docs/00_index.md mapping |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261011-155040 | Validated per toolchain; 16 pre-existing unrelated eventbus failures; stale-detector false positive corrected; no docs/00_index.md mapping |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261011-155040 | Validated per toolchain; 16 pre-existing unrelated eventbus failures; stale-detector false positive corrected; no docs/00_index.md mapping |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261011-155040 | Validated per toolchain; 16 pre-existing unrelated eventbus failures; stale-detector false positive corrected; no docs/00_index.md mapping |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -895,12 +895,61 @@ class TestCheckWorkflowDefinition:
         assert "default.json" in str(exc_info.value)
 
     def test_present_file_passes(self, tmp_path) -> None:
-        """Existing default.json raises no exception."""
-        (tmp_path / "default.json").write_text("{}")
+        """A complete valid default.json raises no exception."""
+        (tmp_path / "default.json").write_text(
+            "{"
+            '"name": "default", "version": "1.0.0", '
+            '"stages": ['
+            '{"id": "plan", "timeout_sec": 30, "retryable": false}, '
+            '{"id": "execute", "timeout_sec": 120, "retryable": true}, '
+            '{"id": "verify", "timeout_sec": 10, "retryable": false}'
+            "], "
+            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}, '
+            '"require_approval": true'
+            "}"
+        )
         check_workflow_definition(workflows_dir=tmp_path)  # must not raise
 
     def test_error_message_includes_remediation(self, tmp_path) -> None:
         """RuntimeError message includes expected remediation hint."""
+        with pytest.raises(RuntimeError) as exc_info:
+            check_workflow_definition(workflows_dir=tmp_path)
+        assert "default.json" in str(exc_info.value)
+
+    def test_malformed_json_raises(self, tmp_path) -> None:
+        """Invalid JSON raises RuntimeError naming the file (REQ-001)."""
+        (tmp_path / "default.json").write_text("{ this is not valid json ")
+        with pytest.raises(RuntimeError) as exc_info:
+            check_workflow_definition(workflows_dir=tmp_path)
+        assert "default.json" in str(exc_info.value)
+
+    def test_missing_required_key_raises(self, tmp_path) -> None:
+        """Missing a required key raises RuntimeError (REQ-002)."""
+        (tmp_path / "default.json").write_text(
+            '{"name": "default", '
+            '"stages": ['
+            '{"id": "plan", "timeout_sec": 30, "retryable": false}, '
+            '{"id": "execute", "timeout_sec": 120, "retryable": true}, '
+            '{"id": "verify", "timeout_sec": 10, "retryable": false}'
+            "], "
+            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}, '
+            '"require_approval": true}'
+        )
+        with pytest.raises(RuntimeError) as exc_info:
+            check_workflow_definition(workflows_dir=tmp_path)
+        assert "default.json" in str(exc_info.value)
+
+    def test_missing_required_stage_raises(self, tmp_path) -> None:
+        """Missing a required stage raises RuntimeError (REQ-002)."""
+        (tmp_path / "default.json").write_text(
+            '{"name": "default", "version": "1.0.0", '
+            '"stages": ['
+            '{"id": "plan", "timeout_sec": 30, "retryable": false}, '
+            '{"id": "execute", "timeout_sec": 120, "retryable": true}'
+            "], "
+            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}, '
+            '"require_approval": true}'
+        )
         with pytest.raises(RuntimeError) as exc_info:
             check_workflow_definition(workflows_dir=tmp_path)
         assert "default.json" in str(exc_info.value)
