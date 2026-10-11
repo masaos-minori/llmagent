@@ -86,17 +86,23 @@ async def _do_ack(
         logger.info("event acked event_id=%s", event_id)
         resp["seq"] = seq
         return resp
-    # Already-acked: still include seq for idempotent consumers that expect it
+    # Not newly acked: either the event is already in the DLQ (the repository
+    # writes nothing for it) or this consumer already acked it. dlq_at is read
+    # here, as on the NACK path, rather than inferred from the returned seq.
+    row = None
     try:
         row = await run_with_db_lock(
             lambda: db.execute(
-                "SELECT seq FROM events WHERE event_id = ?", (event_id,)
+                "SELECT seq, dlq_at FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()
         )
-        if row is not None:
-            resp["seq"] = int(row["seq"])
     except (sqlite3.Error, TypeError):
         pass
+    if row is not None and row["dlq_at"] is not None:
+        raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
+    # Already-acked: still include seq for idempotent consumers that expect it
+    if row is not None:
+        resp["seq"] = int(row["seq"])
     logger.debug("event already acked event_id=%s", event_id)
     resp["already_acked"] = True
     return resp

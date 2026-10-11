@@ -167,6 +167,8 @@ def ack_event_for_consumer(
     Returns (found, newly_acked, seq):
       - (True, True, seq)  = event found, newly acked by this consumer
       - (True, False, seq) = event found but already acked by this consumer
+      - (True, False, None) = event found but already in the DLQ; nothing is
+        written (the caller rejects the ACK)
       - (False, False, None) = event not found
 
     Args:
