@@ -65,10 +65,10 @@ N/A: documentation only; no secrets or permissions.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the "Conflict Response" subsection to the Acknowledge Event section | Pending | — | — | |
-| 2 | Add the ACK-on-DLQ row to the State Transition Table | Pending | — | — | |
-| 3 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation only; checkers run in the next step |
-| 4 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Add the "Conflict Response" subsection to the Acknowledge Event section | Completed | 20261011-195047 | 20261011-195047 | Conflict Response subsection added to Acknowledge Event |
+| 2 | Add the ACK-on-DLQ row to the State Transition Table | Completed | 20261011-195047 | 20261011-195047 | ACK on a DLQ event row added to the state transition table |
+| 3 | Add or update tests per Validation plan | Completed | 20261011-195047 | 20261011-195047 | N/A: documentation only; checkers run in the next step N/A: documentation only |
+| 4 | Run the documentation checkers named in Validation plan | Completed | 20261011-195047 | 20261011-195047 | check_docs_quality, check_docs_structure, check_docs_content_policy, check_needs_confirmation_inventory: no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
