@@ -112,7 +112,7 @@ class TestDLQPROMotionSemantics:
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
             "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
-            ("consumer-A", body["event_id"], None),
+            ("consumer-A", body["event_id"]),
         )
         db.execute(
             "UPDATE consumer_delivery SET consumer_delivery_failure_count = 2 "
@@ -143,7 +143,7 @@ class TestDLQPROMotionSemantics:
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
             "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
-            ("consumer-A", body["event_id"], None),
+            ("consumer-A", body["event_id"]),
         )
         db.execute(
             "UPDATE consumer_delivery SET consumer_delivery_failure_count = 2 "
@@ -174,7 +174,7 @@ class TestDLQPROMotionSemantics:
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
             "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
-            ("consumer-A", body["event_id"], None),
+            ("consumer-A", body["event_id"]),
         )
         db.execute(
             "UPDATE consumer_delivery SET consumer_delivery_failure_count = 2 "

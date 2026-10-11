@@ -77,8 +77,8 @@ def _simulate_delivery(client: Any, event_id: str, consumer_id: str) -> None:
     )
     db.execute(
         "INSERT INTO consumer_delivery "
-        "(consumer_id, event_id, acked, last_nack_attempt, consumer_delivery_failure_count) "
-        "VALUES (?, ?, NULL, 'seeded-attempt', 1)",
+        "(consumer_id, event_id, acked, consumer_last_nack_attempt, consumer_delivery_failure_count) "
+        "VALUES (?, ?, 0, 'seeded-attempt', 1)",
         (consumer_id, event_id),
     )
     db.commit()

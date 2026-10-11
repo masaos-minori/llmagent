@@ -84,7 +84,10 @@ def nack_event(
                 f"WHERE consumer_id = ? AND event_id = ?",
                 (consumer_id, event_id),
             ).fetchone()
-            if last_attempt and last_attempt[_COL_CONSUMER_LAST_NACK_ATTEMPT] == last_nack_attempt:
+            if (
+                last_attempt
+                and last_attempt[_COL_CONSUMER_LAST_NACK_ATTEMPT] == last_nack_attempt
+            ):
                 # Idempotent: return current counts without incrementing
                 consumer_row = conn.execute(
                     f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "
@@ -98,7 +101,9 @@ def nack_event(
                         (event_id,),
                     ).fetchone()
                     dfc = int(row[_COL_DELIVERY_FAILURE_COUNT]) if row else -1
-                    return NackResult(dfc, -2, int(consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]))
+                    return NackResult(
+                        dfc, -2, int(consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT])
+                    )
                 return NackResult(-1, -1)
 
         # Per-consumer model: only consumer_delivery_failure_count is authoritative for DLQ promotion.
@@ -203,12 +208,14 @@ def ack_event_for_consumer(
         # Pending delivery (acked = 0) counts as newly_acked
         newly_acked = existing is None or existing["acked"] == 0
 
-        # REQ-005: Keep first acked value via COALESCE — do not overwrite
+        # REQ-005: Mark the delivery acked. A pending (acked = 0) delivery becomes
+        # acked on the first ACK; an already-acked row stays acked (idempotent).
+        # MAX keeps the higher of the two so an ack never downgrades a prior ack.
         conn.execute(
             "INSERT INTO consumer_delivery "
             "(consumer_id, event_id, acked) VALUES (?, ?, 1) "
             "ON CONFLICT(consumer_id, event_id) DO UPDATE SET "
-            "acked = COALESCE(consumer_delivery.acked, excluded.acked)",
+            "acked = MAX(consumer_delivery.acked, excluded.acked)",
             (consumer_id, event_id),
         )
 

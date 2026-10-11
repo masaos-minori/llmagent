@@ -178,8 +178,8 @@ class TestConcurrentDlqRequeue:
             )
             db.execute(
                 "INSERT INTO consumer_delivery "
-                "(consumer_id, event_id, acked, last_nack_attempt, consumer_delivery_failure_count) "
-                "VALUES ('consumer-A', ?, NULL, 'seeded-attempt', ?)",
+                "(consumer_id, event_id, acked, consumer_last_nack_attempt, consumer_delivery_failure_count) "
+                "VALUES ('consumer-A', ?, 0, 'seeded-attempt', ?)",
                 (event_id, cfg.max_retry - 1),
             )
             db.commit()
