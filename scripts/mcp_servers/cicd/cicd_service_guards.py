@@ -65,6 +65,10 @@ class CiCdGuards:
                 "workflow_allowlist is empty — all workflow triggers denied (fail-closed). "
                 "Add allowed workflow patterns to config."
             )
+        if "/" in workflow or "\\" in workflow:
+            raise CicdAuthorizationError(
+                f"Workflow value contains a path separator and is rejected: {workflow}",
+            )
         if workflow not in self._workflow_allowlist:
             raise CicdAuthorizationError(
                 f"Workflow not in workflow_allowlist: {workflow}",

@@ -208,14 +208,14 @@ workflow_allowlist = []   # empty = deny all (fail-closed)
 
 **Policy: fail-closed.** If `workflow_allowlist` is empty, all workflow trigger requests are rejected with a `CicdAuthorizationError`. This behavior is consistent with `repo_allowlist`.
 
-`trigger_workflow` compares the request's `workflow` value with the entries by exact match, so the entries must use the same form that callers pass. The form accepted by the guard and the form in the checked-in configuration currently differ; this is tracked as MCP-003 in `governance_03_issue-and-uncertainty-management.md`.
+`trigger_workflow` compares the request's `workflow` value with the entries by exact match, so the entries must use the same form that callers pass: a workflow file name such as `ci.yml` (not a repository path). The checked-in configuration and the guard now agree on this file-name form.
 
 To allow specific workflows:
 
 ```toml
 workflow_allowlist = [
-    "my-org/my-repo/.github/workflows/deploy.yml",
-    "my-org/my-repo/.github/workflows/ci.yml",
+    "deploy.yml",
+    "ci.yml",
 ]
 ```
 

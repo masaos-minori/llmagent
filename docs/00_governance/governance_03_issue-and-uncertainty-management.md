@@ -63,7 +63,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
 | AGENT-007 | A diagnostic row that fails to decrypt is returned as ciphertext with only a warning | open | Low | Agent | design-gap |
 | AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
-| MCP-003 | cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives | open | Medium | MCP | implementation-bug |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | DEPLOY-002 | Production uv run does not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
@@ -228,26 +227,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Original messages cannot be recovered after compression.
 - **Recommended Action**: Keep originals recoverable, or record the limitation as accepted.
 - **Resolution Target**: The undo range after compression is defined and tested.
-
-#### MCP-003
-
-- **ID**: MCP-003
-- **Title**: cicd-mcp workflow_allowlist entries do not match the workflow value the tool receives
-- **Status**: open
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: implementation-bug
-- **Source**: `config/cicd_mcp_server.toml`
-- **Owner**: Unassigned
-- **First Found**: Documentation review
-- **Target**: `docs/22_mcp/mcp_05_01_access-control-and-allowlists.md`
-- **Related**: `docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md`
-- **Summary**: The checked-in allowlist uses a full-path form, but `trigger_workflow` compares the request's `workflow` value by exact match and its schema describes a file name or workflow ID.
-- **Current Description**: Configuration comment, example and checked-in value use different forms.
-- **Observed Implementation**: `_assert_allowed_workflow()` tests `workflow not in allowlist`; tests use `ci.yml`.
-- **Impact**: `workflow="ci.yml"` is rejected under the checked-in configuration.
-- **Recommended Action**: Decide the accepted form (file name or full path), then align the guard or normalization, the configuration value and comment, and the documentation.
-- **Resolution Target**: The allowlist form, the guard, the tool schema and the documentation agree.
 
 #### DEPLOY-001
 

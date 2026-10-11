@@ -10,10 +10,10 @@ repo_allowlist = ["masaos-minori/llmagent"]
 # Add allowed workflow patterns to enable triggering.
 # Example:
 # workflow_allowlist = [
-#   "my-org/my-repo/.github/workflows/deploy.yml",
-#   "my-org/my-repo/.github/workflows/ci.yml",
+#   "deploy.yml",
+#   "ci.yml",
 # ]
-workflow_allowlist = ["masaos-minori/llmagent/.github/workflows/ci.yml"]
+workflow_allowlist = ["ci.yml"]
 
 # max_log_size_kb: maximum log output size in KB (prevents large data dumps)
 max_log_size_kb = 256

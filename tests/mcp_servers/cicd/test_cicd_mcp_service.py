@@ -140,6 +140,38 @@ class TestAssertAllowedWorkflow:
             svc._assert_allowed_workflow("deploy.yml")
         assert "workflow_allowlist" in str(exc_info.value)
 
+    def test_path_separator_workflow_is_rejected(self) -> None:
+        svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["ci.yml"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_workflow("../ci.yml")
+
+    def test_backslash_separator_workflow_is_rejected(self) -> None:
+        svc = _make_service(repo_allowlist=["o/r"], workflow_allowlist=["ci.yml"])
+        with pytest.raises(CicdAuthorizationError):
+            svc._assert_allowed_workflow("..\\ci.yml")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Startup integration: shipped config → guard
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+class TestStartupConfigIntegration:
+    """Verify the committed cicd_mcp_server.toml drives allowed behavior end-to-end.
+
+    Loads the real config via CicdConfig.load() (same path the server uses at
+    startup) and asserts the shipped workflow_allowlist permits ci.yml.
+    """
+
+    def test_shipped_config_allows_ci_yml(self) -> None:
+        cfg = CicdConfig.load()
+        assert cfg.workflow_allowlist, (
+            "workflow_allowlist must be non-empty (fail-closed mode)"
+        )
+        assert "ci.yml" in cfg.workflow_allowlist
+        svc = CiCdService(cfg=cfg, backend=AsyncMock())
+        svc._assert_allowed_workflow("ci.yml")  # must not raise
+
 
 # ──────────────────────────────────────────────────────────────────────────────
 # CiCdService — _parse_repo
