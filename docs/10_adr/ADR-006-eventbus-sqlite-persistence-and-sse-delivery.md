@@ -417,7 +417,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The reinterpretation of INV-12 (a failed ACK is not treated as success and the event stays eligible for redelivery, consistent with INV-07) and the narrowed scope of INV-10 and INV-11 were approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: The reinterpretation of INV-12 (a failed ACK is not treated as success and the event stays eligible for redelivery, consistent with INV-07) and the narrowed scope of INV-10 and INV-11 were approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

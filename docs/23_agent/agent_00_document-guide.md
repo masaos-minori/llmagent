@@ -33,7 +33,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ## Responsibility Boundary
 
-- **In scope**: Chapter structure overview, question-to-chapter navigation mapping, Canonical Source Rule definition, handling of Known Issues / Deprecated Items here; uncertainty items tracked per [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md).
+- **In scope**: Chapter structure overview, question-to-chapter navigation mapping, a pointer to the Canonical Source Precedence rule in [governance_01_documentation-policy.md](../00_governance/governance_01_documentation-policy.md#canonical-source-precedence), handling of Known Issues / Deprecated Items here; uncertainty items tracked per [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md).
 - **Out of scope**: Detailed file indexes, keyword lists duplicatable by code search, implementation diff memos ("confirmed at file X line Y").
 
 ## Key Constraints

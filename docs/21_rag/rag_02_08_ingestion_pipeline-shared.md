@@ -45,7 +45,7 @@ For exhaustive signature and constant detail, see `scripts/rag/ingestion/pipelin
 
 ---
 
-## 10. Shared Utilities (`scripts/rag/utils.py`)
+## 10. Shared Utilities Summary (`scripts/rag/utils.py`)
 
 Details → [rag_02_09_ingestion_pipeline-shared-utilities.md](rag_02_09_ingestion_pipeline-shared-utilities.md)
 

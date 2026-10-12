@@ -200,7 +200,7 @@ No confirmed deviations.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The wording of Decision Details #2 and #3 and of INV-01 and INV-02 (refspec and revision syntax rejected; forced update unreachable by parameter or refspec) was approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: The wording of Decision Details #2 and #3 and of INV-01 and INV-02 (refspec and revision syntax rejected; forced update unreachable by parameter or refspec) was approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

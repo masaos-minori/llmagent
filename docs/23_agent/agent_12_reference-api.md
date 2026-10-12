@@ -29,8 +29,8 @@ The API reference focuses on "what the API is" and "how it works." "Why this API
 
 ## Key Constraints
 
-- Detailed API references exist only in the Canonical Source defined by the Canonical Source Rule.
-- Duplication of API/type/method details in other chapters is prohibited (Canonical Source Rule).
+- Detailed API references exist only in the Canonical Source defined by the Canonical Source Precedence rule in [governance_01_documentation-policy.md](../00_governance/governance_01_documentation-policy.md#canonical-source-precedence).
+- Duplication of API/type/method details in other chapters is prohibited (Canonical Source Precedence).
 - Incomplete implementation changes must be tracked per [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md).
 
 ## Operational Notes

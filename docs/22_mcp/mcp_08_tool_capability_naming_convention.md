@@ -85,7 +85,7 @@ Requirement examples:
 
 ## Status
 
-This is a proposed standard convention. Currently, no MCP servers in production environments have formally adopted this naming convention.
+This naming convention is optional. Currently, no MCP servers in production environments declare `capabilities` using it.
 
 ## Keywords
 

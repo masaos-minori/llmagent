@@ -207,7 +207,7 @@ Re-evaluate when:
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names not recorded)
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The replacement of the references to a non-existent Specification in Decision Details #13 with the classification table of `agent_08_04` was approved as a task-level approval decision (repository administrator instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: The replacement of the references to a non-existent Specification in Decision Details #13 with the classification table of `agent_08_04` was approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
