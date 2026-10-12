@@ -157,7 +157,7 @@ Invalid combinations fail startup with actionable error messages naming both con
 
 ### Inline Promotion Path
 
-When a NACK occurs and the nacking consumer's `consumer_delivery_failure_count` reaches `>= max_retry` AND every consumer that attempted delivery has given up (none has ACKed), the event is immediately promoted to the DLQ. The background DLQ loop (periodic) serves as a safety net to catch any events missed during inline processing.
+When a NACK occurs and the nacking consumer's `consumer_delivery_failure_count` reaches `>= max_retry` AND every consumer that attempted delivery has given up (none has ACKed), the event is immediately promoted to the DLQ. A consumer counts as attempting delivery once it has a delivery record for the event, which its ACK or its NACK creates; a consumer that has only received the event has no record and does not hold up promotion. While any attempting consumer is still below its retry limit, or any has ACKed, the event is not promoted, and the NACK that brings the last attempting consumer to its limit triggers the promotion. The background DLQ loop (periodic) serves as a safety net to catch any events missed during inline processing.
 
 ### Background Loop Promotion
 
