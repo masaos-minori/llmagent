@@ -78,6 +78,23 @@ to the item.
 
 ## Notes on filling sections
 
+- **Lightweight fill for small rows** — applies when the row is a documentation-only
+  change, or a code change confined to one function/section with no public-contract,
+  persistence, or security impact. The section headings stay (the structure is checked
+  by `tools/check_workitem_structure.py` and the one-document-per-row invariant is
+  unchanged); only the bodies shrink:
+  - "Alternatives considered", "Compatibility considerations", "Security
+    considerations", and "Rollback considerations" may each be one line:
+    `N/A: {short reason}` (rollback for a docs-only or single-commit change may be
+    `N/A: revert the commit`). Do not invoke `python-design` for them.
+  - "Design decisions" holds at most 2 bullets; "Procedure"/"Method"/"Details" state
+    only what a reader cannot infer from the Plan's Requirement text.
+  - "Execution Status" lists only the steps that apply: a docs-only row drops the
+    "Add or update tests" step and keeps the validation step as the documentation
+    checkers named in `routing.md` Tools "When to run which tool".
+  - Target length is about 40 lines. A row that does not fit the lightweight criteria
+    above uses the full form.
+
 - "Target file" (singular) names exactly the one `File Path` this document modifies —
   the one `Implementation Target Files` row (`templates/plan.md`) this document was
   generated from. Any other file mentioned in Procedure/Method/Details is a reference

@@ -355,6 +355,10 @@ Execution Rules):
   revision, not this workflow.
 - Apply `rules/workflow-lifecycle.md` Requirement Reference Format in the generated
   document (see `templates/implementation-procedure.md`).
+- Judge each row against the template's "Lightweight fill for small rows" criteria
+  (`templates/implementation-procedure.md` Notes) and shrink the optional-detail sections
+  accordingly. This changes only the section bodies — it never merges rows, drops
+  headings, or skips the Blocked/Plan Gap checks above.
 
 **Completed when**: every row has been classified and assigned exactly one outcome —
 skipped (`Already implemented`), a scoped document created (`Partially implemented` or
