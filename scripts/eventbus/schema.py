@@ -154,9 +154,7 @@ def _migrate(conn: Connection) -> None:
         (_COL_CONSUMER_LAST_NACK_ATTEMPT, "TEXT", "NULL"),
     ]:
         try:
-            conn.execute(
-                f"ALTER TABLE consumer_delivery ADD COLUMN {col} {col_type}"
-            )
+            conn.execute(f"ALTER TABLE consumer_delivery ADD COLUMN {col} {col_type}")
             logger.info("migrated: added column %s to consumer_delivery", col)
         except Exception as exc:
             if exc.args and "duplicate column name" in str(exc.args[0]):
