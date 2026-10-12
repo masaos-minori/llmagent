@@ -123,7 +123,7 @@ A claim whose truth has not yet been verified through evidence.
 | verification-contract | Expected Behavior | Executable assertions about expected behavior | `tests/` + the requirement source | ADR | Known Issues | Tests cannot silently redefine requirements |
 | production-effective-value | Effective Value in Production | Effective parameter value in deployment | Deployed Configuration (`config/*.toml`) | Startup Diagnostics | Configuration Drift |  |
 | configuration-schema | Configuration Structure | Valid configuration structure and constraints | Configuration loader and dataclass definitions under `scripts/` | Configuration Validation | Configuration Drift |  |
-| database-schema | DB Schema | Tables, columns, indexes, constraints | `scripts/db/schema_sql.py` (DDL builders) | Schema Test | Known Issues |  |
+| database-schema | DB Schema | Tables, columns, indexes, constraints | `scripts/db/schema_sql.py` (DDL builders); also `scripts/eventbus/schema.sql` for the `eventbus.sqlite` live-service DDL (see Known Issue EVENTBUS-016) and `scripts/mcp_servers/mdq/db_schema.py` for `mdq.sqlite` | Schema Test | Known Issues |  |
 | operational-procedure | Operational Procedures | Operator interaction guidance | Operations / Runbook | Operational Validation | Known Issues |  |
 | security-policy | Security Constraints | Security constraints and mandates | Accepted security ADRs (`docs/10_adr/ADR-007-*.md`, `ADR-012-*.md`, `ADR-013-*.md`) | Audit Evidence | Known Issues |  |
 | documentation-metadata | Documentation Metadata | Metadata on documentation assets | `docs/00_governance/governance_02_documentation-metadata.md` | Metadata Validator | Known Issues |  |

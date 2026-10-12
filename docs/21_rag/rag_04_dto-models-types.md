@@ -192,7 +192,7 @@ Note: All fields are required — no default values are specified in the datacla
 
 ### RagConfig Protocol
 
-`RagConfigImpl` implements the `RagConfig` Protocol defined in `scripts/shared/types.py`. Any object satisfying these fields can be passed to `RagPipeline` without importing agent-layer classes into the RAG layer. This is NOT a file-format DTO; config file DTOs live in `mcp_servers.rag_pipeline.models.RagPipelineConfig` (MCP TOML) and `rag.models_config.*` (ingestion TOML).
+`RagConfigImpl` implements the `RagConfig` Protocol defined in `scripts/shared/types.py`. Any object satisfying these fields can be passed to `RagPipeline` without importing agent-layer classes into the RAG layer. This is NOT a file-format DTO; config file DTOs live in `mcp_servers.rag_pipeline.rag_pipeline_models.RagPipelineConfig` (MCP TOML) and `rag.models_config.*` (ingestion TOML).
 
 ### Implementation Notes
 

@@ -247,7 +247,7 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
 
 - **System of Record**: the `documents` table and the `chunks` table
 - **Derived Data**: the `chunks_fts` virtual table and the `chunks_vec` virtual table
-- **Ownership**: RAG team (owner of the canonical data)
+- **Ownership**: RAG layer (owner of the canonical data)
 - **Persistence**: SQLite file system
 - **Transaction Boundary**: per document
 - **Recovery Source**: canonical data (`documents` + `chunks`)

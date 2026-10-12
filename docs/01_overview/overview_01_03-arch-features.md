@@ -29,7 +29,6 @@ Details → [`agent_07_01_cli-and-commands-cli-reference.md`](../23_agent/agent_
 - Memory Layer (semantic/episodic)
 - Session Persistence & Restoration
 - Context Compression (LLM Summarization)
-- Tool Result Cache (standalone, not used by ToolExecutor)
 - SSE Streaming
 - Slash Commands
 - Tool Loop Guard (dedup/cycle/retry/error limits)

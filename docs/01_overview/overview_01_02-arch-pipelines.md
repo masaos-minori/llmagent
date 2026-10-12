@@ -36,7 +36,7 @@ Details → [`rag_03_01_query_pipeline-overview.md`](../21_rag/rag_03_01_query_p
 
 ``` text
 User Input
-  → MQE + embed → KNN+BM25 → RRF → Rerank → Refiner → Context Augmentation
+  → MQE + embed → KNN+BM25 → RRF → Rerank → Context Augmentation → Refiner (optional)
   → LLM → tool_calls → MCP Servers
   → Final Answer (SSE streaming)
 ```
@@ -64,8 +64,8 @@ Messages with flags are removed during the system prompt synchronization process
 
 See [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
 
-**Enabling Post-Execution Approval Gates:**
-In the workflow definition file (`config/workflows/*.json`), the `require_approval` field (defaults to `false`) can enable a post-execution approval gate between the `execute` and `verify` stages. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
+**Post-Execution Approval Gates:**
+In the workflow definition file (`config/workflows/*.json`), the `require_approval` field enables a post-execution approval gate between the `execute` and `verify` stages. The loader requires it to be `true`: a definition whose `require_approval` is absent or `false` is rejected, and the bundled default definition sets it to `true`. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
 For the per-category production policy on when `require_approval: true` is required, see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
 

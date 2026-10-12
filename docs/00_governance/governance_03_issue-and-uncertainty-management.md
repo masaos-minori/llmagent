@@ -356,9 +356,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Keep these tokens operator-only and enforce that no publisher or consumer process receives them (for example by a deployment check against ADR-013 INV-07), or make per-role tokens sufficient so the every-role tokens are not needed.
 - **Resolution Target**: ADR-013 and the deployment practice agree, or per-role tokens suffice.
 
-Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
-
-
 #### EVENTBUS-016
 
 - **ID**: EVENTBUS-016
@@ -398,6 +395,8 @@ Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable i
 - **Impact**: No runtime path uses these classes, so any behavior they define does not take effect.
 - **Recommended Action**: Wire the package into the runtime and add it to the dependency graph, or remove it and align the security documents.
 - **Resolution Target**: The package is either imported by runtime code or removed.
+
+Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 
 ## Part 2: Needs Confirmation Inventory
 
@@ -454,7 +453,7 @@ An item is removed from this active inventory once it is resolved (exactly one n
 
 ### Active Items
 
-No other active Canonical Source Conflict items remain open.
+No active Canonical Source Conflict items remain.
 
 ## Part 4: Configuration Drift
 

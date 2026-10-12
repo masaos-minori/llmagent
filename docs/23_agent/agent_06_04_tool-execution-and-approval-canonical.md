@@ -45,7 +45,7 @@ Both layers are canonical; boundaries and responsibilities are explicit rather t
 | Granularity | Per tool call | Per task (between `execute` → `verify`) |
 | State | Ephemeral (in memory) | Persistent in DB (`approvals`) |
 | Resolution | Interactive via stdin | `/approve` / `/reject` |
-| Currently active | Always active | Inactive (default workflow definitions have `require_approval=false`) |
+| Currently active | Always active | Active for every loaded workflow definition (the loader rejects a definition whose `require_approval` is absent or false; the bundled default sets it to true) |
 | Risk classification | `approval_risk_rules` per tool | `require_approval` flag on workflow definition |
 
 **Design judgment**: The requirement for a "single canonical approval object" means clearly defining the boundaries and responsibilities of each layer. It does not mean excluding one of the layers. Both layers solve different problems:
@@ -93,7 +93,7 @@ If a workflow fails after some steps are completed, the workflow engine records 
 
 ## Known Limitations
 
-- Post-execution approval (workflow-level) is disabled by default — requires explicit configuration change
+- Post-execution approval (workflow-level) is enabled for every loaded workflow definition, because the loader rejects a definition whose `require_approval` is absent or false; the bundled default definition sets it to true
 - Pre-execution approval (tool-level) can be configured individually via `approval_risk_rules`, but a tool without a rule falls back to its safety-tier default (`READ_ONLY`/`WRITE_SAFE` → `none`, `WRITE_DANGEROUS` → `medium`, `ADMIN` → `high`)
 - Partial completion is not automatically resumed — manual user intervention is required
 

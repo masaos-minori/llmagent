@@ -57,7 +57,7 @@ Provides least-privilege access for deleting local files.
 
 **Responsibilities:**
 - RAG query pipeline execution (`rag_run_pipeline`, `rag_debug_pipeline`); no ingestion tool is exposed
-- Document indexing and retrieval
+- Document retrieval over an index built by the separate ingestion path (no indexing tool is exposed)
 - Pipeline debugging and diagnostics
 
 **Explicit Non-responsibilities:**

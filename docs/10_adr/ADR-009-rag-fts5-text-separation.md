@@ -244,7 +244,7 @@ Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, c
 
 - **System of Record**: the `chunks` table (`content` + `normalized_content`)
 - **Derived Data**: the `chunks_fts` virtual table
-- **Ownership**: RAG team (owner of the canonical data)
+- **Ownership**: RAG layer (owner of the canonical data)
 - **Persistence**: SQLite file system
 - **Transaction Boundary**: per chunk
 - **Recovery Source**: the `chunks` table (`content` + `normalized_content`); `chunks_fts` is rebuilt from it

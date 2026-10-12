@@ -145,7 +145,7 @@ During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is calle
 
 ### Default Behavior of Approval Gates
 
-With the bundled `config/workflows/default.json`, the workflow-level approval gate is not triggered; enabling it requires setting `require_approval` to true in the workflow definition. The tool-level pre-execution gate is unaffected.
+With the bundled `config/workflows/default.json`, `require_approval` is true, so the workflow-level approval gate is triggered between the `execute` and `verify` stages. A workflow definition whose `require_approval` is absent or false is rejected at load time (see Approval Gates). The tool-level pre-execution gate is independent of this flag.
 
 ## Operational Notes
 

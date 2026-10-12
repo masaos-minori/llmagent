@@ -243,9 +243,8 @@ Notation: write the label in parentheses, optionally followed by an em dash and 
 2. **Strongly implied by code** — Inferred from code structure/patterns
 3. **Documentation only** — Exists only in documentation without code verification
 4. **Needs confirmation** — Accuracy unverified against implementation
-5. **Deprecated** — Describes an obsolete feature no longer in use. Distinct from `docs/00_governance/governance_02_documentation-metadata.md`'s Terminology Glossary terms `Obsolete` (a name still present and callable, but no longer the current production path) and `Dead Code` (a name with zero current callers): this evidence label classifies how well a *statement* is grounded, not the compatibility lifecycle of the thing the statement describes.
-6. **Verified by test** — Confirmed through automated tests
-7. **Operationally observed** — Based on runtime behavior observations
+5. **Verified by test** — Confirmed through automated tests
+6. **Operationally observed** — Based on runtime behavior observations
 
 ### 17. ADR Section Header Compliance
 

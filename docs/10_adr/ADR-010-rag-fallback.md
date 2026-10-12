@@ -250,7 +250,7 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
 
 - **System of Record**: `rag.sqlite` (shared by both the local and remote RAG modes)
 - **Derived Data**: the FTS5 and Vector indexes of `rag.sqlite` (defined by ADR-005)
-- **Ownership**: RAG team (owner of the canonical data)
+- **Ownership**: RAG layer (owner of the canonical data)
 - **Persistence**: file system (the configured DB directory); the fallback itself persists nothing
 - **Transaction Boundary**: not applicable (the fallback only reads `rag.sqlite`)
 - **Recovery Source**: not applicable (see ADR-005 and ADR-008 for `rag.sqlite`)

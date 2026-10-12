@@ -99,7 +99,7 @@ Failure to recover required workflow or event-delivery state MUST NOT be silentl
 - `recover_corruption()` is never invoked automatically; it is a manual, operator-triggered CLI action. There is no bounded retry loop or retry-count concept in the implementation (Explicit in code).
 - At startup, a `sqlite3.Error` raised while opening the session store is treated as fatal: the REPL reports the failure and re-raises as `RuntimeError`, stopping startup without attempting automatic recovery (Explicit in code — `agent/repl.py`).
 - At startup, a failed RAG *logical* consistency check (unrelated to physical corruption) is treated as a non-critical, skippable finding and does not stop startup (Explicit in code — `agent/startup.py` — comment: "non-critical maintenance check must not abort startup").
-- Log and error-detail fields observed in this code path carry file paths, archive names, and raw SQLite exception text; no code path was found that writes row-level DB content (message bodies, approval reasons) into logs (Strongly implied by code — absence confirmed by inspection, not by exhaustive proof).
+- Log and error-detail fields observed in this code path carry file paths, archive names, and raw SQLite exception text; inspection found no code path that writes row-level DB content (message bodies, approval reasons) into logs; this is not an exhaustive proof (Strongly implied by code).
 
 ### 9.9 Implementation references
 

@@ -157,7 +157,7 @@ This section is maintained in the companion document: [Alternatives Considered](
 - Routing is determined at startup based on Discovery results
 - Adding or removing Tools at runtime is prohibited
 - A configuration change that affects Discovery-derived state requires a full restart of the Agent process and is not reflected by Reload
-- Impact on Health Checks: startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable, its Tools are disabled and startup continues (ADR-004 Decision Group 7, item 18)
+- Impact on Health Checks: startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable at Discovery, its Tools are disabled and startup continues (ADR-004 Decision Group 7, item 18); a subprocess server that fails to spawn aborts startup regardless of `required` (AGENT-004, see ADR-004)
 - Incident response: a restart is required when Discovery fails
 
 ### Security Consequences
