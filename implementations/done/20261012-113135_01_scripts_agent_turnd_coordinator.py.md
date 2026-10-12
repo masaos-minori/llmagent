@@ -46,7 +46,7 @@ Locate `scripts/agent/turnd_coordinator.py`; run the `rg` confirmation above; `g
 
 ## Compatibility considerations
 
-- `TurnCoordinator` is re-exported from `scripts/agent/__init__.py` (import line 18, `__all__` entry line 33); that export is removed by the sibling procedure doc (`_02`). This doc does not touch `__init__.py`.
+- `TurnCoordinator` is re-exported from `scripts/agent/__init__.py` (import line 18, `__all__` entry line 33); that export is removed by the sibling procedure doc (sibling procedure 02). This doc does not touch `__init__.py`.
 - No production code constructs or calls `TurnCoordinator`; deleting the module changes no runtime behavior.
 
 ## Security considerations
@@ -78,10 +78,10 @@ Locate `scripts/agent/turnd_coordinator.py`; run the `rg` confirmation above; `g
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: deletion-only; covered by import smoke + full suite |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc edit in this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261012-133335 | 20261012-133416 | stale_detector false positive (_02 in prose) reworded with user approval; clean re-check; processed after 02 so the package import stays valid changed: scripts/agent/turnd_coordinator.py deleted (git rm); no class TurnCoordinator definition remains |
+| 2 | Add or update tests per Validation plan | Completed | 20261012-133416 | 20261012-133416 | N/A: deletion-only; covered by import smoke + full suite N/A: deletion-only; import smoke 4 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-133416 | 20261012-133416 | ruff, mypy (425 files), lint-imports (5 kept, 0 broken), bandit (0 high severity), import smoke pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-133416 | 20261012-133416 | N/A: no doc edit in this row N/A: no doc edit in this row (API reference is procedure 04, ADR is procedure 05) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

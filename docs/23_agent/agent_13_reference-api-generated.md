@@ -108,6 +108,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 | `scripts/agent/mode_classification.py` | `classify_and_inject_mode` | `async def classify_and_inject_mode(query, ctx) -> None` | Inject MDQ/RAG routing hint into system prompt based on query classification. |
 | `scripts/agent/orchestrator.py` | `Orchestrator` | `class Orchestrator` | Turn-level coordinator: compression -> LLM loop -> tool dispatch. |
 | `scripts/agent/output_tags.py` | `OutputTag` | `class OutputTag` | Bracketed prefix tags for REPL/CLI status messages. |
+| `scripts/agent/production_config_validator.py` | `ProductionConfigValidator` | `class ProductionConfigValidator` | Validate configuration against production security requirements. |
 | `scripts/agent/repl.py` | `builtin_command_names` | `def builtin_command_names() -> frozenset[str]` | Return names of all built-in commands from _COMMANDS. |
 |  | `reserved_repl_command_names` | `def reserved_repl_command_names() -> frozenset[str]` | Return names of REPL-reserved commands. |
 |  | `completion_command_names` | `def completion_command_names() -> frozenset[str]` | Return all commands available for tab completion. |
@@ -196,7 +197,6 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `ExecutionPlan` | `class ExecutionPlan` | The full scheduling result for one batch of tool calls. |
 |  | `build_execution_groups` | `def build_execution_groups(tool_calls, call_specs, *, force_serial) -> ExecutionPlan` | Build the single-engine DAG execution plan for *tool_calls*. |
 | `scripts/agent/turn_result.py` | `TurnResult` | `class TurnResult` | Typed result of one LLM turn. |
-| `scripts/agent/turnd_coordinator.py` | `TurnCoordinator` | `class TurnCoordinator` | Coordinates per-turn lifecycle: start/end audit events only. |
 | `scripts/agent/wal_checkpoint_manager.py` | `WalCheckpointManager` | `class WalCheckpointManager` | WAL checkpoint and backup manager. |
 | `scripts/agent/workflow_engine_adapter.py` | `WorkflowEngineAdapter` | `class WorkflowEngineAdapter` | Wires workflow engine lifecycle around an LLM turn. |
 <!-- END AUTO-GENERATED -->

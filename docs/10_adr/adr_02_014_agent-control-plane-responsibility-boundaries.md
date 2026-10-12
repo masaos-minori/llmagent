@@ -129,7 +129,7 @@ Merge turn coordination and the LLM/Tool round-trip loop into a single class, st
 
 #### Disadvantages
 
-- A large-scale refactoring of the already extracted concern classes (`TurnCoordinator`, `WorkflowEngineAdapter`, `LlmTurnExecutor`, and so on) is required
+- A large-scale refactoring of the already extracted concern classes (`WorkflowEngineAdapter`, `LlmTurnExecutor`, and so on) is required
 - The responsibilities of a single class grow, with a risk of reduced readability instead
 
 #### Reason for Rejection

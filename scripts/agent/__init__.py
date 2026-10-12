@@ -15,7 +15,6 @@ from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
 from agent.session_persister import SessionPersister
 from agent.signal_handler import SignalHandler
 from agent.startup_banner import StartupBanner
-from agent.turnd_coordinator import TurnCoordinator
 from agent.wal_checkpoint_manager import WalCheckpointManager
 from agent.workflow_engine_adapter import WorkflowEngineAdapter
 
@@ -30,7 +29,6 @@ __all__ = [
     "BgTaskMonitor",
     "AuditEventEmitter",
     "ConversationStateManager",
-    "TurnCoordinator",
     "LlmTurnExecutor",
     "WorkflowEngineAdapter",
 ]

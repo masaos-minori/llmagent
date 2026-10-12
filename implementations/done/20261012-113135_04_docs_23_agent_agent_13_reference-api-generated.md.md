@@ -75,10 +75,10 @@ Run the generator for `--type agent`, then `git diff` (or compare against the sa
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: doc regeneration only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy not applicable to a doc edit |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261012-133452 | 20261012-134230 | stale_detector clean changed: docs/23_agent/agent_13_reference-api-generated.md via generate_reference_table.py --type agent; diff = TurnCoordinator row removed + ProductionConfigValidator row added (pre-existing generator drift from commit bd2b66e8c; shipped with user approval, procedure step 5 exception) |
+| 2 | Add or update tests per Validation plan | Completed | 20261012-134230 | 20261012-134230 | N/A: doc regeneration only N/A: doc regeneration only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-134230 | 20261012-134230 | ruff/mypy not applicable to a doc edit check_docs_quality, check_docs_structure, check_docs_consistency --domain agent, check_docs_japanese, check_needs_confirmation_inventory pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-134230 | 20261012-134230 | docs edited via generator; agent_13 has no docs/00_index.md task-scope row, python-documentation not applied |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

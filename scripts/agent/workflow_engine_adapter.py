@@ -170,7 +170,6 @@ class WorkflowEngineAdapter:
             engine = self._workflow_engine
 
             async def plan_fn() -> str | None:
-                """No-op placeholder: planning work is done by TurnCoordinator.handle_turn_start before engine.run()."""
                 return None
 
             async def execute_fn() -> str | None:

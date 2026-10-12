@@ -73,10 +73,10 @@ Open `workflow_engine_adapter.py` around lines 172-174; delete only the docstrin
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docstring-only; covered by full suite |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc edit in this row |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261012-133424 | 20261012-133444 | stale_detector clean changed: scripts/agent/workflow_engine_adapter.py (stale docstring line removed; diff touches one line) |
+| 2 | Add or update tests per Validation plan | Completed | 20261012-133444 | 20261012-133444 | N/A: docstring-only; covered by full suite N/A: docstring-only; 21 engine-adapter tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-133444 | 20261012-133444 | ruff, mypy, bandit (no high severity), lint-imports pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-133444 | 20261012-133444 | N/A: no doc edit in this row N/A: no doc edit in this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
