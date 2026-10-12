@@ -6,14 +6,14 @@ tags:
   - tool-routing
   - runtime-tool-registry
 related:
-  - ADR-001-workflow-engine-mandatory.md
-  - ADR-002-config-isolation.md
+  - adr_02_001_workflow-engine-mandatory.md
+  - adr_02_002_config-isolation.md
   - mcp_03_01_dispatch-and-routing.md
   - mcp_03_02_tool-registry.md
   - mcp_03_06_tool-runtime-availability-metadata.md
   - agent_06_01_tool-execution-and-approval-execution.md
   - shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
-  - ADR-004-environment-failure-handling-policy.md
+  - adr_02_004_environment-failure-handling-policy.md
 ---
 
 # ADR-003: RuntimeToolRegistry as the Sole Routing Authority

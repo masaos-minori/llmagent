@@ -70,7 +70,7 @@ Every server except `mdq` rejects disabled tools at `/v1/call_tool` before reach
 
 ## Design decisions
 
-For the concept distinctions (static availability vs. dynamic health, approval vs. disabled state), `/v1/tools` as the sole source of `RuntimeToolRegistry`, and reload not rediscovering tools, see [ADR-003](../10_adr/ADR-003-runtime-tool-registry-routing-authority.md).
+For the concept distinctions (static availability vs. dynamic health, approval vs. disabled state), `/v1/tools` as the sole source of `RuntimeToolRegistry`, and reload not rediscovering tools, see [ADR-003](../10_adr/adr_02_003_runtime-tool-registry-routing-authority.md).
 
 ## Wiring reference
 

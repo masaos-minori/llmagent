@@ -324,7 +324,9 @@ def _resolve_doc_mention(mention: str) -> Path | None:
         adr_match = re.match(r"ADR-(\d+)", mention)
         if adr_match is None:
             return None
-        candidates = sorted(ROOT_DIR.glob(f"docs/10_adr/ADR-{adr_match.group(1)}-*.md"))
+        candidates = sorted(
+            ROOT_DIR.glob(f"docs/10_adr/adr_02_{adr_match.group(1)}_*.md")
+        )
         return candidates[0] if candidates else None
 
     candidate = ROOT_DIR / mention

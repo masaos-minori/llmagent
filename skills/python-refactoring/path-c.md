@@ -160,8 +160,8 @@ folded into its nearest existing section rather than added as a new top-level he
 `workflow.md`'s existing Allowed file operations rule ("Do not edit documentation
 unless explicitly instructed") governs where this ADR content is written: Step 10
 MUST produce the ADR content, in the reconciled shape above, inline in the report as
-a draft. Creating the file under `docs/10_adr/ADR-{next-number}-{slug}.md` and registering
-it in `docs/10_adr/adr-index.md`'s existing "ADR List" table and dependency graph happens only
+a draft. Creating the file under `docs/10_adr/adr_02_{next-number}_{slug}.md` and registering
+it in `docs/10_adr/adr_01_index.md`'s existing "ADR List" table and dependency graph happens only
 when the user explicitly instructs a documentation update — this Requirement does not
 relax or reinterpret that existing rule, it states how the new ADR obligation operates
 within it.

@@ -6,7 +6,7 @@ tags:
   - sqlite
   - sse
 related:
-  - ADR-002-config-isolation.md
+  - adr_02_002_config-isolation.md
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
   - eventbus_06_persistence_schema_and_replay.md
@@ -14,8 +14,8 @@ related:
   - eventbus_07_configuration-and-operations.md
   - eventbus_08_reference_api.md
   - governance_03_issue-and-uncertainty-management.md
-  - ADR-004-environment-failure-handling-policy.md
-  - ADR-013-eventbus-authentication-authorization.md
+  - adr_02_004_environment-failure-handling-policy.md
+  - adr_02_013_eventbus-authentication-authorization.md
 ---
 
 # ADR-006: EventBus SQLite Persistence and SSE Delivery

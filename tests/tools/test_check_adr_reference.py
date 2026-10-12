@@ -5,7 +5,7 @@ Each scenario builds an in-memory Matrix table (as a list of lines) and calls
 parse_matrix_source_refs()/check_adr_reference() directly, then verifies file
 existence/content checks against real tmp_path fixture files -- matching
 tests/tools/test_check_adr_invariant_matrix.py's direct-function-call pattern.
-Live `docs/10_adr/adr-index.md` validation (AC-3) is exercised separately by running
+Live `docs/10_adr/adr_01_index.md` validation (AC-3) is exercised separately by running
 the tool against the real repository, not duplicated here as a unit test.
 """
 
@@ -110,5 +110,5 @@ class TestCheckAdrReference:
         )
         issues = check_adr_reference([ref])
         assert len(issues) == 1
-        assert issues[0].file == "adr-index.md"
+        assert issues[0].file == "adr_01_index.md"
         assert "does not exist" in issues[0].message

@@ -7,7 +7,7 @@ tags:
 related:
   - 00_index.md
   - overview_00_document-guide.md
-  - ADR-015-reference-document-class-disposition.md
+  - adr_02_015_reference-document-class-disposition.md
 ---
 # Governance: Document Guide
 

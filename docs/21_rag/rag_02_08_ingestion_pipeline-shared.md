@@ -15,7 +15,7 @@ related:
   - rag_02_07_ingestion_pipeline-utils.md
   - rag_02_09_ingestion_pipeline-shared-utilities.md
   - rag_05_01-configuration-reference.md
-  - ADR-009-rag-fts5-text-separation.md
+  - adr_02_009_rag-fts5-text-separation.md
 ---
 
 
@@ -70,7 +70,7 @@ for the functions it currently uses.
 
 ### FTS5 / LLM Content Separation
 
-See [ADR-009](../10_adr/ADR-009-rag-fts5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
+See [ADR-009](../10_adr/adr_02_009_rag-fts5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
 
 Japanese chunks store two versions:
 - `chunks.content` — Original text (passed as context to the LLM)

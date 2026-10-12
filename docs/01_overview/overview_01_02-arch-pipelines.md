@@ -62,7 +62,7 @@ Messages with flags are removed during the system prompt synchronization process
 
 **Workflows are Always Required (No Mode Setting)**
 
-See [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md) for rationale and invariants.
+See [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md) for rationale and invariants.
 
 **Post-Execution Approval Gates:**
 In the workflow definition file (`config/workflows/*.json`), the `require_approval` field enables a post-execution approval gate between the `execute` and `verify` stages. The loader requires it to be `true`: a definition whose `require_approval` is absent or `false` is rejected, and the bundled default definition sets it to `true`. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
@@ -83,7 +83,7 @@ The `startup_mode` of each MCP server is set per `[mcp_servers.*]` entry in `con
 
 ### Implementation Note: Behavior on Server Startup Failure
 
-See [ADR-004](../10_adr/ADR-004-environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
+See [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
 
 ## Keywords
 

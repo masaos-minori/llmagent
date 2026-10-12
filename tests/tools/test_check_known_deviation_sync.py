@@ -44,7 +44,7 @@ class TestStatusMatch:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-001-example.md",
+            "adr_02_001_example.md",
             "## Known Deviations\n\n"
             "- **Known Issue**: ID-001 — still present, tracked upstream\n",
         )
@@ -67,7 +67,7 @@ class TestResolvedBullet:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-002-example.md",
+            "adr_02_002_example.md",
             "## Known Deviations\n\n"
             "- **Resolved**: Something was fixed.\n"
             "- **Resolved Issue**: Another fix.\n"
@@ -86,7 +86,7 @@ class TestResolvedBullet:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-003-example.md",
+            "adr_02_003_example.md",
             "## Known Deviations\n\n- **Known Issue**: ID-003 — tracked\n",
         )
         assert find_resolved_bullets(_discover(adr_dir)) == []
@@ -109,7 +109,7 @@ class TestDanglingReference:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-003-example.md",
+            "adr_02_003_example.md",
             "## Known Deviations\n\n"
             "- **Known Issue**: ID-003 — referenced but never tracked\n",
         )
@@ -146,7 +146,7 @@ class TestFalsePositiveAvoidance:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-004-example.md",
+            "adr_02_004_example.md",
             "## Known Deviations\n\n"
             "- **Known Issue**: ID-004-EXTRA-slug-suffix — profile config "
             "model still present\n",
@@ -183,7 +183,7 @@ class TestConsolidatedGovernanceFormat:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-006-example.md",
+            "adr_02_006_example.md",
             "## Known Deviations\n\n"
             "- **Known Issue**: RAG-999 — still open per implementation\n",
         )
@@ -238,7 +238,7 @@ class TestNoIdHeadings:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-005-example.md",
+            "adr_02_005_example.md",
             "## Known Deviations\n\n"
             "- **Known Issue**: ID-005 — would belong to the eventbus doc\n",
         )
@@ -268,7 +268,7 @@ class TestSubsectionNoLongerParsed:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-020-example.md",
+            "adr_02_020_example.md",
             "## Implementation Notes\n\n"
             "Some notes.\n\n"
             "### Known Issues\n\n"
@@ -281,7 +281,7 @@ class TestSubsectionNoLongerParsed:
         adr_dir = tmp_path / "10_adr"
         _write(
             adr_dir,
-            "ADR-021-example.md",
+            "adr_02_021_example.md",
             "## Known Deviations\n\n"
             "- **Known Issue**: ID-020 — tracked in Known Deviations\n",
         )

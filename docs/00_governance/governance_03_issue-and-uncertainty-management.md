@@ -86,7 +86,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: Unassigned
 - **First Found**: Documentation review
 - **Target**: `docs/21_rag/rag_05_01-configuration-reference.md`
-- **Related**: `docs/10_adr/ADR-010-rag-fallback.md`
+- **Related**: `docs/10_adr/adr_02_010_rag-fallback.md`
 - **Summary**: `use_refiner` and the `refiner_*` keys in `config/agent.toml` are not read by any Agent code path.
 - **Current Description**: The keys appear as Agent RAG settings.
 - **Observed Implementation**: Only `embed_url` is read from `AgentConfig.rag`; the rag-pipeline MCP server uses `config/rag_pipeline_mcp_server.toml`.
@@ -105,7 +105,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/db/schema_sql.py`
 - **Owner**: Unassigned
 - **First Found**: ADR Known Deviations review
-- **Target**: `docs/10_adr/ADR-005-rag-source-derived-index-relationships.md`
+- **Target**: `docs/10_adr/adr_02_005_rag-source-derived-index-relationships.md`
 - **Related**: None
 - **Summary**: The `sqlite-vec` virtual table `chunks_vec` cannot declare a foreign key to `chunks`.
 - **Current Description**: ADR-005 requires derived index rows to follow their source rows.
@@ -125,7 +125,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/agent/startup_mcp_starter.py`
 - **Owner**: Unassigned
 - **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-004-environment-failure-handling-policy.md`
+- **Target**: `docs/10_adr/adr_02_004_environment-failure-handling-policy.md`
 - **Related**: None
 - **Summary**: The spawn path never reads `required`, so `required=false` does not disable the server.
 - **Current Description**: ADR-004 disables a non-mandatory component and continues startup.
@@ -145,7 +145,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/agent/tool_policy.py`
 - **Owner**: Unassigned
 - **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-003-runtime-tool-registry-routing-authority.md`
+- **Target**: `docs/10_adr/adr_02_003_runtime-tool-registry-routing-authority.md`
 - **Related**: `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`
 - **Summary**: `classify_operation_type()` reads the frozensets in `shared/tool_constants.py` first and uses `RuntimeToolRegistry` only for READ versus UNKNOWN.
 - **Current Description**: ADR-003 INV-03 requires approval and auditing to reference the same `RuntimeTool` attributes as routing.
@@ -285,8 +285,8 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/eventbus/auth.py`
 - **Owner**: Unassigned
 - **First Found**: ADR Known Deviations review
-- **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
-- **Related**: `docs/10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md`
+- **Target**: `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`
+- **Related**: `docs/10_adr/adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md`
 - **Summary**: A principal without a consumer_id allowlist is not restricted to any consumer_id.
 - **Current Description**: ADR-013 INV-02 forbids acting as another `consumer_id`.
 - **Observed Implementation**: A `consumer_token` without `consumer_authorization` is rejected at startup. With empty `consumer_authorization` and `topic_authorization` mappings, the CONSUMER token gets `allowed_consumer_ids=None` (unrestricted), as do `auth_token` and `admin_token`.
@@ -305,7 +305,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Source**: `scripts/eventbus/auth.py`
 - **Owner**: Unassigned
 - **First Found**: Documentation review
-- **Target**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`
+- **Target**: `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`
 - **Related**: `EVENTBUS-008`
 - **Summary**: The mandatory shared token and the admin token map to every role, so per-role separation holds only for callers that hold per-role tokens.
 - **Current Description**: ADR-013 defines five roles, each granted a fixed set of routes.

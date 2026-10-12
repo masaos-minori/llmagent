@@ -6,11 +6,11 @@ tags:
   - workflow-engine
   - architecture
 related:
-  - ADR-014-agent-control-plane-responsibility-boundaries.md
+  - adr_02_014_agent-control-plane-responsibility-boundaries.md
   - deployment_01_deployment.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
-  - ADR-004-environment-failure-handling-policy.md
+  - adr_02_004_environment-failure-handling-policy.md
 ---
 
 # ADR-001: Mandatory Workflow Engine

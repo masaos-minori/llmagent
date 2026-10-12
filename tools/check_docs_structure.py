@@ -83,10 +83,12 @@ def strip_fenced_code(content: str) -> str:
 SIZE_EXCEPTIONS: dict[str, int] = {
     # ADR-003, ADR-004 and ADR-008 absorbed their companion supporting-sections
     # documents (the owner requested the merge, 2026-10-12), which puts them above
-    # MAX_SIZE; the ceilings below equal the merged sizes, so further growth fails.
-    "ADR-003-runtime-tool-registry-routing-authority.md": 26087,
-    "ADR-004-environment-failure-handling-policy.md": 30288,
-    "ADR-008-sqlite-4db-separation.md": 33632,
+    # MAX_SIZE; the ceilings below equal the accepted sizes (re-recorded 2026-10-12 after
+    # the ADR files were renamed to `adr_02_NNN_*.md`, which lengthened self-references),
+    # so further growth fails.
+    "adr_02_003_runtime-tool-registry-routing-authority.md": 26096,
+    "adr_02_004_environment-failure-handling-policy.md": 30300,
+    "adr_02_008_sqlite-4db-separation.md": 33647,
     # The Known Issue inventory grows with each active entry (17 template fields
     # per entry); the owner accepted this exception (2026-10-07) and re-accepted it
     # after the inventory changed (2026-10-08).
@@ -229,7 +231,7 @@ def check_tail_sections(path: Path, content: str) -> list[str]:
             f"{path.name}: document must not carry a body "
             f"'{match.group(0)}' section; use front matter 'related:'"
         )
-    if _is_adr(path) and path.name.startswith("ADR-"):
+    if _is_adr(path) and ADR_ID_RE.match(path.name):
         if not re.search(r"^## Related ADRs", content, re.MULTILINE):
             issues.append(f"{path.name}: missing '## Related ADRs' section")
     if not re.search(r"^## Keywords", content, re.MULTILINE):
@@ -280,7 +282,7 @@ def check_links(
     return issues
 
 
-ADR_ID_RE = re.compile(r"^ADR-(\d+)-")
+ADR_ID_RE = re.compile(r"^adr_02_(\d+)_")
 
 
 def check_unique_adr_ids(files: list[Path]) -> list[str]:

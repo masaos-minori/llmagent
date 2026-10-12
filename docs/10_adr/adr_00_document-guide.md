@@ -8,7 +8,7 @@ tags:
 related:
   - 00_index.md
   - overview_00_document-guide.md
-  - ADR-015-reference-document-class-disposition.md
+  - adr_02_015_reference-document-class-disposition.md
 ---
 # ADR: Document Guide
 
@@ -24,28 +24,32 @@ No confirmed deviations.
 
 | Category | File |
 |---|---|
-| ADR Index | `adr-index.md` |
-| Workflow Engine Mandatory | `ADR-001-workflow-engine-mandatory.md` |
-| Config Isolation | `ADR-002-config-isolation.md` |
-| Tool Registry Authority | `ADR-003-runtime-tool-registry-routing-authority.md` |
-| Environment Failure Handling | `ADR-004-environment-failure-handling-policy.md` |
-| RAG Source-Derived Index | `ADR-005-rag-source-derived-index-relationships.md` |
-| EventBus Persistence & SSE | `ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
-| HTTP MCP Adoption | `ADR-007-http-mcp-adoption-and-stdio-non-support.md` |
-| SQLite 4DB Separation | `ADR-008-sqlite-4db-separation.md` |
-| RAG FTS5 Text Separation | `ADR-009-rag-fts5-text-separation.md` |
-| RAG Fallback | `ADR-010-rag-fallback.md` |
-| Git MCP Server-Side Write | `ADR-012-git-mcp-server-side-write-enforcement.md` |
-| EventBus Authentication | `ADR-013-eventbus-authentication-authorization.md` |
-| Agent Control Plane Boundaries | `ADR-014-agent-control-plane-responsibility-boundaries.md` |
-| Reference Document Class Disposition | `ADR-015-reference-document-class-disposition.md` |
+| ADR Index | `adr_01_index.md` |
+| Workflow Engine Mandatory | `adr_02_001_workflow-engine-mandatory.md` |
+| Config Isolation | `adr_02_002_config-isolation.md` |
+| Tool Registry Authority | `adr_02_003_runtime-tool-registry-routing-authority.md` |
+| Environment Failure Handling | `adr_02_004_environment-failure-handling-policy.md` |
+| RAG Source-Derived Index | `adr_02_005_rag-source-derived-index-relationships.md` |
+| EventBus Persistence & SSE | `adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md` |
+| HTTP MCP Adoption | `adr_02_007_http-mcp-adoption-and-stdio-non-support.md` |
+| SQLite 4DB Separation | `adr_02_008_sqlite-4db-separation.md` |
+| RAG FTS5 Text Separation | `adr_02_009_rag-fts5-text-separation.md` |
+| RAG Fallback | `adr_02_010_rag-fallback.md` |
+| Git MCP Server-Side Write | `adr_02_012_git-mcp-server-side-write-enforcement.md` |
+| EventBus Authentication | `adr_02_013_eventbus-authentication-authorization.md` |
+| Agent Control Plane Boundaries | `adr_02_014_agent-control-plane-responsibility-boundaries.md` |
+| Reference Document Class Disposition | `adr_02_015_reference-document-class-disposition.md` |
+
+## File Naming
+
+Files in this directory follow `adr_NN_<name>.md`: `adr_00_` is this guide, `adr_01_` is the index, and each ADR is `adr_02_<NNN>_<slug>.md` where `<NNN>` is the three-digit ADR number. The ADR ID in text (for example `ADR-006`) is unchanged.
 
 ## AI Query Routing
 
 | Question | Rule |
 |---|---|
 | Architectural decisions & rationale | Any `ADR-NNN` file |
-| ADR status & dependencies | `adr-index.md` |
+| ADR status & dependencies | `adr_01_index.md` |
 | Documentation policy for ADRs | `governance_01_documentation-policy.md` |
 
 ## Canonical Sources

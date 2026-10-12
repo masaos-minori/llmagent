@@ -6,7 +6,7 @@ tags:
   - fts5
   - text-separation
 related:
-  - ADR-002-config-isolation.md
+  - adr_02_002_config-isolation.md
   - rag_04_dto-models-types.md
   - rag_05_07-rag-index-consistency-checks.md
   - rag_05_08-rag-mcp-internal-operations-direct-db-access.md
@@ -16,8 +16,8 @@ related:
   - rag_02_02_ingestion_pipeline-crawler.md
   - rag_02_03_ingestion_pipeline-chunksplitter.md
   - rag_05_01-configuration-reference.md
-  - ADR-005-rag-source-derived-index-relationships.md
-  - ADR-004-environment-failure-handling-policy.md
+  - adr_02_005_rag-source-derived-index-relationships.md
+  - adr_02_004_environment-failure-handling-policy.md
 ---
 
 # ADR-009: Separating RAG FTS5 Search Text from LLM Presentation Text

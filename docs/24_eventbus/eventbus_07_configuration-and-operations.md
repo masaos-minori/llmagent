@@ -57,7 +57,7 @@ covers connection/storage settings (`port`, `db_path`, `storage_dir`, `offsets_d
 `subscriber_count`), and the fields listed individually below, each of which carries
 additional constraints or operational notes not captured by the dataclass alone. See
 that dataclass's `__post_init__()` for the exact validation rules enforced at startup,
-and `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the authorization
+and `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md` for the authorization
 model the token fields below implement.
 
 - `retained_event_count` — Validated at startup (must be at least 1) but not consumed by any runtime code path: it does not limit or prune the events retained in SQLite (Explicit in code — `scripts/eventbus/config.py`; no other reference under `scripts/`)
@@ -77,7 +77,7 @@ model the token fields below implement.
 - `subscriber_queue_maxsize` — Per-subscriber queue capacity
 - `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high`
 
-Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` is configured; the per-role tokens above are optional additions — see `docs/10_adr/ADR-013-eventbus-authentication-authorization.md` for the authorization model these tokens implement.
+Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` is configured; the per-role tokens above are optional additions — see `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md` for the authorization model these tokens implement.
 
 ### Unsupported Keys
 

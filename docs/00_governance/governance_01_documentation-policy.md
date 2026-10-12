@@ -61,11 +61,11 @@ The Claim Type Taxonomy resolves canonical authority at the level of individual 
 
 ### architecture-decision
 
-An adopted architectural decision documented in an accepted ADR (`docs/10_adr/ADR-{NNN}-*.md`). Boundary against `functional-requirement`: an architecture-decision may constrain how a requirement is implemented but does not itself define what the requirement specifies.
+An adopted architectural decision documented in an accepted ADR (`docs/10_adr/adr_02_{NNN}_*.md`). Boundary against `functional-requirement`: an architecture-decision may constrain how a requirement is implemented but does not itself define what the requirement specifies.
 
 ### functional-requirement
 
-A normative statement of what the system must do, expressed in an Accepted ADR (`docs/10_adr/ADR-{NNN}-*.md`) or in a source registered for it in the Canonical Source Registry. No per-area `*_specification.md` document is maintained. Boundary against `architecture-decision`: a functional-requirement defines the desired outcome; it does not prescribe how that outcome is achieved architecturally.
+A normative statement of what the system must do, expressed in an Accepted ADR (`docs/10_adr/adr_02_{NNN}_*.md`) or in a source registered for it in the Canonical Source Registry. No per-area `*_specification.md` document is maintained. Boundary against `architecture-decision`: a functional-requirement defines the desired outcome; it does not prescribe how that outcome is achieved architecturally.
 
 ### external-behavior
 
@@ -115,8 +115,8 @@ A claim whose truth has not yet been verified through evidence.
 
 | Claim type | Decision target | Definition | Canonical source kind | Auxiliary evidence | Conflict destination | Notes or constraints |
 |---|---|---|---|---|---|---|
-| architecture-decision | Adopted Architecture Decision | Adopted architectural decision in accepted ADR | `docs/10_adr/ADR-{NNN}-*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design |
-| functional-requirement | Requirements | Normative requirement in an Accepted ADR or Registry-registered source | `docs/10_adr/ADR-{NNN}-*.md` or the Canonical Source Registry entry | Acceptance Test | Known Issues | No per-area `*_specification.md` is maintained |
+| architecture-decision | Adopted Architecture Decision | Adopted architectural decision in accepted ADR | `docs/10_adr/adr_02_{NNN}_*.md` | Code, Test, Operational Observation | Known Issues | Does not grant code authority over adopted design |
+| functional-requirement | Requirements | Normative requirement in an Accepted ADR or Registry-registered source | `docs/10_adr/adr_02_{NNN}_*.md` or the Canonical Source Registry entry | Acceptance Test | Known Issues | No per-area `*_specification.md` is maintained |
 | external-behavior | External Behavior | Observable system behavior for external consumers | Canonical Source Registry entry | Acceptance Test, Integration Test, Runtime Log | Known Issues |  |
 | api-contract | API Contract | Formal interface contract | Canonical Source Registry entry, or the route and tool-definition source under `scripts/` | Integration Test | Known Issues |  |
 | runtime-behavior | Current Runtime Behavior | Current execution-time behavior | Source under `scripts/` | Runtime Log, Test | Known Issues | Code authority does not extend to adopted design |
@@ -292,7 +292,7 @@ changed decision affects.
 
 ## ADR Section Header Standardization
 
-Every `ADR-NNN-*.md` uses these top-level (`##`) headings, in this order. Sections marked
+Every `adr_02_NNN_*.md` uses these top-level (`##`) headings, in this order. Sections marked
 *conditional* are written only when the decision has that aspect; every other section is
 always present.
 
@@ -330,7 +330,7 @@ Duplicate notes shared across all ADRs:
 - Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 The ADR list, dependency graph, and invariant verification matrix are maintained in
-`adr-index.md`, not here.
+`adr_01_index.md`, not here.
 
 ## Merge Conditions
 

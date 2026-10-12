@@ -25,7 +25,9 @@ from tools.check_adr_structure import (
 
 def _doc(*lines: str) -> DocFile:
     return DocFile(
-        path=Path("ADR-999-test.md"), rel_path="ADR-999-test.md", lines=list(lines)
+        path=Path("adr_02_999_test.md"),
+        rel_path="adr_02_999_test.md",
+        lines=list(lines),
     )
 
 
@@ -41,7 +43,7 @@ class TestCheckKnownDeviationsHeading:
         issues = check_known_deviations_heading([doc])
         assert len(issues) == 1
         assert issues[0].severity == "ERROR"
-        assert issues[0].file == "ADR-999-test.md"
+        assert issues[0].file == "adr_02_999_test.md"
         assert "Known Deviations" in issues[0].message
 
     def test_present_known_deviations_heading_not_flagged(self) -> None:
@@ -73,7 +75,7 @@ class TestCheckNotesReferencesDrift:
         issues = check_notes_references_drift([doc])
         assert len(issues) == 1
         assert issues[0].severity == "WARNING"
-        assert issues[0].file == "ADR-999-test.md"
+        assert issues[0].file == "adr_02_999_test.md"
         assert "scripts/foo.py" in issues[0].message
 
     def test_notes_path_present_in_references_not_flagged(self) -> None:
@@ -146,7 +148,7 @@ class TestCheckSectionHeadings:
 
     def test_non_adr_files_are_ignored(self) -> None:
         doc = DocFile(
-            path=Path("adr-index.md"), rel_path="adr-index.md", lines=["## X"]
+            path=Path("adr_01_index.md"), rel_path="adr_01_index.md", lines=["## X"]
         )
         assert check_section_headings([doc]) == []
 

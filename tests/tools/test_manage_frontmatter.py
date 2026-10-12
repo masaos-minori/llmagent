@@ -533,7 +533,7 @@ class TestMergeRelatedEdgeCases:
 class TestMergeRelatedAdr:
     def test_adr_is_migrated_like_any_other_document(self, merge_docs: Path) -> None:
         body = "## Related Documents\n\n- `a.md`\n- `b.md`\n" + _TAIL
-        adr = _subject(merge_docs, "\n  - a.md", body, name="10_adr/ADR-001-x.md")
+        adr = _subject(merge_docs, "\n  - a.md", body, name="10_adr/adr_02_001_x.md")
         assert cmd_merge_related(["--fix"]) == 0
         content = adr.read_text(encoding="utf-8")
         assert "related:\n  - a.md\n  - b.md\n---" in content

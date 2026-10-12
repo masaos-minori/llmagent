@@ -6,14 +6,14 @@ tags:
   - fallback
   - in-process
 related:
-  - ADR-002-config-isolation.md
+  - adr_02_002_config-isolation.md
   - rag_03_01_query_pipeline-overview.md
   - rag_03_05_query_pipeline-augment-stages.md
   - rag_05_04-error-handling-reference.md
   - rag_05_01-configuration-reference.md
   - db_02_architecture_and_schema-schema-reference.md
-  - ADR-005-rag-source-derived-index-relationships.md
-  - ADR-004-environment-failure-handling-policy.md
+  - adr_02_005_rag-source-derived-index-relationships.md
+  - adr_02_004_environment-failure-handling-policy.md
 ---
 
 # ADR-010: In-Process Fallback When External RAG Execution Fails

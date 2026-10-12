@@ -6,7 +6,7 @@ tags:
   - sqlite
   - database-separation
 related:
-  - ADR-002-config-isolation.md
+  - adr_02_002_config-isolation.md
   - db_02_architecture_and_schema-schema-reference.md
   - db_07_api_and_operations-recovery-and-reference.md
   - agent_09_01_data-layer-session-db.md
@@ -14,10 +14,10 @@ related:
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
   - agent_10_01_operations-and-observability-startup-and-health.md
   - governance_03_issue-and-uncertainty-management.md
-  - ADR-005-rag-source-derived-index-relationships.md
-  - ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
-  - ADR-004-environment-failure-handling-policy.md
-  - ADR-013-eventbus-authentication-authorization.md
+  - adr_02_005_rag-source-derived-index-relationships.md
+  - adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md
+  - adr_02_004_environment-failure-handling-policy.md
+  - adr_02_013_eventbus-authentication-authorization.md
 ---
 
 # ADR-008: Separating SQLite into Four Databases

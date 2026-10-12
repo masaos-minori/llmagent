@@ -3,7 +3,7 @@
 
 This module's use of the static ToolRegistry as drift-detection input is a formalized,
 current architectural decision — see ADR-003 Decision Detail #15 / INV-04
-(docs/adr/ADR-003-runtime-tool-registry-routing-authority.md).
+(docs/10_adr/adr_02_003_runtime-tool-registry-routing-authority.md).
 """
 
 from typing import TYPE_CHECKING

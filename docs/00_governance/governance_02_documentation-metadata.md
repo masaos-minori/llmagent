@@ -126,7 +126,7 @@ When referencing other documents:
 
 Same area: `[Documentation Policy](<governance_01_documentation-policy.md>)`
 Cross area: `[RAG Guide](<../21_rag/rag_00_document-guide.md>)`
-ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
+ADR: `[ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md)`
 Internal anchor: `[Section](<governance_01_documentation-policy.md>#review-rule)`
 
 ## Markdown Syntax Rules

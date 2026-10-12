@@ -26,20 +26,20 @@ This index records no deviations of its own. Open deviations are recorded in the
 
 | ID | Title | Status | File |
 |----|-------|--------|------|
-| ADR-001 | Mandatory Workflow Engine | Accepted | `10_adr/ADR-001-workflow-engine-mandatory.md` |
-| ADR-002 | Per-Process Configuration Ownership and Config Isolation | Accepted | `10_adr/ADR-002-config-isolation.md` |
-| ADR-003 | RuntimeToolRegistry as the Sole Routing Authority | Accepted | `10_adr/ADR-003-runtime-tool-registry-routing-authority.md` |
-| ADR-004 | Failure Handling Policy Across Environments | Accepted | `10_adr/ADR-004-environment-failure-handling-policy.md` |
-| ADR-005 | Relationship Between RAG Canonical Data and Derived Indexes | Accepted | `10_adr/ADR-005-rag-source-derived-index-relationships.md` |
-| ADR-006 | EventBus SQLite Persistence and SSE Delivery | Accepted | `10_adr/ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md` |
-| ADR-007 | Adoption of HTTP MCP and Non-Support of stdio | Accepted | `10_adr/ADR-007-http-mcp-adoption-and-stdio-non-support.md` |
-| ADR-008 | Separating SQLite into Four Databases | Accepted | `10_adr/ADR-008-sqlite-4db-separation.md` |
-| ADR-009 | Separating RAG FTS5 Search Text from LLM Presentation Text | Accepted | `10_adr/ADR-009-rag-fts5-text-separation.md` |
-| ADR-010 | In-Process Fallback When External RAG Execution Fails | Accepted | `10_adr/ADR-010-rag-fallback.md` |
-| ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `10_adr/ADR-012-git-mcp-server-side-write-enforcement.md` |
-| ADR-013 | EventBus Authentication and Authorization | Accepted | `10_adr/ADR-013-eventbus-authentication-authorization.md` |
-| ADR-014 | Responsibility Boundaries of the Agent Control Plane | Accepted | `10_adr/ADR-014-agent-control-plane-responsibility-boundaries.md` |
-| ADR-015 | Reference Document Class Disposition | Accepted | `10_adr/ADR-015-reference-document-class-disposition.md` |
+| ADR-001 | Mandatory Workflow Engine | Accepted | `10_adr/adr_02_001_workflow-engine-mandatory.md` |
+| ADR-002 | Per-Process Configuration Ownership and Config Isolation | Accepted | `10_adr/adr_02_002_config-isolation.md` |
+| ADR-003 | RuntimeToolRegistry as the Sole Routing Authority | Accepted | `10_adr/adr_02_003_runtime-tool-registry-routing-authority.md` |
+| ADR-004 | Failure Handling Policy Across Environments | Accepted | `10_adr/adr_02_004_environment-failure-handling-policy.md` |
+| ADR-005 | Relationship Between RAG Canonical Data and Derived Indexes | Accepted | `10_adr/adr_02_005_rag-source-derived-index-relationships.md` |
+| ADR-006 | EventBus SQLite Persistence and SSE Delivery | Accepted | `10_adr/adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md` |
+| ADR-007 | Adoption of HTTP MCP and Non-Support of stdio | Accepted | `10_adr/adr_02_007_http-mcp-adoption-and-stdio-non-support.md` |
+| ADR-008 | Separating SQLite into Four Databases | Accepted | `10_adr/adr_02_008_sqlite-4db-separation.md` |
+| ADR-009 | Separating RAG FTS5 Search Text from LLM Presentation Text | Accepted | `10_adr/adr_02_009_rag-fts5-text-separation.md` |
+| ADR-010 | In-Process Fallback When External RAG Execution Fails | Accepted | `10_adr/adr_02_010_rag-fallback.md` |
+| ADR-012 | Git MCP Server-Side Write Enforcement | Accepted | `10_adr/adr_02_012_git-mcp-server-side-write-enforcement.md` |
+| ADR-013 | EventBus Authentication and Authorization | Accepted | `10_adr/adr_02_013_eventbus-authentication-authorization.md` |
+| ADR-014 | Responsibility Boundaries of the Agent Control Plane | Accepted | `10_adr/adr_02_014_agent-control-plane-responsibility-boundaries.md` |
+| ADR-015 | Reference Document Class Disposition | Accepted | `10_adr/adr_02_015_reference-document-class-disposition.md` |
 
 The number ADR-011 is unassigned: no ADR file carries it, and it is not referenced as a dependency by any ADR in this list.
 

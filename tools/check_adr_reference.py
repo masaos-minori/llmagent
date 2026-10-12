@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_adr_reference.py — Verify scripts/*.py files named by the ADR Invariant Matrix carry an ADR-XXX comment.
 
-`docs/10_adr/adr-index.md`'s "## ADR Invariant Verification Matrix" table sometimes
+`docs/10_adr/adr_01_index.md`'s "## ADR Invariant Verification Matrix" table sometimes
 cites a `scripts/<path>.py` source file directly in a row's `Verification
 Status` cell (e.g. `` `scripts/agent/startup.py` `` for ADR-004 INV-07) as
 the implementation evidence for that invariant. This check requires that any
@@ -41,7 +41,7 @@ from tools._docs_consistency_lib import Issue, report_and_exit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-ADR_INDEX = DOCS_DIR / "10_adr" / "adr-index.md"
+ADR_INDEX = DOCS_DIR / "10_adr" / "adr_01_index.md"
 
 _MATRIX_HEADING = "## ADR Invariant Verification Matrix"
 _SECTION_HEADING_RE = re.compile(r"^#{1,2} ")
@@ -126,7 +126,7 @@ def check_adr_reference(refs: list[MatrixSourceRef]) -> list[Issue]:
         if not target.exists():
             issues.append(
                 Issue(
-                    file="adr-index.md",
+                    file="adr_01_index.md",
                     line_no=ref.line_no,
                     severity="ERROR",
                     message=(
@@ -144,7 +144,7 @@ def check_adr_reference(refs: list[MatrixSourceRef]) -> list[Issue]:
                     line_no=0,
                     severity="ERROR",
                     message=(
-                        f"file is cited by docs/10_adr/adr-index.md's Invariant Matrix "
+                        f"file is cited by docs/10_adr/adr_01_index.md's Invariant Matrix "
                         f"for {ref.adr_id}, but contains no inline reference to "
                         f"'{ref.adr_id}'"
                     ),
@@ -157,10 +157,10 @@ def collect_issues() -> list[Issue]:
     if not ADR_INDEX.exists():
         return [
             Issue(
-                file="adr-index.md",
+                file="adr_01_index.md",
                 line_no=0,
                 severity="ERROR",
-                message="docs/10_adr/adr-index.md not found",
+                message="docs/10_adr/adr_01_index.md not found",
             )
         ]
     refs = parse_matrix_source_refs(_read_lines(ADR_INDEX))
@@ -183,7 +183,7 @@ def render_json(issues: list[Issue]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Verify every scripts/*.py file cited by docs/10_adr/adr-index.md's ADR "
+            "Verify every scripts/*.py file cited by docs/10_adr/adr_01_index.md's ADR "
             "Invariant Verification Matrix contains an inline reference to "
             "that row's ADR id."
         )

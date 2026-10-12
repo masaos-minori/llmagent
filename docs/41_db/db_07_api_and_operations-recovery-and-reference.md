@@ -84,7 +84,7 @@ Repair actions the logical-verification stage only **recommends** but does not i
 
 ### 9.7 Persistence-domain policy
 
-Recovery policy differs by data ownership; `recover_corruption()` supports multiple targets via the `target` parameter. See [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) Decision Details #20 for the canonical physical-recovery policy across all four DB domains. See ADR-008's Recovery Policy Matrix for the full per-domain policy comparison.
+Recovery policy differs by data ownership; `recover_corruption()` supports multiple targets via the `target` parameter. See [ADR-008](../10_adr/adr_02_008_sqlite-4db-separation.md) Decision Details #20 for the canonical physical-recovery policy across all four DB domains. See ADR-008's Recovery Policy Matrix for the full per-domain policy comparison.
 
 - **Reconstructable derived data** (RAG full-text/vector indexes): authoritative source is the `chunks` table. `RagMaintenanceService`'s consistency check and rebuild operations reconstruct these indexes independently of `recover_corruption()`. Post-restoration logical verification (`check_rag_consistency()`) runs automatically after recovery and reports FTS/index inconsistencies as operator-only recommendations (see §9.5).
 - **Session data**: covered by `recover_corruption(target='session')`. Backup restoration is performed for this domain only inside an operator-initiated `recover_corruption()` call (ADR-008); it is never triggered automatically. Post-restoration logical verification (`check_session_consistency()`) runs automatically after recovery and reports orphaned records as operator-only recommendations (see §9.5).

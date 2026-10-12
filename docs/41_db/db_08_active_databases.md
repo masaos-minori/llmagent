@@ -64,7 +64,7 @@ Each database is owned by a single component (see the **Owner** line of each sec
 
 ## Related ADRs
 
-- [ADR-008](../10_adr/ADR-008-sqlite-4db-separation.md) — Separating SQLite into Four Databases
+- [ADR-008](../10_adr/adr_02_008_sqlite-4db-separation.md) — Separating SQLite into Four Databases
 
 ## Keywords
 

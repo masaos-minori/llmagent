@@ -116,7 +116,7 @@ Agent-side approval confirms user intent; it does not verify that a `git_checkou
 
 ### Command-specific guard status
 
-Git MCP enforces command-specific guards for `git_checkout`, `git_pull` and `git_push` independently of Agent-side approval (see ADR-012 in `docs/10_adr/ADR-012-git-mcp-server-side-write-enforcement.md`).
+Git MCP enforces command-specific guards for `git_checkout`, `git_pull` and `git_push` independently of Agent-side approval (see ADR-012 in `docs/10_adr/adr_02_012_git-mcp-server-side-write-enforcement.md`).
 
 - **Protected branch**: the decision is made on the operation destination, not on the current branch (see Protected branch authority). `GitService._validate_protected()` rejects early, and `RepositoryState.verify_authorization()` is the authoritative check.
 - **Ref validation**: write tools validate `branch` with `GitService._validate_ref_allowlist()`, an allow-list equivalent to `git check-ref-format --branch`. It rejects `+`, `:`, `^`, `~`, `?`, `*`, `[`, backslash, `..`, `@{`, whitespace, control characters, values starting with `refs/`, and `HEAD`. Read tools (`git_log` `branch`, `git_diff` `commit`, `git_show` `ref`) use `GitService._validate_ref()`, which rejects only a leading `-`, so `git_show`'s default `ref="HEAD"` and tag refs keep working.

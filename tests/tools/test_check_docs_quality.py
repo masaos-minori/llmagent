@@ -322,19 +322,19 @@ class TestContentSimilarityTemplateSections:
 
     def test_adr_template_section_is_exempt(self):
         issues = self._run(
-            "ADR-901-a.md", "Approval Record", "ADR-902-b.md", "Approval Record"
+            "adr_02_901_a.md", "Approval Record", "adr_02_902_b.md", "Approval Record"
         )
         assert issues == []
 
     def test_adr_non_template_section_is_still_reported(self):
         issues = self._run(
-            "ADR-901-a.md", "Alternative A", "ADR-902-b.md", "Alternative A"
+            "adr_02_901_a.md", "Alternative A", "adr_02_902_b.md", "Alternative A"
         )
         assert len(issues) >= 1
 
     def test_adr_template_heading_against_non_adr_is_still_reported(self):
         issues = self._run(
-            "ADR-901-a.md", "Approval Record", "other_doc.md", "Approval Record"
+            "adr_02_901_a.md", "Approval Record", "other_doc.md", "Approval Record"
         )
         assert len(issues) >= 1
 
@@ -353,7 +353,7 @@ class TestContentSimilarityTemplateSections:
 
     def test_adr_companion_document_counts_as_adr(self):
         issues = self._run(
-            "ADR-901-a.md",
+            "adr_02_901_a.md",
             "Deployment Validation",
             "adr_91_supporting-sections.md",
             "Deployment Validation",

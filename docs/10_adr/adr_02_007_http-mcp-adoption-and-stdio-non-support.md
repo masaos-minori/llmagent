@@ -6,7 +6,7 @@ tags:
   - http
   - transport
 related:
-  - ADR-002-config-isolation.md
+  - adr_02_002_config-isolation.md
   - mcp_01_system_overview.md
   - mcp_02_01_endpoints-and-transport.md
   - mcp_02_02_startup-modes-and-health.md
@@ -18,7 +18,7 @@ related:
   - mcp_06_03_long-running-http-operation-startup_modesubprocess.md
   - mcp_06_12_new-mcp-server-addition-checklist.md
   - governance_03_issue-and-uncertainty-management.md
-  - ADR-004-environment-failure-handling-policy.md
+  - adr_02_004_environment-failure-handling-policy.md
 ---
 
 # ADR-007: Adoption of HTTP MCP and Non-Support of stdio

@@ -4,7 +4,7 @@ Tests for tools/check_adr_invariant_matrix.py.
 Each scenario builds an in-memory Matrix table (as a list of lines) and calls
 check_invariant_matrix_test_paths() directly, matching
 tests/tools/test_check_known_deviation_sync.py's direct-function-call pattern.
-Live `docs/10_adr/adr-index.md` validation (AC-1) is exercised separately by running
+Live `docs/10_adr/adr_01_index.md` validation (AC-1) is exercised separately by running
 the tool against the real repository, not duplicated here as a unit test.
 """
 
@@ -47,7 +47,7 @@ class TestUnresolvableTestPath:
         issues = check_invariant_matrix_test_paths(lines)
         assert len(issues) == 1
         assert issues[0].severity == "ERROR"
-        assert issues[0].file == "adr-index.md"
+        assert issues[0].file == "adr_01_index.md"
         assert "tests/nonexistent/test_fake.py::test_fake_thing" in issues[0].message
 
 

@@ -6,8 +6,8 @@ tags:
   - authentication
   - authorization
 related:
-  - ADR-002-config-isolation.md
-  - ADR-006-eventbus-sqlite-persistence-and-sse-delivery.md
+  - adr_02_002_config-isolation.md
+  - adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md
   - eventbus_01_system-overview.md
   - eventbus_06_persistence_schema_and_replay.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
@@ -79,7 +79,7 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 
 - **Components**: `scripts/eventbus/auth.py`, `scripts/eventbus/app.py`, `scripts/eventbus/subscribe_route.py`, `scripts/eventbus/ack_route.py`, `scripts/eventbus/dlq_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/config.py`, `scripts/eventbus/audit.py`
 - **Tests**: `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
-- **Documentation**: `docs/10_adr/ADR-013-eventbus-authentication-authorization.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`
+- **Documentation**: `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`
 
 ### Out of Scope
 

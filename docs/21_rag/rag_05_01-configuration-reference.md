@@ -10,7 +10,7 @@ related:
   - rag_02_03_ingestion_pipeline-chunksplitter.md
   - rag_02_04_ingestion_pipeline-ingester.md
   - rag_02_06_ingestion_pipeline-supporting-components.md
-  - ADR-002-config-isolation.md
+  - adr_02_002_config-isolation.md
   - deployment_01_deployment.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
 ---
@@ -19,7 +19,7 @@ related:
 
 Crawler / chunk_splitter / ingester / rag-pipeline-mcp are each independent processes, reading only their respective configuration files. There are no shared configuration files. If multiple processes require the same DB path or external service URL, they must specify them individually in their respective configuration files.
 
-→ For details on the Process Separation Policy: [ADR-002](../10_adr/ADR-002-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+→ For details on the Process Separation Policy: [ADR-002](../10_adr/adr_02_002_config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ## `config/crawler.toml`
 
@@ -144,7 +144,7 @@ Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `Ag
 
 - The Agent process consumes `embed_url` (memory embedding client and the `embed-llm` health check).
 - The refiner settings are parsed and validated, but no Agent code path reads them, because the pipeline stages run inside the rag-pipeline MCP server with its own configuration. This is tracked as RAG-006 in `governance_03_issue-and-uncertainty-management.md`.
-- `rag_service_url` is not a key of `config/agent.toml`, and no production process sets it to a non-empty value (see `ADR-010-rag-fallback.md` Scope).
+- `rag_service_url` is not a key of `config/agent.toml`, and no production process sets it to a non-empty value (see `adr_02_010_rag-fallback.md` Scope).
 
 (Explicit in code — `scripts/agent/config_builders.py`, `scripts/agent/config_dataclasses.py`, `scripts/agent/factory.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`)
 

@@ -205,7 +205,7 @@ uv run python tools/check_known_deviation_sync.py
 
 ### 12. ADR Invariant Matrix Checks (`check_adr_invariant_matrix.py`, `check_adr_reference.py`)
 
-Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr-index.md`: every pytest node id or test path cited in a `Verification Status` cell exists, and every `scripts/` source file cited there carries an `ADR-XXX` comment.
+Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr_01_index.md`: every pytest node id or test path cited in a `Verification Status` cell exists, and every `scripts/` source file cited there carries an `ADR-XXX` comment.
 
 **Enforcement:** pre-commit.
 
@@ -291,7 +291,7 @@ Verify that cross-document references follow the Link Rules in [governance_02_do
 **Link format examples:**
 - Same area: `[Documentation Policy](governance_01_documentation-policy.md)`
 - Cross area: `[RAG Guide](../21_rag/rag_00_document-guide.md)`
-- ADR: `[ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md)`
+- ADR: `[ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md)`
 - Internal anchor: `[Section](governance_01_documentation-policy.md#review-rule)`
 
 ## Governance Verification Matrix

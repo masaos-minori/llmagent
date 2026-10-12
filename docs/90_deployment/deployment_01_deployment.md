@@ -203,7 +203,7 @@ For detailed diagnosis and recovery commands per failure mode, see [Workflow Dep
 
 For the production `require_approval` category policy (which categories require a post-execution approval gate), see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
 
-Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](../10_adr/ADR-001-workflow-engine-mandatory.md).
+Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md).
 
 ### DB Path Reference (auto-generated)
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """check_adr_invariant_matrix.py — Verify test paths cited in the ADR Invariant Verification Matrix exist.
 
-`docs/10_adr/adr-index.md`'s "## ADR Invariant Verification Matrix" table's
+`docs/10_adr/adr_01_index.md`'s "## ADR Invariant Verification Matrix" table's
 `Verification Status` column sometimes cites a specific pytest node id in
 backticks (e.g. `` `tests/agent/test_startup.py::test_aborts_on_missing_workflow_definition` ``)
 as evidence that an invariant is covered by an automated test. Nothing
@@ -40,7 +40,7 @@ from tools._docs_consistency_lib import Issue, report_and_exit
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 DOCS_DIR = REPO_ROOT / "docs"
-ADR_INDEX = DOCS_DIR / "10_adr" / "adr-index.md"
+ADR_INDEX = DOCS_DIR / "10_adr" / "adr_01_index.md"
 
 _MATRIX_HEADING = "## ADR Invariant Verification Matrix"
 _SECTION_HEADING_RE = re.compile(r"^#{1,2} ")
@@ -94,7 +94,7 @@ def check_invariant_matrix_test_paths(lines: list[str]) -> list[Issue]:
             if not (REPO_ROOT / file_part).exists():
                 issues.append(
                     Issue(
-                        file="adr-index.md",
+                        file="adr_01_index.md",
                         line_no=line_no,
                         severity="ERROR",
                         message=(
@@ -110,10 +110,10 @@ def collect_issues() -> list[Issue]:
     if not ADR_INDEX.exists():
         return [
             Issue(
-                file="adr-index.md",
+                file="adr_01_index.md",
                 line_no=0,
                 severity="ERROR",
-                message="docs/10_adr/adr-index.md not found",
+                message="docs/10_adr/adr_01_index.md not found",
             )
         ]
     return check_invariant_matrix_test_paths(_read_lines(ADR_INDEX))
@@ -135,7 +135,7 @@ def render_json(issues: list[Issue]) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         description=(
-            "Verify every pytest node id cited in docs/10_adr/adr-index.md's ADR "
+            "Verify every pytest node id cited in docs/10_adr/adr_01_index.md's ADR "
             "Invariant Verification Matrix resolves to an existing file."
         )
     )

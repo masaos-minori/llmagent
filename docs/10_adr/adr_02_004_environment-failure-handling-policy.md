@@ -6,10 +6,10 @@ tags:
   - failure-handling
   - environment
 related:
-  - ADR-001-workflow-engine-mandatory.md
-  - ADR-002-config-isolation.md
-  - ADR-003-runtime-tool-registry-routing-authority.md
-  - ADR-010-rag-fallback.md
+  - adr_02_001_workflow-engine-mandatory.md
+  - adr_02_002_config-isolation.md
+  - adr_02_003_runtime-tool-registry-routing-authority.md
+  - adr_02_010_rag-fallback.md
   - deployment_01_deployment.md
   - agent_08_04_configuration-mcp-approval-obs.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md

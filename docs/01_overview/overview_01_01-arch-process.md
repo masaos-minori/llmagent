@@ -65,7 +65,7 @@ Each MCP server runs as a separate process because:
 
 **Reason for per-process configuration separation:**
 
-Each process reads only its own configuration file. Common parameters (DB paths, external service URLs) are described individually in each process's configuration rather than shared across files. This ensures that changing one process's configuration never inadvertently affects another: each process owns its own configuration and is isolated from the others. See [ADR-002](../10_adr/ADR-002-config-isolation.md).
+Each process reads only its own configuration file. Common parameters (DB paths, external service URLs) are described individually in each process's configuration rather than shared across files. This ensures that changing one process's configuration never inadvertently affects another: each process owns its own configuration and is isolated from the others. See [ADR-002](../10_adr/adr_02_002_config-isolation.md).
 
 #### Implementation Notes
 
@@ -86,7 +86,7 @@ Each process (Agent, each MCP server, crawler, ingester, chunk_splitter, EventBu
 | eventbus | `config/eventbus.toml` |
 | chunk_splitter | `config/chunk_splitter.toml` |
 
-Details → [ADR-002](../10_adr/ADR-002-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+Details → [ADR-002](../10_adr/adr_02_002_config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 The following table contains representative examples; the exact set and ports of MCP servers are defined in `[mcp_servers.*]` of `config/agent.toml`.
 

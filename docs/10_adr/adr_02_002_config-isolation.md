@@ -6,11 +6,11 @@ tags:
   - configuration
   - config-isolation
 related:
-  - ADR-001-workflow-engine-mandatory.md
+  - adr_02_001_workflow-engine-mandatory.md
   - agent_08_01_configuration-loading-agent-config.md
   - mcp_06_01_configuration-file-inventory.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
-  - ADR-004-environment-failure-handling-policy.md
+  - adr_02_004_environment-failure-handling-policy.md
 ---
 
 # ADR-002: Per-Process Configuration Ownership and Config Isolation

@@ -15,10 +15,10 @@ related:
   - governance_01_documentation-policy.md
   - governance_02_documentation-metadata.md
   - governance_04_documentation-checks.md
-  - ADR-001-workflow-engine-mandatory.md
-  - ADR-003-runtime-tool-registry-routing-authority.md
-  - ADR-004-environment-failure-handling-policy.md
-  - ADR-007-http-mcp-adoption-and-stdio-non-support.md
+  - adr_02_001_workflow-engine-mandatory.md
+  - adr_02_003_runtime-tool-registry-routing-authority.md
+  - adr_02_004_environment-failure-handling-policy.md
+  - adr_02_007_http-mcp-adoption-and-stdio-non-support.md
 ---
 
 # Agent Documentation Guide
