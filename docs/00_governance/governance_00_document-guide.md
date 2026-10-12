@@ -7,6 +7,7 @@ tags:
 related:
   - 00_index.md
   - overview_00_document-guide.md
+  - ADR-015-reference-document-class-disposition.md
 ---
 # Governance: Document Guide
 
@@ -45,10 +46,6 @@ Known limitations, specification gaps, and pending items are centrally managed i
 ## Reference API
 
 No reference APIs exist in this directory. All files are policy/convention documents.
-
-## Related ADRs
-
-- [ADR-015](../10_adr/ADR-015-reference-document-class-disposition.md) — Reference document class disposition
 
 ## Keywords
 
