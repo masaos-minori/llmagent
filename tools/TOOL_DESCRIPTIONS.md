@@ -44,7 +44,7 @@
 | `fix_docs_section_marks.py` | 整形補助 | `§`記号の平易な英語表現へ置き換え |
 | `fix_docstring_paths.py` | 整形補助 | scriptsモジュールdocstringヘッダーパスの更新 |
 | `check_docstrings.py` | ドキュメント品質 | スクリプトdocstringフォーマット検証 |
-| `check_tool_descriptions_sync.py` | 整合性チェッカー | 本ファイルと実際の`tools/*.py`の突合 |
+| `check_tool_descriptions_sync.py` | 整合性チェッカー | 本ファイルと実際の`tools/*.py`の突合。`.github/workflows/*.yml`・`.pre-commit-config.yaml`・`tox.ini`内の`tools/<name>.py`/`-m tools.<name>`参照先の実在確認も行う |
 | `check_chunks_fts_invariant.py` | 整合性チェッカー | `scripts/`配下のPythonソースから、許可パス(`rag_maintenance_service.py::rebuild_fts()`、`scripts/db/schema_sql.py`)外の `chunks_fts` に対する直接INSERT/UPDATEを検出。`scripts/mcp_servers/mdq/` と `tests/` は除外 |
 | `check_skills_references.py` | 整合性チェッカー | `AGENTS.md`/`routing.md`/`skills/DESIGN.md`/`rules/*.md`/`skills/**/*.md`/`prompts/*.md`内のバッククォート付きファイル参照(`rules/`・`skills/`・`templates/`配下、または`AGENTS.md`/`routing.md`自身)の実在確認 |
 | `stale_detector.py` | 整合性チェッカー | 実装手順書が参照する行番号・シンボル名・インポート・`# Before:`ブロックが現ソースで存在するか正規表現で検証。1つでも不一致があればstaleと判定し実行を阻止。CLIは終了コード(staleなら1)で結果を返す |

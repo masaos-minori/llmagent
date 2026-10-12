@@ -32,7 +32,7 @@ repos:
         entry: python -m tools.check_tool_descriptions_sync
         language: system
         pass_filenames: false
-        files: ^tools/(.*\.py|TOOL_DESCRIPTIONS\.md)$
+        files: ^(tools/(.*\.py|TOOL_DESCRIPTIONS\.md)|\.github/workflows/.*\.yml|\.pre-commit-config\.yaml|tox\.ini)$
       - id: check-suppression-justification
         name: Check noqa/type:ignore/nosec suppression justifications
         entry: python -m tools.check_suppression_justification
