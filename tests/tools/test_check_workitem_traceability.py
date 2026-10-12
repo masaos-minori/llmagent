@@ -343,3 +343,38 @@ class TestActiveOnly:
         assert cwt.main([]) == 1
         capsys.readouterr()
         assert cwt.main(["--active-only"]) == 0
+
+
+class TestBacktickedNotApplicable:
+    """A backtick-wrapped `N/A: ...` value (the form `templates/issue.md` uses)
+    is not applicable, not a path to a missing file."""
+
+    @pytest.mark.parametrize(
+        "value",
+        [
+            "`N/A: not filed from a Plan`",
+            "N/A: not filed from a Plan",
+            "`n/a`",
+        ],
+    )
+    def test_na_values_are_recognized(self, value: str) -> None:
+        assert cwt._is_na(value)
+
+    def test_real_path_is_not_treated_as_na(self) -> None:
+        assert not cwt._is_na("`plans/20260801-110000_plan.md`")
+
+    def test_backticked_na_source_plan_reports_no_missing_source(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        _write(
+            tmp_path / "issues" / "20260801-100000_i_sample.md",
+            "# Sample\n\n## Traceability\n"
+            "- **Source plan**: `N/A: not filed from a Plan`\n"
+            "- **Source implementation procedure**: "
+            "`N/A: not filed from an implementation procedure`\n",
+        )
+
+        documents = cwt.discover_documents()
+
+        assert cwt.find_missing_source_files(documents) == []

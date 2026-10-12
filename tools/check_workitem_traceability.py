@@ -119,7 +119,9 @@ class WorkItemDocument:
 
 
 def _is_na(value: str) -> bool:
-    return value.strip().lower().startswith("n/a")
+    # `templates/issue.md` writes N/A values inside backticks (`N/A: not filed
+    # from a Plan`), so an opening backtick must not hide the marker.
+    return value.strip().lstrip("`").lower().startswith("n/a")
 
 
 def _clean_field_value(value: str) -> str:
