@@ -1,39 +1,57 @@
-import os
+"""check_docs_japanese.py — List docs/*.md files that contain Japanese characters.
+
+`skills/DESIGN.md` Output language requires every file under `docs/` to be written in
+English. Exits 1 when any file contains Hiragana, Katakana, or CJK ideographs, so the
+check can gate a hook or CI job; exits 0 when none is found.
+
+Usage:
+    python tools/check_docs_japanese.py
+"""
+
+from __future__ import annotations
+
 import re
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+DOCS_DIR = REPO_ROOT / "docs"
+
+# Hiragana, Katakana, and common Kanji ranges
+_JAPANESE_RE = re.compile(r"[぀-ゟ゠-ヿ一-鿿]")
 
 
-def contains_japanese(text):
-    # Regex for Hiragana, Katakana, and common Kanji ranges
-    japanese_pattern = re.compile(r"[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FFF]")
-    return bool(japanese_pattern.search(text))
+def contains_japanese(text: str) -> bool:
+    return bool(_JAPANESE_RE.search(text))
 
 
-def main():
-    target_dir = "docs/"
-    if not os.path.exists(target_dir):
-        print(f"Directory {target_dir} does not exist.")
-        return
+def find_japanese_files(docs_dir: Path = DOCS_DIR) -> list[Path]:
+    """Return the sorted `*.md` files under `docs_dir` containing Japanese text."""
+    found: list[Path] = []
+    for path in sorted(docs_dir.rglob("*.md")):
+        try:
+            if contains_japanese(path.read_text(encoding="utf-8")):
+                found.append(path)
+        except OSError as e:
+            print(f"Error reading {path}: {e}", file=sys.stderr)
+    return found
 
-    japanese_files = []
-    for root, _, files in os.walk(target_dir):
-        for file in files:
-            if file.endswith(".md"):
-                file_path = os.path.join(root, file)
-                try:
-                    with open(file_path, encoding="utf-8") as f:
-                        content = f.read()
-                        if contains_japanese(content):
-                            japanese_files.append(file_path)
-                except OSError as e:
-                    print(f"Error reading {file_path}: {e}")
 
-    if japanese_files:
-        print("Files containing Japanese characters:")
-        for f in japanese_files:
-            print(f)
-    else:
+def main() -> int:
+    if not DOCS_DIR.is_dir():
+        print(f"Directory {DOCS_DIR} does not exist.", file=sys.stderr)
+        return 1
+
+    japanese_files = find_japanese_files()
+    if not japanese_files:
         print("No Japanese files found.")
+        return 0
+
+    print("Files containing Japanese characters:")
+    for path in japanese_files:
+        print(path.relative_to(REPO_ROOT))
+    return 1
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

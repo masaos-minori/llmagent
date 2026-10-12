@@ -63,3 +63,33 @@ repos:
         language: system
         pass_filenames: false
         types_or: [python, markdown]
+      - id: skills-references
+        name: Check skills/rules/prompts file references resolve
+        entry: python -m tools.check_skills_references
+        language: system
+        pass_filenames: false
+        files: ^((skills|rules|prompts|templates)/.*\.md|AGENTS\.md|routing\.md)$
+      - id: docs-japanese
+        name: Check docs are English-only
+        entry: python -m tools.check_docs_japanese
+        language: system
+        pass_filenames: false
+        files: ^docs/.*\.md$
+      - id: known-deviation-sync
+        name: Check ADR Known Deviations sync
+        entry: python -m tools.check_known_deviation_sync
+        language: system
+        pass_filenames: false
+        files: ^docs/.*\.md$
+      - id: plan-target-overlaps
+        name: Check active Frozen Plans do not overlap on target files
+        entry: python -m tools.check_plan_target_overlaps
+        language: system
+        pass_filenames: false
+        files: ^plans/[^/]+\.md$
+      - id: conftest-integrity
+        name: Check tests/conftest.py required fixtures
+        entry: python -m tools.check_conftest_integrity
+        language: system
+        pass_filenames: false
+        files: ^tests/.*conftest.*$

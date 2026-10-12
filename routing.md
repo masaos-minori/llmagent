@@ -108,7 +108,7 @@ descriptions) are invisible from reading the changed file alone.
 | A module-level docstring header path may be stale after a file move | `uv run python tools/fix_docstring_paths.py --dry-run` | Add `--apply` only after reviewing the dry-run diff |
 | Docstring format needs verification (not repair) after touching `scripts/` | `uv run python tools/check_docstrings.py` | Read-only — does not add or fix docstrings |
 | Front Matter is missing or a list field has duplicate entries in `docs/*.md` | `uv run python tools/manage_frontmatter.py add-missing\|dedupe-lists` | |
-| Japanese text may remain in `docs/*.md` (violates `skills/DESIGN.md` Output language) | `uv run python tools/check_docs_japanese.py` | |
+| Japanese text may remain in `docs/*.md` (violates `skills/DESIGN.md` Output language) | `uv run python tools/check_docs_japanese.py` | Exits 1 when any is found; also runs as the `docs-japanese` pre-commit hook |
 
 Do not write a new one-off script for something this list already covers — extend the existing tool
 instead (see AGENTS.md Global Rule 7 for when a *new* script is warranted).
