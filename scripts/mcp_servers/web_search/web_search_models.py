@@ -102,15 +102,23 @@ class WebSearchConfig:
     browser_allowed_domains: list[str] = dataclasses.field(default_factory=list)
     browser_max_response_kb: int = 256
     browser_timeout_sec: int = 15
-    browser_auth_token: str = ""
+    auth_token: str = ""
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> WebSearchConfig:
         """Construct from a raw config dict (e.g. loaded from TOML).
 
         Raises:
-            ValueError: if any configured value violates its invariant.
+            ValueError: if any configured value violates its invariant, or if the
+                removed ``browser_auth_token`` key is still present (fail closed
+                instead of silently running without authentication).
         """
+        if "browser_auth_token" in d:
+            raise ValueError(
+                "web_search_mcp_server.toml: 'browser_auth_token' was removed; "
+                "use 'auth_token' (shared with config/agent.toml's "
+                "[mcp_servers.web_search].auth_token)"
+            )
         default_max_results = get_typed(
             d, "default_max_results", int, "an integer", default=DEFAULT_MAX_RESULTS
         )
@@ -129,7 +137,7 @@ class WebSearchConfig:
         browser_timeout_sec = get_typed(
             d, "browser_timeout_sec", int, "an integer", default=15
         )  # noqa: PLR2004 — 15s default; 0 would cause instant timeout
-        browser_auth_token = get_str(d, "browser_auth_token", "")
+        auth_token = get_str(d, "auth_token", "")
 
         _validate_config_bounds(
             default_max_results, max_results_limit, search_timeout_sec
@@ -142,7 +150,7 @@ class WebSearchConfig:
             browser_allowed_domains=browser_allowed_domains,
             browser_max_response_kb=browser_max_response_kb,
             browser_timeout_sec=browser_timeout_sec,
-            browser_auth_token=browser_auth_token,
+            auth_token=auth_token,
         )
 
     @classmethod
@@ -158,16 +166,14 @@ class BrowserConfig:
     allowed_domains: list[str]
     max_response_kb: int
     timeout_sec: int
-    auth_token: str
 
     @classmethod
     def from_web_search_config(cls, cfg: WebSearchConfig) -> BrowserConfig:
-        """Project the four browser_* fields out of a WebSearchConfig."""
+        """Project the three browser_* fields out of a WebSearchConfig."""
         return cls(
             cfg.browser_allowed_domains,
             cfg.browser_max_response_kb,
             cfg.browser_timeout_sec,
-            cfg.browser_auth_token,
         )
 
 

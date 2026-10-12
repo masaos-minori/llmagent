@@ -126,14 +126,14 @@ class TestWebSearchConfigBrowserFields:
         assert cfg.browser_allowed_domains == []
         assert cfg.browser_max_response_kb == 256
         assert cfg.browser_timeout_sec == 15
-        assert cfg.browser_auth_token == ""
+        assert cfg.auth_token == ""
 
     def test_from_dict_defaults(self) -> None:
         cfg = WebSearchConfig.from_dict({})
         assert cfg.browser_allowed_domains == []
         assert cfg.browser_max_response_kb == 256
         assert cfg.browser_timeout_sec == 15
-        assert cfg.browser_auth_token == ""
+        assert cfg.auth_token == ""
 
     def test_from_dict_custom(self) -> None:
         cfg = WebSearchConfig.from_dict(
@@ -141,13 +141,13 @@ class TestWebSearchConfigBrowserFields:
                 "browser_allowed_domains": ["example.com"],
                 "browser_max_response_kb": 512,
                 "browser_timeout_sec": 30,
-                "browser_auth_token": "secret",
+                "auth_token": "secret",
             }
         )
         assert cfg.browser_allowed_domains == ["example.com"]
         assert cfg.browser_max_response_kb == 512
         assert cfg.browser_timeout_sec == 30
-        assert cfg.browser_auth_token == "secret"
+        assert cfg.auth_token == "secret"
 
     def test_from_dict_none_values_use_defaults(self) -> None:
         """Uses `or` for defaults so a present-but-null TOML key does not
@@ -157,13 +157,19 @@ class TestWebSearchConfigBrowserFields:
                 "browser_allowed_domains": None,
                 "browser_max_response_kb": None,
                 "browser_timeout_sec": None,
-                "browser_auth_token": None,
+                "auth_token": None,
             }
         )
         assert cfg.browser_allowed_domains == []
         assert cfg.browser_max_response_kb == 256
         assert cfg.browser_timeout_sec == 15
-        assert cfg.browser_auth_token == ""
+        assert cfg.auth_token == ""
+
+    def test_removed_browser_token_key_raises(self) -> None:
+        """A stale configuration that still names the removed key must fail
+        closed instead of silently running without authentication."""
+        with pytest.raises(ValueError, match="auth_token"):
+            WebSearchConfig.from_dict({"browser_auth_token": "secret"})
 
 
 class TestBrowserConfig:
@@ -173,14 +179,12 @@ class TestBrowserConfig:
                 "browser_allowed_domains": ["example.com", "docs.python.org"],
                 "browser_max_response_kb": 128,
                 "browser_timeout_sec": 5,
-                "browser_auth_token": "tok",
             }
         )
         browser_cfg = BrowserConfig.from_web_search_config(cfg)
         assert browser_cfg.allowed_domains == ["example.com", "docs.python.org"]
         assert browser_cfg.max_response_kb == 128
         assert browser_cfg.timeout_sec == 5
-        assert browser_cfg.auth_token == "tok"
 
 
 class TestBrowserFetchRequest:

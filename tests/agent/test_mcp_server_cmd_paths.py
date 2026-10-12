@@ -38,6 +38,7 @@ class TestSubprocessServerCmdPathsExist:
         # rather than changing the shared conftest default.
         monkeypatch.setenv("MCP_GIT_AUTH_TOKEN", "test-token")
         monkeypatch.setenv("MCP_CICD_AUTH_TOKEN", "test-token")
+        monkeypatch.setenv("MCP_WEB_SEARCH_AUTH_TOKEN", "test-token")
         cfg = build_agent_config()
         subprocess_servers = {
             key: server_cfg
@@ -65,6 +66,7 @@ class TestSubprocessCmdNoSyncFlag:
     ) -> None:
         monkeypatch.setenv("MCP_GIT_AUTH_TOKEN", "test-token")
         monkeypatch.setenv("MCP_CICD_AUTH_TOKEN", "test-token")
+        monkeypatch.setenv("MCP_WEB_SEARCH_AUTH_TOKEN", "test-token")
         cfg = build_agent_config()
         subprocess_servers = {
             key: server_cfg

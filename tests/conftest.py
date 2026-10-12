@@ -19,10 +19,12 @@ sys.path.insert(0, str(Path(__file__).parent.parent / "tools"))
 # (mcpauth, 2026-09-04). resolve_env_ref() only requires the variable to be
 # *set*, not non-empty -- default to "" (not a real token) so import doesn't
 # fail during test collection, while preserving these servers' pre-existing
-# empty-token accept-all behavior that many tests rely on.
+# empty-token accept-all behavior that many tests rely on. web_search shares
+# its variable with the agent configuration, like git and cicd; tests that
+# build the real agent configuration set a real value locally.
 os.environ.setdefault("MCP_GIT_AUTH_TOKEN", "")
 os.environ.setdefault("MCP_CICD_AUTH_TOKEN", "")
-os.environ.setdefault("MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN", "")
+os.environ.setdefault("MCP_WEB_SEARCH_AUTH_TOKEN", "")
 
 # config/agent.toml's own [mcp.mcp_servers.*] table references the same
 # ${ENV:...} pattern for every subprocess-started server's auth_token,
@@ -34,7 +36,6 @@ os.environ.setdefault("MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN", "")
 # tests/agent/test_mcp_server_cmd_paths.py) need all of these set.
 for _mcp_env_var in (
     "MCP_SHELL_AUTH_TOKEN",
-    "MCP_WEB_SEARCH_AUTH_TOKEN",
     "MCP_FILE_DELETE_AUTH_TOKEN",
     "MCP_FILE_WRITE_AUTH_TOKEN",
     "MCP_FILE_READ_AUTH_TOKEN",

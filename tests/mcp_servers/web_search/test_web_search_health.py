@@ -9,6 +9,10 @@ flips to 503 once `is_degraded()` is true.
 from __future__ import annotations
 
 import ast
+import json
+import os
+import subprocess
+import sys
 import time
 from collections.abc import Iterator
 from pathlib import Path
@@ -321,6 +325,15 @@ class TestHealthExemptionOptIn:
         value = flags.get("exempt_health_on_loopback")
         assert isinstance(value, ast.Constant) and value.value is True
 
+    def test_web_search_server_uses_the_shared_token(self) -> None:
+        (call,) = _auth_middleware_calls("web_search/web_search_server.py")
+        token_arg = call.args[1]
+        assert isinstance(token_arg, ast.BoolOp)
+        assert isinstance(token_arg.op, ast.Or)
+        first = token_arg.values[0]
+        assert isinstance(first, ast.Attribute)
+        assert first.attr == "auth_token"
+
     @pytest.mark.parametrize(
         "server_file",
         [
@@ -335,3 +348,56 @@ class TestHealthExemptionOptIn:
         assert calls, f"no attach_auth_middleware call found in {server_file}"
         for call in calls:
             assert "exempt_health_on_loopback" not in {kw.arg for kw in call.keywords}
+
+
+_REAL_APP_SCRIPT = """
+import json
+from fastapi.testclient import TestClient
+from mcp_servers.web_search import web_search_server as ws
+
+client = TestClient(ws.app, client=("127.0.0.1", 50000))
+good = {"Authorization": "Bearer shared-test-token"}
+other = {"Authorization": "Bearer some-other-token"}
+call = {"name": "browser_fetch", "args": {"url": "https://example.com"}}
+print(json.dumps({
+    "tools_with_token": client.get("/v1/tools", headers=good).status_code,
+    "tools_without_token": client.get("/v1/tools").status_code,
+    "tools_with_other_token": client.get("/v1/tools", headers=other).status_code,
+    "health_from_loopback": client.get("/health").status_code,
+    "call_with_token": client.post("/v1/call_tool", headers=good, json=call).status_code,
+    "call_without_token": client.post("/v1/call_tool", json=call).status_code,
+}))
+"""
+
+
+class TestRealAppSharedToken:
+    """REQ-001: the real application, configured with one shared token, accepts the
+    credential the agent sends and rejects any other, from a loopback client too.
+
+    The application reads its token from the configuration at import time, so it
+    runs in a separate interpreter with the environment variable set."""
+
+    def test_tool_routes_require_the_shared_token(self) -> None:
+        env = {
+            **os.environ,
+            "MCP_WEB_SEARCH_AUTH_TOKEN": "shared-test-token",
+            "PYTHONPATH": str(_SERVERS_DIR.parent),
+        }
+        proc = subprocess.run(
+            [sys.executable, "-c", _REAL_APP_SCRIPT],
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            check=False,
+        )
+        assert proc.returncode == 0, proc.stderr[-500:]
+        codes = json.loads(proc.stdout.strip().splitlines()[-1])
+        assert codes == {
+            "tools_with_token": 200,
+            "tools_without_token": 401,
+            "tools_with_other_token": 401,
+            "health_from_loopback": 200,
+            "call_with_token": 200,
+            "call_without_token": 401,
+        }

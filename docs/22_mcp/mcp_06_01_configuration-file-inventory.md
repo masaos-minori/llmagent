@@ -71,14 +71,14 @@ subprocess-mode server's `cmd` script path resolves to an existing file.
 | git-mcp | `config/git_mcp_server.toml` |
 
 git-mcp, cicd-mcp, and web-search-mcp each also carry their own server-side
-Bearer-token field (`auth_token` for git/cicd, `browser_auth_token` for
-web-search's `browser_fetch` tool) as an `"${ENV:...}"` reference — see each
+Bearer-token field (`auth_token`) as an `"${ENV:...}"` reference — see each
 file's own comments for the exact environment variable name. These are
 separate credentials from `agent.toml`'s `[mcp_servers.*].auth_token` above
-(client-presented token vs. server-side secret), except that git-mcp/cicd-mcp
-intentionally share the same variable name as their `agent.toml` counterpart
-(`MCP_GIT_AUTH_TOKEN`, `MCP_CICD_AUTH_TOKEN`) since both sides must agree on
-one shared-secret value.
+(client-presented token vs. server-side secret), except that git-mcp,
+cicd-mcp, and web-search-mcp intentionally share the same variable name as their
+`agent.toml` counterpart (`MCP_GIT_AUTH_TOKEN`, `MCP_CICD_AUTH_TOKEN`,
+`MCP_WEB_SEARCH_AUTH_TOKEN`) since both sides must agree on one shared-secret
+value.
 
 ## API key env files (`conf.d/`)
 

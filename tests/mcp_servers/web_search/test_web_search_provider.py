@@ -42,7 +42,6 @@ def _make_browser_config(
         allowed_domains=list(allowed_domains) if allowed_domains is not None else [],
         max_response_kb=max_response_kb,
         timeout_sec=timeout_sec,
-        auth_token="",
     )
 
 

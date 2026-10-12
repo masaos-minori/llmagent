@@ -146,7 +146,7 @@ MCP servers automatically start as uvicorn subprocesses according to the `startu
 
 ### 2.5 MCP Authentication Tokens
 
-Every enabled `[mcp_servers.*]` entry in `config/agent.toml` holds an `"${ENV:VAR_NAME}"` reference as its `auth_token` rather than a literal secret. Set the corresponding `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` environment variable (for example `MCP_SHELL_AUTH_TOKEN`, `MCP_GIT_AUTH_TOKEN`) for every server before starting the agent; an unset variable raises `ValueError` at config-load time (fail-closed). `git_mcp_server.toml` and `cicd_mcp_server.toml` use the same variable value as the corresponding `agent.toml` entry (shared secret between client and server); `web_search_mcp_server.toml`'s `browser_auth_token` is a distinct credential. Changes to authentication, MCP server definitions, or bind addresses take effect only after a full agent restart (not `/reload`). (Explicit in code — `config/agent.toml`, `scripts/shared/config_utils.py`) For setup and troubleshooting, see [`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md).
+Every enabled `[mcp_servers.*]` entry in `config/agent.toml` holds an `"${ENV:VAR_NAME}"` reference as its `auth_token` rather than a literal secret. Set the corresponding `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` environment variable (for example `MCP_SHELL_AUTH_TOKEN`, `MCP_GIT_AUTH_TOKEN`) for every server before starting the agent; an unset variable raises `ValueError` at config-load time (fail-closed). `git_mcp_server.toml` and `cicd_mcp_server.toml` use the same variable value as the corresponding `agent.toml` entry (shared secret between client and server); `web_search_mcp_server.toml` shares `MCP_WEB_SEARCH_AUTH_TOKEN` with its `agent.toml` entry in the same way. Changes to authentication, MCP server definitions, or bind addresses take effect only after a full agent restart (not `/reload`). (Explicit in code — `config/agent.toml`, `scripts/shared/config_utils.py`) For setup and troubleshooting, see [`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md).
 
 ### 2.5.1 Loading MCP tokens from a .env file
 
@@ -171,14 +171,11 @@ MCP_GITHUB_AUTH_TOKEN=
 MCP_CICD_AUTH_TOKEN=
 MCP_RAG_PIPELINE_AUTH_TOKEN=
 MCP_MDQ_AUTH_TOKEN=
-MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN=
 ```
-
-`MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` is required in addition to `MCP_WEB_SEARCH_AUTH_TOKEN`: the web-search server validates its `/health` endpoint against `browser_auth_token` (`config/web_search_mcp_server.toml`), which is a distinct credential from the client-facing `auth_token`. See [`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md).
 
 Keep the `.env` file out of version control (it is gitignored) and restrict its permissions with `chmod 600`. (Explicit in code — `deploy/start_agent.sh`, `.gitignore`)
 
-> **Resolved:** web-search's startup health check passes when `browser_auth_token` differs from the main `auth_token`: the server admits its `/health` endpoint without the browser token for a loopback client only. Both tokens must still be set; every other endpoint, and any non-loopback request, still requires the browser token. (Explicit in code — `scripts/mcp_servers/server.py`, `scripts/mcp_servers/web_search/web_search_server.py`)
+> **Note:** web-search authenticates with the same shared `MCP_WEB_SEARCH_AUTH_TOKEN` as its `agent.toml` entry, and its `/health` endpoint is admitted from a loopback client without a token. The former separate browser token was retired; an environment file that still defines `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` can drop it. (Explicit in code — `config/web_search_mcp_server.toml`, `scripts/mcp_servers/web_search/web_search_server.py`)
 
 ---
 

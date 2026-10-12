@@ -68,7 +68,7 @@ Current default values are defined in `config/web_search_mcp_server.toml` and th
 | `browser_allowed_domains` | fail-closed; empty = all domains denied (exact host match) |
 | `browser_max_response_kb` | Limit for extracted text size. If exceeded, text is truncated and `truncated=true` is set. |
 | `browser_timeout_sec` | Timeout for fetch requests |
-| `browser_auth_token` | Bearer token for `browser_fetch` calls only (independent of `search_web`) |
+| `auth_token` | Bearer token required on every request to the server (both tools), supplied by the same environment variable as the agent's web-search entry so both sides share one secret |
 
 Current default values are defined in `config/web_search_mcp_server.toml` and the owning config class.
 

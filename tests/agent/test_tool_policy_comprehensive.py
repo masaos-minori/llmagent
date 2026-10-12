@@ -253,6 +253,7 @@ class TestClassifyOperationType:
         # than changing the shared conftest default.
         monkeypatch.setenv("MCP_GIT_AUTH_TOKEN", "test-token")
         monkeypatch.setenv("MCP_CICD_AUTH_TOKEN", "test-token")
+        monkeypatch.setenv("MCP_WEB_SEARCH_AUTH_TOKEN", "test-token")
         cfg = build_agent_config()
         for name in ("git_checkout", "git_pull", "git_push"):
             assert classify_risk(cfg, name, {"repo_path": "/tmp/repo"}) == "high"
