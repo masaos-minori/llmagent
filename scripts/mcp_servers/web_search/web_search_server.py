@@ -64,7 +64,11 @@ app = FastAPI(
     description="web-search-mcp: web search (search_web) + read-only page fetch (browser_fetch)",
 )
 
-attach_auth_middleware(cast(_FastAPIApp, app), _cfg.browser_auth_token or "")
+attach_auth_middleware(
+    cast(_FastAPIApp, app),
+    _cfg.browser_auth_token or "",
+    exempt_health_on_loopback=True,
+)
 
 
 @app.exception_handler(WebSearchUpstreamError)

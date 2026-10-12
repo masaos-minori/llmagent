@@ -178,7 +178,7 @@ MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN=
 
 Keep the `.env` file out of version control (it is gitignored) and restrict its permissions with `chmod 600`. (Explicit in code — `deploy/start_agent.sh`, `.gitignore`)
 
-> **Known issue:** With the current code, web-search fails its startup health check when `browser_auth_token` differs from the main `auth_token` because they are distinct credentials. Both must still be set; the mismatch itself is fixed at the code level and tracked as [issue mcp004](../../issues/20261012-173750_mcp004_web_search-mcp-server-startup-health-check-fails-due-to-browser_auth_token-mismatch.md).
+> **Resolved:** web-search's startup health check passes when `browser_auth_token` differs from the main `auth_token`: the server admits its `/health` endpoint without the browser token for a loopback client only. Both tokens must still be set; every other endpoint, and any non-loopback request, still requires the browser token. (Explicit in code — `scripts/mcp_servers/server.py`, `scripts/mcp_servers/web_search/web_search_server.py`)
 
 ---
 

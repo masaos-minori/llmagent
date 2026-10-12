@@ -24,6 +24,7 @@ the deployment document.
   - For each enabled `[mcp_servers.*]` entry (`startup_mode` other than `none`) in `config/agent.toml`, a non-empty `auth_token` is required, normally an `"${ENV:MCP_<SERVER_KEY>_AUTH_TOKEN}"` reference.
   - Use environment variable injection or secret management (e.g., files under `conf.d/`) instead of hardcoding secrets in configuration files.
   - mdq-mcp does not verify Bearer tokens at the HTTP layer (see `mcp_05_05_mdq-enforcement-and-lockdown.md`), but its agent-side `auth_token` must still be non-empty.
+  - web-search additionally requires `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` (the `browser_auth_token` in `config/web_search_mcp_server.toml`), a credential distinct from `MCP_WEB_SEARCH_AUTH_TOKEN`; both must be set. The web-search server validates its endpoints against the browser token, but admits `/health` without it for a loopback client only, so the agent's startup health check (which presents the main token) succeeds. (Explicit in code — `scripts/mcp_servers/web_search/web_search_server.py`, `scripts/mcp_servers/server.py`)
 
 - Restart the agent process (do NOT use `/reload`)
   - `/reload` does not change `[mcp_servers.*]` at runtime — changes to MCP server definitions require a full agent restart.
@@ -62,6 +63,14 @@ the deployment document.
 **Cause:** The value of the Bearer token does not match what the MCP server expects.
 
 **Solution:** Verify that the token matches the credentials expected by the MCP server. Tokens are passed in the `Authorization: Bearer <token>` header.
+
+#### web-search fails its startup health check with 401
+
+**Symptom:** The agent aborts while waiting for web-search to become ready, and the web-search health endpoint answers `401`.
+
+**Cause:** Before the loopback admission, the health endpoint was validated against the browser token while the agent's health poll sends the main `auth_token`; with two distinct tokens the poll was always rejected. (Explicit in code — `scripts/mcp_servers/server.py`, `scripts/agent/http_lifecycle.py`)
+
+**Solution:** Use a build that includes the loopback admission and set both `MCP_WEB_SEARCH_AUTH_TOKEN` and `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN`. A health request from a non-loopback address is still rejected.
 
 #### Difference between `/reload` and full restart
 

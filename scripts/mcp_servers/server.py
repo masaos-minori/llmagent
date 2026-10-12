@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import dataclasses
 import hmac
+import ipaddress
 import logging
 import uuid
 from collections.abc import Callable, Sequence
@@ -92,7 +93,26 @@ def _truncate_with_meta(
     )
 
 
-def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
+def _is_loopback_client(request: Request) -> bool:
+    """True when the request's peer address is a loopback IP address.
+
+    A missing client or a host that is not an IP address (for example the
+    framework test client's default host) is treated as not loopback.
+    """
+    if request.client is None:
+        return False
+    try:
+        return ipaddress.ip_address(request.client.host).is_loopback
+    except ValueError:
+        return False
+
+
+def attach_auth_middleware(
+    app: _FastAPIApp,
+    token: str,
+    *,
+    exempt_health_on_loopback: bool = False,
+) -> None:
     """Register Bearer-token auth + X-Request-Id middleware on a FastAPI app.
 
     When token is non-empty, requests without a matching Authorization header
@@ -105,6 +125,14 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
     run for a real Agent-managed server. The accept-all fallback above
     exists for this function's own standalone testability, not as a
     supported deployment mode.
+
+    When exempt_health_on_loopback is true, a request to exactly ``/health``
+    from a loopback client is admitted without the Bearer token, whatever token
+    it presents: the agent's health poll sends the server's main auth_token, which
+    differs from the token this middleware validates for web-search. Every other
+    path, and any non-loopback client, still needs the correct token. This is safe
+    because every MCP server binds to loopback only (the runner verifies the bound
+    socket after start). The default keeps strict validation on every route.
     """
     from fastapi import Request  # noqa: F401 — used in closure type annotations below
     from fastapi.responses import JSONResponse
@@ -123,7 +151,12 @@ def attach_auth_middleware(app: _FastAPIApp, token: str) -> None:
         """Authenticate requests by validating Bearer token header."""
         req_id = str(uuid.uuid4())
         request.state.request_id = req_id
-        if not _is_authorized(request, token):
+        health_exempt = (
+            exempt_health_on_loopback
+            and request.url.path == "/health"
+            and _is_loopback_client(request)
+        )
+        if not health_exempt and not _is_authorized(request, token):
             return JSONResponse({"error": "Unauthorized"}, status_code=401)
         response = await call_next(request)
         response.headers["X-Request-Id"] = req_id
