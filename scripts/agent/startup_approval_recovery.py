@@ -46,6 +46,11 @@ class ApprovalRecovery:
         # Wire up the most recent approval (first in DESC order) for immediate action
         task_id, approval = results[0]
         ctx.workflow.approval_pending = True
+        # pending_approval_id is a display cache re-derived from the authoritative
+        # record in StateStore, so it is refreshed unconditionally. Recovery runs once,
+        # from StartupOrchestrator.run before any turn, so no live value can exist here.
+        # The guard below protects pending_approval_task_id instead: the task to resume
+        # after /approve, which must not be clobbered.
         ctx.turn.pending_approval_id = approval.approval_id
         if ctx.turn.pending_approval_task_id is not None:
             # Only overwrite if the current value is stale (from a previous session).

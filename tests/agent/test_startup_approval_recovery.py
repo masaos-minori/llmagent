@@ -832,3 +832,39 @@ class TestStartupOrchestratorRecoverPendingApprovals:
         assert len(overwrite_calls) == 1
         assert overwrite_calls[0][0][1] == "task-456"
         assert overwrite_calls[0][0][2] == "task-456"
+
+    @pytest.mark.asyncio
+    async def test_startup_recovery_refreshes_pending_approval_id_but_keeps_task_id(
+        self,
+    ) -> None:
+        """Pins the documented contract: pending_approval_id is a display cache
+        refreshed from the recovered record, while an existing
+        pending_approval_task_id (the task to resume after /approve) is guarded."""
+        ctx = MagicMock()
+        ctx.workflow = MagicMock()
+        ctx.workflow.approval_pending = False
+        ctx.turn = MagicMock()
+        ctx.turn.pending_approval_id = "approval-stale"
+        ctx.turn.pending_approval_task_id = "task-old"
+        view = MagicMock()
+
+        startup = StartupOrchestrator(ctx, view)
+
+        approval = MagicMock()
+        approval.approval_id = "approval-123"
+        approval.reason = "waiting for deploy"
+
+        mock_store = MagicMock()
+
+        with (
+            patch(
+                "agent.workflow.approval_ops.find_all_pending_approvals",
+                return_value=[("task-456", approval)],
+            ),
+            patch("agent.workflow.state_store.StateStore", return_value=mock_store),
+        ):
+            await startup._recover_pending_approvals()
+
+        assert ctx.workflow.approval_pending is True
+        assert ctx.turn.pending_approval_id == "approval-123"
+        assert ctx.turn.pending_approval_task_id == "task-old"

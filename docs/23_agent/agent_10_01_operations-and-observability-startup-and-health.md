@@ -75,6 +75,8 @@ If post-execution approvals from a previous session remain unresolved upon agent
 
 If a restoration value is set while a `pending_approval_task_id` is already configured, a `WARNING` level log is emitted and the process does not abort. When the existing value differs from the recovered id, the existing value is preserved (the log reads "Keeping existing pending_approval_task_id X instead of overwriting with Y"). When the values are equal, the assignment is idempotent (the log reads "Overwriting pending_approval_task_id X with Y" but the value is unchanged). When the existing value is `None`, the recovered value is simply assigned (no overwrite log).
 
+Recovery runs once per process, during startup, before any turn. The approval id shown to the operator is a display cache assigned from the recovered record; the authoritative source is the approval stored in `workflow.sqlite`, so it is refreshed without a stale-check. Only the task to resume after approval is guarded against overwriting, because it is a live value.
+
 ### Resource Cleanup on Shutdown
 
 Resources are closed once, when the interactive session ends or when startup fails or is interrupted; they are not closed during a successful startup. The cleanup runs in a `finally` block in the following order:
