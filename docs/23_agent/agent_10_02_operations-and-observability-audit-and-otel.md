@@ -14,6 +14,7 @@ related:
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - agent_10_05_operations-and-observability-monitoring.md
   - agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md
+  - agent_08_04_configuration-mcp-approval-obs.md
 ---
 
 # Agent Operations and Observability

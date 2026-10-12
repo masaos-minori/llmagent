@@ -17,6 +17,9 @@ related:
   - rag_02_05_ingestion_pipeline-document-manager.md
   - rag_02_06_ingestion_pipeline-supporting-components.md
   - rag_05_01-configuration-reference.md
+  - ADR-005-rag-source-derived-index-relationships.md
+  - db_08_active_databases.md
+  - rag_05_04-error-handling-reference.md
 ---
 
 

@@ -14,6 +14,8 @@ related:
   - agent_10_03_operations-and-observability-workflow-observability.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - agent_10_05_operations-and-observability-monitoring.md
+  - agent_08_04_configuration-mcp-approval-obs.md
+  - rag_03_03_query_pipeline-context-and-diagnostics.md
 ---
 
 # Agent Operations and Observability

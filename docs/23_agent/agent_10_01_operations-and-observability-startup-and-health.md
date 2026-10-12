@@ -17,6 +17,8 @@ related:
   - agent_09_01_data-layer-session-db.md
   - agent_09_02_data-layer-access-patterns.md
   - agent_08_04_configuration-mcp-approval-obs.md
+  - mcp_06_01_configuration-file-inventory.md
+  - mcp_06_09_startup-validation-behavior-tool_definitions_strict.md
 ---
 
 # Agent Operations and Observability

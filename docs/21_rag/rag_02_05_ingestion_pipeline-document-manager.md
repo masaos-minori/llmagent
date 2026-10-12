@@ -13,6 +13,8 @@ related:
   - rag_02_04_ingestion_pipeline-ingester.md
   - rag_02_07_ingestion_pipeline-utils.md
   - rag_05_01-configuration-reference.md
+  - ADR-005-rag-source-derived-index-relationships.md
+  - rag_05_07-rag-index-consistency-checks.md
 ---
 
 

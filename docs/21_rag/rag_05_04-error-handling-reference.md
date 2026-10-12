@@ -9,6 +9,8 @@ related:
   - rag_05_01-configuration-reference.md
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_03_01_query_pipeline-overview.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_02_06_ingestion_pipeline-supporting-components.md
 ---
 
 # Error Handling Reference

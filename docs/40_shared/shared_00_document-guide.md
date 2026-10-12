@@ -18,6 +18,17 @@ related:
   - shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
   - shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
   - shared_03_04_runtime_and_execution-caching-and-reference.md
+  - db_01_architecture_and_schema-overview-and-config.md
+  - db_02_architecture_and_schema-schema-reference.md
+  - db_03_architecture_and_schema-migration-and-scaling.md
+  - db_04_api_and_operations-module-boundaries-and-helper.md
+  - db_05_api_and_operations-protocol-and-backend.md
+  - db_06_api_and_operations-maintenance-and-rotation.md
+  - db_07_api_and_operations-recovery-and-reference.md
+  - db_08_active_databases.md
+  - governance_01_documentation-policy.md
+  - governance_02_documentation-metadata.md
+  - governance_04_documentation-checks.md
 ---
 
 # Shared/DB Documentation Guide

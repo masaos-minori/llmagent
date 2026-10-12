@@ -7,6 +7,7 @@ tags:
 related:
   - rag_00_document-guide.md
   - rag_05_01-configuration-reference.md
+  - ADR-005-rag-source-derived-index-relationships.md
 ---
 
 

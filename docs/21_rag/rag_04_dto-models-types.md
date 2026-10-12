@@ -9,6 +9,8 @@ related:
   - rag_00_document-guide.md
   - rag_01_system_overview.md
   - rag_03_02_query_pipeline-rag-pipeline-class.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_05_01-configuration-reference.md
 ---
 
 

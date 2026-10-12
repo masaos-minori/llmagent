@@ -15,6 +15,7 @@ related:
   - rag_02_07_ingestion_pipeline-utils.md
   - rag_02_09_ingestion_pipeline-shared-utilities.md
   - rag_05_01-configuration-reference.md
+  - ADR-009-rag-fts5-text-separation.md
 ---
 
 

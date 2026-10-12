@@ -13,6 +13,7 @@ related:
   - rag_04_dto-models-types.md
   - rag_05_01-configuration-reference.md
   - rag_03_06_query_pipeline-helpers-and-cache.md
+  - ADR-009-rag-fts5-text-separation.md
 ---
 
 # RAG Query Pipeline - Augment Stages
