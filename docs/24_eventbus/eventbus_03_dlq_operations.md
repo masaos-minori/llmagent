@@ -111,14 +111,14 @@ The allowlist comes from `consumer_authorization` and `topic_authorization` in `
 
 DLQ promotion occurs via two independent paths that share one underlying promotion procedure:
 
-1. **Inline promotion**: triggered synchronously when a `POST /nack` call raises `delivery_failure_count` to `max_retry` or beyond.
+1. **Inline promotion**: triggered synchronously when a `POST /nack` call brings the nacking consumer's per-consumer failure count to the retry limit. The exact rule is in [Inline Promotion Path](eventbus_05_dlq_offsets_and_delivery_semantics.md#inline-promotion-path).
 2. **Background sweep**: a startup `asyncio` task polling periodically, acting as a safety net for events whose inline promotion was missed (e.g. a crash between the retry-count update and the promotion write).
 
 Both paths call the same shared promotion routine (atomic write to JSON file + setting `dlq_at` in SQLite), so a promoted event's on-disk/DB representation does not differ by path.
 
 ## DLQ Background Sweep
 
-The background sweep searches for events where `delivery_failure_count >= max_retry AND dlq_at IS NULL`.
+The background sweep selects events by the per-consumer failure count reaching the retry limit while `dlq_at IS NULL`. The exact rule is in [Background Loop Promotion](eventbus_05_dlq_offsets_and_delivery_semantics.md#background-loop-promotion).
 
 Using optimistic locking, it only targets events where `dlq_at IS NULL` to prevent duplicate promotion. If orphaned events are found, they are recorded in the logs. Any non-zero count may indicate an issue with the inline promotion process (e.g. a crash before its promotion write completed) rather than a normal condition.
 
