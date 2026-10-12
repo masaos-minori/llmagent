@@ -281,6 +281,39 @@ def test_simple_move_autocommits_uncommitted_source(
 @pytest.mark.parametrize(
     ("subcommand", "stage_dir", "cmd_func"), SIMPLE_MOVE_CASES, ids=SIMPLE_MOVE_IDS
 )
+@pytest.mark.parametrize(
+    ("change_kind", "make_dirty"), UNCOMMITTED_CASES, ids=UNCOMMITTED_IDS
+)
+def test_stage_only_moves_without_creating_a_commit(
+    temp_git_repo: Path,
+    change_kind: str,
+    make_dirty: Callable[[git.Repo, Path], None],
+    subcommand: str,
+    stage_dir: str,
+    cmd_func: Callable[[argparse.Namespace], int],
+) -> None:
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / stage_dir / "20260107_dirty.md"
+    make_dirty(repo, source)
+    head_before = repo.head.commit.hexsha
+
+    args = build_parser().parse_args([subcommand, str(source), "--stage-only"])
+    exit_code = cmd_func(args)
+
+    destination = temp_git_repo / stage_dir / "done" / "20260107_dirty.md"
+    assert exit_code == 0
+    assert not source.exists()
+    assert destination.exists()
+    assert repo.head.commit.hexsha == head_before
+    assert destination.read_text(encoding="utf-8").endswith("content\n")
+    assert str(destination.relative_to(temp_git_repo)) in repo.git.diff(
+        "--cached", "--name-only"
+    )
+
+
+@pytest.mark.parametrize(
+    ("subcommand", "stage_dir", "cmd_func"), SIMPLE_MOVE_CASES, ids=SIMPLE_MOVE_IDS
+)
 def test_simple_move_ignores_unrelated_uncommitted_file(
     temp_git_repo: Path,
     subcommand: str,

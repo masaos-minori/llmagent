@@ -19,6 +19,12 @@ there); a fetch failure (no network, no `origin`, detached HEAD) degrades to a n
 rather than blocking the move. `git status`/`git mv`/auto-commit invocations retry a
 bounded number of times on `.git/index.lock` contention from a concurrent git process.
 
+Every `close-*` subcommand accepts `--stage-only`: the dirty source is staged
+(`git add`) instead of committed before the move, so the rename lands in the next
+real commit together with the work it belongs to and no `chore: auto-commit ...`
+commit is created. Default behavior (auto-commit) is unchanged; pre-commit hooks
+then run at that later commit rather than at the move.
+
 `close-issue` additionally refuses the move while a Plan in `plans/` (not `plans/done/`)
 names the issue in its `- **Source issue**:` line and that Plan's `Freeze status` is not
 `Frozen` (a `Draft` Plan, or a missing/malformed Freeze status line), unless both
@@ -197,25 +203,34 @@ def _find_remote_conflict(repo: git.Repo, destination_abs: Path) -> str | None:
 
 
 def _auto_commit(
-    repo: git.Repo, source_abs: Path, kind: str, exc_class: type[Exception]
+    repo: git.Repo,
+    source_abs: Path,
+    kind: str,
+    exc_class: type[Exception],
+    *,
+    stage_only: bool = False,
 ) -> str | None:
     """Stage and commit `source_abs` so the subsequent move never runs against an
     uncommitted file. Returns an error string on failure, or `None` on success.
 
     Runs the real `git add`/`git commit` commands (not GitPython's index API)
     so any configured pre-commit hooks still apply — this must not become a
-    silent way to bypass them.
+    silent way to bypass them. With `stage_only`, only `git add` runs: the
+    file is left staged for the caller's next commit (hooks run then).
     """
     message = f"chore: auto-commit {kind} before archival move ({source_abs.name})"
     try:
         _run_with_lock_retry(lambda: repo.git.add(str(source_abs)))
-        _run_with_lock_retry(lambda: repo.git.commit("-m", message))
+        if not stage_only:
+            _run_with_lock_retry(lambda: repo.git.commit("-m", message))
     except exc_class as e:
         return f"auto-commit failed: {e}"
     return None
 
 
-def move_to_done(source: Path, *, kind: str = "workitem") -> MoveResult:
+def move_to_done(
+    source: Path, *, kind: str = "workitem", stage_only: bool = False
+) -> MoveResult:
     """Move `source` into its sibling `done/` directory as a Git rename.
 
     Refuses (returns a failure `MoveResult`, performs no move) when the source is
@@ -229,7 +244,8 @@ def move_to_done(source: Path, *, kind: str = "workitem") -> MoveResult:
     move proceeds — there is no bypass flag; auto-commit replaces the previous
     refuse-and-hint behavior entirely. `kind` (e.g. `"issue"`, `"plan"`,
     `"implementation procedure"`) only labels the auto-commit message; pass it
-    from the calling subcommand for a clearer commit history.
+    from the calling subcommand for a clearer commit history. With `stage_only`,
+    the uncommitted source is staged but not committed (see `_auto_commit`).
     """
     if not source.is_file():
         return MoveResult(success=False, error=f"source file not found: {source}")
@@ -267,7 +283,9 @@ def move_to_done(source: Path, *, kind: str = "workitem") -> MoveResult:
         return MoveResult(success=False, error=f"git status failed: {e}")
 
     if status.strip():
-        commit_error = _auto_commit(repo, source_abs, kind, git.exc.GitCommandError)
+        commit_error = _auto_commit(
+            repo, source_abs, kind, git.exc.GitCommandError, stage_only=stage_only
+        )
         if commit_error:
             return MoveResult(success=False, error=commit_error)
 
@@ -632,7 +650,7 @@ def cmd_close_issue(args: argparse.Namespace) -> int:
         )
         return 1
 
-    result = move_to_done(source, kind="issue")
+    result = move_to_done(source, kind="issue", stage_only=args.stage_only)
     extra_note = (
         f"forced past non-Frozen Plan; reason: {args.reason}" if unfrozen else None
     )
@@ -642,7 +660,8 @@ def cmd_close_issue(args: argparse.Namespace) -> int:
 def cmd_close_plan(args: argparse.Namespace) -> int:
     """Move a `plans/*.md` file to `plans/done/`."""
     source = Path(args.plan_path)
-    return _report_move_result(source, move_to_done(source, kind="plan"))
+    result = move_to_done(source, kind="plan", stage_only=args.stage_only)
+    return _report_move_result(source, result)
 
 
 def cmd_close_implementation(args: argparse.Namespace) -> int:
@@ -678,7 +697,9 @@ def cmd_close_implementation(args: argparse.Namespace) -> int:
         )
         return 1
 
-    result = move_to_done(source, kind="implementation procedure")
+    result = move_to_done(
+        source, kind="implementation procedure", stage_only=args.stage_only
+    )
     extra_note = (
         f"forced past Pending row(s); reason: {args.reason}" if pending else None
     )
@@ -703,11 +724,21 @@ def build_parser() -> argparse.ArgumentParser:
     issue_parser.add_argument(
         "--reason", help="Justification for --force (required alongside --force)"
     )
+    issue_parser.add_argument(
+        "--stage-only",
+        action="store_true",
+        help="Stage (not commit) an uncommitted source before the move",
+    )
 
     plan_parser = subparsers.add_parser(
         "close-plan", help="Move a plans/*.md file to plans/done/"
     )
     plan_parser.add_argument("plan_path", help="Path to the plan file")
+    plan_parser.add_argument(
+        "--stage-only",
+        action="store_true",
+        help="Stage (not commit) an uncommitted source before the move",
+    )
 
     impl_parser = subparsers.add_parser(
         "close-implementation",
@@ -723,6 +754,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     impl_parser.add_argument(
         "--reason", help="Justification for --force (required alongside --force)"
+    )
+    impl_parser.add_argument(
+        "--stage-only",
+        action="store_true",
+        help="Stage (not commit) an uncommitted source before the move",
     )
 
     # set-status: update all rows' Status column
