@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import pytest
+
 from tools.stale_detector import (
     StaleResult,
     _check_before_blocks,
@@ -199,6 +201,28 @@ class TestCheckSymbolRefs:
         )
         assert result.is_stale is False
 
+    @pytest.mark.parametrize(
+        "proc_text",
+        [
+            "Add `brand_new_helper` (new) here",
+            "Add `brand_new_helper`(new) here",
+        ],
+        ids=["one-space", "no-space"],
+    )
+    def test_new_marked_symbol_is_exempt(self, tmp_path: Path, proc_text: str) -> None:
+        """A name the procedure creates is declared with (new) and is not looked up."""
+        result = StaleResult.clean()
+        _check_symbol_refs(result, proc_text, "# nothing", tmp_path, "target.py", {})
+        assert result.is_stale is False
+
+    def test_new_marker_applies_only_to_its_own_token(self, tmp_path: Path) -> None:
+        result = StaleResult.clean()
+        proc_text = "Add `new_one_helper` (new) and then `old_gone_helper` now"
+        _check_symbol_refs(result, proc_text, "# nothing", tmp_path, "target.py", {})
+        missing = [m for m in result.mismatches if m["type"] == "symbol_missing"]
+        assert len(missing) == 1
+        assert "old_gone_helper" in missing[0]["detail"]
+
 
 # ── _check_import_refs ───────────────────────────────────────────────────────
 
@@ -218,6 +242,67 @@ class TestCheckImportRefs:
         _check_import_refs(result, proc_text, source_content)
         assert result.is_stale is True
         assert any(m["type"] == "import_missing" for m in result.mismatches)
+
+    def test_prose_sentence_before_heading_is_not_an_import_reference(self) -> None:
+        """A sentence that merely mentions an import is not a citation, even when a
+        heading follows it (the old pattern ended its match at the next heading)."""
+        result = StaleResult.clean()
+        proc_text = (
+            "- Keep `from __future__ import annotations` style and type hints; "
+            "no new CLI option.\n\n## Compatibility considerations\n"
+        )
+        _check_import_refs(result, proc_text, "# source")
+        assert result.is_stale is False
+
+    @pytest.mark.parametrize(
+        "proc_text",
+        [
+            "- from agent.gone import Missing\n\n## Next\n",
+            "- `from agent.gone import Missing`\n\n## Next\n",
+        ],
+        ids=["bulleted", "backtick-wrapped"],
+    )
+    def test_line_leading_import_before_heading_is_still_checked(
+        self, proc_text: str
+    ) -> None:
+        result = StaleResult.clean()
+        _check_import_refs(result, proc_text, "# no import here")
+        assert any(m["type"] == "import_missing" for m in result.mismatches)
+
+    def test_backtick_wrapped_existing_import_is_not_reported(self) -> None:
+        result = StaleResult.clean()
+        proc_text = "- `from agent.llm_turn_runner import LLMTurnRunner`\n\n## Next\n"
+        source_content = "from agent.llm_turn_runner import LLMTurnRunner"
+        _check_import_refs(result, proc_text, source_content)
+        assert result.is_stale is False
+
+    def test_line_leading_import_followed_by_text_stays_unreported(self) -> None:
+        """Pins the unchanged coverage: widening it would abort procedures that add
+        imports (Plan UNK-02), so an accidental widening must fail this test."""
+        result = StaleResult.clean()
+        proc_text = "from agent.gone import Missing\nthen more text\n"
+        _check_import_refs(result, proc_text, "# no import here")
+        assert result.is_stale is False
+
+    def test_mid_sentence_import_phrase_is_not_checked(self) -> None:
+        result = StaleResult.clean()
+        proc_text = "Replace from agent.gone import Missing with something\n\n## Next\n"
+        _check_import_refs(result, proc_text, "# no import here")
+        assert result.is_stale is False
+
+    def test_new_marked_import_is_exempt(self) -> None:
+        proc_text = "- `from agent.fresh import Created` (new)\n\n## Next\n"
+        marked = StaleResult.clean()
+        _check_import_refs(marked, proc_text, "# no import here")
+        assert marked.is_stale is False
+
+        unmarked = StaleResult.clean()
+        _check_import_refs(
+            unmarked,
+            "- `from agent.fresh import Created`\n\n## Next\n",
+            "# no import here",
+        )
+        assert any(m["type"] == "import_missing" for m in unmarked.mismatches)
 
 
 # ── _check_before_blocks ─────────────────────────────────────────────────────
@@ -651,3 +736,53 @@ class TestCheckSymbolRefsRepoWideFallback:
         _check_symbol_refs(result, proc_text, "# nothing", tmp_path, "target.py", {})
         assert result.is_stale is True
         assert any(m["type"] == "symbol_missing" for m in result.mismatches)
+
+
+# ── from_procedure: false-positive classes seen in practice ──────────────────
+
+
+class TestFromProcedureFalsePositives:
+    """End-to-end checks on the text that produced false positives in practice."""
+
+    @staticmethod
+    def _write_case(tmp_path: Path, body: str) -> Path:
+        source = tmp_path / "tools" / "target_mod.py"
+        source.parent.mkdir(parents=True)
+        source.write_text("def existing_function():\n    return 1\n", encoding="utf-8")
+        proc = tmp_path / "procedure.md"
+        proc.write_text(
+            "## Implementation\n### Target file\n`tools/target_mod.py`\n\n" + body,
+            encoding="utf-8",
+        )
+        return proc
+
+    def test_prose_sentence_is_not_reported(self, tmp_path: Path) -> None:
+        proc = self._write_case(
+            tmp_path,
+            "### Details\n"
+            "- Keep `from __future__ import annotations` style and type hints; "
+            "no new CLI option.\n\n## Compatibility considerations\n- none\n",
+        )
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert result.is_stale is False
+
+    NEW_NAMES = (
+        "test_marker_with_reason_suppresses_the_finding",
+        "test_marker_without_reason_does_not_suppress",
+        "test_marker_on_a_different_line_does_not_suppress",
+    )
+
+    def test_new_test_names_with_marker_are_not_reported(self, tmp_path: Path) -> None:
+        listed = ", ".join(f"`{n}` (new)" for n in self.NEW_NAMES)
+        proc = self._write_case(tmp_path, f"### Procedure\n1. Add {listed}.\n")
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert result.is_stale is False
+
+    def test_new_test_names_without_marker_are_still_reported(
+        self, tmp_path: Path
+    ) -> None:
+        listed = ", ".join(f"`{n}`" for n in self.NEW_NAMES)
+        proc = self._write_case(tmp_path, f"### Procedure\n1. Add {listed}.\n")
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        missing = [m for m in result.mismatches if m["type"] == "symbol_missing"]
+        assert len(missing) == 3

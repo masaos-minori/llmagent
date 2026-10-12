@@ -11,6 +11,11 @@ the procedure document — avoids AST parsing as specified in the issue.
 Any single mismatch constitutes "stale"; the procedure cannot be reliably
 executed if even one referenced construct is missing.
 
+An import is recognized only as a statement at the start of a line (after an
+optional list marker and backtick); a sentence that merely mentions an import is
+not a citation. A symbol or import statement written followed by the marker
+(new) is declared by the procedure as something it creates and is not checked.
+
 Design decisions:
 - Report all failures in a single pass; this is simpler and provides more
   information to the operator.
@@ -39,12 +44,26 @@ _LINE_REF_RE = re.compile(
 # `LLMTurnRunner`, `ToolLoopGuard`, etc.
 _SYMBOL_RE = re.compile(r"`([^`\s]+)`")
 
-# Import path references: "from agent.llm_turn_runner import LLMTurnRunner"
+# Import path references: a statement such as
+# "from agent.llm_turn_runner import LLMTurnRunner" that starts a line (after
+# indentation, an optional list marker and one optional opening backtick), so a
+# sentence that merely mentions an import is not a citation. Groups: module,
+# imported names (without a closing backtick) and an optional " (new)" marker.
 _IMPORT_RE = re.compile(
     r"(?i)"
-    r"from\s+(\S+)\s+import\s+(.+?)"
+    r"(?:^|\n)[ \t]*(?:[-*][ \t]+|\d+\.[ \t]+)?`?"
+    r"from\s+(\S+)\s+import\s+(.+?)`?([ \t]*\(new\))?"
     r"(?:\s*$|\s+#)"
 )
+
+# Marker a procedure writes after a backticked name it will create: " (new)".
+_NEW_MARKER_RE = re.compile(r" ?\(new\)")
+
+
+def _is_marked_new(text: str, pos: int) -> bool:
+    """True when the text at `pos` starts with the (new) marker (one optional space)."""
+    return _NEW_MARKER_RE.match(text, pos) is not None
+
 
 # Code block content between "# Before:" and "# After:" markers
 # Optimized with negated character class to avoid catastrophic backtracking
@@ -493,6 +512,9 @@ def _check_symbol_refs(
         ):
             continue
 
+        if _is_marked_new(proc_text, match.end()):
+            continue
+
         content_to_check = source_content
         scoped_path = _find_scoped_path(proc_text, match.start(), target_file)
         if scoped_path is not None:
@@ -526,7 +548,9 @@ def _check_import_refs(
     """Check whether cited import paths still exist in the current source."""
     imports = _IMPORT_RE.findall(proc_text)
 
-    for module, names in imports:
+    for module, names, new_marker in imports:
+        if new_marker:
+            continue
         # Check if the import statement exists in the source
         import_pattern = rf"from\s+{re.escape(module)}\s+import\s+{re.escape(names)}"
         if not re.search(import_pattern, source_content):

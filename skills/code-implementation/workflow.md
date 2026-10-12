@@ -185,6 +185,11 @@ procedure is aborted (stale references detected).
 
 ### Stale detection result handling
 
+A symbol or an import statement that the procedure marks with the word (new) after its
+backticked name is declared as created by the procedure and is not checked against the
+current source (see the notes in `templates/implementation-procedure.md`); an unmarked
+name that does not exist is still a mismatch and aborts the procedure as before.
+
 If the stale detector reports any mismatch:
 - Abort execution immediately — do not proceed to Step 3.
 - Report the findings to the user: list each stale reference type and detail

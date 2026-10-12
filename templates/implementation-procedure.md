@@ -124,3 +124,9 @@ to the item.
 - "Related target files" uses `target_file_path` (the repository-relative path), not
   `target_file_name` (its base name) — this is also what the "already implemented"
   check matches against.
+- **Marking what the procedure creates** — when a procedure names a symbol or an import
+  statement that it will create (it does not exist yet), write the name in backticks and
+  follow it with the word (new) in parentheses. `tools/stale_detector.py` skips the
+  existence check for such a name, while a name that is absent and not marked is reported
+  as stale and aborts the cycle. Only an import statement at the start of a line is
+  checked as an import, so a sentence that merely mentions an import is not.
