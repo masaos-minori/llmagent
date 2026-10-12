@@ -48,7 +48,7 @@ A pagination envelope (`total`, `limit`, `offset`) plus an `items` array; see `s
 | `total` | integer | Total DLQ entries (ignoring pagination) |
 | `limit` | integer | Requested page size |
 | `offset` | integer | Requested offset |
-| `items` | array[object] | Paginated DLQ entries; each carries `seq`, `event_id`, `topic`, `producer`, `published_at`, `delivery_failure_count`, `dlq_requeue_count` and `dlq_at` (the time the event was promoted to the DLQ) |
+| `items` | array[object] | Paginated DLQ entries; each carries `seq`, `event_id`, `topic`, `producer`, `published_at`, `delivery_failure_count`, `dlq_requeue_count` and `dlq_at` (the time the event was promoted to the DLQ). `delivery_failure_count` is the stored events-level value, a legacy value that NACK does not modify under the per-consumer model; it is not the per-consumer failure count returned by `POST /nack` |
 
 #### Empty Result
 
