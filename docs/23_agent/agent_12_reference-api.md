@@ -199,7 +199,7 @@ Full details: [agent_08_01_configuration-loading-agent-config.md](agent_08_01_co
 - **Caller:** `Orchestrator`, `AgentREPL` (at startup/shutdown)
 - **Callee:** `MemoryStore`, `HybridRetriever`, `EmbeddingClient`
 - **Configuration:** `cfg.memory.*`
-- **On Failure:** Errors are logged. REPL continues without memory (graceful degradation).
+- **On Failure:** Errors are logged. REPL continues without memory (graceful degradation). An internal error of the memory service during startup (a programming error rather than a network or database failure) is logged as an error with a traceback and shown as an internal-error warning; startup still continues without memory.
 
 **Activation:** If `use_memory_layer` enabled, `ctx.services.memory` becomes active.
 Always null-check before accessing memory services.

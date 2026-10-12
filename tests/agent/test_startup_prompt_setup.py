@@ -79,6 +79,29 @@ class TestPromptSetupClassifyFailure:
         result = ps._classify_memory_failure(OSError("no such file"))
         assert result == "DATABASE_OR_IO"
 
+    @pytest.mark.parametrize(
+        "exc",
+        [
+            AttributeError("no attribute"),
+            NameError("name is not defined"),
+            TypeError("wrong type"),
+            KeyError("missing"),
+            IndexError("out of range"),
+            AssertionError("invariant"),
+        ],
+    )
+    def test_programming_errors_classified_as_programming_error(
+        self, exc: Exception
+    ) -> None:
+        """Programming errors are a distinct category, not the benign UNKNOWN."""
+        ps, _, _ = _make_prompt_setup()
+        assert ps._classify_memory_failure(exc) == "PROGRAMMING_ERROR"
+
+    def test_runtime_error_stays_unknown(self) -> None:
+        """RuntimeError is not in the programming-error list and stays UNKNOWN."""
+        ps, _, _ = _make_prompt_setup()
+        assert ps._classify_memory_failure(RuntimeError("fail")) == "UNKNOWN"
+
 
 # ── PromptSetup.setup_prompt ──────────────────────────────────────────────────
 
@@ -214,3 +237,32 @@ class TestPromptSetupMemoryFailures:
 
         warn_call = str(view.write_warning.call_args[0][0])
         assert OutputTag.NON_FATAL in warn_call
+
+    @pytest.mark.asyncio
+    async def test_programming_error_logs_error_with_traceback_and_distinct_warning(
+        self,
+    ) -> None:
+        """A programming error is logged at error level with the traceback and shown
+        as an internal-error warning; startup still completes without memory."""
+        mock_mem = MagicMock()
+        mock_mem.on_session_start.side_effect = AttributeError("boom")
+        ps, ctx, view = _make_prompt_setup(memory=mock_mem)
+
+        with patch("shared.logger.Logger") as MockLogger:
+            mock_logger_instance = MagicMock()
+            MockLogger.return_value = mock_logger_instance
+            await ps.setup_prompt()
+
+        assert ctx.conv.memory_disabled is True
+        mock_logger_instance.error.assert_called_once()
+        args, kwargs = mock_logger_instance.error.call_args
+        assert "internal error" in args[0]
+        assert kwargs.get("exc_info") is True
+        mock_logger_instance.info.assert_not_called()
+
+        view.write_warning.assert_called_once()
+        warn_msg = str(view.write_warning.call_args[0][0])
+        assert OutputTag.NON_FATAL in warn_msg
+        assert "Memory injection failed" in warn_msg
+        assert "AttributeError" in warn_msg
+        assert "boom" in warn_msg
