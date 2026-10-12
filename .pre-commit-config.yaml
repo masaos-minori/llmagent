@@ -99,3 +99,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^(issues|plans|implementations)/.*\.md$
+      - id: mock-patch-targets
+        name: Check mock.patch targets reach the code under test
+        entry: python -m tools.check_mock_patch_targets
+        language: system
+        pass_filenames: false
+        files: ^(tests/.*\.py|scripts/.*\.py|tools/check_mock_patch_targets\.py)$

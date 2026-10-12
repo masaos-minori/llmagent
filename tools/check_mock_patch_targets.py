@@ -37,14 +37,13 @@ How the check works:
    index), the patch call is flagged: it targets the origin, but `M` holds
    its own bound reference and will never see the mock.
 
-This is a heuristic, report-only lint: candidate-SUT-module detection can
-both over- and under-approximate the module a given patch call actually
-means to intercept (a test file may legitimately import multiple modules
-for unrelated reasons). Every finding names the exact evidence (the
-importer's own `from` statement) so a human can quickly confirm or dismiss
-it -- same "candidate, not verdict" posture as
-`check_workitem_traceability.py`'s `stale-target-heuristic` category. Findings
-never gate this tool's exit code.
+This is a heuristic lint: candidate-SUT-module detection can both over- and
+under-approximate the module a given patch call actually means to intercept (a
+test file may legitimately import multiple modules for unrelated reasons).
+Every finding names the exact evidence (the importer's own `from` statement) so
+a human can quickly confirm or dismiss it. Because a finding can be a false
+positive, it is dismissed in the test file with the inline marker below rather
+than by ignoring the exit code: any remaining finding makes the exit code 1.
 
 A patch call that is correct for a reason this heuristic cannot see (typically
 the code under test imports the symbol inside a function, so patching the origin
@@ -59,7 +58,7 @@ Usage:
     python tools/check_mock_patch_targets.py --format json
     python tools/check_mock_patch_targets.py --format csv
 
-Exit code: always 0 (report-only; see the heuristic-posture note above).
+Exit code: 0 when there are no findings, 1 when there is at least one.
 """
 
 from __future__ import annotations
@@ -364,7 +363,7 @@ def main(argv: list[str] | None = None) -> int:
     else:
         print(render_text(findings), end="")
 
-    return 0
+    return 1 if findings else 0
 
 
 if __name__ == "__main__":

@@ -244,3 +244,52 @@ class TestIneffectivePatchTarget:
         findings = _run(tmp_path, monkeypatch)
 
         assert findings == []
+
+
+class TestExitCode:
+    """Findings gate the exit code; a reasoned marker clears it."""
+
+    def _write_tree(self, tmp_path: Path, patch_line: str) -> None:
+        _write(
+            tmp_path / "scripts" / "db" / "helper.py",
+            "class SQLiteHelper:\n    pass\n",
+        )
+        _write(
+            tmp_path / "scripts" / "agent" / "diagnostic_store.py",
+            "from db.helper import SQLiteHelper\n\n\nclass DiagnosticStore:\n    pass\n",
+        )
+        _write(
+            tmp_path / "tests" / "agent" / "test_diagnostic_store.py",
+            "from unittest.mock import patch\n"
+            "from agent.diagnostic_store import DiagnosticStore\n\n\n"
+            f"{patch_line}\n"
+            "def test_it(mock_helper):\n"
+            "    pass\n",
+        )
+
+    def test_finding_makes_exit_code_one(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cmpt, "ROOT_DIR", tmp_path)
+        self._write_tree(tmp_path, '@patch("db.helper.SQLiteHelper")')
+
+        assert cmpt.main([]) == 1
+
+    def test_no_finding_keeps_exit_code_zero(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cmpt, "ROOT_DIR", tmp_path)
+        self._write_tree(tmp_path, '@patch("agent.diagnostic_store.SQLiteHelper")')
+
+        assert cmpt.main([]) == 0
+
+    def test_marker_with_reason_clears_the_exit_code(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(cmpt, "ROOT_DIR", tmp_path)
+        self._write_tree(
+            tmp_path,
+            '@patch("db.helper.SQLiteHelper")  # mock-patch-ok: local import',
+        )
+
+        assert cmpt.main([]) == 0
