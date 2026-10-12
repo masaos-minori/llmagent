@@ -3,18 +3,18 @@ name: Deployment Docs Consistency
 on:
   push:
     paths:
-      - "docs/90_deployment/02_deployment*.md"
+      - "docs/90_deployment/deployment_*.md"
       - "deploy/*.sh"
       - "config/agent.toml"
       - "scripts/db/config.py"
-      - "tools/check_deployment_docs_consistency.py"
+      - "tools/check_docs_consistency.py"
   pull_request:
     paths:
-      - "docs/90_deployment/02_deployment*.md"
+      - "docs/90_deployment/deployment_*.md"
       - "deploy/*.sh"
       - "config/agent.toml"
       - "scripts/db/config.py"
-      - "tools/check_deployment_docs_consistency.py"
+      - "tools/check_docs_consistency.py"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:

@@ -3,14 +3,14 @@ name: RAG Docs Consistency
 on:
   push:
     paths:
-      - "docs/21_rag/03_rag_*.md"
+      - "docs/21_rag/rag_*.md"
       - "config/crawler.toml"
-      - "tools/check_rag_docs_consistency.py"
+      - "tools/check_docs_consistency.py"
   pull_request:
     paths:
-      - "docs/21_rag/03_rag_*.md"
+      - "docs/21_rag/rag_*.md"
       - "config/crawler.toml"
-      - "tools/check_rag_docs_consistency.py"
+      - "tools/check_docs_consistency.py"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:
