@@ -15,6 +15,7 @@ from tools.rename_doc import (
     build_plan,
     git_mv,
     main,
+    scan_outside_docs,
 )
 
 # ---------------------------------------------------------------------------
@@ -432,3 +433,27 @@ def test_t6_related_block_ends_at_the_next_key_and_unclosed_front_matter_is_igno
 
     assert [r.line_no for r in plan.rewrites_by_file[keyed]] == [4]
     assert unclosed not in plan.rewrites_by_file
+
+
+# ---------------------------------------------------------------------------
+# T7: stale old-name mentions outside docs/ are reported, archives skipped
+# ---------------------------------------------------------------------------
+
+
+def test_t7_outside_docs_mentions_are_reported_and_archives_skipped(
+    tmp_path: Path,
+) -> None:
+    repo = _init_git_repo(tmp_path)
+    docs_root = (tmp_path / "docs").resolve()
+    old = tmp_path / "docs" / "old_name.md"
+    _commit_file(repo, old, "# Old\n")
+    _commit_file(repo, tmp_path / "docs" / "ref.md", "mentions old_name.md\n")
+    _commit_file(repo, tmp_path / "tools" / "t.py", 'P = "docs/old_name.md"\n')
+    _commit_file(repo, tmp_path / "skills" / "s.md", "see `old_name.md`\n")
+    _commit_file(repo, tmp_path / "plans" / "done" / "p.md", "old_name.md\n")
+    _commit_file(repo, tmp_path / "tools" / "u.py", "x = 'older_name.md'\n")
+
+    findings = scan_outside_docs(tmp_path.resolve(), docs_root, old.resolve())
+
+    rels = sorted(f.file.relative_to(tmp_path.resolve()).as_posix() for f in findings)
+    assert rels == ["skills/s.md", "tools/t.py"]

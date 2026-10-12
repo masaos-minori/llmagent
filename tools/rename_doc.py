@@ -30,7 +30,7 @@ import os
 import re
 import subprocess
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 # Inline `[text](path)` Markdown link form only -- reference-style
@@ -51,6 +51,7 @@ _DOTDOT_STYLE_RE = re.compile(r"^(?:\.\./)+[^/]+$")
 # substring of a longer, unrelated filename.
 _WORD_BOUNDARY_LEFT = r"(?<![\w./-])"
 _WORD_BOUNDARY_RIGHT = r"(?![\w-])"
+_OUTSIDE_BOUNDARY_LEFT = r"(?<![\w.-])"
 
 
 class RenameDocError(Exception):
@@ -92,6 +93,11 @@ class ScanPlan:
     rewrites_by_file: dict[Path, list[PlannedRewrite]]
     prose_findings: list[ProseFinding]
     unresolved_links: list[UnresolvedLink]
+    external_mentions: list[ProseFinding] = field(default_factory=list)
+
+
+# Archived work items record history as it was; their old names are not stale.
+_ARCHIVE_DIR_NAMES = frozenset({"done", "superseded"})
 
 
 def find_repo_root(start: Path) -> Path:
@@ -303,6 +309,51 @@ def build_plan(
     return ScanPlan(rewrites_by_file, prose_findings, unresolved_links)
 
 
+def scan_outside_docs(
+    repo_root: Path, docs_root: Path, old_path: Path
+) -> list[ProseFinding]:
+    """Report tracked text files outside `docs/` that mention the old basename."""
+    try:
+        # bandit: B603/B607 (Low) -- fixed argument list, shell=False, same
+        # rationale as `git_mv` below.
+        listed = subprocess.run(
+            ["git", "ls-files", "-z"],
+            cwd=repo_root,
+            shell=False,
+            check=True,
+            capture_output=True,
+            text=True,
+        ).stdout
+    except (subprocess.CalledProcessError, OSError) as exc:
+        raise RenameDocError(f"git ls-files failed: {exc}") from exc
+
+    # Unlike docs/ prose, a path-qualified mention (`docs/10_adr/<name>`) is the
+    # main stale-reference shape in code and skills, so `/` may precede the name.
+    pattern = re.compile(
+        _OUTSIDE_BOUNDARY_LEFT + re.escape(old_path.name) + _WORD_BOUNDARY_RIGHT
+    )
+    findings: list[ProseFinding] = []
+    for rel in filter(None, listed.split("\0")):
+        file = (repo_root / rel).resolve()
+        if file.is_relative_to(docs_root) or file == old_path:
+            continue
+        if _ARCHIVE_DIR_NAMES.intersection(Path(rel).parts[:-1]):
+            continue
+        try:
+            content = file.read_text(encoding="utf-8")
+        except (UnicodeDecodeError, OSError):
+            continue
+        for match in pattern.finditer(content):
+            findings.append(
+                ProseFinding(
+                    file=file,
+                    line_no=_line_number_at(content, match.start()),
+                    snippet=_line_text_at(content, match.start()).strip(),
+                )
+            )
+    return findings
+
+
 def apply_rewrites_to_content(content: str, rewrites: list[PlannedRewrite]) -> str:
     """Apply `rewrites` to `content`, rightmost span first to keep offsets valid."""
     for rewrite in sorted(rewrites, key=lambda r: r.span[0], reverse=True):
@@ -374,6 +425,16 @@ def print_report(
     else:
         print("\nNon-link prose mentions: none")
 
+    if plan.external_mentions:
+        print("\nMentions outside docs/ (reported only, never rewritten):")
+        for mention in sorted(
+            plan.external_mentions, key=lambda p: (p.file, p.line_no)
+        ):
+            rel = mention.file.relative_to(repo_root)
+            print(f"  {rel}:{mention.line_no}: {mention.snippet}")
+    else:
+        print("\nMentions outside docs/: none")
+
 
 def parse_args(argv: list[str] | None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
@@ -434,6 +495,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     plan = build_plan(docs_root, old_path, new_path, args.old_title, args.new_title)
+    try:
+        plan.external_mentions.extend(scan_outside_docs(repo_root, docs_root, old_path))
+    except RenameDocError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
 
     # Defense in depth (Details): re-verify containment for every file the
     # scanner considers writing to, not only the git mv source/destination.

@@ -38,7 +38,7 @@
 | `manage_frontmatter.py` | フロントマッター管理 | Front Matter欠落検知・重複除去・area改名・本文Relatedセクションの`related:`への統合 |
 | `manage_workitem_stage.py` | ワークアイテム管理 | アーカイブ移動・ステータス更新・期限切れ検出 |
 | `rename_mcp_modules.py` | リネーム補助 | MCPサーバーモジュールの一括リネーム |
-| `rename_doc.py` | リネーム補助 | `docs/*.md`の`git mv`と内部リンク・Front Matter `related:` の更新 |
+| `rename_doc.py` | リネーム補助 | `docs/*.md`の`git mv`と内部リンク・Front Matter `related:` の更新。`docs/`外の追跡ファイル(scripts/tools/tests/skills等)に残る旧ファイル名の言及も報告 |
 | `rename_impl_procedure_docs.py` | リネーム補助 | `implementations/` 配下の誤った `.py` 拡張子の手順書 Markdown を `.py.md` に一括改名
 | `fix_docstring_blank_line.py` | 整形補助 | D205違反(docstring空行)の一括修正 |
 | `fix_docs_section_marks.py` | 整形補助 | `§`記号の平易な英語表現へ置き換え |
@@ -91,7 +91,7 @@
 | `check_dependency_graph_cycles.py` | `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`の`## Software Runtime Dependency Graph`節からエッジ一覧(`- A → B`形式)をパースし、Agent/MCP/RAG/EventBus/Shared-DBの5ノード間に循環が存在すれば非ゼロで終了する。`Confirmed edges`/`Needs Confirmation`双方のエッジを循環検出対象に含める |
 | `manage_frontmatter.py` | `add-missing` サブコマンドでFront Matter欠落を検知・追加(ファイル名から`area`を確信を持って推定できない場合は`overview`等へ推測せず`[AMBIGUOUS]`として報告のみに留める)、`dedupe-lists` サブコマンドでリストフィールドの重複エントリを除去、`rename-category-to-area` サブコマンド(新規)で`---`フェンス済みの有効なFront Matter内の`category:`キーを値そのままに`area:`へ改名(両キー併存時は改名せず報告のみ)。`AREA_PREFIX_MAP`の`06_eventbus`プレフィックス欠落バグ(実在しない`06_config`/`91_eventbus`が誤って登録され、実在する`06_eventbus_*.md`が`area: overview`に誤推定されていた)を2026-09-03に修正。`merge-related` (一回限りのmigration aid。`## `階層のみ対象)で本文の`## Related Documents`/`## Related Docs`/`## Related Chapters`のエントリをFront Matterの`related:`へ統合(デフォルトはdry-run、`--fix`で書き込み。`docs/**/*.md`を再帰走査し、パス引数で対象を限定可能。ADR文書はFront Matterのみ更新して本文は変更しない。リンク以外の行や存在しない参照を含むセクションは削除せず報告する。深い`### `ブロックは対象外(手動移行)。任意の階層の本文ブロックは`check_docs_structure.py`が検出) |
 | `rename_mcp_modules.py` | `mcp_servers/<server>/` 配下のモジュール名を一括リネームするためのスクリプト。絶対インポート・相対インポート・patchターゲット・ドキュメント文字列の更新を自動処理。 |
-| `rename_doc.py` | `docs/*.md`(`docs/10_adr/*.md`含む)を`<old-path> <new-path>`引数で`git mv`し、`docs/`配下の全Markdownファイルを走査して該当ファイルへのMarkdownリンクパスと、Front Matterの`related:`エントリ(素のファイル名または`../`形式)を書き換える(それ以外の形式は書き換えず報告のみ)。オプションの`--old-title`/`--new-title`を両方指定した場合はリンクテキストも置換(非リンクのプレーンテキスト言及は書き換えず報告のみ)。書き込みは`docs/`配下に限定。`--apply`を付けない限り`--dry-run`相当(デフォルト)で変更内容の表示のみ。 |
+| `rename_doc.py` | `docs/*.md`(`docs/10_adr/*.md`含む)を`<old-path> <new-path>`引数で`git mv`し、`docs/`配下の全Markdownファイルを走査して該当ファイルへのMarkdownリンクパスと、Front Matterの`related:`エントリ(素のファイル名または`../`形式)を書き換える(それ以外の形式は書き換えず報告のみ)。オプションの`--old-title`/`--new-title`を両方指定した場合はリンクテキストも置換(非リンクのプレーンテキスト言及は書き換えず報告のみ)。書き込みは`docs/`配下に限定。`docs/`外の追跡テキストファイル(`*/done/`・`*/superseded/`は除く)に旧ファイル名の言及(パス付き含む)が残る場合は書き換えず報告のみ。`--apply`を付けない限り`--dry-run`相当(デフォルト)で変更内容の表示のみ。 |
 | `rename_impl_procedure_docs.py` | `implementations/` と `implementations/done/` 配下に誤って `.py` 拡張子で生成された手順書 Markdown(`# Implementation Procedure:` バナー・`## `見出し等の Markdown 構造を持つ)を走査し、`.py.md` に一括改名する。`.md` 済みのファイルはスキップし、Markdown 構造を持たないファイル(実コード)は保護して改名しない。改名は `Path.rename` のみで実行(git は次コミットで rename を検出)。`--apply` 不要のデフォルト実行。 |
 | `fix_docstring_blank_line.py` | D205(docstringサマリー行の直後に空行がない)を検出し、空行を挿入する一括修正スクリプト。三重引用符文字列の判定を堅牢にし、SQL文字列リテラルの誤検出を回避する。`--dir` でスキャン対象ディレクトリを指定可能。 |
 | `fix_docs_section_marks.py` | `docs/`・`skills/` 配下の Markdown ファイルから節記号 `§`(表示崩れの原因)を除去し、平易な英語表現(`section N`、`sections N-M` 等)に置き換える。`--dir <path...>` でスキャン対象を変更可能(デフォルト `docs skills`)。`--apply` を付けない限り dry-run。 |
