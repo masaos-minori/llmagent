@@ -76,7 +76,7 @@ If a restoration value is set while a `pending_approval_task_id` is already conf
 
 ### Resource Cleanup on Shutdown
 
-Resources are closed in the following order within a `finally` block:
+Resources are closed once, when the interactive session ends or when startup fails or is interrupted; they are not closed during a successful startup. The cleanup runs in a `finally` block in the following order:
 
 1. WAL checkpoint (with PASSIVE → TRUNCATE fallback)
 2. WAL backup (with path validation)

@@ -1302,3 +1302,76 @@ class TestAgentREPLRunSubprocessTermination:
                 await repl.run()
 
         repl._ctx.services.lifecycle.shutdown_all.assert_awaited()
+
+
+# ── run(): resource cleanup ordering ─────────────────────────────────────────
+
+
+class TestRunResourceCleanup:
+    """AgentREPL.run() releases resources once, after the session, not at startup.
+
+    Plain recording coroutines are used instead of AsyncMock so the call order
+    and count are observable.
+    """
+
+    @staticmethod
+    def _install_spies(
+        repl: AgentREPL, calls: list[str], loop_error: Exception | None = None
+    ) -> None:
+        async def spy_close() -> None:
+            calls.append("close_resources")
+
+        async def spy_loop(banner, persister) -> None:
+            calls.append("input_loop.run")
+            if loop_error is not None:
+                raise loop_error
+
+        repl._shutdown = MagicMock()
+        repl._shutdown.close_resources = spy_close
+        repl._input_loop = MagicMock()
+        repl._input_loop.run = spy_loop
+
+    @pytest.mark.asyncio
+    async def test_cleanup_runs_after_input_loop_on_success(self) -> None:
+        repl = _make_bare_repl()
+        calls: list[str] = []
+        self._install_spies(repl, calls)
+
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                return_value=(MagicMock(), MagicMock(), [])
+            )
+            await repl.run()
+
+        assert calls == ["input_loop.run", "close_resources"]
+
+    @pytest.mark.asyncio
+    async def test_cleanup_runs_once_when_startup_fails(self) -> None:
+        repl = _make_bare_repl()
+        calls: list[str] = []
+        self._install_spies(repl, calls)
+
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                side_effect=RuntimeError("startup failed")
+            )
+            with pytest.raises(RuntimeError, match="startup failed"):
+                await repl.run()
+
+        assert calls == ["close_resources"]
+        repl._view.write_fatal.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_cleanup_runs_once_when_input_loop_raises(self) -> None:
+        repl = _make_bare_repl()
+        calls: list[str] = []
+        self._install_spies(repl, calls, loop_error=RuntimeError("loop failed"))
+
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                return_value=(MagicMock(), MagicMock(), [])
+            )
+            with pytest.raises(RuntimeError, match="loop failed"):
+                await repl.run()
+
+        assert calls == ["input_loop.run", "close_resources"]

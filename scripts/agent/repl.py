@@ -121,26 +121,37 @@ class AgentREPL:
             self._ctx, self._view, shutdown_event=self._shutdown_event
         )
         _spawned_subprocesses: list[subprocess.Popen] = []
+        # One finally for the whole session: cleanup must run on every exit path
+        # (startup failure or interrupt, normal exit) but never ahead of the input
+        # loop, because it closes the shared HTTP client and stops the MCP servers.
         try:
-            self._cmds, self._orchestrator, _spawned_subprocesses = await startup.run()
-        except Exception as e:
-            self._view.write_fatal(f"Startup failed: {e}")
-            raise
+            try:
+                (
+                    self._cmds,
+                    self._orchestrator,
+                    _spawned_subprocesses,
+                ) = await startup.run()
+            except Exception as e:
+                self._view.write_fatal(f"Startup failed: {e}")
+                raise
+
+            # Show memory disabled warning immediately after startup if applicable
+            if (
+                self._ctx.conv.memory_disabled
+                and not self._ctx.conv.memory_warning_shown
+            ):
+                self._ctx.conv.memory_warning_shown = True
+                self._view.write_warning(
+                    f"{OutputTag.NON_FATAL} Memory is disabled for this session."
+                )
+
+            # Delegate to input loop
+            await self._input_loop.run(
+                lambda: self._banner.print_startup_banner(self._orchestrator),
+                self._persist_after_loop,
+            )
         finally:
             await self._shutdown.close_resources()
-
-        # Show memory disabled warning immediately after startup if applicable
-        if self._ctx.conv.memory_disabled and not self._ctx.conv.memory_warning_shown:
-            self._ctx.conv.memory_warning_shown = True
-            self._view.write_warning(
-                f"{OutputTag.NON_FATAL} Memory is disabled for this session."
-            )
-
-        # Delegate to input loop
-        await self._input_loop.run(
-            lambda: self._banner.print_startup_banner(self._orchestrator),
-            self._persist_after_loop,
-        )
 
 
 # ---------------------------------------------------------------------------
