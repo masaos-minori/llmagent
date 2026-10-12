@@ -93,3 +93,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^tests/.*conftest.*$
+      - id: workitem-traceability
+        name: Check work item Traceability links (active items only)
+        entry: python -m tools.check_workitem_traceability --active-only
+        language: system
+        pass_filenames: false
+        files: ^(issues|plans|implementations)/.*\.md$

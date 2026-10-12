@@ -241,6 +241,30 @@ class TestTargetFileMismatch:
 
         assert cwt.find_target_file_mismatches(documents) == []
 
+    @pytest.mark.parametrize(
+        "target_file_value",
+        [
+            "`scripts/eventbus/db.py`.",
+            "\\`scripts/eventbus/db.py\\`",
+            "`scripts/eventbus/db.py`, then verify",
+        ],
+        ids=["trailing-period", "escaped-backticks", "trailing-prose"],
+    )
+    def test_formatting_variants_of_the_same_path_report_no_finding(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        target_file_value: str,
+    ) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        self._write_implementation(
+            tmp_path, "scripts/eventbus/db.py", target_file_value
+        )
+
+        documents = cwt.discover_documents()
+
+        assert cwt.find_target_file_mismatches(documents) == []
+
     def test_mismatched_values_are_reported(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -294,3 +318,28 @@ class TestTargetFileMismatch:
         documents = cwt.discover_documents()
 
         assert cwt.find_target_file_mismatches(documents) == []
+
+
+class TestActiveOnly:
+    """`--active-only` drops findings located under `done/` directories."""
+
+    def test_is_archived_finding_matches_done_directory_only(self) -> None:
+        assert cwt.is_archived_finding({"file": "plans/done/20260101_plan.md"})
+        assert not cwt.is_archived_finding({"file": "plans/20260101_plan.md"})
+        assert not cwt.is_archived_finding({"file": "plans/done.md"})
+
+    def test_main_ignores_archived_gating_findings(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.setattr(cwt, "ROOT_DIR", tmp_path)
+        _write(
+            tmp_path / "plans" / "done" / "20260801-110000_plan.md",
+            "# Plan\n\n## Traceability\n- **Source issue**: issues/gone.md\n",
+        )
+
+        assert cwt.main([]) == 1
+        capsys.readouterr()
+        assert cwt.main(["--active-only"]) == 0

@@ -132,10 +132,13 @@ def _clean_field_value(value: str) -> str:
     `plans/done/20260828-150100_plan.md`'s `Source requirement` line) append
     a prose annotation after the path (`` `path.md` ("description") — note
     ``); the path is always the whitespace-delimited first token, so only
-    that token is kept.
+    that token is kept. A backslash-escaped backtick pair (`` \\`path\\` ``) and
+    sentence-ending punctuation after the token (`` `path.py`. ``) are the same
+    logical value too and are normalized away.
     """
     cleaned = value.strip()
     first_token = cleaned.split(None, 1)[0] if cleaned else cleaned
+    first_token = first_token.replace("\\`", "`").rstrip(".,;")
     if (
         len(first_token) >= 2
         and first_token.startswith("`")
@@ -611,7 +614,22 @@ def build_arg_parser() -> argparse.ArgumentParser:
         default=None,
         help="Machine-readable output format (default: human-readable text)",
     )
+    parser.add_argument(
+        "--active-only",
+        action="store_true",
+        help=(
+            "Report only findings for documents outside done/ subdirectories. "
+            "Archived work items are still read as reference targets, but their "
+            "historical findings (legacy formats, since-moved paths) are not "
+            "reported or gating."
+        ),
+    )
     return parser
+
+
+def is_archived_finding(finding: dict[str, str]) -> bool:
+    """True when the finding's file lives under a `done/` directory."""
+    return "done" in Path(finding["file"]).parts[:-1]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -620,6 +638,8 @@ def main(argv: list[str] | None = None) -> int:
 
     documents = discover_documents()
     findings = collect_findings(documents, args.age_threshold_days)
+    if args.active_only:
+        findings = [f for f in findings if not is_archived_finding(f)]
 
     if args.format == "json":
         print(render_json(findings))
