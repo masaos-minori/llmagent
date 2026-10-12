@@ -46,6 +46,12 @@ it -- same "candidate, not verdict" posture as
 `check_workitem_traceability.py`'s `stale-target-heuristic` category. Findings
 never gate this tool's exit code.
 
+A patch call that is correct for a reason this heuristic cannot see (typically
+the code under test imports the symbol inside a function, so patching the origin
+module works) can be excluded with an inline marker on the physical line holding
+`patch(`: `# mock-patch-ok: <reason>`. The reason is mandatory -- a bare marker
+does not suppress -- and the marker applies to that line only.
+
 Never writes, renames, moves, or deletes anything.
 
 Usage:
@@ -61,6 +67,7 @@ from __future__ import annotations
 import argparse
 import ast
 import csv
+import re
 import sys
 from dataclasses import dataclass
 from pathlib import Path
@@ -207,6 +214,14 @@ def candidate_sut_modules(tree: ast.Module, known_modules: set[str]) -> set[str]
     return candidates
 
 
+# `# mock-patch-ok: <reason>` -- the reason (group 1) must be non-empty.
+_SUPPRESSION_RE = re.compile(r"#\s*mock-patch-ok:\s*(\S.*)$")
+
+
+def _has_suppression_marker(line: str) -> bool:
+    return _SUPPRESSION_RE.search(line) is not None
+
+
 def _is_patch_call(node: ast.Call) -> bool:
     func = node.func
     if isinstance(func, ast.Name):
@@ -254,8 +269,11 @@ def find_ineffective_patch_targets(
         candidates = candidate_sut_modules(tree, known_modules)
         if not candidates:
             continue
+        lines = text.splitlines()
 
         for lineno, target in extract_patch_targets(tree):
+            if 1 <= lineno <= len(lines) and _has_suppression_marker(lines[lineno - 1]):
+                continue
             module_path, sep, symbol_name = target.rpartition(".")
             if not sep or not module_path or not symbol_name:
                 continue

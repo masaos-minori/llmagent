@@ -54,9 +54,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Retarget the patch and make the audit assertions unconditional | Pending | — | — | |
-| 2 | Run the mutation check and revert the mutation | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Pending | — | — | |
+| 1 | Retarget the patch and make the audit assertions unconditional | Completed | 20261012-125953 | 20261012-130015 | changed: tests/mcp_servers/git/test_git_security_compliance.py (patch retargeted to git_server._audit_log, unconditional assertions) |
+| 2 | Run the mutation check and revert the mutation | Completed | 20261012-130015 | 20261012-130015 | mutation check: skipping _audit_log in _audit_log_safe fails the test; scripts/ reverted (git diff clean) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Completed | 20261012-130015 | 20261012-130015 | ruff format/check pass; file 73 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

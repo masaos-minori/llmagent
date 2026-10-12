@@ -13,12 +13,11 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 from agent.memory.import_ops import import_from_jsonl
 from agent.memory.jsonl_store import JsonlMemoryStore
-from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry
 from agent.memory.write_ops import add as write_add
 
@@ -162,28 +161,21 @@ def db_conn() -> Generator[sqlite3.Connection]:
 
 
 @pytest.fixture()
-def mem_store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
-    fake = _FakeSQLiteHelper(db_conn)
-    with patch("db.helper.SQLiteHelper", return_value=fake):
-        yield MemoryStore()
-
-
-@pytest.fixture()
 def import_ops_fake_helper(db_conn: sqlite3.Connection) -> Generator[_FakeSQLiteHelper]:
     """Return a fake SQLiteHelper patched into both import_ops and write_ops modules."""
     fake = _FakeSQLiteHelper(db_conn)
-    with patch("db.helper.SQLiteHelper", return_value=fake):
-        # Also patch the already-imported references in import_ops and write_ops
-        import agent.memory.import_ops as _import_ops
-        import agent.memory.write_ops as _write_ops
+    # Replace the module-level references that import_ops and write_ops resolved at
+    # import time; patching db.helper.SQLiteHelper would not reach them.
+    import agent.memory.import_ops as _import_ops
+    import agent.memory.write_ops as _write_ops
 
-        orig_import = _import_ops.SQLiteHelper
-        orig_write = _write_ops.SQLiteHelper
-        _import_ops.SQLiteHelper = lambda *a, **kw: fake
-        _write_ops.SQLiteHelper = lambda *a, **kw: fake
-        yield fake
-        _import_ops.SQLiteHelper = orig_import
-        _write_ops.SQLiteHelper = orig_write
+    orig_import = _import_ops.SQLiteHelper
+    orig_write = _write_ops.SQLiteHelper
+    _import_ops.SQLiteHelper = lambda *a, **kw: fake
+    _write_ops.SQLiteHelper = lambda *a, **kw: fake
+    yield fake
+    _import_ops.SQLiteHelper = orig_import
+    _write_ops.SQLiteHelper = orig_write
 
 
 class TestRebuildFromJsonl:

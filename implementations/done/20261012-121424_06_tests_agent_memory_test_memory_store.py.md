@@ -49,8 +49,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the redundant origin patch from the `store` fixture | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Pending | — | — | |
+| 1 | Remove the redundant origin patch from the `store` fixture | Completed | 20261012-130046 | 20261012-130059 | changed: tests/agent/memory/test_memory_store.py (redundant db.helper patch removed from store fixture) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Completed | 20261012-130059 | 20261012-130059 | ruff format/check pass; 40 tests pass; no fallback marker needed (UNK-02 resolved) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

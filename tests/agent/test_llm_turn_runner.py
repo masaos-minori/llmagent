@@ -144,7 +144,9 @@ class TestFinalizeAfterGuard:
 
         runner.llm_url = "http://llm"
 
-        with patch("agent.message_schema.validate_message", side_effect=_mock_validate):
+        with patch(  # mock-patch-ok: _finalize_after_guard imports validate_message inside the function
+            "agent.message_schema.validate_message", side_effect=_mock_validate
+        ):
             result = await runner._finalize_after_guard()
 
         assert result.action == "fail"

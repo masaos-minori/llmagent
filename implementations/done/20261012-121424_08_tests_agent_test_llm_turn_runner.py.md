@@ -9,7 +9,7 @@
 - Marker support from procedure 01 is applied first.
 
 ## Design decisions
-- Append `# mock-patch-ok: _finalize_after_guard imports validate_message inside the function` to that line.
+- Add `# mock-patch-ok: _finalize_after_guard imports validate_message inside the function` to that line.
 
 ## Alternatives considered
 N/A: the Plan Design section already fixed the approach for this row.
@@ -19,10 +19,10 @@ N/A: the Plan Design section already fixed the approach for this row.
 `tests/agent/test_llm_turn_runner.py`
 
 ### Procedure
-1. Append the marker comment to the `with patch("agent.message_schema.validate_message", ...)` line.
+1. Add the marker comment after the opening parenthesis of the `with patch("agent.message_schema.validate_message", ...)` line.
 
 ### Method
-- The `with` line is already near 88 characters; the trailing comment may exceed it, which is allowed (E501 is ignored in `pyproject.toml`).
+- Write the marker right after the opening parenthesis, as `patch(  # mock-patch-ok: <reason>` with the arguments on the following lines. A trailing comment after the closing parenthesis does not work: `ruff format` wraps the call and the comment leaves the `patch(` line, where the checker looks.
 
 ### Details
 - No code change; the comment is the only edit.
@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the marker with its reason at the patch line | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Pending | — | — | |
+| 1 | Add the marker with its reason at the patch line | Completed | 20261012-130203 | 20261012-130217 | procedure Method corrected (marker after open paren) before implementing changed: tests/agent/test_llm_turn_runner.py (1 marker after the patch( open paren) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Completed | 20261012-130217 | 20261012-130217 | ruff format/check pass; 26 tests pass; checker silent for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

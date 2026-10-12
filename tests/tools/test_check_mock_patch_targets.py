@@ -59,6 +59,58 @@ class TestIneffectivePatchTarget:
         assert "tests/agent/test_diagnostic_store.py" in findings[0]["file"]
         assert "agent.diagnostic_store" in findings[0]["detail"]
 
+    @staticmethod
+    def _write_marker_case(tmp_path: Path, patch_line: str) -> None:
+        """Origin-patch fixture whose `patch(` line is `patch_line` (a
+        decorator line, so the line carries any trailing comment)."""
+        _write(
+            tmp_path / "scripts" / "db" / "helper.py",
+            "class SQLiteHelper:\n    pass\n",
+        )
+        _write(
+            tmp_path / "scripts" / "agent" / "diagnostic_store.py",
+            "from db.helper import SQLiteHelper\n\n\nclass DiagnosticStore:\n    pass\n",
+        )
+        _write(
+            tmp_path / "tests" / "agent" / "test_diagnostic_store.py",
+            "from unittest.mock import patch\n"
+            "from agent.diagnostic_store import DiagnosticStore\n\n\n"
+            f"{patch_line}\n"
+            "def test_it(mock_helper):\n"
+            "    pass\n",
+        )
+
+    def test_marker_with_reason_suppresses_the_finding(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._write_marker_case(
+            tmp_path,
+            '@patch("db.helper.SQLiteHelper")'
+            "  # mock-patch-ok: imports SQLiteHelper inside the function",
+        )
+
+        assert _run(tmp_path, monkeypatch) == []
+
+    def test_marker_without_reason_does_not_suppress(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._write_marker_case(
+            tmp_path, '@patch("db.helper.SQLiteHelper")  # mock-patch-ok:'
+        )
+
+        assert len(_run(tmp_path, monkeypatch)) == 1
+
+    def test_marker_on_a_different_line_does_not_suppress(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        self._write_marker_case(
+            tmp_path,
+            '@patch("db.helper.SQLiteHelper")\n'
+            "# mock-patch-ok: marker is on the next line, not the patch line",
+        )
+
+        assert len(_run(tmp_path, monkeypatch)) == 1
+
     def test_correct_patch_at_the_reimporting_module_is_not_flagged(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

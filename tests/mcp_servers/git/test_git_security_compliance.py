@@ -693,7 +693,7 @@ class TestHTTPSiblingPathRejection:
             original = git_server._cfg.allowed_repo_paths
             try:
                 git_server._cfg.allowed_repo_paths = [str(allowed_dir)]
-                with patch("mcp_servers.audit._audit_log") as mock_audit:
+                with patch("mcp_servers.git.git_server._audit_log") as mock_audit:
                     resp = client.post(
                         "/v1/call_tool",
                         json={
@@ -704,10 +704,16 @@ class TestHTTPSiblingPathRejection:
                     assert resp.status_code == 200
                     body = resp.json()
                     assert body.get("is_error") is True
-                    if mock_audit.called:
-                        call_kwargs = mock_audit.call_args
-                        req_target = call_kwargs.kwargs.get("requested_target", "")
-                        assert "allowed-evil" not in req_target or "***" in req_target
+                    mock_audit.assert_called()
+                    leaked = [
+                        value
+                        for call in mock_audit.call_args_list
+                        for value in call.kwargs.values()
+                        if isinstance(value, str)
+                        and "allowed-evil" in value
+                        and "***" not in value
+                    ]
+                    assert not leaked
             finally:
                 git_server._cfg.allowed_repo_paths = original
 

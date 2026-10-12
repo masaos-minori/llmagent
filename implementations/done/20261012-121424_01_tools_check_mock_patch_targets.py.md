@@ -31,7 +31,7 @@ N/A: the Plan Design section already fixed the approach for this row.
 
 ### Details
 - A patch call spanning several lines is matched on the line of its `patch(` token only.
-- Keep `from __future__ import annotations` style and type hints; no new CLI option.
+- Keep the module's existing postponed-annotations style and type hints; add no new CLI option.
 
 ## Compatibility considerations
 - Without markers the output is identical to today's, so existing callers and tests are unaffected.
@@ -58,8 +58,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement marker support in `find_ineffective_patch_targets` and update the module docstring | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files (tests come from procedure 02) | Pending | — | — | |
+| 1 | Implement marker support in `find_ineffective_patch_targets` and update the module docstring | Completed | 20261012-125257 | 20261012-125321 | stale_detector false positive on prose reworded with user approval; clean re-check changed: tools/check_mock_patch_targets.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files (tests come from procedure 02) | Completed | 20261012-125321 | 20261012-125321 | validation: ruff format/check, mypy, bandit pass; existing 6 tests pass (new tests are procedure 02); lint-imports N/A (tools/ outside scripts/ layers) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

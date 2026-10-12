@@ -52,9 +52,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the `mem_store` fixture and unwrap the redundant patch in `import_ops_fake_helper` | Pending | — | — | |
-| 2 | Remove imports left unused | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Pending | — | — | |
+| 1 | Delete the `mem_store` fixture and unwrap the redundant patch in `import_ops_fake_helper` | Completed | 20261012-130023 | 20261012-130041 | changed: tests/agent/commands/test_memory_consistency.py (mem_store fixture deleted; redundant db.helper patch unwrapped in import_ops_fake_helper) |
+| 2 | Remove imports left unused | Completed | 20261012-130041 | 20261012-130041 | unused imports patch and MemoryStore removed via ruff F401 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Completed | 20261012-130041 | 20261012-130041 | ruff format/check pass; 15 tests pass; no fallback marker needed (UNK-02 resolved) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

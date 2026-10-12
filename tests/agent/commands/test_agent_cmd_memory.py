@@ -345,7 +345,9 @@ class TestMemoryPrune:
             data={"deleted": 7},
         )
         with (
-            patch("db.helper.SQLiteHelper", return_value=mock_helper),
+            patch(  # mock-patch-ok: memory_prune imports SQLiteHelper inside the function
+                "db.helper.SQLiteHelper", return_value=mock_helper
+            ),
             patch(
                 "db.maintenance.prune_old_memories", return_value=prune_result
             ) as mock_prune,
@@ -366,7 +368,9 @@ class TestMemoryPrune:
             data={"deleted": 0},
         )
         with (
-            patch("db.helper.SQLiteHelper") as mock_helper_cls,
+            patch(  # mock-patch-ok: memory_prune imports SQLiteHelper inside the function
+                "db.helper.SQLiteHelper"
+            ) as mock_helper_cls,
             patch("db.maintenance.prune_old_memories", return_value=prune_result),
         ):
             mock_h = MagicMock()
@@ -401,7 +405,9 @@ class TestMemoryPrune:
             data={"deleted": 3},
         )
         with (
-            patch("db.helper.SQLiteHelper") as mock_helper_cls,
+            patch(  # mock-patch-ok: memory_prune imports SQLiteHelper inside the function
+                "db.helper.SQLiteHelper"
+            ) as mock_helper_cls,
             patch("db.maintenance.prune_old_memories", return_value=prune_result),
         ):
             mock_h = MagicMock()

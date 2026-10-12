@@ -144,7 +144,6 @@ def store(db_conn: sqlite3.Connection) -> Generator[MemoryStore]:
         patch("agent.memory.write_ops.SQLiteHelper", return_value=fake),
         patch("agent.memory.store.SQLiteHelper", return_value=fake),
         patch("agent.memory.count_ops.SQLiteHelper", return_value=fake),
-        patch("db.helper.SQLiteHelper", return_value=fake),
     ):
         yield MemoryStore()
 

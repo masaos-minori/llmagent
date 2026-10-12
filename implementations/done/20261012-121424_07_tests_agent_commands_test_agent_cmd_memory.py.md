@@ -9,7 +9,7 @@
 - Marker support from procedure 01 is applied first, otherwise the checker still reports these lines.
 
 ## Design decisions
-- Append `# mock-patch-ok: memory_prune imports SQLiteHelper inside the function` to each of the three `patch(...)` lines.
+- Add `# mock-patch-ok: memory_prune imports SQLiteHelper inside the function` to each of the three `patch(...)` lines.
 
 ## Alternatives considered
 N/A: the Plan Design section already fixed the approach for this row.
@@ -19,10 +19,10 @@ N/A: the Plan Design section already fixed the approach for this row.
 `tests/agent/commands/test_agent_cmd_memory.py`
 
 ### Procedure
-1. Append the marker comment to the `patch("db.helper.SQLiteHelper"...)` call line at each of the three sites.
+1. Add the marker comment after the opening parenthesis of the `patch("db.helper.SQLiteHelper"...)` call line at each of the three sites.
 
 ### Method
-- Put the comment on the same line as `patch(`; let `ruff format` keep it (comments are not wrapped).
+- Write the marker right after the opening parenthesis, as `patch(  # mock-patch-ok: <reason>` with the arguments on the following lines. A trailing comment after the closing parenthesis does not work: `ruff format` wraps the call and the comment leaves the `patch(` line, where the checker looks.
 
 ### Details
 - No code change; the comment is the only edit.
@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the marker with its reason at the three patch lines | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Pending | — | — | |
+| 1 | Add the marker with its reason at the three patch lines | Completed | 20261012-130111 | 20261012-130203 | changed: tests/agent/commands/test_agent_cmd_memory.py (3 markers after the patch( open paren); procedure Method corrected: a trailing comment is moved off the patch( line by ruff format |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Completed | 20261012-130203 | 20261012-130203 | ruff format/check pass; 18 tests pass; checker silent for this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

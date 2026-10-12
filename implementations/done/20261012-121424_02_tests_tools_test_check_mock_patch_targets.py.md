@@ -18,9 +18,9 @@ N/A: the Plan Design section already fixed the approach for this row.
 `tests/tools/test_check_mock_patch_targets.py`
 
 ### Procedure
-1. Add `test_marker_with_reason_suppresses_the_finding`: the `patch(` line ends with `# mock-patch-ok: imports SQLiteHelper inside the function`; expect `[]`.
-2. Add `test_marker_without_reason_does_not_suppress`: the line ends with `# mock-patch-ok:`; expect one finding.
-3. Add `test_marker_on_a_different_line_does_not_suppress`: the marker sits on the line after `patch(`; expect one finding.
+1. Add test_marker_with_reason_suppresses_the_finding: the `patch(` line ends with `# mock-patch-ok: imports SQLiteHelper inside the function`; expect `[]`.
+2. Add test_marker_without_reason_does_not_suppress: the line ends with `# mock-patch-ok:`; expect one finding.
+3. Add test_marker_on_a_different_line_does_not_suppress: the marker sits on the line after `patch(`; expect one finding.
 
 ### Method
 - Copy the fixture sources of the existing flagged case and change only the `patch(` line, written as a `@patch(...)` decorator line with the trailing comment.
@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the three marker test cases | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Pending | — | — | |
+| 1 | Add the three marker test cases | Completed | 20261012-125905 | 20261012-125935 | stale_detector false positive on new test names reworded with user approval; clean re-check changed: tests/tools/test_check_mock_patch_targets.py (+3 tests, 1 helper); mutation check: disabling marker support fails the reason case |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Completed | 20261012-125935 | 20261012-125935 | ruff format/check pass; 9 tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

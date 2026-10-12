@@ -9,7 +9,7 @@
 - Marker support from procedure 01 is applied first.
 
 ## Design decisions
-- Append `# mock-patch-ok: recover() imports Logger inside the function` to each `with patch("shared.logger.Logger") as mock_logger:` line; one comment covers both importers the checker names for that line.
+- Add `# mock-patch-ok: recover() imports Logger inside the function` to each `with patch("shared.logger.Logger") as mock_logger:` line; one comment covers both importers the checker names for that line.
 
 ## Alternatives considered
 N/A: the Plan Design section already fixed the approach for this row.
@@ -19,10 +19,10 @@ N/A: the Plan Design section already fixed the approach for this row.
 `tests/agent/test_startup_approval_recovery.py`
 
 ### Procedure
-1. Append the marker comment to the `patch("shared.logger.Logger")` line at each of the three sites.
+1. Add the marker comment after the opening parenthesis of the `patch("shared.logger.Logger")` line at each of the three sites.
 
 ### Method
-- Comment-only edit on the same line as `patch(`.
+- Write the marker right after the opening parenthesis, as `patch(  # mock-patch-ok: <reason>` with the arguments on the following lines. A trailing comment after the closing parenthesis does not work: `ruff format` wraps the call and the comment leaves the `patch(` line, where the checker looks.
 
 ### Details
 - No code change.
@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the marker with its reason at the three patch lines | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files; confirm the repository-wide checker reports no findings | Pending | — | — | |
+| 1 | Add the marker with its reason at the three patch lines | Completed | 20261012-130217 | 20261012-130238 | procedure Method corrected (marker after open paren) before implementing changed: tests/agent/test_startup_approval_recovery.py (3 markers after the patch( open paren) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files; confirm the repository-wide checker reports no findings | Completed | 20261012-130238 | 20261012-130238 | ruff format/check pass; 27 tests pass; repository-wide checker reports No findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

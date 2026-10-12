@@ -646,7 +646,9 @@ class TestStartupOrchestratorRecoverPendingApprovals:
             ),
             patch("agent.workflow.state_store.StateStore", return_value=mock_store),
         ):
-            with patch("shared.logger.Logger") as mock_logger:
+            with patch(  # mock-patch-ok: recover() imports Logger inside the function
+                "shared.logger.Logger"
+            ) as mock_logger:
                 await startup._recover_pending_approvals()
 
         assert ctx.turn.pending_approval_task_id == "task-old"
@@ -687,7 +689,9 @@ class TestStartupOrchestratorRecoverPendingApprovals:
             ),
             patch("agent.workflow.state_store.StateStore", return_value=mock_store),
         ):
-            with patch("shared.logger.Logger") as mock_logger:
+            with patch(  # mock-patch-ok: recover() imports Logger inside the function
+                "shared.logger.Logger"
+            ) as mock_logger:
                 await startup._recover_pending_approvals()
 
         assert ctx.turn.pending_approval_task_id == "task-456"
@@ -814,7 +818,9 @@ class TestStartupOrchestratorRecoverPendingApprovals:
             ),
             patch("agent.workflow.state_store.StateStore", return_value=mock_store),
         ):
-            with patch("shared.logger.Logger") as mock_logger:
+            with patch(  # mock-patch-ok: recover() imports Logger inside the function
+                "shared.logger.Logger"
+            ) as mock_logger:
                 await startup._recover_pending_approvals()
 
         assert ctx.turn.pending_approval_task_id == "task-456"

@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the marker description to the `check_mock_patch_targets.py` detail row | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Pending | — | — | |
+| 1 | Add the marker description to the `check_mock_patch_targets.py` detail row | Completed | 20261012-125940 | 20261012-125946 | changed: tools/TOOL_DESCRIPTIONS.md (detail row for check_mock_patch_targets.py) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the touched files | Completed | 20261012-125946 | 20261012-125946 | check_tool_descriptions_sync passes; docs/ not edited (tools/ inventory file only) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
