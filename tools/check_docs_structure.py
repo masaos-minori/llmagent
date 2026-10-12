@@ -81,7 +81,12 @@ def strip_fenced_code(content: str) -> str:
 # this exception (2026-10-04) instead of editing the ADR body or raising the global
 # limit. Each ceiling equals the file's accepted size, so any further growth fails.
 SIZE_EXCEPTIONS: dict[str, int] = {
-    "ADR-003-runtime-tool-registry-routing-authority.md": 24808,
+    # ADR-003, ADR-004 and ADR-008 absorbed their companion supporting-sections
+    # documents (the owner requested the merge, 2026-10-12), which puts them above
+    # MAX_SIZE; the ceilings below equal the merged sizes, so further growth fails.
+    "ADR-003-runtime-tool-registry-routing-authority.md": 26087,
+    "ADR-004-environment-failure-handling-policy.md": 30288,
+    "ADR-008-sqlite-4db-separation.md": 33632,
     # The Known Issue inventory grows with each active entry (17 template fields
     # per entry); the owner accepted this exception (2026-10-07) and re-accepted it
     # after the inventory changed (2026-10-08).

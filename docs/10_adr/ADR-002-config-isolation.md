@@ -10,7 +10,6 @@ related:
   - agent_08_01_configuration-loading-agent-config.md
   - mcp_06_01_configuration-file-inventory.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
-  - adr_02_config-isolation-supporting-sections.md
   - ADR-004-environment-failure-handling-policy.md
 ---
 
@@ -122,7 +121,85 @@ Because each process's configuration is managed independently, data corruption f
 
 ## Alternatives Considered
 
-This section is maintained in the companion document: [Alternatives Considered](adr_02_config-isolation-supporting-sections.md#alternatives-considered).
+### Alternative A: Shared common config file
+
+#### Description
+
+All processes read a shared configuration file and reference only the values they need.
+
+#### Advantages
+
+- Centralized configuration management
+- Duplication of the same values can be avoided
+
+#### Disadvantages
+
+- Excessive exposure of Secrets
+- Configuration interdependence
+- Unclear impact scope of configuration changes
+- Bloated configuration files
+
+#### Reason for Rejection
+
+Rejected to prioritize Security and Operability and to prevent the excessive Secret exposure and configuration interdependence caused by a shared configuration file.
+
+#### Reconsideration Conditions
+
+- The operational scale grows and centralized configuration management becomes necessary
+- Introducing an external configuration store makes Secret separation possible
+
+### Alternative B: Dynamic config resolution at runtime
+
+#### Description
+
+Search for configuration files dynamically at process startup and automatically read whichever configuration files exist.
+
+#### Advantages
+
+- Flexible configuration management
+- Configuration files are easy to add
+
+#### Disadvantages
+
+- Unclear configuration ownership
+- Unintended configuration loading
+- Unclear impact scope of configuration changes
+
+#### Reason for Rejection
+
+Rejected to prioritize Data Integrity and make configuration ownership clear.
+
+#### Reconsideration Conditions
+
+- Dynamic generation of configuration files becomes necessary
+- Configuration management in a cloud environment becomes necessary
+
+### Alternative C: No config isolation enforcement
+
+#### Description
+
+Do not enforce configuration separation between processes; each process reads configuration files freely.
+
+#### Advantages
+
+- Simple structure
+- Low complexity
+
+#### Disadvantages
+
+- Excessive exposure of Secrets
+- Configuration interdependence
+- Unclear impact scope of configuration changes
+- Security risk
+
+#### Reason for Rejection
+
+Rejected to prioritize Security and prevent configuration leakage across process boundaries.
+
+#### Reconsideration Conditions
+
+- The trust boundary changes significantly
+- The system moves to a single-process configuration
 
 ## Consequences
 
@@ -201,7 +278,49 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ## Verification
 
-This section is maintained in the companion document: [Verification](adr_02_config-isolation-supporting-sections.md#verification).
+### Automated Tests
+
+- **Test**: Each process can read only its permitted configuration files
+  - **Verifies**: INV-01
+  - **Type**: Integration
+  - **Blocking**: Yes
+  - **Citation**: `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_allows_authorized`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error`, `tests/mcp_servers/test_config_isolation_fail_closed.py`
+
+- **Test**: Access to non-permitted configuration files is rejected
+  - **Verifies**: INV-02
+  - **Type**: Regression
+  - **Blocking**: Yes
+  - **Citation**: `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_denies_unauthorized`, `tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error`
+
+- **Test**: An MCP server can start standalone without agent.toml
+  - **Verifies**: INV-03
+  - **Type**: Integration
+  - **Blocking**: Yes
+
+- **Test**: The Agent can start without being given MCP-specific Secrets
+  - **Verifies**: INV-04
+  - **Type**: Integration
+  - **Blocking**: Yes
+
+### Startup Validation
+
+- Whether each process's configuration file exists
+- Whether configuration files are valid (parseable TOML, required fields)
+
+### Deployment Validation
+
+- Check the SHA256 checksum of `config/workflows/default.json` before and after deployment (`deploy/deploy.sh`)
+- Whether the deployed configuration files match the source
+
+### Runtime Monitoring
+
+- `ConfigLoader` emits no metric or audit event for configuration loading; a missing or invalid configuration file surfaces as a startup failure of the owning process
+- Alert conditions: process startup failure caused by a configuration file error
+
+### Manual Review
+
+- Review of configuration file changes
+- Configuration file validation before deployment
 
 ## Implementation Notes
 
