@@ -19,6 +19,10 @@ A target path followed by (new) in the Target file section declares the file as
 created by the procedure: the existence check is skipped, the containing directory
 must exist, a file that already exists is reported, and line citations that resolve
 to that target are skipped.
+Names that cannot appear in Python source are not reported as missing symbols:
+built-in and dunder names, lint rule codes, sibling-procedure numbers, chapter ids
+that prefix a docs file name, and configuration keys in key position (a mention
+in a comment is never a key).
 
 Design decisions:
 - Report all failures in a single pass; this is simpler and provides more
@@ -29,6 +33,7 @@ Design decisions:
 
 from __future__ import annotations
 
+import builtins
 import re
 import sys
 from dataclasses import dataclass, field
@@ -114,6 +119,33 @@ _NON_SYMBOL_ALLOWLIST = frozenset(
         "Blocked",
         "Completed",
     }
+)
+
+# Names that cannot appear in a .py file but are cited correctly (see
+# _is_non_python_name): dunder names, lint rule codes (RUF100), sibling-procedure
+# numbers (_01), and documentation chapter ids (agent_04).
+_DUNDER_RE = re.compile(r"__\w+__")
+_RULE_CODE_RE = re.compile(r"[A-Z]{1,4}\d{2,4}")
+_SIBLING_NUMBER_RE = re.compile(r"_\d+")
+_CHAPTER_ID_RE = re.compile(r"[a-z]+(?:_\d+)+")
+
+# Locations whose keys count as existing configuration, and the key positions
+# recognized on a non-comment line: an assignment at the start of a line, a
+# bracketed table header, a JSON key, and a created table name.
+_CONFIG_GLOBS = (
+    "config/**/*",
+    "conf.d/**/*",
+    "schemas/**/*",
+    "deploy/**/*",
+    "init.d/**/*",
+    "pyproject.toml",
+    "tox.ini",
+)
+_CONFIG_ASSIGNMENT_RE = re.compile(r"^\s*(?:export\s+)?([A-Za-z_]\w*)\s*=")
+_CONFIG_TABLE_HEADER_RE = re.compile(r"^\s*\[+([^\]]+)\]+")
+_CONFIG_JSON_KEY_RE = re.compile(r'"([A-Za-z_]\w*)"\s*:')
+_CONFIG_CREATE_TABLE_RE = re.compile(
+    r"(?i)create\s+(?:virtual\s+)?table\s+(?:if\s+not\s+exists\s+)?(\w+)"
 )
 
 # A backtick-quoted relative .py/.md path other than a leading-slash absolute one
@@ -212,6 +244,73 @@ def _load_scoped_source(
     content = candidate.read_text(encoding="utf-8")
     cache[path] = content
     return content
+
+
+def _docs_file_names(source_dir: Path) -> set[str]:
+    """Base names of the files under the docs directory of `source_dir`."""
+    docs = source_dir / "docs"
+    if not docs.is_dir():
+        return set()
+    return {p.name for p in docs.rglob("*") if p.is_file()}
+
+
+def _configuration_keys(source_dir: Path) -> set[str]:
+    """Names in key position in the configuration-like files of `source_dir`.
+
+    Comment lines are skipped, so a setting that is only mentioned in a comment
+    (for example one recorded as removed) is not a key.
+    """
+    keys: set[str] = set()
+    for pattern in _CONFIG_GLOBS:
+        for path in source_dir.glob(pattern):
+            if not path.is_file():
+                continue
+            try:
+                text = path.read_text(encoding="utf-8")
+            except (OSError, UnicodeDecodeError):
+                continue
+            for line in text.splitlines():
+                if line.lstrip().startswith("#"):
+                    continue
+                for regex in (
+                    _CONFIG_ASSIGNMENT_RE,
+                    _CONFIG_JSON_KEY_RE,
+                    _CONFIG_CREATE_TABLE_RE,
+                ):
+                    keys.update(regex.findall(line))
+                header = _CONFIG_TABLE_HEADER_RE.match(line)
+                if header:
+                    keys.update(
+                        part.strip("\"' ")
+                        for part in re.split(r"[.,\s]+", header.group(1))
+                        if part.strip("\"' ")
+                    )
+    return keys
+
+
+def _is_non_python_name(
+    sym: str,
+    source_dir: Path,
+    cache: dict[str, set[str]],
+) -> bool:
+    """True when `sym` is a name that cannot appear in Python source but is a
+    legitimate citation: a built-in or dunder name, a lint rule code, a
+    sibling-procedure number, a chapter id that prefixes a docs file name, or a
+    configuration key. Called only for a symbol already absent from every .py
+    file; the docs file names and the keys are read lazily, once, into `cache`.
+    """
+    if hasattr(builtins, sym) or _DUNDER_RE.fullmatch(sym):
+        return True
+    if _RULE_CODE_RE.fullmatch(sym) or _SIBLING_NUMBER_RE.fullmatch(sym):
+        return True
+    if _CHAPTER_ID_RE.fullmatch(sym):
+        if "docs" not in cache:
+            cache["docs"] = _docs_file_names(source_dir)
+        if any(name.startswith((f"{sym}_", f"{sym}.")) for name in cache["docs"]):
+            return True
+    if "config" not in cache:
+        cache["config"] = _configuration_keys(source_dir)
+    return sym in cache["config"]
 
 
 def _symbol_present_somewhere(
@@ -533,6 +632,7 @@ def _check_symbol_refs(
     positives.
     """
     symbol_presence_cache: dict[str, bool] = {}
+    lookup_cache: dict[str, set[str]] = {}
     for match in _SYMBOL_RE.finditer(proc_text):
         sym = match.group(1)
         if sym in _NON_SYMBOL_ALLOWLIST:
@@ -574,7 +674,9 @@ def _check_symbol_refs(
             # .py file under source_dir. Existence is checked repo-wide, not by
             # location, so a symbol that merely lives in another file (even one
             # named by the citation) is not reported stale.
-            if not _symbol_present_somewhere(source_dir, sym, symbol_presence_cache):
+            if not _symbol_present_somewhere(
+                source_dir, sym, symbol_presence_cache
+            ) and not _is_non_python_name(sym, source_dir, lookup_cache):
                 result.add_mismatch(
                     "symbol_missing",
                     f"Symbol '{sym}' not found in source",

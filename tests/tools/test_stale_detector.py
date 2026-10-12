@@ -902,3 +902,119 @@ class TestFromProcedureDeclaredNewTarget:
         proc = self._write_case(tmp_path, f"`{self.NEW_TARGET}` (new)")
         result = StaleResult.from_procedure(proc, source_dir=tmp_path)
         assert result.target_file == self.NEW_TARGET
+
+
+class TestSymbolCheckNonPythonNames:
+    """Names that cannot appear in a .py file are not reported as missing symbols;
+    stale Python names still are. Each case uses an isolated temporary tree."""
+
+    @staticmethod
+    def _write(root: Path, rel: str, text: str) -> None:
+        path = root / rel
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+
+    @staticmethod
+    def _reported(root: Path, proc_text: str) -> list[str]:
+        result = StaleResult.clean()
+        _check_symbol_refs(result, proc_text, "", root, "target.py", {})
+        return [
+            m["detail"].split("'")[1]
+            for m in result.mismatches
+            if m["type"] == "symbol_missing"
+        ]
+
+    @pytest.mark.parametrize(
+        "name",
+        ["LookupError", "DeprecationWarning", "__slots__", "__init_subclass__"],
+    )
+    def test_builtin_and_dunder_names_are_not_reported(
+        self, tmp_path: Path, name: str
+    ) -> None:
+        assert self._reported(tmp_path, f"Raise `{name}` here.") == []
+
+    @pytest.mark.parametrize("code", ["RUF100", "F841", "I001"])
+    def test_rule_codes_are_not_reported(self, tmp_path: Path, code: str) -> None:
+        assert self._reported(tmp_path, f"Silence `{code}` on that line.") == []
+
+    @pytest.mark.parametrize("number", ["_01", "_10"])
+    def test_sibling_numbers_are_not_reported(
+        self, tmp_path: Path, number: str
+    ) -> None:
+        assert self._reported(tmp_path, f"See procedure `{number}` first.") == []
+
+    def test_chapter_id_that_prefixes_a_docs_file_is_not_reported(
+        self, tmp_path: Path
+    ) -> None:
+        self._write(tmp_path, "docs/23_agent/agent_04_01_state-model.md", "x\n")
+        assert self._reported(tmp_path, "Described in `agent_04`.") == []
+
+    def test_unmatched_chapter_id_is_reported(self, tmp_path: Path) -> None:
+        self._write(tmp_path, "docs/23_agent/agent_04_01_state-model.md", "x\n")
+        assert self._reported(tmp_path, "Described in `agent_90`.") == ["agent_90"]
+
+    def test_chapter_id_without_separator_is_reported(self, tmp_path: Path) -> None:
+        self._write(tmp_path, "docs/23_agent/agent_040_x.md", "x\n")
+        assert self._reported(tmp_path, "Described in `agent_04`.") == ["agent_04"]
+
+    def test_configuration_keys_are_not_reported(self, tmp_path: Path) -> None:
+        self._write(
+            tmp_path,
+            "config/app.toml",
+            "# healthcheck_mode was removed\n"
+            "concurrency_enabled_flag = 1\n"
+            "[mcp_servers.alpha_server]\n",
+        )
+        self._write(tmp_path, "pyproject.toml", 'asyncio_mode = "auto"\n')
+        self._write(tmp_path, "deploy/init.sh", 'MISSING_TABLES=""\n')
+        self._write(
+            tmp_path,
+            "schemas/notes.sql",
+            "CREATE TABLE IF NOT EXISTS session_notes (\n",
+        )
+        self._write(tmp_path, "schemas/s.json", '{"event_name": {"type": "string"}}\n')
+        proc = (
+            "Keys: `concurrency_enabled_flag`, `alpha_server`, `asyncio_mode`, "
+            "`MISSING_TABLES`, `session_notes`, `event_name`."
+        )
+        assert self._reported(tmp_path, proc) == []
+
+    def test_comment_only_configuration_mention_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        self._write(tmp_path, "config/app.toml", "# healthcheck_mode was removed\n")
+        assert self._reported(tmp_path, "Set `healthcheck_mode`.") == [
+            "healthcheck_mode"
+        ]
+
+    def test_name_absent_from_configuration_is_reported(self, tmp_path: Path) -> None:
+        self._write(tmp_path, "config/app.toml", "other_setting = 1\n")
+        assert self._reported(tmp_path, "Set `missing_setting_name`.") == [
+            "missing_setting_name"
+        ]
+
+    def test_stale_python_names_are_still_reported(self, tmp_path: Path) -> None:
+        self._write(tmp_path, "config/app.toml", "other_setting = 1\n")
+        proc = "Call `removed_helper_function`, `RemovedClassName`, `_removed_private`."
+        assert self._reported(tmp_path, proc) == [
+            "removed_helper_function",
+            "RemovedClassName",
+            "_removed_private",
+        ]
+
+    def test_end_to_end_reports_only_the_stale_name(self, tmp_path: Path) -> None:
+        self._write(
+            tmp_path, "tools/target_mod.py", "def existing_function():\n    pass\n"
+        )
+        self._write(tmp_path, "docs/23_agent/agent_04_01_state-model.md", "x\n")
+        proc = tmp_path / "procedure.md"
+        proc.write_text(
+            "## Implementation\n### Target file\n`tools/target_mod.py`\n\n"
+            "### Procedure\n"
+            "- Catch `LookupError`, silence `RUF100`, follow `_01`, read `agent_04`.\n"
+            "- Call `removed_helper_function`.\n",
+            encoding="utf-8",
+        )
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert [m["type"] for m in result.mismatches] == ["symbol_missing"]
+        assert "removed_helper_function" in result.mismatches[0]["detail"]
