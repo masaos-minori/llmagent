@@ -39,6 +39,7 @@ The agent unconditionally verifies the existence of workflow definition files be
 **Important Notes:**
 - `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
 - `tool_definitions` follows a unified severity scheme: FATAL when in strict mode (`tool_definitions_strict`), WARNING otherwise.
+- `routing_drift` follows `routing_drift_strict`: a detected drift is FATAL when strict and WARNING otherwise, and an unexpected failure of the drift check itself follows the same rule (FATAL when strict, WARNING otherwise), so a broken check is never reported as a clean result.
 - `mcp_tool_discovery` failure for a required MCP server (`McpServerConfig.required`) is FATAL and aborts startup; for a non-required server it is WARNING and startup continues with that server's tools disabled (ADR-004).
 
 ### SIGINT/SIGTERM Interruption During Startup Sequence

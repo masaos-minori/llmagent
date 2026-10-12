@@ -1,6 +1,6 @@
 """Tests for routing drift strict mode checks."""
 
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.services.routing_drift import check_routing_drift
@@ -56,6 +56,27 @@ def test_routing_drift_no_drift_returns_empty():
     ctx = _make_ctx(tool_names=["tool_a"])
     msgs = check_routing_drift(ctx, strict=True)
     assert msgs == []
+
+
+def test_routing_drift_unexpected_error_propagates_when_non_strict():
+    ctx = _make_ctx()
+    with patch(
+        "shared.tool_routing_validation.validate_routing_against_config",
+        side_effect=ValueError("boom"),
+    ):
+        with pytest.raises(ValueError, match="boom"):
+            check_routing_drift(ctx, strict=False)
+
+
+def test_routing_drift_unexpected_error_propagates_when_strict():
+    ctx = _make_ctx()
+    with patch(
+        "shared.tool_routing_validation.validate_routing_against_config",
+        side_effect=ValueError("boom"),
+    ):
+        # An unexpected failure must not be disguised as the strict-mode drift error.
+        with pytest.raises(ValueError, match="boom"):
+            check_routing_drift(ctx, strict=True)
 
 
 # --- post-startup health verification sends the Bearer token ---

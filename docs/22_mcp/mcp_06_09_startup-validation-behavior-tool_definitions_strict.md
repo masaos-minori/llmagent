@@ -55,6 +55,7 @@ MCP discovery follows the ADR-004 rule: an unavailable required server aborts st
 **Routing drift, tool-definition mismatch, malformed capabilities:**
 - `strict = true`: FATAL outcome, startup blocked
 - `strict = false`: WARNING outcome, startup continues
+- Unexpected failure of the routing-drift check itself (not a detected drift): `strict = true` gives a FATAL outcome and blocks startup; `strict = false` gives a WARNING outcome and startup continues
 
 `ProductionConfigValidator` rejects `tool_definitions_strict = false` (Explicit in code — scripts/agent/production_config_validator.py `_REQUIRED_STRICT_KEYS`), so the strict-false rows describe the check's own behavior rather than a supported production setting.
 

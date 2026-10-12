@@ -341,6 +341,59 @@ class TestCheckServicesSeverityClassification:
         outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
         assert outcomes == []
 
+    @pytest.mark.asyncio
+    async def test_routing_drift_unexpected_failure_is_fatal_when_strict(self) -> None:
+        """An unexpected failure of the drift check follows routing_drift_strict:
+        an unknown result is not a clean result, so strict mode fails closed."""
+        ctx = _make_startup_ctx()
+        ctx.cfg.tool.routing_drift_strict = True
+        pipeline, exc = await _run_check_services(
+            ctx, check_routing_drift=MagicMock(side_effect=ValueError("boom"))
+        )
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_routing_drift_unexpected_failure_is_warning_when_not_strict(
+        self,
+    ) -> None:
+        ctx = _make_startup_ctx()
+        ctx.cfg.tool.routing_drift_strict = False
+        pipeline, exc = await _run_check_services(
+            ctx, check_routing_drift=MagicMock(side_effect=ValueError("boom"))
+        )
+        assert exc is None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
+        assert len(outcomes) == 1
+        assert outcomes[0].status == StartupCheckStatus.WARNING
+
+    @pytest.mark.asyncio
+    async def test_routing_drift_runtime_error_is_fatal_regardless_of_strict(
+        self,
+    ) -> None:
+        ctx = _make_startup_ctx()
+        ctx.cfg.tool.routing_drift_strict = False
+        pipeline, exc = await _run_check_services(
+            ctx,
+            check_routing_drift=MagicMock(side_effect=RuntimeError("drift detected")),
+        )
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
+    @pytest.mark.asyncio
+    async def test_routing_drift_unreadable_strictness_is_fatal(self) -> None:
+        """When the strictness setting cannot be read, fail closed (treat as strict)."""
+        ctx = _make_startup_ctx()
+        ctx.cfg.tool = MagicMock(spec=[])  # reading routing_drift_strict raises
+        pipeline, exc = await _run_check_services(
+            ctx, check_routing_drift=MagicMock(side_effect=ValueError("boom"))
+        )
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_drift"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
+
     # ── routing_safety_tiers ─────────────────────────────────────────────────
 
     @pytest.mark.asyncio
@@ -367,6 +420,18 @@ class TestCheckServicesSeverityClassification:
         assert exc is None
         outcomes = [o for o in pipeline.outcomes if o.source == "routing_safety_tiers"]
         assert outcomes == []
+
+    @pytest.mark.asyncio
+    async def test_routing_safety_tiers_unexpected_failure_is_fatal(self) -> None:
+        """Safety Tier failures stay Fail-Closed (INV-07), whatever the drift policy."""
+        ctx = _make_startup_ctx()
+        ctx.cfg.tool.routing_drift_strict = False
+        pipeline, exc = await _run_check_services(
+            ctx, check_routing_safety_tiers=MagicMock(side_effect=ValueError("boom"))
+        )
+        assert exc is not None
+        outcomes = [o for o in pipeline.outcomes if o.source == "routing_safety_tiers"]
+        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
 
     # ── routing_drift_live ───────────────────────────────────────────────────
 

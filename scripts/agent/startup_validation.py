@@ -23,6 +23,21 @@ if TYPE_CHECKING:
     from agent.cli_view import CLIView
 
 
+def _record_drift_check_failure(
+    pipeline: StartupValidationResult, exc: Exception, *, strict: bool
+) -> None:
+    """Record an unexpected failure of the routing-drift check itself.
+
+    An unknown result is not a clean result: the failure follows
+    routing_drift_strict, FATAL when strict and a recorded WARNING otherwise.
+    """
+    message = f"Routing drift check failed: {exc}"
+    if strict:
+        pipeline.add_fatal("routing_drift", message)
+    else:
+        pipeline.add_warning("routing_drift", message)
+
+
 class StartupValidationPipeline:
     """Owns the full service-validation pipeline."""
 
@@ -105,15 +120,17 @@ class StartupValidationPipeline:
             )
 
         # 5. Routing drift (static)
+        # Strictness starts as strict so that a failure while reading the setting
+        # fails closed.
+        drift_strict = True
         try:
-            for msg in check_routing_drift(
-                ctx, strict=ctx.cfg.tool.routing_drift_strict
-            ):
+            drift_strict = ctx.cfg.tool.routing_drift_strict
+            for msg in check_routing_drift(ctx, strict=drift_strict):
                 pipeline.add_warning("routing_drift", msg)
         except RuntimeError as exc:
             pipeline.add_fatal("routing_drift", str(exc))
-        except Exception as exc:  # noqa: BLE001 — unexpected routing-drift check failures are downgraded to a warning rather than allowed to abort startup
-            pipeline.add_warning("routing_drift", f"Routing drift check failed: {exc}")
+        except Exception as exc:  # noqa: BLE001 — an unexpected failure of the drift check follows routing_drift_strict (an unknown result is not a clean result), so it must be captured and classified rather than crash startup
+            _record_drift_check_failure(pipeline, exc, strict=drift_strict)
 
         # 5b. Routing safety tiers
         try:
