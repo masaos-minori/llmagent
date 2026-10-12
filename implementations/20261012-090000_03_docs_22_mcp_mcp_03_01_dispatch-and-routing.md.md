@@ -74,10 +74,10 @@ Read only the trial-behavior section; do not reformat or touch unrelated section
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation review only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy not applicable to a doc edit |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261012-111324 | Implementation already present in commit 16e9ac35d; verified via stale_detector (not stale) and 12 passing tests. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261012-111324 | N/A: documentation review only Implementation already present in commit 16e9ac35d; verified via stale_detector (not stale) and 12 passing tests. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261012-111324 | ruff/mypy not applicable to a doc edit Implementation already present in commit 16e9ac35d; verified via stale_detector (not stale) and 12 passing tests. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261012-111324 | Implementation already present in commit 16e9ac35d; verified via stale_detector (not stale) and 12 passing tests. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
