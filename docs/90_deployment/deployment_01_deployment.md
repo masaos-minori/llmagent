@@ -148,6 +148,38 @@ MCP servers automatically start as uvicorn subprocesses according to the `startu
 
 Every enabled `[mcp_servers.*]` entry in `config/agent.toml` holds an `"${ENV:VAR_NAME}"` reference as its `auth_token` rather than a literal secret. Set the corresponding `MCP_<SERVER_KEY_UPPER>_AUTH_TOKEN` environment variable (for example `MCP_SHELL_AUTH_TOKEN`, `MCP_GIT_AUTH_TOKEN`) for every server before starting the agent; an unset variable raises `ValueError` at config-load time (fail-closed). `git_mcp_server.toml` and `cicd_mcp_server.toml` use the same variable value as the corresponding `agent.toml` entry (shared secret between client and server); `web_search_mcp_server.toml`'s `browser_auth_token` is a distinct credential. Changes to authentication, MCP server definitions, or bind addresses take effect only after a full agent restart (not `/reload`). (Explicit in code — `config/agent.toml`, `scripts/shared/config_utils.py`) For setup and troubleshooting, see [`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md).
 
+### 2.5.1 Loading MCP tokens from a .env file
+
+`deploy/start_agent.sh` loads operator secrets from a `.env` file when present, so tokens do not need to be exported manually on every session. The file location depends on the environment:
+
+- Production: `<install-root>/.env` (the production install root used by `deploy/deploy.sh`)
+- Development: `<repo-root>/.env`
+
+The loader reads only simple `KEY=value` lines; comment lines (starting with `#`) and blank lines are ignored, and variables already set in the shell are never overridden. Before launching, the startup script validates that every variable referenced by the deployed configuration (`${ENV:...}` entries in `config/agent.toml` and the per-server `*_mcp_server.toml` files) is set and non-empty. Any missing variable aborts startup with a `[FATAL]` message that lists exactly which variables are unset, instead of producing a deep traceback later.
+
+Create the file with one secret per line. Replace the placeholder values below with real secrets:
+
+```bash
+# <install-root>/.env
+MCP_SHELL_AUTH_TOKEN=
+MCP_GIT_AUTH_TOKEN=
+MCP_WEB_SEARCH_AUTH_TOKEN=
+MCP_FILE_DELETE_AUTH_TOKEN=
+MCP_FILE_WRITE_AUTH_TOKEN=
+MCP_FILE_READ_AUTH_TOKEN=
+MCP_GITHUB_AUTH_TOKEN=
+MCP_CICD_AUTH_TOKEN=
+MCP_RAG_PIPELINE_AUTH_TOKEN=
+MCP_MDQ_AUTH_TOKEN=
+MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN=
+```
+
+`MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` is required in addition to `MCP_WEB_SEARCH_AUTH_TOKEN`: the web-search server validates its `/health` endpoint against `browser_auth_token` (`config/web_search_mcp_server.toml`), which is a distinct credential from the client-facing `auth_token`. See [`mcp_06_14_mcp-authentication-setup.md`](../22_mcp/mcp_06_14_mcp-authentication-setup.md).
+
+Keep the `.env` file out of version control (it is gitignored) and restrict its permissions with `chmod 600`. (Explicit in code — `deploy/start_agent.sh`, `.gitignore`)
+
+> **Known issue:** With the current code, web-search fails its startup health check when `browser_auth_token` differs from the main `auth_token` because they are distinct credentials. Both must still be set; the mismatch itself is fixed at the code level and tracked as [issue mcp004](../../issues/20261012-173750_mcp004_web_search-mcp-server-startup-health-check-fails-due-to-browser_auth_token-mismatch.md).
+
 ---
 
 ## 3. DB Initialization
