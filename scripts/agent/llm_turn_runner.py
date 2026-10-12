@@ -76,6 +76,7 @@ class LLMTurnRunner:
                 f"workflow_id={workflow_id!r}, task_id={task_id!r}, "
                 f"stage_id={stage_id!r}, attempt_id={attempt_id!r}"
             )
+        self.llm_url = llm_url
         ctx = self._ctx
         state = TurnLoopState()
 

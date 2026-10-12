@@ -78,10 +78,10 @@ Production code (`scripts/agent/llm_turn_runner.py` is covered by doc 01), other
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Out of scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261012-154117 | 20261012-154117 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261012-154117 | 20261012-154117 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-154117 | 20261012-154117 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-154117 | 20261012-154117 | Out of scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

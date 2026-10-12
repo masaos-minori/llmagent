@@ -77,12 +77,34 @@ class TestStreamLlmFinalAnswer:
             finish_reason="stop",
         )
         runner._ctx.services_required.llm.stream = AsyncMock(return_value=expected)
+        runner.llm_url = "http://llm"
 
         response = await runner._stream_llm_final_answer()
 
         assert response == expected
         runner._ctx.services_required.llm.stream.assert_awaited_once_with(
             runner.llm_url,
+            runner._ctx.conv.history,
+            [],
+        )
+
+    @pytest.mark.asyncio
+    async def test_streams_final_answer_to_configured_url(
+        self,
+        runner: LLMTurnRunner,
+    ) -> None:
+        runner.llm_url = "http://llm"
+        expected = LLMResponse(
+            message={"role": "assistant", "content": "Final answer"},
+            finish_reason="stop",
+        )
+        runner._ctx.services_required.llm.stream = AsyncMock(return_value=expected)
+
+        response = await runner._stream_llm_final_answer()
+
+        assert response == expected
+        runner._ctx.services_required.llm.stream.assert_awaited_once_with(
+            "http://llm",
             runner._ctx.conv.history,
             [],
         )

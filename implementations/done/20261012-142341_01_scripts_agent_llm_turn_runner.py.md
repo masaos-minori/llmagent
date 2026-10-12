@@ -78,10 +78,10 @@ Revert the single added assignment (`self.llm_url = llm_url`) in `run()`. The re
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Covered by `tests/agent/test_llm_turn_runner.py` (doc 02) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Out of scope |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261012-144632 | 20261012-144632 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261012-144632 | 20261012-144632 | Covered by `tests/agent/test_llm_turn_runner.py` (doc 02) Full suite passed: 26 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-144632 | 20261012-144632 | ruff/mypy/lint-imports/bandit all clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-144632 | 20261012-144632 | Out of scope N/A: no docs/00_index.md task-scope mapping for scripts/agent/llm_turn_runner.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
