@@ -189,15 +189,17 @@ async def nack(
                 raise HTTPException(status_code=409, detail=ERR_EVENT_IN_DLQ)
             raise HTTPException(status_code=409, detail="invalid NACK transition")
         promoted = False
-        # REQ-002: Use per-consumer failure count for DLQ promotion
+        # REQ-002: Use per-consumer failure count for DLQ promotion. ADR-006 INV-13:
+        # promote only when every attempting consumer has exhausted its retries and
+        # none has ACKed, so one consumer's NACKs never promote a shared event.
         consumer_failure_count = nack_result.consumer_failure_count
         if (
             consumer_failure_count is not None
             and consumer_failure_count >= cfg.max_retry
         ):
-            from eventbus.dlq import promote_single  # noqa: PLC0415
+            from eventbus.dlq import is_promotable, promote_single  # noqa: PLC0415
 
-            promoted = promote_single(
+            promoted = is_promotable(db, event_id, cfg.max_retry) and promote_single(
                 db, cfg.deadletter_dir, event_id, consumer_failure_count
             )
         return (

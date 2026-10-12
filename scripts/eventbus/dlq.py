@@ -53,19 +53,45 @@ def _build_dlq_record(
     )
 
 
-def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int) -> int:
-    """Shared promotion logic for sweep and inline paths.
+# ADR-006 INV-13: an event is promotable only when every consumer that has a delivery
+# record for it (created by that consumer's ACK or NACK) has exhausted its retry
+# budget and none of them has ACKed. One parameter: the retry limit. Shared by the
+# sweep query and is_promotable() so the two paths cannot drift apart.
+_PROMOTABLE_CONDITION = (
+    "EXISTS (SELECT 1 FROM consumer_delivery cd WHERE cd.event_id = e.event_id)"
+    " AND NOT EXISTS (SELECT 1 FROM consumer_delivery cd"
+    " WHERE cd.event_id = e.event_id"
+    " AND (cd.acked = 1 OR cd.consumer_delivery_failure_count < ?))"
+)
 
-    REQ-002: Uses per-consumer failure count for DLQ promotion. Promotes events
-    where any consumer has reached the retry threshold.
+
+def is_promotable(db: sqlite3.Connection, event_id: str, max_retry: int) -> bool:
+    """Return True if the event is not yet in the DLQ and meets the promotion rule.
+
+    ADR-006 INV-13: every consumer with a delivery record for the event has reached
+    ``max_retry`` and none has ACKed. An event with no delivery record is never
+    promotable.
+    """
+    row = db.execute(
+        "SELECT 1 FROM events e WHERE e.event_id = ? AND e.dlq_at IS NULL AND "  # nosec B608 — constant SQL fragment, values parameterized
+        + _PROMOTABLE_CONDITION,
+        (event_id, max_retry),
+    ).fetchone()
+    return row is not None
+
+
+def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int) -> int:
+    """Shared promotion logic for the sweep path.
+
+    REQ-002 and ADR-006 INV-13: promotes events where every consumer with a delivery
+    record has reached the retry threshold and none has ACKed.
     """
     now = now_iso()
     rows = db.execute(
-        "SELECT DISTINCT e.seq, e.event_id, e.topic, e.payload, e.producer, e.published_at,"
+        "SELECT e.seq, e.event_id, e.topic, e.payload, e.producer, e.published_at,"  # nosec B608 — constant SQL fragment, values parameterized
         " e.delivery_failure_count, e.cycle_failure_count"
         " FROM events e"
-        " JOIN consumer_delivery cd ON e.event_id = cd.event_id"
-        " WHERE cd.consumer_delivery_failure_count >= ? AND e.dlq_at IS NULL",
+        " WHERE e.dlq_at IS NULL AND " + _PROMOTABLE_CONDITION,
         (max_retry,),
     ).fetchall()
 
@@ -139,7 +165,7 @@ def sweep_orphans(
     deadletter_dir: str,
     max_retry: int,
 ) -> int:
-    """Sweep events that reached retry limit but were not promoted inline.
+    """Sweep events that meet the promotion rule but were not promoted inline.
 
     This is a safety-net sweep only. Under normal operation (inline promotion via
     the nack endpoint working correctly), this returns 0.

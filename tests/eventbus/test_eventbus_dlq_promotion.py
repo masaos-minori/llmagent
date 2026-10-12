@@ -111,7 +111,8 @@ class TestDLQPROMotionSemantics:
         # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
+            # The consumer exhausted its retries without ACKing (ADR-006 INV-13).
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 0)",
             ("consumer-A", body["event_id"]),
         )
         db.execute(
@@ -142,7 +143,8 @@ class TestDLQPROMotionSemantics:
         # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
+            # The consumer exhausted its retries without ACKing (ADR-006 INV-13).
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 0)",
             ("consumer-A", body["event_id"]),
         )
         db.execute(
@@ -173,7 +175,8 @@ class TestDLQPROMotionSemantics:
         # Simulate delivery to consumer-A and set consumer_delivery_failure_count to max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         db.execute(
-            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 1)",
+            # The consumer exhausted its retries without ACKing (ADR-006 INV-13).
+            "INSERT INTO consumer_delivery (consumer_id, event_id, acked) VALUES (?, ?, 0)",
             ("consumer-A", body["event_id"]),
         )
         db.execute(
@@ -251,3 +254,140 @@ class TestDLQPROMotionSemantics:
 
         dlq_file_2 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_2.exists()
+
+
+def _seed_delivery(
+    db: Any, consumer_id: str, event_id: str, acked: int, failure_count: int
+) -> None:
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, acked, consumer_last_nack_attempt, consumer_delivery_failure_count) "
+        "VALUES (?, ?, ?, 'seeded-attempt', ?)",
+        (consumer_id, event_id, acked, failure_count),
+    )
+    db.commit()
+
+
+class TestMultiConsumerPromotion:
+    """ADR-006 INV-13: promote only when every attempting consumer has exhausted its
+    retries and none has ACKed."""
+
+    def _publish(self, client: TestClient) -> str:
+        body = _event("dlq_multi")
+        assert client.post("/publish", json=body).status_code == 200
+        return str(body["event_id"])
+
+    def test_sweep_does_not_promote_when_other_consumer_below_limit(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        from eventbus.db import open_db
+        from eventbus.dlq import sweep_orphans
+
+        event_id = self._publish(client)
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        _seed_delivery(db, "consumer-A", event_id, 0, 2)
+        _seed_delivery(db, "consumer-B", event_id, 0, 1)
+
+        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+        assert not (tmp_path / "deadletter" / f"{event_id}.json").exists()
+        assert _get_field(client, event_id, "dlq_at") is None
+
+    def test_sweep_does_not_promote_when_other_consumer_acked(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        from eventbus.db import open_db
+        from eventbus.dlq import sweep_orphans
+
+        event_id = self._publish(client)
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        _seed_delivery(db, "consumer-A", event_id, 0, 2)
+        _seed_delivery(db, "consumer-B", event_id, 1, 0)
+
+        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+        assert _get_field(client, event_id, "dlq_at") is None
+
+    def test_sweep_promotes_when_all_consumers_exhausted(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        from eventbus.db import open_db
+        from eventbus.dlq import sweep_orphans
+
+        event_id = self._publish(client)
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+        _seed_delivery(db, "consumer-A", event_id, 0, 2)
+        _seed_delivery(db, "consumer-B", event_id, 0, 3)
+
+        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 1
+        assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
+        assert _get_field(client, event_id, "dlq_at") is not None
+
+    def test_sweep_ignores_event_without_delivery_rows(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        from eventbus.db import open_db
+        from eventbus.dlq import sweep_orphans
+
+        event_id = self._publish(client)
+        db = open_db(str(tmp_path / "eventbus.sqlite"))
+
+        assert sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2) == 0
+        assert _get_field(client, event_id, "dlq_at") is None
+
+    def test_inline_does_not_promote_when_other_consumer_below_limit(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        import eventbus.app as eb_app
+
+        event_id = self._publish(client)
+        db = eb_app.app.state.db
+        _seed_delivery(db, "consumer-A", event_id, 0, 1)
+        _seed_delivery(db, "consumer-B", event_id, 0, 1)
+
+        # consumer-A reaches the limit, consumer-B is still below it.
+        resp = client.post(
+            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+        )
+        assert resp.status_code == 200
+        assert "dlq_promoted" not in resp.json()
+        assert _get_field(client, event_id, "dlq_at") is None
+
+    def test_inline_does_not_promote_when_other_consumer_acked(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        import eventbus.app as eb_app
+
+        event_id = self._publish(client)
+        db = eb_app.app.state.db
+        _seed_delivery(db, "consumer-A", event_id, 0, 1)
+        _seed_delivery(db, "consumer-B", event_id, 1, 0)
+
+        resp = client.post(
+            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+        )
+        assert resp.status_code == 200
+        assert "dlq_promoted" not in resp.json()
+        assert _get_field(client, event_id, "dlq_at") is None
+
+    def test_inline_promotes_when_last_consumer_reaches_limit(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        import eventbus.app as eb_app
+
+        event_id = self._publish(client)
+        db = eb_app.app.state.db
+        _seed_delivery(db, "consumer-A", event_id, 0, 1)
+        _seed_delivery(db, "consumer-B", event_id, 0, 1)
+
+        first = client.post(
+            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+        )
+        assert first.status_code == 200
+        assert "dlq_promoted" not in first.json()
+
+        last = client.post(
+            "/nack", params={"event_id": event_id, "consumer_id": "consumer-B"}
+        )
+        assert last.status_code == 200
+        assert last.json().get("dlq_promoted") is True
+        assert (tmp_path / "deadletter" / f"{event_id}.json").exists()
+        assert _get_field(client, event_id, "dlq_at") is not None
