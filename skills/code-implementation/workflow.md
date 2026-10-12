@@ -400,6 +400,14 @@ only and does not apply to this workflow at all.
   (redundantly, since this Step's own pre-check above already confirmed it) a
   `Pending` row remains. Fall back to the direct command below only if the tool is
   unavailable.
+- In Multi-file processing (a batch of more than one target file), add `--stage-only`
+  (`close-implementation implementations/{filename}.md --stage-only`): the uncommitted
+  procedure file is staged instead of committed, so the archival rename lands in the
+  same commit as the cycle's code/test/doc changes and the batch does not leave one
+  `chore: auto-commit ...` commit per file. The staged rename is part of this batch's
+  work — leave it staged and include it when the change is committed
+  (`skills/git-commit-and-sync/workflow.md` Phase 2). A single-file cycle may keep the
+  default auto-commit.
 - Direct command (fallback): `git mv implementations/{filename}.md
   implementations/done/{filename}.md`. Do not use `mv`, `cp` + `rm`, or any other
   fallback beyond these two.
