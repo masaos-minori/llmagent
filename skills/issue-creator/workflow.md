@@ -98,9 +98,17 @@ solution space (compatibility, performance, security, operational). Use
 **Dependencies** — other issues, plans, or external work this issue depends on, or
 that depend on it. Use `N/A: none` if there are none.
 
+**Sibling-issue check** — before filling Dependencies, list the open issues under `issues/`
+(not `issues/done/`) that touch the same files, tests, or failure group (e.g. several
+issues split from one red test run). Record each as a Dependency with the fix order. When a
+sibling's fix may remove this issue's cause, state in `Background` that this issue must be
+re-verified against current source after the sibling is resolved. Do not file an issue whose
+problem a sibling already fully covers.
+
 **Completed when**: Target Files or Areas, Required Changes, Constraints, Out of
 Scope, and Dependencies are each filled or explicitly marked `N/A`/`Unknown` per the
-template's convention.
+template's convention, and the sibling-issue check is recorded in Dependencies (or
+Dependencies is `N/A: none` because no open issue overlaps).
 
 ---
 
