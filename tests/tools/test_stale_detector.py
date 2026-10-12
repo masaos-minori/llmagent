@@ -786,3 +786,119 @@ class TestFromProcedureFalsePositives:
         result = StaleResult.from_procedure(proc, source_dir=tmp_path)
         missing = [m for m in result.mismatches if m["type"] == "symbol_missing"]
         assert len(missing) == 3
+
+
+class TestFromProcedureDeclaredNewTarget:
+    """A target path followed by (new) is declared as created by the procedure."""
+
+    NEW_TARGET = "tools/brand_new_mod.py"
+    EXISTING_TARGET = "tools/existing_mod.py"
+
+    @staticmethod
+    def _write_case(tmp_path: Path, target_line: str, body: str = "") -> Path:
+        existing = tmp_path / "tools" / "existing_mod.py"
+        existing.parent.mkdir(parents=True)
+        existing.write_text(
+            "def existing_function():\n    return 1\n", encoding="utf-8"
+        )
+        proc = tmp_path / "procedure.md"
+        proc.write_text(
+            f"## Implementation\n### Target file\n{target_line}\n\n{body}",
+            encoding="utf-8",
+        )
+        return proc
+
+    @staticmethod
+    def _types(result: StaleResult) -> list[str]:
+        return [m["type"] for m in result.mismatches]
+
+    def test_declared_new_target_in_existing_directory_is_clean(
+        self, tmp_path: Path
+    ) -> None:
+        proc = self._write_case(
+            tmp_path, f"`{self.NEW_TARGET}` (new)", "### Procedure\n1. Create it.\n"
+        )
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert result.is_stale is False
+
+    def test_unmarked_absent_target_is_still_source_missing(
+        self, tmp_path: Path
+    ) -> None:
+        proc = self._write_case(
+            tmp_path, f"`{self.NEW_TARGET}`", "### Procedure\n1. Create it.\n"
+        )
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert self._types(result) == ["source_missing"]
+
+    def test_declared_new_target_with_missing_directory_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        proc = self._write_case(tmp_path, "`no_such_dir/brand_new_mod.py` (new)")
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert self._types(result) == ["new_target_dir_missing"]
+
+    def test_declared_new_target_that_already_exists_is_reported(
+        self, tmp_path: Path
+    ) -> None:
+        proc = self._write_case(tmp_path, f"`{self.EXISTING_TARGET}` (new)")
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert self._types(result) == ["new_target_exists"]
+
+    def test_declared_new_target_checks_symbols(self, tmp_path: Path) -> None:
+        proc = self._write_case(
+            tmp_path,
+            f"`{self.NEW_TARGET}` (new)",
+            "### Procedure\n"
+            "- Reuse `existing_function` from the other module.\n"
+            "- Call `never_defined_anywhere`.\n"
+            "- Add `created_by_this_procedure` (new).\n",
+        )
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert self._types(result) == ["symbol_missing"]
+        assert "never_defined_anywhere" in result.mismatches[0]["detail"]
+
+    def test_declared_new_target_reports_before_block(self, tmp_path: Path) -> None:
+        proc = self._write_case(
+            tmp_path,
+            f"`{self.NEW_TARGET}` (new)",
+            "### Procedure\n# Before:\n    old_line = 1\n# After:\n    new_line = 2\n",
+        )
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert "before_block_missing" in self._types(result)
+
+    def test_declared_new_target_skips_unscoped_line_citations(
+        self, tmp_path: Path
+    ) -> None:
+        proc = self._write_case(
+            tmp_path,
+            f"`{self.NEW_TARGET}` (new)",
+            "### Procedure\n- Mirror line 40 of the old layout.\n",
+        )
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert result.is_stale is False
+
+    def test_declared_new_target_still_checks_scoped_line_citations(
+        self, tmp_path: Path
+    ) -> None:
+        in_range = self._write_case(
+            tmp_path,
+            f"`{self.NEW_TARGET}` (new)",
+            f"### Procedure\n- See line 2 of `{self.EXISTING_TARGET}`.\n",
+        )
+        assert (
+            StaleResult.from_procedure(in_range, source_dir=tmp_path).is_stale is False
+        )
+        in_range.write_text(
+            in_range.read_text(encoding="utf-8").replace("line 2", "line 50"),
+            encoding="utf-8",
+        )
+        result = StaleResult.from_procedure(in_range, source_dir=tmp_path)
+        assert self._types(result) == ["line_out_of_bounds"]
+        assert self.EXISTING_TARGET in result.mismatches[0]["detail"]
+
+    def test_marker_is_not_part_of_the_reported_target_path(
+        self, tmp_path: Path
+    ) -> None:
+        proc = self._write_case(tmp_path, f"`{self.NEW_TARGET}` (new)")
+        result = StaleResult.from_procedure(proc, source_dir=tmp_path)
+        assert result.target_file == self.NEW_TARGET

@@ -190,6 +190,12 @@ backticked name is declared as created by the procedure and is not checked again
 current source (see the notes in `templates/implementation-procedure.md`); an unmarked
 name that does not exist is still a mismatch and aborts the procedure as before.
 
+A target file written with the word (new) after its backticked path is declared as
+created by the procedure: the detector skips the existence check, requires the containing
+directory to exist, reports a file that already exists, checks symbols, imports and code
+blocks against an empty file, and skips line citations that resolve to it. An unmarked
+target that does not exist is still a mismatch and aborts the procedure.
+
 If the stale detector reports any mismatch:
 - Abort execution immediately — do not proceed to Step 3.
 - Report the findings to the user: list each stale reference type and detail

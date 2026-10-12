@@ -102,6 +102,11 @@ to the item.
   instructions for more than one file. If implementing this item turns out to require
   modifying a second file, that is an additional-target-file discovery, not something
   to add here — see `skills/plan-to-implementation-procedure/workflow.md` Step 3.
+- **Target file that this document creates** — write the word (new) in parentheses after
+  the backticked path in "Target file". `tools/stale_detector.py` then skips the
+  existence check for that file, requires its containing directory to exist, reports a
+  file that already exists, and skips line citations that resolve to it. A target that
+  does not exist and is not marked is reported as stale.
 - For "Design decisions" / "Alternatives considered" / "Compatibility considerations" /
   "Security considerations" / "Rollback considerations", apply
   `skills/python-design/SKILL.md` + `skills/python-design/workflow.md` for how to

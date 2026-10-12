@@ -15,6 +15,10 @@ An import is recognized only as a statement at the start of a line (after an
 optional list marker and backtick); a sentence that merely mentions an import is
 not a citation. A symbol or import statement written followed by the marker
 (new) is declared by the procedure as something it creates and is not checked.
+A target path followed by (new) in the Target file section declares the file as
+created by the procedure: the existence check is skipped, the containing directory
+must exist, a file that already exists is reported, and line citations that resolve
+to that target are skipped.
 
 Design decisions:
 - Report all failures in a single pass; this is simpler and provides more
@@ -361,8 +365,10 @@ class StaleResult:
 
         # Extract target file path from the "### Target file" section
         target_match = _TARGET_FILE_SECTION_RE.search(text)
+        declared_new = False
         if target_match:
             result.target_file = target_match.group(1)
+            declared_new = _is_marked_new(text, target_match.end())
         else:
             # Fallback: try to find any backtick-quoted path starting with "/"
             target_matches = _TARGET_FILE_RE.findall(text)
@@ -382,20 +388,30 @@ class StaleResult:
             source_dir = Path(source_dir)
 
         source_path = source_dir / result.target_file.lstrip("/")
-        if not source_path.exists():
+        if declared_new:
+            if not _new_target_acceptable(result, source_path):
+                return result
+            source_content = ""
+        elif not source_path.exists():
             result.add_mismatch(
                 "source_missing",
                 f"Source file does not exist: {result.target_file}",
             )
             return result
-
-        source_content = source_path.read_text(encoding="utf-8")
+        else:
+            source_content = source_path.read_text(encoding="utf-8")
         source_lines = source_content.split("\n")
         file_cache: dict[str, str | None] = {}
 
         # Check line number references
         _check_line_refs(
-            result, text, source_lines, source_dir, result.target_file, file_cache
+            result,
+            text,
+            source_lines,
+            source_dir,
+            result.target_file,
+            file_cache,
+            skip_unscoped=declared_new,
         )
 
         # Check symbol references
@@ -412,6 +428,27 @@ class StaleResult:
         return result
 
 
+def _new_target_acceptable(result: StaleResult, source_path: Path) -> bool:
+    """Validate a target declared new; record a mismatch and return False if not.
+
+    The containing directory must exist, and the file itself must not: a file the
+    procedure says it creates that is already present contradicts its premise.
+    """
+    if not source_path.parent.is_dir():
+        result.add_mismatch(
+            "new_target_dir_missing",
+            f"Directory for new target file does not exist: {source_path.parent}",
+        )
+        return False
+    if source_path.exists():
+        result.add_mismatch(
+            "new_target_exists",
+            f"Target file declared new already exists: {result.target_file}",
+        )
+        return False
+    return True
+
+
 def _check_line_refs(
     result: StaleResult,
     proc_text: str,
@@ -419,6 +456,8 @@ def _check_line_refs(
     source_dir: Path,
     target_file: str,
     file_cache: dict[str, str | None],
+    *,
+    skip_unscoped: bool = False,
 ) -> None:
     """Check whether cited line ranges still exist in the source file.
 
@@ -428,6 +467,8 @@ def _check_line_refs(
     _find_scoped_path(), validate against that file's line count instead
     of the target file's. If the scoped file cannot be loaded, skip the
     citation (prevents false positives when the scoped file is inaccessible).
+    With skip_unscoped (a target declared new has no lines yet), a citation with no
+    scoped path is skipped instead of being checked against the target.
     """
     for match in _LINE_REF_RE.finditer(proc_text):
         start = int(match.group(1))  # Keep 1-indexed for comparison
@@ -437,6 +478,8 @@ def _check_line_refs(
         lines_to_check = source_lines
         label = "source file"
         scoped_path = _find_scoped_path(proc_text, match.start(), target_file)
+        if scoped_path is None and skip_unscoped:
+            continue
         if scoped_path is not None:
             scoped_content = _load_scoped_source(source_dir, scoped_path, file_cache)
             if scoped_content is not None:
