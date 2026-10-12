@@ -44,7 +44,11 @@ from agent.repository_gateway import RepositoryGateway
 from agent.services.models import ProcessInfoSnapshot
 
 if TYPE_CHECKING:
+    from agent.memory.embedding_client import EmbeddingClient
+    from agent.memory.jsonl_store import JsonlMemoryStore
+    from agent.memory.retriever import HybridRetriever
     from agent.memory.services import MemoryServices
+    from agent.memory.store import MemoryStore
 
 T = TypeVar("T")
 
@@ -561,9 +565,9 @@ def _build_memory_services(
 def _build_embedding_client(
     ctx: AgentContext,
     http: httpx.AsyncClient,
-    client_cls: type,
+    client_cls: type[EmbeddingClient],
     config_cls: type,
-) -> object:
+) -> EmbeddingClient:
     """Build and return the embedding client instance."""
     cfg = config_cls(
         embed_url=build_embed_url(ctx.cfg.rag.embed_url),
@@ -574,7 +578,7 @@ def _build_embedding_client(
 
 
 def _build_retriever[T](
-    ctx: AgentContext, retriever_cls: type[T], *, embed_client: object = None
+    ctx: AgentContext, retriever_cls: type[T], *, embed_client: EmbeddingClient
 ) -> T:
     """Build and return the hybrid retriever instance."""
     ctor = cast("Callable[..., T]", retriever_cls)
@@ -586,14 +590,16 @@ def _build_retriever[T](
     )
 
 
-def _build_jsonl_store(ctx: AgentContext, jsonl_cls: type) -> object:
+def _build_jsonl_store(
+    ctx: AgentContext, jsonl_cls: type[JsonlMemoryStore]
+) -> JsonlMemoryStore:
     """Build and return the JSONL memory store instance."""
     return jsonl_cls(Path(ctx.cfg.memory.memory_jsonl_dir) / "memories.jsonl")
 
 
 def _build_injection_service[T](
-    embed_client: object,
-    retriever: object,
+    embed_client: EmbeddingClient,
+    retriever: HybridRetriever,
     ctx: AgentContext,
     policy_cls: type,
     service_cls: type[T],
@@ -615,10 +621,10 @@ def _build_injection_service[T](
 
 
 def _build_ingestion_service[T](
-    store: object,
-    jsonl: object,
-    retriever: object,
-    embed_client: object,
+    store: MemoryStore,
+    jsonl: JsonlMemoryStore,
+    retriever: HybridRetriever,
+    embed_client: EmbeddingClient,
     ctx: AgentContext,
     dedup_cls: type,
     service_cls: type[T],
