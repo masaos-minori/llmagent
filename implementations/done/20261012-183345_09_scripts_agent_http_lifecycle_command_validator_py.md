@@ -84,10 +84,10 @@ Add the allowed-binary-directory rule to `validate` and expose it through a priv
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the allowed-binary-directory rule to `validate` | Pending | — | — | security-critical |
-| 2 | Add accept/reject cases to `tests/agent/test_http_lifecycle_command_validator.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add the allowed-binary-directory rule to `validate` | Completed | 20261012-183345 | 20261013-100326 | security-critical |
+| 2 | Add accept/reject cases to `tests/agent/test_http_lifecycle_command_validator.py` | Completed | 20261012-183345 | 20261013-100326 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-183345 | 20261013-100326 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-183345 | 20261013-100326 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

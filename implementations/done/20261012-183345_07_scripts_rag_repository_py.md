@@ -70,10 +70,10 @@ Replace the `dict="core"` literal at the `Dictionary` call site with the resolve
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Pass the resolved dictionary to `_SudachiTokenizer` | Pending | — | — | |
-| 2 | Update `tests/rag/test_rag_repository.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Pass the resolved dictionary to `_SudachiTokenizer` | Completed | 20261012-183345 | 20261013-100326 |  |
+| 2 | Update `tests/rag/test_rag_repository.py` | Completed | 20261012-183345 | 20261013-100326 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-183345 | 20261013-100326 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-183345 | 20261013-100326 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

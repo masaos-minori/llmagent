@@ -72,10 +72,10 @@ In `ConfigLoader.__init__`, replace the `__file__`-based default-directory compu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Make `ConfigLoader` delegate the default dir to the resolver | Completed | 20261013-110807 | 20261013-110807 |  |
-| 2 | Update `tests/shared/test_config_loader.py` | Completed | 20261013-110807 | 20261013-110807 |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261013-110807 | 20261013-110807 |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261013-110807 | 20261013-110807 | N/A |
+| 1 | Make `ConfigLoader` delegate the default dir to the resolver | Completed | 20261012-183345 | 20261013-100326 |  |
+| 2 | Update `tests/shared/test_config_loader.py` | Completed | 20261012-183345 | 20261013-100326 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-183345 | 20261013-100326 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-183345 | 20261013-100326 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

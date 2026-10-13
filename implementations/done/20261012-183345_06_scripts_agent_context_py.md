@@ -69,10 +69,10 @@ Replace the `__file__`-based `config_dir` construction in the error branch with 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route the error-path config dir through the resolver | Pending | — | — | |
-| 2 | Update `tests/agent/test_config_builders.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Route the error-path config dir through the resolver | Completed | 20261012-183345 | 20261013-100326 |  |
+| 2 | Update `tests/agent/test_config_builders.py` | Completed | 20261012-183345 | 20261013-100326 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-183345 | 20261013-100326 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-183345 | 20261013-100326 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

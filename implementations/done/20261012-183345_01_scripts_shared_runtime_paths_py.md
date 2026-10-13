@@ -78,10 +78,10 @@ Define (new) `resolve_config_dir(config_dir: str | None = None) -> Path` and (ne
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `scripts/shared/runtime_paths.py` with both resolvers | Completed | 20261013-110807 | 20261013-110807 |  |
-| 2 | Add unit tests in `tests/shared/test_runtime_paths.py` | Completed | 20261013-110807 | 20261013-110807 |  |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261013-110807 | 20261013-110807 |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261013-110807 | 20261013-110807 | N/A: no doc row in this pass |
+| 1 | Create `scripts/shared/runtime_paths.py` with both resolvers | Completed | 20261012-183345 | 20261013-100326 |  |
+| 2 | Add unit tests in `tests/shared/test_runtime_paths.py` | Completed | 20261012-183345 | 20261013-100326 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012-183345 | 20261013-100326 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-183345 | 20261013-100326 | N/A: no doc row in this pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
