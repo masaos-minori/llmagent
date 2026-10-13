@@ -666,3 +666,61 @@ class TestProcessFileEndToEnd:
             assert payload["content"]
             reassembled += payload["content"]
         assert "日本語" in reassembled
+
+
+# ── ChunkSplitter dictionary resolver wiring (REQ-003) ───────────────────────
+
+
+class TestSudachiResolverWiring:
+    def test_init_passes_resolver_arg_to_dictionary(
+        self, monkeypatch, tmp_path
+    ) -> None:
+        """ChunkSplitter builds Dictionary with the resolver's dict argument."""
+        from pathlib import Path
+        from unittest.mock import MagicMock
+
+        import rag.ingestion.chunk_splitter as cs_mod
+
+        sentinel = Path("/tmp/sentinel-sudachi.dic")
+        monkeypatch.setattr(cs_mod, "resolve_sudachi_dict_path", lambda: sentinel)
+        mock_dictionary = MagicMock(name="Dictionary")
+        monkeypatch.setattr("sudachipy.dictionary.Dictionary", mock_dictionary)
+
+        ChunkSplitter(
+            config={
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": 10,
+                "max_chunk": 1000,
+                "en_stopwords": [],
+                "ja_stop_pos": [],
+            }
+        )
+
+        # The resolver's return value is forwarded verbatim to Dictionary(dict=...).
+        mock_dictionary.assert_called_once_with(dict=sentinel)
+
+    def test_init_default_core_when_unset_uncompiled(
+        self, monkeypatch, tmp_path
+    ) -> None:
+        """With LLMAGENT_SUDACHI_DICT unset and uncompiled, Dictionary gets "core"."""
+        from unittest.mock import MagicMock
+
+        import rag.ingestion.chunk_splitter as cs_mod
+
+        monkeypatch.delenv("LLMAGENT_SUDACHI_DICT", raising=False)
+        monkeypatch.delattr(cs_mod, "__compiled__", raising=False)
+
+        mock_dictionary = MagicMock(name="Dictionary")
+        monkeypatch.setattr("sudachipy.dictionary.Dictionary", mock_dictionary)
+
+        ChunkSplitter(
+            config={
+                "rag_src_dir": str(tmp_path),
+                "min_chunk": 10,
+                "max_chunk": 1000,
+                "en_stopwords": [],
+                "ja_stop_pos": [],
+            }
+        )
+
+        mock_dictionary.assert_called_once_with(dict="core")

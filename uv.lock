@@ -2,9 +2,9 @@ version = 1
 revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
-    "python_full_version < '3.14'",
-    "python_full_version == '3.14.*'",
     "python_full_version >= '3.15'",
+    "python_full_version == '3.14.*'",
+    "python_full_version < '3.14'",
 ]
 
 [[package]]
@@ -1864,6 +1864,7 @@ dependencies = [
     { name = "prometheus-client" },
     { name = "pydantic" },
     { name = "pygithub" },
+    { name = "pyyaml" },
     { name = "sudachidict-core" },
     { name = "sudachipy" },
     { name = "trafilatura" },
@@ -1937,6 +1938,7 @@ requires-dist = [
     { name = "prometheus-client", specifier = ">=0.20" },
     { name = "pydantic", specifier = ">=2.7" },
     { name = "pygithub", specifier = ">=2.3" },
+    { name = "pyyaml", specifier = ">=6.0" },
     { name = "sudachidict-core", specifier = ">=20240409" },
     { name = "sudachipy", specifier = ">=0.6" },
     { name = "trafilatura", specifier = ">=1.9" },

@@ -17,6 +17,7 @@ import time
 from typing import Any
 
 from db.helper import SQLiteHelper
+from shared.runtime_paths import resolve_sudachi_dict_path
 from shared.types import (
     MergedHit,
     RagHit,  # noqa: F401 — imported for use in this module
@@ -52,7 +53,7 @@ class _SudachiTokenizer:
                 tokenizer as _sd_tok,
             )
 
-            d = _sd_dict.Dictionary(dict="core")
+            d = _sd_dict.Dictionary(dict=resolve_sudachi_dict_path())
             self._tkn = d.create()
             self._mode = _sd_tok.Tokenizer.SplitMode.C
 

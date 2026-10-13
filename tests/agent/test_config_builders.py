@@ -597,3 +597,32 @@ class TestBusinessRuleValidations:
         }
         result = _build_approval_config(cfg)
         assert result.tool_safety_tiers == cfg["tool_safety_tiers"]
+
+
+# ── Resolver wiring + PyYAML dependency (REQ-002 / REQ-005) ───────────────────
+
+
+class TestResolvedConfigDir:
+    """REQ-002: resolved_config_dir() delegates to the shared resolver."""
+
+    def test_resolved_config_dir_is_resolver_derived(self) -> None:
+        """resolved_config_dir() returns resolve_config_dir() (no stale scripts/config)."""
+        from pathlib import Path
+
+        from agent.config_builders import resolved_config_dir
+        from shared.runtime_paths import resolve_config_dir
+
+        resolved = resolved_config_dir()
+        assert resolved == resolve_config_dir()
+        assert isinstance(resolved, Path)
+
+
+class TestPyYAMLImport:
+    """REQ-005: PyYAML is a declared dependency and importable."""
+
+    def test_import_yaml_resolves(self) -> None:
+        """import yaml resolves (PyYAML>=6.0 is a direct dependency of llmagent)."""
+        import yaml
+
+        assert hasattr(yaml, "safe_load")
+        assert hasattr(yaml, "dump")

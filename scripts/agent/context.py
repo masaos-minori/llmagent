@@ -25,11 +25,11 @@ from __future__ import annotations
 import asyncio
 import logging
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING, Any, cast
 
 from shared.config_loader import ConfigLoader
 from shared.mcp_config import McpServerHealthRegistry
+from shared.runtime_paths import resolve_config_dir
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.types import LLMMessage
 
@@ -318,7 +318,7 @@ class AgentContext:
         try:
             self.cfg = build_agent_config()
         except Exception as e:  # noqa: BLE001 — any config-load failure must be wrapped into one RuntimeError with context
-            config_dir = Path(__file__).resolve().parent.parent.parent / "config"
+            config_dir = resolve_config_dir()
             raise RuntimeError(
                 f"Failed to load agent config ({config_dir}): {e.__class__.__name__}: {e}"
             )

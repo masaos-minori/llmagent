@@ -14,6 +14,8 @@ import logging
 import os
 import re
 import shutil
+import stat
+from pathlib import Path
 
 from shared.mcp_config import _ENV_KEY_DENYLIST
 
@@ -37,6 +39,8 @@ class CommandValidator:
         {"PATH", "PYTHONPATH", "LD_LIBRARY_PATH", "HOME", "USER"}
     )
 
+    _DEFAULT_ALLOWED_BINARY_DIR: str = "/opt/llm/bin"
+
     def __init__(
         self,
         *,
@@ -49,11 +53,13 @@ class CommandValidator:
     def validate(self, server_key: str, cmd_name: str) -> str:
         """Validate and resolve a command name to an absolute executable path.
 
-        Performs four security checks in order:
+        Performs five security checks in order:
         1. Resolve via shutil.which (PATH lookup)
         2. Resolve symlinks via os.path.realpath
         3. Verify resolved path exists and is a regular file
-        4. Check basename against allowlist
+        4. Check basename against allowlist OR resolved path inside the allowed
+           binary directory (regular file, exact real-path parent, not
+           group/world-writable)
 
         Raises HttpStartupError with a descriptive StartupFailure on any failure.
         Returns the resolved absolute path on success.
@@ -82,12 +88,14 @@ class CommandValidator:
                 )
             )
 
-        # Check 4: Allowlist verification using basename
+        # Check 4: Allowlist OR allowed-binary-directory rule. Reject only when
+        # the command is outside BOTH controls; the directory branch is additive
+        # and never weakens the existing basename allowlist.
         base_name = os.path.basename(cmd_path)
-        if (
-            base_name not in self._allowed_commands
-            and not _INTERPRETER_BASENAME_RE.fullmatch(base_name)
-        ):
+        in_allowlist = base_name in self._allowed_commands or bool(
+            _INTERPRETER_BASENAME_RE.fullmatch(base_name)
+        )
+        if not in_allowlist and not self._inside_allowed_binary_dir(cmd_path):
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,
@@ -100,6 +108,28 @@ class CommandValidator:
             )
 
         return cmd_path
+
+    def _allowed_binary_dir(self) -> str:
+        """Return the allowed binary directory, overridable via LLMAGENT_BINARY_DIR."""
+        return os.environ.get("LLMAGENT_BINARY_DIR") or self._DEFAULT_ALLOWED_BINARY_DIR
+
+    def _inside_allowed_binary_dir(self, cmd_path: str) -> bool:
+        """True if cmd_path is a regular file directly inside the allowed binary dir.
+
+        Requires an exact realpath parent match (no subdirectories), a regular
+        file (a symlink planted in the dir pointing elsewhere fails the isfile
+        and parent checks), and a directory that is neither group- nor
+        world-writable.
+        """
+        allowed = os.path.realpath(self._allowed_binary_dir())
+        if not os.path.isfile(cmd_path):
+            return False
+        if Path(os.path.realpath(cmd_path)).parent != Path(allowed):
+            return False
+        # Directory writability, not the file's: the control is that untrusted
+        # users cannot drop binaries into the allowed directory.
+        mode = os.stat(allowed).st_mode
+        return (mode & (stat.S_IWGRP | stat.S_IWOTH)) == 0
 
     def filter_env(self, env: dict[str, str] | None) -> dict[str, str] | None:
         """Filter environment variables, blocking protected ones.

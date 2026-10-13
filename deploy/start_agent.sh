@@ -177,10 +177,16 @@ if ! PYTHONPATH="${PYTHONPATH}" UV_SYSTEM_CERTS=true uv run python -m agent.work
     exit 1
 fi
 
+# ── リゾルバー入力 (コンパイル済みバイナリ用) ────────────────────────────────────────────────────────────
+# 外部 config ディレクトリと Sudachi 辞書を明示指定。缺失時は resolver がパス名を
+# 添えて fail-fast する (AC-01, AC-05)。
+export LLMAGENT_CONFIG_DIR="${DEPLOY_CONFIG}"
+export LLMAGENT_SUDACHI_DICT="/opt/llm/dict/system.dic"
+
 # ── AgentREPL 起動 ────────────────────────────────────────────────────────────
 echo ""
 echo "=== AgentREPL 起動中 ==="
 echo "Ctrl+C で停止"
 echo ""
 
-PYTHONPATH="${PYTHONPATH}" UV_SYSTEM_CERTS=true uv run python -m agent.repl
+UV_SYSTEM_CERTS=true /opt/llm/bin/agent

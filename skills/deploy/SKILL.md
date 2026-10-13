@@ -22,6 +22,22 @@ For environment details (paths, service names, ports): see `rules/env.md`.
 | `deploy/deploy.sh` | Copy `scripts/` and `config/` to `/opt/llm/` | Every code or config change |
 | `deploy/init_db.sh` | Initialize SQLite schema via `create_schema.py` | First run only (idempotent but skip if DB exists) |
 | `deploy/setup_services.sh` | Start services (subprocess management) | First run only |
+| `deploy/build_binaries.sh` | Build the 11 Nuitka `--onefile` binaries into `/opt/llm/bin/` | Once per release, on the build host |
+
+## Binary layout
+
+On the deployed host the compiled artifacts live under `/opt/llm/`:
+
+- `/opt/llm/bin/` holds the 11 Nuitka `--onefile` binaries (`agent` plus one `mcp_<server>` per MCP server). It must not be group/world-writable; the CommandValidator rejects binaries under a writable directory.
+- `/opt/llm/dict/system.dic` is the external Sudachi dictionary (built by `deploy/build_binaries.sh`, placed by `deploy/deploy.sh`).
+- `config/` stays external (copied by `deploy/deploy.sh`).
+
+The agent binary resolves these via two environment variables:
+
+- `LLMAGENT_CONFIG_DIR=/opt/llm/config`
+- `LLMAGENT_SUDACHI_DICT=/opt/llm/dict/system.dic`
+
+`deploy/start_agent.sh` exports both before launch. A missing config directory or dictionary fails startup with an explicit error naming the path.
 
 ## Phase overview
 
@@ -57,7 +73,7 @@ See `workflow.md` for detailed phase content including failure recovery procedur
   agent; for an MCP server, check whether `ConfigLoader().load(...)` is called at module
   import / `__init__` time — if so, it is startup-only and requires Phase 3; if it is called
   inside a request handler, `/reload` suffices and Phase 3 may be skipped).
-- **Rollback**: `deploy/deploy.sh` only copies files; rollback by re-running the skill with the previous commit checked out (`git checkout <prev-sha>` then Phase 2 onward). Service state is not rolled back automatically. See `AGENTS.md` Loop Prevention > Rollback Directive — if the same failure recurs after rollback, stop and report it rather than deploying forward again on the assumption the rollback fixed it.
+- **Rollback**: `deploy/deploy.sh` only copies files; rollback by re-running the skill with the previous commit checked out (`git checkout <prev-sha>` then Phase 2 onward). Service state is not rolled back automatically. See `AGENTS.md` Loop Prevention > Rollback Directive — if the same failure recurs after rollback, stop and report it rather than deploying forward again on the assumption the rollback fixed it. Reverting `config/agent.toml` to its `uv run` `cmd` entries and redeploying restores the `uv run` launch path; `scripts/` stays deployed so the `uv run` path keeps working after the revert.
 
 ## Required behavior
 

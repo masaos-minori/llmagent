@@ -21,6 +21,7 @@ from shared.config_errors import (
     ConfigPermissionError,
     ConfigReadError,
 )
+from shared.runtime_paths import resolve_config_dir
 
 logger = logging.getLogger(__name__)
 
@@ -71,8 +72,7 @@ class ConfigLoader:
 
     def __init__(self, config_dir: Path | None = None) -> None:
         """Initialize with optional config directory path."""
-        repo_root = Path(__file__).resolve().parent.parent.parent
-        self._config_dir = config_dir or repo_root / "config"
+        self._config_dir = resolve_config_dir(config_dir)
 
     # -- Public API ---------------------------------------------------------
 

@@ -6,6 +6,7 @@ Characterization tests for ConfigLoader behavior.
 
 from __future__ import annotations
 
+import re
 import shutil
 import tempfile
 from pathlib import Path
@@ -201,6 +202,29 @@ class TestExtensionResolution:
         loader = ConfigLoader(config_dir=tmp_path)
         result = loader.load("test")
         assert result["section"]["foo"] == 1
+
+
+class TestResolverDefaultDir:
+    """REQ-001 / AC-01: ConfigLoader obtains its default directory from the resolver."""
+
+    def test_defaults_to_llmagent_config_dir(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With LLMAGENT_CONFIG_DIR pointing at an existing dir, ConfigLoader() reads from it."""
+        (tmp_path / "agent.toml").write_text('marker = "from-env"\n', encoding="utf-8")
+        monkeypatch.setenv("LLMAGENT_CONFIG_DIR", str(tmp_path))
+        loader = ConfigLoader()
+        result = loader.load("agent.toml")
+        assert result["marker"] == "from-env"
+
+    def test_missing_config_dir_raises_filenotfound(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """With LLMAGENT_CONFIG_DIR pointing at a missing dir, construction fails fast."""
+        missing = "definitely-missing-config-dir-xyz789"
+        monkeypatch.setenv("LLMAGENT_CONFIG_DIR", missing)
+        with pytest.raises(FileNotFoundError, match=re.escape(missing)):
+            ConfigLoader()
 
 
 class TestGlobalStateCleanup:

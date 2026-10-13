@@ -129,7 +129,7 @@ bash deploy/start_agent.sh
 
 ### Implementation Supplement (Startup Method)
 
-`deploy/start_agent.sh` automatically detects whether to use the production install root or development (repository root) based on the presence of `pyproject.toml` in the production install root, and executes `python -m agent` (`scripts/agent/__main__.py`) in the corresponding root. (Explicit in code)
+`deploy/start_agent.sh` automatically detects whether to use the production install root or development (repository root) based on the presence of `pyproject.toml` in the production install root, and launches the compiled `/opt/llm/bin/agent` binary (built by `deploy/build_binaries.sh`) from the appropriate root. (Explicit in code)
 
 > API Key Configuration:
 > - Web Search: DuckDuckGo — No API key required. DuckDuckGo is the only search provider the server implements; `BRAVE_API_KEY` and `BING_API_KEY` in `conf.d/web-search-mcp` are not referenced by any code under `scripts/`
@@ -176,6 +176,25 @@ MCP_MDQ_AUTH_TOKEN=
 Keep the `.env` file out of version control (it is gitignored) and restrict its permissions with `chmod 600`. (Explicit in code — `deploy/start_agent.sh`, `.gitignore`)
 
 > **Note:** web-search authenticates with the same shared `MCP_WEB_SEARCH_AUTH_TOKEN` as its `agent.toml` entry, and its `/health` endpoint is admitted from a loopback client without a token. The former separate browser token was retired; an environment file that still defines `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` can drop it. (Explicit in code — `config/web_search_mcp_server.toml`, `scripts/mcp_servers/web_search/web_search_server.py`)
+
+### 2.6 Compiled Artifacts (NUITKA `--onefile`)
+
+The agent and its MCP servers are distributed as Nuitka `--onefile` binaries rather than launched through `uv run`. `deploy/build_binaries.sh` builds the 11 binaries (the agent plus one `mcp_<server>` per MCP server) on the build host; `deploy/deploy.sh` copies them into `/opt/llm/bin/`.
+
+Layout on the deployed host:
+
+- `/opt/llm/bin/` holds the 11 binaries (`agent` plus one `mcp_<server>` per MCP server). It must not be group/world-writable; the CommandValidator rejects binaries located under a writable directory.
+- `/opt/llm/dict/system.dic` is the external Sudachi dictionary (built by `deploy/build_binaries.sh`, placed by `deploy/deploy.sh`).
+- `config/` stays external (copied by `deploy/deploy.sh`).
+
+`deploy/start_agent.sh` exports two variables before launch so the binary resolves these external files:
+
+- `LLMAGENT_CONFIG_DIR=/opt/llm/config`
+- `LLMAGENT_SUDACHI_DICT=/opt/llm/dict/system.dic`
+
+A missing config directory or dictionary fails startup with an explicit error naming the path (AC-01, AC-05).
+
+**Rollback.** To revert the compiled-artifact path, restore `config/agent.toml` to its `uv run` `cmd` entries and re-run `deploy/deploy.sh`. `scripts/` stays deployed, so the `uv run` launch path keeps working after the revert.
 
 ---
 

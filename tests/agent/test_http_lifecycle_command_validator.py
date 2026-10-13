@@ -286,3 +286,91 @@ class TestCommandValidatorFilterEnv:
                 )
         assert result.get("MY_NEW_VAR") == "value"
         assert "Blocked protected env var override: HOME=hacked" in caplog.text
+
+
+class TestCommandValidatorAllowedBinaryDir:
+    """AC-06: accept a regular file directly inside an allowed, non-writable
+    binary directory; reject the four reject cases."""
+
+    _BIN_BASENAME = "mcp_shell"
+
+    def _make_allowed_dir(self, tmp_path: Path, *, writable: bool) -> Path:
+        d = tmp_path / "bin"
+        d.mkdir()
+        (d / self._BIN_BASENAME).write_text("#!/bin/sh\n")
+        os.chmod(d, 0o777 if writable else 0o755)
+        return d
+
+    def _patch_which(self, target: Path):
+        return patch.object(shutil, "which", return_value=str(target))
+
+    def test_accept_regular_file_in_allowed_dir(self, tmp_path, monkeypatch):
+        d = self._make_allowed_dir(tmp_path, writable=False)
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(d.resolve()))
+        target = d / self._BIN_BASENAME
+        with self._patch_which(target):
+            result = CommandValidator().validate(_TEST_SERVER_KEY, self._BIN_BASENAME)
+        assert os.path.isabs(result)
+        assert os.path.realpath(result) == os.path.realpath(str(target))
+
+    def test_reject_symlink_in_allowed_dir_pointing_elsewhere(
+        self,
+        tmp_path,
+        monkeypatch,
+    ):
+        d = tmp_path / "bin"
+        d.mkdir()
+        # Target file lives OUTSIDE the allowed dir.
+        outside = tmp_path / "outside" / "target"
+        outside.parent.mkdir()
+        outside.write_text("")
+        link = d / self._BIN_BASENAME
+        try:
+            link.symlink_to(outside)
+        except OSError:
+            pytest.skip("Cannot create symlinks")
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(d.resolve()))
+        with self._patch_which(link):
+            with pytest.raises(HttpStartupError) as exc_info:
+                CommandValidator().validate(_TEST_SERVER_KEY, self._BIN_BASENAME)
+        assert "not in the allowed commands list" in str(exc_info.value)
+
+    def test_reject_file_in_writable_dir(self, tmp_path, monkeypatch):
+        d = self._make_allowed_dir(tmp_path, writable=True)
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(d.resolve()))
+        target = d / self._BIN_BASENAME
+        with self._patch_which(target):
+            with pytest.raises(HttpStartupError) as exc_info:
+                CommandValidator().validate(_TEST_SERVER_KEY, self._BIN_BASENAME)
+        assert "not in the allowed commands list" in str(exc_info.value)
+
+    def test_reject_non_regular_file_in_allowed_dir(self, tmp_path, monkeypatch):
+        d = tmp_path / "bin"
+        d.mkdir()
+        # A subdirectory (non-regular file) directly inside the allowed dir.
+        sub = d / self._BIN_BASENAME
+        sub.mkdir()
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(d.resolve()))
+        with self._patch_which(sub):
+            with pytest.raises(HttpStartupError) as exc_info:
+                CommandValidator().validate(_TEST_SERVER_KEY, self._BIN_BASENAME)
+        assert "is not a regular file" in str(exc_info.value)
+
+    def test_reject_outside_allowlist_and_dir(self, tmp_path, monkeypatch):
+        # File outside the allowed dir, basename not in the allowlist.
+        other = tmp_path / "other"
+        other.mkdir()
+        target = other / self._BIN_BASENAME
+        target.write_text("")
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str((tmp_path / "bin").resolve()))
+        with self._patch_which(target):
+            with pytest.raises(HttpStartupError) as exc_info:
+                CommandValidator().validate(_TEST_SERVER_KEY, self._BIN_BASENAME)
+        assert "not in the allowed commands list" in str(exc_info.value)
+
+    def test_existing_allowlist_still_passes(self, tmp_path, monkeypatch):
+        # python3 passes via the unchanged allowlist branch even when the
+        # allowed binary dir points at an unrelated empty directory.
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str((tmp_path / "bin").resolve()))
+        result = CommandValidator().validate(_TEST_SERVER_KEY, "python3")
+        assert os.path.isabs(result)

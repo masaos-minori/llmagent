@@ -12,6 +12,7 @@ dependencies = [
     "prometheus-client>=0.20",
     "PyGithub>=2.3",
     "pydantic>=2.7",
+    "PyYAML>=6.0",
     "sudachipy>=0.6",
     "sudachidict-core>=20240409",
     "trafilatura>=1.9",

@@ -196,12 +196,12 @@ class _ConfigDisplayMixin(MixinBase):
     def _cmd_config(self) -> None:
         """Print current configuration and source file paths."""
         from agent.config_builders import (
-            _CONFIG_DIR,  # lazy: avoids circular import at module level
+            resolved_config_dir,  # lazy: avoids circular import at module level
         )
 
         self._out.write("Config files:")
         self._out.write(
-            f"  {_CONFIG_DIR} (common.toml, llm.toml, rag.toml, security.toml, tools.toml, ...)"
+            f"  {resolved_config_dir()} (common.toml, llm.toml, rag.toml, security.toml, tools.toml, ...)"
         )
         self._out.write("")
         self._print_config_values()

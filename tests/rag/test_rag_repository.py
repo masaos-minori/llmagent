@@ -878,3 +878,42 @@ class TestBuildFtsQueryLogging:
         words = "hello world"
         _build_fts_query(words)
         assert any("truncated=False" in record.message for record in caplog.records)
+
+
+# ── _SudachiTokenizer dictionary resolver wiring (REQ-003) ───────────────────
+
+
+class TestSudachiResolverWiring:
+    def test_ensure_loaded_passes_resolver_arg_to_dictionary(self, monkeypatch) -> None:
+        """_SudachiTokenizer builds Dictionary with the resolver's dict argument."""
+        from pathlib import Path
+
+        import rag.repository as repo_mod
+
+        sentinel = Path("/tmp/sentinel-sudachi.dic")
+        monkeypatch.setattr(repo_mod, "resolve_sudachi_dict_path", lambda: sentinel)
+        mock_dictionary = MagicMock(name="Dictionary")
+        monkeypatch.setattr("sudachipy.dictionary.Dictionary", mock_dictionary)
+
+        tokenizer = repo_mod._SudachiTokenizer()
+        tokenizer._ensure_loaded()
+
+        # The resolver's return value is forwarded verbatim to Dictionary(dict=...).
+        mock_dictionary.assert_called_once_with(dict=sentinel)
+
+    def test_ensure_loaded_default_core_when_unset_uncompiled(
+        self, monkeypatch
+    ) -> None:
+        """With LLMAGENT_SUDACHI_DICT unset and uncompiled, Dictionary gets "core"."""
+        import rag.repository as repo_mod
+
+        monkeypatch.delenv("LLMAGENT_SUDACHI_DICT", raising=False)
+        monkeypatch.delattr(repo_mod, "__compiled__", raising=False)
+
+        mock_dictionary = MagicMock(name="Dictionary")
+        monkeypatch.setattr("sudachipy.dictionary.Dictionary", mock_dictionary)
+
+        tokenizer = repo_mod._SudachiTokenizer()
+        tokenizer._ensure_loaded()
+
+        mock_dictionary.assert_called_once_with(dict="core")

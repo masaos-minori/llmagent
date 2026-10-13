@@ -22,6 +22,7 @@ from shared.mcp_config import (
     SecurityProfile,  # noqa: F401 — used by build_agent_config
     _build_mcp_servers,  # noqa: F401 — used by config_reload.py (lazy import)
 )
+from shared.runtime_paths import resolve_config_dir
 from shared.tool_registry import get_registry
 
 from agent.config_dataclasses import (
@@ -56,7 +57,15 @@ from agent.services.typed_validators import (
 
 logger = logging.getLogger(__name__)
 
-_CONFIG_DIR = Path(__file__).resolve().parent.parent / "config"
+
+def resolved_config_dir() -> Path:
+    """Return the resolved agent config directory via the shared resolver.
+
+    Replaces the stale module-level config-dir constant (which pointed at a
+    nonexistent ``scripts/config``). Evaluating the resolver at call time keeps
+    the env-var and compiled-adjacent branches live instead of fixed at import.
+    """
+    return resolve_config_dir()
 
 
 # ---------------------------------------------------------------------------

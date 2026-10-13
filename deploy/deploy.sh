@@ -72,6 +72,55 @@ rsync -av --delete \
   --exclude="*.pyo" \
   "${REPO_ROOT}/scripts/" "${DEPLOY_SCRIPTS}/"
 
+# ── バイナリ + 辞書配置 (NUITKA onefile) ──────────────────────────────────────
+echo "--- binaries + dict → /opt/llm/ ---"
+DEPLOY_BIN="/opt/llm/bin"
+DEPLOY_DICT="/opt/llm/dict"
+# build_binaries.sh が出力する onefile バイナリのあるディレクトリ。既定は同スクリプトの
+# BIN_DIR(/opt/llm/bin)=ローカルビルド。リモートビルドは BUILD_OUTPUT_DIR で指定 (例:
+# BUILD_OUTPUT_DIR=/srv/build/bin deploy/deploy.sh)。
+BUILD_OUTPUT_DIR="${BUILD_OUTPUT_DIR:-/opt/llm/bin}"
+mkdir -p "${DEPLOY_BIN}"
+mkdir -p "${DEPLOY_DICT}"
+# 配置する11本 (エージェント本体 + MCP サーバー10)。build_binaries.sh の ENTRIES の出力名と一致。
+BINARY_NAMES=(
+  agent mcp_shell mcp_git mcp_web_search mcp_file_delete
+  mcp_file_write mcp_file_read mcp_github mcp_cicd mcp_rag_pipeline mcp_mdq
+)
+for b in "${BINARY_NAMES[@]}"; do
+  src="${BUILD_OUTPUT_DIR}/${b}"
+  dst="${DEPLOY_BIN}/${b}"
+  if [[ ! -f "${src}" ]]; then
+    echo "[FATAL] Binary not found: ${src} (BUILD_OUTPUT_DIR をビルド出力先に指定)." >&2
+    exit 1
+  fi
+  # ローカルビルド同源のコピー元が配置先と同一の場合は不要 (same-file エラー回避)。
+  if [[ "$(realpath "${src}")" != "$(realpath "${dst}")" ]]; then
+    cp "${src}" "${dst}"
+  fi
+done
+chmod 0755 "${DEPLOY_BIN}"
+chmod 0755 "${DEPLOY_BIN}"/*
+# Sudachi 辞書(~217MB, プラン通り外部配置)。明示ソース > build 出力 > 通常 venv パス。
+dict_src=""
+if [[ -n "${SUDACHI_DICT_SOURCE:-}" && -f "${SUDACHI_DICT_SOURCE}" ]]; then
+  dict_src="${SUDACHI_DICT_SOURCE}"
+elif [[ -f "${BUILD_OUTPUT_DIR}/system.dic" ]]; then
+  dict_src="${BUILD_OUTPUT_DIR}/system.dic"
+else
+  cand="$( { find /opt/llm/venv "${REPO_ROOT}/.venv" -path "*sudachidict_core/resources/system.dic" 2>/dev/null || true; } | head -n1 )"
+  [[ -n "${cand}" ]] && dict_src="${cand}"
+fi
+if [[ -n "${dict_src}" ]]; then
+  cp "${dict_src}" "${DEPLOY_DICT}/system.dic"
+  chmod 0644 "${DEPLOY_DICT}/system.dic"
+  echo "Dictionary : ${DEPLOY_DICT}/system.dic  (source: ${dict_src})"
+else
+  echo "[WARN] Sudachi dictionary not found; created empty ${DEPLOY_DICT}/. Set SUDACHI_DICT_SOURCE." >&2
+fi
+chmod 0755 "${DEPLOY_DICT}"
+echo "Binaries   : ${DEPLOY_BIN}/ (${#BINARY_NAMES[@]} 本)"
+
 # ── 設定ファイル ──────────────────────────────────────────────────────────────
 echo "--- config/*.toml → ${DEPLOY_CONFIG}/ ---"
 # Agent

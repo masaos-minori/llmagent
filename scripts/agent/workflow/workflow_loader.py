@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import TypedDict, cast
 
 import orjson
+from shared.runtime_paths import resolve_config_dir
 
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 
@@ -43,11 +44,7 @@ class _StageJson(TypedDict):
 logger = logging.getLogger(__name__)
 
 # config/workflows/ is four parent levels up from this file:
-# scripts/agent/workflow/workflow_loader.py -> scripts/agent/workflow/
-# -> scripts/agent/ -> scripts/ -> repo root -> config/workflows/
-WORKFLOWS_DIR = (
-    Path(__file__).resolve().parent.parent.parent.parent / "config" / "workflows"
-)
+WORKFLOWS_DIR = resolve_config_dir() / "workflows"
 _REQUIRED_STAGE_KEYS = {"id", "timeout_sec", "retryable"}
 _REQUIRED_POLICY_KEYS = {"max_attempts", "backoff_sec"}
 _REQUIRED_STAGES = {"plan", "execute", "verify"}

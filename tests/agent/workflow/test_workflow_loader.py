@@ -235,3 +235,22 @@ class TestRequireApprovalEnforcement:
         loader = WorkflowLoader(workflows_dir=workflows_dir)
         wdef = loader.load()
         assert wdef.require_approval is True
+
+
+class TestWorkflowsDirResolver:
+    """REQ-002: WORKFLOWS_DIR resolves through the shared resolver.
+
+    ``WORKFLOWS_DIR`` is a module-level constant computed at import time as
+    ``resolve_config_dir() / "workflows"``. Asserting its value against a fresh
+    ``resolve_config_dir()`` call proves the resolver wires up correctly without
+    reloading the shared module (a reload would swap the module's classes and
+    leak into other suites that patch ``workflow_loader``). The env-override
+    branch of ``resolve_config_dir`` itself is covered by ``test_runtime_paths``.
+    """
+
+    def test_workflows_dir_is_resolver_derived(self) -> None:
+        """WORKFLOWS_DIR equals resolve_config_dir() / "workflows" (resolver-derived)."""
+        from agent.workflow.workflow_loader import WORKFLOWS_DIR
+        from shared.runtime_paths import resolve_config_dir
+
+        assert WORKFLOWS_DIR == resolve_config_dir() / "workflows"

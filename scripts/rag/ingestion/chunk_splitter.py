@@ -30,6 +30,7 @@ from rag.ingestion.pipeline_utils import (
 from rag.models_data import ChunkDocument
 from shared.config_loader import ConfigLoader
 from shared.logger import Logger
+from shared.runtime_paths import resolve_sudachi_dict_path
 from sudachipy import dictionary as sudachi_dict
 from sudachipy import tokenizer as sudachi_tok
 
@@ -78,7 +79,7 @@ class ChunkSplitter(ChunkEnglishMixin, ChunkJapaneseMixin):
         self._md_snippet_max_chars: int = int(cfg.get("md_snippet_max_chars", 600))
         self._rag_src_dir: Path = rag_src_dir
         # SplitMode.C: longest compound unit; optimal for NLP downstream tasks
-        sd_dict = sudachi_dict.Dictionary(dict="core")
+        sd_dict = sudachi_dict.Dictionary(dict=resolve_sudachi_dict_path())
         self._sd_tkn = sd_dict.create()
         self._split_c = sudachi_tok.Tokenizer.SplitMode.C
 
