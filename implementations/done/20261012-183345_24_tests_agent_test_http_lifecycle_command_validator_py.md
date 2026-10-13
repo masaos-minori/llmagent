@@ -74,10 +74,10 @@ Add the binary-directory accept/reject cases; preserve the existing allowlist ca
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the binary-directory accept case | Pending | — | — | security-critical |
-| 2 | Add the four AC-06 reject cases | Pending | — | — | security-critical |
-| 3 | Confirm existing allowlist cases still pass | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the binary-directory accept case | Completed | — | 20261013-143421 | security-critical 実装確認済み：pytest 26passed。validator binary-dir ルール(scripts/agent/http_lifecycle_command_validator.py)も確認。 |
+| 2 | Add the four AC-06 reject cases | Completed | — | 20261013-143421 | security-critical 実装確認済み：pytest 26passed。validator binary-dir ルール(scripts/agent/http_lifecycle_command_validator.py)も確認。 |
+| 3 | Confirm existing allowlist cases still pass | Completed | — | 20261013-143421 | 実装確認済み：pytest 26passed。validator binary-dir ルール(scripts/agent/http_lifecycle_command_validator.py)も確認。 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261013-143421 | 実装確認済み：pytest 26passed。validator binary-dir ルール(scripts/agent/http_lifecycle_command_validator.py)も確認。 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
