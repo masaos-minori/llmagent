@@ -11,6 +11,7 @@ related:
   - mcp_06_01_configuration-file-inventory.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
   - adr_02_004_environment-failure-handling-policy.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-002: Per-Process Configuration Ownership and Config Isolation
@@ -330,7 +331,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ## Known Deviations
 
-No confirmed deviations.
+- Known Issue AGENT-011: the Agent startup security audit reads MCP server configuration models.
 
 ## Review Triggers
 

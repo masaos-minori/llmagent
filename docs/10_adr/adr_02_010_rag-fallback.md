@@ -14,6 +14,7 @@ related:
   - db_02_architecture_and_schema-schema-reference.md
   - adr_02_005_rag-source-derived-index-relationships.md
   - adr_02_004_environment-failure-handling-policy.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-010: In-Process Fallback When External RAG Execution Fails
@@ -330,11 +331,9 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions.
-
 ## Known Deviations
 
-No confirmed deviations.
+Not applicable
 
 ## Review Triggers
 

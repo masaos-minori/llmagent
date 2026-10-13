@@ -36,7 +36,7 @@ The system consists of the following categories of processes: the Agent CLI REPL
 
 **Component responsibilities:**
 
-- **Agent CLI REPL** (`scripts/agent/__main__.py`): Orchestrates the user interaction loop — receives prompts, obtains RAG context by calling the rag-pipeline MCP server, invokes the LLM, executes MCP tools, and returns responses. This is the single entry point for all agent operations.
+- **Agent CLI REPL** (`scripts/agent/__main__.py`): Orchestrates the user interaction loop — receives prompts, invokes the LLM, executes the MCP tools the LLM calls (including the rag-pipeline server's `rag_run_pipeline` for retrieval), and returns responses. This is the single entry point for all agent operations.
 - **LLM services**: Provide chat/completion and embedding capabilities. The Agent CLI connects to these via HTTP; they operate independently of the agent lifecycle.
 - **MCP server group**: Each server implements a single-responsibility tool domain (file read/write/delete, shell execution, GitHub operations, RAG pipeline, CI/CD, MDQ compression, local git, web search). Servers communicate with the Agent CLI exclusively over HTTP POST `/v1/call_tool`.
 
@@ -69,9 +69,9 @@ Each process reads only its own configuration file. Common parameters (DB paths,
 
 #### Implementation Notes
 
-- The entry point is `scripts/agent/__main__.py`, started with `python -m agent`. (Source: `__main__.py` docstring)
-- MCP communication uses HTTP exclusively; `stdio` transport is not supported (ADR-007). `ToolExecutor` calls MCP servers via HTTP POST `/v1/call_tool`. (Source: `HttpTransport` in `shared/http_transport.py`)
-- The startup sequence (MCP server startup, health checks, security audit, prompt setup) is separated into `StartupOrchestrator` in `agent/startup.py` and delegated from `AgentREPL.run()`. (Source: `agent/startup.py`)
+- The entry point is `scripts/agent/__main__.py`, started with `python -m agent`. (Explicit in code — `__main__.py` docstring)
+- MCP communication uses HTTP exclusively; `stdio` transport is not supported (ADR-007). `ToolExecutor` calls MCP servers via HTTP POST `/v1/call_tool`. (Explicit in code — `HttpTransport` in `shared/http_transport.py`)
+- The startup sequence (MCP server startup, health checks, security audit, prompt setup) is separated into `StartupOrchestrator` in `agent/startup.py` and delegated from `AgentREPL.run()`. (Explicit in code — `agent/startup.py`)
 
 #### Configuration File Isolation Policy
 

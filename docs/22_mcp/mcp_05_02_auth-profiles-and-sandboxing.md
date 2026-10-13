@@ -50,7 +50,7 @@ secret in the TOML file — see section 2.5 (MCP Authentication Tokens) of the d
 
 **Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](../23_agent/agent_08_01_configuration-loading-agent-config.md#configuration-file-ownership)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 
-**Audit API Isolation:** `agent/security_audit_config.py` is the sole authorized point in the agent layer for importing MCP server configuration models (`mcp_servers.shell.shell_models`, `mcp_servers.git.git_models`, `mcp_servers.github.github_models_config`, `mcp_servers.cicd.cicd_models`). It exposes four loader functions that handle four narrow scopes of DTOs (`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`) and their respective optional dependencies (`ImportError` → `None`) and config loading failures (`Exception` → `RuntimeError`).
+**Audit API Isolation:** `agent/security_audit_config.py` is the sole authorized point in the agent layer for importing MCP server configuration models (`mcp_servers.shell.shell_models`, `mcp_servers.git.git_models`, `mcp_servers.github.github_models_config`, `mcp_servers.cicd.cicd_models`). It exposes four loader functions that handle four narrow scopes of DTOs (`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`) and their respective optional dependencies (`ImportError` → `None`) and config loading failures (`Exception` → `RuntimeError`). This read path is not listed among the ADR-002 configuration-isolation exceptions; see Known Issue AGENT-011.
 
 ---
 

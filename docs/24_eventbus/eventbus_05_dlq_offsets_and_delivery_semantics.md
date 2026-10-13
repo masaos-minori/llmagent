@@ -79,9 +79,9 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### NACK Postconditions
 
-- `delivery_failure_count` is incremented.
+- The nacking consumer's `consumer_delivery_failure_count` is incremented. The events-level `delivery_failure_count` is a legacy value that NACK does not modify.
 - Promotion to the DLQ is gated on the **per-consumer** failure count (`consumer_delivery_failure_count`), not the shared `delivery_failure_count`. The event is promoted only when the nacking consumer's own `consumer_delivery_failure_count` reaches `>= max_retry` AND every consumer that attempted delivery has given up (none has ACKed). One consumer's repeated NACKs never promote an Event shared by other consumers.
-- The response body includes `{event_id, delivery_failure_count}`.
+- The response body includes `{event_id, delivery_failure_count}`, where `delivery_failure_count` is the nacking consumer's per-consumer failure count after this NACK (`dlq_promoted: true` is added when the event was promoted).
 
 ### NACK Error Responses
 
@@ -90,11 +90,11 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### Duplicate NACK Behavior
 
-`nack_event` is idempotent per delivery attempt: a NACK that repeats the stored `consumer_delivery.last_nack_attempt` (the same delivery attempt) is a no-op and does not increment `delivery_failure_count`. Only a NACK for a new delivery attempt increments the counter.
+`nack_event` is idempotent per delivery attempt: a NACK that repeats the stored `consumer_delivery.consumer_last_nack_attempt` (the same delivery attempt) is a no-op and does not increment the consumer's failure count. Only a NACK for a new delivery attempt increments it.
 
 ### NACK followed by ACK
 
-NACK does not set the consumer's `consumer_delivery.acked` flag, so a later ACK from the same consumer succeeds; `delivery_failure_count` remains at the value from NACK — No readjustment. (Explicit in code — `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`)
+NACK does not set the consumer's `consumer_delivery.acked` flag, so a later ACK from the same consumer succeeds; the consumer's failure count remains at the value from NACK — No readjustment. (Explicit in code — `scripts/eventbus/delivery_repo.py` `ack_event_for_consumer()`)
 
 ### ACK followed by NACK
 
@@ -211,10 +211,10 @@ See [Inline Promotion Path](#inline-promotion-path) and [Background Loop Promoti
 
 ### Failure Count Split
 
-The system tracks three independent failure counters:
+The system tracks three failure counters:
 
-- **`delivery_failure_count`** (lifetime): Accumulates across the event's entire lifecycle, including after redelivery. This counter represents the total number of failures since the event was first published. It is reported in the NACK response but is **not** used to gate DLQ promotion.
-- **`cycle_failure_count`** (cycle-scoped): Resets to 0 on each redelivery. It tracks failures within the current retry cycle and does not gate DLQ promotion.
+- **`delivery_failure_count`** (events-level, legacy): Stored on the `events` row, copied to a redelivered row, and listed by `GET /dlq`. NACK does not modify it under the per-consumer model, and it does not gate DLQ promotion. The NACK response field of the same name carries the nacking consumer's per-consumer count, not this stored value.
+- **`cycle_failure_count`** (events-level, legacy): Reset to 0 on each redelivery. NACK does not modify it, and it does not gate DLQ promotion.
 - **`consumer_delivery_failure_count`** (per-consumer): Tracks failures for a single `(consumer_id, event_id)` delivery record. This is the counter that gates DLQ promotion.
 
 DLQ promotion is gated on the per-consumer `consumer_delivery_failure_count`, not on `delivery_failure_count` or `cycle_failure_count`. Promotion additionally requires that every consumer that attempted delivery has given up (none has ACKed); see [Inline Promotion Path](#inline-promotion-path) and [Background Loop Promotion](#background-loop-promotion).
@@ -227,7 +227,7 @@ DLQ promotion is gated on the per-consumer `consumer_delivery_failure_count`, no
    - A fresh UUID v4 `event_id`
    - `redelivered_from` set to the original `event_id`
    - `cycle_failure_count = 0` (fresh retry budget)
-   - `delivery_failure_count` copied from the original row (lifetime continuity)
+   - `delivery_failure_count` copied from the original row (stored legacy value carried over)
 2. Increments `dlq_requeue_count` on the original row as audit trail.
 
 The original row keeps its `dlq_at`, so only one requeue succeeds per original event; a second requeue returns HTTP 409. The requeue handler does not archive the DLQ JSON file and does not publish to `EventBroker`. Subscribers receive the new row through the existing `seq > since_seq` replay path in the subscribe endpoint.
@@ -243,8 +243,6 @@ Offsets advance only on an explicit ACK; see [Offset Semantics](#offset-semantic
 ### Resuming on Reconnection
 
 See [Resume Behavior](#resume-behavior). The Consumer ID must remain stable across restarts.
-
-**Note:** `offset_checkpoint_interval` is not a supported key; setting it causes startup to fail.
 
 ## Delivery Guarantees
 
@@ -289,11 +287,14 @@ DLQ ✗ REQUEUE of an event that is not in the DLQ, or that was already requeued
 
 ### Return Value Conventions
 
-| Return Value | Meaning |
+`nack_event` returns a `NackResult` (`delivery_failure_count`, `cycle_failure_count`, `consumer_failure_count`):
+
+| `NackResult` value | Meaning |
 |--------------|---------|
-| `(failure_count, cycle_count)` | Success — event in Normal/Delivered state |
-| `(-1, -1)` | Event not found |
-| `(-2, -2)` | Invalid NACK transition (already ACKed by the requesting consumer, or DLQ'd) |
+| Stored legacy counts, with `consumer_failure_count` set when `consumer_id` is provided | Success — event in Normal/Delivered state |
+| `delivery_failure_count = -1` (with `cycle_failure_count = -1`) | Event not found |
+| `delivery_failure_count = -2` (with `cycle_failure_count = -2`) | Invalid NACK transition (already ACKed by the requesting consumer, or DLQ'd) |
+| `cycle_failure_count = -2` with the stored `delivery_failure_count` | Idempotent repeat of the same delivery attempt |
 
 ## Reliability Limits
 

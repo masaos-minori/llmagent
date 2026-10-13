@@ -17,19 +17,22 @@ related:
 
 ```bash
 # Individual server health checks (all return the nested format shown below)
-curl -s http://127.0.0.1:<web_search_port>/health | jq   # web-search: details.provider, details.browser_provider (dependencies on repeated failures)
-curl -s http://127.0.0.1:<file_read_port>/health | jq   # file-read: dependencies.filesystem
-curl -s http://127.0.0.1:<github_port>/health | jq   # github: dependencies.github_token
-curl -s http://127.0.0.1:<file_write_port>/health | jq   # file-write: dependencies.filesystem
-curl -s http://127.0.0.1:<file_delete_port>/health | jq   # file-delete: dependencies.filesystem
-curl -s http://127.0.0.1:<shell_port>/health | jq   # shell: dependencies.shell, details.sandbox_backend
-curl -s http://127.0.0.1:<rag_pipeline_port>/health | jq   # rag-pipeline: dependencies.embed_url
-curl -s http://127.0.0.1:<cicd_port>/health | jq   # cicd: dependencies.github_token
-curl -s http://127.0.0.1:<mdq_port>/health | jq   # mdq: details.service
-curl -s http://127.0.0.1:<git_port>/health | jq   # git: dependencies.git
+# Each probe presents the server's own Bearer token, taken from the environment variable that `auth_token` in config/agent.toml references
+curl -s -H "Authorization: Bearer ${MCP_WEB_SEARCH_AUTH_TOKEN}" http://127.0.0.1:<web_search_port>/health | jq   # web-search: details.provider, details.browser_provider (dependencies on repeated failures)
+curl -s -H "Authorization: Bearer ${MCP_FILE_READ_AUTH_TOKEN}" http://127.0.0.1:<file_read_port>/health | jq   # file-read: dependencies.filesystem
+curl -s -H "Authorization: Bearer ${MCP_GITHUB_AUTH_TOKEN}" http://127.0.0.1:<github_port>/health | jq   # github: dependencies.github_token
+curl -s -H "Authorization: Bearer ${MCP_FILE_WRITE_AUTH_TOKEN}" http://127.0.0.1:<file_write_port>/health | jq   # file-write: dependencies.filesystem
+curl -s -H "Authorization: Bearer ${MCP_FILE_DELETE_AUTH_TOKEN}" http://127.0.0.1:<file_delete_port>/health | jq   # file-delete: dependencies.filesystem
+curl -s -H "Authorization: Bearer ${MCP_SHELL_AUTH_TOKEN}" http://127.0.0.1:<shell_port>/health | jq   # shell: dependencies.shell, details.sandbox_backend
+curl -s -H "Authorization: Bearer ${MCP_RAG_PIPELINE_AUTH_TOKEN}" http://127.0.0.1:<rag_pipeline_port>/health | jq   # rag-pipeline: dependencies.embed_url
+curl -s -H "Authorization: Bearer ${MCP_CICD_AUTH_TOKEN}" http://127.0.0.1:<cicd_port>/health | jq   # cicd: dependencies.github_token
+curl -s -H "Authorization: Bearer ${MCP_MDQ_AUTH_TOKEN}" http://127.0.0.1:<mdq_port>/health | jq   # mdq: details.service
+curl -s -H "Authorization: Bearer ${MCP_GIT_AUTH_TOKEN}" http://127.0.0.1:<git_port>/health | jq   # git: dependencies.git
 
 # Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
+
+`/health` is authenticated like every other route: a server that verifies the Bearer token answers `401` to a probe without the header, which is an authentication failure, not an unhealthy server. Two cases need no valid token: mdq-mcp does not verify Bearer tokens at the HTTP layer, and web-search admits `/health` from a loopback client without a token. Supplying the header on those probes is harmless. Real tokens must never be pasted into shell history or documents; export them from the environment.
 
 ### HTTP Status Code Behavior
 
@@ -40,7 +43,7 @@ The mcp subcommand's `status` action (`McpStatusService.probe_all()`) reads both
 
 ```bash
 # Check HTTP status code (not just body)
-curl -s -o /dev/null -w "%{http_code}" http://127.0.0.1:<github_port>/health   # 200 if healthy, 503 if degraded
+curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer ${MCP_GITHUB_AUTH_TOKEN}" http://127.0.0.1:<github_port>/health   # 200 if healthy, 503 if degraded
 ```
 
 ### Example Health Probe Responses

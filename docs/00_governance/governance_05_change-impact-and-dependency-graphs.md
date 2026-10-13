@@ -66,6 +66,8 @@ Governance: `@governance-lead`, accountable to `@executive`, consulted `@all-are
 | Developer | @developer | `<area-lead>` | @reviewer | @team |
 | Reviewer | @reviewer | `<area-lead>` | @developer | @team |
 
+`@lead` is the repository owner: the accountable party named in `## Merge Conditions` and `### ADR Acceptance Evidence Standard` of [Documentation Policy](governance_01_documentation-policy.md). "RACI approval" is approval by that role.
+
 ## Software Runtime Dependency Graph
 
 Node set: Agent, MCP, RAG, EventBus, Shared/DB. Governance, Overview, and

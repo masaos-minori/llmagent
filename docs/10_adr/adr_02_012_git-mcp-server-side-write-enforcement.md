@@ -10,6 +10,7 @@ related:
   - security_02_high-risk-tool-common-policy.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - governance_03_issue-and-uncertainty-management.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-012: Git MCP Server-Side Write Enforcement
@@ -140,10 +141,6 @@ A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the r
 - INV-03: `git_checkout`/`git_push`/`git_pull` against a configured protected branch MUST be rejected unless a separately approved policy explicitly allows it.
 - INV-04: Agent-side approval state MUST NOT be assumed or required by Git MCP's own validation logic — the two checks are independent.
 
-## Exceptions
-
-Not applicable.
-
 ## Failure Policy
 
 ### Fail-Fast Conditions
@@ -182,7 +179,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-No confirmed deviations.
+Not applicable
 
 ## Review Triggers
 
@@ -200,7 +197,7 @@ No confirmed deviations.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The wording of Decision Details #2 and #3 and of INV-01 and INV-02 (refspec and revision syntax rejected; forced update unreachable by parameter or refspec) was approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering Decision Details #2 and #3 and INV-01 and INV-02; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

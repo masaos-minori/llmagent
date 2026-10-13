@@ -17,6 +17,7 @@ related:
   - rag_02_03_ingestion_pipeline-chunksplitter.md
   - rag_05_01-configuration-reference.md
   - adr_02_004_environment-failure-handling-policy.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-005: Relationship Between RAG Canonical Data and Derived Indexes
@@ -48,7 +49,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 - Multiple tables coexist in a single SQLite database
 - `chunks_fts` is an FTS5 virtual table and does not support standard FK constraints
 - `chunks_vec` is a sqlite-vec extension and does not support standard FK constraints
-- Because `chunks_vec` has no FK, explicit deletion is required on delete
+- Because `chunks_vec` has no FK, explicit deletion is the primary mechanism on delete; the `chunks_vec_ad` trigger is only a backstop
 - Consistency checks run at startup and manually
 
 ## Assumptions
@@ -69,7 +70,7 @@ The RAG infrastructure has four data stores, `documents`, `chunks`, `chunks_fts`
 4. `chunks_vec` is a derived vector-search index generated from `chunks`. Explicit INSERTs are performed during the ingestion pipeline, and explicit DELETEs on deletion.
 5. Canonical data is not updated from derived indexes. Direct INSERT/UPDATE into `chunks_fts` is prohibited outside the schema triggers and the `RagMaintenanceService` maintenance operations (rebuild through `/session rag-rebuild-fts`, per-URL reconciliation). (Explicit in code — `tools/check_chunks_fts_invariant.py` sanctioned paths)
 6. Consistency checks detect differences using `chunks` as the reference.
-7. When a document is deleted, the target `chunks_vec` rows are deleted first, then `documents` (CASCADE also deletes `chunks`, and the Trigger synchronizes `chunks_fts`).
+7. When a document is deleted, the target `chunks_vec` rows are deleted first, then `documents` (CASCADE also deletes `chunks`; the triggers synchronize `chunks_fts` and clean `chunks_vec` as a backstop).
 8. Normal FTS5 synchronization and manual rebuilds use the same generation rule (`COALESCE(normalized_content, content)`).
 9. Even if FTS5 or the Vector Engine is replaced, the indexes can be rebuilt from `documents` and `chunks`.
 10. The following operational decisions are reflected in Operations:
@@ -200,7 +201,7 @@ Rejected to prioritize Operability, ensuring real-time synchronization and preve
 
 ### Negative Consequences
 
-- Because `chunks_vec` has no FK, explicit deletion is required
+- Because `chunks_vec` has no FK, explicit deletion is the primary mechanism; the `chunks_vec_ad` trigger is only a backstop
 - The consistency-check thresholds are strict (zero tolerance)
 - Trigger overhead
 - Cost at rebuild time
@@ -337,13 +338,9 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions.
-
 ## Known Deviations
 
 - **Known Issue**: RAG-007 — tracked in governance_03 Part 1 (`chunks_vec` has no foreign key to `chunks`, an `sqlite-vec` limitation; all deletion paths enforce the `chunks_vec` → `documents` ordering)
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
 
 ## Review Triggers
 

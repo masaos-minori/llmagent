@@ -109,7 +109,7 @@ If the LLM endpoint returns a chunk containing a `usage` field, data is extracte
 
 ## Operational Notes
 
-- `LLMClient.call()` is used for non-streaming LLM calls (compression, title generation).
+- `LLMClient.call()` is the non-streaming call API. History compression and session-title generation do not use it; they post through the injected HTTP client directly.
 - `LLMClient.request_with_retry()` is a retry-enabled POST (only for HTTP 429/503 and `RequestError`) using exponential backoff.
 - `LLMTransportError` carries `phase` (pre_stream/in_stream), `url`, `status_code`, `retryable`, `partial_text`, `detail`, and `stat_heartbeat_timeouts`.
 - `UTF8_PARTIAL_DECODE_ERROR` and `PREMATURE_EOF` are clearly distinguished. `PREMATURE_EOF` is raised if the SSE stream ends before the expected `content-length`. `UTF8_PARTIAL_DECODE_ERROR` handles JSON decoding errors separately.

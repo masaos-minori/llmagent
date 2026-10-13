@@ -57,7 +57,7 @@ Provides least-privilege access for deleting local files.
 
 **Responsibilities:**
 - RAG query pipeline execution (`rag_run_pipeline`, `rag_debug_pipeline`); no ingestion tool is exposed
-- Document retrieval over an index built by the separate ingestion path (no indexing tool is exposed)
+- Document listing and deletion over the RAG database (`rag_list_documents`, `rag_delete_document`); no indexing tool is exposed
 - Pipeline debugging and diagnostics
 
 **Explicit Non-responsibilities:**
@@ -96,12 +96,12 @@ Provides focused CI/CD integration without exposing broader GitHub API capabilit
 - Code analysis beyond markdown structure
 
 **Ownership rationale:**
-Specialized for markdown structural analysis; FTS5 search is production-ready while hybrid search remains unimplemented.
+Specialized for markdown structural analysis; search is FTS5 (BM25) only, and hybrid or semantic search is not provided.
 
 ### git-mcp 
 
 **Responsibilities:**
-- Local Git operations (status, log, diff, branch, commit, checkout)
+- Local Git operations (status, log, show, diff, branch, add, commit, checkout)
 - Git history inspection
 - Pull/push operations
 
@@ -168,12 +168,12 @@ For authoritative tool-to-server and risk-tier mapping, see [MCP Tool Ownership 
 ### File Operations vs RAG
 
 - `file-*`: Direct file I/O within allowed_dirs (split into read, write, delete)
-- `rag-pipeline-mcp`: Pipeline orchestration only; does not directly manipulate files outside rag_src_dir
+- `rag-pipeline-mcp`: Pipeline orchestration over the RAG database only; exposes no file operation tool
 
 ### MDQ vs RAG
 
-- `mdq-mcp`: Markdown structural analysis only (FTS5 search implemented, hybrid search not implemented)
-- `rag-pipeline-mcp`: Full RAG pipeline including embedding generation and vector storage
+- `mdq-mcp`: Markdown structural analysis only (FTS5/BM25 search only; no hybrid or semantic search)
+- `rag-pipeline-mcp`: RAG query pipeline including query embedding and vector search; no indexing tool is exposed
 
 ## Keywords
 

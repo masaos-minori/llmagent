@@ -18,6 +18,8 @@ related:
   - adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md
   - adr_02_004_environment-failure-handling-policy.md
   - adr_02_013_eventbus-authentication-authorization.md
+  - db_03_architecture_and_schema-migration-and-scaling.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-008: Separating SQLite into Four Databases
@@ -451,7 +453,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 ### Manual Review
 
 - DB Schema verification before deployment
-- A manual operator recovery procedure for `workflow.sqlite`/`eventbus.sqlite` (a concrete runbook) is not yet in place in this ADR and must be prepared separately as a Runbook
+- Manual recovery of `workflow.sqlite`/`eventbus.sqlite` (INV-18): `agent_10_01` Manual Recovery
 - INV-05, INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 describe design rules without a dedicated automated test
 
 ## Implementation Notes
@@ -461,11 +463,11 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 - `recover_corruption()` rejects `workflow` and `eventbus` with `no_recovery_allowed` before any integrity check, classifies the other targets through `_run_integrity_check()` and `_classify_error()`, and restores from a verified backup through `_restore_from_backup()`.
 - `rotate_all_dbs()` archives each of the four databases.
 
-This chapter is not a basis for design decisions. See Implementation References for the current file/symbol list.
+See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-No confirmed deviations.
+Not applicable
 
 ## Review Triggers
 
@@ -499,7 +501,7 @@ No confirmed deviations.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The Derived Stores section and the corrected Recovery Policy Matrix rows were approved as a task-level approval decision (repository owner instruction); reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering the Derived Stores section and the Recovery Policy Matrix; reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

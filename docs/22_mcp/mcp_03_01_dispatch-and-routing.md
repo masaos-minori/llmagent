@@ -38,7 +38,7 @@ LLM returns tool_call
              → LifecycleProtocol.ensure_ready(server_key)
              → concurrency semaphore acquire (if configured)
              → HttpTransport.call()
-             → HealthRegistry.record_success() on success / record_failure() on transport error
+             → McpServerHealthRegistry.record_success() on success / record_failure() on transport error
              → return ToolCallResult(output, is_error, request_id, server_key)
 ```
 
@@ -135,7 +135,7 @@ server_key = resolver.resolve("read_text_file")  # → "file_read"
 
 | Dispatch Pattern | Applicable Servers |
 |---|---|
-| Module-level dictionary (`_DISPATCH_TABLE` equivalent) | `mdq` (`server.py::_DISPATCH_TABLE`), `web_search` (`formatters.py::_WEB_DISPATCH`) |
+| Module-level dictionary (`_DISPATCH_TABLE` equivalent) | `mdq` (`mdq_server.py::_DISPATCH_TABLE`), `web_search` (`formatters.py::_WEB_DISPATCH`) |
 | Service instance's `get_dispatch_table()` | `github`, `shell`, `git`, `cicd`, `rag_pipeline`, `file_read`, `file_write`, `file_delete` |
 
 ---
@@ -146,7 +146,7 @@ Every MCP tool passes through these layers consistently from invocation to audit
 
 ``` text
 ① Schema Definition        Each server's `tools.py::TOOL_LIST` — Names and input schemas exposed to LLM
-② Runtime Dispatch        `server.py`'s `_DISPATCH_TABLE` or `service.get_dispatch_table()`
+② Runtime Dispatch        `mdq_server.py`'s `_DISPATCH_TABLE`, `web_search/formatters.py`'s `_WEB_DISPATCH`, or `service.get_dispatch_table()`
 ③ Registry Registration    `shared/tool_constants.py`'s frozenset → `shared/tool_registry.py` (for drift detection); routing relies solely on `RuntimeToolRegistry` in `shared/runtime_tool_registry.py`
 ④ Side-effect Detection     Only execution path `agent/tool_runner.py::_execute_with_dag()` delegates to `agent/tool_scheduler.py::build_execution_groups()` and references `RuntimeToolRegistry`-registered `is_write` (PreparedToolCall.spec) to determine parallel/serial execution (unregistered tools are rejected in the preparation phase via fail-closed)
 ⑤ Risk Classification & Approval `agent/tool_policy.py::classify_operation_type()` / `classify_risk()` — Priority: `approval_risk_rules` → `tool_safety_tiers` → operation-type classification (`tool_constants.py` frozensets first, then `RuntimeToolRegistry` for READ vs UNKNOWN)

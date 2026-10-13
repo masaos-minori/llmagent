@@ -45,7 +45,7 @@ If the agent restarts with post-execution approvals pending, those pending state
 
 **Cross-session behavior:** Resolution is keyed only by the `approval_id` argument and is validated against the `approvals` DB table (the record must exist and be pending), not against in-memory state. After a restart or crash, the operator supplies the `approval_id` shown in the startup notice. The commands never select a pending approval on the operator's behalf.
 
-**Overwrite Warning:** If `/approve` sets a new value while `ctx.turn.pending_approval_task_id` already contains a value, a `WARNING` level log is emitted to the `cmd_workflow.py` logger. This is a known design constraint due to the current lack of a queue that uses only a single field for handoff; the warning is for observability so operators can track missed approvals.
+**Overwrite Warning:** `/approve` clears `ctx.turn.pending_approval_id` (the approval being resolved) and sets `ctx.turn.pending_approval_task_id` (the task to resume on the next turn). If `pending_approval_task_id` already contains a value, `/approve` overwrites it and emits a `WARNING` log to the `cmd_workflow.py` logger. Only one task id is held, with no queue, so the warning lets operators track a missed approval.
 
 ### Debug / Audit Category
 

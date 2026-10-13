@@ -7,6 +7,11 @@ tags:
   - reference
 related:
   - governance_01_documentation-policy.md
+  - agent_11_04_memory-module-reference-generated.md
+  - agent_13_reference-api-generated.md
+  - deployment_01_deployment.md
+  - eventbus_08_reference_api.md
+  - mcp_01_tool_ownership_matrix.md
 ---
 
 # ADR-015: Reference Document Class Disposition
@@ -119,7 +124,7 @@ See Implementation References for the tool list.
 
 ## Known Deviations
 
-Not applicable.
+Not applicable
 
 ## Review Triggers
 
@@ -136,13 +141,13 @@ Not applicable.
 - **Approved By**: repository owner
 - **Approval Date**: 2026-09-19
 - **Approval Reference**: Reviewed and approved by the repository owner via chat, content presented in full (Summary, Context, Decision, Alternatives Considered, Consequences) before approval
-- **Decision Change (2026-10-08)**: The change of the Scope from documents classified `class: Reference` to documents carrying a generated guarded block was approved as a task-level approval decision (repository owner instruction); the Named Approval Record above is unchanged and individual reviewer names are not recorded for this change.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering the Scope; the Named Approval Record above is unchanged; individual reviewer names are not recorded for this change.
 
 This ADR reached `Accepted` via a Named Approval Record per the ADR Acceptance Evidence Standard (`docs/00_governance/governance_01_documentation-policy.md`) — not the task-level fallback path.
 
 ## Related ADRs
 
-Not applicable.
+Not applicable
 
 ## Implementation References
 

@@ -50,7 +50,7 @@ For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager 
   incoming `fetched_at` equal to the stored value is **not** treated as stale, so the
   update proceeds.
 - **Missing/empty stored `fetched_at`:** if no `documents` row exists for the
-  `doc_id`, or its stored `fetched_at` is empty/absent (e.g. a pre-migration row),
+  `doc_id`, or its stored `fetched_at` is empty or absent,
   `_is_stale_update()` returns `False` (not stale) without attempting to parse it —
   the incoming value always wins in this case.
 - **Both `etag` and `last_modified` absent:** `update()`

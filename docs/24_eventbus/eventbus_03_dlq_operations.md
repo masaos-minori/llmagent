@@ -77,7 +77,7 @@ If `Last-Event-ID` exceeds the current max seq in SQLite, the server returns HTT
 
 **Phase 2 — Live Push**: After replay completion, the process subscribes to the internal `EventBroker` and streams new events published via `POST /publish` to the SSE stream in real-time.
 
-**Queue Overflow**: If the consumer is slow and the queue becomes full, the server disconnects the subscriber's SSE connection. The client must reconnect using its last committed `consumer_id`/offset via `since_seq`/`GET /replay` to resume from where it left off.
+**Queue Overflow**: If the consumer is slow and the queue becomes full, the server disconnects the subscriber's SSE connection. The client must reconnect to `GET /subscribe` with its `consumer_id` (and optionally `since_seq`) to resume from where it left off; `GET /replay` is restricted to the operator role and is not a consumer reconnection path.
 
 **Duplicate Consumer Connection**: A second concurrent `/subscribe` connection using the same non-empty `consumer_id` as an already-active connection receives HTTP 409. The first connection remains unaffected.
 

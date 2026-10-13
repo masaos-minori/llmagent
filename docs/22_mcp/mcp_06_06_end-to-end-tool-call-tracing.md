@@ -72,7 +72,7 @@ If a tool fails repeatedly within a sliding window, a warning is logged (thresho
 WARNING: Repeated tool failures detected: shell_run failed <N> times in <W>s window
 ```
 
-> **Note:** `McpServerHealthRegistry` (`shared/mcp_health.py`) only tracks transport availability. Tool-layer errors (`error_type=tool`) do not affect the HealthRegistry state — only transport failures (`error_type=transport`) affect the server's health state.
+> **Note:** `McpServerHealthRegistry` (`shared/mcp_health.py`) only tracks transport availability. Tool-layer errors (`error_type=tool`) do not affect the McpServerHealthRegistry state — only transport failures (`error_type=transport`) affect the server's health state.
 
 ---
 

@@ -91,7 +91,7 @@ base classes.
 
 #### Exception hierarchy
 
-All RAG-layer error classes, including `RagRerankError` and `RagPipelineError`, are defined in `scripts/rag/exceptions.py` and derive from `RagLayerError`.
+The RAG-layer error classes, including `RagRerankError` and `RagPipelineError`, are defined in `scripts/rag/exceptions.py` and derive from `RagLayerError`; some also derive from `ValueError` or `RuntimeError`, but `RagRerankError` and `RagExpansionError` derive from `RagLayerError` only. `MqeParseError` (a `ValueError`) is defined in `scripts/rag/llm_prompts.py`.
 
 ## RagIngester
 
@@ -109,7 +109,7 @@ All RAG-layer error classes, including `RagRerankError` and `RagPipelineError`, 
 | DB open error | Raises `RagPipelineError` (does not return `""`) |
 | `use_search=False` | Immediately returns `""` |
 | Failure when setting `rag_service_url` | Fallback to in-process pipeline |
-| Cross-encoder failure | `RagRerankError` is caught as a `RuntimeError`, and `StageResult.status="failure"` is recorded, with a warning logged. The pipeline continues with `ctx.reranked=[]` (no fallback to RRF). If `use_rerank=False`, RRF ordering and deduplication are used instead. |
+| Cross-encoder failure | `RerankStage.run()` catches `RagRerankError` and falls back to the RRF-ranked results (sliced and deduplicated), recording the fallback reason `rerank_exception`. Other exceptions from the stage propagate to `RagPipeline`, which records `StageResult.status="failure"` for `RuntimeError`, `sqlite3.OperationalError`, `httpx` errors, and `TimeoutError`, logs a warning, and continues with `ctx.reranked=[]`. If `use_rerank=False`, RRF ordering and deduplication are used instead. |
 | Startup config validation failure | `RagPipeline.__init__()` runs `RagConfigValidator().validate()`; a failing result raises `ValueError` and aborts construction. Warnings-only results are logged and allow continuation. |
 
 ---

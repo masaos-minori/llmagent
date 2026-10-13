@@ -34,7 +34,7 @@ MqeStage(cfg: RagConfig, llm: RagLLM)
 ```
 
 - `use_mqe=False`: Sets `ctx.queries = [ctx.query]` (single query, no expansion).
-- `use_mqe=True`: Calls `RagLLM.expand_queries(query)` and stores results in `ctx.queries` (context is applied via prompt templates in `cfg`, not as a direct parameter); raises `RagExpansionError` if LLM fails.
+- `use_mqe=True`: Calls `RagLLM.expand_queries(query)` and stores results in `ctx.queries` (context is applied via prompt templates in `cfg`, not as a direct parameter). If expansion fails with `RagExpansionError`, the stage catches it, sets `ctx.queries = [ctx.query]` (the original query) and records the fallback reason `mqe_exception`; the error does not propagate.
 - The number of variants is controlled by the `mqe_n_queries` setting.
 
 ### 5.2 SearchStage

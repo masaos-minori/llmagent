@@ -39,7 +39,7 @@ related:
 | github_create_or_update_file, github_push_files | github-mcp | GITHUB_WRITE_TOOLS | WRITE_DANGEROUS | Yes, full `yes` (`high` via `approval_risk_rules`) | execute |
 | github_delete_file, github_merge_pull_request | github-mcp | GITHUB_DANGEROUS_TOOLS | WRITE_DANGEROUS | Yes, full `yes` (`high` via `approval_risk_rules`) | execute |
 
-> **Note:** `file-mcp` is split into
+> **Note:** File operations run in
 > three independent processes (`file-read-mcp`, `file-write-mcp`,
 > `file-delete-mcp`) for least-privilege isolation. Tool membership above is
 > kept in sync with the auto-generated reference table below — see
@@ -66,115 +66,7 @@ An `approval_risk_rules` entry can raise a tool above its tier default (for exam
 
 ## Responsibility Boundaries
 
-### file-read-mcp 
-
-**Responsibilities:**
-- Read-only local file operations (read, list, search, metadata)
-
-**Explicit non-responsibilities:**
-- File write/delete operations
-- Remote repository operations
-- Code analysis
-- Search across repositories
-
-### file-write-mcp 
-
-**Responsibilities:**
-- Local file write operations (write, edit, create directory, move)
-
-**Explicit non-responsibilities:**
-- File read/delete operations
-- Remote repository operations
-- Code analysis
-
-### file-delete-mcp 
-
-**Responsibilities:**
-- Local file/directory deletion
-
-**Explicit non-responsibilities:**
-- File read/write operations
-- Remote repository operations
-- Code analysis
-
-### rag-pipeline-mcp 
-
-**Responsibilities:**
-- RAG pipeline execution and debugging
-- Document lifecycle management (list, delete)
-
-**Explicit non-responsibilities:**
-- Local file operations
-- Repository operations
-- Code analysis
-
-### cicd-mcp 
-
-**Responsibilities:**
-- GitHub Actions workflow triggering and monitoring
-- CI/CD status reporting
-
-**Explicit non-responsibilities:**
-- Local file operations
-- Code modification
-- Repository content changes
-
-### mdq-mcp 
-
-**Responsibilities:**
-- Markdown structural search and retrieval
-- Index management (create, refresh)
-- Documentation statistics
-
-**Explicit non-responsibilities:**
-- Local file operations
-- Repository operations
-- Code analysis beyond markdown structure
-
-### git-mcp 
-
-**Responsibilities:**
-- Local Git operations (status, log, diff, branch, add, commit, checkout, pull, push)
-- Git history inspection
-
-**Explicit non-responsibilities:**
-- Hosting-service API operations (issues, pull requests, API-based content changes; owned by github-mcp)
-- File content analysis
-- RAG operations
-
-### shell-mcp 
-
-**Responsibilities:**
-- Shell command execution
-
-**Explicit non-responsibilities:**
-- File operations
-- Repository operations
-- Network requests
-
-### web-search-mcp 
-
-**Responsibilities:**
-- Web search
-- Browser page fetch and text extraction
-
-**Explicit non-responsibilities:**
-- Local file operations
-- Repository operations
-- Code modification
-
-### github-mcp 
-
-**Responsibilities:**
-- GitHub repository operations (search, branches, commits, issues, PRs)
-- Code content retrieval
-- Branch/commit/PR creation and modification
-- Dangerous operations (file deletion, PR merging)
-
-**Explicit non-responsibilities:**
-- Local file operations
-- RAG operations
-- CI/CD operations
+Per-server responsibilities, explicit non-responsibilities, ownership rationale, and boundary rules are defined once in [MCP Service Boundaries](mcp_02_service_boundaries.md). This document owns only the tool-to-server mapping and the risk classification above.
 
 ## Keywords
 

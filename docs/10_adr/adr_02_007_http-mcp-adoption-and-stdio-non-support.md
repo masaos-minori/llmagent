@@ -19,6 +19,8 @@ related:
   - mcp_06_12_new-mcp-server-addition-checklist.md
   - governance_03_issue-and-uncertainty-management.md
   - adr_02_004_environment-failure-handling-policy.md
+  - governance_01_documentation-policy.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
 ---
 
 # ADR-007: Adoption of HTTP MCP and Non-Support of stdio
@@ -302,7 +304,7 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
   - **Implementation**: `tests/shared/test_mcp_health.py`
 
 - **Test**: A non-loopback bind address is rejected by `run_http()`
-  - **Verifies**: INV-09
+  - **Verifies**: INV-09 (partial: loopback bind only; see MCP-001 for the Bearer check)
   - **Type**: Unit
   - **Blocking**: Yes
   - **Implementation**: `tests/mcp_servers/test_mcp_server_base.py::TestBindAddressValidation::test_private_lan_rejected`
@@ -332,13 +334,11 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 - `ToolTransportInvoker.invoke()` applies the per-server Semaphore and records success or failure in `McpServerHealthRegistry`.
 - `TransportType` accepts only `http`; the startup mode (`none`, `persistent`, `subprocess`) selects how the process is launched, not the transport.
 
-This chapter is not a basis for design decisions. See Implementation References for the current file/symbol list.
+See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-No confirmed deviations.
-
-Do not unconditionally align the ADR text with the current implementation; manage discrepancies as Known Issues.
+- Known Issue MCP-001: the shell, github, and file MCP servers register no Bearer-token authentication middleware (INV-09).
 
 ## Review Triggers
 
@@ -370,7 +370,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The removal of the TLS and separate-host claims, the mdq-mcp authentication exception, and the corresponding Known Deviations entry were approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering the Decision, the Exceptions, and the Known Deviations; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

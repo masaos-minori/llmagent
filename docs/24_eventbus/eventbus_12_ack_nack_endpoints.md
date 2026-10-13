@@ -256,12 +256,12 @@ curl -X POST -H "Authorization: Bearer ${CONSUMER_TOKEN}" \
 | Initial ACK | `ack_event_for_consumer` returns `(True, True, seq)` | 200 | `{event_id, acked: true, seq}` | Sets `consumer_delivery.acked` and advances the consumer offset |
 | Duplicate ACK | `ack_event_for_consumer` returns `(True, False, seq)` | 200 | `{event_id, acked: true, seq, already_acked: true}` | No new delivery state; the offset never moves backwards |
 | Initial NACK | `nack_event` increases `consumer_delivery_failure_count` from 0 to 1 | 200 | `{event_id, delivery_failure_count}` | Counter increases; promoted to the DLQ when it reaches `max_retry` |
-| Duplicate NACK | `nack_event` is idempotent per delivery attempt: a NACK repeating the stored `last_nack_attempt` is a no-op | 200 | `{event_id, delivery_failure_count}` | Counters unchanged for a repeat NACK of the same delivery attempt |
+| Duplicate NACK | `nack_event` is idempotent per delivery attempt: a NACK repeating the stored `consumer_last_nack_attempt` is a no-op | 200 | `{event_id, delivery_failure_count}` | Counters unchanged for a repeat NACK of the same delivery attempt |
 | NACK followed by ACK | The consumer's `consumer_delivery.acked` is still unset (NACK does not set it) | 200 | `{event_id, acked: true, seq}` | ACK succeeds; `delivery_failure_count` keeps the value from the NACK |
 | ACK followed by NACK (same consumer) | `nack_event` checks `consumer_delivery.acked` for the requesting consumer | 409 | `event already acknowledged` | NACK rejected; counters unchanged |
 | Unknown event ID (ACK) | `ack_event_for_consumer` returns `found = False` | 404 | `event not found` | None |
 | ACK on a DLQ event | The ACK route finds `events.dlq_at` set; `ack_event_for_consumer` writes nothing for such an event | 409 | `event already in dead letter queue` | None: no delivery state or offset is written |
-| Unknown event ID (NACK) | `nack_event` returns `-1` | 404 | `event not found` | None |
+| Unknown event ID (NACK) | `nack_event` returns a `NackResult` whose `delivery_failure_count` is `-1` | 404 | `event not found` | None |
 | Simultaneous ACK/NACK | Both run under `run_with_db_lock` and are serialized | 200, or 200 and 409 | Depends on lock order | The second call observes the first call's committed state. A NACK that runs after the ACK can return 409 (see "ACK followed by NACK"); an ACK that runs after the NACK returns 200 |
 
 ## Keywords

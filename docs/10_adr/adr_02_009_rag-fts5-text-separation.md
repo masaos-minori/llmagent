@@ -18,6 +18,7 @@ related:
   - rag_05_01-configuration-reference.md
   - adr_02_005_rag-source-derived-index-relationships.md
   - adr_02_004_environment-failure-handling-policy.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-009: Separating RAG FTS5 Search Text from LLM Presentation Text
@@ -78,7 +79,7 @@ Japanese BM25 search requires normalization by morphological analysis, but the c
 ### Scope
 
 - **Target components**: `ChunkJapaneseMixin`, `AugmentStage`, `RagRepository`, `RagMaintenanceService`
-- **Target processes**: the Agent process and the ingester process
+- **Target processes**: the rag-pipeline MCP server (`AugmentStage`, `RagRepository`), the chunk_splitter and ingester processes (`ChunkJapaneseMixin`), and the Agent process (`RagMaintenanceService` only)
 - **Target data**: the `chunks` table, the `chunks_fts` virtual table
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
 - **Target APIs or processing paths**: `AugmentStage.run()`, `_format_chunks()` (`scripts/rag/stages/augment.py`), `RagMaintenanceService.rebuild_fts()`
@@ -323,11 +324,9 @@ Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, c
 
 See Implementation References for the current file/symbol list.
 
-This chapter is not a basis for design decisions.
-
 ## Known Deviations
 
-No confirmed deviations.
+Not applicable
 
 ## Review Triggers
 
@@ -359,7 +358,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The addition of Decision Details #12 and INV-11 and the narrowed data-integrity rationale were approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering Decision Details #12, INV-11, and the Rationale; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

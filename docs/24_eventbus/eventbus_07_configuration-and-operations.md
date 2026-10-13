@@ -81,7 +81,7 @@ Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_ini
 
 ### Unsupported Keys
 
-Startup fails if the configuration file contains any key not defined in `EventBusConfig` (for example `poll_interval_ms` or `offset_checkpoint_interval`).
+Startup fails if the configuration file contains any key not defined in `EventBusConfig`.
 
 ---
 

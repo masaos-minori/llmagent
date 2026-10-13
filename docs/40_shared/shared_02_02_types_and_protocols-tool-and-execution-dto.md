@@ -23,7 +23,7 @@ Import: `from shared.llm_types import LLMUsage, LLMResponse`
 
 ## 6a. `ToolCallResult` / `TransportErrorInfo` (`shared/transport_dto.py`)
 
-`ToolCallResult` is the standard result contract for all tool executions (transport, cache) — includes output/error metadata, transport information, and audit info. The `source` field distinguishes between caller types (`"mcp"`/`"cache"`). (Explicit in code — `scripts/shared/transport_dto.py`)
+`ToolCallResult` is the standard result contract for all tool executions (transport) — includes output/error metadata, transport information, and audit info. The `source` field is `"mcp"` for MCP calls and empty on error paths; `"cache"` is set only by the standalone `ToolResultCache`, which `ToolExecutor` does not use. (Explicit in code — `scripts/shared/transport_dto.py`)
 
 `TransportErrorInfo` is used as structured error information for audit logs.
 

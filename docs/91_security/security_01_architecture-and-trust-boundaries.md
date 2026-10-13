@@ -157,7 +157,7 @@ Prompt injection responsibility is distributed across layers:
 | Boundary Crossing | Responsible Layer | Mechanism |
 |---|---|---|
 | User input → Agent | Agent | Message structure validation when appended to history (disallowed keys are stripped); user-input content is not filtered for injection patterns |
-| Agent → LLM | Agent | System prompt construction; no user input in system prompt |
+| Agent → LLM | Agent | Three kinds of content enter system-role messages: memory snippets (a `--- USER MEMORY ---` block, PII-redacted and length-limited by `snippet_filter.py`), fixed MDQ/RAG routing hints, and `/skill` content (the skill file plus the user-supplied invocation arguments, as an ephemeral message). Ephemeral markers are accepted only from trusted sources; the `/skill` arguments are not filtered for injection patterns (Explicit in code — `scripts/agent/conversation_state_manager.py`, `scripts/agent/commands/cmd_skill.py`, `scripts/agent/memory/snippet_filter.py`) |
 | LLM output → Tool args | Agent | `validate_tool_arguments()` in `agent_06_01`; schema validation |
 | Tool args → MCP server | MCP | Path allowlist, command allowlist, schema validation |
 | RAG ingestion → Vector store | RAG ingestion | `sanitize_document()` in `rag_03_05` removes scripts, iframes, suspicious patterns |
@@ -242,7 +242,7 @@ Degraded conditions: `circuit_open=True` after more than `failure_threshold` con
 | Shell Execution | shell-mcp | shell-mcp degraded / unavailable |
 | Document Retrieval | rag-pipeline-mcp (+ embed-llm) | embed-llm down / rag-pipeline-mcp unavailable |
 | GitHub Operations | github-mcp | github-mcp degraded / unavailable |
-| Memory Search | Agent memory store (embed-llm optional) | embed-llm unreachable at startup: FATAL; down at runtime: per-search FTS fallback, degraded when the circuit opens |
+| Memory Search | Agent memory store (embed-llm; required at startup when `embed_url` is set) | embed-llm unreachable at startup: FATAL; down at runtime: per-search FTS fallback, degraded when the circuit opens |
 
 *Source: `agent/startup.py`*
 

@@ -62,10 +62,10 @@ The following deletion order is a design invariant and must be maintained in all
 chunks_vec (explicitly deleted) → documents (deleting documents triggers cascading deletion of chunks via ON DELETE CASCADE)
 ```
 
-**Reason:** `chunks_vec` is a `sqlite-vec` virtual table and does not have a foreign key constraint pointing to `chunks`. Therefore, only `chunks_vec` requires explicit deletion; no explicit `DELETE` statement exists for `chunks` itself (it relies on the `CASCADE` from deleting `documents`).
+**Reason:** `chunks_vec` is a `sqlite-vec` virtual table and does not have a foreign key constraint pointing to `chunks`. Therefore, only `chunks_vec` requires explicit deletion; no explicit `DELETE` statement exists for `chunks` itself (it relies on the `CASCADE` from deleting `documents`). The `chunks_vec_ad` trigger on `chunks` also deletes the matching `chunks_vec` row, including on that cascade, but only as a backstop; the explicit deletion remains the invariant.
 
 1. Explicitly delete rows in `chunks_vec` corresponding to the document's `chunk_ids`.
-2. Delete the row in `documents` (`ON DELETE CASCADE` cascades the deletion to `chunks`, which also triggers synchronization triggers for `chunks_fts`).
+2. Delete the row in `documents` (`ON DELETE CASCADE` cascades the deletion to `chunks`, which fires the `chunks_ad` (FTS5 sync) and `chunks_vec_ad` (vector backstop) triggers).
 
 **Affected Code Paths:**
 - `DocumentManager.delete_existing_document()` (`scripts/rag/ingestion/document_manager.py`) — ingestion pipeline path. Internally calls shared helper `delete_document_chain()`.

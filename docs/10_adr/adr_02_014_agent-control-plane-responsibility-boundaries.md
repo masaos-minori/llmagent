@@ -8,6 +8,8 @@ tags:
 related:
   - adr_02_001_workflow-engine-mandatory.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
+  - agent_03_02_turn-processing-flow-llm-tool-loop.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-014: Responsibility Boundaries of the Agent Control Plane
@@ -162,10 +164,10 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 
 ### Automated Tests
 
-- **Test**: A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance (added in `tests/agent/test_orchestrator.py`)
+- **Test**: A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance (`tests/agent/test_orchestrator.py`)
   - **Verifies**: INV-02
   - **Type**: Unit
-  - **Blocking**: No (INV-02 regression test added in `tests/agent/test_orchestrator.py`)
+  - **Blocking**: No (INV-02 regression test in `tests/agent/test_orchestrator.py`)
 
 ### Startup Validation
 
@@ -196,7 +198,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-No confirmed deviations.
+Not applicable
 
 ## Review Triggers
 

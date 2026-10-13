@@ -47,7 +47,7 @@ Any `RuntimeError` is not caught by the caller's `except` block and propagates f
 
 When `WorkflowEngine(require_approval=True)` is used, the engine pauses after the `execute` stage completes and before the `verify` stage begins:
 
-**Operations Policy (Decided):** The workflow-level gate is not configured per operation category. `WorkflowLoader._validate()` rejects any workflow definition whose `require_approval` is absent or `false` (`WorkflowLoadError`), so every workflow that loads has the gate enabled, and a misconfiguration fails startup rather than silently running without it. The bundled `config/workflows/default.json` sets `require_approval: true`. Because the gate applies uniformly, every operation category (file write, file deletion, shell execution, Git commit/push, GitHub changes, CI/CD execution) is covered by the post-execution approval whenever its tools run inside a workflow.
+**Operations Policy (Decided):** The workflow-level gate is not configured per operation category. `WorkflowLoader._validate()` rejects any workflow definition whose `require_approval` is absent or `false` (`WorkflowLoadError`), so every workflow that loads has the gate enabled, and a misconfiguration fails startup rather than silently running without it. The bundled `config/workflows/default.json` sets `require_approval: true`. Because the gate applies uniformly, every operation category (file write, file deletion, shell execution, Git commit/push, GitHub changes, CI/CD execution) is covered by the post-execution approval whenever its tools run inside a workflow. ADR-001 still allows skipping the approval stage; see Known Issue AGENT-010.
 
 **Tool-level gate:** Independently of `require_approval`, the tool-level pre-execution approval gate (risk rules in `config/agent.toml`) remains active.
 
@@ -94,8 +94,10 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 `Orchestrator.workflow_status()` returns a dict with a single key `tracking`:
 
-- `"enabled"` when the workflow is active (workflow definitions are loaded at startup)
-- `"not_loaded"` otherwise
+- `"running"` while a workflow task executes within the current turn
+- `"enabled"` otherwise, including right after startup; the workflow definition is always loaded because `Orchestrator` construction aborts startup when it fails to load
+
+The startup banner prints this value, or `unknown` when no `Orchestrator` exists yet.
 
 ### Workflow Stages
 
@@ -165,7 +167,8 @@ With the bundled `config/workflows/default.json`, `require_approval` is true, so
 |---|---|---|---|
 | `ctx.conv.history` | Each LLM/tool round (addition) | Yes — saved to SQLite per message | Also subject to compression by HistoryManager |
 | `ctx.turn.current_turn_id` | At TurnStart (UUID4) / TurnEnd (None) | No — in-memory only | Used for correlation within a turn |
-| `ctx.turn.pending_approval_id` | When workflow approval gate is paused | No — in-memory only; approval is persisted in `workflow.sqlite` | Reset to `None` on the next turn |
+| `ctx.turn.pending_approval_id` | Set when the workflow approval gate pauses and at startup recovery; cleared by `/approve` and `/reject` | No — in-memory display cache; the approval is persisted in `workflow.sqlite` | Identifies the approval the operator resolves |
+| `ctx.turn.pending_approval_task_id` | Set by `/approve` and at startup recovery; cleared when the next workflow task is initialized | No — in-memory only | The task to resume after approval |
 | `ctx.stats.stat_turns` | After each user message addition | No — in-memory (reported via stats command) | Resets on session restart |
 | `ctx.stats.stat_partial_completions` | On LLM stream interruption | No — in-memory; partial content is stored in `session_diagnostics` | Resets on session restart |
 | `session.title` | First turn (asynchronous background task) | Yes — SQLite `sessions.title` | Non-blocking; falls back to truncating first input if LLM fails |

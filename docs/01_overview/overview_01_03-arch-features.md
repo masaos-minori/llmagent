@@ -43,19 +43,19 @@ Refer to `overview_02_files.md` for the file structure.
 
 **Shared State and Dependency Injection**
 
-`AgentContext` (`agent/context.py`) functions as the dependency injection hub for all services. It composes `ConversationState`, `TurnState`, `RuntimeStats`, `WorkflowState`, and `AppServices`, which are all referenced by the same instance across `AgentREPL`, `Orchestrator`, and each command handler. (Source: `agent/context.py`)
+`AgentContext` (`agent/context.py`) functions as the dependency injection hub for all services. It composes `ConversationState`, `TurnState`, `RuntimeStats`, `WorkflowState`, and `AppServices`, which are all referenced by the same instance across `AgentREPL`, `Orchestrator`, and each command handler. (Explicit in code — `agent/context.py`)
 
 **Memory Layer Operating Modes**
 
-`MemoryServices.get_activation_mode()` returns one of the following modes based on the startup state: `disabled` (disabled in config), `fts-only` (embedding disabled by `memory_embed_enabled=false`, or no embedding client exists), `degraded` (embedding circuit breaker open), or `hybrid` (normal operation). An individual retrieval whose embedding call fails falls back to FTS for that retrieval without being treated as an error. An unreachable embedding service at startup is not a mode: the startup readiness check fails with a FATAL error (see `agent_10_01_operations-and-observability-startup-and-health.md`). (Source: `agent/memory/services.py`)
+`MemoryServices.get_activation_mode()` returns one of the following modes based on the startup state: `disabled` (disabled in config), `fts-only` (embedding disabled by `memory_embed_enabled=false`, or no embedding client exists), `degraded` (embedding circuit breaker open), or `hybrid` (normal operation). An individual retrieval whose embedding call fails falls back to FTS for that retrieval without being treated as an error. An unreachable embedding service at startup is not a mode: the startup readiness check fails with a FATAL error (see `agent_10_01_operations-and-observability-startup-and-health.md`). (Explicit in code — `agent/memory/services.py`)
 
 **Tool Routing**
 
-`RuntimeToolRegistry` (`shared/runtime_tool_registry.py`) holds sole routing authority. It is built from the live `/v1/tools` discovery at startup. The static registry (`tool_registry.py`) and the `tool_names` setting are used only for drift validation, never for routing. (Source: `shared/runtime_tool_registry.py`)
+`RuntimeToolRegistry` (`shared/runtime_tool_registry.py`) holds sole routing authority. It is built from the live `/v1/tools` discovery at startup. The static registry (`tool_registry.py`) and the `tool_names` setting are used only for drift validation, never for routing. (Explicit in code — `shared/runtime_tool_registry.py`)
 
 **Scope of sqlite-vec Extension Application**
 
-`SQLiteHelper` in `db/helper.py` loads the `sqlite-vec` extension (`vec0.so`) only when `target="rag"`. It is NOT applied to `session`, `workflow`, or `eventbus` databases. This intentional separation restricts vector operations to the RAG database. (Source: `db/helper.py`)
+`SQLiteHelper` in `db/helper.py` loads the `sqlite-vec` extension (`vec0.so`) only when `target="rag"`. It is NOT applied to `session`, `workflow`, or `eventbus` databases. This intentional separation restricts vector operations to the RAG database. (Explicit in code — `db/helper.py`)
 
 **Diagnostic Storage upon Session Termination**
 
@@ -63,9 +63,9 @@ After the REPL input loop ends, session diagnostics and memory are persisted (`A
 
 1. **Save Session Diagnostics** — Saves turn count, tool call count, latency, and workflow statistics to `DiagnosticStore`.
 2. **Persist Session Memory** — Extracts and persists memory from session history using rule-based logic.
-3. **WAL Truncate Checkpoint** — Executes a WAL TRUNCATE checkpoint on `session.sqlite` before closing the connection. If the checkpoint fails, a defensive backup of the WAL file via `WalCheckpointManager.backup_sync` is attempted; however, no exception is raised and the process terminates normally. Since SQLite will read existing WAL files upon the next startup, no data loss occurs. Note that if failures persist, attention should be paid to WAL file growth. (Source: `agent/wal_checkpoint_manager.py`, `agent/repl.py`)
+3. **WAL Checkpoint** — Executes a WAL checkpoint on `session.sqlite` before closing the connection: a PASSIVE checkpoint first, falling back to TRUNCATE (up to 3 attempts) when PASSIVE fails or takes longer than 5 seconds. If the checkpoint fails, a defensive backup of the WAL file via `WalCheckpointManager.backup_sync` is attempted; however, no exception is raised and the process terminates normally. Since SQLite will read existing WAL files upon the next startup, no data loss occurs. Note that if failures persist, attention should be paid to WAL file growth. (Explicit in code — `agent/wal_checkpoint_manager.py`, `agent/repl.py`)
 
-Current-session counters can be viewed with the `/stats` command; the saved record is stored in the `session_diagnostics` table. (Source: `agent/repl.py`)
+Current-session counters can be viewed with the `/stats` command; the saved record is stored in the `session_diagnostics` table. (Explicit in code — `agent/repl.py`)
 
 ---
 

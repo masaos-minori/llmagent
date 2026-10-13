@@ -23,7 +23,7 @@ To allow understanding of the responsibilities and public API scope of modules u
 
 The memory layer is **optional**. Since RAG already provides search capabilities, the memory layer is limited to a complementary role. It falls back to FTS5 even if the embedding endpoint is unavailable, ensuring sessions are not interrupted.
 
-It separates semantic memory (long-term rules/decisions) from episodic memory (session-specific failures/Q&A). This is due to differences in injection timing and search strategies. Semantic memory is filtered by an importance threshold and injected at session start; episodic memory is retrieved via hybrid search upon the first user prompt.
+It separates semantic memory (long-term rules/decisions) from episodic memory (session-specific failures/Q&A). This is due to differences in injection timing and search strategies. Semantic memory is filtered by an importance threshold and injected into the initial system prompt at session start; on every user prompt, both semantic and episodic memory are retrieved via hybrid search and injected as an ephemeral system message for that turn.
 
 ## Responsibility Boundary
 

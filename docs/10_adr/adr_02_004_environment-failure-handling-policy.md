@@ -14,6 +14,8 @@ related:
   - agent_08_04_configuration-mcp-approval-obs.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - governance_03_issue-and-uncertainty-management.md
+  - adr_01_index.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-004: Failure Handling Policy Across Environments
@@ -268,7 +270,7 @@ Rejected to prioritize Predictability and Maintainability, because static classi
 
 ## Consequences
 
-### Positives
+### Positive Consequences
 
 - Single consistent failure handling policy across all environments
 - No safety relaxation through environment names
@@ -278,7 +280,7 @@ Rejected to prioritize Predictability and Maintainability, because static classi
 - Partial-availability state observable
 - Fallback conditions limited to explicit definitions by other Accepted ADRs
 
-### Negatives
+### Negative Consequences
 
 - Component mandatoriness must be defined and maintained
 - Misclassification can cause unnecessary startup abort or inappropriate disabling of mandatory function
@@ -397,7 +399,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 - INV-14 (no startup continuation with undefined mandatoriness) verified by unit test (`tests/shared/test_mcp_config.py::TestRequiredDefault`)
 - INV-15/INV-16 cross-cutting audit (no ADR-004-scope fallback outside ADR-010):
   - **Why not automated**: "fallback" appears throughout production code in defensive patterns (default-value substitution, best-effort cleanup) not Destination substitution; pattern-based detector would produce unmanageable false positives. Only ADR-010 marker uniqueness automated (`TestFallbackMarkerLockGuard`).
-  - **Procedure**: search production sources for fallback paths, classify as (a) ADR-010 fallback or (b) ADR-004-scope fallback requiring Accepted ADR (Decision 26); file follow-up issue for paths fitting neither.
+  - **Procedure**: search production sources for fallback paths, classify as (a) ADR-010 fallback or (b) ADR-004-scope fallback requiring Accepted ADR (Decision #26); file follow-up issue for paths fitting neither.
   - **Baseline**: ADR-010 sole Accepted ADR defining fallback. Treats HTTP errors other than authentication errors (401/403 do not fall back), timeouts, connection errors as fallback conditions; empty results and parse errors as non-fallback.
   - **Classification of known paths**:
     - **Orchestrator workflow loading** (`orchestrator.py`): no fallback exists. A workflow definition that fails to load aborts Orchestrator construction, consistent with INV-03.
@@ -413,7 +415,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision Details #18 and INV-09)
+- **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision #18 and INV-09)
 
 ## Review Triggers
 
@@ -444,7 +446,7 @@ Re-evaluate when:
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names not recorded)
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The replacement of the references to a non-existent Specification in Decision Details #13 with the classification table of `agent_08_04` was approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering Decision #13; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

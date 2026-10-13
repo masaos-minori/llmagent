@@ -25,7 +25,7 @@ Primary store for all events. WAL mode is enabled to allow concurrent reads. DB 
 
 ## Schema
 
-Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `delivery_failure_count`, `cycle_failure_count`, `redelivered_from`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ), `consumer_id`, `consumer_delivery_failure_count`. Column definitions are in `scripts/eventbus/schema.sql` (used by the service when the `events` table is missing) and in `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` (used by `create_schema()`); the two are not identical (Known Issue EVENTBUS-016 in [governance_03](../00_governance/governance_03_issue-and-uncertainty-management.md)).
+Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `delivery_failure_count`, `cycle_failure_count`, `redelivered_from`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ), `consumer_id`. The per-consumer failure count and last NACK attempt live in `consumer_delivery`, not in `events`. Column definitions are in `scripts/eventbus/schema.sql` (used by the service when the `events` table is missing) and in `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` (used by `create_schema()`); the two are not identical (Known Issue EVENTBUS-016 in [governance_03](../00_governance/governance_03_issue-and-uncertainty-management.md)).
 
 Schema migrations for existing databases are idempotent.
 
@@ -141,8 +141,10 @@ If inconsistencies are detected, follow this controlled restart procedure:
 
 5. Verify the process started successfully:
    ```bash
-   curl http://<eventbus-host>:<port>/health
+   curl -H "Authorization: Bearer ${MONITORING_TOKEN}" http://<eventbus-host>:<port>/health
    ```
+
+   `/health` requires the `monitoring` role; a request without a valid Bearer token receives HTTP 401, which does not indicate an unhealthy process.
 
 6. Re-run Steps 1–4 to confirm consistency.
 

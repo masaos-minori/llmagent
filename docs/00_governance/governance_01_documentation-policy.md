@@ -125,7 +125,7 @@ A claim whose truth has not yet been verified through evidence.
 | configuration-schema | Configuration Structure | Valid configuration structure and constraints | Configuration loader and dataclass definitions under `scripts/` | Configuration Validation | Configuration Drift |  |
 | database-schema | DB Schema | Tables, columns, indexes, constraints | `scripts/db/schema_sql.py` (DDL builders); also `scripts/eventbus/schema.sql` for the `eventbus.sqlite` live-service DDL (see Known Issue EVENTBUS-016) and `scripts/mcp_servers/mdq/db_schema.py` for `mdq.sqlite` | Schema Test | Known Issues |  |
 | operational-procedure | Operational Procedures | Operator interaction guidance | Operations / Runbook | Operational Validation | Known Issues |  |
-| security-policy | Security Constraints | Security constraints and mandates | Accepted security ADRs (`docs/10_adr/ADR-007-*.md`, `ADR-012-*.md`, `ADR-013-*.md`) | Audit Evidence | Known Issues |  |
+| security-policy | Security Constraints | Security constraints and mandates | Accepted security ADRs (`docs/10_adr/adr_02_007_*.md`, `adr_02_012_*.md`, `adr_02_013_*.md`) | Audit Evidence | Known Issues |  |
 | documentation-metadata | Documentation Metadata | Metadata on documentation assets | `docs/00_governance/governance_02_documentation-metadata.md` | Metadata Validator | Known Issues |  |
 | unconfirmed-claim | Unconfirmed Items | Unverified claim | Needs Confirmation inventory (`governance_03_issue-and-uncertainty-management.md`) | Investigation Evidence | Needs Confirmation |  |
 
@@ -272,7 +272,7 @@ the following holds:
 
 1. **Named Approval Record**: the section records a specific reviewer, approval date, and
    reference (e.g., a review ticket or PR) for that ADR.
-2. **Task-level approval decision**: the accountable party (repository owner) issued an
+2. **Task-level approval decision**: the accountable party (repository owner, `@lead` in the RACI Model of `governance_05`) issued an
    explicit instruction, given as part of a specific documented task, to set the ADR's
    Status to `Accepted`. That instruction is itself sufficient acceptance evidence; no
    separate named Approval Record is required.

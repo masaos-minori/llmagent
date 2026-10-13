@@ -45,7 +45,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Dependency management is centralized in `pyproject.toml`/`uv.lock` (`requirements.txt` does not exist). Runtime dependencies are declared in `[project].dependencies`; development tools are declared separately in the `dev` dependency group.
 
-The deployment scripts do not run `uv sync`. `deploy/deploy.sh` copies `pyproject.toml` and `uv.lock` into the production install root, and `deploy/deploy.sh`, `deploy/setup_services.sh` and `deploy/start_agent.sh` invoke Python through `uv run` with `UV_SYSTEM_CERTS=true`; none of them passes a flag that selects or excludes the `dev` dependency group. (Explicit in code — `deploy/deploy.sh`, `deploy/start_agent.sh`, `pyproject.toml`) The `uv sync --dev --system-certs` command in `rules/toolchain.md` is the development-checkout setup, not a production step.
+The deployment scripts do not run `uv sync`. `deploy/deploy.sh` copies `pyproject.toml` and `uv.lock` into the production install root, and `deploy/deploy.sh`, `deploy/setup_services.sh`, `deploy/init_db.sh` and `deploy/start_agent.sh` invoke their Python helper steps (workflow-definition validation, schema creation and version checks, configuration reads) through `uv run` with `UV_SYSTEM_CERTS=true`; none of them passes a flag that selects or excludes the `dev` dependency group. The agent and the MCP servers themselves are not started through `uv run`; they run as compiled binaries (see section 2.6). (Explicit in code — `deploy/deploy.sh`, `deploy/start_agent.sh`, `pyproject.toml`) The `uv sync --dev --system-certs` command in `rules/toolchain.md` is the development-checkout setup, not a production step.
 
 ### 1.3 Building llama.cpp
 
@@ -129,7 +129,7 @@ bash deploy/start_agent.sh
 
 ### Implementation Supplement (Startup Method)
 
-`deploy/start_agent.sh` automatically detects whether to use the production install root or development (repository root) based on the presence of `pyproject.toml` in the production install root, and launches the compiled `/opt/llm/bin/agent` binary (built by `deploy/build_binaries.sh`) from the appropriate root. (Explicit in code)
+`deploy/start_agent.sh` automatically detects whether to use the production install root or development (repository root) based on the presence of `pyproject.toml` in the production install root. That root selects only the `PYTHONPATH`, the `.env` lookup and the `pyproject.toml` check; the script then always launches the compiled `/opt/llm/bin/agent` binary (built by `deploy/build_binaries.sh`) and requires the deployed `/opt/llm/scripts`, `/opt/llm/config` and `/opt/llm/db` files, so a repository checkout alone cannot start the agent. (Explicit in code — `deploy/start_agent.sh`)
 
 > API Key Configuration:
 > - Web Search: DuckDuckGo — No API key required. DuckDuckGo is the only search provider the server implements; `BRAVE_API_KEY` and `BING_API_KEY` in `conf.d/web-search-mcp` are not referenced by any code under `scripts/`
@@ -192,9 +192,9 @@ Layout on the deployed host:
 - `LLMAGENT_CONFIG_DIR=/opt/llm/config`
 - `LLMAGENT_SUDACHI_DICT=/opt/llm/dict/system.dic`
 
-A missing config directory or dictionary fails startup with an explicit error naming the path (AC-01, AC-05).
+A missing config directory or dictionary fails startup with an explicit error naming the path.
 
-**Rollback.** To revert the compiled-artifact path, restore `config/agent.toml` to its `uv run` `cmd` entries and re-run `deploy/deploy.sh`. `scripts/` stays deployed, so the `uv run` launch path keeps working after the revert.
+**MCP server launch.** Each subprocess-mode MCP server's `cmd` in `config/agent.toml` is the single element `/opt/llm/bin/mcp_<server>`. The agent launch in `deploy/start_agent.sh` is a compiled binary independent of those `cmd` entries. `scripts/` stays deployed alongside the binaries.
 
 ---
 

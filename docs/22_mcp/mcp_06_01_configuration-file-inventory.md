@@ -45,15 +45,18 @@ apply any pending `/reload` config change either. See
 [Agent Operations: MCP restart requirement](../23_agent/agent_10_01_operations-and-observability-startup-and-health.md)
 for the full explanation.
 
-**`cmd` script-path invariant:** for every `[mcp_servers.<name>]` entry with
-`startup_mode = "subprocess"`, the last element of `cmd` must point to a
-script that actually exists on disk (relative to the deployed scripts directory in
-production, `scripts/` in this repo) — `ConfigLoader`/`_build_mcp_servers()`
-do not verify this at load time, so a stale or renamed path silently loads
-without error until the subprocess is spawned.
-`tests/test_mcp_server_cmd_paths.py` guards this invariant by loading the
-real `config/agent.toml` via `build_agent_config()` and asserting every
-subprocess-mode server's `cmd` script path resolves to an existing file.
+**`cmd` target invariant:** for every `[mcp_servers.<name>]` entry with
+`startup_mode = "subprocess"`, the last element of `cmd` must point to a valid
+launch target — `ConfigLoader`/`_build_mcp_servers()` do not verify this at
+load time, so a stale or renamed path silently loads without error until the
+subprocess is spawned. In the current layout the target is the compiled binary
+`/opt/llm/bin/mcp_<server key>`. Those binaries are build-host artifacts that
+do not exist in the development environment, so
+`tests/agent/test_mcp_server_cmd_paths.py` loads the real `config/agent.toml`
+via `build_agent_config()` and asserts the binary naming convention rather than
+file existence. The test also accepts the legacy layout, a script under
+`/opt/llm/scripts/`, and then asserts that the script exists on disk. Any other
+target fails the test.
 
 ## Layer 2 — MCP Server Local Application Configuration (`config/*_mcp_server.toml`)
 

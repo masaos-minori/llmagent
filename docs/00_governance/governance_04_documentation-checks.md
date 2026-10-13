@@ -55,6 +55,8 @@ Checks consistency between documentation and source code for each domain.
 - `deployment` — Deployment docs vs config/deployment files
 - `overview` — Overview docs vs overall project structure
 
+`--domain` accepts only these five domains; there is no EventBus or Shared/DB domain, so those documents are not covered by this check.
+
 **Checks performed per domain:**
 - Schema drift (DB schema vs documented schema)
 - Config key presence (documented config keys exist in actual config)
@@ -199,7 +201,7 @@ python tools/check_adr_structure.py --format json
 
 Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), and rejects resolved-item bullets in `## Known Deviations` (Error).
 
-**Enforcement:** local run only — not wired into pre-commit or `.github/workflows/`.
+**Enforcement:** pre-commit (`known-deviation-sync`); not wired into `.github/workflows/`. Rule ID `GV-022`: an Error (resolved-item bullet) fails the run, a Warning (dangling reference) does not.
 
 **Usage:**
 ```bash
@@ -330,10 +332,11 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
+| GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no dangling Known Issue ID (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking | Existing | None |
 
 ### Follow-up Work Needed
 
-Rules marked "Missing" or "Partial" above need new inspection tools or processes:
+Rules marked "Missing" or "Partial" above need new inspection tools or processes; `GV-012` (Existing) is listed for its optional extension:
 
 1. **GV-009, GV-010**: Automate cross-document canonical source conflict detection (currently manual)
 2. **GV-011**: Extend `stale_patterns` custom rule config to cover canonical document references

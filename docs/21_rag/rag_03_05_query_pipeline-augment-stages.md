@@ -34,10 +34,10 @@ RerankStage(cfg: RagConfig, llm: RagLLM)
 
 - `use_rerank=False`: Returns top `rag_top_k` in RRF order (sliced) + `deduplicate_chunks`
 - `use_rerank=True`: `RagLLM.cross_encoder_rerank(query, candidates, top_k, rag_min_score)`; raises `RagRerankError` if the LLM fails
-- Filters by `rag_min_score`; there is no fallback on cross-encoder failure (the exception propagates)
+- Filters by `rag_min_score`; on `RagRerankError`, `RerankStage.run()` falls back to the RRF-ranked results (see below)
 - Deduplication: `deduplicate_chunks(hits, max_chunks_per_doc)` — Limits the number of hits per URL; while the function itself does not require sorted input, the caller passes descending results after reranking, so only top chunks remain; applied after reranking (not before)
 
-**Exception Catching Location (Explicit in code):** `RerankStage.run()` itself does not catch exceptions. `RagPipeline` wraps the `run()` execution in a try/except block, catching `RuntimeError` (`RagRerankError` base), `sqlite3.OperationalError`, `httpx.HTTPStatusError`, `httpx.RequestError`, and `TimeoutError`, converting them into `StageResult(status="failure", fallback_reason=<exception_message>)`. Therefore, the pipeline as a whole does not stop on an exception, and subsequent stages (AugmentStage) continue execution by inheriting an empty `ctx.reranked`.
+**Exception Catching Location (Explicit in code):** `RerankStage.run()` catches `RagRerankError` (defined in `scripts/rag/exceptions.py`; it derives from `RagLayerError`, not from `RuntimeError`) and falls back to the RRF-ranked results, sliced to `rag_top_k` and deduplicated, recording the fallback reason `rerank_exception`; the stage is reported with status `fallback`. Any other exception propagates to `RagPipeline._run_stage()`, which catches `RuntimeError`, `sqlite3.OperationalError`, `httpx.HTTPStatusError`, `httpx.RequestError`, and `TimeoutError` and converts them into `StageResult(status="failure", fallback_reason=<exception_message>)`. The pipeline as a whole does not stop on such an exception, and subsequent stages (AugmentStage) continue with an empty `ctx.reranked`.
 
 ### 5.5 AugmentStage
 

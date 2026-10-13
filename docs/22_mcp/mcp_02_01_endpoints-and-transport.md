@@ -9,6 +9,7 @@ related:
   - mcp_00_document-guide.md
   - mcp_02_02_startup-modes-and-health.md
   - mcp_02_03_audit-logging-and-errors.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
 ---
 
 # MCP Protocol and Transport: Endpoints and Transport
@@ -102,8 +103,8 @@ These fields are currently supported by the discovery service:
 - `inputSchema` — per-tool schema (required; `input_schema` is not accepted)
 - `status` — per-tool status
 - `server_key` — server key injected by `build_tools_response()`
-- `enabled` — maps to RuntimeTool.enabled_for_llm (server-specific; not all servers return this)
-- `disabled_reason` — reason when disabled (server-specific; not all servers return this)
+- `enabled` — maps to RuntimeTool.enabled_for_llm (returned by every MCP server; see [Tool Runtime Availability Metadata](./mcp_03_06_tool-runtime-availability-metadata.md))
+- `disabled_reason` — reason when disabled (returned by every MCP server)
 - `is_write` — whether the tool performs writes (schema-2.0, **required** — a missing/invalid value rejects the tool entry, see [mcp_03_02_tool-registry.md](./mcp_03_02_tool-registry.md))
 - `requires_serial` — whether the tool requires serial execution (schema-2.0, **required**)
 - `resource_scope_kind` / `resource_scope_keys` — declared scope kind (e.g. `"filesystem"`, `"git_repo"`) and the argument keys whose values feed the resolved per-call scope (schema-2.0, **required**); resolved into `ToolSpec.resource_scopes` at call time by `shared/resource_scope.py::resolve_resource_scopes()`

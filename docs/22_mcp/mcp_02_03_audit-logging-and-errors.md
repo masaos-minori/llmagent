@@ -57,18 +57,17 @@ HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which rais
 
 > **Note:** `HttpTransport.call()` does not directly return `is_error=True` for transport failures. Instead, it raises a `TransportError`. The transport error handler catches this and returns `ToolCallResult(error_type="transport")`. See [mcp_03 HttpTransport](./mcp_03_03_transport-and-health.md#httptransport).
 
-### HealthRegistry Updates
+### McpServerHealthRegistry Updates
 
-- **Transport Failure** (after all retries exhausted): `HealthRegistry.record_failure(server_key)` — Increments failure count; may transition the server to DEGRADED/UNAVAILABLE.
-- **Transport Success** (including tool-level errors from the server): `HealthRegistry.record_success(server_key)` — Resets failure count to 0. Tool-level errors are tracked separately via `stat_tool_errors`.
-- **Cache Hit**: No HealthRegistry update — because no live call was made.
+- **Transport Failure** (after all retries exhausted): `McpServerHealthRegistry.record_failure(server_key)` — Increments failure count; may transition the server to DEGRADED/UNAVAILABLE.
+- **Transport Success** (including tool-level errors from the server): `McpServerHealthRegistry.record_success(server_key)` — Resets failure count to 0. Tool-level errors are tracked separately via `stat_tool_errors`.
 - **Rejected by preflight health check**: `record_failure()` is not called — because the attempt itself was not made.
-- **Retry Behavior**: Only the final result is recorded in HealthRegistry (Success, or TransportError after all retries exhausted). Intermediate retry attempts are not counted.
+- **Retry Behavior**: Only the final result is recorded in McpServerHealthRegistry (Success, or TransportError after all retries exhausted). Intermediate retry attempts are not counted.
 
 ### Error Classification Table
 
 The exact HTTP-status/retryability classification for each transport failure kind is
-determined by `scripts/shared/mcp_health.py::HealthRegistry.record_failure()` and its
+determined by `scripts/shared/mcp_health.py::McpServerHealthRegistry.record_failure()` and its
 callers in the transport-error-handling path — see that module for the current
 mapping.
 
@@ -99,6 +98,6 @@ result = await dispatch_tool(dispatch_table, name, args)
 - transport
 - audit
 - error
-- HealthRegistry
+- McpServerHealthRegistry
 - TransportError
 - dispatch_tool

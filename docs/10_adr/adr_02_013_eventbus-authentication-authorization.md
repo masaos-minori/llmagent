@@ -13,6 +13,7 @@ related:
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
   - security_01_architecture-and-trust-boundaries.md
   - governance_03_issue-and-uncertainty-management.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-013: EventBus Authentication and Authorization
@@ -203,10 +204,6 @@ ADR-002 documents the exception. Equivalent fail-closed validation is implemente
 - INV-06: Loopback-only binding enforcement MUST remain unchanged.
 - INV-07: A token that grants every role (`auth_token`, `admin_token`) is never distributed to a publisher or consumer process.
 
-## Exceptions
-
-Not applicable.
-
 ## Failure Policy
 
 ### Fail-Fast Conditions
@@ -273,7 +270,7 @@ See Implementation References for the current file/symbol list.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The authentication description correction, INV-07, and the recorded deviations were approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering the authentication description, INV-07, and the Known Deviations; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

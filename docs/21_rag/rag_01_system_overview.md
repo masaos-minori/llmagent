@@ -106,7 +106,7 @@ config/crawler.toml [target_urls]
 
 > **Implementation Note:** Configuration consists of three separate files per script:
 > (`config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml`). Each script loads only its own configuration using `ConfigLoader().load("<script>.toml")` and restricts access to other files using `ConfigLoader.restrict_to("<script>.toml")` (verified in `scripts/rag/ingestion/crawler.py` and `ingester.py`).
-> Basis: [ADR-002](../10_adr/adr_02_002_config-isolation.md) Decision Details #3 to #5 and #9. Explicit in code.
+> Per [ADR-002](../10_adr/adr_02_002_config-isolation.md) Decision Details #3 to #5 and #9 (Explicit in code).
 
 ---
 
@@ -127,7 +127,7 @@ Stages: MQE → Search → Fusion → Rerank → Augment, followed by the option
 
 ### Semantic Cache
 
-The RAG pipeline has no semantic cache. The configuration keys `use_semantic_cache`, `semantic_cache_threshold`, and `semantic_cache_max_size` are not supported and cause a validation error when present in any configuration source (see `RagConfigValidator._check_removed_semantic_cache_keys()` at `scripts/shared/config_validator.py`).
+The RAG pipeline has no semantic cache; a configuration source that carries semantic-cache settings fails validation (Explicit in code — `scripts/shared/config_validator.py`).
 
 ---
 

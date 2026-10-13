@@ -71,7 +71,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ### Consistency Checklist
 
-When schema/command references change, verify that `agent_07_cli-and-commands-*.md` matches `scripts/agent/commands/command_defs_list.py` (`_COMMANDS`; no deleted command references), `agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics` (no references to deleted `diagnostics.jsonl`).
+When schema/command references change, verify that `agent_07_cli-and-commands-*.md` matches `scripts/agent/commands/command_defs_list.py` (`_COMMANDS`; no deleted command references), `agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics`.
 
 ### Document Set Chapters
 

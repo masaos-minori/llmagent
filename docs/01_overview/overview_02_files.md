@@ -55,11 +55,11 @@ See `deploy/` for the current file layout.
 
 ### Deployment Artifacts
 
-**Build scripts** — One-time setup operations: sqlite-vec extension compilation, Python script and configuration deployment, and SQLite schema initialization. Each runs sequentially; later steps depend on earlier ones completing successfully.
+**Build scripts** — One-time setup operations: sqlite-vec extension compilation, Nuitka binary packaging of the agent and MCP servers, Python script and configuration deployment, and SQLite schema initialization. Each runs sequentially; later steps depend on earlier ones completing successfully.
 
 **Service orchestration** — Runs the workflow pre-flight checks and starts the Event Bus; requires workflow definitions validated and database tables present before starting. MCP servers are started by the agent as subprocesses on agent startup. LLM services (`embed-llm`, `agent-llm`) are not started by any script in the repository and must already be running (see [deployment_01_deployment.md](../90_deployment/deployment_01_deployment.md)).
 
-**Agent launcher** — Starts the AgentREPL process. Prefers the production pyproject.toml over development alternatives. Dependent on service orchestration completing first.
+**Agent launcher** — Starts the AgentREPL process by launching the compiled agent binary. It prefers the production install root over the repository root only for the `.env` lookup, `PYTHONPATH` and the `pyproject.toml` check. Dependent on service orchestration completing first.
 
 ### Startup Sequence Dependencies
 
@@ -69,7 +69,7 @@ Startup order: build scripts → deployment → schema initialization → servic
 
 ### Reason for Process Separation
 
-Deployment is split into separate scripts under `deploy/` (`build_sqlite_vec.sh`, `deploy.sh`, `init_db.sh`, `setup_services.sh`, `start_agent.sh`), each an independent bash script using `set -euo pipefail`. (Explicit in code — `deploy/*.sh`)
+Deployment is split into separate scripts under `deploy/` (`build_sqlite_vec.sh`, `build_binaries.sh`, `deploy.sh`, `init_db.sh`, `setup_services.sh`, `start_agent.sh`), each an independent bash script using `set -euo pipefail`. (Explicit in code — `deploy/*.sh`)
 - One-time steps (such as building the sqlite-vec extension) are not repeated on every deployment.
 - Each step can be re-run on its own, for example `start_agent.sh` can be run again without re-running the deployment steps.
 
@@ -173,7 +173,7 @@ See `scripts/eventbus/` for the current file layout. See `conf.d/` for per-serve
 
 ### Event Bus Architecture
 
-The event bus provides event-driven communication between system components. It uses SQLite-backed persistence for durability and implements publish-subscribe semantics for decoupled messaging. The event bus enables loose coupling between producers and consumers while maintaining delivery guarantees.
+The event bus is a standalone service that provides publish-subscribe messaging with SQLite-backed persistence and delivery guarantees. No Agent, RAG, or MCP runtime component publishes to or subscribes from it; the client modules under `scripts/agent/` are used only by their unit tests (Known Issue EVENTBUS-017).
 
 ### Delivery Mechanisms
 
@@ -185,7 +185,7 @@ SQLite-based event store with WAL mode for concurrent access. Events are indexed
 
 ### Configuration Files (conf.d/)
 
-Per-MCP-server environment files under `conf.d/`: operational credentials for CI/CD, git, GitHub, and web search providers. These files contain sensitive settings and are managed separately from code.
+Per-MCP-server environment files under `conf.d/` for `cicd-mcp`, `git-mcp`, `github-mcp`, and `web-search-mcp`. The cicd and github files hold `GITHUB_TOKEN`; the git file defines no variables (comments only); the web-search file lists search-provider API keys that no code under `scripts/` reads (see [deployment_01_deployment.md](../90_deployment/deployment_01_deployment.md)). MCP authentication tokens are not part of `conf.d/`. These files contain sensitive settings and are managed separately from code.
 
 ## Keywords
 

@@ -16,6 +16,7 @@ related:
   - governance_03_issue-and-uncertainty-management.md
   - adr_02_004_environment-failure-handling-policy.md
   - adr_02_013_eventbus-authentication-authorization.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-006: EventBus SQLite Persistence and SSE Delivery
@@ -340,7 +341,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
   - **Verifies**: INV-08
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_nack_increments_delivery_failure_count`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPROMotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count`
+  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_nack_increments_delivery_failure_count`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count`
 
 - **Test**: A non-loopback host is rejected at configuration validation
   - **Verifies**: INV-15
@@ -417,7 +418,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The reinterpretation of INV-12 (a failed ACK is not treated as success and the event stays eligible for redelivery, consistent with INV-07) and the narrowed scope of INV-10 and INV-11 were approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering INV-10 to INV-12; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -439,8 +440,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/dlq.py` — `promote_single()`, `sweep_orphans()`
 - `scripts/eventbus/config.py` — `_validate_deployment_mode()`
 - `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
-- `events` table — `seq`, `event_id`, `topic`, `payload`, `delivery_failure_count`, `dlq_requeue_count`, `dlq_at` (no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`)
-- `consumer_delivery` table — `consumer_id`, `event_id`, `acked`, PRIMARY KEY `(consumer_id, event_id)`
+- `events` table — `seq`, `event_id`, `topic`, `payload`, `producer`, `published_at`, `delivery_failure_count`, `cycle_failure_count`, `redelivered_from`, `dlq_requeue_count`, `dlq_at`, `consumer_id` (no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`)
+- `consumer_delivery` table — `consumer_id`, `event_id`, `acked`, `consumer_delivery_failure_count`, `consumer_last_nack_attempt`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
 - Offset files — `{offsets_dir}/{sanitized_consumer_id}` (read only by `migrate_legacy_offsets()` at startup)
 - DLQ promotion paths — inline promotion (on `POST /nack`) and the periodic background loop

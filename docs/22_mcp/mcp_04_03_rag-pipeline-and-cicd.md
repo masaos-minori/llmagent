@@ -28,10 +28,10 @@ related:
 |---|---|---|
 | `rag_run_pipeline` | `{query, history_context?, debug?}` | Plain text: the `augmented_text` context block, or a fixed no-results message when it is empty |
 | `rag_debug_pipeline` | `{query, history_context?, debug?}` | JSON summary: `query`, `queries`, hit counts per stage (`merged_count`, `reranked_count`, `selected_count`), `elapsed`, `augmented_text` |
-
-The tools return text through `POST /v1/call_tool` (`CallToolResponse`: `result`, `is_error`). The direct endpoints `POST /rag_run_pipeline` and `POST /rag_debug_pipeline` return the structured models, where `selected_hits` (the final selected chunks) is a field of the response body; `selected_hits` is not part of the `/v1/call_tool` result.
 | `rag_list_documents` | `{lang?, limit?}` | List of indexed documents |
 | `rag_delete_document` | `{url}` | Deletion confirmation |
+
+The tools return text through `POST /v1/call_tool` (`CallToolResponse`: `result`, `is_error`). The direct endpoints `POST /rag_run_pipeline` and `POST /rag_debug_pipeline` return the structured models, where `selected_hits` (the final selected chunks) is a field of the response body; `selected_hits` is not part of the `/v1/call_tool` result.
 
 **Configuration Parameters (RagPipelineConfig dataclass):**
 

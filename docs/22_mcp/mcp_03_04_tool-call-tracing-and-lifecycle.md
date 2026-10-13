@@ -26,7 +26,7 @@ related:
 4. Agent:
    Transport error handler records the error for "file_read"
    → stat_transport_errors["file_read"] += 1
-   → HealthRegistry.record_failure("file_read") → state: HEALTHY → DEGRADED
+   → McpServerHealthRegistry.record_failure("file_read") → state: HEALTHY → DEGRADED
 
 5. ToolCallResult:
    (output=str(error), is_error=True, server_key="file_read", error_type="transport")
@@ -37,8 +37,8 @@ related:
 
 7. Next real tool call to "file_read" (internal dispatch):
    ensure_ready() attempts recovery (subprocess mode only), then dispatch proceeds.
-   → if the call succeeds: HealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
-   → if it fails again: HealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE
+   → if the call succeeds: McpServerHealthRegistry.record_success("file_read") → HALF_OPEN → HEALTHY
+   → if it fails again: McpServerHealthRegistry.record_failure("file_read") → DEGRADED → UNAVAILABLE
    No background poller retries this automatically.
 ```
 
@@ -51,7 +51,7 @@ related:
 | `is_error` | `True` | `True` |
 | `error_type` | `"tool"` | `"transport"` |
 | `mcp_request_id` | Set (server responded) | `""` (no response received) |
-| `HealthRegistry` | `record_success()` (server responded) | `record_failure()` (unable to reach server) |
+| `McpServerHealthRegistry` | `record_success()` (server responded) | `record_failure()` (unable to reach server) |
 | `stat_tool_errors` | Incremented | No change |
 | `stat_transport_errors` | No change | Incremented |
 

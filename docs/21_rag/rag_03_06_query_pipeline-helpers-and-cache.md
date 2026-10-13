@@ -72,7 +72,8 @@ Merges multiple search result lists using RRF (Reciprocal Rank Fusion) via `rrf_
 Implementation is located below:
 
 - `scripts/rag/llm_client.py` — `RagLLM` class, `get_embedding()`, `summarize_tool_result()`
-- `scripts/rag/llm_prompts.py` — Prompt templates, `RagExpansionError`, `RagRerankError`, `MqeParseError`
+- `scripts/rag/llm_prompts.py` — Prompt templates, `MqeParseError`
+- `scripts/rag/exceptions.py` — `RagExpansionError`, `RagRerankError` (see [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md))
 
 ```python
 from rag.llm_client import RagLLM

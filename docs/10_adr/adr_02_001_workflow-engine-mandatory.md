@@ -11,6 +11,7 @@ related:
   - agent_03_03_turn-processing-flow-workflow-engine.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - adr_02_004_environment-failure-handling-policy.md
+  - governance_01_documentation-policy.md
 ---
 
 # ADR-001: Mandatory Workflow Engine
@@ -310,7 +311,7 @@ See Implementation References for the file/symbol list.
 
 ## Known Deviations
 
-No confirmed deviations.
+- Known Issue AGENT-010: the workflow loader rejects a definition without `require_approval=true`.
 
 ## Review Triggers
 
@@ -342,7 +343,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: The wording of Decision Details #4, which now names the fallback path taken when the workflow definition fails to load as prohibited, was approved as a task-level approval decision (repository owner instruction); individual reviewer names are not recorded.
+- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering Decision Details #4; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

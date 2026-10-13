@@ -53,7 +53,7 @@ Provides guidance on determining which chapters to open as the entry point for t
 | `/v1/call_tool`, Bearer authentication, and audit log formats | `mcp_02` |
 | Tool routing, ToolExecutor, and adding new servers | `mcp_03` (config defaults are in `mcp_06` Major Default Values) |
 | Handling of tool enabled/disabled_reason, config_dependent, and RuntimeToolRegistry | `mcp_03_06` |
-| Tools provided by web-search/github/shell/mdq MCPs. mdq-mcp FTS5 search is production-ready; hybrid search is unimplemented | `mcp_04` (mdq-mcp only has FTS5 search implemented) |
+| Tools provided by web-search/github/shell/mdq MCPs. mdq-mcp provides FTS5 (BM25) search only; it has no hybrid or semantic search | `mcp_04` (mdq-mcp only has FTS5 search implemented) |
 | allowed_dirs/allowed_repos, fail-closed/fail-open, dry_run, risk tiers, MDQ/RAG boundary | `mcp_05` |
 | Config file list, health verification, default values, startup warnings, failure diagnosis | `mcp_06` |
 | Naming convention for tool schema modules, TOOL_LIST exports, and cleanup of _MCP_TOOLS references | `mcp_07` |
@@ -95,7 +95,7 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [mcp_06_07_mcp-failure-diagnosis.md](mcp_06_07_mcp-failure-diagnosis.md) | Failure Diagnosis |
 | [mcp_06_08_settings-with-high-operational-impact.md](mcp_06_08_settings-with-high-operational-impact.md) | Settings with High Operational Impact |
 | [mcp_06_09_startup-validation-behavior-tool_definitions_strict.md](mcp_06_09_startup-validation-behavior-tool_definitions_strict.md) | Startup Validation |
-| [mcp_06_10_health-reasons-and-error-kinds.md](mcp_06_10_health-reasons-and-error-kinds.md) | health_reason / HealthRegistry |
+| [mcp_06_10_health-reasons-and-error-kinds.md](mcp_06_10_health-reasons-and-error-kinds.md) | health_reason / McpServerHealthRegistry |
 | [mcp_06_11_new-tool-registration-procedure.md](mcp_06_11_new-tool-registration-procedure.md) | New Tool Registration |
 | [mcp_06_12_new-mcp-server-addition-checklist.md](mcp_06_12_new-mcp-server-addition-checklist.md) | New Server Addition Checklist |
 | [mcp_06_13_pre-production-fail-open-checklist.md](mcp_06_13_pre-production-fail-open-checklist.md) | Pre-Production Checklist |

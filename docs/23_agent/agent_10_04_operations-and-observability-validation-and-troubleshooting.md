@@ -29,18 +29,7 @@ The agent unconditionally verifies the existence of workflow definition files be
 
 ### Severity Mapping
 
-| Severity | Meaning | Behavior |
-|---|---|---|
-| FATAL | Condition preventing startup | Throws `RuntimeError` after all checks complete, aborting startup |
-| WARNING | Check performed but problem detected | Continues startup, but requires operator attention |
-| SKIPPED | Check could not be performed | Continues startup. Occurs when environment-dependent checks are unavailable |
-| OK | Check performed successfully | Indicates normal state (Note: `security_audit` OK means "check completed", not necessarily "no problems found") |
-
-**Important Notes:**
-- `routing_drift_live` and `routing_safety_tiers` record no outcome during normal operation (silence means healthy).
-- `tool_definitions` follows a unified severity scheme: FATAL when in strict mode (`tool_definitions_strict`), WARNING otherwise.
-- `routing_drift` follows `routing_drift_strict`: a detected drift is FATAL when strict and WARNING otherwise, and an unexpected failure of the drift check itself follows the same rule (FATAL when strict, WARNING otherwise), so a broken check is never reported as a clean result.
-- `mcp_tool_discovery` failure for a required MCP server (`McpServerConfig.required`) is FATAL and aborts startup; for a non-required server it is WARNING and startup continues with that server's tools disabled (ADR-004).
+The FATAL / WARNING / SKIPPED / OK semantics and the per-check severity rules (`tool_definitions`, `routing_drift`, `mcp_tool_discovery`, `mcp_auth`) are defined once in [Severity Mapping for Startup Verification](agent_10_01_operations-and-observability-startup-and-health.md#severity-mapping-for-startup-verification) in the startup and health document.
 
 ### SIGINT/SIGTERM Interruption During Startup Sequence
 

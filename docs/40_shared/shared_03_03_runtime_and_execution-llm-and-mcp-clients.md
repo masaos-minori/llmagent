@@ -17,7 +17,7 @@ related:
 
 **Responsibility:** Core engine for tool dispatching — handles tool → server resolution, concurrency limits, health gating, and transport communication.
 
-**`ToolCallResult` Data Class (Result Contract, `shared/transport_dto.py`, frozen dataclass):** A frozen dataclass containing `output` (truncated if > `MCP_MAX_RESPONSE_BYTES`), `is_error`, `request_id` (X-Request-Id from MCP server, empty for cache hits), `server_key` (routing target), `source` ('mcp'/'cache'/empty), and `error_type` ('transport'/'tool'/empty). `error_type` is used by the health gate and error counter aggregation.
+**`ToolCallResult` Data Class (Result Contract, `shared/transport_dto.py`, frozen dataclass):** A frozen dataclass containing `output` (truncated if > `MCP_MAX_RESPONSE_BYTES`), `is_error`, `request_id` (X-Request-Id from MCP server, empty when none is available), `server_key` (routing target), `source` ('mcp' for MCP calls, empty on error paths; 'cache' is set only by the standalone `ToolResultCache`, which `ToolExecutor` does not use), and `error_type` ('transport'/'tool'/empty). `error_type` is used by the health gate and error counter aggregation.
 
 **Execution Flow:** Resolve `tool_name` → `server_key` via `ToolRouteResolver`; `startup_mode=none` gate rejects disabled servers; `McpServerHealthRegistry.is_unavailable()` blocks `UNAVAILABLE` dispatch (`HALF_OPEN` allows one attempt per cooldown); `lifecycle.ensure_ready()` if configured; execute via `HttpTransport.call()` behind a per-server-key semaphore; return `ToolCallResult`.
 

@@ -33,6 +33,10 @@ applies to the current system; it is not retained here with a closed-out status.
 
 document-code-mismatch, document-document-mismatch, obsolete-description, missing-documentation, ambiguous-behavior, implementation-bug (code does not match documented intent), design-gap, operational-gap.
 
+### Unused Features
+
+A symbol, configuration key, or statistic that production code under `scripts/` defines, validates, or exposes but never reads or calls (only tests or documents reference it) is registered as a `design-gap` when a document describes it as current behavior; closely related items share one entry.
+
 ### Severity Values
 
 High (safety or critical functionality; immediate attention), Medium (correctness or clarity; address soon), Low (minor inconsistency; can be deferred).
@@ -67,12 +71,19 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-007 | A diagnostic row that fails to decrypt is returned as ciphertext with only a warning | open | Low | Agent | design-gap |
 | AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
 | AGENT-009 | /skill messages lose the _ephemeral marker during append validation | open | Low | Agent | design-gap |
+| AGENT-010 | The workflow loader requires require_approval=true although ADR-001 allows skipping approval | open | Medium | Agent | document-document-mismatch |
+| AGENT-011 | The Agent startup security audit reads MCP server configuration models outside ADR-002's exceptions | open | Medium | Agent | document-code-mismatch |
+| AGENT-012 | Agent statistics and health members are defined but never reached | open | Low | Agent | design-gap |
+| MCP-001 | The shell, github, and file MCP servers register no Bearer-token authentication middleware | open | High | MCP | implementation-bug |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
-| DEPLOY-002 | Production uv run does not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
+| DEPLOY-002 | Production auxiliary uv run calls do not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token is unrestricted when the authorization mappings are empty | open | Medium | EventBus | design-gap |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
 | EVENTBUS-016 | Two EventBus DDL sources define slightly different schemas | open | Low | EventBus | design-gap |
+| EVENTBUS-017 | No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency | open | Medium | EventBus | design-gap |
+| EVENTBUS-018 | retained_event_count is validated but never applied | open | Low | EventBus | design-gap |
 | SHARED-001 | shared/security package has no importers | open | Low | Shared/DB | design-gap |
+| SHARED-002 | Several shared and db helpers have no production caller | open | Low | Shared/DB | design-gap |
 
 #### RAG-006
 
@@ -109,8 +120,8 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Related**: None
 - **Summary**: The `sqlite-vec` virtual table `chunks_vec` cannot declare a foreign key to `chunks`.
 - **Current Description**: ADR-005 requires derived index rows to follow their source rows.
-- **Observed Implementation**: Orphaned vector rows can exist after document deletion if the explicit `chunks_vec` deletion step is skipped; all deletion paths perform it.
-- **Impact**: A deletion path that omits the explicit step leaves orphaned vector rows.
+- **Observed Implementation**: All deletion paths delete the `chunks_vec` rows explicitly before `documents`. The `chunks_vec_ad` trigger on `chunks` also removes the matching vector row, including on the `documents` cascade, as a backstop.
+- **Impact**: Orphaned vector rows remain only if the trigger is missing from the schema or fails; `check_rag_consistency()` reports them.
 - **Recommended Action**: Keep the ordering invariant tested, and revisit when `sqlite-vec` supports foreign keys.
 - **Resolution Target**: `sqlite-vec` supports foreign keys, or the limitation is recorded as accepted.
 
@@ -234,6 +245,86 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Authorize `_ephemeral` for the skill source, or make the pre-turn clearing also handle `_skill_ephemeral`, or record the behavior as accepted.
 - **Resolution Target**: Skill messages are cleared by one defined mechanism, with a test.
 
+#### AGENT-010
+
+- **ID**: AGENT-010
+- **Title**: The workflow loader requires require_approval=true although ADR-001 allows skipping approval
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: document-document-mismatch
+- **Source**: `docs/10_adr/adr_02_001_workflow-engine-mandatory.md`, `scripts/agent/workflow/workflow_loader.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/adr_02_001_workflow-engine-mandatory.md`
+- **Related**: None
+- **Summary**: ADR-001 allows skipping the approval stage, while the loader accepts only definitions whose `require_approval` is true.
+- **Current Description**: ADR-001 allows skipping only the approval stage; the Agent chapters describe the approval gate as active for every loaded definition.
+- **Observed Implementation**: `WorkflowLoader._validate()` raises `WorkflowLoadError` when `require_approval` is absent or not true.
+- **Impact**: A reader of ADR-001 can expect `require_approval=false` to load; the loader rejects it at startup.
+- **Recommended Action**: Decide whether the mandatory gate is the adopted decision; if so, amend ADR-001 through the ADR approval process, otherwise relax the loader.
+- **Resolution Target**: ADR-001 and the loader describe the same approval-skipping rule.
+
+#### AGENT-011
+
+- **ID**: AGENT-011
+- **Title**: The Agent startup security audit reads MCP server configuration models outside ADR-002's exceptions
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: document-code-mismatch
+- **Source**: `scripts/agent/security_audit_config.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/adr_02_002_config-isolation.md`
+- **Related**: None
+- **Summary**: The Agent startup audit loads the shell, git, github, and cicd MCP configuration models, while ADR-002 requires the Agent to read only `config/agent.toml`.
+- **Current Description**: ADR-002 INV-01 and INV-02 list only EventBus as an exception to the Agent reading other configuration files.
+- **Observed Implementation**: `audit_security_defaults()` reads each MCP server's configuration file for the audit.
+- **Impact**: The documented configuration isolation boundary and the audit read path disagree.
+- **Recommended Action**: Decide whether the read-only audit is an accepted exception and record it in ADR-002 through the ADR approval process, or move the audit into the MCP servers.
+- **Resolution Target**: ADR-002 and the startup audit describe the same configuration read boundary.
+
+#### AGENT-012
+
+- **ID**: AGENT-012
+- **Title**: Agent statistics and health members are defined but never reached
+- **Status**: open
+- **Severity**: Low
+- **Area**: Agent
+- **Type**: design-gap
+- **Source**: `scripts/agent/context.py`, `scripts/agent/http_lifecycle_health_checker.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, `docs/10_adr/adr_02_004_environment-failure-handling-policy.md`
+- **Related**: None
+- **Summary**: `stat_semantic_cache_hits` is never incremented and `HealthChecker.startup_poll()` is called only by tests.
+- **Current Description**: agent_10_04 documents the semantic-cache counter as only reset and displayed; ADR-004 lists `startup_poll()` among its implementation references.
+- **Observed Implementation**: The counter is reset, persisted, and displayed but no code increments it; `startup_poll()` has no caller under `scripts/`.
+- **Impact**: The counter is always 0 and the startup poll does not run in production.
+- **Recommended Action**: Wire both into the runtime, or remove them and align the documents.
+- **Resolution Target**: Each member is reached by runtime code or removed.
+
+#### MCP-001
+
+- **ID**: MCP-001
+- **Title**: The shell, github, and file MCP servers register no Bearer-token authentication middleware
+- **Status**: open
+- **Severity**: High
+- **Area**: MCP
+- **Type**: implementation-bug
+- **Source**: `scripts/mcp_servers/server.py`, `scripts/mcp_servers/{shell,github,file}/`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/adr_02_007_http-mcp-adoption-and-stdio-non-support.md`
+- **Related**: None
+- **Summary**: No call to `attach_auth_middleware()` was found in the shell, github, and file servers.
+- **Current Description**: ADR-007 INV-09 requires every MCP server to reject a request with a non-matching Bearer token, except the documented exceptions.
+- **Observed Implementation**: Only the cicd, git, rag-pipeline, web-search, and mdq servers call `attach_auth_middleware()`; the Agent still sends a non-empty `auth_token` to the others. In-process requests without a token return 200 on `/v1/tools` for these servers, while git returns 401.
+- **Impact**: The documented authentication boundary does not hold for these servers; exposure is limited by the loopback-only bind.
+- **Recommended Action**: Register the middleware in these servers (code fix) or record an ADR-007 exception through the ADR approval process.
+- **Resolution Target**: Every MCP server verifies the Bearer token, or ADR-007 lists the exceptions explicitly.
+
 #### DEPLOY-001
 
 - **ID**: DEPLOY-001
@@ -257,7 +348,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 #### DEPLOY-002
 
 - **ID**: DEPLOY-002
-- **Title**: Production uv run does not exclude the dev dependency group
+- **Title**: Production auxiliary uv run calls do not exclude the dev dependency group
 - **Status**: open
 - **Severity**: Medium
 - **Area**: Deployment
@@ -267,10 +358,10 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: Documentation review
 - **Target**: `docs/90_deployment/deployment_01_deployment.md`
 - **Related**: `DEPLOY-001`
-- **Summary**: The deployment scripts call `uv run` without excluding the `dev` dependency group.
-- **Current Description**: deployment_01 section 1.2 states that no script passes such a flag.
+- **Summary**: The deployment scripts call `uv run` for auxiliary steps without excluding the `dev` group.
+- **Current Description**: deployment_01 section 1.2: the agent and MCP servers start from compiled binaries, `uv run` remains for auxiliary steps, and no script excludes the dev group.
 - **Observed Implementation**: The deploy scripts call `uv run` with `UV_SYSTEM_CERTS=true` only; `pyproject.toml` has a `dev` group.
-- **Impact**: Development dependencies can be installed in production.
+- **Impact**: An auxiliary `uv run` step can install development dependencies in production.
 - **Recommended Action**: Exclude the dev group in the production scripts, or document a separate production sync.
 - **Resolution Target**: Production excludes the dev group, or the production sync is documented.
 
@@ -334,6 +425,46 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Make one source canonical and generate or load the other from it, or add a test that asserts the two stay equivalent.
 - **Resolution Target**: Both bootstrap paths produce the same schema.
 
+#### EVENTBUS-017
+
+- **ID**: EVENTBUS-017
+- **Title**: No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency
+- **Status**: open
+- **Severity**: Medium
+- **Area**: EventBus
+- **Type**: design-gap
+- **Source**: `scripts/agent/eventbus_client.py`, `scripts/agent/eventbus_subscriber.py`, `scripts/agent/eventbus_topic_admin_client.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/10_adr/adr_02_008_sqlite-4db-separation.md`, `docs/01_overview/overview_02_files.md`
+- **Related**: None
+- **Summary**: ADR-008 Decision 8 and INV-07 guarantee cross-DB consistency by Events, but nothing at runtime publishes to or subscribes from the EventBus.
+- **Current Description**: governance_05 states that no runtime component calls the EventBus; the three client modules under `scripts/agent/` are imported only by their unit tests.
+- **Observed Implementation**: The EventBus service runs standalone; no Agent, RAG, or MCP code imports the client, subscriber, or topic-admin classes.
+- **Impact**: The consistency mechanism named by INV-07 has no runtime path, so cross-DB consistency rests on idempotent processing and state reconciliation alone.
+- **Recommended Action**: Wire a producer and consumer into the runtime, or amend ADR-008 through the ADR approval process and remove the unused client modules.
+- **Resolution Target**: INV-07 names only mechanisms that run, or the EventBus has a runtime user.
+
+#### EVENTBUS-018
+
+- **ID**: EVENTBUS-018
+- **Title**: retained_event_count is validated but never applied
+- **Status**: open
+- **Severity**: Low
+- **Area**: EventBus
+- **Type**: design-gap
+- **Source**: `scripts/eventbus/config.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/24_eventbus/eventbus_07_configuration-and-operations.md`
+- **Related**: `EVENTBUS-017`
+- **Summary**: The EventBus configuration accepts and validates `retained_event_count` but no code uses it to limit or prune events.
+- **Current Description**: eventbus_07 documents the key as validated at startup but not consumed by any runtime path.
+- **Observed Implementation**: Only `config.py` references the key (default, minimum check, known-key list); no retention logic reads it.
+- **Impact**: Operators can set the value expecting event retention to change, and nothing happens.
+- **Recommended Action**: Implement retention using the key, or remove it from the accepted configuration.
+- **Resolution Target**: The key controls retention, or it is no longer accepted.
+
 #### SHARED-001
 
 - **ID**: SHARED-001
@@ -353,6 +484,26 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: No runtime path uses these classes, so any behavior they define does not take effect.
 - **Recommended Action**: Wire the package into the runtime and add it to the dependency graph, or remove it and align the security documents.
 - **Resolution Target**: The package is either imported by runtime code or removed.
+
+#### SHARED-002
+
+- **ID**: SHARED-002
+- **Title**: Several shared and db helpers have no production caller
+- **Status**: open
+- **Severity**: Low
+- **Area**: Shared/DB
+- **Type**: design-gap
+- **Source**: `scripts/shared/tool_routing_validation.py`, `scripts/shared/tool_executor_helpers.py`, `scripts/shared/tool_cache.py`, `scripts/shared/llm_client.py`, `scripts/db/store_impl.py`
+- **Owner**: Unassigned
+- **First Found**: Documentation review
+- **Target**: `docs/22_mcp/mcp_03_02_tool-registry.md`, `docs/40_shared/shared_03_04_runtime_and_execution-caching-and-reference.md`, `docs/23_agent/agent_05_llm-and-streaming.md`, `docs/41_db/db_05_api_and_operations-protocol-and-backend.md`
+- **Related**: `SHARED-001`
+- **Summary**: `validate_all_routing()`, `is_side_effect()`, `ToolResultCache`, `LLMClient.call()`, and `SQLiteSessionStore` are called or instantiated only by tests.
+- **Current Description**: The listed documents describe these as available helpers; some state that they are unused.
+- **Observed Implementation**: No module under `scripts/` calls or instantiates them; session persistence goes through other classes.
+- **Impact**: Behavior they define does not take effect, and the documents can read as if it did.
+- **Recommended Action**: Wire each into the runtime, or remove it and align the documents.
+- **Resolution Target**: Each helper has a runtime caller or is removed.
 
 Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 

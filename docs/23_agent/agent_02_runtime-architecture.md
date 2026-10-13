@@ -8,6 +8,7 @@ tags:
 related:
   - agent_01_system-overview.md
   - agent_00_document-guide.md
+  - agent_11_01_memory-overview-and-modes.md
 ---
 # Agent Runtime Architecture
 
@@ -41,7 +42,7 @@ Describes the primary runtime components, their dependencies, and responsibility
 
 ## Operational Notes
 
-- `AgentContext.diagnostics` is an attribute not shown in the diagram above, which is set after `Orchestrator.__init__()` execution.
+- `AgentContext.diagnostics` is `None` until `Orchestrator.__init__()` assigns the `DiagnosticStore`.
 - `handle_turn()` executes the plan/execute/verify stages via the workflow engine. New turns are rejected while `ctx.workflow.approval_pending` is `True` or while background tasks are paused. (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Known Limitations
@@ -68,7 +69,7 @@ Because an untested execution path may bypass the gate, every path requires a te
 |---|---|
 | `repository_gateway.py:execute()` (`if op == OperationType.READ` branch) | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools). No separate `read_execute()` method exists. |
 | `tool_approval.py:check_approval()` via `ApprovalDecisionType.DRY_RUN` | dry_run execution is preflight-exempt (read-only operation). No separate `build_preview()` method exists; handled via `DryRun` decision type. |
-| `tool_runner.py:run_tool_call()` (`else` branch) | Gateway not configured (not expected in production, where `RepositoryGateway` is created unconditionally). This path bypasses the gateway but runs `check_preflight()` for non-READ operations before `tools.execute()`. |
+| `tool_runner.py:execute_one_tool_call()` (`else` branch) | Gateway not configured (not expected in production, where `RepositoryGateway` is created unconditionally). This path bypasses the gateway but runs `check_preflight()` for non-READ operations before `tools.execute()`. |
 
 ### Gateway-Bypass Gap Analysis
 
@@ -193,7 +194,7 @@ An optional subsystem enabled when `use_memory_layer=True`. Accessed via `ctx.se
 
 | Sub-service | Role |
 |---|---|
-| `injection` | Injects relevant memories at session start and each turn. |
+| `injection` | Injects relevant memories at session start and on each user prompt; see [agent_11_01_memory-overview-and-modes.md](agent_11_01_memory-overview-and-modes.md). |
 | `ingestion` | Extracts and persists memories at session end. |
 | `store` | JSONL + SQLite store for memory entries. |
 | `retriever` | FTS5 and optional KNN search. |

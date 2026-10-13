@@ -47,7 +47,7 @@ AgentREPL.run()
 
 Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted in the `session_diagnostics` table via `DiagnosticStore`. It is separate from the `messages` table. Regarding the partial completion model for persistence, refer to [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md).
 
-**Current Implementation Behavior:** `DiagnosticStore` only writes to the `session_diagnostics` table. Diagnostic data is persisted only through `session_diagnostics`; dual persistence to `diagnostics.jsonl` is not performed.
+**Current Implementation Behavior:** `DiagnosticStore` writes only to the `session_diagnostics` table, which is the sole persistence for diagnostic data.
 
 ### Session Title Generation Fallback Logic
 

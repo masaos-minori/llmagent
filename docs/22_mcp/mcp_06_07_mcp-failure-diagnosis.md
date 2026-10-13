@@ -97,7 +97,7 @@ Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recov
 
 The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or routing — it is merely reference information and not an input for routing (consistent with [mcp_06_02](mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md)).
 
-Basis: Explicit in code (`shared/mcp_health.py`). Health checks within the `ToolExecutor` execution process act as a gate before dispatching.
+Health checks within the `ToolExecutor` execution process act as a gate before dispatching. (Explicit in code — `shared/mcp_health.py`)
 
 ### LLM called a tool, but execution failed with Unknown tool
 
