@@ -303,10 +303,16 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
   - **Implementation**: `tests/shared/test_mcp_health.py`
 
 - **Test**: A non-loopback bind address is rejected by `run_http()`
-  - **Verifies**: INV-09 (partial: loopback bind only; see MCP-001 for the Bearer check)
+  - **Verifies**: INV-09 (loopback bind)
   - **Type**: Unit
   - **Blocking**: Yes
   - **Implementation**: `tests/mcp_servers/test_mcp_server_base.py::TestBindAddressValidation::test_private_lan_rejected`
+
+- **Test**: Each of the shell, github, and file-read/write/delete servers rejects a request without a matching Bearer token (401) and refuses to start with an empty token
+  - **Verifies**: INV-09
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Implementation**: `tests/mcp_servers/shell/test_shell_server_auth.py`, `tests/mcp_servers/github/test_github_server_auth.py`, `tests/mcp_servers/file/test_file_server_auth.py`
 
 ### Startup Validation
 
@@ -328,7 +334,7 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 
 ## Implementation Notes
 
-- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Each server module except the shell, github, and file servers (Known Issue MCP-001) attaches the Bearer-token authentication middleware through `attach_auth_middleware()`; mdq-mcp attaches it with an empty token (see Exceptions) and rag-pipeline-mcp attaches it with its own `auth_token` (`MCP_RAG_PIPELINE_AUTH_TOKEN`).
+- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Every server module except mdq-mcp attaches the Bearer-token authentication middleware through `attach_auth_middleware()`; mdq-mcp attaches it with an empty token (see Exceptions) and rag-pipeline-mcp attaches it with its own `auth_token` (`MCP_RAG_PIPELINE_AUTH_TOKEN`).
 - `HttpTransport.call()` posts to `/v1/call_tool` with a bounded retry for 429/502/503/504 and for transport request errors other than timeouts; timeouts and other HTTP status errors surface as `TransportError`.
 - `ToolTransportInvoker.invoke()` applies the per-server Semaphore and records success or failure in `McpServerHealthRegistry`.
 - `TransportType` accepts only `http`; the startup mode (`none`, `persistent`, `subprocess`) selects how the process is launched, not the transport.
@@ -337,7 +343,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: MCP-001 — tracked in governance_03 Part 1 (the shell, github, and file MCP servers register no Bearer-token authentication middleware; INV-09)
+Not applicable
 
 ## Review Triggers
 
