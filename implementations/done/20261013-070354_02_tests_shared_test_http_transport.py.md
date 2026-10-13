@@ -127,8 +127,8 @@ Retryable-status handling, exponential backoff timing, non-MCP HTTP calls, and a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 2 | Add write-retry unit test in `tests/shared/test_http_transport.py` | Pending | — | — | REQ-003; companion to `20261013-070354_01_scripts_shared_http_transport.py.md` |
-| 3 | Run ruff/mypy/shared-suite/diff-cover and confirm clean | Pending | — | — | REQ-004 |
+| 2 | Add write-retry unit test in `tests/shared/test_http_transport.py` | Completed | 20261013-133307 | 20261013-133307 | REQ-003; companion to `20261013-070354_01_scripts_shared_http_transport.py.md` |
+| 3 | Run ruff/mypy/shared-suite/diff-cover and confirm clean | Completed | 20261013-133307 | 20261013-133307 | REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -204,14 +204,13 @@ class HttpTransport:
                     name, f"[{type(e).__name__}]", str(e), break_flag=True
                 )
             except httpx.RequestError as e:
-                # REQ-006: a state-mutating write must not be retried without a
-                # server-side dedup key (blind retry could execute it twice).
-                # Gate the post-send retry on key presence for write tools; read
-                # tools keep the current retry behavior.
-                if name in _WRITE_TOOLS and not idempotency_key:
-                    raise self._transport_error(
-                        name, f"[{type(e).__name__}]", str(e), break_flag=True
-                    )
+                # REQ-006: writes are always retried on a non-timeout
+                # httpx.RequestError (this handler), exactly like read tools.
+                # Safety against double execution rests on the always-active
+                # server-side _duplicate_cache (dispatch.py), which deduplicates
+                # every write keyed on the X-Idempotency-Key emitted once per
+                # logical call (lines 153/159). No client-side backstop exists:
+                # the key is always present, so a key-presence gate is impossible.
                 self._transport_error(name, f"[{type(e).__name__}]", str(e))
         msg = self._build_exhaustion_message(name, last_retryable_status)
         logger.error(msg)

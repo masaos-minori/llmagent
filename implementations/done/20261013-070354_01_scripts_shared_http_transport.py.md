@@ -116,8 +116,8 @@ non-MCP HTTP calls, and the `X-Idempotency-Key` header contract.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove unreachable write-retry branch and document always-retry policy in `scripts/shared/http_transport.py` | Pending | — | — | REQ-001, REQ-002; behavioral test authored in companion doc `20261013-070354_02_tests_shared_test_http_transport.py.md` |
-| 3 | Run ruff/mypy/shared-suite/diff-cover and confirm clean | Pending | — | — | REQ-004 |
+| 1 | Remove unreachable write-retry branch and document always-retry policy in `scripts/shared/http_transport.py` | Completed | 20261013-133307 | 20261013-133307 | REQ-001, REQ-002; behavioral test authored in companion doc `20261013-070354_02_tests_shared_test_http_transport.py.md` |
+| 3 | Run ruff/mypy/shared-suite/diff-cover and confirm clean | Completed | 20261013-133307 | 20261013-133307 | REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
