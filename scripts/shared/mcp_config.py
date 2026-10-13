@@ -164,6 +164,13 @@ class McpServerConfig:
             raise ValueError(
                 f"{key_prefix}: cmd must not be empty when startup_mode='subprocess'"
             )
+        # ADR-004 Exceptions: the spawn path ignores `required`, so a non-required
+        # subprocess server would still abort startup on a spawn failure.
+        if self.startup_mode == StartupMode.SUBPROCESS and not self.required:
+            raise ValueError(
+                f"{key_prefix}: required=false is not supported when "
+                f"startup_mode='subprocess' (ADR-004 Exceptions)"
+            )
 
     def _validate_timeouts(self, key_prefix: str) -> None:
         """Validate that timeout fields are non-negative."""

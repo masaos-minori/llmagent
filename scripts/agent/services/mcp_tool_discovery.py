@@ -59,6 +59,7 @@ from shared.tool_routing_validation import validate_routing_against_live
 
 from agent.services.tool_validation import _check_tool_definitions
 from agent.shared.health_models import StartupCheckOutcome, StartupCheckStatus
+from agent.tool_policy import check_write_classification
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -330,6 +331,7 @@ class McpToolDiscoveryService:
         findings.extend(dedup_findings)
         findings = self._check_required_tools(findings, registry)
         findings.extend(self._build_drift_findings(entries))
+        findings.extend(self._build_write_classification_findings(registry))
         tool_defs_finding = await self._check_tool_definitions_finding()
         if tool_defs_finding is not None:
             findings.append(tool_defs_finding)
@@ -460,6 +462,28 @@ class McpToolDiscoveryService:
                 message=f"Live routing drift [{sk}]: {msgs}",
             )
             for sk, msgs in drift.items()
+        ]
+
+    def _build_write_classification_findings(
+        self, registry: RuntimeToolRegistry
+    ) -> list[StartupCheckOutcome]:
+        """Report tools whose RuntimeTool write flag disagrees with the static tool sets (ADR-003 INV-03)."""
+        messages = check_write_classification(registry)
+        if not messages:
+            return []
+        classifier = SeverityClassifier(strict=self._is_strict(), is_duplicate=False)
+        status = (
+            StartupCheckStatus.FATAL
+            if classifier.is_fatal
+            else StartupCheckStatus.WARNING
+        )
+        return [
+            StartupCheckOutcome(
+                source=_SOURCE,
+                status=status,
+                message=f"Write classification mismatch: {msg}",
+            )
+            for msg in messages
         ]
 
     async def _check_tool_definitions_finding(self) -> StartupCheckOutcome | None:

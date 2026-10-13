@@ -51,7 +51,7 @@ curl -LsSf https://astral.sh/uv/install.sh | sh
 
 Dependency management is centralized in `pyproject.toml`/`uv.lock` (`requirements.txt` does not exist). Runtime dependencies are declared in `[project].dependencies`; development tools are declared separately in the `dev` dependency group.
 
-The deployment scripts do not run `uv sync`. `deploy/deploy.sh` copies `pyproject.toml` and `uv.lock` into the production install root, and `deploy/deploy.sh`, `deploy/setup_services.sh`, `deploy/init_db.sh` and `deploy/start_agent.sh` invoke their Python helper steps (workflow-definition validation, schema creation and version checks, configuration reads) through `uv run` with `UV_SYSTEM_CERTS=true`; none of them passes a flag that selects or excludes the `dev` dependency group. The agent and the MCP servers themselves are not started through `uv run`; they run as compiled binaries (see section 2.6). (Explicit in code — `deploy/deploy.sh`, `deploy/start_agent.sh`, `pyproject.toml`) The `uv sync --dev --system-certs` command in `rules/toolchain.md` is the development-checkout setup, not a production step.
+The deployment scripts do not run `uv sync`. `deploy/deploy.sh` copies `pyproject.toml` and `uv.lock` into the production install root, and `deploy/deploy.sh`, `deploy/setup_services.sh`, `deploy/init_db.sh` and `deploy/start_agent.sh` invoke their Python helper steps (workflow-definition validation, schema creation and version checks, configuration reads) through `uv run` with `UV_SYSTEM_CERTS=true`; each of them passes `--frozen --no-dev` (through `UV_PROD_FLAGS`), so the production environment never installs the `dev` dependency group and never rewrites the lockfile. The agent and the MCP servers themselves are not started through `uv run`; they run as compiled binaries (see section 2.6). (Explicit in code — `deploy/deploy.sh`, `deploy/start_agent.sh`, `pyproject.toml`) The `uv sync --dev --system-certs` command in `rules/toolchain.md` is the development-checkout setup, not a production step.
 
 ### 1.3 Building llama.cpp
 
@@ -106,11 +106,55 @@ The workflow definition is a **required workflow deployment artifact**:
 source `config/workflows/default.json` → deployed to the same relative path under the production install root.
 There is no disable, fallback, or workflow-optional mode.
 
+### 2.2a Starting the LLM Services
+
+The two LLM services are `llama-server` processes built in section 1.3. No script in this repository starts them; the operator runs them as system services before running `deploy/setup_services.sh`, which waits until both `/health` endpoints answer. The services may run on a different host from the agent; their addresses are set by the operator in the configuration files below.
+
+| Service | Role | Address must match |
+|---|---|---|
+| `embed-llm` | Embedding model (section 1.4) | `embed_url` in `config/agent.toml`, `config/ingester.toml`, `config/rag_pipeline_mcp_server.toml` |
+| `agent-llm` | Chat model (section 1.4) | `llm_url` in `config/agent.toml`, `config/rag_pipeline_mcp_server.toml` |
+
+Illustrative commands (`<install-root>`, model file names, addresses, ports and thread counts are operator choices):
+
+```bash
+# embed-llm
+<install-root>/llama.cpp/build/bin/llama-server \
+  --model <install-root>/models/<embedding-model>.gguf \
+  --embedding --host <bind_address> --port <embed_port> --threads <n>
+
+# agent-llm
+<install-root>/llama.cpp/build/bin/llama-server \
+  --model <install-root>/models/<chat-model>.gguf \
+  --host <bind_address> --port <llm_port> --ctx-size <n_ctx> --threads <n>
+```
+
+To run them as OpenRC services (Gentoo, section 1.1), create one init script per service. Example for `embed-llm`:
+
+```sh
+#!/sbin/openrc-run
+# /etc/init.d/embed-llm
+command="<install-root>/llama.cpp/build/bin/llama-server"
+command_args="${EMBED_LLM_ARGS}"
+command_user="llm:llm"
+command_background=true
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/${RC_SVCNAME}.log"
+error_log="/var/log/${RC_SVCNAME}.log"
+```
+
+Put the arguments in `/etc/conf.d/embed-llm` (`EMBED_LLM_ARGS="--model ... --embedding --host <bind_address> --port <embed_port>"`), then:
+
+```bash
+rc-update add embed-llm default
+rc-service embed-llm start
+```
+
+Create `agent-llm` the same way. Verify both with the `curl` commands in section 2.3 before starting the agent.
+
 ### 2.3 Starting Services
 
-`deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services — it validates their remote `/health` endpoints (read from `config/agent.toml`) and blocks until both are healthy before proceeding, rather than spawning them — or MCP servers.
-
-No script, unit file or configuration in this repository starts the LLM services (`embed-llm`, `agent-llm`): they must already be running before the agent starts. The start procedure is outside the repository and is tracked as DEPLOY-001 in `governance_03_issue-and-uncertainty-management.md`.
+`deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services — it validates their remote `/health` endpoints (read from `config/agent.toml`) and blocks until both are healthy before proceeding, rather than spawning them — or MCP servers. Start the LLM services first (section 2.2a).
 
 MCP servers (ports defined per server in `config/agent.toml`) auto-start as agent-managed subprocesses on agent startup.
 
@@ -242,6 +286,7 @@ bash deploy/init_db.sh
 - [ ] `deploy.sh` finished successfully (no [FATAL] errors)
 - [ ] `init_db.sh` reported all mandatory tables and correct schema version
 - [ ] `setup_services.sh` passed pre-flight checks
+- [ ] No publisher or consumer process holds the Event Bus `auth_token` or `admin_token` (`eventbus_07_configuration-and-operations.md`, Token Distribution)
 
 ### 3.3 Failure Modes
 

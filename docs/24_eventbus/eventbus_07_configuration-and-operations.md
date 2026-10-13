@@ -81,6 +81,20 @@ model the token fields below implement.
 
 Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` is configured; the per-role tokens above are optional additions — see `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md` for the authorization model these tokens implement.
 
+### Token Distribution
+
+`auth_token` and `admin_token` grant every role (`docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`). They are operator credentials:
+
+| Caller | Token to give it | Never give it |
+|---|---|---|
+| Publisher process | `publisher_token` | `auth_token`, `admin_token` |
+| Consumer process | `consumer_token` (with a non-empty `consumer_authorization`) | `auth_token`, `admin_token` |
+| Monitoring probe | `monitoring_token` | `auth_token`, `admin_token` |
+| Operator (DLQ, replay) | `operator_token` | — |
+| Administrator | `admin_token` | — |
+
+Before deploying a publisher or consumer process, confirm that the token it is configured with (its environment or configuration file; the variable names are operator choices) is its own per-role token and differs from the `auth_token` and `admin_token` values in the Event Bus configuration file. This check is the deployment-time verification of ADR-013 INV-07.
+
 ### Unsupported Keys
 
 Startup fails if the configuration file contains any key not defined in `EventBusConfig`.

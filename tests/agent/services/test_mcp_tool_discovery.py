@@ -101,6 +101,51 @@ def _make_ctx(
     return ctx
 
 
+# ── write-classification mismatch (ADR-003 INV-03) ───────────────────────────
+
+
+class TestWriteClassificationFinding:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("strict", "expected"),
+        [(False, StartupCheckStatus.WARNING), (True, StartupCheckStatus.FATAL)],
+    )
+    async def test_static_write_tool_reported_read_only_is_flagged(
+        self, strict: bool, expected: StartupCheckStatus
+    ) -> None:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(
+            _resp(
+                200,
+                {
+                    "schema_version": "1.0",
+                    "tools": [
+                        {
+                            "name": "write_file",
+                            "description": "write",
+                            "inputSchema": {"type": "object", "properties": {}},
+                            "is_write": False,
+                            "requires_serial": False,
+                            "resource_scope_kind": "",
+                            "resource_scope_keys": [],
+                        }
+                    ],
+                },
+            )
+        )
+        ctx = _make_ctx({"s": _server()}, http, tool_definitions_strict=strict)
+
+        result = await McpToolDiscoveryService(ctx).discover_all()
+
+        mismatches = [
+            f
+            for f in result.findings
+            if f.message.startswith("Write classification mismatch")
+        ]
+        assert len(mismatches) == 1
+        assert mismatches[0].status == expected
+
+
 # ── discover_all() happy path ─────────────────────────────────────────────────
 
 

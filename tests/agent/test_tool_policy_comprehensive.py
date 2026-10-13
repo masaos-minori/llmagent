@@ -17,6 +17,7 @@ from agent.tool_policy import (
     _special_case_risk,
     check_allowed_root,
     check_preflight,
+    check_write_classification,
     classify_operation_type,
     classify_risk,
 )
@@ -175,7 +176,7 @@ class TestSpecialCaseRisk:
 
 class TestClassifyOperationType:
     @staticmethod
-    def _registry_with(*tools: str) -> RuntimeToolRegistry:
+    def _registry_with(*tools: str, is_write: bool = False) -> RuntimeToolRegistry:
         tool_map: dict[str, RuntimeTool] = {}
         for t in tools:
             tool_map[t] = RuntimeTool(
@@ -186,7 +187,7 @@ class TestClassifyOperationType:
                 input_schema={},
                 raw_definition={},
                 status="active",
-                is_write=False,
+                is_write=is_write,
                 requires_serial=False,
                 resource_scope_kind="",
                 resource_scope_keys=(),
@@ -195,6 +196,29 @@ class TestClassifyOperationType:
                 capabilities=(),
             )
         return RuntimeToolRegistry(tools=tool_map)
+
+    def test_registered_write_tool_outside_static_sets_is_not_read(self) -> None:
+        """ADR-003 INV-03: a registry write tool is never classified as READ."""
+        reg = self._registry_with("new_write_tool", is_write=True)
+        assert classify_operation_type("new_write_tool", reg) == "write"
+
+    def test_registered_read_tool_is_read(self) -> None:
+        reg = self._registry_with("new_read_tool", is_write=False)
+        assert classify_operation_type("new_read_tool", reg) == "read"
+
+    def test_write_classification_reports_mismatch(self) -> None:
+        mismatched = self._registry_with("write_file", is_write=False)
+        assert any("write_file" in m for m in check_write_classification(mismatched))
+        assert any(
+            "new_write_tool" in m
+            for m in check_write_classification(
+                self._registry_with("new_write_tool", is_write=True)
+            )
+        )
+
+    def test_write_classification_clean_when_consistent(self) -> None:
+        reg = self._registry_with("write_file", is_write=True)
+        assert check_write_classification(reg) == []
 
     def test_write_tools(self) -> None:
         for name in ("write_file", "edit_file", "create_directory", "move_file"):

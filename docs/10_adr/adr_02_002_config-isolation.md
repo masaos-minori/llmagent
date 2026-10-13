@@ -64,7 +64,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 4. chunk_splitter reads only `config/chunk_splitter.toml`.
 5. The ingester reads only `config/ingester.toml`.
 6. The EventBus reads only `config/eventbus.toml`.
-7. The Agent does not interpret MCP-server-internal configuration.
+7. The Agent does not interpret MCP-server-internal configuration, except for the read-only startup security audit listed in Exceptions.
 8. MCP servers do not reference `agent.toml`.
 9. Using a shared Config Loader is permitted, but the permitted files are restricted per process, and reading a non-permitted file is a Runtime Error.
     *Note: EventBus is an exception — it loads its own config through the shared loader without `restrict_to()`; isolation is enforced by a local invariant instead (see Implementation Notes).*
@@ -234,7 +234,7 @@ Rejected to prioritize Security and prevent configuration leakage across process
 
 ## Invariants
 
-- INV-01: Each process reads only its permitted configuration files.
+- INV-01: Each process reads only its permitted configuration files, except as listed in Exceptions.
 - INV-02: Access to non-permitted configuration files is rejected.
 - INV-03: An MCP server can start standalone without agent.toml.
 - INV-04: The Agent can start without being given MCP-specific Secrets.
@@ -242,6 +242,11 @@ Rejected to prioritize Security and prevent configuration leakage across process
 ## Exceptions
 
 - EventBus does not call `ConfigLoader.restrict_to()`; its isolation is a local invariant described in Implementation Notes.
+- The Agent startup security audit (`agent/services/security_audit.py::audit_security_defaults()`) reads the shell, git, github, and cicd MCP server configuration files. The exception is limited as follows:
+  - The read happens only during Agent startup, through the audit loaders in `agent/security_audit_config.py`, which is the only Agent module allowed to import MCP server configuration models.
+  - The files are read, never written.
+  - The loaded values are narrowed to audit DTOs that hold only the security-posture fields the audit checks (sandbox backend and allowlists); secrets are not loaded.
+  - The values are used only to accept or reject startup and to report the security posture. They never configure Agent behavior, routing, or tool calls.
 
 The restriction is otherwise unconditional: every other process entry point calls `ConfigLoader.restrict_to()` with its own configuration file (the Agent with `agent.toml`, an MCP server with its `own_config_file`, the crawler, chunk_splitter, and ingester with their own files); no environment variable disables the restriction, and reading a non-permitted file is rejected.
 
@@ -287,6 +292,12 @@ Not applicable (this ADR defines no retry policy of its own)
   - **Blocking**: Yes
   - **Citation**: `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_allows_authorized`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error`, `tests/mcp_servers/test_config_isolation_fail_closed.py`
 
+- **Test**: Only the security audit loader imports MCP server configuration models, and the audit DTOs hold no secret fields
+  - **Verifies**: INV-01
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Citation**: `tests/agent/test_security_audit_config_isolation.py::test_only_audit_module_imports_security_server_config`, `tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields`, and the `agent-mcp-config-models` import-linter contract in `.importlinter`
+
 - **Test**: Access to non-permitted configuration files is rejected
   - **Verifies**: INV-02
   - **Type**: Regression
@@ -331,7 +342,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-011 — tracked in governance_03 Part 1 (the Agent startup security audit reads MCP server configuration models)
+Not applicable
 
 ## Review Triggers
 
@@ -340,6 +351,8 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - The operational scale or concurrency changes significantly
 - The deployment changes from a single host to multiple hosts or a distributed configuration
 - Security or audit requirements change
+- The startup security audit needs a configuration field outside its audit DTOs, or needs to read another MCP server's configuration
+- Each MCP server can enforce the audited settings itself at its own startup (the audit can then move out of the Agent)
 - Performance targets or resource constraints change
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
@@ -364,6 +377,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-13)**: Task-level approval decision (repository owner instruction) covering Decision Details #7, INV-01, and the startup security audit exception; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

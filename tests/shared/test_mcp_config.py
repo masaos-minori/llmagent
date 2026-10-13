@@ -34,6 +34,27 @@ class TestMcpServerConfigValidation:
         )
         assert cfg.startup_mode == StartupMode.SUBPROCESS
 
+    def test_subprocess_non_required_rejected(self) -> None:
+        with pytest.raises(ValueError, match="ADR-004 Exceptions"):
+            McpServerConfig(
+                TransportType.HTTP,
+                "http://localhost",
+                startup_mode=StartupMode.SUBPROCESS,
+                cmd=["server.py"],
+                auth_token="test-token",
+                required=False,
+            )
+
+    def test_persistent_non_required_allowed(self) -> None:
+        cfg = McpServerConfig(
+            TransportType.HTTP,
+            "http://localhost",
+            startup_mode=StartupMode.PERSISTENT,
+            auth_token="test-token",
+            required=False,
+        )
+        assert cfg.required is False
+
     def test_invalid_transport_raises(self) -> None:
         with pytest.raises(ValueError, match="not a valid TransportType"):
             McpServerConfig("invalid", "")

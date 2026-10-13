@@ -72,7 +72,9 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 - Stores diagnostic events (LLM transfer errors, guard hints, partial completions).
 - Separated from the `messages` table and is NOT referenced by `fetch_messages()`.
 - `save()` unconditionally applies `_filter_sensitive_fields()` before insertion to filter sensitive fields.
-- Can be encrypted with `encrypt=True`; `fetch()` decrypts rows using the configured Fernet key, falling back to raw content if decryption fails.
+- Can be encrypted with `encrypt=True`. `fetch()` decrypts rows with the configured Fernet key. When a row cannot be decrypted (for example after the key was rotated or changed), `fetch()` logs a warning and returns the row with its stored ciphertext in `content`; it does not raise.
+
+**Design judgment:** Diagnostic rows are operator-facing auxiliary data, not conversation history. A failed decryption must not block reading the remaining rows, so the row is returned as stored and the failure is reported only through the warning log. A caller that needs plaintext must treat a `content` value that starts with the Fernet token prefix as undecryptable. Rotating `encryption_key` makes older encrypted rows unreadable; keep the previous key until those rows pass `retention_days`.
 - `_purge_old_diagnostics()` applies the retention policy (`retention_days`).
 
 **Design judgment:** Sensitive field filtering is applied independently of encryption. Filtering remains active even if no encryption key is set.
@@ -95,7 +97,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 ## Known Limitations
 
-- Known Issue AGENT-007: a diagnostic row that fails to decrypt is returned as ciphertext with only a warning logged, not raised as an error.
+None currently known.
 
 ## Keywords
 

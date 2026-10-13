@@ -86,19 +86,20 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # MAX_SIZE; the ceilings below equal the accepted sizes (re-recorded 2026-10-12 after
     # the ADR files were renamed to `adr_02_NNN_*.md`, which lengthened self-references),
     # so further growth fails.
-    "adr_02_003_runtime-tool-registry-routing-authority.md": 26096,
-    # ADR-004 grew by the AGENT-012 Known Deviations bullet and the audit Owner
-    # assignment (2026-10-13); the ceiling equals the size reached.
-    "adr_02_004_environment-failure-handling-policy.md": 30476,
+    # Raised to 26592 for the write-classification note, test entry and reference (2026-10-13).
+    "adr_02_003_runtime-tool-registry-routing-authority.md": 26592,
+    # ADR-004 grew by the AGENT-012 Known Deviations bullet, the audit Owner
+    # assignment and the spawn-failure Exceptions section (2026-10-13); the ceiling
+    # equals the size reached.
+    "adr_02_004_environment-failure-handling-policy.md": 31164,
     "adr_02_008_sqlite-4db-separation.md": 33647,
     # The Known Issue inventory grows with each active entry (17 template fields
     # per entry); the owner accepted this exception (2026-10-07) and re-accepted it
     # after the inventory changed (2026-10-08), then raised it to the size reached
     # after registering the unused-feature and EventBus design-gap entries
     # (2026-10-13, accepted by the owner in conversation).
-    # Raised to 37348 after the front matter `related:` was extended to cover every
-    # document the body references (2026-10-13).
-    "governance_03_issue-and-uncertainty-management.md": 37348,
+    # Lowered to 25660 (2026-10-13) after nine resolved entries were removed.
+    "governance_03_issue-and-uncertainty-management.md": 25660,
 }
 
 

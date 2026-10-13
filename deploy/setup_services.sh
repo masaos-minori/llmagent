@@ -11,6 +11,9 @@
 
 set -euo pipefail
 
+# Production never installs the dev dependency group and never rewrites uv.lock.
+UV_PROD_FLAGS=(--frozen --no-dev)
+
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # Workflow: pre-flight definition + schema check (see docs/02_deployment.md §2.3)
@@ -25,7 +28,7 @@ if [ ! -f "${WORKFLOW_JSON}" ]; then
   exit 1
 fi
 
-if ! PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
+if ! PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
   echo "[FATAL] Deployed workflow definition failed validation: ${WORKFLOW_JSON}" >&2
   echo "Run the workflow schema initialization step before starting the agent." >&2
   exit 1
@@ -53,7 +56,7 @@ if [ -n "${MISSING_TABLES}" ]; then
   exit 1
 fi
 
-EXPECTED_SCHEMA_VERSION=$(PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run python -c \
+EXPECTED_SCHEMA_VERSION=$(PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -c \
   "from db.schema_sql import WORKFLOW_SCHEMA_VERSION; print(WORKFLOW_SCHEMA_VERSION)")
 ACTUAL_SCHEMA_VERSION=$(sqlite3 "${WORKFLOW_DB}" \
   "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1;")
@@ -82,7 +85,7 @@ LLM_HEALTH_INTERVAL="${LLM_HEALTH_INTERVAL:-5}"
 read_llm_base() {
     # config/agent.toml から指定キー(base URL)を uv run python で読み取る。
     # 既存のスキーマ読み取りパターンと同様。キー欠落・エラー時は空文字を返す。
-    PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run python -c \
+    PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -c \
         "import tomllib,sys
 try:
     print(tomllib.load(open(sys.argv[1],'rb')).get('${1}','').rstrip('/'))
@@ -151,6 +154,6 @@ echo "  # llama-agent の起動はモデルロード完了後に行う"
 echo ""
 echo "  # ドキュメント収集・投入 (uv run を使用)"
 echo "  cd /opt/llm"
-echo "  cd /opt/llm && UV_SYSTEM_CERTS=true uv run python -m rag.ingestion.crawler"
-echo "  cd /opt/llm && UV_SYSTEM_CERTS=true uv run python -m rag.ingestion.chunk_splitter"
-echo "  cd /opt/llm && UV_SYSTEM_CERTS=true uv run python -m rag.ingestion.ingester"
+echo "  cd /opt/llm && UV_SYSTEM_CERTS=true uv run --frozen --no-dev python -m rag.ingestion.crawler"
+echo "  cd /opt/llm && UV_SYSTEM_CERTS=true uv run --frozen --no-dev python -m rag.ingestion.chunk_splitter"
+echo "  cd /opt/llm && UV_SYSTEM_CERTS=true uv run --frozen --no-dev python -m rag.ingestion.ingester"

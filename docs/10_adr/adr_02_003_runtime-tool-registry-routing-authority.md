@@ -276,7 +276,7 @@ Confuses call-time Policy decisions with per-Tool availability flags.
 - Routing is determined at startup based on Discovery results
 - Adding or removing Tools at runtime is prohibited
 - A configuration change that affects Discovery-derived state requires a full restart of the Agent process and is not reflected by Reload
-- Impact on Health Checks: startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable at Discovery, its Tools are disabled and startup continues (ADR-004 Decision Group 7, item 18); a subprocess server that fails to spawn aborts startup regardless of `required` (AGENT-004, see ADR-004)
+- Impact on Health Checks: startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable at Discovery, its Tools are disabled and startup continues (ADR-004 Decision Group 7, item 18); a subprocess server that fails to spawn aborts startup regardless of `required` (ADR-004 Exceptions)
 - Incident response: a restart is required when Discovery fails
 
 ### Security Consequences
@@ -360,6 +360,12 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
   - **Type**: Integration
   - **Blocking**: Yes
 
+- **Test**: A registered write tool outside the static sets is never classified as READ, and a write-flag mismatch is reported at startup
+  - **Verifies**: INV-03
+  - **Type**: Unit
+  - **Blocking**: Yes
+  - **Test files**: `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/services/test_mcp_tool_discovery.py`
+
 - **Test**: A statically disabled Tool is not included in `llm_tool_definitions()`
   - **Verifies**: INV-06
   - **Type**: Regression
@@ -373,7 +379,7 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 ### Startup Validation
 
 - Routing is determined at startup based on Discovery results
-- Startup aborts when Discovery fails for a required MCP server or a subprocess server fails to spawn (AGENT-004); an unavailable non-mandatory server has its Tools disabled (ADR-004 item 18)
+- Startup aborts when Discovery fails for a required MCP server or a subprocess server fails to spawn (ADR-004 Exceptions); an unavailable non-mandatory server has its Tools disabled (ADR-004 item 18)
 
 ### Deployment Validation
 
@@ -393,12 +399,13 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 
 - `McpToolDiscoveryService` is invoked during startup validation, and the resulting `RuntimeToolRegistry` is connected to `ToolExecutor` through `set_runtime_registry()` (Explicit in code — `scripts/agent/startup_validation.py`, `scripts/agent/services/mcp_tool_discovery.py`).
 - `ToolRouteResolver.resolve()` consults only `RuntimeToolRegistry` (Explicit in code — `scripts/shared/route_resolver.py`).
+- Approval and audit operation types never classify a tool whose `RuntimeTool` is a write tool as READ; startup validation reports a mismatch between the static tool sets and `RuntimeTool` write attributes (FATAL under `tool_definitions_strict`, otherwise WARNING) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/services/mcp_tool_discovery.py`).
 
 See Implementation References for the file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-005 — tracked in governance_03 Part 1 (approval and audit operation-type classification reads the static tool-name sets in `tool_constants.py` before `RuntimeToolRegistry`; deviates from INV-03)
+Not applicable
 
 ## Review Triggers
 
@@ -454,6 +461,7 @@ Task-level approval decision for Decision Details #10 to #15 and INV-04 (runtime
 - `scripts/agent/startup_validation.py` — Discovery invocation and `set_runtime_registry()` wiring
 - `scripts/shared/mcp_health.py::McpServerHealthRegistry`
 - `scripts/shared/tool_executor.py::ToolExecutor`
+- `scripts/agent/tool_policy.py` — `classify_operation_type()`, `check_write_classification()`
 - `[mcp_servers.*]` in `config/agent.toml`
 - The frozensets in `tool_constants.py` (for tests and documentation generation)
 - Tests — `tests/shared/test_runtime_tool_registry.py`, `tests/shared/test_route_resolver.py`

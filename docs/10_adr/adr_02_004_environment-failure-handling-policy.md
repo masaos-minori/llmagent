@@ -299,7 +299,7 @@ Rejected to prioritize Predictability and Maintainability, because static classi
 - INV-06: RuntimeToolRegistry initialization failure → abort
 - INV-07: Failures of authentication, authorization, Allowlist, Safety Tier, Config Isolation, or establishing approval control are all Fail-Closed (Fail-Fast) at startup
 - INV-08: If a mandatory component is unavailable, startup is aborted
-- INV-09: A non-mandatory component can be disabled only in the case of an availability failure
+- INV-09: A non-mandatory component can be disabled only in the case of an availability failure; the subprocess spawn path is covered by Exceptions
 - INV-10: Safety/integrity failures not converted to partial availability
 - INV-11: Tools related to a disabled component are not presented to the LLM as executable
 - INV-12: Tools related to a disabled component cannot be executed
@@ -314,6 +314,10 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 
 1. **INV-01**: the same strict checks run in every environment; for example, a missing required configuration file (`agent.toml`) raises `ConfigMissingError` (Explicit in code — `scripts/shared/config_loader.py`).
 2. **INV-02**: `ProductionConfigValidator` rejects a configuration whose strict keys (`tool_definitions_strict`, `routing_drift_strict`) are not true, independent of any environment name (Explicit in code — `scripts/agent/production_config_validator.py`).
+
+## Exceptions
+
+- An Agent-launched MCP subprocess that fails to start after its single retry aborts startup regardless of `required`. This exception holds only while every MCP server with `startup_mode = "subprocess"` is classified required; startup validation rejects a configuration in which such a server sets `required = false`. Before any subprocess server is reclassified non-required, the spawn path must apply `required` to spawn failures, and this exception must be removed.
 
 ## Verification
 
@@ -353,7 +357,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
   - **Verifies**: INV-09
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Partial (spawn path ignores `required`: AGENT-004)
+  - **Status**: Confirmed (spawn path: see Exceptions)
 
 - **Test**: Safety/integrity failures not converted to partial availability
   - **Verifies**: INV-10
@@ -413,11 +417,10 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 
 - For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale section of this document.
 - Retry policy for an unreachable MCP server: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry; subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). `HealthChecker.startup_poll()` has no production caller (AGENT-012).
-- When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required`; the `McpServerStarter` branch that would call `disable_server()` for a non-required server is never reached (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). Tracked as AGENT-004.
+- When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required`; the `McpServerStarter` branch that would call `disable_server()` for a non-required server is never reached (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). This is the spawn-failure exception listed in Exceptions.
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision #18 and INV-09)
 - **Known Issue**: AGENT-012 — tracked in governance_03 Part 1 (`HealthChecker.startup_poll()` is listed in Implementation References but has no caller under `scripts/`)
 
 ## Review Triggers
@@ -432,6 +435,7 @@ Re-evaluate when:
 - Failure history shows assumptions no longer valid
 - Reasons for rejecting an alternative no longer hold
 - Component mandatoriness classification criteria change
+- An MCP subprocess server is to be reclassified non-required (the spawn-failure exception must be removed first)
 - New Accepted ADR permitting Fallback added
 
 ## Approval
@@ -450,6 +454,7 @@ Re-evaluate when:
 - **Approval Date**: Not recorded (individual approval dates not recorded for task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering Decision #13; individual reviewer names are not recorded.
+- **Decision Change (2026-10-13)**: Task-level approval decision (repository owner instruction) covering INV-09 and the spawn-failure exception; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

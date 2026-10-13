@@ -31,7 +31,7 @@ field's values are filtered through a denylist that rejects `LD_PRELOAD`,
 | `startup_stagger_delay_sec` | Delay inserted between consecutive subprocess starts. | `>= 0` |
 | `max_stderr_log_size_mb` | Size at which a subprocess stderr log is rotated. | `> 0` |
 | `max_stderr_log_files` | Number of rotated stderr logs kept. | `>= 1` |
-| `required` | Startup criticality of the server (see ADR-004): an unavailable required server aborts startup, while a non-required server that is unreachable at tool discovery is disabled (its tools are excluded) and startup continues with a WARNING. A subprocess server that fails to spawn aborts startup regardless of `required` (see mcp_06_03). | boolean |
+| `required` | Startup criticality of the server (see ADR-004): an unavailable required server aborts startup, while a non-required server that is unreachable at tool discovery is disabled (its tools are excluded) and startup continues with a WARNING. A subprocess server that fails to spawn aborts startup regardless of `required` (see mcp_06_03); a subprocess server therefore cannot be non-required (ADR-004 Exceptions), and `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`. | boolean |
 | `failure_policy` | Reserved for runtime call-failure behavior. Only `fail-fast` exists and nothing branches on it yet. | enum |
 
 **About `tool_names`:** Not used for routing decisions. It is metadata for drift validation (see `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`), used by `validate_tool_names_match()` in `scripts/shared/tool_routing_validation.py`. There are three states: field omitted (default `[]`), explicit empty list `[]`, or a list with values. In all cases, validation is skipped via `if not cfg.tool_names: continue`.

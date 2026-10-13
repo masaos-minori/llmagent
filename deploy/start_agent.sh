@@ -9,6 +9,9 @@
 
 set -euo pipefail
 
+# Production never installs the dev dependency group and never rewrites uv.lock.
+UV_PROD_FLAGS=(--frozen --no-dev)
+
 # production: /opt/llm/pyproject.toml が存在すればそちらを優先
 if [[ -f "/opt/llm/pyproject.toml" ]]; then
     REPO_ROOT="/opt/llm"
@@ -172,7 +175,7 @@ if [[ ! -f "${WORKFLOW_JSON}" ]]; then
     exit 1
 fi
 
-if ! PYTHONPATH="${PYTHONPATH}" UV_SYSTEM_CERTS=true uv run python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
+if ! PYTHONPATH="${PYTHONPATH}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
     echo "[FATAL] Workflow definition validation failed." >&2
     exit 1
 fi

@@ -55,6 +55,10 @@ _ALL_WRITE_TOOLS: frozenset[str] = (
     WRITE_TOOLS | MDQ_WRITE_TOOLS | RAG_WRITE_TOOLS | CICD_WRITE_TOOLS | GIT_WRITE_TOOLS
 )
 
+_STATIC_SIDE_EFFECT_TOOLS: frozenset[str] = (
+    _ALL_WRITE_TOOLS | DELETE_TOOLS | _EXEC_TOOLS | _GITHUB_MUTATION_TOOLS
+)
+
 # Maps tool_safety_tiers tier → default approval risk level
 _TIER_TO_RISK: dict[str, RiskLevel] = {
     "READ_ONLY": RiskLevel.NONE,
@@ -84,10 +88,29 @@ def classify_operation_type(
     if registry is None:
         return OperationType.UNKNOWN
     try:
-        registry.get(tool_name)
+        tool = registry.get(tool_name)
     except KeyError:
         return OperationType.UNKNOWN
+    if tool.is_write:
+        return OperationType.WRITE
     return OperationType.READ
+
+
+def check_write_classification(registry: RuntimeToolRegistry) -> list[str]:
+    """Return one finding per tool whose RuntimeTool write flag disagrees with the static sets.
+
+    ADR-003 INV-03: approval and audit classification must not diverge from the
+    registry's write attribute.
+    """
+    findings: list[str] = []
+    for tool in registry.all_tools():
+        static_write = tool.name in _STATIC_SIDE_EFFECT_TOOLS
+        if tool.is_write != static_write:
+            findings.append(
+                f"{tool.name}: RuntimeTool.is_write={tool.is_write} but the static "
+                f"tool sets classify it as side_effect={static_write}"
+            )
+    return findings
 
 
 def _iter_string_arg_values(args: dict[str, Any], keys: list[str]) -> Iterator[str]:

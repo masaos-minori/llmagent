@@ -310,8 +310,14 @@ def register_core_check(name: str, description: str):
 def check_broken_headings(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
     issues: list[Issue] = []
     for doc in files:
+        in_fenced_block = False
         for i, line in enumerate(doc.lines, 1):
             stripped = line.strip()
+            if stripped.startswith("```") or stripped.startswith("~~~"):
+                in_fenced_block = not in_fenced_block
+                continue
+            if in_fenced_block:
+                continue
             if stripped.startswith("#") and not stripped.startswith("##"):
                 if re.match(r"^#+[^# ]", stripped):
                     issues.append(

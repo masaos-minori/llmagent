@@ -179,3 +179,20 @@ def test_load_cicd_audit_config_success() -> None:
 
         result = load_cicd_audit_config()
     assert result == CicdAuditConfig(workflow_allowlist=["deploy", "test"])
+
+
+def test_audit_dtos_hold_no_secret_fields() -> None:
+    """ADR-002 Exceptions: the audit loads posture fields only, never secrets."""
+    import dataclasses
+
+    from agent import security_audit_config as audit
+
+    secret_fields = {"auth_token", "github_token", "token", "api_key", "password"}
+    for cls in (
+        audit.ShellAuditConfig,
+        audit.GitAuditConfig,
+        audit.GitHubAuditConfig,
+        audit.CicdAuditConfig,
+    ):
+        names = {f.name for f in dataclasses.fields(cls)}
+        assert not names & secret_fields, (cls.__name__, names & secret_fields)

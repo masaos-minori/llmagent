@@ -64,7 +64,7 @@ assumed non-required (Decision Group 3 item 12).
 | `rag_pipeline` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
 | `mdq` | required | Not assessed as satisfying Decision Group 3 item 10; status quo default |
 
-No server currently overrides `required` in `config/agent.toml`; a
+Subprocess servers must stay required (ADR-004 Exceptions; `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`). No server currently overrides `required` in `config/agent.toml`; a
 non-required reclassification requires an explicit owner decision and an update to
 this table, per ADR-004 Decision Group 3 item 13.
 
@@ -122,7 +122,7 @@ Per-tool base risk is set by `approval_risk_rules` in `config/agent.toml`; tools
 
 ### Diagnostics Configuration
 
-- `encryption_key`: Fernet symmetric key for DiagnosticStore.save(encrypt=True) (empty string = encryption disabled)
+- `encryption_key`: Fernet symmetric key for DiagnosticStore.save(encrypt=True) (empty string = encryption disabled). Changing the key makes rows encrypted with the previous key unreadable; `fetch()` returns them as ciphertext with a warning (see agent_09_01).
 - `retention_days`: Number of days to retain session_diagnostics rows (0 or less = purge disabled)
 - `sensitive_fields`: Set of field names to be additionally redacted by _filter_sensitive_fields() (union with hardcoded defaults)
 

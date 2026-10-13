@@ -62,7 +62,7 @@ This system executes tasks planned by the LLM. Some tools have side effects, som
 3. There is no workflow-disable mode.
 4. There is no direct execution path that bypasses the workflow, including a fallback path taken when the workflow definition fails to load.
 5. All Agent processing, including simple question answering, is placed under the management of the Workflow Engine. Simplicity of processing is not a reason to bypass the Workflow Engine.
-6. The basic states are defined as `plan -> execute -> approval -> verify -> complete/failed`. When approval is not required, approval may be skipped, but workflow management itself is never skipped.
+6. The basic states are defined as `plan -> execute -> approval -> verify -> complete/failed`. The approval stage is mandatory: a workflow definition must set `require_approval` to true, and a definition that omits it or sets it to false is rejected at load time. Neither the approval stage nor workflow management is ever skipped.
 7. Execution success and verification success are distinguished.
 8. The Workflow Engine's own precondition checks, such as Health Checks and pre-startup validation, are out of scope.
 9. Workflow state (Task, Attempt, approval, processed Event, Artifact) is persisted in `workflow.sqlite`. When a Task is deleted, its related Attempts, processed Events, Artifacts, and approvals are deleted by Cascade.
@@ -231,6 +231,7 @@ Rejected to prioritize Recoverability and Data Integrity, because state must per
 - INV-06: If the required DB Schema is inconsistent, startup is aborted.
 - INV-07: At process startup, interrupted Attempts are recovered as `failed` by `recover_stale_attempts()`.
 - INV-08: Each stage execution is guaranteed idempotent by the deterministic key `{task_id}:{stage_id}:{attempt}`, and a duplicate start with the same key is rejected by `begin_stage_if_new()`. Because the attempt number is incremented on each retry, a retry is treated as a separate record (only a duplicate start within the same attempt number is rejected).
+- INV-09: A workflow definition whose `require_approval` is absent or not true is rejected at load time, and Agent startup is aborted.
 
 ## Verification
 
@@ -276,10 +277,16 @@ Rejected to prioritize Recoverability and Data Integrity, because state must per
   - **Type**: Unit
   - **Blocking**: Yes
 
+- **Test**: The loader rejects a workflow definition whose `require_approval` is absent or false (`tests/agent/workflow/test_workflow_loader.py::TestRequireApprovalEnforcement`)
+  - **Verifies**: INV-09
+  - **Type**: Unit
+  - **Blocking**: Yes
+
 ### Startup Validation
 
 - Whether the workflow definition file exists
 - Whether the workflow definition is valid (parseable JSON, required fields, stages, retry policy)
+- Whether `require_approval` is true
 - Whether the required DB tables exist
 - Whether the DB schema version matches
 
@@ -311,7 +318,7 @@ See Implementation References for the file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-010 — tracked in governance_03 Part 1 (the workflow loader rejects a definition without `require_approval=true`)
+Not applicable
 
 ## Review Triggers
 
@@ -344,6 +351,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering Decision Details #4; individual reviewer names are not recorded.
+- **Decision Change (2026-10-13)**: Task-level approval decision (repository owner instruction) covering Decision Details #6 and INV-09 (the approval stage is mandatory); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

@@ -556,3 +556,15 @@ class TestStaleSlashCommandRule:
             "Use `/session rag-consistency` to check the index.",
         ]
         assert _run_live_rule("stale_db_rag_slash_commands", lines) == []
+
+
+class TestBrokenHeadingsFenceAware:
+    def _issues(self, lines: list[str]) -> list[cdq.Issue]:
+        doc = cdq.DocFile(path=Path("x.md"), rel_path="x.md", lines=lines)
+        return cdq.check_broken_headings(_DOCS_DIR, [doc])
+
+    def test_shebang_inside_fence_is_not_a_heading(self) -> None:
+        assert self._issues(["```sh", "#!/sbin/openrc-run", "```"]) == []
+
+    def test_malformed_heading_outside_fence_is_reported(self) -> None:
+        assert len(self._issues(["#Title"])) == 1

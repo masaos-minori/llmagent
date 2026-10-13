@@ -241,7 +241,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - **Test**: `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) — **Verifies**: INV-04 — **Type**: Unit — **Blocking**: Yes
 - **Test**: `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) — **Verifies**: INV-06 — **Type**: Regression — **Blocking**: Yes
 - **Test**: audit records do not include token values (`test_no_credential_leakage_in_audit_records`) — **Verifies**: INV-05 — **Type**: Unit — **Blocking**: Yes
-- **Test**: none — **Verifies**: INV-07 — **Type**: Manual Review (deployment configuration review) — **Blocking**: Yes
+- **Test**: none — **Verifies**: INV-07 — **Type**: Manual Review (deployment checklist in `deployment_01_deployment.md` section 3.2 and the Token Distribution check in `eventbus_07_configuration-and-operations.md`) — **Blocking**: Yes
 
 ## Implementation Notes
 
@@ -250,7 +250,6 @@ See Implementation References for the current file/symbol list.
 ## Known Deviations
 
 - **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (an empty `consumer_authorization` mapping and the shared `auth_token`/`admin_token` skip consumer identity validation)
-- **Known Issue**: EVENTBUS-015 — tracked in governance_03 Part 1 (`auth_token` and `admin_token` grant every role; INV-07 depends on operator discipline only)
 
 ## Review Triggers
 

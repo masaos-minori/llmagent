@@ -8,6 +8,9 @@
 
 set -euo pipefail
 
+# Production never installs the dev dependency group and never rewrites uv.lock.
+UV_PROD_FLAGS=(--frozen --no-dev)
+
 DEPLOY_SCRIPTS="/opt/llm/scripts"
 DEPLOY_DB="/opt/llm/db"
 
@@ -25,7 +28,7 @@ mkdir -p "${DEPLOY_DB}"
 
 # ── スキーマ初期化（rag + session + workflow + eventbus）──────────────────────
 echo "--- スキーマ初期化（rag + session + workflow + eventbus）---"
-(cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run python "${DEPLOY_SCRIPTS}/db/create_schema.py")
+(cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python "${DEPLOY_SCRIPTS}/db/create_schema.py")
 
 # ── テーブル確認 ──────────────────────────────────────────────────────────────
 echo "--- テーブル確認 ---"

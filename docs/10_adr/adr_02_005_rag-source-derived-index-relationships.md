@@ -225,6 +225,10 @@ Rejected to prioritize Operability, ensuring real-time synchronization and preve
 - INV-04: Consistency checks detect differences using `chunks` as the reference.
 - INV-05: The ingestion path and the MCP deletion path use the same deletion order (`chunks_vec` before `documents`).
 
+## Exceptions
+
+- `chunks_vec` declares no foreign key to `chunks`, because an `sqlite-vec` virtual table cannot declare one. This limitation is accepted. Referential integrity between `chunks_vec` and `chunks` is maintained by three mechanisms: every deletion path deletes the `chunks_vec` rows explicitly before `documents` (INV-02, INV-05); the `chunks_vec_ad` trigger on `chunks` removes the matching vector row as a backstop, including on the `documents` cascade; and the consistency check reports `orphan_vec_count` (INV-04).
+
 ## Failure Policy
 
 ### Fail-Fast Conditions
@@ -340,7 +344,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: RAG-007 — tracked in governance_03 Part 1 (`chunks_vec` has no foreign key to `chunks`, an `sqlite-vec` limitation; all deletion paths enforce the `chunks_vec` → `documents` ordering)
+Not applicable
 
 ## Review Triggers
 
