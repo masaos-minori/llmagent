@@ -73,7 +73,7 @@ Current values are owned by `config/chunk_splitter.toml`.
 | `max_chunk` | Maximum number of characters per chunk. Text exceeding this limit will be split. |
 | `chunk_overlap` | Sliding window chunk overlap (in characters). Adds this many characters from the end of the previous chunk to the beginning of the next; zero disables it. |
 | `en_stopwords` | English stopwords to exclude from chunking (defined in `config/chunk_splitter.toml`). |
-| `ja_stop_pos` | Sudachi part-of-speech categories treated as stopwords in Japanese. A list of Japanese Sudachi part-of-speech names (not English labels) defined in `config/chunk_splitter.toml`. |
+| `ja_stop_pos` | Sudachi part-of-speech categories treated as stopwords in Japanese; see [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md). |
 
 > (Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`.)
 

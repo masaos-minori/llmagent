@@ -14,6 +14,7 @@ related:
   - rag_02_04_ingestion_pipeline-ingester.md
   - rag_02_07_ingestion_pipeline-utils.md
   - rag_02_09_ingestion_pipeline-shared-utilities.md
+  - rag_03_06_query_pipeline-helpers-and-cache.md
   - rag_05_01-configuration-reference.md
   - adr_02_009_rag-fts5-text-separation.md
 ---
@@ -48,18 +49,7 @@ For exhaustive signature and constant detail, see `scripts/rag/ingestion/pipelin
 
 ## 10. Shared Utilities Summary (`scripts/rag/utils.py`)
 
-Details → [rag_02_09_ingestion_pipeline-shared-utilities.md](rag_02_09_ingestion_pipeline-shared-utilities.md)
-
-```python
-from rag.utils import (
-    cosine_sim,
-    floats_to_blob,
-    normalize_unicode,
-    sanitize_document,
-    sanitize_document_full,
-    validate_url,
-)
-```
+Stateless helpers shared by ingestion and query code (vectors, Unicode normalization, prompt-injection sanitization, URL validation). Details → [rag_02_09_ingestion_pipeline-shared-utilities.md](rag_02_09_ingestion_pipeline-shared-utilities.md)
 
 **Used by:** See each dependent script's own `from rag.utils import (...)` statement
 for the functions it currently uses.
@@ -68,27 +58,9 @@ for the functions it currently uses.
 
 ## 11. Note on FTS5 Implementation
 
-### FTS5 / LLM Content Separation
-
-See [ADR-009](../10_adr/adr_02_009_rag-fts5-text-separation.md) for rationale, alternatives, tradeoffs, and invariants.
-
-Japanese chunks store two versions:
-- `chunks.content` — Original text (passed as context to the LLM)
-- `chunks.normalized_content` — Space-joined result of Sudachi's `normalized_form()` (for FTS5 indexing)
-
-`chunks_ai` / `chunks_au` / `chunks_ad` triggers write `COALESCE(normalized_content, content)` to `chunks_fts`. Since English and code chunks have `normalized_content = NULL`, FTS5 uses `content` directly.
-
-### Tokenization of FTS5 Queries
-
-Japanese queries use the Sudachi tokenizer to extract only nouns, verbs, and adjectives (excluding particles and auxiliary verbs) using `normalized_form()`.
-English queries use regex tokenization `[a-zA-Z0-9]+`. The Sudachi tokenizer is lazily initialized and has no side effects at import time.
-
-### FTS5 Query Token Limit
-
-Token limit for FTS5 queries: defined by `_MAX_FTS_TOKENS` in `repository.py`.
-Tokens exceeding this limit are silently truncated to prevent query explosion. Double quotes (FTS5 metacharacters) and whitespace are removed from each token, and empty tokens are discarded. If no valid tokens remain, `'""'` (an empty FTS5 query) is returned.
-
-There is no recorded rationale or measurement/load-testing data for this limit; it is a heuristic.
+- FTS5 / LLM content separation (`chunks.content` vs `chunks.normalized_content`, the FTS5 triggers, and the invariants): see [ADR-009](../10_adr/adr_02_009_rag-fts5-text-separation.md).
+- Japanese chunk normalization at ingestion: see [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
+- FTS5 query tokenization and the query token limit: see the Japanese FTS5 Tokenization part of [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md).
 
 ---
 

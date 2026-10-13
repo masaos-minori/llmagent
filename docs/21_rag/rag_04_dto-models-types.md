@@ -184,6 +184,8 @@ These fields are only meaningful when the search is delegated to a remote HTTP R
 | `stage_results` | `list[StageResult]` | Execution results for each stage |
 | `diagnostics` | `SearchDiagnostics` | Search diagnostic information |
 
+Returned by `RagPipeline.run()`. It has no `result_source` field; the result origin is tracked in `SearchDiagnostics.result_source`.
+
 ## models_config.py (`scripts/rag/models_config.py`)
 
 `RagConfigImpl` is the concrete implementation of the `RagConfig` Protocol, defining the flat configuration contract for the RAG pipeline. It contains fields covering MQE query expansion, search, reranking, refiner, LLM/embedding service URLs, database paths, and retry/workers configuration. All fields are required (no defaults).

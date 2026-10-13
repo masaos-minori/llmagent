@@ -59,7 +59,7 @@ Used by: `chunk_splitter.py` only
 | `md_index_enable` | Enables splitting at Markdown header boundaries for non-`.md` content with headers spanning 2+ lines. `.md`/`.markdown`/`.mdx` URLs always use heading splits |
 | `md_snippet_max_chars` | Maximum characters per Markdown heading section. Falls back to text splitting if exceeded |
 | `en_stopwords` | English stopwords to exclude from FTS5 indexing and chunking |
-| `ja_stop_pos` | Sudachi POS categories treated as stopwords in Japanese FTS5 indexing |
+| `ja_stop_pos` | Sudachi POS categories treated as stopwords in Japanese FTS5 indexing. A list of Japanese Sudachi part-of-speech names (not English labels) |
 
 ## `config/ingester.toml`
 
