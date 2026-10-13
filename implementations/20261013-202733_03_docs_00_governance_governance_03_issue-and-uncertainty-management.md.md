@@ -10,11 +10,13 @@ track EVENTBUS-008.
 Single file: `docs/00_governance/governance_03_issue-and-uncertainty-management.md`. Two
 edits:
 
-- Update the `#### EVENTBUS-008` section (lines 183-199) and its Active Items table row
-  (line 100) to reflect that an empty `consumer_authorization`/`topic_authorization` pair now
-  resolves to deny-all.
+- Remove the EVENTBUS-008 entry (Active Items table row line 100 and `#### EVENTBUS-008`
+  section lines 183-199) to record the resolution, per the owner's confirmed decision (see
+  Alternatives considered). The item's canonical scope (Title + Resolution Target) is the
+  empty-mapping case, now fully resolved to deny-all.
 - Re-check `ADR-013` (lines 42/238/252) and `ADR-006` (lines 378/391/466) Known Deviations
-  references to EVENTBUS-008.
+  references to EVENTBUS-008, and schedule the mandatory follow-up that updates them (see
+  Method).
 
 ## Assumptions
 
@@ -32,25 +34,26 @@ edits:
   the doc has no `resolved` status value (Status Values: open/investigating/deferred, lines
   53-57); a resolved item is removed from the Active Items inventory (lines 59-60), and a
   Known Issue is resolved only when implementation and design agree (line 303).
-- EVENTBUS-008 is only PARTIALLY resolved by this change: the empty-mapping sub-case is fixed
-  (deny-all), but the `auth_token`/`admin_token` "never restricted" sub-case is intentionally
-  out of scope (`REQ-004`). Do not silently mark the whole item closed.
+- The item's canonical scope (Title + Resolution Target) is the empty-mapping case, now fully
+  resolved (deny-all). The `auth_token`/`admin_token` "never restricted" sub-case is
+  intentional design (`REQ-004`), tracked by no other Known Issue, so removing the entry loses
+  no issue tracking.
 
 ## Alternatives considered
 
 - **Mark `Status: resolved` and keep the entry**: rejected — no such status value exists in
-  the doc; this would violate the doc's Status Values convention.
-- **Remove the entry outright**: only correct if the owner treats the empty-mapping fix as
-  full resolution and documents the superuser case separately as an accepted exception. Given
-  the item's title also covers the (intentionally retained) superuser case, removal is a
-  governance call, not an automatic step.
-- **Corrected wording, keep entry open**: acceptable if the owner wants to keep tracking the
-  superuser sub-case here. Recommended pending owner confirmation.
+  the doc (Status Values: open/investigating/deferred only, lines 53-57); this would violate
+  the doc's convention.
+- **Corrected wording, keep entry open**: rejected — the doc records resolution by removal,
+  not by a closed-out status (lines 59-60); keeping a now-resolved title open would leave a
+  stale entry.
+- **Remove the entry**: chosen. The item's Title and Resolution Target define its scope as the
+  empty-mapping case, which is fully resolved; the superuser sub-case is intentional design
+  tracked by no other item, so removal loses no issue tracking.
 
-Chosen approach: correct the Summary/Observed Implementation/Recommended Action to state the
-empty-mapping case is now deny-all; for the table-row Status and whether to remove the entry,
-confirm with the repository owner, then apply the doc's removal-or-corrected-wording rule.
-Evidence (passing test) must exist before removing or reclassifying (line 308).
+Chosen approach (owner-confirmed): remove the EVENTBUS-008 entry from the Active Items
+inventory per lines 59-60. Evidence (a passing deny-all test) must exist before removal
+(line 308) — this happens in the code-implementation phase, not now.
 
 ## Implementation
 
@@ -68,26 +71,34 @@ Evidence (passing test) must exist before removing or reclassifying (line 308).
      to the adopted resolution: deny-all at runtime for empty mappings.
    - Leave Title/Severity/Area/Source/Owner/First Found/Target/Related unchanged unless the
      owner directs otherwise.
-2. **Decide the table-row Status (line 100) with the repository owner**:
-   - If treated as fully resolved: remove the row from the Active Items inventory per lines
-     59-60 (do not set a non-existent `resolved` status).
-   - If the retained superuser sub-case should stay tracked: keep the entry with corrected
-     wording reflecting the empty-mapping fix.
-   - Apply this only after the implementation test evidence exists (line 308).
+2. **Remove the EVENTBUS-008 entry (owner-confirmed decision)**:
+   - Delete the Active Items table row at line 100 and the `#### EVENTBUS-008` section at
+     lines 183-199. Do NOT set a non-existent `resolved` status (Status Values:
+     open/investigating/deferred only, lines 53-57); the doc records resolution by removal
+     (lines 59-60).
+   - The item's canonical scope (Title + Resolution Target) is the empty-mapping case, now
+     fully resolved; the superuser sub-case is intentional design tracked by no other item, so
+     removal loses no issue tracking.
+   - Apply only after the deny-all implementation test evidence exists (line 308).
 3. **Re-check `ADR-013` and `ADR-006`** (read-only):
    - Confirm the current references: `ADR-013` lines 42 (deviation description), 238 (test
      comment), 252 (Known Issue); `ADR-006` lines 378, 391, 466.
    - These describe EVENTBUS-008 as an open deviation where an empty mapping leaves the
-     CONSUMER token unrestricted. The empty-mapping sub-case is now resolved; the
-     `auth_token`/`admin_token` sub-case remains (intentional, out of scope).
+     CONSUMER token unrestricted. Removing the governance entry makes these references dangling
+     and leaves the false "empty mapping = unrestricted" claim in the ADRs.
 
 ### Method
 
 - Edit only the EVENTBUS-008 section and its table row; preserve the doc's 17-field entry
   structure (Entry Template, line 51) for any entry that stays.
-- Do NOT modify `ADR-013`/`ADR-006` in this change (out of the frozen 3-file scope). Record
-  the re-check finding and recommend a follow-up: close the empty-mapping references in those
-  ADRs; keep the superuser references valid.
+- Path A: do NOT modify `ADR-013`/`ADR-006` in this change (out of the frozen 3-file scope).
+- MANDATORY FOLLOW-UP (separate change, not this one): update `ADR-013` (line 252) and
+  `ADR-006` (line 391) Known Deviations to remove the empty-mapping mention while retaining
+  the `auth_token`/`admin_token` superuser deviation (the empty-mapping part is resolved; the
+  superuser part is a valid residual deviation). This closes the dangling reference created by
+  the governance removal and removes the now-false "empty mapping = unrestricted" claim. Track
+  it as its own change (adding these files to `Implementation Target Files` requires re-freezing
+  the plan); do not fold it into the 3-file EVENTBUS-008 change.
 
 ## Compatibility considerations
 
@@ -120,17 +131,17 @@ of this file restores the prior entry. No code or config impact.
 
 ## Completion criteria
 
-- The `#### EVENTBUS-008` section states empty mappings resolve to deny-all (`frozenset()`).
-- The table-row Status is set per the owner's decision (removed per lines 59-60, or corrected
-  wording kept open), and implementation evidence exists (line 308).
-- `ADR-013`/`ADR-006` re-check recorded; follow-up to update their Known Deviations references
-  recommended (not applied — out of frozen scope).
+- The EVENTBUS-008 entry is removed from the Active Items inventory (table row line 100 and
+  `#### EVENTBUS-008` section lines 183-199) after the deny-all test evidence exists (line 308).
+- `ADR-013`/`ADR-006` re-check recorded; the mandatory follow-up to update their Known
+  Deviations references is tracked as a separate change (see Method).
 - All doc validators pass.
 
 ## Out of scope
 
 - Modifying `ADR-013` (`docs/10_adr/adr_02_013_...md`) or `ADR-006`
-  (`docs/10_adr/adr_02_006_...md`) — re-checked read-only; a follow-up change is recommended.
+  (`docs/10_adr/adr_02_006_...md`) — re-checked read-only. OUT OF THE FROZEN 3-FILE SCOPE;
+  the update is a MANDATORY FOLLOW-UP as a separate change (see Method), not folded in here.
 - Other Known Issue entries in this document.
 - Any change to `scripts/eventbus/auth.py`, `tests/`, or `config/` — handled in the other
   documents.
