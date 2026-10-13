@@ -8,7 +8,6 @@ class MockInstance:
 
     _temperature: float = 0.7
     _max_tokens: int = 100
-    _max_retries: int = 3
     _retry_base_delay: float = 1.0
     _sse_heartbeat_timeout: float = 30.0
     _sse_malformed_retry: int = 3
@@ -52,7 +51,7 @@ def test_apply_config_partial_update() -> None:
     LlmHotConfigHandler.apply_config(inst, temperature=0.9, max_tokens=200)
     assert inst._temperature == 0.9
     assert inst._max_tokens == 200
-    assert inst._max_retries == 3  # unchanged default
+    assert inst._retry_base_delay == 1.0  # unchanged default
 
 
 def test_apply_config_all_fields() -> None:
@@ -62,7 +61,6 @@ def test_apply_config_all_fields() -> None:
         inst,
         temperature=0.9,
         max_tokens=200,
-        max_retries=5,
         retry_base_delay=2.0,
         sse_heartbeat_timeout=60.0,
         sse_malformed_retry=5,
@@ -72,7 +70,6 @@ def test_apply_config_all_fields() -> None:
     )
     assert inst._temperature == 0.9
     assert inst._max_tokens == 200
-    assert inst._max_retries == 5
     assert inst._retry_base_delay == 2.0
     assert inst._sse_heartbeat_timeout == 60.0
     assert inst._sse_malformed_retry == 5

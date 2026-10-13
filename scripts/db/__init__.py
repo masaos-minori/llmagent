@@ -49,14 +49,12 @@ from db.rotation import (
 from db.store_impl import (
     SQLiteDocumentStore,
     SQLiteMemoryDeleteStore,
-    SQLiteSessionStore,
     SQLiteVectorStore,
 )
 from db.store_protocols import (
     DocumentStore,
     MemoryDeleteResult,
     MemoryDeleteStore,
-    SessionStore,
     VectorStore,
     get_embedding_bytes,
     get_embedding_dims,
@@ -80,9 +78,7 @@ __all__ = [
     "SQLiteDocumentStore",
     "SQLiteHelper",
     "SQLiteMemoryDeleteStore",
-    "SQLiteSessionStore",
     "SQLiteVectorStore",
-    "SessionStore",
     "VectorStore",
     "WalCheckpointCounts",
     "build_db_config",

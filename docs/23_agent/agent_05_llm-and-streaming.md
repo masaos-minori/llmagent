@@ -27,11 +27,11 @@ Components are categorized as: Model, Endpoint, Authentication, and Streaming. S
 
 ### Hot-Reloadable Settings
 
-`apply_config(**kwargs)` updates the following parameters without regenerating the instance: `temperature`, `max_tokens`, `max_retries`, `retry_base_delay`, `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `stream_retry_on_heartbeat_timeout`, and `stream_retry_on_malformed_chunk`. Fields passed as `None` remain unchanged.
+`apply_config(**kwargs)` updates the following parameters without regenerating the instance: `temperature`, `max_tokens`, `retry_base_delay`, `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `stream_retry_on_heartbeat_timeout`, and `stream_retry_on_malformed_chunk`. Fields passed as `None` remain unchanged.
 
 ### Request Payload
 
-`build_payload()` constructs a request dictionary including `messages`, `tools`, `temperature`, `max_tokens`, and `stream`. Tool definitions are retrieved from `AgentConfig.tool.tool_definitions`.
+The streaming request dictionary (`messages`, `tools`, `temperature`, `max_tokens`, and `stream`) is built inside `LlmSseStreamHandler`. Tool definitions are retrieved from `AgentConfig.tool.tool_definitions`.
 
 ### Streaming Design Intent
 
@@ -63,7 +63,6 @@ The full set of `LLMTransportError.kind` categories is defined by `LLMErrorKind`
 |---|---|---|
 | Temperature | `cfg.llm.llm_temperature` | `/set temperature <f>` or `/reload` |
 | Max tokens | `cfg.llm.llm_max_tokens` | `/set max_tokens <n>` or `/reload` |
-| Retry count | `cfg.llm.llm_max_retries` | `/reload` |
 | Heartbeat timeout | `cfg.llm.sse_heartbeat_timeout` | `/reload` |
 | Reconnect max | `cfg.llm.sse_reconnect_max` | `/reload` |
 
@@ -110,8 +109,6 @@ If the LLM endpoint returns a chunk containing a `usage` field, data is extracte
 
 ## Operational Notes
 
-- `LLMClient.call()` is the non-streaming call API. History compression and session-title generation do not use it; they post through the injected HTTP client directly.
-- `LLMClient.request_with_retry()` is a retry-enabled POST (only for HTTP 429/503 and `RequestError`) using exponential backoff.
 - `LLMTransportError` carries `phase` (pre_stream/in_stream), `url`, `status_code`, `retryable`, `partial_text`, `detail`, and `stat_heartbeat_timeouts`.
 - `UTF8_PARTIAL_DECODE_ERROR` and `PREMATURE_EOF` are clearly distinguished. `PREMATURE_EOF` is raised if the SSE stream ends before the expected `content-length`. `UTF8_PARTIAL_DECODE_ERROR` handles JSON decoding errors separately.
 

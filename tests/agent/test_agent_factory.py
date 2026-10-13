@@ -41,7 +41,6 @@ def _make_ctx(*, use_memory_layer: bool = False, otel_enabled: bool = False) -> 
     ctx.cfg.obs.otel_endpoint = ""
     ctx.cfg.obs.audit_log_file = "/dev/null"
     ctx.cfg.llm.http_timeout = 30.0
-    ctx.cfg.llm.llm_max_retries = 3
     ctx.cfg.llm.llm_retry_base_delay = 1.0
     ctx.cfg.llm.llm_temperature = 0.2
     ctx.cfg.llm.llm_max_tokens = 1024

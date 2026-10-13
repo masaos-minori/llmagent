@@ -42,9 +42,6 @@ from agent.services.config_validators import (
     validate_llm_context_char_limit as _v_llm_ccl,
 )
 from agent.services.config_validators import (
-    validate_llm_max_retries as _v_llm_mr,
-)
-from agent.services.config_validators import (
     validate_llm_max_tokens as _v_llm_mt,
 )
 from agent.services.config_validators import (
@@ -87,15 +84,6 @@ from agent.services.config_validators import (
     validate_progress_stagnation_window as _v_tool_psw,
 )
 from agent.services.config_validators import (
-    validate_rag_refiner_max_chars_per_chunk as _v_rag_rmcc,
-)
-from agent.services.config_validators import (
-    validate_rag_refiner_max_tokens as _v_rag_rmt,
-)
-from agent.services.config_validators import (
-    validate_rag_refiner_timeout as _v_rag_rt,
-)
-from agent.services.config_validators import (
     validate_tool_cycle_detect_window as _v_tool_cdw,
 )
 from agent.services.config_validators import (
@@ -120,7 +108,6 @@ class LLMConfig:
 
     llm_url: str = ""
     http_timeout: float = 30.0
-    llm_max_retries: int = 3
     llm_retry_base_delay: float = 1.0
     llm_temperature: float = 0.2
     llm_max_tokens: int = 1024
@@ -145,7 +132,6 @@ class LLMConfig:
         """Validate LLM configuration fields after initialization."""
         _v_llm_ccl(self)
         _v_llm_bwr(self)
-        _v_llm_mr(self)
         _v_llm_rbd(self)
         _v_llm_temp(self)
         _v_llm_mt(self)
@@ -159,17 +145,7 @@ class RAGConfig:
     """RAG pipeline and vector search settings."""
 
     embed_url: str = ""
-    use_refiner: bool = False
-    refiner_max_tokens: int = 512
-    refiner_timeout: float = 30.0
-    refiner_max_chars_per_chunk: int = 300
     web_search_url: str = ""
-
-    def __post_init__(self) -> None:
-        """Validate RAG configuration fields after initialization."""
-        _v_rag_rmt(self)
-        _v_rag_rt(self)
-        _v_rag_rmcc(self)
 
 
 @dataclass

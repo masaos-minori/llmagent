@@ -13,16 +13,12 @@ from agent.services.config_validators import (
     validate_llm_context_char_limit,
     validate_llm_context_token_limit,
     validate_llm_http_timeout,
-    validate_llm_max_retries,
     validate_llm_max_tokens,
     validate_llm_retry_base_delay,
     validate_llm_sse_heartbeat_timeout,
     validate_llm_sse_malformed_retry,
     validate_llm_sse_reconnect_max,
     validate_llm_temperature,
-    validate_rag_refiner_max_chars_per_chunk,
-    validate_rag_refiner_max_tokens,
-    validate_rag_refiner_timeout,
     validate_tool_max_tool_turns,
     validate_tool_result_max_llm_chars,
 )
@@ -51,7 +47,6 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("llm_temperature", "llm", True, validate_llm_temperature),
     ConfigFieldRegistry("llm_max_tokens", "llm", True, validate_llm_max_tokens),
     ConfigFieldRegistry("llm_url", "llm", True),
-    ConfigFieldRegistry("llm_max_retries", "llm", True, validate_llm_max_retries),
     ConfigFieldRegistry(
         "llm_retry_base_delay", "llm", True, validate_llm_retry_base_delay
     ),
@@ -69,17 +64,6 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     # RAG section
     ConfigFieldRegistry("embed_url", "rag", True),
     ConfigFieldRegistry("web_search_url", "rag", True),
-    ConfigFieldRegistry("use_refiner", "rag", True),
-    ConfigFieldRegistry(
-        "refiner_max_tokens", "rag", True, validate_rag_refiner_max_tokens
-    ),
-    ConfigFieldRegistry("refiner_timeout", "rag", True, validate_rag_refiner_timeout),
-    ConfigFieldRegistry(
-        "refiner_max_chars_per_chunk",
-        "rag",
-        True,
-        validate_rag_refiner_max_chars_per_chunk,
-    ),
     # Tool section
     ConfigFieldRegistry("max_tool_turns", "tool", True, validate_tool_max_tool_turns),
     ConfigFieldRegistry(

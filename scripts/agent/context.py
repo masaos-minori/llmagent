@@ -215,7 +215,6 @@ class RuntimeStats:
     stat_tool_errors: int = 0
     # Per-step latency samples (seconds); keyed by step name
     stat_latency: dict[str, list[float]] = field(default_factory=dict)
-    stat_semantic_cache_hits: int = 0
     # LLM token usage accumulated across turns; None = endpoint did not return usage
     stat_input_tokens: int | None = None
     stat_output_tokens: int | None = None

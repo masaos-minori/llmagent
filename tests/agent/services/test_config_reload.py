@@ -32,7 +32,6 @@ def svc() -> object:
     llm_cfg = LLMConfig(
         llm_url="",
         http_timeout=30.0,
-        llm_max_retries=3,
         llm_retry_base_delay=1.0,
         llm_temperature=0.7,
         llm_max_tokens=1000,
@@ -46,10 +45,6 @@ def svc() -> object:
     )
     rag_cfg = RAGConfig(
         embed_url="http://localhost:8080/embed",
-        use_refiner=False,
-        refiner_max_tokens=512,
-        refiner_timeout=30.0,
-        refiner_max_chars_per_chunk=300,
     )
     tool_cfg = ToolConfig(
         system_prompts={},
@@ -83,7 +78,6 @@ def svc_with_ctx() -> tuple[object, MagicMock]:
     llm_cfg = LLMConfig(
         llm_url="",
         http_timeout=30.0,
-        llm_max_retries=3,
         llm_retry_base_delay=1.0,
         llm_temperature=0.7,
         llm_max_tokens=1000,
@@ -97,10 +91,6 @@ def svc_with_ctx() -> tuple[object, MagicMock]:
     )
     rag_cfg = RAGConfig(
         embed_url="http://localhost:8080/embed",
-        use_refiner=False,
-        refiner_max_tokens=512,
-        refiner_timeout=30.0,
-        refiner_max_chars_per_chunk=300,
     )
     tool_cfg = ToolConfig(
         system_prompts={},
@@ -673,7 +663,6 @@ class TestRegistryFieldClassification:
         llm_cfg = LLMConfig(
             llm_url="",
             http_timeout=30.0,
-            llm_max_retries=3,
             llm_retry_base_delay=1.0,
             llm_temperature=0.7,
             llm_max_tokens=1000,
@@ -687,10 +676,6 @@ class TestRegistryFieldClassification:
         )
         rag_cfg = RAGConfig(
             embed_url="http://localhost:8080/embed",
-            use_refiner=False,
-            refiner_max_tokens=512,
-            refiner_timeout=30.0,
-            refiner_max_chars_per_chunk=300,
         )
         tool_cfg = ToolConfig(
             system_prompts={},
@@ -744,7 +729,6 @@ class TestRegistryFieldClassification:
             "llm_temperature",
             "llm_max_tokens",
             "llm_url",
-            "llm_max_retries",
             "llm_retry_base_delay",
             "sse_heartbeat_timeout",
             "sse_malformed_retry",
@@ -765,10 +749,6 @@ class TestRegistryFieldClassification:
         expected = {
             "embed_url",
             "web_search_url",
-            "use_refiner",
-            "refiner_max_tokens",
-            "refiner_timeout",
-            "refiner_max_chars_per_chunk",
         }
         assert set(rag_fields) == expected
 
@@ -892,8 +872,8 @@ class TestRegistryFieldClassification:
     def test_apply_config_dict_applies_rag_fields_via_registry(
         self, svc_with_mocked_mcp: object
     ) -> None:
-        svc_with_mocked_mcp.apply_config_dict({"refiner_max_tokens": 1024})
-        assert svc_with_mocked_mcp._ctx.cfg.rag.refiner_max_tokens == 1024
+        svc_with_mocked_mcp.apply_config_dict({"embed_url": "http://embed:8081"})
+        assert svc_with_mocked_mcp._ctx.cfg.rag.embed_url == "http://embed:8081"
 
     def test_apply_config_dict_applies_tool_fields_via_registry(
         self, svc_with_mocked_mcp: object
@@ -911,7 +891,7 @@ class TestRegistryFieldClassification:
         self, svc_with_mocked_mcp: object
     ) -> None:
         svc_with_mocked_mcp.apply_config_dict(
-            {"llm_temperature": 0.9, "refiner_max_tokens": 1024}
+            {"llm_temperature": 0.9, "embed_url": "http://embed:8081"}
         )
         assert svc_with_mocked_mcp._ctx.cfg.llm.llm_temperature == 0.9
-        assert svc_with_mocked_mcp._ctx.cfg.rag.refiner_max_tokens == 1024
+        assert svc_with_mocked_mcp._ctx.cfg.rag.embed_url == "http://embed:8081"

@@ -199,6 +199,28 @@ _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
     "authentication, per plans/done/20260903-092407_plan.md — mcpauth)": re.compile(
         r"auth_token(?:_env)?\s*=\s*[\"']{2}|empty\s+auth_token"
     ),
+    "shared/security package (confirmed removed — SHARED-001 resolution)": re.compile(
+        r"\bHighRiskToolPolicy\b|\bSecurityMode\b|\bAuditLogger\b|shared[./]security\b"
+    ),
+    "LlmRetryHandler/llm_max_retries/stat_retries (confirmed removed — "
+    "test-only LLM retry path)": re.compile(
+        r"\bLlmRetryHandler\b|\bllm_max_retries\b|\bstat_retries\b|\bLLMClient\.request_with_retry\b"
+    ),
+    "validate_all_routing (confirmed removed — SHARED-002 resolution)": re.compile(
+        r"\bvalidate_all_routing\b"
+    ),
+    "is_side_effect (confirmed removed — SHARED-002 resolution)": re.compile(
+        r"\bis_side_effect\b"
+    ),
+    "ToolResultCache/CacheEntry (confirmed removed — SHARED-002 resolution)": re.compile(
+        r"\bToolResultCache\b|\bCacheEntry\b"
+    ),
+    "LLMClient.call (confirmed removed — SHARED-002 resolution)": re.compile(
+        r"\bLLMClient\.call\("
+    ),
+    "SQLiteSessionStore/SessionStore (confirmed removed — SHARED-002 resolution)": re.compile(
+        r"\bSQLiteSessionStore\b|\bSessionStore\b"
+    ),
 }
 
 _TOOL_ROUTE_RESOLVER_RE = re.compile(r"\bToolRouteResolver\b")

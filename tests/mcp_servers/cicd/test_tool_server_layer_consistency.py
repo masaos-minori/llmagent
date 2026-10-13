@@ -33,6 +33,8 @@ from typing import Any, cast
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from agent.tool_enums import OperationType
+from agent.tool_policy import classify_operation_type
 from shared.tool_constants import (
     CICD_TOOLS,
     CICD_WRITE_TOOLS,
@@ -51,7 +53,6 @@ from shared.tool_constants import (
     WEB_SEARCH_TOOLS,
     WRITE_TOOLS,
 )
-from shared.tool_executor_helpers import is_side_effect
 from shared.tool_registry import get_registry
 from shared.tool_routing_validation import validate_routing_against_live
 
@@ -373,7 +374,7 @@ def test_write_tools_flagged_is_write(server_key: str) -> None:
     MDQ, shell, and rag_pipeline declare "is_write" explicitly per tool as part
     of the schema-2.0 rollout (see ToolSpec.is_write in agent/tool_scheduler.py).
     The remaining servers' schemas do not declare the key at all; for those, the
-    schema-independent runtime fallback is shared.tool_executor_helpers.is_side_effect(),
+    schema-independent runtime classification is agent.tool_policy.classify_operation_type(),
     so the equivalent guardrail is verifying the write-tool set is recognized there
     instead — this is the same class of bug this whole test module (and the
     classify_operation_type fix) guards against, applied to the other
@@ -386,7 +387,12 @@ def test_write_tools_flagged_is_write(server_key: str) -> None:
                 assert t.get("is_write") is True
     else:
         for name in layers.write_tools:
-            assert is_side_effect(name)
+            assert classify_operation_type(name) in {
+                OperationType.WRITE,
+                OperationType.DELETE,
+                OperationType.EXECUTE,
+                OperationType.API_WRITE,
+            }
 
 
 @pytest.mark.parametrize("server_key", sorted(_SERVERS))
@@ -413,7 +419,7 @@ def test_serial_tools_flagged_requires_serial(server_key: str) -> None:
 # already covers a different axis: schema/dispatch/registry triple-consistency
 # for all 8 servers). It is not currently wired into agent startup — see
 # plans/20260719-202346_plan.md Scope, which explicitly keeps wiring
-# validate_all_routing()/validate_routing_against_live() into agent/startup.py
+# validate_routing_against_live() into agent/startup.py
 # out of scope. This uses the real, default get_registry() rather than a
 # synthetic registry, complementing tests/test_tool_registry.py's existing
 # synthetic-registry unit tests for the same function.

@@ -41,14 +41,6 @@ class TestLLMConfigValidation:
         cfg = LLMConfig(budget_warn_ratio=1.0)
         assert cfg.budget_warn_ratio == 1.0
 
-    def test_llm_max_retries_negative_raises(self) -> None:
-        with pytest.raises(ValueError, match="llm_max_retries"):
-            LLMConfig(llm_max_retries=-1)
-
-    def test_llm_max_retries_zero_is_valid(self) -> None:
-        cfg = LLMConfig(llm_max_retries=0)
-        assert cfg.llm_max_retries == 0
-
     def test_llm_retry_base_delay_zero_raises(self) -> None:
         with pytest.raises(ValueError, match="llm_retry_base_delay"):
             LLMConfig(llm_retry_base_delay=0.0)
@@ -80,12 +72,6 @@ class TestLLMConfigValidation:
             ValueError, match=re.escape("sse_heartbeat_timeout must be >= 0, got -1")
         ):
             LLMConfig(sse_heartbeat_timeout=-1)
-
-    def test_llm_max_retries_full_message(self) -> None:
-        with pytest.raises(
-            ValueError, match=re.escape("llm_max_retries must be >= 0, got -1")
-        ):
-            LLMConfig(llm_max_retries=-1)
 
     def test_llm_retry_base_delay_full_message(self) -> None:
         with pytest.raises(
@@ -131,33 +117,17 @@ class TestRAGConfigValidation:
     def test_defaults_are_valid(self) -> None:
         cfg = RAGConfig()
         assert cfg.embed_url == ""
-        assert cfg.use_refiner is False
-        assert cfg.refiner_max_tokens == 512
-        assert cfg.refiner_timeout == 30.0
-        assert cfg.refiner_max_chars_per_chunk == 300
 
-    def test_refiner_timeout_zero_raises(self) -> None:
-        with pytest.raises(ValueError, match="refiner_timeout"):
-            RAGConfig(refiner_timeout=0.0)
-
-    def test_refiner_max_tokens_zero_raises(self) -> None:
-        with pytest.raises(
-            ValueError, match=re.escape("refiner_max_tokens must be >= 1, got 0")
+    def test_has_no_refiner_attributes(self) -> None:
+        """The refiner is configured only in the rag-pipeline MCP server (ADR-002)."""
+        cfg = RAGConfig()
+        for name in (
+            "use_refiner",
+            "refiner_max_tokens",
+            "refiner_timeout",
+            "refiner_max_chars_per_chunk",
         ):
-            RAGConfig(refiner_max_tokens=0)
-
-    def test_refiner_timeout_full_message(self) -> None:
-        with pytest.raises(
-            ValueError, match=re.escape("refiner_timeout must be > 0, got 0.0")
-        ):
-            RAGConfig(refiner_timeout=0.0)
-
-    def test_refiner_max_chars_per_chunk_full_message(self) -> None:
-        with pytest.raises(
-            ValueError,
-            match=re.escape("refiner_max_chars_per_chunk must be >= 1, got 0"),
-        ):
-            RAGConfig(refiner_max_chars_per_chunk=0)
+            assert not hasattr(cfg, name), name
 
 
 # ── ToolConfig ────────────────────────────────────────────────────────────────

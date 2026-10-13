@@ -24,7 +24,7 @@ related:
 
 **Responsibility:** Core engine for tool dispatching — handles tool → server resolution, concurrency limits, health gating, and transport communication.
 
-**`ToolCallResult` Data Class (Result Contract, `shared/transport_dto.py`, frozen dataclass):** A frozen dataclass containing `output` (truncated if > `MCP_MAX_RESPONSE_BYTES`), `is_error`, `request_id` (X-Request-Id from MCP server, empty when none is available), `server_key` (routing target), `source` ('mcp' for MCP calls, empty on error paths; 'cache' is set only by the standalone `ToolResultCache`, which `ToolExecutor` does not use), and `error_type` ('transport'/'tool'/empty). `error_type` is used by the health gate and error counter aggregation.
+**`ToolCallResult` Data Class (Result Contract, `shared/transport_dto.py`, frozen dataclass):** A frozen dataclass containing `output` (truncated if > `MCP_MAX_RESPONSE_BYTES`), `is_error`, `request_id` (X-Request-Id from MCP server, empty when none is available), `server_key` (routing target), `source` ('mcp' for MCP calls, empty on error paths), and `error_type` ('transport'/'tool'/empty). `error_type` is used by the health gate and error counter aggregation.
 
 **Execution Flow:** Resolve `tool_name` → `server_key` via `ToolRouteResolver`; `startup_mode=none` gate rejects disabled servers; `McpServerHealthRegistry.is_unavailable()` blocks `UNAVAILABLE` dispatch (`HALF_OPEN` allows one attempt per cooldown); `lifecycle.ensure_ready()` if configured; execute via `HttpTransport.call()` behind a per-server-key semaphore; return `ToolCallResult`.
 
@@ -42,13 +42,13 @@ related:
 
 **Responsibility:** An HTTP client for LLM API communication featuring retry logic, SSE streaming, and error handling.
 
-**Primary APIs:** `LLMClient` wraps `AsyncClient` with retry logic, SSE streaming, and error handling. Constructor accepts http client, `max_retries`, `retry_base_delay`, `temperature`, `max_tokens`, optional callbacks (`on_token`/`on_usage`), and SSE parameters (`sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `llm_stream_retry_on_heartbeat_timeout`, `llm_stream_retry_on_malformed_chunk`). `call()`/`stream()` accept `url`/`history`/`tool_defs`; `build_payload` constructs the request dict.
+**Primary APIs:** `LLMClient` wraps `AsyncClient` with SSE streaming and error handling. Constructor accepts http client, `retry_base_delay` (reconnect backoff), `temperature`, `max_tokens`, optional callbacks (`on_token`/`on_usage`), and SSE parameters (`sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `llm_stream_retry_on_heartbeat_timeout`, `llm_stream_retry_on_malformed_chunk`). `stream()` accepts `url`/`history`/`tool_defs`.
 
 **Error Behavior:** HTTP errors → `LLMTransportError` classified by kind: `HTTP_STATUS_RETRYABLE` (429/503), `HTTP_STATUS_FATAL` (others), `CONNECT_ERROR`, `READ_TIMEOUT`, `HEARTBEAT_TIMEOUT`, `MALFORMED_SSE_FRAME`, `UTF8_PARTIAL_DECODE_ERROR`, `PREMATURE_EOF`, `UNKNOWN_STREAM_ERROR`. SSE heartbeat timeouts trigger retries if enabled; malformed chunks are retried up to `sse_malformed_retry` times before raising `MALFORMED_SSE_FRAME`. Retry exhaustion raises `LLMTransportError` with `partial_text` containing accumulated output.
 
 **Retries:** Exponential backoff starting from `retry_base_delay`; limit `max_retries` for non-streaming requests; streaming reconnection uses a separate counter `sse_reconnect_max`.
 
-**Statistics (Instance-level):** Instance-level stats include `stat_retries`, `stat_reconnects`, `stat_heartbeat_timeouts`, and `stat_parse_errors`. Note: `stat_partial_completions` does not exist; `LlmReconnectHandler.stream()` returns `partial_completions` as a tuple element, but `LLMClient.stream()` discards it without accumulation.
+**Statistics (Instance-level):** Instance-level stats include `stat_reconnects`, `stat_heartbeat_timeouts`, and `stat_parse_errors`. Note: `stat_partial_completions` does not exist; `LlmReconnectHandler.stream()` returns `partial_completions` as a tuple element, but `LLMClient.stream()` discards it without accumulation.
 
 **Configuration:** `LlmHotConfigHandler` applies hot reloads for: `temperature`, `max_tokens`, `max_retries`, `retry_base_delay`, `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `stream_retry_on_heartbeat_timeout`, and `stream_retry_on_malformed_chunk`. `None` values leave existing settings unchanged.
 

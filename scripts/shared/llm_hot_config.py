@@ -10,7 +10,6 @@ class LlmHotConfigHandler:
     HOT_CONFIG_FIELDS: tuple[tuple[str, str], ...] = (
         ("_temperature", "temperature"),
         ("_max_tokens", "max_tokens"),
-        ("_max_retries", "max_retries"),
         ("_retry_base_delay", "retry_base_delay"),
         ("_sse_heartbeat_timeout", "sse_heartbeat_timeout"),
         ("_sse_malformed_retry", "sse_malformed_retry"),
@@ -30,7 +29,6 @@ class LlmHotConfigHandler:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        max_retries: int | None = None,
         retry_base_delay: float | None = None,
         sse_heartbeat_timeout: float | None = None,
         sse_malformed_retry: int | None = None,
@@ -42,7 +40,6 @@ class LlmHotConfigHandler:
         args = dict(
             temperature=temperature,
             max_tokens=max_tokens,
-            max_retries=max_retries,
             retry_base_delay=retry_base_delay,
             sse_heartbeat_timeout=sse_heartbeat_timeout,
             sse_malformed_retry=sse_malformed_retry,

@@ -33,21 +33,9 @@ Documents the responsibility scope of the Session DB, data ownership boundaries,
 
 **Design judgment:** `session_diagnostics` is separated from `messages` — since diagnostic events are not visible to the LLM, they are managed separately from conversation history.
 
-### SessionMessageRepository vs SQLiteSessionStore Responsibility Separation
+### Session Message Persistence
 
-What `SessionMessageRepository` handles:
-- Role validation (`user` / `assistant` / `tool` / `system`)
-- `strict_mode` behavior (raises `RuntimeError` on skip)
-- Avoiding saving when a session does not exist
-- Normalization of `content=None`
-- JSON encoding/decoding of `tool_calls`
-
-What `SQLiteSessionStore` handles:
-- Simple DB INSERT/LIST operations
-- Persistence compliant with schema
-- Minimal validation only
-
-**Design judgment:** Validation and encoding logic must NOT be duplicated in `SQLiteSessionStore`. It is a thin DB adapter and performs no role validation, content normalization, or JSON encoding; these concerns belong entirely to `SessionMessageRepository`.
+Session messages are persisted only through `SessionMessageRepository` over `SQLiteHelper`; it owns role validation, `strict_mode`, content normalization and `tool_calls` JSON encoding.
 
 ### Session Retention Policy
 
@@ -88,12 +76,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 - Valid roles for the `messages` table: `user` / `assistant` / `tool` / `system` — `diagnostic` is **NOT** a valid role.
 - Diagnostic events are persisted ONLY in the `session_diagnostics` table.
-- Do NOT duplicate validation and encoding logic in `SQLiteSessionStore`.
 - JSONL is an append-only archive — deletions and state changes are NOT replayed.
-
-## Operational Notes
-
-- `SQLiteSessionStore` is not used by production code; the session persistence path is `SessionMessageRepository` over `SQLiteHelper`. Its only caller is `tests/db/test_db_store_impl.py` (Explicit in code — `scripts/db/store_impl.py`, `scripts/agent/session.py`).
 
 ## Known Limitations
 
@@ -104,5 +87,4 @@ None currently known.
 - session.sqlite
 - session_diagnostics
 - SessionMessageRepository
-- SQLiteSessionStore
 - session retention

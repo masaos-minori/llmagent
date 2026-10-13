@@ -11,12 +11,13 @@ Functions:
   build_rag_schema_sql(dims) — return DDL for rag.sqlite with given dimension
   build_session_schema_sql(dims) — return DDL for session.sqlite with given dimension
   build_workflow_schema_sql() — return DDL for workflow.sqlite (metadata DB)
-  build_eventbus_schema_sql() — return DDL for eventbus.sqlite (event bus message queue)
+  build_eventbus_schema_sql() — return DDL for eventbus.sqlite, read from scripts/eventbus/schema.sql
   apply_workflow_migrations(conn) — apply incremental schema migrations to an existing workflow DB
 """
 
 import logging
 import sqlite3
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -226,53 +227,16 @@ CREATE TABLE IF NOT EXISTS workflow_schema_version (
 );
 """
 
-_EVENTBUS_SCHEMA: str = """
-PRAGMA journal_mode=WAL;
-
--- Timestamps use ISO-8601 UTC Z suffix format: 2026-07-02T10:00:00Z
--- dlq_at is nullable (unset until dead-lettered)
-
-CREATE TABLE IF NOT EXISTS events (
-    seq                    INTEGER PRIMARY KEY AUTOINCREMENT,
-    event_id               TEXT    NOT NULL UNIQUE,
-    topic                  TEXT    NOT NULL,
-    payload                TEXT    NOT NULL,
-    producer               TEXT    NOT NULL,
-    published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    delivery_failure_count INTEGER NOT NULL DEFAULT 0,
-    cycle_failure_count    INTEGER NOT NULL DEFAULT 0,
-    redelivered_from       TEXT,
-    dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
-    dlq_at                 TEXT,
-    consumer_id            TEXT
-);
-
-CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
-CREATE INDEX IF NOT EXISTS idx_events_seq   ON events(seq);
-CREATE INDEX IF NOT EXISTS idx_events_dlq_at ON events(dlq_at);
-CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);
-
--- Per-consumer delivery state: tracks ACK state per (consumer_id, event_id)
-CREATE TABLE IF NOT EXISTS consumer_delivery (
-    consumer_id                    TEXT    NOT NULL,
-    event_id                       TEXT    NOT NULL,
-    acked                          INTEGER NOT NULL DEFAULT 0,
-    consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0,
-    consumer_last_nack_attempt     TEXT,
-    PRIMARY KEY (consumer_id, event_id)
-);
-
--- Per-consumer offset: tracks last-committed sequence offset per consumer
-CREATE TABLE IF NOT EXISTS consumer_offsets (
-    consumer_id          TEXT    PRIMARY KEY,
-    offset               INTEGER NOT NULL DEFAULT 0
-);
-"""
+# eventbus.sqlite's DDL is owned by the EventBus service (ADR-008 INV-04). The db layer
+# reads it as a file and never imports the eventbus package.
+EVENTBUS_SCHEMA_SQL_PATH: Path = (
+    Path(__file__).resolve().parents[1] / "eventbus" / "schema.sql"
+)
 
 
 def build_eventbus_schema_sql() -> str:
-    """Return DDL for eventbus.sqlite (event bus message queue)."""
-    return _EVENTBUS_SCHEMA
+    """Return DDL for eventbus.sqlite (event bus message queue), read from scripts/eventbus/schema.sql."""
+    return EVENTBUS_SCHEMA_SQL_PATH.read_text(encoding="utf-8")
 
 
 _EVENTBUS_MIGRATIONS: list[tuple[str, str]] = [

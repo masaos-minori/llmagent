@@ -50,9 +50,11 @@ Incremental migration mechanisms like this do not exist for `rag.sqlite` or `ses
 evolution on `eventbus.sqlite` at every EventBus service startup, called from
 `_init_schema()` when the `events` table already exists. The base schema for
 `events`, `consumer_delivery`, and `consumer_offsets` is defined in
-`scripts/eventbus/schema.sql` (and, for `create_schema()`, in `build_eventbus_schema_sql()`; see Known Issue EVENTBUS-016); see `scripts/eventbus/schema.py` for the additive
+`scripts/eventbus/schema.sql`, the only DDL definition; `create_schema()` reads that file through `build_eventbus_schema_sql()`. See `scripts/eventbus/schema.py` for the additive
 migration logic that creates `consumer_delivery`/`consumer_offsets` on existing
 databases.
+
+`events.published_at` has a `DEFAULT` expression in `schema.sql`. SQLite cannot change a column default without rebuilding the table, so existing databases created before the default was added are not rebuilt; the difference has no effect because every insert path (`POST /publish` and the DLQ requeue) supplies `published_at` explicitly. `_migrate()` also creates the `consumer_delivery(consumer_id, acked)` index on existing databases.
 
 Each table serves a distinct purpose:
 - `events`: Stores all published events with auto-incrementing sequence numbers.
@@ -64,7 +66,7 @@ Each table serves a distinct purpose:
 - **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
 - **New tables:** `_migrate()` additionally creates the `consumer_delivery` and `consumer_offsets` tables via the same idempotent `CREATE TABLE IF NOT EXISTS` pattern used for column/index additions.
 - **Separate data seeding:** `migrate_legacy_offsets()` (see Schema Evolution below) is distinct from `_migrate()`'s schema-DDL role.
-- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL via `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`) (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
+- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL read from `scripts/eventbus/schema.sql` via `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`) (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
 
 ### 8c. RAG Consistency Verification (Explicit in code)
 

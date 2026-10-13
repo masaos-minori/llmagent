@@ -68,29 +68,6 @@ def validate_routing_against_live(
     return drift
 
 
-def validate_all_routing(
-    server_configs: dict[str, "McpServerConfig"] | None = None,
-    live_tool_lists: dict[str, list[str]] | None = None,
-) -> dict[str, list[str]]:
-    """Run all routing validations. Returns combined drift report."""
-    from shared.tool_registry import get_registry
-
-    registry = get_registry()
-    result: dict[str, list[str]] = {}
-
-    config_drift = validate_routing_against_config(registry, server_configs)
-    result.update(config_drift)
-
-    live_drift = validate_routing_against_live(registry, live_tool_lists)
-    for server_key, messages in live_drift.items():
-        if server_key in result:
-            result[server_key].extend(messages)
-        else:
-            result[server_key] = messages
-
-    return result
-
-
 def check_tool_safety_tiers(
     registry: "ToolRegistry | None" = None,
     tool_safety_tiers: dict[str, str] | None = None,

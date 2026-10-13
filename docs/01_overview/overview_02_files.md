@@ -121,7 +121,7 @@ Isolated SQLite databases: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `e
 
 ### DB Layer Package (scripts/db/)
 
-Schema initialization, connection management (WAL mode, busy_timeout), and maintenance operations. Protocol abstraction layer defining VectorStore, DocumentStore, and SessionStore interfaces with SQLite implementations. Data models for checkpoint counts, purge counts, health metrics, document rows, session rows, and message rows. Consistency checking, rotation, and recovery utilities.
+Schema initialization, connection management (WAL mode, busy_timeout), and maintenance operations. Protocol abstraction layer defining VectorStore and DocumentStore interfaces with SQLite implementations. Data models for checkpoint counts, purge counts, health metrics, document rows, session rows, and message rows. Consistency checking, rotation, and recovery utilities.
 
 ### Shared Infrastructure Components (scripts/shared/)
 
@@ -136,10 +136,6 @@ Schema initialization, connection management (WAL mode, busy_timeout), and maint
 **protocols/** — ShellPolicy protocol definition.
 
 ### Design Intent and Operational Specifications
-
-#### Caching Strategy
-
-`ToolResultCache` is a standalone LRU+TTL cache utility, currently unused in the codebase.
 
 #### Health Check-Based Dispatch Control
 

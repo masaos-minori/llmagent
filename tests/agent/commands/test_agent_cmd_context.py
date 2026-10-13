@@ -31,7 +31,6 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_calls = 5
     ctx.stats.stat_tool_errors = 1
     ctx.stats.stat_latency = {}
-    ctx.stats.stat_semantic_cache_hits = 0
     ctx.stats.stat_input_tokens = None
     ctx.conv.debug_mode = False
     ctx.conv.plan_mode = False

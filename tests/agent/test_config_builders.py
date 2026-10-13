@@ -46,7 +46,6 @@ _MIN_CFG: dict = {
 _LLM_DEFAULTS = {
     "llm_url": "",
     "http_timeout": 30.0,
-    "llm_max_retries": 3,
     "llm_retry_base_delay": 1.0,
     "llm_temperature": 0.2,
     "llm_max_tokens": 1024,
@@ -79,7 +78,7 @@ class TestBuildLLMConfig:
 
     def test_type_coercion_for_numeric_fields(self) -> None:
         with pytest.raises(ConfigReloadValidationError):
-            _build_llm_config({"llm_max_retries": "5", "llm_temperature": "0.5"})
+            _build_llm_config({"llm_max_tokens": "5", "llm_temperature": "0.5"})
 
     def test_every_field_override_is_independently_reflected(self) -> None:
         # Guards each individual cfg-key -> field mapping (not just a couple of
@@ -88,7 +87,6 @@ class TestBuildLLMConfig:
         overrides = {
             "llm_url": "http://override",
             "http_timeout": 99.0,
-            "llm_max_retries": 9,
             "llm_retry_base_delay": 9.0,
             "llm_temperature": 0.9,
             "llm_max_tokens": 999,
@@ -118,26 +116,23 @@ class TestBuildRAGConfig:
     def test_empty_dict_returns_defaults(self) -> None:
         cfg = _build_rag_config({})
         assert cfg.embed_url == ""
-        assert cfg.use_refiner is False
-        assert cfg.refiner_max_tokens == 512
-        assert cfg.refiner_timeout == 30.0
-        assert cfg.refiner_max_chars_per_chunk == 300
 
-    def test_overrides_are_applied(self) -> None:
-        cfg = _build_rag_config({"use_refiner": True})
-        assert cfg.use_refiner is True
+    def test_embed_url_override_is_applied(self) -> None:
+        cfg = _build_rag_config({"embed_url": "http://embed"})
+        assert cfg.embed_url == "http://embed"
 
-    def test_every_field_override_is_independently_reflected(self) -> None:
-        overrides = {
-            "embed_url": "http://embed",
-            "use_refiner": True,
-            "refiner_max_tokens": 9,
-            "refiner_timeout": 9.0,
-            "refiner_max_chars_per_chunk": 9,
-        }
-        cfg = _build_rag_config(overrides)
-        for key, value in overrides.items():
-            assert getattr(cfg, key) == value, key
+    @pytest.mark.parametrize(
+        "key",
+        [
+            "use_refiner",
+            "refiner_max_tokens",
+            "refiner_timeout",
+            "refiner_max_chars_per_chunk",
+        ],
+    )
+    def test_leftover_refiner_key_is_rejected(self, key: str) -> None:
+        with pytest.raises(ValueError, match="rag_pipeline_mcp_server.toml"):
+            _build_rag_config({key: 1})
 
 
 # ── _build_tool_config ────────────────────────────────────────────────────────

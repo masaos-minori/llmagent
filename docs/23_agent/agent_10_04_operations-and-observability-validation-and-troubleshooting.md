@@ -186,15 +186,14 @@ Budget breakdown:
 
 ``` text
 Turns: 5 | Tool calls: 12 | Errors: 1
-LLM: retries=0, reconnects=0, HB timeouts=0, partials=0, parse_errors=0
-Compress: 1 | Semantic cache hits: 0
+LLM: reconnects=0, HB timeouts=0, partials=0, parse_errors=0
+Compress: 1
 Input tokens: 2,048 | Output tokens: 512
 Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 ```
 
 - **Partial completions:** LLM responses interrupted during streaming are recorded. See [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md) for details.
 - **HB timeouts:** SSE heartbeat timeouts (potential LLM overload).
-- **Semantic cache hits:** Fixed counter field (`stat_semantic_cache_hits`) that is only reset and displayed; no code path increments it, so it is always 0. The RAG pipeline has no semantic cache. (Explicit in code — `scripts/agent/context.py`, `scripts/agent/commands/cmd_config_stats.py`)
 - **Approval pending:** Displayed only if `ctx.workflow.approval_pending=True`.
 
 **Implementation Notes:**

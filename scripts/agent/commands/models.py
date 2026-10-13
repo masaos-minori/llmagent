@@ -31,7 +31,6 @@ class StatsViewModel:
     turns: int
     tool_calls: int
     tool_errors: int
-    llm_retries: int
     llm_reconnects: int
     llm_heartbeat_timeouts: int
     llm_partial_completions: int
@@ -39,7 +38,6 @@ class StatsViewModel:
     compress_count: int
     fallback_truncate_count: int
     memory_consistency_failures: int
-    semantic_cache_hits: int
     memory_circuit_open: bool = False
     memory_fts_fallback_count: int = 0
     input_tokens: int | None = None

@@ -4,8 +4,6 @@
 from collections.abc import Callable
 from typing import Any, cast
 
-import orjson
-
 from shared.llm_sse_helpers import LlmSseHelpers
 from shared.llm_types import LLMResponse
 from shared.types import LLMMessage
@@ -13,26 +11,6 @@ from shared.types import LLMMessage
 
 class LlmPayloadHandler:
     """Construct LLM request payloads and parse responses."""
-
-    @staticmethod
-    def build_payload(
-        history: list[LLMMessage],
-        tool_defs: list[dict[str, Any]],
-        temperature: float,
-        max_tokens: int,
-        stream: bool = False,
-    ) -> dict[str, Any]:
-        """Build the request payload for a chat completion request."""
-        payload: dict[str, Any] = {
-            "messages": history,
-            "tools": tool_defs,
-            "tool_choice": "auto",
-            "temperature": temperature,
-            "max_tokens": max_tokens,
-        }
-        if stream:
-            payload["stream"] = True
-        return payload
 
     @staticmethod
     def _require_dict_field(value: object, field_repr: str) -> dict[str, Any]:
@@ -63,13 +41,3 @@ class LlmPayloadHandler:
             finish_reason=finish_reason,
             usage=usage,
         )
-
-    @staticmethod
-    def parse_non_stream_response(
-        content: bytes, on_usage: Callable[[int, int], None] | None = None
-    ) -> LLMResponse:
-        """Parse a non-streaming LLM response body into LLMResponse."""
-        raw = orjson.loads(content)
-        if not isinstance(raw, dict):
-            raise ValueError(f"LLM response is not a JSON object: {type(raw).__name__}")
-        return LlmPayloadHandler.parse_response(raw, on_usage)

@@ -28,7 +28,6 @@ async def test_repl_handles_diagnostic_save_error():
     stats.stat_tool_calls = 1
     stats.stat_tool_errors = 0
     stats.stat_partial_completions = 0
-    stats.stat_semantic_cache_hits = 0
     stats.stat_input_tokens = 10
     stats.stat_output_tokens = 20
     stats.stat_heartbeat_timeouts = 0

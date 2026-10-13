@@ -26,7 +26,6 @@ def _cfg(**overrides: dict) -> AgentConfig:
         "use_search": True,
         "use_rrf": True,
         "use_rerank": True,
-        "llm_max_retries": 3,
         "llm_retry_base_delay": 1.0,
         "rag_min_score": 0.0,
         "max_chunks_per_doc": 2,

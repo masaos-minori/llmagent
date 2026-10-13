@@ -6,7 +6,6 @@ Public storage-layer contracts for the RAG pipeline and session/memory layers.
 Protocol → SQLite implementation mapping (all in db/store_impl.py):
   VectorStore        → SQLiteVectorStore
   DocumentStore      → SQLiteDocumentStore
-  SessionStore       → SQLiteSessionStore
   MemoryDeleteStore  → SQLiteMemoryDeleteStore
 
 Embedding helpers (used by implementations and callers):
@@ -20,7 +19,7 @@ Stable import surface: use db/store.py for all imports.
 from dataclasses import dataclass
 from typing import Protocol, runtime_checkable
 
-from db.models import DocumentRow, MessageRow, SessionRow
+from db.models import DocumentRow
 
 QWEN3_EMBEDDING_DIMS = 1024
 
@@ -135,45 +134,6 @@ class DocumentStore(Protocol):
 
     def chunk_count(self) -> int:
         """Return the total number of chunks."""
-        ...
-
-
-@runtime_checkable
-class SessionStore(Protocol):
-    """CRUD interface for conversation sessions and messages.
-
-    Implementation: SQLiteSessionStore (db/store_impl.py)
-    """
-
-    def session_create(self) -> int:
-        """Create a new session row; return session_id."""
-        ...
-
-    def session_list(self, limit: int) -> list[SessionRow]:
-        """Return up to limit most-recent session rows (desc by created_at)."""
-        ...
-
-    def session_rename(self, session_id: int, title: str) -> None:
-        """Set the title of an existing session."""
-        ...
-
-    def session_delete(self, session_id: int) -> None:
-        """Delete a session; ON DELETE CASCADE removes its messages."""
-        ...
-
-    def message_save(
-        self,
-        session_id: int,
-        role: str,
-        content: str,
-        tool_calls: str | None,
-        tool_call_id: str | None = None,
-    ) -> None:
-        """Append a message to the session."""
-        ...
-
-    def message_list(self, session_id: int) -> list[MessageRow]:
-        """Return all messages for session_id in insertion order."""
         ...
 
 

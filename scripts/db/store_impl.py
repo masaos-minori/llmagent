@@ -6,7 +6,6 @@ SQLite-backed implementations for the RAG pipeline store Protocols.
 Classes:
   SQLiteVectorStore       — embedding CRUD over chunks_vec (sqlite-vec)
   SQLiteDocumentStore     — document + chunk metadata CRUD over documents + chunks
-  SQLiteSessionStore      — conversation session + message CRUD over sessions + messages
   SQLiteMemoryDeleteStore — atomic cross-table deletion for memories tables
 
 Protocols are defined in db/store_protocols.py.
@@ -15,7 +14,7 @@ Protocols are defined in db/store_protocols.py.
 from typing import Any
 
 from db.helper import SQLiteHelper, coalesce_str
-from db.models import DocumentRow, MessageRow, SessionRow
+from db.models import DocumentRow
 from db.store_protocols import (
     MemoryDeleteResult,
     validate_embedding_blob,
@@ -166,77 +165,6 @@ class SQLiteDocumentStore:
     def chunk_count(self) -> int:
         """Return the number of chunks stored."""
         return _scalar_count(self._db, "SELECT count(*) FROM chunks")
-
-
-class SQLiteSessionStore:
-    """SQLite-backed SessionStore over the sessions + messages tables."""
-
-    def __init__(self, db: SQLiteHelper) -> None:
-        """Initialize with a database helper instance."""
-        self._db = db
-
-    def session_create(self) -> int:
-        """Create a new empty session and return its ID."""
-        cur = self._db.execute("INSERT INTO sessions (title) VALUES (NULL)")
-        if cur.lastrowid is None:
-            raise RuntimeError("session_create: INSERT did not produce a lastrowid")
-        return int(cur.lastrowid)
-
-    def session_list(self, limit: int) -> list[SessionRow]:
-        """List recent sessions ordered by creation time descending."""
-        rows = self._db.fetchall(
-            "SELECT session_id, created_at, title FROM sessions ORDER BY created_at DESC LIMIT ?",
-            (limit,),
-        )
-        return [
-            SessionRow(
-                session_id=int(r[0]),
-                created_at=coalesce_str(r[1], ""),
-                title=r[2],
-            )
-            for r in rows
-        ]
-
-    def session_rename(self, session_id: int, title: str) -> None:
-        """Rename a session's title."""
-        self._db.execute(
-            "UPDATE sessions SET title = ? WHERE session_id = ?",
-            (title, session_id),
-        )
-
-    def session_delete(self, session_id: int) -> None:
-        """Delete a session by ID."""
-        self._db.execute("DELETE FROM sessions WHERE session_id = ?", (session_id,))
-
-    def message_save(
-        self,
-        session_id: int,
-        role: str,
-        content: str,
-        tool_calls: str | None,
-        tool_call_id: str | None = None,
-    ) -> None:
-        """Save a message into the messages table."""
-        self._db.execute(
-            "INSERT INTO messages (session_id, role, content, tool_calls, tool_call_id) VALUES (?, ?, ?, ?, ?)",
-            (session_id, role, content, tool_calls, tool_call_id),
-        )
-
-    def message_list(self, session_id: int) -> list[MessageRow]:
-        """List all messages for a session ordered by insertion order."""
-        rows = self._db.fetchall(
-            "SELECT role, content, tool_calls, tool_call_id FROM messages WHERE session_id = ? ORDER BY message_id",
-            (session_id,),
-        )
-        return [
-            MessageRow(
-                role=str(r[0]),
-                content=coalesce_str(r[1], ""),
-                tool_calls=r[2],
-                tool_call_id=r[3],
-            )
-            for r in rows
-        ]
 
 
 class SQLiteMemoryDeleteStore:

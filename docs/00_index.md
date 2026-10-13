@@ -161,7 +161,6 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 | ToolRouteResolver / route_resolver.py | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | HttpServerLifecycleManager / http_lifecycle.py | `22_mcp/mcp_03_04_tool-call-tracing-and-lifecycle.md` + `23_agent/agent_02_runtime-architecture.md` |
 | ToolSpec / tool_spec.py (execution metadata DAG) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
-| tool_cache.py (CacheEntry LRU cache) | `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | TransportType / StartupMode enums (mcp_config.py) | `22_mcp/mcp_03_01_dispatch-and-routing.md` + `22_mcp/mcp_06_01_configuration-file-inventory.md` |
 | MCP security model (allowlist / denylist / fail-closed) | `22_mcp/mcp_05_01_access-control-and-allowlists.md` |
 | System security architecture / trust boundaries / threat model | `91_security/security_01_architecture-and-trust-boundaries.md` |

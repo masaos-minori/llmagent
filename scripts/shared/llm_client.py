@@ -16,9 +16,7 @@ import httpx
 
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_hot_config import LlmHotConfigHandler
-from shared.llm_payload import LlmPayloadHandler
 from shared.llm_reconnect import LlmReconnectHandler
-from shared.llm_retry import LlmRetryHandler
 from shared.llm_types import LLMResponse
 from shared.types import LLMMessage
 
@@ -45,12 +43,11 @@ def build_embed_url(base_url: str) -> str:
 
 
 class LLMClient:
-    """LLM HTTP client with exponential-backoff retry and robust SSE streaming; stat_* counters accumulate for the instance lifetime."""
+    """LLM HTTP client with robust SSE streaming; stat_* counters accumulate for the instance lifetime."""
 
     def __init__(
         self,
         http: httpx.AsyncClient,
-        max_retries: int,
         retry_base_delay: float,
         temperature: float,
         max_tokens: int,
@@ -64,7 +61,6 @@ class LLMClient:
     ) -> None:
         """Initialize with HTTP client, retry settings, and optional callbacks."""
         self._http = http
-        self._max_retries = max_retries
         self._retry_base_delay = retry_base_delay
         self._temperature = temperature
         self._max_tokens = max_tokens
@@ -79,7 +75,6 @@ class LLMClient:
         )
         self._llm_stream_retry_on_malformed_chunk = llm_stream_retry_on_malformed_chunk
         # Cumulative session statistics
-        self.stat_retries: int = 0
         self.stat_reconnects: int = 0
         self.stat_heartbeat_timeouts: int = 0
 
@@ -91,7 +86,6 @@ class LLMClient:
         *,
         temperature: float | None = None,
         max_tokens: int | None = None,
-        max_retries: int | None = None,
         retry_base_delay: float | None = None,
         sse_heartbeat_timeout: float | None = None,
         sse_malformed_retry: int | None = None,
@@ -104,7 +98,6 @@ class LLMClient:
             self,
             temperature=temperature,
             max_tokens=max_tokens,
-            max_retries=max_retries,
             retry_base_delay=retry_base_delay,
             sse_heartbeat_timeout=sse_heartbeat_timeout,
             sse_malformed_retry=sse_malformed_retry,
@@ -112,58 +105,6 @@ class LLMClient:
             stream_retry_on_heartbeat_timeout=stream_retry_on_heartbeat_timeout,
             stream_retry_on_malformed_chunk=stream_retry_on_malformed_chunk,
         )
-
-    # ── Retry logic ───────────────────────────────────────────────────────────
-
-    async def request_with_retry(
-        self,
-        url: str,
-        payload: dict[str, Any],
-    ) -> httpx.Response:
-        """POST to an LLM endpoint with exponential backoff retry; retries on 503/429 and connection errors; raises last exception when all attempts exhausted."""
-        try:
-            return await LlmRetryHandler.request_with_retry(
-                self._http,
-                url,
-                payload,
-                self._max_retries,
-                self._retry_base_delay,
-            )
-        except (httpx.HTTPStatusError, httpx.RequestError):
-            self.stat_retries += 1
-            raise
-
-    # ── Payload construction ──────────────────────────────────────────────────
-
-    def build_payload(
-        self,
-        history: list[LLMMessage],
-        tool_defs: list[dict[str, Any]],
-        stream: bool = False,
-    ) -> dict[str, Any]:
-        """Build the request payload for a chat completion request."""
-        return LlmPayloadHandler.build_payload(
-            history,
-            tool_defs,
-            self._temperature,
-            self._max_tokens,
-            stream,
-        )
-
-    # ── Non-streaming call ────────────────────────────────────────────────────
-
-    async def call(
-        self,
-        url: str,
-        history: list[LLMMessage],
-        tool_defs: list[dict[str, Any]],
-    ) -> LLMResponse:
-        """Send conversation history to LLM and return a typed LLMResponse."""
-        resp = await self.request_with_retry(
-            url,
-            self.build_payload(history, tool_defs),
-        )
-        return LlmPayloadHandler.parse_non_stream_response(resp.content, self._on_usage)
 
     # ── Streaming call with reconnect ─────────────────────────────────────────
 

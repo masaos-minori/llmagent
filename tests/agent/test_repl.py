@@ -37,7 +37,6 @@ def _make_bare_repl() -> AgentREPL:
     ctx.stats.stat_tool_calls = 0
     ctx.stats.stat_tool_errors = 0
     ctx.stats.stat_latency = {}
-    ctx.stats.stat_semantic_cache_hits = 0
     ctx.stats.stat_input_tokens = 0
     ctx.stats.stat_output_tokens = 0
     ctx.services.hist_mgr.stat_compress_count = 0
@@ -458,7 +457,6 @@ class TestPersistSessionDiagnostics:
         ctx.stats.stat_tool_calls = 12
         ctx.stats.stat_tool_errors = 2
         ctx.stats.stat_latency = {"llm": [0.1, 0.2], "compress": [0.05]}
-        ctx.stats.stat_semantic_cache_hits = 3
         ctx.stats.stat_input_tokens = 1000
         ctx.stats.stat_output_tokens = 500
         ctx.stats.stat_partial_completions = 1

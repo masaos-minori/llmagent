@@ -22,7 +22,6 @@ How to extend the DB store:
 Import examples:
     from db.store import VectorStore, SQLiteVectorStore
     from db.store import DocumentStore, SQLiteDocumentStore
-    from db.store import SessionStore, SQLiteSessionStore
     from db.store import MemoryDeleteStore, SQLiteMemoryDeleteStore
     from db.store import get_embedding_dims, get_embedding_bytes, validate_embedding_blob
 """
@@ -30,14 +29,12 @@ Import examples:
 from db.store_impl import (
     SQLiteDocumentStore,
     SQLiteMemoryDeleteStore,
-    SQLiteSessionStore,
     SQLiteVectorStore,
 )
 from db.store_protocols import (
     DocumentStore,
     MemoryDeleteResult,
     MemoryDeleteStore,
-    SessionStore,
     VectorStore,
     get_embedding_bytes,
     get_embedding_dims,
@@ -48,11 +45,9 @@ __all__ = [
     "DocumentStore",
     "MemoryDeleteResult",
     "MemoryDeleteStore",
-    "SessionStore",
     "VectorStore",
     "SQLiteDocumentStore",
     "SQLiteMemoryDeleteStore",
-    "SQLiteSessionStore",
     "SQLiteVectorStore",
     "get_embedding_bytes",
     "get_embedding_dims",

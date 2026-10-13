@@ -1,6 +1,6 @@
 """tests/test_db_store_impl.py
 Unit tests for db/store_impl.py:
-SQLiteDocumentStore, SQLiteSessionStore, SQLiteVectorStore, SQLiteMemoryDeleteStore.
+SQLiteDocumentStore, SQLiteVectorStore, SQLiteMemoryDeleteStore.
 """
 
 from __future__ import annotations
@@ -12,7 +12,6 @@ import pytest
 from db.store_impl import (
     SQLiteDocumentStore,
     SQLiteMemoryDeleteStore,
-    SQLiteSessionStore,
     SQLiteVectorStore,
 )
 
@@ -45,23 +44,6 @@ CREATE TABLE IF NOT EXISTS chunks (
  );
 """
 
-_SESSION_SCHEMA = """
-CREATE TABLE IF NOT EXISTS sessions (
-    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    title      TEXT
-);
-CREATE TABLE IF NOT EXISTS messages (
-     message_id INTEGER PRIMARY KEY AUTOINCREMENT,
-     session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-     role       TEXT NOT NULL,
-     content    TEXT NOT NULL,
-     tool_calls TEXT,
-     tool_call_id TEXT,
-     created_at TEXT NOT NULL DEFAULT (datetime('now'))
- );
-"""
-
 
 class _FakeDB:
     """Minimal SQLiteHelper drop-in backed by an in-memory SQLite connection."""
@@ -82,12 +64,6 @@ class _FakeDB:
 def _make_doc_db() -> _FakeDB:
     conn = sqlite3.connect(":memory:")
     conn.executescript(_DOCUMENT_SCHEMA)
-    return _FakeDB(conn)
-
-
-def _make_session_db() -> _FakeDB:
-    conn = sqlite3.connect(":memory:")
-    conn.executescript(_SESSION_SCHEMA)
     return _FakeDB(conn)
 
 
@@ -330,79 +306,6 @@ class TestSQLiteDocumentStore:
         ).fetchone()
         assert row is not None
         assert row[0] == _CHUNKING_STRATEGY_UPDATED
-
-
-# ── SQLiteSessionStore ────────────────────────────────────────────────────────
-
-
-class TestSQLiteSessionStore:
-    def test_session_create_returns_positive_int(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        sid = store.session_create()
-        assert isinstance(sid, int)
-        assert sid >= 1
-
-    def test_session_create_increments(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        sid1 = store.session_create()
-        sid2 = store.session_create()
-        assert sid2 > sid1
-
-    def test_session_list_shows_created_session(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        store.session_create()
-        rows = store.session_list(limit=10)
-        assert len(rows) == 1
-        assert rows[0].session_id >= 1
-
-    def test_message_save_and_list(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        sid = store.session_create()
-        store.message_save(sid, "user", "hello", None)
-        store.message_save(sid, "assistant", "world", None)
-        msgs = store.message_list(sid)
-        assert len(msgs) == 2
-        assert msgs[0].role == "user"
-        assert msgs[0].content == "hello"
-        assert msgs[1].role == "assistant"
-
-    def test_session_rename_updates_title(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        sid = store.session_create()
-        store.session_rename(sid, "My Session")
-        rows = store.session_list(limit=10)
-        assert rows[0].title == "My Session"
-
-    def test_session_delete_removes_session(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        sid = store.session_create()
-        store.session_delete(sid)
-        rows = store.session_list(limit=10)
-        assert len(rows) == 0
-
-    def test_message_list_empty_for_unknown_session(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        msgs = store.message_list(99999)
-        assert msgs == []
-
-    def test_message_save_with_tool_call_id_round_trips(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        sid = store.session_create()
-        store.message_save(sid, "tool", "", None, tool_call_id="call_abc123")
-        msgs = store.message_list(sid)
-        assert len(msgs) == 1
-        assert msgs[0].tool_call_id == "call_abc123"
-
-    def test_message_save_default_tool_call_id_is_none(self) -> None:
-        store = SQLiteSessionStore(_make_session_db())  # type: ignore[arg-type]
-        sid = store.session_create()
-        store.message_save(sid, "user", "hello", None)
-        msgs = store.message_list(sid)
-        assert len(msgs) == 1
-        assert msgs[0].tool_call_id is None
-
-
-# ── SQLiteVectorStore ─────────────────────────────────────────────────────────
 
 
 class TestSQLiteVectorStore:

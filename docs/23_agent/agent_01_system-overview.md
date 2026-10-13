@@ -68,7 +68,6 @@ The system overview should answer "what does this agent do" and "how does it fit
 | Max tool turns per message | `max_tool_turns` |
 | History compression threshold | `context_char_limit` |
 | HTTP timeout | `http_timeout` |
-| LLM retry limit | `llm_max_retries` |
 
 ## Operational Notes
 

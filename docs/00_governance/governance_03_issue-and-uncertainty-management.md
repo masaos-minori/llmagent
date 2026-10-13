@@ -93,38 +93,12 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type |
 |----|-------|--------|----------|------|------|
-| RAG-006 | Refiner settings in config/agent.toml are validated but never read by the Agent | open | Low | RAG | design-gap |
 | AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
 | AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
 | AGENT-009 | /skill messages lose the _ephemeral marker during append validation | open | Low | Agent | design-gap |
-| AGENT-012 | Agent statistics and health members are defined but never reached | open | Low | Agent | design-gap |
 | MCP-001 | The shell, github, and file MCP servers register no Bearer-token authentication middleware | open | High | MCP | implementation-bug |
 | EVENTBUS-008 | Consumer-role token is unrestricted when the authorization mappings are empty | open | Medium | EventBus | design-gap |
-| EVENTBUS-016 | Two EventBus DDL sources define slightly different schemas | open | Low | EventBus | design-gap |
 | EVENTBUS-017 | No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency | open | Medium | EventBus | design-gap |
-| EVENTBUS-018 | retained_event_count is validated but never applied | open | Low | EventBus | design-gap |
-| SHARED-001 | shared/security package has no importers | open | Low | Shared/DB | design-gap |
-| SHARED-002 | Several shared and db helpers have no production caller | open | Low | Shared/DB | design-gap |
-
-#### RAG-006
-
-- **ID**: RAG-006
-- **Title**: Refiner settings in config/agent.toml are validated but never read by the Agent
-- **Status**: open
-- **Severity**: Low
-- **Area**: RAG
-- **Type**: design-gap
-- **Source**: `scripts/agent/config_builders.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/21_rag/rag_05_01-configuration-reference.md`
-- **Related**: `docs/10_adr/adr_02_010_rag-fallback.md`
-- **Summary**: `use_refiner` and the `refiner_*` keys in `config/agent.toml` are not read by any Agent code path.
-- **Current Description**: The keys appear as Agent RAG settings.
-- **Observed Implementation**: Only `embed_url` is read from `AgentConfig.rag`; the rag-pipeline MCP server uses `config/rag_pipeline_mcp_server.toml`.
-- **Impact**: Editing these keys has no effect on refiner behavior.
-- **Recommended Action**: Remove the unused keys from `config/agent.toml` and `RAGConfig`, or wire them to a consumer.
-- **Resolution Target**: Every refiner key in `config/agent.toml` has a consumer, or the keys are removed.
 
 #### AGENT-006
 
@@ -186,26 +160,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Authorize `_ephemeral` for the skill source, or make the pre-turn clearing also handle `_skill_ephemeral`, or record the behavior as accepted.
 - **Resolution Target**: Skill messages are cleared by one defined mechanism, with a test.
 
-#### AGENT-012
-
-- **ID**: AGENT-012
-- **Title**: Agent statistics and health members are defined but never reached
-- **Status**: open
-- **Severity**: Low
-- **Area**: Agent
-- **Type**: design-gap
-- **Source**: `scripts/agent/context.py`, `scripts/agent/http_lifecycle_health_checker.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, `docs/10_adr/adr_02_004_environment-failure-handling-policy.md`
-- **Related**: None
-- **Summary**: `stat_semantic_cache_hits` is never incremented and `HealthChecker.startup_poll()` is called only by tests.
-- **Current Description**: agent_10_04 documents the semantic-cache counter as only reset and displayed; ADR-004 lists `startup_poll()` among its implementation references.
-- **Observed Implementation**: The counter is reset, persisted, and displayed but no code increments it; `startup_poll()` has no caller under `scripts/`.
-- **Impact**: The counter is always 0 and the startup poll does not run in production.
-- **Recommended Action**: Wire both into the runtime, or remove them and align the documents.
-- **Resolution Target**: Each member is reached by runtime code or removed.
-
 #### MCP-001
 
 - **ID**: MCP-001
@@ -246,26 +200,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Deny all consumers when both mappings are empty, or reject an empty `consumer_authorization` at startup when `consumer_token` is configured.
 - **Resolution Target**: Every CONSUMER token has a non-empty allowlist or is denied, covered by a test.
 
-#### EVENTBUS-016
-
-- **ID**: EVENTBUS-016
-- **Title**: Two EventBus DDL sources define slightly different schemas
-- **Status**: open
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: `scripts/db/schema_sql.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
-- **Related**: None
-- **Summary**: `eventbus.sqlite` can be created from two DDL sources that are not identical.
-- **Current Description**: The database documents name both `build_eventbus_schema_sql()` (used by `create_schema()`) and `scripts/eventbus/schema.sql` (used by the EventBus service when the `events` table is missing) as DDL sources.
-- **Observed Implementation**: The two differ in the `published_at` default and in one `consumer_delivery` index, which only `schema.sql` creates.
-- **Impact**: A database bootstrapped by `create_schema()` can differ from one created by the service at first startup.
-- **Recommended Action**: Make one source canonical and generate or load the other from it, or add a test that asserts the two stay equivalent.
-- **Resolution Target**: Both bootstrap paths produce the same schema.
-
 #### EVENTBUS-017
 
 - **ID**: EVENTBUS-017
@@ -285,68 +219,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: The consistency mechanism named by INV-07 has no runtime path, so cross-DB consistency rests on idempotent processing and state reconciliation alone.
 - **Recommended Action**: Wire a producer and consumer into the runtime, or amend ADR-008 through the ADR approval process and remove the unused client modules.
 - **Resolution Target**: INV-07 names only mechanisms that run, or the EventBus has a runtime user.
-
-#### EVENTBUS-018
-
-- **ID**: EVENTBUS-018
-- **Title**: retained_event_count is validated but never applied
-- **Status**: open
-- **Severity**: Low
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: `scripts/eventbus/config.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/24_eventbus/eventbus_07_configuration-and-operations.md`
-- **Related**: `EVENTBUS-017`
-- **Summary**: The EventBus configuration accepts and validates `retained_event_count` but no code uses it to limit or prune events.
-- **Current Description**: eventbus_07 documents the key as validated at startup but not consumed by any runtime path.
-- **Observed Implementation**: Only `config.py` references the key (default, minimum check, known-key list); no retention logic reads it.
-- **Impact**: Operators can set the value expecting event retention to change, and nothing happens.
-- **Recommended Action**: Implement retention using the key, or remove it from the accepted configuration.
-- **Resolution Target**: The key controls retention, or it is no longer accepted.
-
-#### SHARED-001
-
-- **ID**: SHARED-001
-- **Title**: shared/security package has no importers
-- **Status**: open
-- **Severity**: Low
-- **Area**: Shared/DB
-- **Type**: design-gap
-- **Source**: `scripts/shared/security/__init__.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`
-- **Related**: None
-- **Summary**: `HighRiskToolPolicy`, `SecurityMode`, and `AuditLogger` are defined but no module under `scripts/` or `tests/` imports them.
-- **Current Description**: Documented only as a note in the Runtime Dependency Graph chapter.
-- **Observed Implementation**: The package exports its names from `__init__.py` and nothing imports the package.
-- **Impact**: No runtime path uses these classes, so any behavior they define does not take effect.
-- **Recommended Action**: Wire the package into the runtime and add it to the dependency graph, or remove it and align the security documents.
-- **Resolution Target**: The package is either imported by runtime code or removed.
-
-#### SHARED-002
-
-- **ID**: SHARED-002
-- **Title**: Several shared and db helpers have no production caller
-- **Status**: open
-- **Severity**: Low
-- **Area**: Shared/DB
-- **Type**: design-gap
-- **Source**: `scripts/shared/tool_routing_validation.py`, `scripts/shared/tool_executor_helpers.py`, `scripts/shared/tool_cache.py`, `scripts/shared/llm_client.py`, `scripts/db/store_impl.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/22_mcp/mcp_03_02_tool-registry.md`, `docs/40_shared/shared_03_04_runtime_and_execution-caching-and-reference.md`, `docs/23_agent/agent_05_llm-and-streaming.md`, `docs/41_db/db_05_api_and_operations-protocol-and-backend.md`
-- **Related**: `SHARED-001`
-- **Summary**: `validate_all_routing()`, `is_side_effect()`, `ToolResultCache`, `LLMClient.call()`, and `SQLiteSessionStore` are called or instantiated only by tests.
-- **Current Description**: The listed documents describe these as available helpers; some state that they are unused.
-- **Observed Implementation**: No module under `scripts/` calls or instantiates them; session persistence goes through other classes.
-- **Impact**: Behavior they define does not take effect, and the documents can read as if it did.
-- **Recommended Action**: Wire each into the runtime, or remove it and align the documents.
-- **Resolution Target**: Each helper has a runtime caller or is removed.
-
-Other Known Issue IDs are not tracked here: a resolved or no-longer-applicable item is removed from this inventory.
 
 ## Part 2: Needs Confirmation Inventory
 

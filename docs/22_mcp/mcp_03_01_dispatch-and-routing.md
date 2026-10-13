@@ -171,7 +171,7 @@ Every MCP tool passes through these layers consistently from invocation to audit
 | Overlapping `resource_scopes` (where at least one is `is_write=True`; unscoped writes use synthetic `"global:write"` scope) | Grouped as connected components in the conflict graph and serialized within the group |
 | `ctx.cfg.tool.serial_tool_calls=True` → `force_serial=True` (batch-level input) | Bypasses all the above and forces individual serial phases for each call in order |
 
-`shared/tool_executor_helpers.py::is_side_effect()` is not referenced by the execution path; parallel/serial determination relies solely on `PreparedToolCall.spec.is_write`.
+Parallel/serial determination relies solely on `PreparedToolCall.spec.is_write`.
 
 ---
 

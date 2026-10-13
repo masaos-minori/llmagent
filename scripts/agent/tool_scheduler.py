@@ -24,13 +24,9 @@ build_execution_groups() returns a single ExecutionPlan (an ordered sequence of
 ScheduledBatches, each holding ScheduledGroups, plus the SerializationEvents the
 plan implies) instead of a metadata/return-value pair that could drift apart.
 
-NOTE — is_side_effect() (shared/tool_executor_helpers.py) is a separate,
-unrelated helper: it has no production caller (only tests call it) and takes no part
-in the parallel/serial decision of execute_all_tool_calls(). That decision flows
-entirely through this module's phase-building (requires_serial barriers and
-resource-scope conflicts, described above) plus the force_serial input. Do not
-conflate is_side_effect() with ToolSpec.requires_serial when reasoning about
-tool-call concurrency.
+NOTE — the parallel/serial decision of execute_all_tool_calls() flows entirely
+through this module's phase-building (requires_serial barriers and resource-scope
+conflicts, described above) plus the force_serial input.
 """
 
 from __future__ import annotations
@@ -228,8 +224,7 @@ def _log_serialization_events(events: tuple[SerializationEvent, ...]) -> None:
 def _build_forced_serial_plan(specs_ordered: list[ToolSpec]) -> ExecutionPlan:
     """One single-call sequential phase per call, in original order.
 
-    Mirrors the previous is_side_effect()-driven downgrade's observable
-    behavior: a serialization event fires (reason "forced_serial") whenever any
+    A serialization event fires (reason "forced_serial") whenever any
     call in the batch is a write, covering the whole batch's tools_count — not
     one event per call — since forcing serial only ever "prevents concurrency"
     that a write call could otherwise have raced against.

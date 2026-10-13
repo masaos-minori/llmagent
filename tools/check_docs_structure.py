@@ -93,13 +93,6 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # equals the size reached.
     "adr_02_004_environment-failure-handling-policy.md": 31164,
     "adr_02_008_sqlite-4db-separation.md": 33647,
-    # The Known Issue inventory grows with each active entry (17 template fields
-    # per entry); the owner accepted this exception (2026-10-07) and re-accepted it
-    # after the inventory changed (2026-10-08), then raised it to the size reached
-    # after registering the unused-feature and EventBus design-gap entries
-    # (2026-10-13, accepted by the owner in conversation).
-    # Lowered to 25660 (2026-10-13) after nine resolved entries were removed.
-    "governance_03_issue-and-uncertainty-management.md": 25660,
 }
 
 

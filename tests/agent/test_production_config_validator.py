@@ -482,7 +482,7 @@ class TestProductionConfigValidatorValidKeySetUnchanged:
         assert "system_prompt_tool" in keys
         assert "security_profile" in keys
         assert "embed_url" in keys
-        assert "refiner_max_tokens" in keys
+        assert "refiner_max_tokens" not in keys
 
 
 @pytest.mark.integration

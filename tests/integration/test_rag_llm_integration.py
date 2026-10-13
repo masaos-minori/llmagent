@@ -138,13 +138,11 @@ async def test_c04_llm_partial_completion_increments_stat():
     async with httpx.AsyncClient() as http:
         llm = LLMClient(
             http=http,
-            max_retries=1,
             retry_base_delay=0,
             temperature=0.0,
             max_tokens=100,
         )
-        assert hasattr(llm, "stat_retries")
-        assert llm.stat_retries == 0
+        assert llm.stat_reconnects == 0
 
 
 # ── TC-C05: LLM SSE stream sends [DONE] immediately — LLMResponse has content ─
@@ -175,7 +173,6 @@ async def test_c05_llm_empty_stream_returns_empty_content():
         async with httpx.AsyncClient() as http:
             llm = LLMClient(
                 http=http,
-                max_retries=1,
                 retry_base_delay=0,
                 temperature=0.0,
                 max_tokens=10,
@@ -248,50 +245,6 @@ def test_c08_tool_loop_guard_allows_different_args():
 
     assert guard.check_all(seen_calls, round_fp, [], failed, msg_a) is None
     assert guard.check_all(seen_calls, round_fp, [], failed, msg_b) is None
-
-
-# ── TC-C09: LLM rate-limited (429) → retry; succeeds on 2nd attempt ──────────
-
-
-@pytest.mark.asyncio
-async def test_c09_llm_429_retry_succeeds():
-    import httpx
-    import respx
-    from shared.llm_client import LLMClient
-
-    llm_url = "http://llm-test:9999"
-    call_count = 0
-
-    def _side_effect(request: httpx.Request) -> httpx.Response:
-        nonlocal call_count
-        call_count += 1
-        if call_count == 1:
-            return httpx.Response(429, headers={"Retry-After": "0"})
-        return httpx.Response(200, json={"result": "ok"})
-
-    with respx.mock(base_url=llm_url, assert_all_called=False) as mock:
-        mock.post("/v1/messages").mock(side_effect=_side_effect)
-        async with httpx.AsyncClient() as http:
-            llm = LLMClient(
-                http=http,
-                max_retries=2,
-                retry_base_delay=0.01,
-                temperature=0.0,
-                max_tokens=10,
-            )
-            try:
-                await llm.request_with_retry(
-                    url=llm_url + "/v1/messages",
-                    payload={
-                        "model": "claude-test",
-                        "messages": [{"role": "user", "content": "hello"}],
-                        "max_tokens": 10,
-                    },
-                )
-            except Exception:  # noqa: BLE001 — retry exhaustion is expected; only asserting that request_with_retry attempted at least twice
-                pass
-
-    assert call_count >= 2
 
 
 # ── TC-C10: RAG pipeline MCP server unavailable — transport error in result ───

@@ -264,7 +264,6 @@ def _make_client(
     http = httpx.AsyncClient()
     return LLMClient(
         http,
-        max_retries=1,
         retry_base_delay=0.0,
         temperature=0.2,
         max_tokens=128,
@@ -589,15 +588,10 @@ class TestAgentConfigSseValidation:
         base: dict = {
             "context_char_limit": 8000,
             "context_compress_turns": 4,
-            "llm_max_retries": 3,
             "llm_retry_base_delay": 1.0,
             "serial_tool_calls": False,
             "llm_temperature": 0.2,
             "llm_max_tokens": 1024,
-            "use_refiner": False,
-            "refiner_max_tokens": 512,
-            "refiner_timeout": 30.0,
-            "refiner_max_chars_per_chunk": 300,
             "tool_dedup_max_repeats": 3,
             "tool_cycle_detect_window": 2,
             "tool_error_max_consecutive": 3,
@@ -729,7 +723,6 @@ class TestLLMClientApplyConfig:
 
         return LLMClient(
             http=AsyncMock(spec=httpx.AsyncClient),
-            max_retries=3,
             retry_base_delay=1.0,
             temperature=0.2,
             max_tokens=1024,
@@ -744,11 +737,6 @@ class TestLLMClientApplyConfig:
         client = self._make_client()
         client.apply_config(max_tokens=2048)
         assert client._max_tokens == 2048
-
-    def test_apply_config_max_retries(self) -> None:
-        client = self._make_client()
-        client.apply_config(max_retries=5)
-        assert client._max_retries == 5
 
     def test_apply_config_sse_params(self) -> None:
         client = self._make_client()

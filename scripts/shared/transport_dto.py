@@ -12,7 +12,7 @@ class ToolCallResult:
     is_error: bool  # True if the call failed (transport or tool error)
     request_id: str  # x-request-id from HTTP transport; "" for cache hits
     server_key: str  # server key that handled the call
-    source: str = ""  # "mcp" for MCP tools, "cache" for cache hits, "" for error paths
+    source: str = ""  # "mcp" for MCP tools, "" for error paths
     error_type: str = ""  # "transport" | "tool" | "" (empty on success)
 
     @classmethod

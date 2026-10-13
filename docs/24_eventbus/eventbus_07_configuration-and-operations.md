@@ -62,7 +62,6 @@ that dataclass's `__post_init__()` for the exact validation rules enforced at st
 and `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md` for the authorization
 model the token fields below implement.
 
-- `retained_event_count` — Validated at startup (must be at least 1) but not consumed by any runtime code path: it does not limit or prune the events retained in SQLite (Explicit in code — `scripts/eventbus/config.py`; no other reference under `scripts/`)
 - `publish_rate` — Maximum publish rate in events/sec before backpressure applies
 - `host` — Listening address (must be a loopback address — see Bind Address below)
 - `auth_token` — Required for all requests (startup fails if empty)

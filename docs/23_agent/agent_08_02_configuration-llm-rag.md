@@ -36,7 +36,6 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 - `llm_url`: LLM endpoint URL.
 - `http_timeout`: HTTP timeout (seconds).
-- `llm_max_retries`: Retry limit for HTTP 429/503/connection errors.
 - `llm_retry_base_delay`: Base value for exponential backoff (seconds).
 
 #### SSE Streaming
@@ -74,12 +73,7 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 #### Refiner
 
-The refiner settings below are parsed and validated by the Agent, but no Agent code path reads them (RAG-006 in `governance_03_issue-and-uncertainty-management.md`).
-
-- `use_refiner`: Compresses chunks with an LLM after reranking.
-- `refiner_max_tokens`: Maximum token count for the Refiner LLM.
-- `refiner_timeout`: Refiner LLM timeout (seconds).
-- `refiner_max_chars_per_chunk`: Maximum characters per chunk passed to the Refiner.
+The refiner is configured in `config/rag_pipeline_mcp_server.toml`; refiner keys (`use_refiner`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk`) in `config/agent.toml` are rejected at startup.
 
 ## Responsibility Boundary
 

@@ -161,3 +161,10 @@ def _migrate(conn: Connection) -> None:
                 pass  # column already exists
             else:
                 raise
+
+    # Index for the low-water-mark query in get_resume_position(); schema.sql defines
+    # the same index for new databases.
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_consumer_delivery_consumer_ack "
+        "ON consumer_delivery(consumer_id, acked)"
+    )

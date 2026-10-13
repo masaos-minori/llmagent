@@ -36,7 +36,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
     defaults: dict[str, Any] = {
         "context_char_limit": 8000,
         "context_compress_turns": 4,
-        "llm_max_retries": 3,
         "llm_retry_base_delay": 1.0,
         "serial_tool_calls": False,
         "tool_result_max_llm_chars": 4000,

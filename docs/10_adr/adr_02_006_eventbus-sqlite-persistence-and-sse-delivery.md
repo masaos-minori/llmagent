@@ -402,6 +402,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - The EventBus authentication model (ADR-013) changes
 - Persistent storage moves away from a single local SQLite database
 - A change from At-Least-Once Delivery to Exactly-Once Delivery becomes necessary
+- Automatic event retention or pruning becomes necessary
 
 ## Approval
 

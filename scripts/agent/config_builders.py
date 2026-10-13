@@ -45,6 +45,7 @@ from agent.constants import (
     _DEFAULT_SHELL_SAFE_PREFIXES,
 )
 from agent.production_config_validator import ProductionConfigValidator
+from agent.services.config_validators import check_agent_refiner_keys
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import (
     _get_bool,
@@ -137,7 +138,6 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
     return LLMConfig(
         llm_url=_get_str_or_default(cfg, "llm_url", ""),
         http_timeout=_get_or_default(cfg, "http_timeout", _get_float, 30.0),
-        llm_max_retries=_get_or_default(cfg, "llm_max_retries", _get_int, 3),
         llm_retry_base_delay=_get_or_default(
             cfg, "llm_retry_base_delay", _get_float, 1.0
         ),
@@ -187,20 +187,10 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
         logger.error("rag config error: %s", error)
     if not validation_result.ok:
         raise ValueError(f"RAG config validation failed: {validation_result.errors}")
-    embed_url = _get_str_or_default(cfg, "embed_url", "")
-    use_refiner = _get_or_default(cfg, "use_refiner", _get_bool, False)
-    refiner_max_tokens = _get_or_default(cfg, "refiner_max_tokens", _get_int, 512)
-    refiner_timeout = _get_or_default(cfg, "refiner_timeout", _get_float, 30.0)
-    refiner_max_chars_per_chunk = _get_or_default(
-        cfg, "refiner_max_chars_per_chunk", _get_int, 300
-    )
-    return RAGConfig(
-        embed_url=embed_url,
-        use_refiner=use_refiner,
-        refiner_max_tokens=refiner_max_tokens,
-        refiner_timeout=refiner_timeout,
-        refiner_max_chars_per_chunk=refiner_max_chars_per_chunk,
-    )
+    refiner_errors = check_agent_refiner_keys(cfg)
+    if refiner_errors:
+        raise ValueError(f"RAG config validation failed: {refiner_errors}")
+    return RAGConfig(embed_url=_get_str_or_default(cfg, "embed_url", ""))
 
 
 def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConfig:

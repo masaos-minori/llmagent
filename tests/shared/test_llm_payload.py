@@ -2,45 +2,13 @@
 """Tests for scripts/shared/llm_payload.py.
 
 Characterization tests written ahead of a structural refactor (no behavior
-change intended) to lock current build/parse behavior, including error paths.
+change intended) to lock current parse behavior, including error paths.
 """
 
 from __future__ import annotations
 
-import orjson
 import pytest
 from shared.llm_payload import LlmPayloadHandler
-from shared.types import LLMMessage
-
-
-class TestBuildPayload:
-    def test_default_payload_omits_stream_key(self) -> None:
-        history: list[LLMMessage] = [{"role": "user", "content": "hi"}]
-        payload = LlmPayloadHandler.build_payload(
-            history, [], temperature=0.5, max_tokens=100
-        )
-        assert payload == {
-            "messages": history,
-            "tools": [],
-            "tool_choice": "auto",
-            "temperature": 0.5,
-            "max_tokens": 100,
-        }
-        assert "stream" not in payload
-
-    def test_stream_true_adds_stream_key(self) -> None:
-        history: list[LLMMessage] = [{"role": "user", "content": "hi"}]
-        payload = LlmPayloadHandler.build_payload(
-            history, [], temperature=0.2, max_tokens=50, stream=True
-        )
-        assert payload["stream"] is True
-
-    def test_tool_defs_passed_through(self) -> None:
-        tool_defs = [{"type": "function", "function": {"name": "search"}}]
-        payload = LlmPayloadHandler.build_payload(
-            [], tool_defs, temperature=1.0, max_tokens=10
-        )
-        assert payload["tools"] is tool_defs
 
 
 class TestParseResponse:
@@ -105,40 +73,3 @@ class TestParseResponse:
         raw = {"choices": [{"message": {"role": "assistant"}}]}
         result = LlmPayloadHandler.parse_response(raw)
         assert result.finish_reason is None
-
-
-class TestParseNonStreamResponse:
-    def test_valid_bytes_parsed_into_response(self) -> None:
-        content = orjson.dumps(
-            {
-                "choices": [
-                    {
-                        "message": {"role": "assistant", "content": "ok"},
-                        "finish_reason": "stop",
-                    }
-                ]
-            }
-        )
-        result = LlmPayloadHandler.parse_non_stream_response(content)
-        assert result.message == {"role": "assistant", "content": "ok"}
-        assert result.finish_reason == "stop"
-
-    def test_non_object_json_raises_value_error(self) -> None:
-        content = orjson.dumps([1, 2, 3])
-        with pytest.raises(ValueError, match="LLM response is not a JSON object: list"):
-            LlmPayloadHandler.parse_non_stream_response(content)
-
-    def test_on_usage_callback_forwarded(self) -> None:
-        content = orjson.dumps(
-            {
-                "choices": [
-                    {"message": {"role": "assistant"}, "finish_reason": "stop"}
-                ],
-                "usage": {"prompt_tokens": 1, "completion_tokens": 2},
-            }
-        )
-        seen: list[tuple[int, int]] = []
-        LlmPayloadHandler.parse_non_stream_response(
-            content, on_usage=lambda p, c: seen.append((p, c))
-        )
-        assert seen == [(1, 2)]

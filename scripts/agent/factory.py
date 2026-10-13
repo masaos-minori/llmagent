@@ -427,7 +427,6 @@ def _build_llm_client(
     http = httpx.AsyncClient(timeout=ctx.cfg.llm.http_timeout)
     llm = LLMClient(
         http,
-        max_retries=ctx.cfg.llm.llm_max_retries,
         retry_base_delay=ctx.cfg.llm.llm_retry_base_delay,
         temperature=ctx.cfg.llm.llm_temperature,
         max_tokens=ctx.cfg.llm.llm_max_tokens,

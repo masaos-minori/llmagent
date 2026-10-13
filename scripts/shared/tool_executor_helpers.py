@@ -5,42 +5,7 @@ import hashlib
 from typing import Any
 
 from shared.json_utils import dumps as _json_dumps
-from shared.tool_constants import (
-    CICD_WRITE_TOOLS,
-    DELETE_TOOLS,
-    GIT_WRITE_TOOLS,
-    GITHUB_DANGEROUS_TOOLS,
-    GITHUB_WRITE_TOOLS,
-    MDQ_WRITE_TOOLS,
-    RAG_WRITE_TOOLS,
-    WRITE_TOOLS,
-)
 from shared.transport_dto import TransportErrorInfo
-
-# Tools with side effects: writes, deletes, shell, or git/GitHub mutations.
-# Not used by the execution path: only tests call is_side_effect(). Parallel/serial
-# scheduling of a tool-call batch is done by agent/tool_scheduler.py::
-# build_execution_groups(), which reads ToolSpec.is_write / requires_serial
-# (requires_serial barriers, resource-scope conflicts, and a force_serial input fed
-# from ctx.cfg.tool.serial_tool_calls). Do not conflate is_side_effect() with
-# ToolSpec.requires_serial when reasoning about tool-call concurrency.
-_SIDE_EFFECT_TOOLS: frozenset[str] = (
-    WRITE_TOOLS
-    | DELETE_TOOLS
-    | frozenset({"shell_run"})
-    | GIT_WRITE_TOOLS
-    | GITHUB_WRITE_TOOLS
-    | GITHUB_DANGEROUS_TOOLS
-    | CICD_WRITE_TOOLS
-    | RAG_WRITE_TOOLS
-    | MDQ_WRITE_TOOLS
-)
-
-
-def is_side_effect(tool_name: str) -> bool:
-    """Return True when the tool modifies state: file write/delete, shell,
-    Git write operations, or GitHub write/dangerous operations."""
-    return tool_name in _SIDE_EFFECT_TOOLS
 
 
 def format_transport_error(

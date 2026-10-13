@@ -97,7 +97,7 @@ Full details: [agent_04_01_state-and-persistence-state-model.md](agent_04_01_sta
 ## LLMClient (`shared/llm_client.py`)
 
 - **Role:** HTTP communication with LLM. SSE streaming + retries.
-- **Primary API:** `await client.stream(url, history, tool_defs)`, `client.build_payload(...)`
+- **Primary API:** `await client.stream(url, history, tool_defs)`
 - **Caller:** `LlmTurnExecutor`, `SessionTitleService` (`HistoryManager` does not use it; see the HistoryManager section)
 - **Callee:** `RobustSSEParser`, `httpx.AsyncClient`
 - **Configuration:** `cfg.llm.*`

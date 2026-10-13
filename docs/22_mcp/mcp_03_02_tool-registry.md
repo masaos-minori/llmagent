@@ -30,9 +30,8 @@ Three comparison functions (defined in `shared/tool_routing_validation.py`) dete
 |---|---|---|
 | `validate_routing_against_config()` | config's `tool_names` vs. Registry | At startup (`agent/services/routing_drift.py::check_routing_drift()`, called from `startup_validation`) |
 | `validate_routing_against_live()` | live `/v1/tools` vs. Registry | At startup (`McpToolDiscoveryService` drift verification) |
-| `validate_all_routing()` | Combination of both above | Implemented, but has no production caller |
 
-> **Startup Verification Semantics** — The aforementioned `validate_routing_against_live()` and `validate_all_routing()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [mcp_06 Startup Validation Behavior](mcp_06_09_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
+> **Startup Verification Semantics** — The aforementioned `validate_routing_against_config()` and `validate_routing_against_live()` functions compare the live `/v1/tools` against the internal routing registry. This is distinct from the tool definition check performed by `McpToolDiscoveryService`, which compares configured `tool_definitions` (from `agent.toml`) against live `/v1/tools`. For behavior upon startup failure due to `tool_definitions_strict`, see [mcp_06 Startup Validation Behavior](mcp_06_09_startup-validation-behavior-tool_definitions_strict.md#startup-validation-behavior-tool_definitions_strict).
 
 Drift warnings are displayed during agent startup.
 
@@ -60,13 +59,11 @@ Expected result: All routing tests pass. If `tool_definitions_strict = true`, re
 
 ```python
 from shared.tool_registry import get_registry
-from shared.tool_routing_validation import validate_all_routing
 
 registry = get_registry()
 server_key = registry.get_server_for_tool("read_text_file")  # → "file_read"
 tool_names = registry.get_tool_names("file_read")  # → ["read_text_file", ...]
 all_tools = registry.get_all_tool_names()  # → frozenset of all tool names
-mismatches = validate_all_routing(server_configs, live_tool_lists)  # → dict[str, list[str]]
 ```
 
 ```python
@@ -94,9 +91,8 @@ Batch execution parallel/serial determination is delegated to `agent/tool_runner
 - `check_unknown_tool_safety_tiers()`: Detects when a key in `tool_safety_tiers` is unregistered (e.g., specifying a server key instead of an individual tool name). Called from `agent/production_config_validator.py` (Explicit in code).
 - Both functions return an empty list if `tool_safety_tiers` is empty/unset (skipping checks).
 
-### Implementation Notes (Current behavior): tool_cache.py and ToolSpec
+### Implementation Notes (Current behavior): ToolSpec
 
-- `shared/tool_cache.py`'s `ToolResultCache` (LRU + TTL) is not used by `ToolExecutor` — `ToolExecutor` has no internal cache; `ToolResultCache` remains a standalone utility for callers who do not require stampede protection. (Explicit in code — `shared/tool_cache.py` module docstring)
 - `shared/tool_spec.py`'s `ToolSpec` (frozen dataclass) holds execution metadata for a single approved tool call (`call_id`, `name`, `args`, `resource_scopes` (tuple of strings with kind prefixes), `requires_serial`, `is_write`). `agent/tool_runner.py::_execute_with_dag()` constructs it for every call via `RuntimeToolRegistry.tool_spec_for_call(call_id, name, args)` (which internally calls `shared/resource_scope.py::resolve_resource_scopes()` to resolve `resource_scopes`) and passes it to `agent/tool_scheduler.py::build_execution_groups()` as a `dict[str, ToolSpec]` keyed by `call_id`, which is then used for parallel/serial determination as a single `ExecutionPlan` (`batches`/`ScheduledGroup`/`SerializationEvent`). (Explicit in code)
 
 ### `RuntimeToolRegistry` and Live Discovery

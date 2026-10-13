@@ -416,18 +416,22 @@ def test_subscriber_count_default_is_10() -> None:
     assert cfg.subscriber_count == 10
 
 
-def test_retained_event_count_default_is_10000() -> None:
-    """retained_event_count defaults to 10000 when not configured."""
-    cfg = EventBusConfig(
-        port=8015,
-        db_path="/tmp/eventbus.sqlite",
-        storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
-        deadletter_dir="/tmp/deadletter",
-        max_retry=3,
-        auth_token="test-token",
-    )
-    assert cfg.retained_event_count == 10000
+def test_load_config_rejects_removed_retained_event_count(tmp_path: Path) -> None:
+    """retained_event_count was removed (no automatic retention); it is now an unknown key."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-token"
+retained_event_count = 10000
+""")
+    with pytest.raises(ValueError, match="retained_event_count"):
+        load_config(config_file)
 
 
 def test_publish_rate_default_is_100_0() -> None:

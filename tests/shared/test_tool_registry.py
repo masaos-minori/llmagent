@@ -17,7 +17,6 @@ from shared.tool_registry import (
     get_registry,
 )
 from shared.tool_routing_validation import (
-    validate_all_routing,
     validate_routing_against_config,
     validate_routing_against_live,
 )
@@ -119,42 +118,6 @@ class TestValidateRoutingAgainstLive:
         registry = ToolRegistry()
         drift = validate_routing_against_live(registry, None)
         assert drift == {}
-
-
-class TestValidateAllRouting:
-    """Tests for validate_all_routing drift detection."""
-
-    def test_merges_config_and_live_results(self) -> None:
-        """Both config and live have drift for same server key → merged."""
-        _reset_registry_for_testing()
-        cfg = MagicMock(spec=McpServerConfig)
-        cfg.tool_names = ["existing_tool"]  # drift: not in registry
-        server_configs = {"rag_pipeline": cfg}
-        live_tool_lists = {
-            "rag_pipeline": ["nonexistent_tool"]
-        }  # drift: in live but not registry
-
-        result = validate_all_routing(server_configs, live_tool_lists)
-        assert "rag_pipeline" in result
-        # Both config drift and live drift messages present
-        assert len(result["rag_pipeline"]) >= 2
-
-    def test_empty_when_both_inputs_none(self) -> None:
-        """No inputs → empty dict."""
-        result = validate_all_routing()
-        assert result == {}
-
-    def test_live_only_drift_not_merged_with_existing_config_key(self) -> None:
-        """Live drift for a server key absent from config drift is assigned directly
-        (exercises the `else` branch of the merge loop, distinct from the
-        already-covered same-key extend branch above)."""
-        _reset_registry_for_testing()
-        result = validate_all_routing(
-            server_configs=None,
-            live_tool_lists={"unregistered_server": ["totally_fake_tool"]},
-        )
-        assert "unregistered_server" in result
-        assert "totally_fake_tool" in result["unregistered_server"][0]
 
 
 class TestStartupValidationStrictMode:

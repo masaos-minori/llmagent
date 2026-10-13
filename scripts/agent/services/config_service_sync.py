@@ -54,7 +54,6 @@ class ServiceSyncer:
             ctx.services_required.llm.apply_config(
                 temperature=ctx.cfg.llm.llm_temperature,
                 max_tokens=ctx.cfg.llm.llm_max_tokens,
-                max_retries=ctx.cfg.llm.llm_max_retries,
                 retry_base_delay=ctx.cfg.llm.llm_retry_base_delay,
                 sse_heartbeat_timeout=ctx.cfg.llm.sse_heartbeat_timeout,
                 sse_malformed_retry=ctx.cfg.llm.sse_malformed_retry,

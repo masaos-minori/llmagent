@@ -120,7 +120,6 @@ class SessionPersister:
                 "parse_errors": getattr(llm, "stat_parse_errors", 0),
                 "heartbeat_timeouts": getattr(llm, "stat_heartbeat_timeouts", 0),
                 "reconnects": getattr(llm, "stat_reconnects", 0),
-                "semantic_cache_hits": stats.stat_semantic_cache_hits,
                 "input_tokens": stats.stat_input_tokens,
                 "output_tokens": stats.stat_output_tokens,
                 "compress_count": getattr(hist_mgr, "stat_compress_count", 0),

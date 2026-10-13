@@ -21,7 +21,6 @@ eventbus_db_path = "/opt/llm/db/eventbus.sqlite"
 # ── LLM endpoints ─────────────────────────────────────────────────────────────
 
   llm_url = "http://192.168.11.197:8080"
-llm_max_retries = 3
 llm_retry_base_delay = 1.0
 
 # ── HTTP ──────────────────────────────────────────────────────────────────────
@@ -46,10 +45,6 @@ http_timeout = 120.0
 
 # ── Context ───────────────────────────────────────────────────────────────────
 
-use_refiner = false
-refiner_max_tokens = 512
-refiner_timeout = 30.0
-refiner_max_chars_per_chunk = 300
 tool_definitions_strict = true
 routing_drift_strict = true
 context_char_limit = 8000

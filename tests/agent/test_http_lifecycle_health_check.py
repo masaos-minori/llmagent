@@ -189,7 +189,7 @@ class TestHealthProbesSendBearerToken:
             assert await mgr.verify_running_async("srv", cfg) is False
 
     @pytest.mark.asyncio
-    async def test_startup_poll_succeeds_with_correct_token(
+    async def test_health_poll_succeeds_with_correct_token(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
         import time

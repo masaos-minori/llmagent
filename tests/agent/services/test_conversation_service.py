@@ -33,7 +33,6 @@ def _make_ctx(
     ctx.stats.stat_tool_calls = 3
     ctx.stats.stat_tool_errors = 1
     ctx.stats.stat_latency = {"llm": [0.1, 0.2]}
-    ctx.stats.stat_semantic_cache_hits = 2
     ctx.services_required.llm = None
     return ctx
 
@@ -78,11 +77,6 @@ class TestClearConversation:
         ctx = _make_ctx()
         clear_conversation(ctx)
         assert ctx.stats.stat_latency == {}
-
-    def test_resets_semantic_cache_hits_to_zero(self) -> None:
-        ctx = _make_ctx()
-        clear_conversation(ctx)
-        assert ctx.stats.stat_semantic_cache_hits == 0
 
     def test_new_session_starts_session(self) -> None:
         ctx = _make_ctx()

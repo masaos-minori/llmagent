@@ -38,7 +38,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
     defaults: dict[str, Any] = {
         "context_char_limit": 8000,
         "context_compress_turns": 4,
-        "llm_max_retries": 3,
         "llm_retry_base_delay": 1.0,
         "serial_tool_calls": False,
         "tool_result_max_llm_chars": 4000,
@@ -877,8 +876,7 @@ class TestExecuteStandardSerialization:
     @pytest.mark.asyncio
     async def test_side_effect_tool_records_serialization_event(self) -> None:
         """When a registered write tool triggers forced-serial execution, a
-        serialization event is stored (mirrors the old is_side_effect()-driven
-        downgrade's observable behavior, now via force_serial)."""
+        serialization event is stored via force_serial."""
         cfg = _cfg(serial_tool_calls=True)
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = None

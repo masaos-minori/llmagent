@@ -43,7 +43,6 @@ class _ConfigDisplayMixin(MixinBase):
             ("http_timeout", f"{ctx.cfg.llm.http_timeout}s"),
             ("context_char_limit", str(ctx.cfg.llm.context_char_limit)),
             ("context_compress", f"{ctx.cfg.llm.context_compress_turns} turn pairs"),
-            ("llm_max_retries", str(ctx.cfg.llm.llm_max_retries)),
             ("llm_retry_base_delay", f"{ctx.cfg.llm.llm_retry_base_delay}s"),
             ("llm_temperature", str(ctx.cfg.llm.llm_temperature)),
             ("llm_max_tokens", str(ctx.cfg.llm.llm_max_tokens)),

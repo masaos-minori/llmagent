@@ -9,14 +9,14 @@ runtime so the original API surface stays unchanged.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from collections.abc import Mapping
+from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
     from agent.config_dataclasses import (
         ApprovalConfig,
         LLMConfig,
         MemoryConfig,
-        RAGConfig,
         ToolConfig,
     )
 
@@ -55,11 +55,6 @@ def validate_llm_budget_warn_ratio(cfg: LLMConfig) -> None:
         )
 
 
-def validate_llm_max_retries(cfg: LLMConfig) -> None:
-    """Validate that llm_max_retries is non-negative."""
-    _require_non_negative("llm_max_retries", cfg.llm_max_retries)
-
-
 def validate_llm_retry_base_delay(cfg: LLMConfig) -> None:
     """Validate that llm_retry_base_delay is positive."""
     _require_positive("llm_retry_base_delay", cfg.llm_retry_base_delay)
@@ -93,19 +88,28 @@ def validate_llm_sse_reconnect_max(cfg: LLMConfig) -> None:
     _require_non_negative("sse_reconnect_max", cfg.sse_reconnect_max)
 
 
-def validate_rag_refiner_max_tokens(cfg: RAGConfig) -> None:
-    """Validate that refiner_max_tokens is at least 1."""
-    _require_at_least("refiner_max_tokens", cfg.refiner_max_tokens, 1)
+_AGENT_REFINER_KEYS = (
+    "use_refiner",
+    "refiner_max_tokens",
+    "refiner_timeout",
+    "refiner_max_chars_per_chunk",
+)
 
 
-def validate_rag_refiner_timeout(cfg: RAGConfig) -> None:
-    """Validate that refiner_timeout is positive."""
-    _require_positive("refiner_timeout", cfg.refiner_timeout)
+def check_agent_refiner_keys(raw_cfg: Mapping[str, Any]) -> list[str]:
+    """Return an error when config/agent.toml still carries refiner keys.
 
-
-def validate_rag_refiner_max_chars_per_chunk(cfg: RAGConfig) -> None:
-    """Validate that refiner_max_chars_per_chunk is at least 1."""
-    _require_at_least("refiner_max_chars_per_chunk", cfg.refiner_max_chars_per_chunk, 1)
+    The refiner runs inside the rag-pipeline MCP server and is configured only in
+    config/rag_pipeline_mcp_server.toml (ADR-002); an Agent-side value would be
+    silently ignored.
+    """
+    found = [k for k in _AGENT_REFINER_KEYS if k in raw_cfg]
+    if not found:
+        return []
+    return [
+        f"config/agent.toml: {', '.join(found)} is not an Agent setting; "
+        "the refiner is configured in config/rag_pipeline_mcp_server.toml"
+    ]
 
 
 def validate_tool_dedup_max_repeats(cfg: ToolConfig) -> None:

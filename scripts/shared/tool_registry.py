@@ -32,7 +32,6 @@ Drift detection:
   Canonical validation module: `shared.tool_routing_validation`.
   - validate_routing_against_config(): validates config tool_names against registry
   - validate_routing_against_live(): validates live /v1/tools responses against registry
-  - validate_all_routing(): runs both config and live validation together
 """
 
 from __future__ import annotations

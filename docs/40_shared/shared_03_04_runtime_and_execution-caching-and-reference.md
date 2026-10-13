@@ -16,18 +16,6 @@ related:
 
 - Overview → [shared_00_document-guide.md](shared_00_document-guide.md)
 
-## 14. `LlmRetryHandler` (`shared/llm_retry.py`)
-
-Exponential backoff retry for HTTP POST requests to LLM endpoints. Retries on 429 (rate limit), 503 (service unavailable), and `httpx.RequestError` (connection error). Non-transient HTTP errors (4xx/5xx other than 429/503) are raised immediately. Delay formula: `retry_base_delay * (2**attempt)` where `attempt` starts at 0. The last exception is raised when all retries are exhausted.
-
----
-
-## 15. `ToolResultCache` / `CacheEntry` (`shared/tool_cache.py`)
-
-A frozen dataclass `CacheEntry` with `output` (str), `is_error` (bool), and `cached_at` (float). A standalone utility for tool results, not used by `ToolExecutor`. Key format: `{tool_name}:{json_dumps(args)}` using `shared.json_utils.dumps`. `store_if_success()` stores only results where `is_error=False`.
-
----
-
 ## 16. `ToolSpec` (`shared/tool_spec.py`)
 
 `ToolSpec` is the DAG scheduling metadata dataclass. Its fields and construction are described in [shared_02_02](shared_02_02_types_and_protocols-tool-and-execution-dto.md#7a-toolspec-sharedtool_specpy).
@@ -48,7 +36,7 @@ Per-server health tracking for `ToolExecutor` dispatch gating. Constructor accep
 
 ## 18. `LlmPayloadHandler` (`shared/llm_payload.py`)
 
-All methods are `@staticmethod`. `build_payload()` takes `history` (list[LLMMessage]), `tool_defs` (list[dict]), `temperature` (float, required), `max_tokens` (int, required), and `stream` (bool, default False) — it returns a payload with `messages`/`tools`/`tool_choice="auto"`/`temperature`/`max_tokens`, and adds `"stream": True` when `stream=True`. `parse_response()` accepts raw parsed JSON dict (not `httpx.Response`), validates `choices`/`message` structure, raises `ValueError` on invalid input, and delegates usage parsing to `LlmSseHelpers.parse_usage()`. `parse_non_stream_response()` decodes bytes via `orjson.loads()`, raises `ValueError` if not a dict, then delegates to `parse_response()`.
+All methods are `@staticmethod`. `parse_response()` accepts raw parsed JSON dict (not `httpx.Response`), validates `choices`/`message` structure, raises `ValueError` on invalid input, and delegates usage parsing to `LlmSseHelpers.parse_usage()`.
 
 The `on_usage` parameter is a `Callable[[int, int], None] | None`, called from `LlmSseHelpers.parse_usage()` as `on_usage(prompt_tokens, completion_tokens)`. The only production caller is `scripts/agent/factory.py`'s `_on_llm_usage`.
 
@@ -67,11 +55,9 @@ Manages hot-reloadable config fields for `LLMClient`. `HOT_CONFIG_FIELDS` is a t
 | How to load configuration files? | `ConfigLoader().load("filename.toml")` or `load_all()` |
 | Where is the configuration ownership table? | **See [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)** — Official reference for process isolation policies and per-process config files |
 | Does `load_all()` include `agent.toml`? | **Yes (it is the only one)** — `_BASE_CONFIG_FILES = ("agent.toml",)` contains only one entry; other configs (`crawler.toml`, etc.) are loaded individually by their respective processes (See [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)) |
-| Does `ToolExecutor` cache results? | No. Result caching is provided only by the standalone `ToolResultCache`. |
+| Does `ToolExecutor` cache results? | No. There is no tool-result cache. |
 | Is `git_helper.get_repo_info()` reliable? | Returns `RepoInfoResult`; verify `.success` and `.failure_reason` (FailureReason enum) |
 | How to get accurate token counts? | `await get_token_count(history, tokenize_url, http)` |
-| How do LLM retries work? | Exponential backoff: `retry_base_delay * (2**attempt)` for 429/503 and connection errors |
-| What is the `ToolResultCache` key format? | `{tool_name}:{json_dumps(args)}` (using `shared.json_utils.dumps`) |
 | What are the health gate state transitions? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (see the `McpServerHealthState` section above) |
 
 ## Keywords

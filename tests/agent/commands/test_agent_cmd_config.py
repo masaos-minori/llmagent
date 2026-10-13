@@ -31,7 +31,6 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_turns = 5
     ctx.stats.stat_tool_calls = 10
     ctx.stats.stat_tool_errors = 2
-    ctx.stats.stat_semantic_cache_hits = 1
     ctx.stats.stat_latency = {}
     ctx.stats.stat_input_tokens = 1000
     ctx.stats.stat_output_tokens = 500
@@ -54,7 +53,6 @@ def _make_ctx() -> MagicMock:
 
 def _make_llm_svc() -> MagicMock:
     llm = MagicMock()
-    llm.stat_retries = 1
     llm.stat_reconnects = 2
     llm.stat_heartbeat_timeouts = 3
     llm.stat_partial_completions = 4
@@ -190,7 +188,6 @@ class TestPrintConfigValues:
         ctx.cfg.llm.context_char_limit = 8000
         ctx.cfg.llm.context_compress_turns = 4
         ctx.cfg.tool.tool_cache_ttl = 300.0
-        ctx.cfg.llm.llm_max_retries = 3
         ctx.cfg.llm.llm_retry_base_delay = 1.0
         ctx.cfg.llm.llm_temperature = 0.2
         ctx.cfg.llm.llm_max_tokens = 1024

@@ -416,12 +416,12 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 ## Implementation Notes
 
 - For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale section of this document.
-- Retry policy for an unreachable MCP server: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry; subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). `HealthChecker.startup_poll()` has no production caller (AGENT-012).
+- Retry policy for an unreachable MCP server: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry; subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). Subprocess readiness is polled by `HttpServerLifecycleManager._health_poll_until_ready`.
 - When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required`; the `McpServerStarter` branch that would call `disable_server()` for a non-required server is never reached (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). This is the spawn-failure exception listed in Exceptions.
 
 ## Known Deviations
 
-- **Known Issue**: AGENT-012 — tracked in governance_03 Part 1 (`HealthChecker.startup_poll()` is listed in Implementation References but has no caller under `scripts/`)
+Not applicable
 
 ## Review Triggers
 
@@ -475,7 +475,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/agent/services/mcp_health.py` — `check_service_health()`
 - `scripts/agent/startup_mcp_starter.py` — `McpServerStarter`
 - `scripts/agent/shared/retry_helper.py` — `retry_once_with_delay()`
-- `scripts/agent/http_lifecycle_health_checker.py` — `HealthChecker.startup_poll()`
+- `scripts/agent/http_lifecycle.py` — `HttpServerLifecycleManager._health_poll_until_ready()`
 - `config/agent.toml` — configuration file
 - Tests — `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/agent/test_startup.py`
 

@@ -5,7 +5,6 @@ Canonical frozenset definitions for MCP tool classification.
 
 These sets serve two purposes:
   shared/tool_registry.py   — registry seed data (auto-populates ToolRegistry at import time)
-  shared/tool_executor_helpers.py   — is_side_effect() (no production caller; see below)
   agent/tool_policy.py      — risk classification and approval logic
 
 Not a routing source. Routing is driven only by live `/v1/tools` discovery
@@ -15,10 +14,8 @@ All sets are frozensets; treat them as read-only.
 
 Per-consumer status:
   - registry seed: a one-time import-time seed for ToolRegistry, not a fallback.
-  - side-effect classification: shared.tool_executor_helpers.is_side_effect() is built
-    from these sets but has no production caller (only tests call it). Parallel/serial
-    scheduling of tool calls reads ToolSpec.is_write (resolved from RuntimeToolRegistry)
-    in agent/tool_scheduler.py::build_execution_groups(), not these sets.
+  - parallel/serial scheduling of tool calls reads ToolSpec.is_write (resolved from
+    RuntimeToolRegistry) in agent/tool_scheduler.py::build_execution_groups(), not these sets.
   - risk classification: agent.tool_policy.classify_operation_type() checks these
     frozensets directly and first, for the WRITE/DELETE/EXECUTE/API_WRITE tiers.
 """

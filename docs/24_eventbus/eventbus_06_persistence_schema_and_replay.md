@@ -27,7 +27,7 @@ Primary store for all events. WAL mode is enabled to allow concurrent reads. DB 
 
 ## Schema
 
-Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `delivery_failure_count`, `cycle_failure_count`, `redelivered_from`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ), `consumer_id`. The per-consumer failure count and last NACK attempt live in `consumer_delivery`, not in `events`. Column definitions are in `scripts/eventbus/schema.sql` (used by the service when the `events` table is missing) and in `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` (used by `create_schema()`); the two are not identical (Known Issue EVENTBUS-016 in [governance_03](../00_governance/governance_03_issue-and-uncertainty-management.md)).
+Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `delivery_failure_count`, `cycle_failure_count`, `redelivered_from`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ), `consumer_id`. The per-consumer failure count and last NACK attempt live in `consumer_delivery`, not in `events`. Column definitions are in `scripts/eventbus/schema.sql`, the only DDL definition; `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` (used by `create_schema()`) reads that file.
 
 Schema migrations for existing databases are idempotent.
 

@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS events (
     topic                  TEXT    NOT NULL,
     payload                TEXT    NOT NULL,
     producer               TEXT    NOT NULL,
-    published_at           TEXT    NOT NULL,
+    published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
     delivery_failure_count INTEGER NOT NULL DEFAULT 0,
     cycle_failure_count    INTEGER NOT NULL DEFAULT 0,
     redelivered_from       TEXT,

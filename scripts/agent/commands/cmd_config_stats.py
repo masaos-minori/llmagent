@@ -76,7 +76,6 @@ class _ConfigStatsMixin(MixinBase):
             turns=ctx.stats.stat_turns,
             tool_calls=ctx.stats.stat_tool_calls,
             tool_errors=ctx.stats.stat_tool_errors,
-            llm_retries=_safe(llm, "stat_retries", 0),
             llm_reconnects=_safe(llm, "stat_reconnects", 0),
             llm_heartbeat_timeouts=_safe(llm, "stat_heartbeat_timeouts", 0),
             llm_partial_completions=_int_safe(ctx.stats, "stat_partial_completions", 0),
@@ -92,7 +91,6 @@ class _ConfigStatsMixin(MixinBase):
             ),
             memory_circuit_open=_get_mem_circuit_open(ctx),
             memory_fts_fallback_count=_get_mem_fts_fallback(ctx),
-            semantic_cache_hits=ctx.stats.stat_semantic_cache_hits,
             input_tokens=ctx.stats.stat_input_tokens,
             output_tokens=ctx.stats.stat_output_tokens,
             debug_mode=ctx.conv.debug_mode,
@@ -116,7 +114,6 @@ class _ConfigStatsMixin(MixinBase):
         self._out.write(f"  Turns         : {stats.turns}")
         self._out.write(f"  Tool calls    : {stats.tool_calls}")
         self._out.write(f"  Tool errors   : {stats.tool_errors}")
-        self._out.write(f"  LLM retries   : {stats.llm_retries}")
         self._out.write(f"  LLM reconnects: {stats.llm_reconnects}")
         self._out.write(f"  HB timeouts   : {stats.llm_heartbeat_timeouts}")
         if stats.llm_partial_completions > 0:
@@ -136,7 +133,6 @@ class _ConfigStatsMixin(MixinBase):
             self._out.write(
                 f"  Memory embed: fts_only x{stats.memory_fts_fallback_count} [degraded]"
             )
-        self._out.write(f"  Sem. cache    : {stats.semantic_cache_hits} hits")
         self._out.write(f"  Input tokens  : {_fmt_tokens(stats.input_tokens)}")
         self._out.write(f"  Output tokens : {_fmt_tokens(stats.output_tokens)}")
         self._out.write(f"  Debug mode    : {'ON' if stats.debug_mode else 'OFF'}")
