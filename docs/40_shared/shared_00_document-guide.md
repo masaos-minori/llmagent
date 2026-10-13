@@ -29,6 +29,7 @@ related:
   - governance_01_documentation-policy.md
   - governance_02_documentation-metadata.md
   - governance_04_documentation-checks.md
+  - agent_05_llm-and-streaming.md
 ---
 
 # Shared/DB Documentation Guide

@@ -94,7 +94,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 ## Known Limitations
 
-- Decrypt failures are silently tolerated: ciphertext is returned unchanged with only a warning logged, not raised as an error.
+- Known Issue AGENT-007: a diagnostic row that fails to decrypt is returned as ciphertext with only a warning logged, not raised as an error.
 
 ## Keywords
 

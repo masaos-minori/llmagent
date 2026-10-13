@@ -373,7 +373,7 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 ### Startup Validation
 
 - Routing is determined at startup based on Discovery results
-- Startup is aborted when Discovery fails for a required MCP server; when a non-mandatory MCP server is unavailable, its Tools are disabled and startup continues (ADR-004 Decision Group 7, item 18)
+- Startup aborts when Discovery fails for a required MCP server or a subprocess server fails to spawn (AGENT-004); an unavailable non-mandatory server has its Tools disabled (ADR-004 item 18)
 
 ### Deployment Validation
 
@@ -428,7 +428,7 @@ See Implementation References for the file/symbol list.
 
 Initial approval (Decision Details #1 to #9):
 
-- **Approved By**: architecture-reviewer
+- **Approved By**: repository owner
 - **Approval Date**: 2026-08-20
 - **Approval Reference**: ADR-003 creation
 

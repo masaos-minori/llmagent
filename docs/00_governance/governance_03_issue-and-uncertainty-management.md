@@ -69,7 +69,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-009 | /skill messages lose the _ephemeral marker during append validation | open | Low | Agent | design-gap |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | DEPLOY-002 | Production uv run does not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
-| EVENTBUS-008 | Consumer-role token without a consumer_id allowlist skips consumer-identity validation | open | Medium | EventBus | design-gap |
+| EVENTBUS-008 | Consumer-role token is unrestricted when the authorization mappings are empty | open | Medium | EventBus | design-gap |
 | EVENTBUS-015 | Shared auth_token and admin_token grant every role | open | Medium | EventBus | design-gap |
 | EVENTBUS-016 | Two EventBus DDL sources define slightly different schemas | open | Low | EventBus | design-gap |
 | SHARED-001 | shared/security package has no importers | open | Low | Shared/DB | design-gap |
@@ -277,7 +277,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 #### EVENTBUS-008
 
 - **ID**: EVENTBUS-008
-- **Title**: Consumer-role token without a consumer_id allowlist skips consumer-identity validation
+- **Title**: Consumer-role token is unrestricted when the authorization mappings are empty
 - **Status**: open
 - **Severity**: Medium
 - **Area**: EventBus
@@ -287,11 +287,11 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **First Found**: ADR Known Deviations review
 - **Target**: `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`
 - **Related**: `docs/10_adr/adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Summary**: A principal without a consumer_id allowlist is not restricted to any consumer_id.
+- **Summary**: A CONSUMER token whose `consumer_authorization` and `topic_authorization` mappings are both empty is not restricted to any consumer_id, and `auth_token` and `admin_token` are never restricted.
 - **Current Description**: ADR-013 INV-02 forbids acting as another `consumer_id`.
 - **Observed Implementation**: A `consumer_token` without `consumer_authorization` is rejected at startup. With empty `consumer_authorization` and `topic_authorization` mappings, the CONSUMER token gets `allowed_consumer_ids=None` (unrestricted), as do `auth_token` and `admin_token`.
 - **Impact**: An unrestricted principal can use any `consumer_id`.
-- **Recommended Action**: Deny all consumers on an empty mapping, or reject it at startup.
+- **Recommended Action**: Deny all consumers when both mappings are empty, or reject an empty `consumer_authorization` at startup when `consumer_token` is configured.
 - **Resolution Target**: Every CONSUMER token has a non-empty allowlist or is denied, covered by a test.
 
 #### EVENTBUS-015
@@ -326,7 +326,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Owner**: Unassigned
 - **First Found**: Documentation review
 - **Target**: `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
-- **Related**: `EVENTBUS-015`
+- **Related**: None
 - **Summary**: `eventbus.sqlite` can be created from two DDL sources that are not identical.
 - **Current Description**: The database documents name both `build_eventbus_schema_sql()` (used by `create_schema()`) and `scripts/eventbus/schema.sql` (used by the EventBus service when the `events` table is missing) as DDL sources.
 - **Observed Implementation**: The two differ in the `published_at` default and in one `consumer_delivery` index, which only `schema.sql` creates.

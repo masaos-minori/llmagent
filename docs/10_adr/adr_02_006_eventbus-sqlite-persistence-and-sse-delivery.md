@@ -310,7 +310,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
   - **Verifies**: INV-13
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPROMotionSemantics::test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry`, `tests/eventbus/test_eventbus_dlq.py::test_inline_dlq_promotion_on_nack`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestMultiConsumerPromotion` (multi-consumer rule, sweep and inline paths)
+  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry`, `tests/eventbus/test_eventbus_dlq.py::test_inline_dlq_promotion_on_nack`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestMultiConsumerPromotion` (multi-consumer rule, sweep and inline paths)
 
 - **Test**: Consumer ID collisions are detected
   - **Verifies**: INV-11
@@ -340,7 +340,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
   - **Verifies**: INV-08
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPROMotionSemantics::test_nack_increments_delivery_failure_count`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPROMotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count`
+  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_nack_increments_delivery_failure_count`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPROMotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count`
 
 - **Test**: A non-loopback host is rejected at configuration validation
   - **Verifies**: INV-15

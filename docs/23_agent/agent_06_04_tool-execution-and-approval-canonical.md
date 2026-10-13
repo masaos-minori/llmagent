@@ -81,7 +81,7 @@ If a workflow fails after some steps are completed, the workflow engine records 
 
 - Both approval layers are canonical and not mutually exclusive
 - Pre-execution approval (tool-level) is always active
-- Post-execution approval (workflow-level) does not fire by default
+- Post-execution approval (workflow-level) is active for every loaded workflow definition
 - Partial completion is not automatically resumed
 - Automatic execution (planning/verification phases, low-risk tools) does not require human approval
 

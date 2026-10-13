@@ -70,11 +70,11 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/ack_route.py
 
-`ack_event(request, event_id, consumer_id)`: `POST /events/{event_id}/ack`. `nack(request, event_id, consumer_id)`: `POST /nack`. Both require `consumer_id`. NACK increments the failure count and promotes to DLQ if `>= max_retry`; it returns HTTP 409 for an event already in the DLQ.
+`ack_event(request, event_id, consumer_id)`: `POST /events/{event_id}/ack`. `nack(request, event_id, consumer_id)`: `POST /nack`. Both require `consumer_id`. NACK increments the per-consumer failure count and promotes the event to the DLQ only when every attempting consumer has reached `max_retry` and none has ACKed (ADR-006 INV-13); it returns HTTP 409 for an event already in the DLQ. ACK also returns HTTP 409 for an event already in the DLQ.
 
 ### scripts/eventbus/dlq_route.py
 
-`dlq_list(request, limit, offset)`: `GET /dlq` (defaults defined in the route signature). `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. The requeue inserts a new event row (lineage model); a requeued event whose inherited `delivery_failure_count` is `>= max_retry` is promoted again on its next NACK. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
+`dlq_list(request, limit, offset)`: `GET /dlq` (defaults defined in the route signature). `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. The requeue inserts a new event row (lineage model) with a fresh retry budget; DLQ promotion of the new row is gated on per-consumer failure counts, not on the inherited `delivery_failure_count`. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
 
 ### scripts/eventbus/replay_route.py
 
@@ -159,7 +159,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/config.py` | `get_config_path` | `def get_config_path() -> Path` | Return the path to the Event Bus TOML configuration file. |
 |  | `get_schema_path` | `def get_schema_path() -> Path` | Return the path to the Event Envelope JSON schema file. |
 |  | `EventBusConfig` | `class EventBusConfig` | Immutable configuration for the Event Bus service. |
-|  | `load_config` | `def load_config(path) -> EventBusConfig` | Load and validate the EventBus TOML configuration file. Callers must always pass get_config_path()'s return value — this function does not itself restrict which path is read; see tests/eventbus/test_eventbus_config.py for the call-site regression test that locks this invariant. |
+|  | `load_config` | `def load_config(path) -> EventBusConfig` | Load and validate the EventBus TOML configuration file. |
 | `scripts/eventbus/db_conn.py` | `get_db_lock` | `def get_db_lock() -> threading.Lock` | Return the lock that must be held for all DB operations. |
 |  | `open_db` | `def open_db(db_path) -> sqlite3.Connection` | Return a shared SQLite connection for the Event Bus. |
 |  | `check_db` | `def check_db(conn) -> bool` | Return True if the DB connection is usable. |
@@ -173,7 +173,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `sweep_orphans` | `def sweep_orphans(db, deadletter_dir, max_retry) -> int` | Sweep events that meet the promotion rule but were not promoted inline. |
 |  | `promote_single` | `def promote_single(db, deadletter_dir, event_id, consumer_failure_count) -> bool` | Promote one event to DLQ immediately (inline on nack threshold). |
 |  | `archive_dlq_record` | `def archive_dlq_record(deadletter_dir, event_id) -> bool` | Move {deadletter_dir}/{event_id}.json to {deadletter_dir}/requeued/{event_id}_{timestamp}.json. |
-| `scripts/eventbus/dlq_repo.py` | `requeue_event` | `def requeue_event(conn, event_id) -> bool` | Unused legacy helper with no callers; the active requeue path is redeliver_event(), which keeps dlq_at on the original row and inserts a new row. |
+| `scripts/eventbus/dlq_repo.py` | `requeue_event` | `def requeue_event(conn, event_id) -> bool` | Requeue a dead-lettered event in place (legacy helper). |
 |  | `redeliver_event` | `def redeliver_event(conn, event_id, now) -> tuple[bool, str \| None]` | Redeliver a dead-lettered event by inserting a new row with lineage. |
 | `scripts/eventbus/dlq_route.py` | `dlq_list` | `async def dlq_list(request, limit, offset) -> dict[str, Any]` | List dead-letter queue entries with pagination support. |
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active event queue. |

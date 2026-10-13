@@ -378,7 +378,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 
 - **System of Record**: the four SQLite DBs (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`)
 - **Derived Data**: regenerable derived data (FTS5, Vector Index)
-- **Ownership**: the RAG team, the Agent team, the Workflow team, the EventBus team
+- **Ownership**: RAG layer, Agent layer, workflow engine, EventBus service
 - **Persistence**: file system (the configured DB directory)
 - **Transaction Boundary**: per DB
 - **Recovery Source**: for `rag.sqlite`/`session.sqlite`, verified backup files supplied by the operator. `workflow.sqlite`/`eventbus.sqlite` are not subject to automatic restore and are handled manually by the operator.

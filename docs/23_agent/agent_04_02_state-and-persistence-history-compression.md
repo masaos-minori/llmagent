@@ -104,7 +104,7 @@ Even during fallback truncation, character limits are strictly enforced.
 
 ## Known Limitations
 
-- After reloading a session that has been compressed, `/undo` operates on the compressed DB rows. Since original messages were replaced by a summary message, fewer turns may be undoable than the user expects.
+- Known Issue AGENT-008: after reloading a compressed session, `/undo` operates on the compressed DB rows, so fewer turns may be undoable than expected.
 
 ## Keywords
 

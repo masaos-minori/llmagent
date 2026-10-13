@@ -13,6 +13,8 @@ related:
   - adr_02_002_config-isolation.md
   - deployment_01_deployment.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
+  - adr_02_010_rag-fallback.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # Configuration Reference
@@ -140,7 +142,7 @@ only when a key is absent from the `.toml` file.
 
 Used by: Agent process only. Loaded via `ConfigLoader().load_all()` to build `AgentConfig`.
 
-`AgentConfig.rag` (`RAGConfig`) carries `embed_url` and the refiner settings (`use_refiner`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk`). It does not carry the search-stage parameters (`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`) or `rag_service_url`. Those are owned by `config/rag_pipeline_mcp_server.toml` (section 9.4).
+`AgentConfig.rag` (`RAGConfig`) carries `embed_url` and the refiner settings (`use_refiner`, `refiner_max_tokens`, `refiner_timeout`, `refiner_max_chars_per_chunk`). It does not carry the search-stage parameters (`use_search`, `use_mqe`, `use_rrf`, `use_rerank`, `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`) or `rag_service_url`. Those are owned by `config/rag_pipeline_mcp_server.toml` (see the `config/rag_pipeline_mcp_server.toml` section above).
 
 - The Agent process consumes `embed_url` (memory embedding client and the `embed-llm` health check).
 - The refiner settings are parsed and validated, but no Agent code path reads them, because the pipeline stages run inside the rag-pipeline MCP server with its own configuration. This is tracked as RAG-006 in `governance_03_issue-and-uncertainty-management.md`.

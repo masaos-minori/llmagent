@@ -69,6 +69,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 ### ACK Error Responses
 
 - HTTP 404 if the event is not found.
+- HTTP 409 if the event is already in the DLQ (`events.dlq_at` set); no delivery state or offset is written.
 - A duplicate ACK is idempotent and returns HTTP 200 with `already_acked: true`.
 
 ### NACK Preconditions
@@ -282,6 +283,7 @@ DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cy
 ```
 ACKed ✗ NACK → HTTP 409 "event already acknowledged" (applies when the requesting consumer has already ACKed via `consumer_delivery.acked`)
 DLQ ✗ NACK → HTTP 409 "event already in dead letter queue"
+DLQ ✗ ACK → HTTP 409 "event already in dead letter queue" (no delivery state or offset is written)
 DLQ ✗ REQUEUE of an event that is not in the DLQ, or that was already requeued → HTTP 409 "event is not in DLQ"
 ```
 

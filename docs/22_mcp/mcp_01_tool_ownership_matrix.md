@@ -138,7 +138,7 @@ An `approval_risk_rules` entry can raise a tool above its tier default (for exam
 - Git history inspection
 
 **Explicit non-responsibilities:**
-- Remote repository content modification
+- Hosting-service API operations (issues, pull requests, API-based content changes; owned by github-mcp)
 - File content analysis
 - RAG operations
 

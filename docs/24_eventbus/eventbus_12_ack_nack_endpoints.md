@@ -21,7 +21,7 @@ Requires `Bearer ${CONSUMER_TOKEN}` in the Authorization header.
 
 Additionally, the caller must be authorized for the specific `consumer_id` being used — the `Principal.allowed_consumer_ids` field enforces this at the application layer when the principal has an allowlist (a `consumer_id` outside it is rejected with HTTP 403). A principal without an allowlist is not restricted. The CONSUMER token has no allowlist when `consumer_authorization` is an empty mapping; startup rejects a `consumer_token` with no `consumer_authorization` at all. The shared `auth_token` and `admin_token` are also unrestricted.
 
-On ACK, the per-consumer delivery record and the consumer offset are updated in one transaction, and offset advancement is monotonic: acknowledging an older event never moves the stored offset backwards. NACK increments the per-consumer `consumer_delivery_failure_count`; per ADR-006 INV-10 the event is promoted to the DLQ once that per-consumer count reaches `max_retry` (per-consumer gating keyed on `(consumer_id, event_id)`).
+On ACK, the per-consumer delivery record and the consumer offset are updated in one transaction, and offset advancement is monotonic: acknowledging an older event never moves the stored offset backwards. NACK increments the per-consumer `consumer_delivery_failure_count`; per ADR-006 INV-13 the event is promoted to the DLQ only when every consumer that attempted delivery has reached `max_retry` on its own `(consumer_id, event_id)` count and none has ACKed.
 
 ## Acknowledge Event
 

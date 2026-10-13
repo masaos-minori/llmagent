@@ -231,6 +231,7 @@ Rejected to prioritize Security and prevent unauthenticated access.
 ## Exceptions
 
 - mdq-mcp attaches the authentication middleware with an empty token and does not verify Bearer tokens at the HTTP layer. Its security boundary is the fail-closed `allowed_dirs` path authorization (see `mcp_05_05_mdq-enforcement-and-lockdown.md`). The Agent-side `auth_token` for mdq must still be non-empty. Changing this exception requires a decision recorded in this ADR.
+- web-search-mcp attaches the authentication middleware with the loopback `/health` admission enabled: a request to exactly `/health` from a loopback client is admitted without the Bearer token; every other path, and any non-loopback client, still requires the matching token. The admission is opt-in per server, and web-search is the only server that enables it (Explicit in code — `scripts/mcp_servers/server.py` `attach_auth_middleware()`, `scripts/mcp_servers/web_search/web_search_server.py`). Changing this exception requires a decision recorded in this ADR.
 
 ## Failure Policy
 

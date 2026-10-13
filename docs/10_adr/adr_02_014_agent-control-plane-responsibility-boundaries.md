@@ -149,7 +149,7 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 
 ### Negative Consequences
 
-- Not every existing implementation strictly follows this ADR's boundaries (see Known Deviations), so additional fix work arises
+- An implementation that does not follow this ADR's boundaries, if found, requires additional fix work and is recorded in Known Deviations
 - Documenting component boundaries makes it necessary to verify the validity of boundary changes each time during future refactoring
 
 ## Invariants
@@ -195,6 +195,8 @@ INV-01 and INV-03 have no automated tests and depend only on code review (Manual
 See Implementation References for the current file/symbol list.
 
 ## Known Deviations
+
+No confirmed deviations.
 
 ## Review Triggers
 

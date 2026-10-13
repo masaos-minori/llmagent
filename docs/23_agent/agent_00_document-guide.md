@@ -29,7 +29,7 @@ This document is the entry point for the restructured Agent documentation set. I
 
 ## Design Intent
 
-The value of this document is navigation logic — human-curated guidance on which chapter addresses which question. Mechanical inventories (file lists, keyword enumerations, implementation-diff-memo-style notes) are delegated to code search via the Canonical Source Rule.
+The value of this document is navigation logic — human-curated guidance on which chapter addresses which question. Mechanical inventories (file lists, keyword enumerations, implementation-diff-memo-style notes) are delegated to code search via [Canonical Source Precedence](../00_governance/governance_01_documentation-policy.md#canonical-source-precedence).
 
 ## Responsibility Boundary
 

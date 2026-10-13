@@ -47,17 +47,7 @@ Any `RuntimeError` is not caught by the caller's `except` block and propagates f
 
 When `WorkflowEngine(require_approval=True)` is used, the engine pauses after the `execute` stage completes and before the `verify` stage begins:
 
-**Operations Policy (Decided):** Whether `WorkflowDef.require_approval` is required is defined per operation category. Any deployment whose workflow can reach a category marked "Required" in the table below MUST explicitly set `require_approval: true` in its `config/workflows/*.json`. This is enforced at startup: `WorkflowLoader._validate()` rejects any workflow definition whose `require_approval` is absent or `false` (`WorkflowLoadError`), so a misconfiguration fails startup rather than silently running without the workflow-level gate. The bundled `config/workflows/default.json` sets `require_approval: true` and therefore satisfies this policy for the "Required" categories.
-
-| Operation Category | Workflow-level Approval Required |
-|---|---|
-| File write | Conditional (only if the same task also executes another "Required" category) |
-| File deletion | Required |
-| Shell execution | Required |
-| Git commit/push | Required (push only; commit alone may be left to the tool-level gate) |
-| GitHub changes | Required (merge/push only; issue/PR creation is conditional) |
-| CI/CD execution | Required |
-| Database maintenance | Gap — the corresponding tool is not yet implemented |
+**Operations Policy (Decided):** The workflow-level gate is not configured per operation category. `WorkflowLoader._validate()` rejects any workflow definition whose `require_approval` is absent or `false` (`WorkflowLoadError`), so every workflow that loads has the gate enabled, and a misconfiguration fails startup rather than silently running without it. The bundled `config/workflows/default.json` sets `require_approval: true`. Because the gate applies uniformly, every operation category (file write, file deletion, shell execution, Git commit/push, GitHub changes, CI/CD execution) is covered by the post-execution approval whenever its tools run inside a workflow.
 
 **Tool-level gate:** Independently of `require_approval`, the tool-level pre-execution approval gate (risk rules in `config/agent.toml`) remains active.
 

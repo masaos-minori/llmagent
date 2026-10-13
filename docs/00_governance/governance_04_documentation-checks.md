@@ -31,7 +31,8 @@ Checks all documents under `docs/*.md` for quality issues.
 
 **Custom rules:**
 - Dynamically loaded from `config/doc_quality_rules.json`
-- History, change-history, traceability and resolved-item markers in active documents are rejected (ERROR); unverified-claim wording outside the Needs Confirmation inventory is reported (WARNING)
+- Specific change-history forms in active documents are rejected (ERROR): `(Added <date>` annotations, `issues/`/`plans/`/`implementations/` `done/` paths, `REQ-NNN` identifiers, `- **Resolved**:` bullets, strikethrough text, and `Traceability` headings. These rules are not exempted by historical-context words, and the allowlist in section 4 does not apply to them
+- Unverified-claim wording outside the Needs Confirmation inventory is reported (WARNING)
 
 **Usage:**
 ```bash
@@ -122,7 +123,9 @@ context. Two cases require different detection strategies:
 
 **Historical-reference allowlist**: a line within 10 lines of an explicit marker
 (`legacy`, `historical`, `archive only`, `resolved`, `was:`, `removed`) is exempt
-from this check (`_HISTORICAL_CONTEXT_MARKERS` / `_is_historical_context()`).
+from this removed-name check only (`_HISTORICAL_CONTEXT_MARKERS` /
+`_is_historical_context()`). It does not exempt a line from the change-history
+rules of `check_docs_quality.py` (section 1).
 
 ### 5. Suppression Justification Check (`check_suppression_justification.py`)
 

@@ -25,7 +25,7 @@ related:
 
 ---
 
-## 10. Shared Utilities (`scripts/rag/utils.py`)
+## Shared Utilities Detail (`scripts/rag/utils.py`)
 
 ```python
 from rag.utils import (

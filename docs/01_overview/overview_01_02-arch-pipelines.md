@@ -67,7 +67,7 @@ See [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md) for rationale a
 **Post-Execution Approval Gates:**
 In the workflow definition file (`config/workflows/*.json`), the `require_approval` field enables a post-execution approval gate between the `execute` and `verify` stages. The loader requires it to be `true`: a definition whose `require_approval` is absent or `false` is rejected, and the bundled default definition sets it to `true`. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
 
-For the per-category production policy on when `require_approval: true` is required, see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
+For the operations policy that follows from this requirement, see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
 
 **MCP Server `startup_mode`**
 

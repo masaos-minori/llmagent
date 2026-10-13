@@ -53,4 +53,4 @@ No reference APIs exist in this directory. All files are policy/convention docum
 - document-guide
 - metadata
 - reading-order
-- canonical-source-rule
+- canonical-source-precedence

@@ -339,7 +339,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
   - **Verifies**: INV-06, INV-07
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Confirmed
+  - **Status**: Partial (see `adr_01_index.md`)
 
 - **Test**: Unavailability of a mandatory component (such as a required MCP server) aborts startup
   - **Verifies**: INV-08
@@ -351,13 +351,13 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
   - **Verifies**: INV-09
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Confirmed
+  - **Status**: Partial (spawn path ignores `required`: AGENT-004)
 
 - **Test**: Safety/integrity failures not converted to partial availability
   - **Verifies**: INV-10
   - **Type**: Regression
   - **Blocking**: Yes
-  - **Status**: Confirmed
+  - **Status**: Partial (see `adr_01_index.md`)
 
 - **Test**: Calls to Tools of disabled component → rejected
   - **Verifies**: INV-11, INV-12
@@ -369,7 +369,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
   - **Verifies**: INV-15, INV-16
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Status**: Confirmed
+  - **Status**: Not verified (manual audit only; see Manual Review)
 
 ### Startup Validation
 
@@ -399,11 +399,11 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
   - **Why not automated**: "fallback" appears throughout production code in defensive patterns (default-value substitution, best-effort cleanup) not Destination substitution; pattern-based detector would produce unmanageable false positives. Only ADR-010 marker uniqueness automated (`TestFallbackMarkerLockGuard`).
   - **Procedure**: search production sources for fallback paths, classify as (a) ADR-010 fallback or (b) ADR-004-scope fallback requiring Accepted ADR (Decision 26); file follow-up issue for paths fitting neither.
   - **Baseline**: ADR-010 sole Accepted ADR defining fallback. Treats HTTP errors other than authentication errors (401/403 do not fall back), timeouts, connection errors as fallback conditions; empty results and parse errors as non-fallback.
-  - **Resolution**: Both paths classified per owner decision (UNK-01):
-    - **Path 1** (`orchestrator.py` sentinel-workflow fallback): removed — a workflow definition that fails to load now aborts Orchestrator construction, consistent with INV-03.
-    - **Path 2** (`retriever.py` vector-to-FTS degradation): option (a) — accepted current behavior. Rationale: vector→FTS is a within-database mode switch (both modes read the same `memories` table), not a Destination substitution; therefore outside ADR-004 scope. No behavioral change required.
+  - **Classification of known paths**:
+    - **Orchestrator workflow loading** (`orchestrator.py`): no fallback exists. A workflow definition that fails to load aborts Orchestrator construction, consistent with INV-03.
+    - **Vector-to-FTS degradation** (`retriever.py`): accepted current behavior. Rationale: vector→FTS is a within-database mode switch (both modes read the same `memories` table), not a Destination substitution; therefore outside ADR-004 scope.
   - **Cadence**: at each release review, and whenever a change introduces new fallback or Destination substitution.
-  - **Owner**: not yet assigned; cross-cutting ownership decision remains open in `docs/00_governance/governance_03_issue-and-uncertainty-management.md`.
+  - **Owner**: not assigned.
 
 ## Implementation Notes
 

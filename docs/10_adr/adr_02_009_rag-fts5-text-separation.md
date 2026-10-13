@@ -327,6 +327,8 @@ This chapter is not a basis for design decisions.
 
 ## Known Deviations
 
+No confirmed deviations.
+
 ## Review Triggers
 
 Re-evaluate this ADR when any of the following conditions occurs.
@@ -400,7 +402,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
-- [x] Discrepancies with the current implementation are registered as Known Issues (RAG-002)
+- [x] No discrepancy with the current implementation is confirmed (Known Deviations records none)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
 - [x] The ADR is registered in the ADR index and the Document Guides of related areas

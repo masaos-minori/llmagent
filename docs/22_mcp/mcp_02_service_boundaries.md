@@ -106,7 +106,7 @@ Specialized for markdown structural analysis; FTS5 search is production-ready wh
 - Pull/push operations
 
 **Explicit Non-responsibilities:**
-- Remote repository content modification
+- Hosting-service API operations (issues, pull requests, API-based content changes; owned by github-mcp)
 - File content analysis
 - RAG operations
 
