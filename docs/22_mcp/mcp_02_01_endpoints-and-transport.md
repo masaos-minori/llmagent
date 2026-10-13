@@ -51,7 +51,7 @@ X-Session-Id: <session_id>      (injected by ToolExecutor)
 
 `X-Request-Id` is injected as a UUID in the response headers by the server's authentication middleware.
 
-Known Issue MCP-001: the shell, github, and file servers do not yet register that middleware, so they do not enforce the `Authorization` header.
+The shell, github, and file servers now register that middleware and enforce the `Authorization` header (see `mcp_06_14_mcp-authentication-setup.md`).
 
 ### Correlation Keys
 
