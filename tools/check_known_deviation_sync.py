@@ -14,6 +14,8 @@ Two failure modes are reported:
      canonical document -- a dangling reference (e.g. a typo or a removed
      entry) (WARNING).
 
+Rule ID: GV-022 (docs/00_governance/governance_04_documentation-checks.md).
+
 Usage:
     python tools/check_known_deviation_sync.py
     python tools/check_known_deviation_sync.py --format json

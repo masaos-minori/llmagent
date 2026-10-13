@@ -91,8 +91,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     "adr_02_008_sqlite-4db-separation.md": 33647,
     # The Known Issue inventory grows with each active entry (17 template fields
     # per entry); the owner accepted this exception (2026-10-07) and re-accepted it
-    # after the inventory changed (2026-10-08).
-    "governance_03_issue-and-uncertainty-management.md": 29832,
+    # after the inventory changed (2026-10-08), then raised it to the size reached
+    # after registering the unused-feature and EventBus design-gap entries
+    # (2026-10-13, accepted by the owner in conversation).
+    "governance_03_issue-and-uncertainty-management.md": 35900,
 }
 
 
