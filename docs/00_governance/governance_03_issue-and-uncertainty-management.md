@@ -96,7 +96,11 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
 | AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
 | AGENT-009 | /skill messages lose the _ephemeral marker during append validation | open | Low | Agent | design-gap |
-| MCP-001 | The shell, github, and file MCP servers register no Bearer-token authentication middleware | open | High | MCP | implementation-bug |
+| AGENT-010 | The workflow loader requires require_approval=true although ADR-001 allows skipping approval | open | Medium | Agent | document-code-mismatch |
+| AGENT-011 | The Agent startup security audit reads MCP server configuration models outside ADR-002's exceptions | open | Medium | Agent | document-code-mismatch |
+| AGENT-012 | Agent statistics and health members are defined but never reached | open | Low | Agent | design-gap |
+| DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
+| DEPLOY-002 | Production auxiliary uv run calls do not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
 | EVENTBUS-008 | Consumer-role token is unrestricted when the authorization mappings are empty | open | Medium | EventBus | design-gap |
 | EVENTBUS-017 | No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency | open | Medium | EventBus | design-gap |
 
@@ -160,25 +164,46 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Recommended Action**: Authorize `_ephemeral` for the skill source, or make the pre-turn clearing also handle `_skill_ephemeral`, or record the behavior as accepted.
 - **Resolution Target**: Skill messages are cleared by one defined mechanism, with a test, or the behavior is recorded as accepted.
 
-#### MCP-001
 
-- **ID**: MCP-001
-- **Title**: The shell, github, and file MCP servers register no Bearer-token authentication middleware
+#### DEPLOY-001
+
+- **ID**: DEPLOY-001
+- **Title**: LLM service start procedure is not provided by any repository script
 - **Status**: open
-- **Severity**: High
-- **Area**: MCP
-- **Type**: implementation-bug
-- **Source**: `scripts/mcp_servers/server.py`, `scripts/mcp_servers/{shell,github,file}/`
+- **Severity**: Medium
+- **Area**: Deployment
+- **Type**: operational-gap
+- **Source**: `deploy/setup_services.sh`
 - **Owner**: Repository owner
 - **First Found**: Documentation review
-- **Target**: `docs/10_adr/adr_02_007_http-mcp-adoption-and-stdio-non-support.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`, `docs/22_mcp/mcp_02_02_startup-modes-and-health.md`
+- **Target**: `docs/90_deployment/deployment_01_deployment.md`
 - **Related**: None
-- **Summary**: The shell, github, and file servers never call `attach_auth_middleware()`.
-- **Current Description**: ADR-007 INV-09 requires every MCP server to reject a non-matching Bearer token, except the documented exceptions.
-- **Observed Implementation**: Only the cicd, git, rag-pipeline, web-search, and mdq servers call `attach_auth_middleware()`. Requests without a token return 200 on `/v1/tools` for the others, while git returns 401.
-- **Impact**: The documented authentication boundary does not hold for these servers (loopback-only bind limits exposure).
-- **Recommended Action**: Register the middleware in these servers, or record an ADR-007 exception through the ADR approval process.
-- **Resolution Target**: Every MCP server verifies the Bearer token, or ADR-007 lists the exceptions.
+- **Summary**: No repository script, unit file or configuration starts `embed-llm` and `agent-llm`.
+- **Current Description**: The deployment document gives no start procedure for the LLM services.
+- **Observed Implementation**: `setup_services.sh` only echoes the service names and queries their health endpoints; its header comment says they are agent-managed subprocesses, but the agent starts only MCP servers.
+- **Impact**: An operator has no documented way to start the LLM services.
+- **Recommended Action**: Decide where the procedure lives, document it, and correct the script header comment.
+- **Resolution Target**: The deployment document describes how both LLM services are started.
+
+#### DEPLOY-002
+
+- **ID**: DEPLOY-002
+- **Title**: Production auxiliary uv run calls do not exclude the dev dependency group
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Deployment
+- **Type**: operational-gap
+- **Source**: `deploy/deploy.sh`
+- **Owner**: Repository owner
+- **First Found**: Documentation review
+- **Target**: `docs/90_deployment/deployment_01_deployment.md`
+- **Related**: `DEPLOY-001`
+- **Summary**: The deployment scripts call `uv run` for auxiliary steps without excluding the `dev` group.
+- **Current Description**: deployment_01 section 1.2: the agent and MCP servers start from compiled binaries, `uv run` remains for auxiliary steps, and no script excludes the dev group.
+- **Observed Implementation**: The deploy scripts call `uv run` with `UV_SYSTEM_CERTS=true` only; `pyproject.toml` has a `dev` group.
+- **Impact**: An auxiliary `uv run` step can install development dependencies in production.
+- **Recommended Action**: Exclude the dev group in the production scripts, or document a separate production sync.
+- **Resolution Target**: Production excludes the dev group, or the production sync is documented.
 
 #### EVENTBUS-008
 
