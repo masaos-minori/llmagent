@@ -234,7 +234,14 @@ class ToolTransportInvoker:
         tool_name: str,
         args: dict[str, Any],
     ) -> ToolCallResult:
-        """Run the pre-call gate chain: health → disabled → lifecycle → transport → semaphore → dispatch."""
+        """Run the pre-call gate chain once per logical call: health → disabled →
+        lifecycle → transport → semaphore → dispatch.
+
+        The chain runs exactly once per logical call. In-call HTTP retries inside
+        HttpTransport.call (the retry loop in scripts/shared/http_transport.py::call)
+        intentionally bypass these gates; they are NOT re-evaluated between attempts.
+        Per-logical-call gating is enforced by the single HALF_OPEN trial
+        (_check_health) and the per-call semaphore (_execute_with_semaphore)."""
         health_err, owns_half_open_trial = self._check_health(server_key)
         if health_err is not None:
             return health_err
@@ -283,5 +290,7 @@ class ToolTransportInvoker:
         tool_name: str,
         args: dict[str, Any],
     ) -> ToolCallResult:
-        """Invoke tool via transport; applies health check, lifecycle, semaphore, and recording."""
+        """Invoke tool via transport; applies health check, lifecycle, semaphore, and
+        recording exactly once per logical call. In-call HTTP retries inside
+        HttpTransport.call do not re-enter these gates."""
         return await self._run_precall_gates(server_key, tool_name, args)

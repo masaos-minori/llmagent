@@ -160,6 +160,12 @@ class HttpTransport:
 
         timeout = httpx.Timeout(self._timeout) if self._timeout > 0 else None
         last_retryable_status: int | None = None
+        # Per-logical-call gating: this loop may issue multiple HTTP attempts
+        # (retryable statuses in _RETRYABLE_STATUS, up to _RETRY_MAX=3) but each
+        # attempt reuses the single idempotency key above and does NOT re-enter
+        # the pre-call gates. The health/lifecycle/semaphore gates run once per
+        # logical call in ToolTransportInvoker._run_precall_gates; they are not
+        # re-evaluated between these attempts. See REQ-002.
         for attempt in range(self._RETRY_MAX):
             try:
                 resp = await self._http.post(

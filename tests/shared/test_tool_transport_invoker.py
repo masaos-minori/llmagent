@@ -383,3 +383,36 @@ class TestHalfOpenSingleTrialGate:
 
         # No leak: the single-trial slot is freed even though the trial raised.
         assert registry.trial_in_flight("srv") is False
+
+
+class TestRetryGatesRunOnce:
+    @pytest.mark.asyncio
+    async def test_gates_run_once_across_retries(self, monkeypatch) -> None:
+        """A logical call that retries 3 HTTP attempts runs each pre-call gate once."""
+        invoker = _make_invoker(concurrency_limits={"srv": 10})
+        lifecycle = AsyncMock()
+        invoker.set_lifecycle(lifecycle)
+
+        http = MagicMock(spec=httpx.AsyncClient)
+        transport = HttpTransport(
+            http=http,
+            base_url="http://127.0.0.1:8000",
+            server_key="srv",
+            cfg=_http_cfg(),
+        )
+        resp = MagicMock()
+        resp.status_code = 503  # in _RETRYABLE_STATUS -> retryable on every attempt
+        http.post = AsyncMock(return_value=resp)
+        invoker._transports["srv"] = transport  # type: ignore[assignment]
+
+        invoker._check_health = MagicMock(wraps=invoker._check_health)  # type: ignore[method-assign]
+        invoker._maybe_semaphore = MagicMock(wraps=invoker._maybe_semaphore)  # type: ignore[method-assign]
+        monkeypatch.setattr("shared.http_transport.asyncio.sleep", AsyncMock())
+
+        result = await invoker.invoke("srv", "some_tool", {})
+
+        assert http.post.call_count == 3  # retries exhausted on persistent 503
+        assert invoker._check_health.call_count == 1  # health gate runs once
+        assert lifecycle.ensure_ready.call_count == 1  # lifecycle gate runs once
+        assert invoker._maybe_semaphore.call_count == 1  # semaphore gate runs once
+        assert result.is_error is True  # exhaustion -> transport error result

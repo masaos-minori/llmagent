@@ -103,8 +103,8 @@ retry/backoff or health-failure-counting change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document retry-loop non-re-entry in `call` (`http_transport.py`) | Pending | — | — | REQ-002 |
-| 3 | Run ruff/mypy/shared-suite validation | Pending | — | — | REQ-004 |
+| 1 | Document retry-loop non-re-entry in `call` (`http_transport.py`) | Completed | 20261013-143610 | 20261013-143614 | REQ-002 One comment inserted above retry loop (lines 162-163) documenting non-re-entry of pre-call gates. Stale detector: NOT stale. User approved proceeding. |
+| 3 | Run ruff/mypy/shared-suite validation | Completed | 20261013-143618 | 20261013-143659 | REQ-004 Validation clean: ruff format+check pass, mypy 51 files clean, 954 shared tests pass. docs/00_index.md has NO task-scope row for scripts/shared/http_transport.py -> Step 6/7 skipped. Full-suite (8389) runs once at end of batch after all 3 procedures staged. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

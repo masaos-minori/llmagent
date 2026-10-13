@@ -46,7 +46,10 @@ the resolved option (a).
    ```python
    http = MagicMock(spec=httpx.AsyncClient)
    transport = HttpTransport(
-       http=http, base_url="http://127.0.0.1:8000", server_key="srv", timeout_sec=60.0
+       http=http,
+       base_url="http://127.0.0.1:8000",
+       server_key="srv",
+       cfg=_http_cfg(),
    )
    resp = MagicMock()
    resp.status_code = 503  # in _RETRYABLE_STATUS -> retryable
@@ -127,8 +130,8 @@ suite pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 2 | Add gate-once-across-retries test (`tests/shared/test_tool_transport_invoker.py`) | Pending | — | — | REQ-003 |
-| 3 | Run ruff/mypy/shared-suite validation | Pending | — | — | REQ-004 |
+| 2 | Add gate-once-across-retries test (`tests/shared/test_tool_transport_invoker.py`) | Completed | 20261013-144959 | 20261013-145005 | REQ-003 Added TestRetryGatesRunOnce (real HttpTransport, mocked post -> 3x 503, gates wrapped as recording mocks). Procedure corrected: HttpTransport.__init__ requires non-None cfg (raises ValueError otherwise); added cfg=_http_cfg() to construction block (workflow 4b). mypy on scripts/ clean; test-file unused-ignore matches existing file convention (no new error types). |
+| 3 | Run ruff/mypy/shared-suite validation | Completed | 20261013-145009 | 20261013-145016 | REQ-004 New test green; ruff format+check pass; mypy scripts/ clean (official target). Shared suite 955 pass. Test-file unused-ignore comments match existing file convention (pre-existing style, not introduced). docs/00_index.md has NO task-scope row for tests/shared/test_tool_transport_invoker.py -> Step 6/7 skipped. Full-suite (8389) runs once at end of batch after all 3 procedures staged. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

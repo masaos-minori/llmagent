@@ -115,8 +115,8 @@ health-failure-counting change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document per-logical-call gating in `_run_precall_gates`/`invoke` (`tool_transport_invoker.py`) | Pending | — | — | REQ-001 |
-| 3 | Run ruff/mypy/shared-suite validation | Pending | — | — | REQ-004 |
+| 1 | Document per-logical-call gating in `_run_precall_gates`/`invoke` (`tool_transport_invoker.py`) | Completed | 20261013-142809 | 20261013-142817 | REQ-001 Two additive docstring edits applied to _run_precall_gates/invoke. Pre-execution stale detector reported 3 line_out_of_bounds vs http_transport.py; verified FALSE POSITIVE — cited lines 231-278/269/286 are valid for target tool_transport_invoker.py (detector forward-scope-search artifact). User approved proceeding. |
+| 3 | Run ruff/mypy/shared-suite validation | Completed | 20261013-142822 | 20261013-142828 | REQ-004 Validation clean: ruff format+check pass, mypy 51 files clean, 954 shared tests pass. docs/00_index.md has NO task-scope row for scripts/shared/tool_transport_invoker.py -> Step 6 (docs update) and Step 7 (docs validation) skipped; recorded here per workflow. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
