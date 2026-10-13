@@ -32,3 +32,9 @@ max_file_size_kb = 1024
 
 # audit_log_path: structured audit log for write operations; empty string disables logging
 audit_log_path = "/opt/llm/logs/github_audit.log"
+# auth_token: Bearer token for MCP server call authentication, resolved from the
+# MCP_GITHUB_AUTH_TOKEN environment variable. Must match config/agent.toml's
+# [mcp_servers.github].auth_token value. An empty or missing value makes the
+# server refuse to start (fail closed).
+auth_token = "${ENV:MCP_GITHUB_AUTH_TOKEN}"
+

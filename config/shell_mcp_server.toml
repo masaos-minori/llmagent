@@ -49,3 +49,9 @@ kill_policy = "sigterm_then_sigkill"
 # kill_grace_sec: seconds to wait after SIGTERM before escalating to SIGKILL
 # Ignored when kill_policy = "sigkill_only".
 kill_grace_sec = 2.0
+# auth_token: Bearer token for MCP server call authentication, resolved from the
+# MCP_SHELL_AUTH_TOKEN environment variable. Must match config/agent.toml's
+# [mcp_servers.shell].auth_token value. An empty or missing value makes the
+# server refuse to start (fail closed).
+auth_token = "${ENV:MCP_SHELL_AUTH_TOKEN}"
+

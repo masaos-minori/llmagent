@@ -11,3 +11,9 @@ max_tree_depth = 5
 
 # max_search_results: maximum number of results returned by search_files
 max_search_results = 200
+# auth_token: Bearer token for MCP server call authentication, resolved from the
+# MCP_FILE_READ_AUTH_TOKEN environment variable. Must match config/agent.toml's
+# [mcp_servers.file_read].auth_token value. An empty or missing value makes the
+# server refuse to start (fail closed).
+auth_token = "${ENV:MCP_FILE_READ_AUTH_TOKEN}"
+

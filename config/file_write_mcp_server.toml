@@ -5,3 +5,9 @@ allowed_dirs = ["/opt/llm/storage"]
 
 # max_write_bytes: maximum bytes written per file
 max_write_bytes = 1000000
+# auth_token: Bearer token for MCP server call authentication, resolved from the
+# MCP_FILE_WRITE_AUTH_TOKEN environment variable. Must match config/agent.toml's
+# [mcp_servers.file_write].auth_token value. An empty or missing value makes the
+# server refuse to start (fail closed).
+auth_token = "${ENV:MCP_FILE_WRITE_AUTH_TOKEN}"
+

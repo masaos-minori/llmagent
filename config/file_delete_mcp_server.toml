@@ -2,6 +2,12 @@
 
 # allowed_dirs: directories permitted for delete operations (narrowest scope, least privilege)
 allowed_dirs = ["/opt/llm/storage"]
+# auth_token: Bearer token for MCP server call authentication, resolved from the
+# MCP_FILE_DELETE_AUTH_TOKEN environment variable. Must match config/agent.toml's
+# [mcp_servers.file_delete].auth_token value. An empty or missing value makes the
+# server refuse to start (fail closed).
+auth_token = "${ENV:MCP_FILE_DELETE_AUTH_TOKEN}"
+
 
 # NOTE: audit_log_path was removed (2026-07-13). FileDeleteConfig (delete_models.py)
 # only ever parsed `allowed_dirs` -- this key was never read into the dataclass at
