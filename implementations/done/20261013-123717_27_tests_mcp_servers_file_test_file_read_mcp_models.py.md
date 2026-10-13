@@ -71,8 +71,8 @@ N/A: test code.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `auth_token` to the expected field set | Pending | — | — | Plan Step 5; with row 5 |
-| 2 | Run this file's tests | Pending | — | — |  |
+| 1 | Add `auth_token` to the expected field set | Completed | — | — | Plan Step 5; with row 5 |
+| 2 | Run this file's tests | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -177,9 +177,9 @@ class TestShellConfigAuthToken:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the test module | Pending | — | — | Plan Step 3 |
-| 2 | Run it against the server rows and check the negative case locally | Pending | — | — |  |
-| 3 | Run `tests/mcp_servers` and the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Create the test module | Completed | — | — | Plan Step 3 |
+| 2 | Run it against the server rows and check the negative case locally | Completed | — | — |  |
+| 3 | Run `tests/mcp_servers` and the validation sequence (`rules/toolchain.md`) | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

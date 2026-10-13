@@ -55,4 +55,5 @@ class TestFileReadConfig:
             "allowed_dirs",
             "max_depth",
             "max_files_per_batch",
+            "auth_token",
         }
