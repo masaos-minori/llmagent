@@ -52,7 +52,7 @@ PART1_AREA_VALUES = {
     "Shared/DB",
     "Governance",
 }
-PART1_OWNER_VALUES = {"Unassigned", "[Name]", "Team"}
+PART1_OWNER_VALUES = {"Unassigned", "[Name]", "Team", "Repository owner"}
 
 PART2_STATUS_VALUES = {"open", "investigating", "deferred"}
 # Parts 3/4 track conflicts and drift; a resolved item is removed, never kept

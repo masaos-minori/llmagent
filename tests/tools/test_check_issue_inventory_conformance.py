@@ -322,8 +322,36 @@ class TestVocabularyViolation:
             "Invalid Area value should be detected"
         )
 
+    def test_repository_owner_is_accepted(self, tmp_path: Path) -> None:
+        """Repository owner is an allowed Owner value."""
+        doc = tmp_path / GOVERNANCE_DOC_NAME
+        doc.write_text(
+            "## Part 1: Known Issues\n\n"
+            "### Active Items\n\n"
+            "#### RAG-XXX\n\n"
+            "- **ID**: RAG-XXX\n"
+            "- **Title**: Test entry\n"
+            "- **Status**: open\n"
+            "- **Type**: document-code-mismatch\n"
+            "- **Severity**: High\n"
+            "- **Area**: Overview\n"
+            "- **Owner**: Repository owner\n"
+            "- **First Found**: 2026-09-01\n"
+            "- **Target**: 2026-09-15\n"
+            "- **Summary**: Test summary\n"
+            "- **Current Description**: Test description\n"
+            "- **Observed Implementation**: Test implementation\n"
+            "- **Impact**: Test impact\n"
+            "- **Recommended Action**: Test action\n"
+            "- **Resolution Target**: Test target\n"
+            "- **Source**: Test source\n"
+            "- **Related**: None\n"
+        )
+        issues = check_vocabulary(_make_doc(doc))
+        assert not any("invalid Owner" in i.message for i in issues)
+
     def test_invalid_owner_is_detected(self, tmp_path: Path) -> None:
-        """Test with invalid Owner value ('@invalid-user' instead of Unassigned/[Name]/Team)."""
+        """Test with invalid Owner value ('@invalid-user' instead of an allowed Owner value)."""
         doc = tmp_path / GOVERNANCE_DOC_NAME
         doc.write_text(
             "## Part 1: Known Issues\n\n"
