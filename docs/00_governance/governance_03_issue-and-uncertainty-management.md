@@ -138,7 +138,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Observed Implementation**: `undo_last_turn()` removes the last turn from history and DB rows and only warns when it removes a summary.
 - **Impact**: Original messages cannot be recovered after compression.
 - **Recommended Action**: Keep originals recoverable, or record the limitation as accepted.
-- **Resolution Target**: The undo range after compression is defined and tested.
+- **Resolution Target**: The undo range after compression is defined and tested, or the limitation is recorded as accepted.
 
 #### AGENT-009
 
@@ -158,7 +158,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Observed Implementation**: `TRUSTED_SOURCES["skill_mixin"]` authorizes only `_skill_ephemeral`, so `append_message()` removes `_ephemeral` with a warning log.
 - **Impact**: The orchestrator's generic `_ephemeral` pre-turn clearing does not remove injected skill messages at the start of the next turn.
 - **Recommended Action**: Authorize `_ephemeral` for the skill source, or make the pre-turn clearing also handle `_skill_ephemeral`, or record the behavior as accepted.
-- **Resolution Target**: Skill messages are cleared by one defined mechanism, with a test.
+- **Resolution Target**: Skill messages are cleared by one defined mechanism, with a test, or the behavior is recorded as accepted.
 
 #### MCP-001
 

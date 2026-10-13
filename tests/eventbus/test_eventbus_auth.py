@@ -1220,7 +1220,7 @@ class TestProductionRouteWiring:
 
     The other classes in this module build their own fixture app and attach the
     role dependencies themselves, so they cannot detect a production route that
-    was registered without one (EVENTBUS-016). These tests use the production
+    was registered without one. These tests use the production
     app, so a missing dependency fails here.
     """
 

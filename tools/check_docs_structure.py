@@ -88,10 +88,9 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # so further growth fails.
     # Raised to 26592 for the write-classification note, test entry and reference (2026-10-13).
     "adr_02_003_runtime-tool-registry-routing-authority.md": 26592,
-    # ADR-004 grew by the AGENT-012 Known Deviations bullet, the audit Owner
-    # assignment and the spawn-failure Exceptions section (2026-10-13); the ceiling
-    # equals the size reached.
-    "adr_02_004_environment-failure-handling-policy.md": 31164,
+    # ADR-004 grew by the audit Owner assignment and the spawn-failure Exceptions
+    # section (2026-10-13); the ceiling equals the size reached.
+    "adr_02_004_environment-failure-handling-policy.md": 31037,
     "adr_02_008_sqlite-4db-separation.md": 33647,
 }
 

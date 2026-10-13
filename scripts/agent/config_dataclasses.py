@@ -142,10 +142,9 @@ class LLMConfig:
 
 @dataclass
 class RAGConfig:
-    """RAG pipeline and vector search settings."""
+    """Agent-side RAG endpoint settings (the embedding endpoint)."""
 
     embed_url: str = ""
-    web_search_url: str = ""
 
 
 @dataclass

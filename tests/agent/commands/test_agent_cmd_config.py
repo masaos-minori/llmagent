@@ -182,7 +182,6 @@ class TestPrintConfigValues:
     def _make_cfg_ctx(self) -> MagicMock:
         ctx = _make_ctx()
         ctx.cfg.llm.llm_url = "http://llm"
-        ctx.cfg.rag.web_search_url = "http://ws"
         ctx.cfg.tool.max_tool_turns = 5
         ctx.cfg.llm.http_timeout = 30.0
         ctx.cfg.llm.context_char_limit = 8000

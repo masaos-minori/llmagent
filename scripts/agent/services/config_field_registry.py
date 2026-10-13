@@ -63,7 +63,6 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("llm_stream_retry_on_malformed_chunk", "llm", True),
     # RAG section
     ConfigFieldRegistry("embed_url", "rag", True),
-    ConfigFieldRegistry("web_search_url", "rag", True),
     # Tool section
     ConfigFieldRegistry("max_tool_turns", "tool", True, validate_tool_max_tool_turns),
     ConfigFieldRegistry(

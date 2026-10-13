@@ -748,7 +748,6 @@ class TestRegistryFieldClassification:
         ]
         expected = {
             "embed_url",
-            "web_search_url",
         }
         assert set(rag_fields) == expected
 
