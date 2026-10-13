@@ -28,20 +28,20 @@ related:
 
 | Stage | `"success"` | `"fallback"` | `"failure"` |
 |---|---|---|---|
-| `MqeStage` | MQE queries generated | `use_mqe=False`; original query used | LLM call failed |
+| `MqeStage` | MQE queries generated | `use_mqe=False`, or `RagExpansionError` caught (reason `mqe_exception`); original query used | An exception other than `RagExpansionError` escaped the stage |
 | `SearchStage` | Results returned | No matching chunks (empty result) | DB error or embedding failure |
 | `FusionStage` | RRF merge applied | `use_rrf=False`; raw results used | Merge error |
-| `RerankStage` | Cross-encoder rerank applied | `use_rerank=False`; RRF scores used | LLM call failed |
+| `RerankStage` | Cross-encoder rerank applied | `use_rerank=False`, or `RagRerankError` caught (reason `rerank_exception`); RRF order used | An exception other than `RagRerankError` escaped the stage |
 | `HttpAugment` | Remote RAG service returned a result (non-empty or valid empty) | Remote call produced no result: the reason string reported by the HTTP call (default `in-process fallback`) | HTTP error / no context |
-| `Refiner` | Refiner compressed chunks | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) | LLM call failed |
+| `Refiner` | Refiner compressed chunks | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) | Not recorded; refiner errors are reported as fallback |
 
 ### Status Values
 
 | Status | Meaning |
 |---|---|
 | `success` | Stage completed successfully |
-| `fallback` | Stage bypassed due to configuration flag (e.g., `use_rrf=False`) |
-| `failure` | Stage raised an exception; pipeline continues with degraded output |
+| `fallback` | Stage bypassed by a configuration flag (e.g., `use_rrf=False`), or an expected error was handled with a lower-quality result (e.g., `rerank_exception`) |
+| `failure` | An exception escaped the stage (`RuntimeError`, SQLite operational error, HTTP error, or timeout); pipeline continues with degraded output |
 
 ### Refiner and HTTP Fallback Stages
 

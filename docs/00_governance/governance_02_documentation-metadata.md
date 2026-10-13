@@ -25,8 +25,10 @@ The following four metadata fields are required in every document's front matter
   authoritative store of cross-references: general documents carry no body Related section.
   ADR documents also carry no body Related section; `related:` is the sole cross-reference store
   for ADRs, which keep `## Related ADRs` and `## Implementation References` as ordinary
-  top-level sections. Human-oriented navigation lives in the index and the per-area
-  document guides.
+  top-level sections. For ADR documents `related:` must cover every `.md` file the body
+  references (GV-004); for general documents it lists the principal cross-references and is
+  not required to cover every body link. Human-oriented navigation lives in the index and
+  the per-area document guides.
 
 `category` is not a front-matter key either; do not use it. `keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key. The section body is a bulleted list with one term per item (no comma-separated lines and no sub-headings).
 

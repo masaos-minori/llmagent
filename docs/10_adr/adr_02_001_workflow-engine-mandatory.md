@@ -311,7 +311,7 @@ See Implementation References for the file/symbol list.
 
 ## Known Deviations
 
-- Known Issue AGENT-010: the workflow loader rejects a definition without `require_approval=true`.
+- **Known Issue**: AGENT-010 — tracked in governance_03 Part 1 (the workflow loader rejects a definition without `require_approval=true`)
 
 ## Review Triggers
 

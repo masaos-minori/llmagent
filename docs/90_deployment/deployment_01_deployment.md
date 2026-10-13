@@ -249,7 +249,7 @@ bash deploy/init_db.sh
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
-For the production `require_approval` category policy (which categories require a post-execution approval gate), see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
+The workflow-level approval gate is mandatory for every workflow definition (it is not configured per operation category); see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
 
 Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md).
 

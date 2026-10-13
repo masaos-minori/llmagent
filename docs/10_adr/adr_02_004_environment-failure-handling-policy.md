@@ -404,14 +404,16 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
   - **Classification of known paths**:
     - **Orchestrator workflow loading** (`orchestrator.py`): no fallback exists. A workflow definition that fails to load aborts Orchestrator construction, consistent with INV-03.
     - **Vector-to-FTS degradation** (`retriever.py`): accepted current behavior. Rationale: vector→FTS is a within-database mode switch (both modes read the same `memories` table), not a Destination substitution; therefore outside ADR-004 scope.
-  - **Cadence**: at each release review, and whenever a change introduces new fallback or Destination substitution.
+    - **augment() HTTP-to-in-process path**: ADR-010 fallback, class (a).
+    - **MQE, Rerank, and Refiner degradation**: outside ADR-004 scope; each degrades within the same in-process pipeline (original query, RRF order, raw chunks), not a Destination.
+  - **Cadence**: at each release review, and when a change introduces fallback or Destination substitution.
   - **Owner**: not assigned.
 
 ## Implementation Notes
 
 - For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale section of this document.
-- Retry policy when an MCP server is unreachable: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry. Subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). `HealthChecker.startup_poll()` in `scripts/agent/http_lifecycle_health_checker.py` has no production caller (Explicit in code).
-- When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required`. The `McpServerStarter` branch that would call `disable_server()` for a non-required server is not reached, because the helper never returns `None` (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). This is tracked as AGENT-004.
+- Retry policy for an unreachable MCP server: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry; subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). `HealthChecker.startup_poll()` has no production caller (AGENT-012).
+- When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required`; the `McpServerStarter` branch that would call `disable_server()` for a non-required server is never reached (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). Tracked as AGENT-004.
 
 ## Known Deviations
 

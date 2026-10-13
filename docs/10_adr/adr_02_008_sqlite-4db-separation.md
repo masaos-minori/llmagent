@@ -467,7 +467,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: EVENTBUS-017 — tracked in governance_03 Part 1 (INV-07)
 
 ## Review Triggers
 

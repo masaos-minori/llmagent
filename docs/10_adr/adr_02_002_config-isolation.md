@@ -331,7 +331,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ## Known Deviations
 
-- Known Issue AGENT-011: the Agent startup security audit reads MCP server configuration models.
+- **Known Issue**: AGENT-011 — tracked in governance_03 Part 1 (the Agent startup security audit reads MCP server configuration models)
 
 ## Review Triggers
 

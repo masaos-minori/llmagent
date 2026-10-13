@@ -314,7 +314,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-001 | Required Front Matter | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
-| GV-004 | Related section placement (no body Related section anywhere; ADRs keep `## Related ADRs`/`## Implementation References`; front matter `related:` covers body `.md` references) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-004 | Related section placement (no body Related section anywhere; ADRs keep `## Related ADRs`/`## Implementation References`; ADR front matter `related:` covers body `.md` references; general documents are not required to) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-005 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-006 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-007 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | None |

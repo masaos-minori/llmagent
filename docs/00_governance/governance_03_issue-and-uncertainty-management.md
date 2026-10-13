@@ -43,7 +43,7 @@ High (safety or critical functionality; immediate attention), Medium (correctnes
 
 ### Owner Values
 
-Unassigned, a specific person (`[Name]`), or Team.
+Unassigned, a person (`[Name]`), Team, or Repository owner.
 
 ### First Found and Related Values
 
@@ -55,7 +55,7 @@ Overview, Deployment, RAG, MCP, Agent, EventBus, Shared/DB, Governance
 
 ### Review Cadence
 
-Part 1 entries are reviewed quarterly, as are Part 2 items and "Proposed" ADRs (`governance_01_documentation-policy.md`, Maintenance Rules).
+Part 1 entries, Part 2 items, and "Proposed" ADRs are reviewed quarterly (`governance_01_documentation-policy.md`, Maintenance Rules).
 
 ### Active Items
 
@@ -71,7 +71,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-007 | A diagnostic row that fails to decrypt is returned as ciphertext with only a warning | open | Low | Agent | design-gap |
 | AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
 | AGENT-009 | /skill messages lose the _ephemeral marker during append validation | open | Low | Agent | design-gap |
-| AGENT-010 | The workflow loader requires require_approval=true although ADR-001 allows skipping approval | open | Medium | Agent | document-document-mismatch |
+| AGENT-010 | The workflow loader requires require_approval=true although ADR-001 allows skipping approval | open | Medium | Agent | document-code-mismatch |
 | AGENT-011 | The Agent startup security audit reads MCP server configuration models outside ADR-002's exceptions | open | Medium | Agent | document-code-mismatch |
 | AGENT-012 | Agent statistics and health members are defined but never reached | open | Low | Agent | design-gap |
 | MCP-001 | The shell, github, and file MCP servers register no Bearer-token authentication middleware | open | High | MCP | implementation-bug |
@@ -94,7 +94,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: RAG
 - **Type**: design-gap
 - **Source**: `scripts/agent/config_builders.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/21_rag/rag_05_01-configuration-reference.md`
 - **Related**: `docs/10_adr/adr_02_010_rag-fallback.md`
@@ -114,7 +114,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: RAG
 - **Type**: design-gap
 - **Source**: `scripts/db/schema_sql.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: ADR Known Deviations review
 - **Target**: `docs/10_adr/adr_02_005_rag-source-derived-index-relationships.md`
 - **Related**: None
@@ -134,7 +134,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Agent
 - **Type**: design-gap
 - **Source**: `scripts/agent/startup_mcp_starter.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/adr_02_004_environment-failure-handling-policy.md`
 - **Related**: None
@@ -154,7 +154,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Agent
 - **Type**: design-gap
 - **Source**: `scripts/agent/tool_policy.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/adr_02_003_runtime-tool-registry-routing-authority.md`
 - **Related**: `docs/22_mcp/mcp_03_01_dispatch-and-routing.md`
@@ -174,7 +174,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Agent
 - **Type**: design-gap
 - **Source**: `scripts/agent/secrets_masker.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`
 - **Related**: None
@@ -194,7 +194,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Agent
 - **Type**: design-gap
 - **Source**: `scripts/agent/diagnostic_store.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/23_agent/agent_09_01_data-layer-session-db.md`
 - **Related**: None
@@ -214,7 +214,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Agent
 - **Type**: design-gap
 - **Source**: `scripts/agent/services/undo_service.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/23_agent/agent_04_02_state-and-persistence-history-compression.md`
 - **Related**: None
@@ -234,7 +234,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Agent
 - **Type**: design-gap
 - **Source**: `scripts/agent/commands/cmd_skill.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md`
 - **Related**: None
@@ -252,9 +252,9 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Status**: open
 - **Severity**: Medium
 - **Area**: Agent
-- **Type**: document-document-mismatch
+- **Type**: document-code-mismatch
 - **Source**: `docs/10_adr/adr_02_001_workflow-engine-mandatory.md`, `scripts/agent/workflow/workflow_loader.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/adr_02_001_workflow-engine-mandatory.md`
 - **Related**: None
@@ -274,7 +274,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Agent
 - **Type**: document-code-mismatch
 - **Source**: `scripts/agent/security_audit_config.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/adr_02_002_config-isolation.md`
 - **Related**: None
@@ -294,7 +294,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Agent
 - **Type**: design-gap
 - **Source**: `scripts/agent/context.py`, `scripts/agent/http_lifecycle_health_checker.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md`, `docs/10_adr/adr_02_004_environment-failure-handling-policy.md`
 - **Related**: None
@@ -314,16 +314,16 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: MCP
 - **Type**: implementation-bug
 - **Source**: `scripts/mcp_servers/server.py`, `scripts/mcp_servers/{shell,github,file}/`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
-- **Target**: `docs/10_adr/adr_02_007_http-mcp-adoption-and-stdio-non-support.md`
+- **Target**: `docs/10_adr/adr_02_007_http-mcp-adoption-and-stdio-non-support.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`, `docs/22_mcp/mcp_02_02_startup-modes-and-health.md`
 - **Related**: None
-- **Summary**: No call to `attach_auth_middleware()` was found in the shell, github, and file servers.
-- **Current Description**: ADR-007 INV-09 requires every MCP server to reject a request with a non-matching Bearer token, except the documented exceptions.
-- **Observed Implementation**: Only the cicd, git, rag-pipeline, web-search, and mdq servers call `attach_auth_middleware()`; the Agent still sends a non-empty `auth_token` to the others. In-process requests without a token return 200 on `/v1/tools` for these servers, while git returns 401.
-- **Impact**: The documented authentication boundary does not hold for these servers; exposure is limited by the loopback-only bind.
-- **Recommended Action**: Register the middleware in these servers (code fix) or record an ADR-007 exception through the ADR approval process.
-- **Resolution Target**: Every MCP server verifies the Bearer token, or ADR-007 lists the exceptions explicitly.
+- **Summary**: The shell, github, and file servers never call `attach_auth_middleware()`.
+- **Current Description**: ADR-007 INV-09 requires every MCP server to reject a non-matching Bearer token, except the documented exceptions.
+- **Observed Implementation**: Only the cicd, git, rag-pipeline, web-search, and mdq servers call `attach_auth_middleware()`. Requests without a token return 200 on `/v1/tools` for the others, while git returns 401.
+- **Impact**: The documented authentication boundary does not hold for these servers (loopback-only bind limits exposure).
+- **Recommended Action**: Register the middleware in these servers, or record an ADR-007 exception through the ADR approval process.
+- **Resolution Target**: Every MCP server verifies the Bearer token, or ADR-007 lists the exceptions.
 
 #### DEPLOY-001
 
@@ -334,7 +334,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Deployment
 - **Type**: operational-gap
 - **Source**: `deploy/setup_services.sh`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/90_deployment/deployment_01_deployment.md`
 - **Related**: None
@@ -354,7 +354,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Deployment
 - **Type**: operational-gap
 - **Source**: `deploy/deploy.sh`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/90_deployment/deployment_01_deployment.md`
 - **Related**: `DEPLOY-001`
@@ -374,7 +374,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: `scripts/eventbus/auth.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: ADR Known Deviations review
 - **Target**: `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`
 - **Related**: `docs/10_adr/adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md`
@@ -394,7 +394,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: `scripts/eventbus/auth.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`
 - **Related**: `EVENTBUS-008`
@@ -414,7 +414,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: `scripts/db/schema_sql.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md`
 - **Related**: None
@@ -434,7 +434,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: `scripts/agent/eventbus_client.py`, `scripts/agent/eventbus_subscriber.py`, `scripts/agent/eventbus_topic_admin_client.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/10_adr/adr_02_008_sqlite-4db-separation.md`, `docs/01_overview/overview_02_files.md`
 - **Related**: None
@@ -454,7 +454,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: EventBus
 - **Type**: design-gap
 - **Source**: `scripts/eventbus/config.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/24_eventbus/eventbus_07_configuration-and-operations.md`
 - **Related**: `EVENTBUS-017`
@@ -474,7 +474,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Shared/DB
 - **Type**: design-gap
 - **Source**: `scripts/shared/security/__init__.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`
 - **Related**: None
@@ -494,7 +494,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Area**: Shared/DB
 - **Type**: design-gap
 - **Source**: `scripts/shared/tool_routing_validation.py`, `scripts/shared/tool_executor_helpers.py`, `scripts/shared/tool_cache.py`, `scripts/shared/llm_client.py`, `scripts/db/store_impl.py`
-- **Owner**: Unassigned
+- **Owner**: Repository owner
 - **First Found**: Documentation review
 - **Target**: `docs/22_mcp/mcp_03_02_tool-registry.md`, `docs/40_shared/shared_03_04_runtime_and_execution-caching-and-reference.md`, `docs/23_agent/agent_05_llm-and-streaming.md`, `docs/41_db/db_05_api_and_operations-protocol-and-backend.md`
 - **Related**: `SHARED-001`
@@ -523,9 +523,7 @@ Each entry must contain these fifteen fields: ID, Source File, Section, Line Num
 - **investigating** — Underway
 - **deferred** — Postponed
 
-An item is removed from the Active Items list below once it is resolved through a
-code or docs update, or once it no longer applies to the current system; it is not
-retained here with a closed-out status.
+As in Part 1, a resolved or inapplicable item is removed, not kept closed-out.
 
 ### Priority Values
 
