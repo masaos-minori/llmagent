@@ -140,8 +140,8 @@ and `ruff`, `mypy`, and the shared-module suite pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 2 | Document `0`/negative = unlimited in `_ensure_semaphores` docstring, emit warning for `0`/negative known-key limit (`tool_transport_invoker.py`) | Pending | — | — | REQ-001, REQ-002 |
-| 3 | Add `0`-limit (unlimited + warning) and positive-limit (bounded) test; run ruff/mypy/shared-suite | Pending | — | — | REQ-003, REQ-004 |
+| 2 | Document `0`/negative = unlimited in `_ensure_semaphores` docstring, emit warning for `0`/negative known-key limit (`tool_transport_invoker.py`) | Completed | — | 20261013-154442 | REQ-001, REQ-002 |
+| 3 | Add `0`-limit (unlimited + warning) and positive-limit (bounded) test; run ruff/mypy/shared-suite | Completed | — | 20261013-154442 | REQ-003, REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

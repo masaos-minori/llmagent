@@ -88,8 +88,25 @@ class ToolTransportInvoker:
         }
 
     def _ensure_semaphores(self) -> None:
-        """Lazily create concurrency semaphores from configuration limits."""
+        """Lazily create concurrency semaphores from configuration limits.
+
+        A `0` or negative limit means "unlimited": no semaphore is created for that
+        server, exactly matching the unconfigured default (key omitted). Known server
+        keys with a `0`/negative limit are warned about once (this method runs once
+        per process) so the chosen meaning is visible instead of a silent drop.
+        """
         if self._semaphores is None and self._concurrency_limits:
+            # 0/negative limits resolve to "unlimited" (no semaphore). Warn once
+            # per process for known server keys so the meaning is visible; unknown
+            # keys are handled in __init__. Behavior is unchanged.
+            for key, n in self._concurrency_limits.items():
+                if n <= 0 and key in self._server_configs:
+                    logger.warning(
+                        "tool_concurrency_limits: %r is %d; treated as unlimited "
+                        "(no semaphore created).",
+                        key,
+                        n,
+                    )
             self._semaphores = {
                 key: asyncio.Semaphore(n)
                 for key, n in self._concurrency_limits.items()

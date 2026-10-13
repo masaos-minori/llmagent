@@ -114,7 +114,7 @@ value, and `ruff`, `mypy`, and the shared-module suite pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 3 | Add `0`-limit (unlimited + warning) and positive-limit (bounded) test; run ruff/mypy/shared-suite | Pending | — | — | REQ-003, REQ-004 |
+| 3 | Add `0`-limit (unlimited + warning) and positive-limit (bounded) test; run ruff/mypy/shared-suite | Completed | — | 20261013-154442 | REQ-003, REQ-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

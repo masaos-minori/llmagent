@@ -4,6 +4,7 @@ Tests for ToolTransportInvoker.invoke(): health, lifecycle, semaphore, recording
 
 from __future__ import annotations
 
+import logging
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -416,3 +417,21 @@ class TestRetryGatesRunOnce:
         assert lifecycle.ensure_ready.call_count == 1  # lifecycle gate runs once
         assert invoker._maybe_semaphore.call_count == 1  # semaphore gate runs once
         assert result.is_error is True  # exhaustion -> transport error result
+
+
+class TestConcurrencyLimitZeroSemantics:
+    @pytest.mark.asyncio
+    async def test_zero_limit_is_unlimited_and_warns(self, caplog) -> None:
+        invoker = _make_invoker(concurrency_limits={"srv": 0})
+        with caplog.at_level(logging.WARNING, logger="shared.tool_transport_invoker"):
+            invoker._ensure_semaphores()
+            assert invoker._semaphores.get("srv") is None
+            assert any("unlimited" in r.getMessage() for r in caplog.records)
+
+    @pytest.mark.asyncio
+    async def test_positive_limit_bounds_semaphore(self) -> None:
+        invoker = _make_invoker(concurrency_limits={"srv": 3})
+        invoker._ensure_semaphores()
+        sem = invoker._semaphores.get("srv")
+        assert sem is not None
+        assert sem._value == 3

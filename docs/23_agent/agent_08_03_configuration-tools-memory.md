@@ -46,7 +46,9 @@ Documents the structure and constraints of tool and memory configurations.
 
 #### Parallel Execution
 
-- `tool_concurrency_limits`: Server key → Maximum number of concurrent calls.
+- `tool_concurrency_limits`: Server key → Maximum number of concurrent calls. A `0` (or
+  negative) value means "unlimited" — no per-server semaphore is created — consistent with
+  the unconfigured default.
 
 `resource_scope_kind`/`resource_scope_keys` convention (used throughout the DAG scheduler by `build_execution_groups()`. When `serial_tool_calls=True`, the conflict graph itself is bypassed via `force_serial`).
 
