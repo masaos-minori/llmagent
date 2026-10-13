@@ -79,10 +79,10 @@ Write a bash script that builds all 11 binaries into `/opt/llm/bin/` with shared
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write `deploy/build_binaries.sh` (step 7) | Pending | — | — | |
-| 2 | Build shell, then rag_pipeline, then the rest and the agent (step 8) | Pending | — | — | Record UNK-01 findings |
-| 3 | Gate: AC-08 smoke checks (step 9) | Pending | — | — | Stop and amend Plan if it fails |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Write `deploy/build_binaries.sh` (step 7) | Completed | 20261012-183345 | 20261013-100326 |  |
+| 2 | Build shell, then rag_pipeline, then the rest and the agent (step 8) | Completed | 20261012-183345 | 20261013-100326 | Record UNK-01 findings |
+| 3 | Gate: AC-08 smoke checks (step 9) | Completed | 20261012-183345 | 20261013-100326 | Stop and amend Plan if it fails |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012-183345 | 20261013-100326 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
