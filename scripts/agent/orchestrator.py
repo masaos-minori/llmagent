@@ -176,10 +176,15 @@ class Orchestrator:
         )
 
     def workflow_status(self) -> dict[str, str]:
-        """Return the current workflow tracking status."""
+        """Return the current workflow tracking status.
+
+        "running" while a workflow task executes within a turn, "enabled"
+        otherwise. A definition is always loaded once this object exists:
+        __init__ raises RuntimeError when it fails to load.
+        """
         if self._ctx.workflow.active:
-            return {"tracking": "enabled"}
-        return {"tracking": "not_loaded"}
+            return {"tracking": "running"}
+        return {"tracking": "enabled"}
 
     async def _on_approval_pending(self, pending_approval_id):
         logger.warning(

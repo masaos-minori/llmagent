@@ -87,5 +87,4 @@ class StartupBanner:
         """Return a human-readable workflow status string for the startup banner."""
         if orchestrator is None:
             return "unknown"
-        status = orchestrator.workflow_status()["tracking"]
-        return status if status != "not_loaded" else "not loaded"
+        return orchestrator.workflow_status()["tracking"]

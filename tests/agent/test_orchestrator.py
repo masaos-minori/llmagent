@@ -2328,6 +2328,24 @@ class TestWorkflowLoadFailureIsFatal:
                 initializer._init_orchestrator()
 
 
+class TestWorkflowStatus:
+    """workflow_status() reports a loaded definition even between turns."""
+
+    def test_enabled_when_idle_after_construction(self) -> None:
+        ctx = _make_ctx()
+        ctx.workflow.active = False
+        orch = _make_orchestrator(ctx)
+
+        assert orch.workflow_status() == {"tracking": "enabled"}
+
+    def test_running_while_a_workflow_task_is_active(self) -> None:
+        ctx = _make_ctx()
+        ctx.workflow.active = True
+        orch = _make_orchestrator(ctx)
+
+        assert orch.workflow_status() == {"tracking": "running"}
+
+
 # ── INV-02: centralized LlmTurnExecutor creation (ADR-014) ───────────────────
 
 

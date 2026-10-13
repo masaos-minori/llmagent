@@ -98,12 +98,12 @@ class TestGetWorkflowStatus:
         )
         assert repl._banner._get_workflow_status(repl._orchestrator) == "enabled"
 
-    def test_returns_not_loaded_when_tracking_not_loaded(self) -> None:
+    def test_returns_running_when_tracking_running(self) -> None:
         repl = _make_bare_repl()
         repl._orchestrator.workflow_status = MagicMock(
-            return_value={"tracking": "not_loaded"}
+            return_value={"tracking": "running"}
         )
-        assert repl._banner._get_workflow_status(repl._orchestrator) == "not loaded"
+        assert repl._banner._get_workflow_status(repl._orchestrator) == "running"
 
 
 class TestGetChunkCount:
