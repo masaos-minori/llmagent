@@ -63,7 +63,7 @@ def _get_field(client: TestClient, event_id: str, field: str) -> Any:
     return row[0] if row else None
 
 
-class TestDLQPROMotionSemantics:
+class TestDLQPromotionSemantics:
     """Verify DLQ promotion uses delivery_failure_count, not retry_count."""
 
     def test_nack_increments_delivery_failure_count(self, client: TestClient) -> None:

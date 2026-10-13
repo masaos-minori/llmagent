@@ -268,7 +268,13 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
 
 
 def load_config(path: Path | None = None) -> EventBusConfig:
-    """Load and validate the EventBus TOML configuration file. Callers must always pass get_config_path()'s return value — this function does not itself restrict which path is read; see tests/eventbus/test_eventbus_config.py for the call-site regression test that locks this invariant."""
+    """Load and validate the EventBus TOML configuration file.
+
+    Callers must always pass get_config_path()'s return value — this function
+    does not itself restrict which path is read; see
+    tests/eventbus/test_eventbus_config.py for the call-site regression test
+    that locks this invariant.
+    """
     p = path or _DEFAULT_CONFIG_PATH
 
     # Fail-closed behavior for missing config file
