@@ -11,6 +11,7 @@ related:
   - overview_01_02-arch-pipelines.md
   - overview_01_03-arch-features.md
   - overview_02_files.md
+  - governance_01_documentation-policy.md
 ---
 
 # Overview, Architecture, and File Structure (Index)

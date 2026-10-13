@@ -11,6 +11,8 @@ related:
   - agent_06_01_tool-execution-and-approval-execution.md
   - agent_06_02_tool-execution-and-approval-approval.md
   - agent_06_04_tool-execution-and-approval-canonical.md
+  - agent_03_01_turn-processing-flow-overview.md
+  - mcp_03_01_dispatch-and-routing.md
 ---
 
 # Agent Tool Execution and Approval

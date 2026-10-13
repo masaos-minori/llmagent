@@ -11,6 +11,12 @@ related:
   - mcp_03_03_transport-and-health.md
   - mcp_03_04_tool-call-tracing-and-lifecycle.md
   - mcp_03_05_lifecycle-and-new-server.md
+  - mcp_01_system_overview.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
+  - adr_02_003_runtime-tool-registry-routing-authority.md
+  - mcp_06_07_mcp-failure-diagnosis.md
+  - agent_12_reference-api.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # MCP Tool Call Dispatch Flow and Routing Resolution

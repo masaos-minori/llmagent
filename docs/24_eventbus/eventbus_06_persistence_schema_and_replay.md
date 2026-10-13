@@ -15,6 +15,8 @@ related:
   - eventbus_03_dlq_operations.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
   - eventbus_02_api-reference-index.md
+  - governance_03_issue-and-uncertainty-management.md
+  - eventbus_11_replay_endpoint.md
 ---
 
 # Event Bus: Persistence, Schema, and Replay

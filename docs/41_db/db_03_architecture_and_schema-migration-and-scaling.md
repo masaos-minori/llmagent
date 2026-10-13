@@ -12,6 +12,8 @@ related:
   - shared_00_document-guide.md
   - db_01_architecture_and_schema-overview-and-config.md
   - db_02_architecture_and_schema-schema-reference.md
+  - db_04_api_and_operations-module-boundaries-and-helper.md
+  - db_07_api_and_operations-recovery-and-reference.md
 ---
 
 # DB Architecture and Schema

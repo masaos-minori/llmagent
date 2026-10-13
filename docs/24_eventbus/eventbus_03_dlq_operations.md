@@ -29,6 +29,7 @@ related:
   - eventbus_01_system-overview.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
   - eventbus_07_configuration-and-operations.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # Event Bus: Operations (Publish, Subscribe, DLQ Promotion)

@@ -21,6 +21,7 @@ related:
   - agent_06_02_tool-execution-and-approval-approval.md
   - mcp_06_13_pre-production-fail-open-checklist.md
   - mcp_02_03_audit-logging-and-errors.md
+  - mcp_04_05_git.md
 ---
 
 # High-Risk MCP Tool Common Policy

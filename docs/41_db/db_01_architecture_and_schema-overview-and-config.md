@@ -11,6 +11,7 @@ related:
   - shared_00_document-guide.md
   - db_02_architecture_and_schema-schema-reference.md
   - db_03_architecture_and_schema-migration-and-scaling.md
+  - db_04_api_and_operations-module-boundaries-and-helper.md
 ---
 
 # DB Architecture and Schema

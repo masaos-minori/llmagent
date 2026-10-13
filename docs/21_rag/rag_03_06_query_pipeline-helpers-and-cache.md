@@ -15,6 +15,7 @@ related:
   - rag_04_dto-models-types.md
   - rag_02_09_ingestion_pipeline-shared-utilities.md
   - rag_05_01-configuration-reference.md
+  - rag_05_04-error-handling-reference.md
 ---
 
 # RAG Query Pipeline

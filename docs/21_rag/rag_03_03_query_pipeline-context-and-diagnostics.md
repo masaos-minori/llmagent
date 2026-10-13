@@ -10,6 +10,7 @@ related:
   - rag_03_01_query_pipeline-overview.md
   - rag_04_dto-models-types.md
   - rag_05_01-configuration-reference.md
+  - mcp_04_03_rag-pipeline-and-cicd.md
 ---
 
 

@@ -8,6 +8,7 @@ related:
   - eventbus_11_replay_endpoint.md
   - eventbus_04_dlq_endpoint.md
   - eventbus_12_ack_nack_endpoints.md
+  - eventbus_03_dlq_operations.md
 ---
 
 # EventBus API Reference

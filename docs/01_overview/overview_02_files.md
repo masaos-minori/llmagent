@@ -33,6 +33,8 @@ related:
   - overview_01_01-arch-process.md
   - overview_01_02-arch-pipelines.md
   - overview_01_03-arch-features.md
+  - deployment_01_deployment.md
+  - db_08_active_databases.md
 ---
 
 # File Structure

@@ -7,6 +7,10 @@ tags:
   - schema
 related:
   - db_01_architecture_and_schema-overview-and-config.md
+  - shared_00_document-guide.md
+  - db_04_api_and_operations-module-boundaries-and-helper.md
+  - adr_02_008_sqlite-4db-separation.md
+  - eventbus_06_persistence_schema_and_replay.md
 ---
 # DB Architecture and Schema
 

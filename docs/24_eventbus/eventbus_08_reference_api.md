@@ -25,6 +25,8 @@ related:
   - eventbus_00_document-guide.md
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
+  - eventbus_07_configuration-and-operations.md
 ---
 
 # Event Bus: Reference API

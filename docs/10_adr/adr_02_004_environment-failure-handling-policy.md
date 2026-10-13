@@ -407,7 +407,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
     - **augment() HTTP-to-in-process path**: ADR-010 fallback, class (a).
     - **MQE, Rerank, and Refiner degradation**: outside ADR-004 scope; each degrades within the same in-process pipeline (original query, RRF order, raw chunks), not a Destination.
   - **Cadence**: at each release review, and when a change introduces fallback or Destination substitution.
-  - **Owner**: not assigned.
+  - **Owner**: Repository owner.
 
 ## Implementation Notes
 
@@ -418,6 +418,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 ## Known Deviations
 
 - **Known Issue**: AGENT-004 — tracked in governance_03 Part 1 (a non-required subprocess MCP server aborts startup when it fails to spawn; violates Decision #18 and INV-09)
+- **Known Issue**: AGENT-012 — tracked in governance_03 Part 1 (`HealthChecker.startup_poll()` is listed in Implementation References but has no caller under `scripts/`)
 
 ## Review Triggers
 

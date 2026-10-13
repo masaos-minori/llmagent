@@ -7,6 +7,12 @@ tags:
   - defaults
 related:
   - mcp_00_document-guide.md
+  - adr_02_002_config-isolation.md
+  - shared_03_01_runtime_and_execution-config-and-logging.md
+  - mcp_06_07_mcp-failure-diagnosis.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - deployment_01_deployment.md
+  - mcp_04_01_web-search-file-read-github.md
 ---
 
 # Configuration File Inventory

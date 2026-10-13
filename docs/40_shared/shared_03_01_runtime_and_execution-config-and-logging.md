@@ -12,6 +12,8 @@ related:
   - shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
   - shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
   - shared_03_04_runtime_and_execution-caching-and-reference.md
+  - security_01_architecture-and-trust-boundaries.md
+  - agent_08_04_configuration-mcp-approval-obs.md
 ---
 
 # Shared Runtime and Execution

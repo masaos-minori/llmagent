@@ -24,6 +24,11 @@ related:
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
   - rag_04_dto-models-types.md
   - rag_05_02-execution-guide.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
+  - mcp_04_01_web-search-file-read-github.md
+  - mcp_05_02_auth-profiles-and-sandboxing.md
+  - agent_06_02_tool-execution-and-approval-approval.md
+  - adr_02_013_eventbus-authentication-authorization.md
 ---
 
 # System Security Architecture and Trust Boundaries

@@ -22,6 +22,11 @@ related:
   - db_01_architecture_and_schema-overview-and-config.md
   - db_04_api_and_operations-module-boundaries-and-helper.md
   - governance_03_issue-and-uncertainty-management.md
+  - db_08_active_databases.md
+  - agent_05_llm-and-streaming.md
+  - adr_02_008_sqlite-4db-separation.md
+  - db_02_architecture_and_schema-schema-reference.md
+  - db_05_api_and_operations-protocol-and-backend.md
 ---
 
 # Shared and DB Layer Overview

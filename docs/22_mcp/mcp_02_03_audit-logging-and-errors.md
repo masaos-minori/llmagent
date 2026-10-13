@@ -11,6 +11,8 @@ related:
   - mcp_02_01_endpoints-and-transport.md
   - mcp_02_02_startup-modes-and-health.md
   - security_01_architecture-and-trust-boundaries.md
+  - mcp_06_05_reading-audit-logs.md
+  - mcp_03_03_transport-and-health.md
 ---
 
 # MCP Protocol and Transport: Audit Logs and Error Formats

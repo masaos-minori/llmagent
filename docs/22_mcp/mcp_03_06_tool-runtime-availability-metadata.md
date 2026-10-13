@@ -15,6 +15,9 @@ related:
   - mcp_04_05_git.md
   - agent_08_04_configuration-mcp-approval-obs.md
   - governance_03_issue-and-uncertainty-management.md
+  - mcp_03_01_dispatch-and-routing.md
+  - adr_02_003_runtime-tool-registry-routing-authority.md
+  - agent_07_07_cli-and-commands-slash-commands-session-mcp.md
 ---
 
 # Tool Runtime Availability Metadata: `config_dependent`, `enabled`, `disabled_reason`

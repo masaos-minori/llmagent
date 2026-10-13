@@ -7,6 +7,7 @@ tags:
   - file-operations
 related:
   - mcp_00_document-guide.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
 ---
 # MCP Server Catalog: file-write-mcp / file-delete-mcp / shell-mcp
 

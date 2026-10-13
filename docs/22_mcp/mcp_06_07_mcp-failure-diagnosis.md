@@ -7,6 +7,10 @@ tags:
   - troubleshooting
 related:
   - mcp_06_01_configuration-file-inventory.md
+  - mcp_03_03_transport-and-health.md
+  - mcp_06_13_pre-production-fail-open-checklist.md
+  - mcp_06_10_health-reasons-and-error-kinds.md
+  - mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md
 ---
 # MCP Failure Diagnosis
 

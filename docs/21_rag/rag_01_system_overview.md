@@ -14,6 +14,14 @@ related:
   - rag_04_dto-models-types.md
   - rag_05_01-configuration-reference.md
   - governance_03_issue-and-uncertainty-management.md
+  - mcp_05_04_mdq-rag-boundary.md
+  - adr_02_005_rag-source-derived-index-relationships.md
+  - adr_02_002_config-isolation.md
+  - rag_03_02_query_pipeline-rag-pipeline-class.md
+  - rag_03_05_query_pipeline-augment-stages.md
+  - mcp_02_02_startup-modes-and-health.md
+  - mcp_04_03_rag-pipeline-and-cicd.md
+  - db_02_architecture_and_schema-schema-reference.md
 ---
 
 

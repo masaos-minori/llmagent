@@ -12,6 +12,7 @@ related:
   - mcp_04_03_rag-pipeline-and-cicd.md
   - mcp_04_05_git.md
   - security_02_high-risk-tool-common-policy.md
+  - mcp_06_04_verification-methods.md
 ---
 
 # MCP Server Catalog: mdq-mcp

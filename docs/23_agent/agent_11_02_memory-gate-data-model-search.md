@@ -9,6 +9,8 @@ related:
   - agent_11_01_memory-overview-and-modes.md
   - agent_11_03_memory-module-reference.md
   - agent_00_document-guide.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - agent_08_03_configuration-tools-memory.md
 ---
 # Memory Layer — Activation Gate, Data Model, and Search
 

@@ -10,6 +10,7 @@ on:
       - "tools/check_canonical_source_conflicts.py"
       - "tools/check_canonical_source_registry.py"
       - "tools/check_issue_inventory_conformance.py"
+      - "tools/check_known_deviation_sync.py"
       - "config/documentation_canonical_sources.toml"
       - "schemas/doc_front_matter.json"
   pull_request:
@@ -21,6 +22,7 @@ on:
       - "tools/check_canonical_source_conflicts.py"
       - "tools/check_canonical_source_registry.py"
       - "tools/check_issue_inventory_conformance.py"
+      - "tools/check_known_deviation_sync.py"
       - "config/documentation_canonical_sources.toml"
       - "schemas/doc_front_matter.json"
 
@@ -50,6 +52,12 @@ jobs:
         run: |
           set -euo pipefail
           python tools/check_issue_inventory_conformance.py
+
+      - name: Check ADR Known Deviations sync
+        run: |
+          set -euo pipefail
+          python -m pip install --quiet orjson
+          python -m tools.check_known_deviation_sync
 
       - name: Run dependency graph cycle check
         run: |

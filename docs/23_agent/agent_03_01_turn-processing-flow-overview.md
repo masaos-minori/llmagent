@@ -11,6 +11,7 @@ related:
   - agent_00_document-guide.md
   - agent_04_01_state-and-persistence-state-model.md
   - agent_06_01_tool-execution-and-approval-execution.md
+  - agent_02_runtime-architecture.md
 ---
 # Agent Turn Processing Flow - Overview
 

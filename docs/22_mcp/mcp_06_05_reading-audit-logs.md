@@ -7,6 +7,7 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_06_01_configuration-file-inventory.md
+  - mcp_02_03_audit-logging-and-errors.md
 ---
 
 # Reading Audit Logs

@@ -10,6 +10,7 @@ related:
   - agent_00_document-guide.md
   - agent_09_01_data-layer-session-db.md
   - agent_09_02_data-layer-access-patterns.md
+  - agent_04_01_state-and-persistence-state-model.md
 ---
 
 # Agent Data Layer

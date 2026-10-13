@@ -7,6 +7,9 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_06_01_configuration-file-inventory.md
+  - agent_08_03_configuration-tools-memory.md
+  - mcp_05_02_auth-profiles-and-sandboxing.md
+  - mcp_05_01_access-control-and-allowlists.md
 ---
 
 # Pre-Production Fail-Open Checklist

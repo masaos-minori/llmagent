@@ -16,6 +16,8 @@ related:
   - agent_07_08_cli-and-commands-slash-commands-context-plan.md
   - agent_07_09_cli-and-commands-slash-commands-workflow-debug.md
   - agent_07_10_cli-and-commands-slash-commands-memory-other.md
+  - agent_01_system-overview.md
+  - agent_08_01_configuration-loading-agent-config.md
 ---
 
 # Agent CLI and Commands

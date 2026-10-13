@@ -7,6 +7,10 @@ related:
   - 00_index.md
   - overview_00_document-guide.md
   - governance_05_change-impact-and-dependency-graphs.md
+  - governance_02_documentation-metadata.md
+  - governance_03_issue-and-uncertainty-management.md
+  - adr_01_index.md
+  - governance_04_documentation-checks.md
 ---
 
 # Documentation Policy

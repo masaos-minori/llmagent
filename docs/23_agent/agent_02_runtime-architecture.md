@@ -9,6 +9,8 @@ related:
   - agent_01_system-overview.md
   - agent_00_document-guide.md
   - agent_11_01_memory-overview-and-modes.md
+  - agent_12_reference-api.md
+  - agent_03_01_turn-processing-flow-overview.md
 ---
 # Agent Runtime Architecture
 

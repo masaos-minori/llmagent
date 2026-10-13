@@ -17,6 +17,10 @@ related:
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
   - eventbus_07_configuration-and-operations.md
   - eventbus_08_reference_api.md
+  - governance_03_issue-and-uncertainty-management.md
+  - governance_01_documentation-policy.md
+  - governance_02_documentation-metadata.md
+  - governance_04_documentation-checks.md
 ---
 # Event Bus: Document Guide
 

@@ -8,6 +8,7 @@ tags:
 related:
   - shared_03_03_runtime_and_execution-llm-and-mcp-clients.md
   - shared_03_04_runtime_and_execution-caching-and-reference.md
+  - shared_00_document-guide.md
 ---
 # Shared Runtime and Execution Infrastructure
 

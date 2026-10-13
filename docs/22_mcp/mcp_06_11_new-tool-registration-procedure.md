@@ -7,6 +7,9 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_06_01_configuration-file-inventory.md
+  - mcp_02_01_endpoints-and-transport.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
+  - mcp_03_01_dispatch-and-routing.md
 ---
 
 # New Tool Registration Procedure

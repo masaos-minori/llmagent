@@ -7,6 +7,7 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_06_01_configuration-file-inventory.md
+  - mcp_06_07_mcp-failure-diagnosis.md
 ---
 
 # Verification Methods

@@ -8,6 +8,8 @@ tags:
 related:
   - mcp_05_01_access-control-and-allowlists.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
+  - agent_08_01_configuration-loading-agent-config.md
 ---
 # MCP Security and Safety Model: Authentication, Security Profiles, Output Limits and Sandboxing
 

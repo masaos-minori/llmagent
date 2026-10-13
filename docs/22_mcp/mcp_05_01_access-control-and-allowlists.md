@@ -13,6 +13,8 @@ related:
   - mcp_05_04_mdq-rag-boundary.md
   - mcp_05_05_mdq-enforcement-and-lockdown.md
   - security_02_high-risk-tool-common-policy.md
+  - mcp_04_01_web-search-file-read-github.md
+  - mcp_04_05_git.md
 ---
 
 # MCP Security and Safety Model: Access Control, Paths, Repos and Allowlists

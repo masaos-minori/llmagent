@@ -16,6 +16,8 @@ related:
   - agent_07_07_cli-and-commands-slash-commands-session-mcp.md
   - agent_07_08_cli-and-commands-slash-commands-context-plan.md
   - agent_07_09_cli-and-commands-slash-commands-workflow-debug.md
+  - agent_01_system-overview.md
+  - mcp_05_04_mdq-rag-boundary.md
 ---
 
 # Agent CLI and Commands

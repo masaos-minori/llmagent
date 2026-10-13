@@ -8,6 +8,7 @@ related:
   - mcp_00_document-guide.md
   - mcp_06_01_configuration-file-inventory.md
   - security_01_architecture-and-trust-boundaries.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
 ---
 
 # MCP Authentication Setup

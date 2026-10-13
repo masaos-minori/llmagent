@@ -21,6 +21,28 @@ related:
   - adr_02_008_sqlite-4db-separation.md
   - adr_02_009_rag-fts5-text-separation.md
   - adr_02_010_rag-fallback.md
+  - db_02_architecture_and_schema-schema-reference.md
+  - rag_02_02_ingestion_pipeline-crawler.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_02_04_ingestion_pipeline-ingester.md
+  - rag_02_05_ingestion_pipeline-document-manager.md
+  - rag_02_06_ingestion_pipeline-supporting-components.md
+  - rag_02_07_ingestion_pipeline-utils.md
+  - rag_02_08_ingestion_pipeline-shared.md
+  - rag_02_09_ingestion_pipeline-shared-utilities.md
+  - rag_03_02_query_pipeline-rag-pipeline-class.md
+  - rag_03_03_query_pipeline-context-and-diagnostics.md
+  - rag_03_04_query_pipeline-search-stages.md
+  - rag_03_05_query_pipeline-augment-stages.md
+  - rag_03_06_query_pipeline-helpers-and-cache.md
+  - rag_03_07_query_pipeline-tests.md
+  - rag_05_02-execution-guide.md
+  - rag_05_03-logging.md
+  - rag_05_04-error-handling-reference.md
+  - rag_05_05-constraints-reference.md
+  - rag_05_06-local-file-re-ingestion.md
+  - rag_05_07-rag-index-consistency-checks.md
+  - rag_05_08-rag-mcp-internal-operations-direct-db-access.md
 ---
 
 # RAG Documentation Guide

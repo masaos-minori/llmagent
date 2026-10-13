@@ -13,6 +13,7 @@ related:
   - mcp_03_05_lifecycle-and-new-server.md
   - mcp_03_06_tool-runtime-availability-metadata.md
   - mcp_07_tool_schema_export_policy.md
+  - mcp_06_09_startup-validation-behavior-tool_definitions_strict.md
 ---
 
 # Tool Registry: Drift Verification, Adding Tools, Cache and Concurrency

@@ -16,6 +16,12 @@ related:
   - overview_00_document-guide.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
   - db_01_architecture_and_schema-overview-and-config.md
+  - overview_02_files.md
+  - rag_05_01-configuration-reference.md
+  - governance_03_issue-and-uncertainty-management.md
+  - mcp_06_14_mcp-authentication-setup.md
+  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
+  - adr_02_001_workflow-engine-mandatory.md
 ---
 
 # Deployment Guide

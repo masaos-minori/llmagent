@@ -7,6 +7,7 @@ tags:
   - subprocess
 related:
   - mcp_06_01_configuration-file-inventory.md
+  - mcp_06_09_startup-validation-behavior-tool_definitions_strict.md
 ---
 # Long-Running HTTP Operation (startup_mode=subprocess)
 

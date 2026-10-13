@@ -8,6 +8,8 @@ tags:
 related:
   - db_04_api_and_operations-module-boundaries-and-helper.md
   - db_06_api_and_operations-maintenance-and-rotation.md
+  - db_01_architecture_and_schema-overview-and-config.md
+  - agent_09_01_data-layer-session-db.md
 ---
 # DB API and Operations
 

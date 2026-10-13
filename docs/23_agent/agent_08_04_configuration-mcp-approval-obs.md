@@ -10,6 +10,10 @@ related:
   - agent_08_02_configuration-llm-rag.md
   - agent_08_03_configuration-tools-memory.md
   - agent_09_01_data-layer-session-db.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - adr_02_002_config-isolation.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_01_tool_ownership_matrix.md
 ---
 
 # Agent Configuration

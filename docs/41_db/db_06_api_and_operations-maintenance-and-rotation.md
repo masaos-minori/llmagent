@@ -8,6 +8,7 @@ tags:
 related:
   - db_04_api_and_operations-module-boundaries-and-helper.md
   - db_05_api_and_operations-protocol-and-backend.md
+  - db_01_architecture_and_schema-overview-and-config.md
 ---
 # DB API and Operations
 

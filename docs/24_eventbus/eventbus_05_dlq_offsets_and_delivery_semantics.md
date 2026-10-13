@@ -15,6 +15,7 @@ related:
   - eventbus_03_dlq_operations.md
   - eventbus_06_persistence_schema_and_replay.md
   - eventbus_02_api-reference-index.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # Event Bus: DLQ, Offsets, and Delivery Semantics

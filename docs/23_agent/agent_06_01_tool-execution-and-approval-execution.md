@@ -11,6 +11,8 @@ related:
   - agent_06_04_tool-execution-and-approval-canonical.md
   - agent_04_01_state-and-persistence-state-model.md
   - security_02_high-risk-tool-common-policy.md
+  - agent_03_01_turn-processing-flow-overview.md
+  - mcp_03_01_dispatch-and-routing.md
 ---
 
 # Agent Tool Execution and Approval

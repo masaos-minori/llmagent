@@ -12,6 +12,7 @@ related:
   - db_02_architecture_and_schema-schema-reference.md
   - db_06_api_and_operations-maintenance-and-rotation.md
   - db_07_api_and_operations-recovery-and-reference.md
+  - adr_02_008_sqlite-4db-separation.md
 ---
 
 # Active Databases

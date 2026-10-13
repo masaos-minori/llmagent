@@ -11,6 +11,8 @@ related:
   - agent_06_01_tool-execution-and-approval-execution.md
   - agent_06_03_tool-execution-and-approval-concurrency-safety.md
   - security_02_high-risk-tool-common-policy.md
+  - agent_03_01_turn-processing-flow-overview.md
+  - mcp_03_01_dispatch-and-routing.md
 ---
 
 # Agent Tool Execution and Approval

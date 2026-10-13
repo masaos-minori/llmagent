@@ -8,6 +8,8 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_03_03_transport-and-health.md
+  - mcp_06_11_new-tool-registration-procedure.md
+  - adr_02_003_runtime-tool-registry-routing-authority.md
 ---
 # Process Introspection and Adding a New MCP Server
 

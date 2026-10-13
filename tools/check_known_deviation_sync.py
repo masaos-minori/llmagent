@@ -13,6 +13,8 @@ Two failure modes are reported:
   2. An ADR references an ID that has no matching entry heading in the
      canonical document -- a dangling reference (e.g. a typo or a removed
      entry) (WARNING).
+  3. A Known Issue whose `Target` is an ADR is not cited in that ADR's
+     `## Known Deviations` -- the reverse direction of check 2 (WARNING).
 
 Rule ID: GV-022 (docs/00_governance/governance_04_documentation-checks.md).
 
@@ -77,6 +79,10 @@ _PART_BOUNDARY_RE = re.compile(r"^## Part 2\b")
 # Bullet-list form, e.g. "- **Status**: resolved" (04_mcp_90, 05_agent_90, and
 # the consolidated governance document, which also uses this form).
 _CANONICAL_BULLET_STATUS_RE = re.compile(r"^-\s+\*\*Status\*\*:\s*(\S+)")
+# "- **Target**: `docs/10_adr/adr_02_004_....md`" -- only ADR targets matter for
+# the reverse (ledger -> ADR) check.
+_CANONICAL_TARGET_RE = re.compile(r"^-\s+\*\*Target\*\*:\s*(.*)$")
+_ADR_TARGET_PATH_RE = re.compile(r"docs/10_adr/([\w.\-]+\.md)")
 # Inline-prose fallback, e.g. "... Status: partially resolved / Severity: High
 # / Type: design-gap. ..." (90_shared_90).
 _CANONICAL_INLINE_STATUS_RE = re.compile(
@@ -258,6 +264,35 @@ def parse_canonical_statuses(
     return statuses, issues
 
 
+def parse_canonical_adr_targets(
+    files: list[DocFile],
+) -> dict[str, tuple[str, int, set[str]]]:
+    """Map each Known Issue ID to (canonical doc rel_path, header line_no, ADR file names
+    named by its `Target` field)."""
+    targets: dict[str, tuple[str, int, set[str]]] = {}
+    for doc in files:
+        boundary = next(
+            (i for i, line in enumerate(doc.lines) if _PART_BOUNDARY_RE.match(line)),
+            len(doc.lines),
+        )
+        headers = [
+            (m.group(1), i)
+            for i, line in enumerate(doc.lines[:boundary])
+            if (m := _CANONICAL_ID_HEADER_RE.match(line))
+        ]
+        for idx, (entry_id, header_idx) in enumerate(headers):
+            end_idx = headers[idx + 1][1] if idx + 1 < len(headers) else boundary
+            for line in doc.lines[header_idx + 1 : end_idx]:
+                target_match = _CANONICAL_TARGET_RE.match(line)
+                if not target_match:
+                    continue
+                adr_files = set(_ADR_TARGET_PATH_RE.findall(target_match.group(1)))
+                if adr_files:
+                    targets[entry_id] = (doc.rel_path, header_idx + 1, adr_files)
+                break
+    return targets
+
+
 # ---------------------------------------------------------------------------
 # ADR-side parsing
 # ---------------------------------------------------------------------------
@@ -344,13 +379,41 @@ def cross_check(
     return issues
 
 
+def reverse_cross_check(
+    targets: dict[str, tuple[str, int, set[str]]], adr_refs: list[AdrReference]
+) -> list[Issue]:
+    """Report Known Issues targeting an ADR that the ADR's Known Deviations omits."""
+    cited = {(ref.adr_file, ref.id) for ref in adr_refs}
+    issues: list[Issue] = []
+    for entry_id, (doc, line_no, adr_files) in targets.items():
+        for adr_name in sorted(adr_files):
+            if (f"adr/{adr_name}", entry_id) in cited:
+                continue
+            issues.append(
+                Issue(
+                    file=doc,
+                    line_no=line_no,
+                    severity="WARNING",
+                    message=(
+                        f"{entry_id} targets {adr_name} but that ADR's "
+                        f"`## Known Deviations` does not cite it"
+                    ),
+                )
+            )
+    return issues
+
+
 def collect_issues() -> list[Issue]:
-    canonical, parse_issues = parse_canonical_statuses(discover_canonical_docs())
+    canonical_docs = discover_canonical_docs()
+    canonical, parse_issues = parse_canonical_statuses(canonical_docs)
     adr_docs = discover_adr_docs()
     adr_refs = parse_adr_references(adr_docs)
     issues = list(parse_issues)
     issues.extend(find_resolved_bullets(adr_docs))
     issues.extend(cross_check(canonical, adr_refs))
+    issues.extend(
+        reverse_cross_check(parse_canonical_adr_targets(canonical_docs), adr_refs)
+    )
     return issues
 
 

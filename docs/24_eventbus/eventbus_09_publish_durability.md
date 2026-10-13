@@ -12,6 +12,7 @@ related:
   - eventbus_11_replay_endpoint.md
   - eventbus_01_system-overview.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
+  - eventbus_07_configuration-and-operations.md
 ---
 # EventBus Publish Durability
 

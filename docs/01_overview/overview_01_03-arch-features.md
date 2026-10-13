@@ -12,6 +12,9 @@ tags:
 related:
   - overview_01_01-arch-process.md
   - overview_01_02-arch-pipelines.md
+  - overview_02_files.md
+  - agent_07_01_cli-and-commands-cli-reference.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
 ---
 
 # Overview & Architecture

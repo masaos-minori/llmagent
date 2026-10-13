@@ -265,7 +265,7 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
   - **Verifies**: INV-04
   - **Type**: Integration
   - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_rag_pipeline_service.py::TestResponseParsing::test_5xx_retries_and_returns_none`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_400_still_triggers_fallback`
+  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_rag_pipeline_service.py::TestResponseParsing::test_5xx_retries_and_returns_transient_failure`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_400_still_triggers_fallback`
 
 - **Test**: An empty result is treated as a valid result
   - **Verifies**: INV-03

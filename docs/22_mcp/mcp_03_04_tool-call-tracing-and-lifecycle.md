@@ -11,6 +11,7 @@ related:
   - mcp_03_02_tool-registry.md
   - mcp_03_03_transport-and-health.md
   - mcp_03_05_lifecycle-and-new-server.md
+  - mcp_06_06_end-to-end-tool-call-tracing.md
 ---
 
 # Transport Error Tracing and Lifecycle Flow

@@ -7,6 +7,7 @@ tags:
   - validation
 related:
   - mcp_06_01_configuration-file-inventory.md
+  - mcp_03_02_tool-registry.md
 ---
 # Startup Validation Behavior (`tool_definitions_strict`)
 

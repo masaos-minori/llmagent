@@ -19,6 +19,7 @@ related:
   - agent_08_04_configuration-mcp-approval-obs.md
   - mcp_06_01_configuration-file-inventory.md
   - mcp_06_09_startup-validation-behavior-tool_definitions_strict.md
+  - agent_11_01_memory-overview-and-modes.md
 ---
 
 # Agent Operations and Observability

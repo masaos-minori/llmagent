@@ -10,6 +10,7 @@ related:
   - agent_08_02_configuration-llm-rag.md
   - agent_08_03_configuration-tools-memory.md
   - agent_08_04_configuration-mcp-approval-obs.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
 ---
 
 # Agent Configuration

@@ -6,6 +6,13 @@ tags:
 related:
   - 00_index.md
   - overview_00_document-guide.md
+  - governance_03_issue-and-uncertainty-management.md
+  - adr_01_index.md
+  - governance_01_documentation-policy.md
+  - governance_05_change-impact-and-dependency-graphs.md
+  - governance_02_documentation-metadata.md
+  - rag_00_document-guide.md
+  - adr_02_001_workflow-engine-mandatory.md
 ---
 
 # Documentation Checks
@@ -199,9 +206,9 @@ python tools/check_adr_structure.py --format json
 
 ### 11. Known Deviation Sync Check (`check_known_deviation_sync.py`)
 
-Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), and rejects resolved-item bullets in `## Known Deviations` (Error).
+Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), that a Known Issue whose `Target` is an ADR is cited in that ADR's `## Known Deviations` (the reverse direction, Warning), and rejects resolved-item bullets in `## Known Deviations` (Error).
 
-**Enforcement:** pre-commit (`known-deviation-sync`); not wired into `.github/workflows/`. Rule ID `GV-022`: an Error (resolved-item bullet) fails the run, a Warning (dangling reference) does not.
+**Enforcement:** pre-commit (`known-deviation-sync`) and `.github/workflows/governance-docs-consistency.yml`. Rule ID `GV-022`: an Error (resolved-item bullet) fails the run; a Warning (dangling reference or a Known Issue missing from its Target ADR's Known Deviations) does not.
 
 **Usage:**
 ```bash

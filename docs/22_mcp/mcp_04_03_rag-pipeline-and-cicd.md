@@ -12,6 +12,8 @@ related:
   - mcp_04_02_file-write-file-delete-shell.md
   - mcp_04_04_mdq.md
   - mcp_04_05_git.md
+  - security_02_high-risk-tool-common-policy.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
 ---
 
 # MCP Server Catalog: rag-pipeline-mcp / cicd-mcp

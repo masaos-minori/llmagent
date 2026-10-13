@@ -9,6 +9,9 @@ related:
   - agent_08_01_configuration-loading-agent-config.md
   - agent_08_03_configuration-tools-memory.md
   - agent_08_04_configuration-mcp-approval-obs.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - rag_05_01-configuration-reference.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # Agent Configuration

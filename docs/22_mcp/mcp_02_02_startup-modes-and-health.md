@@ -8,6 +8,8 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_03_03_transport-and-health.md
+  - mcp_06_07_mcp-failure-diagnosis.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
 ---
 # MCP Protocol and Transport: Startup Modes, Authentication, and Health Checks
 

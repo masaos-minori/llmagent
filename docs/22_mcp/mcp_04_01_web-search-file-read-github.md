@@ -13,6 +13,9 @@ related:
   - mcp_04_03_rag-pipeline-and-cicd.md
   - mcp_04_04_mdq.md
   - mcp_04_05_git.md
+  - mcp_01_system_overview.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
+  - security_02_high-risk-tool-common-policy.md
 ---
 
 # MCP Server Catalog: web-search-mcp / file-read-mcp / github-mcp

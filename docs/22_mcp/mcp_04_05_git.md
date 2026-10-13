@@ -14,6 +14,8 @@ related:
   - security_02_high-risk-tool-common-policy.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - governance_03_issue-and-uncertainty-management.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
+  - adr_02_012_git-mcp-server-side-write-enforcement.md
 ---
 
 # MCP Server Catalog: git-mcp

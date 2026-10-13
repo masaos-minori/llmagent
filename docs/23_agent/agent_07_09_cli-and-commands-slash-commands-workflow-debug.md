@@ -16,6 +16,9 @@ related:
   - agent_07_07_cli-and-commands-slash-commands-session-mcp.md
   - agent_07_08_cli-and-commands-slash-commands-context-plan.md
   - agent_07_10_cli-and-commands-slash-commands-memory-other.md
+  - agent_01_system-overview.md
+  - agent_06_01_tool-execution-and-approval-execution.md
+  - agent_04_02_state-and-persistence-history-compression.md
 ---
 
 # Agent CLI and Commands

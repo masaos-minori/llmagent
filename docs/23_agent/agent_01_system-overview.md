@@ -17,6 +17,8 @@ related:
   - agent_09_01_data-layer-session-db.md
   - agent_10_01_operations-and-observability-startup-and-health.md
   - agent_12_reference-api.md
+  - agent_07_03_cli-and-commands-command-registry.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 
 # Agent System Overview

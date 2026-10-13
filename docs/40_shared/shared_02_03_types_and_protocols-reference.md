@@ -8,6 +8,7 @@ tags:
 related:
   - shared_02_01_types_and_protocols-core-types.md
   - shared_02_02_types_and_protocols-tool-and-execution-dto.md
+  - shared_00_document-guide.md
 ---
 # Shared Types and Protocols - Reference
 

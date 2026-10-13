@@ -17,6 +17,41 @@ related:
   - mcp_07_tool_schema_export_policy.md
   - mcp_08_tool_capability_naming_convention.md
   - governance_03_issue-and-uncertainty-management.md
+  - mcp_04_04_mdq.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
+  - governance_01_documentation-policy.md
+  - mcp_01_tool_ownership_matrix.md
+  - mcp_02_service_boundaries.md
+  - mcp_02_02_startup-modes-and-health.md
+  - mcp_02_03_audit-logging-and-errors.md
+  - mcp_03_02_tool-registry.md
+  - mcp_03_03_transport-and-health.md
+  - mcp_03_04_tool-call-tracing-and-lifecycle.md
+  - mcp_03_05_lifecycle-and-new-server.md
+  - mcp_03_06_tool-runtime-availability-metadata.md
+  - mcp_04_02_file-write-file-delete-shell.md
+  - mcp_04_03_rag-pipeline-and-cicd.md
+  - mcp_04_05_git.md
+  - mcp_05_02_auth-profiles-and-sandboxing.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_05_04_mdq-rag-boundary.md
+  - mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md
+  - mcp_06_03_long-running-http-operation-startup_modesubprocess.md
+  - mcp_06_04_verification-methods.md
+  - mcp_06_05_reading-audit-logs.md
+  - mcp_06_06_end-to-end-tool-call-tracing.md
+  - mcp_06_07_mcp-failure-diagnosis.md
+  - mcp_06_08_settings-with-high-operational-impact.md
+  - mcp_06_09_startup-validation-behavior-tool_definitions_strict.md
+  - mcp_06_10_health-reasons-and-error-kinds.md
+  - mcp_06_11_new-tool-registration-procedure.md
+  - mcp_06_12_new-mcp-server-addition-checklist.md
+  - mcp_06_13_pre-production-fail-open-checklist.md
+  - mcp_06_14_mcp-authentication-setup.md
+  - security_01_architecture-and-trust-boundaries.md
+  - security_02_high-risk-tool-common-policy.md
+  - governance_02_documentation-metadata.md
+  - governance_04_documentation-checks.md
 ---
 
 # MCP Documentation Guide

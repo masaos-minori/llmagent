@@ -15,6 +15,7 @@ related:
   - mcp_05_01_access-control-and-allowlists.md
   - mcp_06_01_configuration-file-inventory.md
   - governance_03_issue-and-uncertainty-management.md
+  - mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md
 ---
 
 # MCP System Overview

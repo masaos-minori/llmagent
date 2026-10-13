@@ -8,6 +8,11 @@ related:
   - 00_index.md
   - overview_00_document-guide.md
   - adr_02_015_reference-document-class-disposition.md
+  - governance_01_documentation-policy.md
+  - governance_02_documentation-metadata.md
+  - governance_03_issue-and-uncertainty-management.md
+  - governance_04_documentation-checks.md
+  - governance_05_change-impact-and-dependency-graphs.md
 ---
 # Governance: Document Guide
 

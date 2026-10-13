@@ -10,6 +10,7 @@ related:
   - agent_03_03_turn-processing-flow-workflow-engine.md
   - agent_00_document-guide.md
   - agent_04_01_state-and-persistence-state-model.md
+  - agent_02_runtime-architecture.md
 ---
 # Agent Turn Processing Flow - LLM and Tool Loop
 

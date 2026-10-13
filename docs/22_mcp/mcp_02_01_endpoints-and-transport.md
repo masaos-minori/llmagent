@@ -10,6 +10,8 @@ related:
   - mcp_02_02_startup-modes-and-health.md
   - mcp_02_03_audit-logging-and-errors.md
   - mcp_03_06_tool-runtime-availability-metadata.md
+  - mcp_03_03_transport-and-health.md
+  - mcp_03_02_tool-registry.md
 ---
 
 # MCP Protocol and Transport: Endpoints and Transport

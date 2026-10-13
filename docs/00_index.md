@@ -14,6 +14,58 @@ related:
   - agent_00_document-guide.md
   - eventbus_00_document-guide.md
   - shared_00_document-guide.md
+  - governance_01_documentation-policy.md
+  - governance_02_documentation-metadata.md
+  - governance_03_issue-and-uncertainty-management.md
+  - governance_04_documentation-checks.md
+  - governance_05_change-impact-and-dependency-graphs.md
+  - adr_01_index.md
+  - agent_01_system-overview.md
+  - mcp_01_system_overview.md
+  - rag_01_system_overview.md
+  - mcp_05_04_mdq-rag-boundary.md
+  - db_01_architecture_and_schema-overview-and-config.md
+  - db_04_api_and_operations-module-boundaries-and-helper.md
+  - shared_01_overview.md
+  - overview_02_files.md
+  - deployment_01_deployment.md
+  - agent_04_01_state-and-persistence-state-model.md
+  - agent_08_01_configuration-loading-agent-config.md
+  - agent_11_03_memory-module-reference.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - agent_07_03_cli-and-commands-command-registry.md
+  - agent_02_runtime-architecture.md
+  - agent_12_reference-api.md
+  - agent_03_01_turn-processing-flow-overview.md
+  - agent_06_01_tool-execution-and-approval-execution.md
+  - agent_09_01_data-layer-session-db.md
+  - agent_05_llm-and-streaming.md
+  - agent_07_02_cli-and-commands-cliview.md
+  - agent_07_05_cli-and-commands-repl-io.md
+  - mcp_02_01_endpoints-and-transport.md
+  - mcp_03_01_dispatch-and-routing.md
+  - mcp_03_04_tool-call-tracing-and-lifecycle.md
+  - mcp_06_01_configuration-file-inventory.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - security_01_architecture-and-trust-boundaries.md
+  - security_02_high-risk-tool-common-policy.md
+  - mcp_04_01_web-search-file-read-github.md
+  - mcp_04_04_mdq.md
+  - rag_03_01_query_pipeline-overview.md
+  - rag_04_dto-models-types.md
+  - shared_02_01_types_and_protocols-core-types.md
+  - rag_02_01_ingestion_pipeline-overview.md
+  - rag_05_01-configuration-reference.md
+  - rag_02_02_ingestion_pipeline-crawler.md
+  - rag_02_03_ingestion_pipeline-chunksplitter.md
+  - rag_02_04_ingestion_pipeline-ingester.md
+  - shared_03_01_runtime_and_execution-config-and-logging.md
+  - eventbus_01_system-overview.md
+  - eventbus_02_api-reference-index.md
+  - eventbus_06_persistence_schema_and_replay.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
+  - eventbus_07_configuration-and-operations.md
+  - eventbus_08_reference_api.md
 ---
 # Documentation Overview
 

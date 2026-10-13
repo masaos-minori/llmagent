@@ -10,6 +10,9 @@ related:
   - agent_03_02_turn-processing-flow-llm-tool-loop.md
   - agent_00_document-guide.md
   - eventbus_00_document-guide.md
+  - agent_02_runtime-architecture.md
+  - adr_02_001_workflow-engine-mandatory.md
+  - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
 ---
 # Agent Turn Processing Flow - Workflow Engine Integration & Turn-by-turn State Changes
 

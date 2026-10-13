@@ -36,6 +36,8 @@ related:
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
   - eventbus_06_persistence_schema_and_replay.md
+  - adr_02_013_eventbus-authentication-authorization.md
+  - eventbus_05_dlq_offsets_and_delivery_semantics.md
 ---
 
 # Event Bus: Configuration and Operations

@@ -8,6 +8,7 @@ tags:
 related:
   - mcp_00_document-guide.md
   - mcp_06_01_configuration-file-inventory.md
+  - agent_08_03_configuration-tools-memory.md
 ---
 
 # MCP Health Reasons and Error Kinds

@@ -8,6 +8,13 @@ tags:
 related:
   - shared_03_02_runtime_and_execution-tool-executor-and-infrastructure.md
   - shared_03_04_runtime_and_execution-caching-and-reference.md
+  - shared_00_document-guide.md
+  - agent_08_03_configuration-tools-memory.md
+  - mcp_03_01_dispatch-and-routing.md
+  - agent_05_llm-and-streaming.md
+  - mcp_06_01_configuration-file-inventory.md
+  - agent_08_01_configuration-loading-agent-config.md
+  - agent_06_01_tool-execution-and-approval-execution.md
 ---
 # Shared Runtime and Execution Infrastructure
 

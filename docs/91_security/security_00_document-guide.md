@@ -7,6 +7,16 @@ tags:
 related:
   - 00_index.md
   - overview_00_document-guide.md
+  - security_01_architecture-and-trust-boundaries.md
+  - security_02_high-risk-tool-common-policy.md
+  - mcp_05_01_access-control-and-allowlists.md
+  - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
+  - mcp_05_02_auth-profiles-and-sandboxing.md
+  - mcp_05_05_mdq-enforcement-and-lockdown.md
+  - mcp_06_14_mcp-authentication-setup.md
+  - mcp_06_13_pre-production-fail-open-checklist.md
+  - governance_01_documentation-policy.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 # Security: Document Guide
 

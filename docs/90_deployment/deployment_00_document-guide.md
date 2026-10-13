@@ -9,6 +9,9 @@ related:
   - overview_00_document-guide.md
   - mcp_06_04_verification-methods.md
   - mcp_06_05_reading-audit-logs.md
+  - deployment_01_deployment.md
+  - governance_01_documentation-policy.md
+  - governance_03_issue-and-uncertainty-management.md
 ---
 # Deployment: Document Guide
 

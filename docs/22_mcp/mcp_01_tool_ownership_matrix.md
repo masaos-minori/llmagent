@@ -11,6 +11,7 @@ related:
   - mcp_00_document-guide.md
   - mcp_04_01_web-search-file-read-github.md
   - mcp_02_service_boundaries.md
+  - agent_06_02_tool-execution-and-approval-approval.md
 ---
 
 # MCP Tool Ownership Matrix

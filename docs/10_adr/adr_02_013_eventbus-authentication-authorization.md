@@ -249,7 +249,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-008 — see `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1.
+- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (an empty `consumer_authorization` mapping and the shared `auth_token`/`admin_token` skip consumer identity validation)
 - **Known Issue**: EVENTBUS-015 — tracked in governance_03 Part 1 (`auth_token` and `admin_token` grant every role; INV-07 depends on operator discipline only)
 
 ## Review Triggers

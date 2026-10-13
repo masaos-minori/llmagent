@@ -166,7 +166,7 @@ class TestResponseParsing:
 
     @pytest.mark.asyncio
     @respx.mock
-    async def test_5xx_retries_and_returns_none(self) -> None:
+    async def test_5xx_retries_and_returns_transient_failure(self) -> None:
         respx.post(f"{RAG_URL}/v1/call_tool").mock(
             return_value=httpx.Response(503, content=b'{"error": "unavailable"}')
         )
@@ -179,6 +179,7 @@ class TestResponseParsing:
                 set_fetch_result=_noop_fetch,
             )
             result = outcome.result
+        assert outcome.kind == "transient_failure"
         assert result is None
 
     @pytest.mark.asyncio

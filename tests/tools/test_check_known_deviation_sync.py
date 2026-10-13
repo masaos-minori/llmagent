@@ -18,7 +18,9 @@ from tools.check_known_deviation_sync import (
     cross_check,
     find_resolved_bullets,
     parse_adr_references,
+    parse_canonical_adr_targets,
     parse_canonical_statuses,
+    reverse_cross_check,
 )
 
 
@@ -287,3 +289,41 @@ class TestSubsectionNoLongerParsed:
         )
         refs = parse_adr_references(_discover(adr_dir))
         assert [ref.id for ref in refs] == ["ID-020"]
+
+
+class TestReverseCrossCheck:
+    """A Known Issue targeting an ADR must be cited in that ADR's Known Deviations."""
+
+    _LEDGER = (
+        "#### ID-001\n\n"
+        "- **Status**: open\n"
+        "- **Target**: `docs/10_adr/adr_02_003_example.md`\n\n"
+        "## Part 2\n"
+    )
+
+    def test_uncited_target_adr_is_reported(self, tmp_path: Path) -> None:
+        _write(tmp_path / "docs", "ledger.md", self._LEDGER)
+        _write(
+            tmp_path / "10_adr",
+            "adr_02_003_example.md",
+            "## Known Deviations\n\nNone.\n",
+        )
+        targets = parse_canonical_adr_targets(_discover(tmp_path / "docs"))
+        refs = parse_adr_references(_discover(tmp_path / "10_adr"))
+
+        findings = reverse_cross_check(targets, refs)
+        assert len(findings) == 1
+        assert findings[0].severity == "WARNING"
+        assert "ID-001" in findings[0].message
+
+    def test_cited_target_adr_is_clean(self, tmp_path: Path) -> None:
+        _write(tmp_path / "docs", "ledger.md", self._LEDGER)
+        _write(
+            tmp_path / "10_adr",
+            "adr_02_003_example.md",
+            "## Known Deviations\n\n- **Known Issue**: ID-001 — tracked\n",
+        )
+        targets = parse_canonical_adr_targets(_discover(tmp_path / "docs"))
+        refs = parse_adr_references(_discover(tmp_path / "10_adr"))
+
+        assert reverse_cross_check(targets, refs) == []

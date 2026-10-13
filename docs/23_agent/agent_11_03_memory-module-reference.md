@@ -17,6 +17,8 @@ related:
   - agent_11_01_memory-overview-and-modes.md
   - agent_11_02_memory-gate-data-model-search.md
   - agent_11_04_memory-module-reference-generated.md
+  - agent_10_01_operations-and-observability-startup-and-health.md
+  - agent_08_03_configuration-tools-memory.md
 ---
 
 # Memory Layer — Module Reference
