@@ -39,6 +39,8 @@ class GitHubConfig:
     max_per_page: int = 100
     llm_url: str = ""
 
+    auth_token: str = ""
+
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> GitHubConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
@@ -53,6 +55,7 @@ class GitHubConfig:
             default_per_page=int(d.get("default_per_page", DEFAULT_PER_PAGE)),
             max_per_page=int(d.get("max_per_page", 100)),
             llm_url=get_str(d, "llm_url"),
+            auth_token=get_str(d, "auth_token"),
         )
 
     @classmethod

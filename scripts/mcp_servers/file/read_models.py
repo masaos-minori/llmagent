@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, model_validator
 from shared.config_loader import ConfigLoader
-from shared.config_utils import get_typed
+from shared.config_utils import get_str, get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +30,8 @@ class FileReadConfig:
     max_depth: int = 5
     max_files_per_batch: int = 100
 
+    auth_token: str = ""
+
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> FileReadConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
@@ -42,6 +44,7 @@ class FileReadConfig:
             max_files_per_batch=get_typed(
                 d, "max_search_results", int, "an integer", default=100
             ),
+            auth_token=get_str(d, "auth_token"),
         )
 
     @classmethod

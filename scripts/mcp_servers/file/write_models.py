@@ -12,7 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
-from shared.config_utils import get_typed
+from shared.config_utils import get_str, get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +29,8 @@ class FileWriteConfig:
     allowed_dirs: list[str] = dataclasses.field(default_factory=list)
     supported_extensions: list[str] = dataclasses.field(default_factory=list)
 
+    auth_token: str = ""
+
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> FileWriteConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
@@ -40,6 +42,7 @@ class FileWriteConfig:
             supported_extensions=list(
                 get_typed(d, "supported_extensions", list, "a list", default=[])
             ),
+            auth_token=get_str(d, "auth_token"),
         )
 
     @classmethod
