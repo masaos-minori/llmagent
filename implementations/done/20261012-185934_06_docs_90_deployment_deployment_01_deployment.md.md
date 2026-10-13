@@ -81,8 +81,8 @@ code, and the tests.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the documentation clause describing the loopback health admission | Pending | — | — | |
-| 2 | Run the documentation checkers (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the documentation clause describing the loopback health admission | Completed | — | 20261013-175629 |  |
+| 2 | Run the documentation checkers (`rules/toolchain.md`) | Completed | — | 20261013-175629 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

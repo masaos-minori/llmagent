@@ -114,10 +114,10 @@ check, and the agent's health poll.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the `exempt_health_on_loopback` parameter, the closure exemption, `_is_loopback_client`, the `ipaddress` import, and the docstring paragraph | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove the `exempt_health_on_loopback` parameter, the closure exemption, `_is_loopback_client`, the `ipaddress` import, and the docstring paragraph | Completed | — | 20261013-175629 |  |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261013-175629 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261013-175629 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261013-175629 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

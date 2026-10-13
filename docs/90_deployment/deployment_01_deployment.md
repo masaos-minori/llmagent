@@ -225,7 +225,7 @@ MCP_MDQ_AUTH_TOKEN=
 
 Keep the `.env` file out of version control (it is gitignored) and restrict its permissions with `chmod 600`. (Explicit in code — `deploy/start_agent.sh`, `.gitignore`)
 
-> **Note:** web-search authenticates with the same shared `MCP_WEB_SEARCH_AUTH_TOKEN` as its `agent.toml` entry, and its `/health` endpoint is admitted from a loopback client without a token. The former separate browser token was retired; an environment file that still defines `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` can drop it. (Explicit in code — `config/web_search_mcp_server.toml`, `scripts/mcp_servers/web_search/web_search_server.py`)
+> **Note:** web-search authenticates with the same shared `MCP_WEB_SEARCH_AUTH_TOKEN` as its `agent.toml` entry. The former separate browser token was retired; an environment file that still defines `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` can drop it. (Explicit in code — `config/web_search_mcp_server.toml`, `scripts/mcp_servers/web_search/web_search_server.py`)
 
 ### 2.6 Compiled Artifacts (NUITKA `--onefile`)
 

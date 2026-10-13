@@ -71,7 +71,7 @@ the deployment document.
 
 **Cause:** The agent and the server resolved different values for the web-search token, for example a server configuration left from before web-search shared `MCP_WEB_SEARCH_AUTH_TOKEN` with the agent. A configuration that still contains the removed `browser_auth_token` key is rejected when the server loads it. (Explicit in code — `scripts/mcp_servers/web_search/web_search_models.py`)
 
-**Solution:** Set the one `MCP_WEB_SEARCH_AUTH_TOKEN` variable, deploy the configuration and the scripts together, and restart the agent. The server's `/health` endpoint is additionally admitted from a loopback client without a token.
+**Solution:** Set the one `MCP_WEB_SEARCH_AUTH_TOKEN` variable, deploy the configuration and the scripts together, and restart the agent.
 
 #### Difference between `/reload` and full restart
 

@@ -209,23 +209,14 @@ class TestHealthProbesSendBearerToken:
         assert route.calls[0].request.headers["Authorization"] == "Bearer s3cret"
 
 
-def _loopback_health_app(
-    server_token: str, *, exempt_health_on_loopback: bool
-) -> tuple[object, list[str]]:
+def _loopback_health_app(server_token: str) -> tuple[object, list[str]]:
     """Minimal app guarded by the real auth middleware, recording the header it sees."""
     from fastapi import FastAPI
     from mcp_servers.server import attach_auth_middleware
 
     seen: list[str] = []
     app = FastAPI()
-    # Pass the keyword only when enabling it, so the default (off) cases run the
-    # unchanged call shape of every other server.
-    extra = {"exempt_health_on_loopback": True} if exempt_health_on_loopback else {}
-    attach_auth_middleware(
-        app,
-        server_token,
-        **extra,
-    )
+    attach_auth_middleware(app, server_token)
 
     @app.get("/health")
     async def _health(request: Request) -> dict[str, str]:
@@ -254,38 +245,12 @@ class TestStartupPollWithDistinctServerToken:
     main auth_token (web-search with a distinct browser token)."""
 
     @pytest.mark.asyncio
-    async def test_poll_succeeds_when_switch_on_and_tokens_differ(
+    async def test_poll_fails_when_token_differs(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
         import time
 
-        app, seen = _loopback_health_app(
-            "browser-secret", exempt_health_on_loopback=True
-        )
-        cfg = _make_cfg(auth_token="main-secret")
-        proc = Mock(pid=1234, poll=Mock(return_value=None))
-        with (
-            patch.object(hl_module.httpx, "AsyncClient", _asgi_client_factory(app)),
-            patch.object(hl_module, "HEALTH_POLL_INTERVAL_SEC", 0.01),
-        ):
-            await mgr._health_poll_until_ready(
-                "web-search",
-                cfg,
-                proc,
-                deadline=time.monotonic() + 5,
-                shutdown_event=None,
-            )
-        assert seen == ["Bearer main-secret"]
-
-    @pytest.mark.asyncio
-    async def test_poll_fails_when_switch_off_and_tokens_differ(
-        self, mgr: HttpServerLifecycleManager
-    ) -> None:
-        import time
-
-        app, seen = _loopback_health_app(
-            "browser-secret", exempt_health_on_loopback=False
-        )
+        app, seen = _loopback_health_app("browser-secret")
         cfg = _make_cfg(auth_token="main-secret")
         proc = Mock(pid=1234, poll=Mock(return_value=None))
         with (
@@ -309,12 +274,12 @@ class TestStartupPollWithDistinctServerToken:
         assert seen == []
 
     @pytest.mark.asyncio
-    async def test_poll_succeeds_when_tokens_match_and_switch_off(
+    async def test_poll_succeeds_when_tokens_match(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
         import time
 
-        app, seen = _loopback_health_app("main-secret", exempt_health_on_loopback=False)
+        app, seen = _loopback_health_app("main-secret")
         cfg = _make_cfg(auth_token="main-secret")
         proc = Mock(pid=1234, poll=Mock(return_value=None))
         with (

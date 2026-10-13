@@ -67,7 +67,6 @@ app = FastAPI(
 attach_auth_middleware(
     cast(_FastAPIApp, app),
     _cfg.auth_token or "",
-    exempt_health_on_loopback=True,
 )
 
 
