@@ -339,7 +339,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
-| GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no dangling Known Issue ID (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking | Existing | None |
+| GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no dangling Known Issue ID (Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
 
 ### Follow-up Work Needed
 

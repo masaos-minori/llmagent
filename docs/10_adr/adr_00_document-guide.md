@@ -9,6 +9,7 @@ related:
   - 00_index.md
   - overview_00_document-guide.md
   - adr_02_015_reference-document-class-disposition.md
+  - governance_01_documentation-policy.md
 ---
 # ADR: Document Guide
 
