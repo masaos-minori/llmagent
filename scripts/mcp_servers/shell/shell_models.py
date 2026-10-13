@@ -12,6 +12,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_str
 from shared.protocols.shell import ShellPolicy
 
 logger = logging.getLogger(__name__)
@@ -59,6 +60,7 @@ class ShellConfig:
     shell_sandbox_backend: str = "firejail"
     env_allowlist: list[str] = dataclasses.field(default_factory=list)
     env_denylist: list[str] = dataclasses.field(default_factory=list)
+    auth_token: str = ""
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> ShellConfig:
@@ -86,6 +88,7 @@ class ShellConfig:
             ),
             env_allowlist=list(_or_default(d.get("env_allowlist"), [])),
             env_denylist=list(_or_default(d.get("env_denylist"), [])),
+            auth_token=get_str(d, "auth_token"),
         )
 
     @classmethod

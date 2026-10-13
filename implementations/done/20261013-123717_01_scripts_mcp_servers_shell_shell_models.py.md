@@ -93,9 +93,9 @@ Change C — `from_dict` argument (Before/After):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the field and `from_dict` changes | Pending | — | — | Plan Step 3 |
-| 2 | Add or confirm the model tests in the paired new test file | Pending | — | — | row 29 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Apply the field and `from_dict` changes | Completed | — | — | Plan Step 3 |
+| 2 | Add or confirm the model tests in the paired new test file | Completed | — | — | row 29 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
