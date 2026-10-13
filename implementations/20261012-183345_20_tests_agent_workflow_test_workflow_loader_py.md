@@ -69,10 +69,10 @@ Add a case asserting the resolver-derived `WORKFLOWS_DIR`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the resolver-derived `WORKFLOWS_DIR` case | Pending | — | — | |
-| 2 | Confirm existing cases still pass | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add the resolver-derived `WORKFLOWS_DIR` case | Completed | 20261013-141500 | 20261013-142100 | `WORKFLOWS_DIR == resolve_config_dir() / "workflows"` を構造的に検証する1件追加。reload 版は共有モジュールのクラス差し替えで他へ横漏出するため採用せず、安全な別手法に切り替え。 |
+| 2 | Confirm existing cases still pass | Completed | 20261013-141800 | 20261013-142000 | existing 全ケース維持（ランダム順序含む全23件合格）。 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261013-142000 | 20261013-142100 | ruff format/check+mypy 合格。フルsuite 8355 passed/20 skipped/失敗0（回帰なし）。 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

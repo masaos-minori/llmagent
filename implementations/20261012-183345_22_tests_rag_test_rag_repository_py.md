@@ -69,10 +69,10 @@ Add/adjust a case verifying the resolver argument is passed to `Dictionary`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify the resolver argument is passed to `Dictionary` | Pending | — | — | |
-| 2 | Add the `"core"` default case | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Verify the resolver argument is passed to `Dictionary` | Completed | 20261013-150500 | 20261013-162800 | +2 cases; ruff format/check clean |
+| 2 | Add the `"core"` default case | Completed | 20261013-150500 | 20261013-162800 | uncompiled+unset → `"core"` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261013-162800 | targeted 48 pass; full suite 8359 passed/20 skipped/失敗0（回帰なし） |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261013-162800 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

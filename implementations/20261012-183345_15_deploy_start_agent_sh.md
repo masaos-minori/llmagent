@@ -75,15 +75,23 @@ Replace the launch line and add the two exports.
 
 - The build script (`deploy/build_binaries.sh`), the `cmd` rewrite (`config/agent.toml`), and the deploy rows.
 
+## Implementation notes
+
+- **Placement.** The two `export`s go immediately before the `# ── AgentREPL 起動` section (after the workflow-validation gate), so they are set only after all prior fail-fast checks pass.
+- **`${DEPLOY_CONFIG}`.** Reuses the already-defined deployed-config variable (line 147, `/opt/llm/config`) rather than hard-coding the path — consistent with the script's other `DEPLOY_*` variables.
+- **No `PYTHONPATH` on the launch line.** The Nuitka `--onefile` binary is self-contained; the `PYTHONPATH="${REPO_ROOT}/scripts"` export (line 22) is retained for any residual interpreter use but is not needed by the binary. The `UV_SYSTEM_CERTS=true` prefix is kept inline to match the other `uv` invocations in the script.
+- **No `exec` builtin.** Method step 2 specifies `UV_SYSTEM_CERTS=true /opt/llm/bin/agent`; interactive Ctrl+C delivers SIGINT to the foreground process group either way.
+- **`set -e` safety.** `LLMAGENT_SUDACHI_DICT` points at `/opt/llm/dict/system.dic` which `deploy.sh` creates (warn-if-missing); the resolver then fails fast at runtime if the file is absent (AC-01/AC-05), so a deploy-time warn does not mask a real missing dict.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `LLMAGENT_CONFIG_DIR`/`LLMAGENT_SUDACHI_DICT` exports | Pending | — | — | |
-| 2 | Replace the launch line with the agent binary | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add `LLMAGENT_CONFIG_DIR`/`LLMAGENT_SUDACHI_DICT` exports | Completed | 20261012 | 20261012 | `${DEPLOY_CONFIG}`(/opt/llm/config) を使用。missing は resolver が fail-fast (AC-01/AC-05) |
+| 2 | Replace the launch line with the agent binary | Completed | 20261012 | 20261012 | `UV_SYSTEM_CERTS=true /opt/llm/bin/agent`(run-time の PYTHONPATH 不要・system cert は inline 維持) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012 | 20261012 | bash -n 合格。launch セクションを stub バイナリで分離実行 (exports 値・binary 呼出確認)+ resolver fail-fast 2件確認 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012 | 20261012 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

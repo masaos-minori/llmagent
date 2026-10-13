@@ -72,10 +72,10 @@ Extend the deploy-scripts table, add a binary-layout subsection, and extend the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `deploy/build_binaries.sh` to the deploy-scripts table | Pending | — | — | |
-| 2 | Document the binary layout and the two environment variables | Pending | — | — | |
-| 3 | Extend the rollback section for the `cmd` switch | Pending | — | — | |
-| 4 | Run the docs/skills checkers | Pending | — | — | AC-10 |
+| 1 | Add `deploy/build_binaries.sh` to the deploy-scripts table | Completed | 20261012 | 20261012 | Added as 4th row (build-host, once per release) |
+| 2 | Document the binary layout and the two environment variables | Completed | 20261012 | 20261012 | New "Binary layout" subsection after deploy-scripts table |
+| 3 | Extend the rollback section for the `cmd` switch | Completed | 20261012 | 20261012 | Rollback bullet now covers reverting `config/agent.toml` `cmd` entries |
+| 4 | Run the docs/skills checkers | Completed | 20261012 | 20261012 | check_skills_references + check_docs_quality/structure/content_policy all pass (AC-10) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

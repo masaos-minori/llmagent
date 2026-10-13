@@ -70,10 +70,10 @@ Update the directory-source assertions and add the PyYAML import check.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace stale `_CONFIG_DIR` assertions with the resolver-derived directory | Pending | — | — | |
-| 2 | Add the PyYAML import-check case | Pending | — | — | REQ-005 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Replace stale `_CONFIG_DIR` assertions with the resolver-derived directory | Completed | 20261013-143000 | 20261013-143300 | 現テストに `_CONFIG_DIR`/`scripts/config` 参照無し（既定満たす）。 |
+| 2 | Add the PyYAML import-check case | Completed | 20261013-143200 | 20261013-143300 | `TestPyYAMLImport` 追加（`import yaml` + safe_load/dump）。 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261013-143300 | 20261013-143400 | ruff format/check+mypy 合格。フルsuite 8357 passed/20 skipped/失敗0（回帰なし）。 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

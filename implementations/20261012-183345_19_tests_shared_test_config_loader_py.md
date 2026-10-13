@@ -71,10 +71,10 @@ Add the default-via-resolver and missing-directory cases; keep the explicit-over
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add default-via-resolver and missing-directory cases | Pending | — | — | |
-| 2 | Confirm the explicit-override case still passes | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add default-via-resolver and missing-directory cases | Completed | 20261013-140000 | 20261013-140700 | 新2件追加(既定 via resolver + missing dir の fail-fast)。existing explicit-override 維持。 |
+| 2 | Confirm the explicit-override case still passes | Completed | 20261013-140200 | 20261013-140500 | existing 全ケース維持。 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261013-140500 | 20261013-140700 | ruff format/check + mypy 合格。フルsuite 8354 passed/20 skipped/失敗0（回帰なし）。 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

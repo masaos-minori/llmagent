@@ -81,10 +81,10 @@ Write pytest cases for both resolver functions.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/shared/test_runtime_paths.py` with config-dir cases | Pending | — | — | |
-| 2 | Add Sudachi-dict cases | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Create `tests/shared/test_runtime_paths.py` with config-dir cases | Completed | 20261012 | 20261012 | 6 config-dir cases incl. compiled-adjacent branch |
+| 2 | Add Sudachi-dict cases | Completed | 20261012 | 20261012 | 5 Sudachi cases (env set/missing, core literal, compiled default/missing) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261012 | 20261012 | pytest 11 passed; ruff format/check + mypy clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261012 | 20261012 | memo に行13由来の既存失敗と行18-bでの修正を記録（行18の範囲外・ユーザー承認後に修正・run#5で8352 passed/失敗0） |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

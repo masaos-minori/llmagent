@@ -72,10 +72,10 @@ Add the binary layout, environment variables, failure behavior, and rollback to 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the binary/dictionary layout section | Pending | — | — | |
-| 2 | Document the two environment variables and failure behavior | Pending | — | — | |
-| 3 | Add the rollback subsection | Pending | — | — | |
-| 4 | Run the docs checkers | Pending | — | — | AC-10 |
+| 1 | Add the binary/dictionary layout section | Completed | 20261012 | 20261012 | New subsection 2.6 under Section 2 (Service Configuration) |
+| 2 | Document the two environment variables and failure behavior | Completed | 20261012 | 20261012 | LLMAGENT_CONFIG_DIR / LLMAGENT_SUDACHI_DICT + fail-fast note |
+| 3 | Add the rollback subsection | Completed | 20261012 | 20261012 | Rollback paragraph added at end of subsection 2.6 |
+| 4 | Run the docs checkers | Completed | 20261012 | 20261012 | check_docs_quality/structure/content_policy all pass (AC-10) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

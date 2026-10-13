@@ -69,10 +69,10 @@ Add/adjust a case verifying the resolver argument is passed to `Dictionary`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify the resolver argument is passed to `Dictionary` | Pending | — | — | |
-| 2 | Add the `"core"` default case | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Verify the resolver argument is passed to `Dictionary` | Completed | 20261013-091421 | 20261013-091421 | `TestSudachiResolverWiring::test_init_passes_resolver_arg_to_dictionary` 合格。resolver が返す sentinel Path が `Dictionary(dict=...)` にそのまま渡られることを確認。 |
+| 2 | Add the `"core"` default case | Completed | 20261013-091421 | 20261013-091421 | `TestSudachiResolverWiring::test_init_default_core_when_unset_uncompiled` 合格。`LLMAGENT_SUDACHI_DICT` unset+uncompiled の既定が `"core"` であることを確認。 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261013-091421 | 20261013-091421 | pytest 全26件合格、ruff format/check Clean、正規 mypy(`--no-namespace-packages scripts/`=426ファイル合格) 合格。 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261013-091421 | 20261013-091421 | N/A: dictionary selection only。 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
