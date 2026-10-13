@@ -15,7 +15,10 @@ from pathlib import Path
 
 from tools._docs_consistency_lib import DocFile, discover_md_files
 from tools.check_known_deviation_sync import (
+    CanonicalStatus,
     cross_check,
+    discover_known_issue_prefixes,
+    find_dangling_general_references,
     find_resolved_bullets,
     parse_adr_references,
     parse_canonical_adr_targets,
@@ -327,3 +330,56 @@ class TestReverseCrossCheck:
         refs = parse_adr_references(_discover(tmp_path / "10_adr"))
 
         assert reverse_cross_check(targets, refs) == []
+
+
+class TestDanglingGeneralReferences:
+    """A Known Issue ID cited outside the canonical document must have an entry."""
+
+    _LEDGER = (
+        "Active Items follow an ordering convention: entries are grouped by "
+        "ID-prefix (RAG-*, DEPLOY-*), each group in ascending order.\n\n"
+        "#### RAG-001\n\n- **Status**: open\n"
+    )
+
+    def _setup(
+        self, tmp_path: Path, doc_text: str
+    ) -> tuple[list[DocFile], dict[str, CanonicalStatus], frozenset[str]]:
+        _write(tmp_path / "ledger", "ledger.md", self._LEDGER)
+        _write(tmp_path / "general", "guide.md", doc_text)
+        ledger_docs = _discover(tmp_path / "ledger")
+        canonical, _ = parse_canonical_statuses(ledger_docs)
+        prefixes = discover_known_issue_prefixes(ledger_docs, canonical)
+        return _discover(tmp_path / "general"), canonical, prefixes
+
+    def test_prefixes_come_from_the_convention_and_entries(
+        self, tmp_path: Path
+    ) -> None:
+        _, _, prefixes = self._setup(tmp_path, "x\n")
+        assert prefixes == {"RAG", "DEPLOY"}
+
+    def test_deleted_id_is_reported_as_error(self, tmp_path: Path) -> None:
+        # DEPLOY has no remaining entry, yet its prefix is still recognized.
+        docs, canonical, prefixes = self._setup(
+            tmp_path, "Tracked as DEPLOY-001 and RAG-001.\n"
+        )
+        findings = find_dangling_general_references(docs, canonical, prefixes)
+        assert len(findings) == 1
+        assert findings[0].severity == "ERROR"
+        assert "DEPLOY-001" in findings[0].message
+
+    def test_existing_id_and_unrelated_tokens_are_clean(self, tmp_path: Path) -> None:
+        docs, canonical, prefixes = self._setup(
+            tmp_path, "RAG-001, INV-07, REQ-003, RAG-001-D1-suffix.\n"
+        )
+        assert find_dangling_general_references(docs, canonical, prefixes) == []
+
+    def test_known_deviations_section_is_left_to_cross_check(
+        self, tmp_path: Path
+    ) -> None:
+        docs, canonical, prefixes = self._setup(
+            tmp_path,
+            "## Known Deviations\n\n- **Known Issue**: RAG-009 — gone\n\n"
+            "## Notes\n\nSee RAG-010.\n",
+        )
+        findings = find_dangling_general_references(docs, canonical, prefixes)
+        assert [f.message.split()[0] for f in findings] == ["RAG-010"]

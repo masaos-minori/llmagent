@@ -15,6 +15,11 @@ Two failure modes are reported:
      entry) (WARNING).
   3. A Known Issue whose `Target` is an ADR is not cited in that ADR's
      `## Known Deviations` -- the reverse direction of check 2 (WARNING).
+  4. Any other document under docs/ (an ADR's sections outside Known Deviations
+     included) cites a Known Issue ID that has no entry in the canonical document --
+     typically an ID that was deleted when the issue was resolved, whose references
+     were not cleaned up (ERROR). The ID prefixes come from the canonical document's
+     own ordering convention.
 
 Rule ID: GV-022 (docs/00_governance/governance_04_documentation-checks.md).
 
@@ -105,6 +110,12 @@ _RESOLVED_BULLET_RE = re.compile(
 )
 
 
+# "entries are grouped by ID-prefix (RAG-*, DESIGN-*, ...)" in the canonical document's
+# Active Items convention names every prefix a Known Issue ID may use.
+_PREFIX_CONVENTION_RE = re.compile(r"ID-prefix \(([^)]*)\)")
+_PREFIX_ITEM_RE = re.compile(r"([A-Z]+)-\*")
+
+
 @dataclass(frozen=True)
 class CanonicalStatus:
     """A canonical Known Issue entry's Status, as recorded in one doc."""
@@ -164,6 +175,16 @@ def discover_canonical_docs() -> list[DocFile]:
 def discover_adr_docs() -> list[DocFile]:
     """All docs/10_adr/*.md files."""
     return discover_md_files(ADR_DIR, prefix="")
+
+
+def discover_reference_docs() -> list[DocFile]:
+    """Every docs/**/*.md file except the canonical Known Issue documents."""
+    canonical_paths = {doc.path for doc in discover_canonical_docs()}
+    return [
+        doc
+        for doc in discover_md_files(DOCS_DIR, prefix="")
+        if doc.path not in canonical_paths
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -403,6 +424,59 @@ def reverse_cross_check(
     return issues
 
 
+def discover_known_issue_prefixes(
+    canonical_docs: list[DocFile], canonical: dict[str, CanonicalStatus]
+) -> frozenset[str]:
+    """ID prefixes a Known Issue may use: the canonical convention, plus the prefixes
+    of every parsed entry (so a prefix missing from the convention still counts)."""
+    prefixes: set[str] = {entry_id.rsplit("-", 1)[0] for entry_id in canonical}
+    for doc in canonical_docs:
+        for line in doc.lines:
+            match = _PREFIX_CONVENTION_RE.search(line)
+            if match:
+                prefixes.update(_PREFIX_ITEM_RE.findall(match.group(1)))
+    return frozenset(prefixes)
+
+
+def find_dangling_general_references(
+    files: list[DocFile],
+    canonical: dict[str, CanonicalStatus],
+    prefixes: frozenset[str],
+) -> list[Issue]:
+    """Report Known Issue IDs cited outside the canonical document that have no entry.
+
+    An ADR's `## Known Deviations` lines are skipped: cross_check() already reports
+    them (as a WARNING).
+    """
+    if not prefixes:
+        return []
+    id_re = re.compile(rf"\b(?:{'|'.join(sorted(prefixes))})-\d+\b(?!-?\w)")
+    issues: list[Issue] = []
+    for doc in files:
+        skipped = {
+            line_no for line_no, _ in _section_body(doc.lines, "## Known Deviations", 2)
+        }
+        for line_no, line in enumerate(doc.lines, start=1):
+            if line_no in skipped:
+                continue
+            for match in id_re.finditer(line):
+                if match.group(0) in canonical:
+                    continue
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=line_no,
+                        severity="ERROR",
+                        message=(
+                            f"{match.group(0)} has no entry in the canonical Known "
+                            f"Issue document (a resolved issue's ID must not stay "
+                            f"referenced in current specifications)"
+                        ),
+                    )
+                )
+    return issues
+
+
 def collect_issues() -> list[Issue]:
     canonical_docs = discover_canonical_docs()
     canonical, parse_issues = parse_canonical_statuses(canonical_docs)
@@ -413,6 +487,13 @@ def collect_issues() -> list[Issue]:
     issues.extend(cross_check(canonical, adr_refs))
     issues.extend(
         reverse_cross_check(parse_canonical_adr_targets(canonical_docs), adr_refs)
+    )
+    issues.extend(
+        find_dangling_general_references(
+            discover_reference_docs(),
+            canonical,
+            discover_known_issue_prefixes(canonical_docs, canonical),
+        )
     )
     return issues
 

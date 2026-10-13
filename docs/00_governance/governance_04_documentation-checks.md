@@ -206,9 +206,9 @@ python tools/check_adr_structure.py --format json
 
 ### 11. Known Deviation Sync Check (`check_known_deviation_sync.py`)
 
-Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), that a Known Issue whose `Target` is an ADR is cited in that ADR's `## Known Deviations` (the reverse direction, Warning), and rejects resolved-item bullets in `## Known Deviations` (Error).
+Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), that a Known Issue whose `Target` is an ADR is cited in that ADR's `## Known Deviations` (the reverse direction, Warning), rejects resolved-item bullets in `## Known Deviations` (Error), and rejects a Known Issue ID cited anywhere else under `docs/` that has no entry in Part 1 (Error; typically an ID deleted when the issue was resolved). The ID prefixes are read from Part 1's own ordering convention.
 
-**Enforcement:** pre-commit (`known-deviation-sync`) and `.github/workflows/governance-docs-consistency.yml`. Rule ID `GV-022`: an Error (resolved-item bullet) fails the run; a Warning (dangling reference or a Known Issue missing from its Target ADR's Known Deviations) does not.
+**Enforcement:** pre-commit (`known-deviation-sync`) and `.github/workflows/governance-docs-consistency.yml`. Rule ID `GV-022`: an Error (resolved-item bullet) fails the run; a Warning (dangling reference in an ADR's Known Deviations, or a Known Issue missing from its Target ADR's Known Deviations) does not.
 
 **Usage:**
 ```bash
@@ -339,7 +339,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
-| GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no dangling Known Issue ID (Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
+| GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no Known Issue ID cited outside the ledger that lacks a ledger entry (Error; dangling ID in an ADR's Known Deviations: Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
 
 ### Follow-up Work Needed
 
