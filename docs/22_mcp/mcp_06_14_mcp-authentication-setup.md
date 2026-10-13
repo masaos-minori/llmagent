@@ -26,6 +26,7 @@ the deployment document.
   - Use environment variable injection or secret management (e.g., files under `conf.d/`) instead of hardcoding secrets in configuration files.
   - mdq-mcp does not verify Bearer tokens at the HTTP layer (see `mcp_05_05_mdq-enforcement-and-lockdown.md`), but its agent-side `auth_token` must still be non-empty.
   - web-search uses the single `MCP_WEB_SEARCH_AUTH_TOKEN` variable on both sides: the agent's `[mcp_servers.web_search].auth_token` and the server's `auth_token` in `config/web_search_mcp_server.toml` resolve the same value, as for git and cicd; no second secret is needed. (Explicit in code — `config/web_search_mcp_server.toml`, `scripts/mcp_servers/web_search/web_search_server.py`)
+  - The shell, github, and file servers use one variable on both sides as well: `MCP_SHELL_AUTH_TOKEN`, `MCP_GITHUB_AUTH_TOKEN`, `MCP_FILE_READ_AUTH_TOKEN`, `MCP_FILE_WRITE_AUTH_TOKEN`, and `MCP_FILE_DELETE_AUTH_TOKEN` are resolved both by the agent's `[mcp_servers.*].auth_token` entry and by the server's own `auth_token` in `config/<server>_mcp_server.toml`. These servers refuse to start when the value is empty or the variable is unset; deploy the new binaries and the configuration together.
 
 - Restart the agent process (do NOT use `/reload`)
   - `/reload` does not change `[mcp_servers.*]` at runtime — changes to MCP server definitions require a full agent restart.
