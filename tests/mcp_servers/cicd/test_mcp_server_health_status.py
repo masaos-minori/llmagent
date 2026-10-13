@@ -11,6 +11,8 @@ from unittest.mock import patch
 
 from fastapi.testclient import TestClient
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class TestHealthHTTPStatusCodes:
     """Test that /health endpoints return correct HTTP status codes."""
@@ -130,7 +132,9 @@ class TestFileServerHealth:
         from mcp_servers.file.read_server import app as read_app
 
         with patch("mcp_servers.file.common._build_health_deps", return_value={}):
-            client = TestClient(read_app, raise_server_exceptions=False)
+            client = TestClient(
+                read_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+            )
             response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
@@ -148,7 +152,9 @@ class TestFileServerHealth:
             "mcp_servers.file.common._build_health_deps",
             return_value={"filesystem": "/workspace not found"},
         ):
-            client = TestClient(read_app, raise_server_exceptions=False)
+            client = TestClient(
+                read_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+            )
             response = client.get("/health")
         assert response.status_code == 503
         data = response.json()
@@ -162,7 +168,9 @@ class TestFileServerHealth:
         from mcp_servers.file.write_server import app as write_app
 
         with patch("mcp_servers.file.common._build_health_deps", return_value={}):
-            client = TestClient(write_app, raise_server_exceptions=False)
+            client = TestClient(
+                write_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+            )
             response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
@@ -179,7 +187,9 @@ class TestFileServerHealth:
             "mcp_servers.file.common._build_health_deps",
             return_value={"filesystem": "/workspace not found"},
         ):
-            client = TestClient(write_app, raise_server_exceptions=False)
+            client = TestClient(
+                write_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+            )
             response = client.get("/health")
         assert response.status_code == 503
         data = response.json()
@@ -192,7 +202,9 @@ class TestFileServerHealth:
         from mcp_servers.file.delete_server import app as delete_app
 
         with patch("mcp_servers.file.common._build_health_deps", return_value={}):
-            client = TestClient(delete_app, raise_server_exceptions=False)
+            client = TestClient(
+                delete_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+            )
             response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
@@ -209,7 +221,9 @@ class TestFileServerHealth:
             "mcp_servers.file.common._build_health_deps",
             return_value={"filesystem": "/workspace not found"},
         ):
-            client = TestClient(delete_app, raise_server_exceptions=False)
+            client = TestClient(
+                delete_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+            )
             response = client.get("/health")
         assert response.status_code == 503
         data = response.json()

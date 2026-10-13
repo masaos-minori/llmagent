@@ -23,6 +23,8 @@ from typing import Any
 import httpx
 import pytest
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS, MCP_TEST_TOKEN
+
 _SCRIPTS = Path(__file__).parent.parent.parent.parent / "scripts"
 _PYTHON = sys.executable
 
@@ -72,7 +74,7 @@ def _wait_for_health(url: str, timeout: float = 10.0) -> bool:
     deadline = time.monotonic() + timeout
     while time.monotonic() < deadline:
         try:
-            resp = httpx.get(url, timeout=1.0)
+            resp = httpx.get(url, headers=MCP_TEST_AUTH_HEADERS, timeout=1.0)
             if resp.status_code == 200:
                 return True
         except Exception:  # noqa: BLE001 — health-check polling must tolerate connection errors during startup and simply retry
@@ -119,7 +121,10 @@ def mcp_server(request: pytest.FixtureRequest) -> Any:
             f"port {port} already in use — likely a running production instance of {module}"
         )
 
-    env_override = {"PYTHONPATH": str(_SCRIPTS)}
+    env_override = {
+        "PYTHONPATH": str(_SCRIPTS),
+        "MCP_SHELL_AUTH_TOKEN": MCP_TEST_TOKEN,
+    }
     cmd = [_PYTHON, "-m", module]
     env = {**os.environ, **env_override}
     proc = subprocess.Popen(
@@ -184,7 +189,9 @@ def test_v1_tools_returns_expected_tools(mcp_server: Any) -> None:
     """
     port, expected_tools = mcp_server
     resp = httpx.get(
-        f"http://127.0.0.1:{port}/v1/tools?include_disabled=true", timeout=5.0
+        f"http://127.0.0.1:{port}/v1/tools?include_disabled=true",
+        headers=MCP_TEST_AUTH_HEADERS,
+        timeout=5.0,
     )
     assert resp.status_code == 200, f"Expected 200, got {resp.status_code}"
     data = resp.json()
@@ -211,7 +218,9 @@ def test_v1_tools_each_has_name_and_description(mcp_server: Any) -> None:
     """
     port, _expected_tools = mcp_server
     resp = httpx.get(
-        f"http://127.0.0.1:{port}/v1/tools?include_disabled=true", timeout=5.0
+        f"http://127.0.0.1:{port}/v1/tools?include_disabled=true",
+        headers=MCP_TEST_AUTH_HEADERS,
+        timeout=5.0,
     )
     assert resp.status_code == 200
     data = resp.json()

@@ -2,12 +2,12 @@
 - Send the shared Authorization header from the `TestClient` constructions in this file that target the Bearer-authenticated servers, so its tests keep exercising the routes once the servers verify the token (REQ-005).
 
 ## Scope
-- In: the `client` fixture (one construction).
+- In: the six constructions in `TestFileServerHealth` that build the file-read, file-write, and file-delete applications.
 - Out: any assertion or test logic, and constructions that target other servers.
 
 ## Assumptions
 - Row 16 (`tests/mcp_servers/_auth_headers.py`) exists.
-- Measured in a scratch copy with the servers patched as designed: 9 failures without the header.
+- Measured in a scratch copy with the servers patched as designed: 6 failures without the header (`TestFileServerHealth`; 13 `TestClient(` constructions in the file).
 - The header is harmless before the servers change (an unauthenticated app ignores it), so this row lands first (Plan Step 2).
 
 ## Design decisions
@@ -19,7 +19,7 @@
 
 ## Implementation
 ### Target file
-`tests/mcp_servers/shell/test_shell_server_endpoints.py`
+`tests/mcp_servers/cicd/test_mcp_server_health_status.py`
 
 ### Procedure
 1. Add the helper import (see Method).
@@ -28,19 +28,25 @@
 
 ### Method
 - Add the helper import as its own first-party import block after the third-party imports: `MCP_TEST_AUTH_HEADERS` (new) is imported from the module `tests.mcp_servers._auth_headers` (new). Let `uv run ruff check <file> --fix` (rule `I`) place it; `tests/agent/test_tool_audit.py` imports `tests.agent._config_test_defaults` the same way (a namespace sub-package without `__init__.py`, Explicit in code — `tests/agent/test_tool_audit.py`).
-- Anchor for the import: `from fastapi.testclient import TestClient` at line 22.
+- Anchor for the import: `from fastapi.testclient import TestClient` at line 12.
 
 ### Details
-One site, the `client` fixture (lines 53-54), Before/After:
+Six sites at 12-space indent inside `with patch(...)` blocks (lines 133 and 151 build `read_app`, lines 165 and 182 build `write_app`, lines 195 and 212 build `delete_app`), Before/After; ruff format wraps the longer call:
 
 ```python
 # Before:
-def client() -> TestClient:
-    return TestClient(shell_server.app)
+            client = TestClient(read_app, raise_server_exceptions=False)
 # After:
-def client() -> TestClient:
-    return TestClient(shell_server.app, headers=MCP_TEST_AUTH_HEADERS)
+            client = TestClient(
+                read_app,
+                raise_server_exceptions=False,
+                headers=MCP_TEST_AUTH_HEADERS,
+            )
 ```
+
+The write and delete sites change the same way with `write_app` and `delete_app`.
+
+Unchanged: the web-search (lines 22 and 81), git (line 37), cicd (lines 64 and 105), and rag-pipeline constructions (lines 233 and 256; the rag-pipeline ones already send `headers=`).
 
 ## Compatibility considerations
 - Test-only change; no production behavior. Meaningful after the server rows (2, 4, 6, 8, 10) land, harmless before.
@@ -52,8 +58,8 @@ N/A: test code with a dummy token.
 - Revert this file; the tests then fail with 401 once the servers verify the token, so revert only together with the server rows.
 
 ## Validation plan
-- `uv run ruff format tests/mcp_servers/shell/test_shell_server_endpoints.py` and `uv run ruff check tests/mcp_servers/shell/test_shell_server_endpoints.py --fix`.
-- `uv run pytest tests/mcp_servers/shell/test_shell_server_endpoints.py -q` (before and after the server rows).
+- `uv run ruff format tests/mcp_servers/cicd/test_mcp_server_health_status.py` and `uv run ruff check tests/mcp_servers/cicd/test_mcp_server_health_status.py --fix`.
+- `uv run pytest tests/mcp_servers/cicd/test_mcp_server_health_status.py -q` (before and after the server rows).
 - `uv run pytest tests/mcp_servers -q -rs` — the measured set returns to 2049 passed and 6 skipped.
 
 ## Completion criteria
@@ -68,8 +74,8 @@ N/A: test code with a dummy token.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the helper import and the construction changes | Pending | — | — | Plan Step 2 |
-| 2 | Run this file's tests and `tests/mcp_servers` | Pending | — | — |  |
+| 1 | Add the helper import and the construction changes | Completed | — | — | Plan Step 2 |
+| 2 | Run this file's tests and `tests/mcp_servers` | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,4 +95,4 @@ N/A: test code with a dummy token.
 - **Source plan**: plans/20261013-120538_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261013-123717
-- **Related target files**: tests/mcp_servers/shell/test_shell_server_endpoints.py
+- **Related target files**: tests/mcp_servers/cicd/test_mcp_server_health_status.py

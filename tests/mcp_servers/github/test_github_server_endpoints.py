@@ -32,6 +32,8 @@ import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.github import github_server
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class _FakeService:
     """Minimal stand-in for GitHubService, exposing only what github_server.py touches."""
@@ -60,7 +62,7 @@ def fake_service(monkeypatch: pytest.MonkeyPatch) -> _FakeService:
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(github_server.app)
+    return TestClient(github_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
 class TestToolsListEndpoint:

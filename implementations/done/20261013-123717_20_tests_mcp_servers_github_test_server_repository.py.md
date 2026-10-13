@@ -68,8 +68,8 @@ N/A: test code with a dummy token.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the helper import and the construction changes | Pending | — | — | Plan Step 2 |
-| 2 | Run this file's tests and `tests/mcp_servers` | Pending | — | — |  |
+| 1 | Add the helper import and the construction changes | Completed | — | — | Plan Step 2 |
+| 2 | Run this file's tests and `tests/mcp_servers` | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

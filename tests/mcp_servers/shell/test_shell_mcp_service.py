@@ -27,6 +27,8 @@ from mcp_servers.shell.shell_service_static_helpers import (
 )
 from shared.protocols.shell import ShellPolicy
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -744,7 +746,7 @@ class TestHealthResponse:
             dependencies: dict = {}
 
         monkeypatch.setattr(shell_server, "_service", _FakeService())
-        client = TestClient(shell_server.app)
+        client = TestClient(shell_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.get("/health")
         assert resp.status_code == 200
         body = resp.json()

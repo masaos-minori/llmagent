@@ -17,6 +17,8 @@ import importlib
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 _FILE_SERVERS: list[tuple[str, str, str]] = [
     ("mcp_servers.file.read_server", "FileReadConfig", "mcp_servers.file.read_models"),
     (
@@ -56,7 +58,7 @@ def test_file_server_tools_disabled_when_allowed_dirs_empty(
     cfg_mod = importlib.import_module(cfg_mod_path)
     cfg_cls = getattr(cfg_mod, cfg_cls_name)
     monkeypatch.setattr(server_mod, "_cfg", cfg_cls(allowed_dirs=[]))
-    client = TestClient(server_mod.app)
+    client = TestClient(server_mod.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get("/v1/tools?include_disabled=true").json()
     assert data["tools"]
     for tool in data["tools"]:
@@ -78,7 +80,7 @@ def test_file_server_tools_enabled_when_allowed_dirs_set(
     cfg_mod = importlib.import_module(cfg_mod_path)
     cfg_cls = getattr(cfg_mod, cfg_cls_name)
     monkeypatch.setattr(server_mod, "_cfg", cfg_cls(allowed_dirs=["/tmp"]))
-    client = TestClient(server_mod.app)
+    client = TestClient(server_mod.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get("/v1/tools").json()
     for tool in data["tools"]:
         assert tool["enabled"] is True
@@ -101,7 +103,7 @@ def test_file_server_include_disabled_false_omits_disabled_tools(
     cfg_mod = importlib.import_module(cfg_mod_path)
     cfg_cls = getattr(cfg_mod, cfg_cls_name)
     monkeypatch.setattr(server_mod, "_cfg", cfg_cls(allowed_dirs=[]))
-    client = TestClient(server_mod.app)
+    client = TestClient(server_mod.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get("/v1/tools?include_disabled=false").json()
     assert data["tools"] == []
 
@@ -120,7 +122,7 @@ def test_file_server_disabled_code_filters_to_matching_tools(
     cfg_mod = importlib.import_module(cfg_mod_path)
     cfg_cls = getattr(cfg_mod, cfg_cls_name)
     monkeypatch.setattr(server_mod, "_cfg", cfg_cls(allowed_dirs=[]))
-    client = TestClient(server_mod.app)
+    client = TestClient(server_mod.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get(
         "/v1/tools?include_disabled=true&disabled_code=allowed_dirs+is+empty"
     ).json()
@@ -245,7 +247,7 @@ def test_enabled_and_disabled_reason_types_across_all_servers(
         cfg_mod = importlib.import_module(cfg_mod_path)
         cfg_cls = getattr(cfg_mod, cfg_cls_name)
         monkeypatch.setattr(server_mod, "_cfg", cfg_cls(allowed_dirs=["/tmp"]))
-        client = TestClient(server_mod.app)
+        client = TestClient(server_mod.app, headers=MCP_TEST_AUTH_HEADERS)
         data = client.get("/v1/tools").json()
         for tool in data["tools"]:
             assert isinstance(tool["enabled"], bool)

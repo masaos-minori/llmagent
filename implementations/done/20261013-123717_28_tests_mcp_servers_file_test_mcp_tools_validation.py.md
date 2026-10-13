@@ -93,8 +93,8 @@ N/A: dummy test token; the subprocess environment override is local to the fixtu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply changes A, B, and C | Pending | — | — | Plan Step 2; verify the skip list again in Step 3 |
-| 2 | Run this file's integration tests and `tests/mcp_servers` | Pending | — | — |  |
+| 1 | Apply changes A, B, and C | Completed | — | — | Plan Step 2; verify the skip list again in Step 3 |
+| 2 | Run this file's integration tests and `tests/mcp_servers` | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

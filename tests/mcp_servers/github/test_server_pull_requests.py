@@ -46,6 +46,8 @@ from mcp_servers.github.github_models import (
     UpdatePullRequestResponse,
 )
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class _FakeService:
     """Minimal stand-in for GitHubService, exposing only what server_pull_requests.py touches."""
@@ -68,7 +70,7 @@ def fake_service(monkeypatch: pytest.MonkeyPatch) -> _FakeService:
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(github_server.app)
+    return TestClient(github_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
 def _log_message(caplog: pytest.LogCaptureFixture) -> str:

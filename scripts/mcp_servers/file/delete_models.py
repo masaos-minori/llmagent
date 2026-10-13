@@ -13,7 +13,7 @@ from typing import Any, Self
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 from shared.config_loader import ConfigLoader
-from shared.config_utils import get_typed
+from shared.config_utils import get_str, get_typed
 
 logger = logging.getLogger(__name__)
 
@@ -28,11 +28,14 @@ class FileDeleteConfig:
 
     allowed_dirs: list[str] = dataclasses.field(default_factory=list)
 
+    auth_token: str = ""
+
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> FileDeleteConfig:
         """Construct from a raw config dict (e.g. loaded from TOML)."""
         return cls(
             allowed_dirs=list(get_typed(d, "allowed_dirs", list, "a list", default=[])),
+            auth_token=get_str(d, "auth_token"),
         )
 
     @classmethod

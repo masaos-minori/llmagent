@@ -7,7 +7,7 @@
 
 ## Assumptions
 - Row 16 (`tests/mcp_servers/_auth_headers.py`) exists.
-- Measured in a scratch copy with the servers patched as designed: 9 failures without the header.
+- Measured in a scratch copy with the servers patched as designed: 4 failures without the header.
 - The header is harmless before the servers change (an unauthenticated app ignores it), so this row lands first (Plan Step 2).
 
 ## Design decisions
@@ -19,7 +19,7 @@
 
 ## Implementation
 ### Target file
-`tests/mcp_servers/github/test_github_server_endpoints.py`
+`tests/mcp_servers/github/test_server_file.py`
 
 ### Procedure
 1. Add the helper import (see Method).
@@ -28,7 +28,7 @@
 
 ### Method
 - Add the helper import as its own first-party import block after the third-party imports: `MCP_TEST_AUTH_HEADERS` (new) is imported from the module `tests.mcp_servers._auth_headers` (new). Let `uv run ruff check <file> --fix` (rule `I`) place it; `tests/agent/test_tool_audit.py` imports `tests.agent._config_test_defaults` the same way (a namespace sub-package without `__init__.py`, Explicit in code — `tests/agent/test_tool_audit.py`).
-- Anchor for the import: `from fastapi.testclient import TestClient` at line 32.
+- Anchor for the import: `from fastapi.testclient import TestClient` at line 35.
 
 ### Details
 One site, the `client` fixture (lines 62-63), Before/After:
@@ -52,8 +52,8 @@ N/A: test code with a dummy token.
 - Revert this file; the tests then fail with 401 once the servers verify the token, so revert only together with the server rows.
 
 ## Validation plan
-- `uv run ruff format tests/mcp_servers/github/test_github_server_endpoints.py` and `uv run ruff check tests/mcp_servers/github/test_github_server_endpoints.py --fix`.
-- `uv run pytest tests/mcp_servers/github/test_github_server_endpoints.py -q` (before and after the server rows).
+- `uv run ruff format tests/mcp_servers/github/test_server_file.py` and `uv run ruff check tests/mcp_servers/github/test_server_file.py --fix`.
+- `uv run pytest tests/mcp_servers/github/test_server_file.py -q` (before and after the server rows).
 - `uv run pytest tests/mcp_servers -q -rs` — the measured set returns to 2049 passed and 6 skipped.
 
 ## Completion criteria
@@ -68,8 +68,8 @@ N/A: test code with a dummy token.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the helper import and the construction changes | Pending | — | — | Plan Step 2 |
-| 2 | Run this file's tests and `tests/mcp_servers` | Pending | — | — |  |
+| 1 | Add the helper import and the construction changes | Completed | — | — | Plan Step 2 |
+| 2 | Run this file's tests and `tests/mcp_servers` | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,4 +89,4 @@ N/A: test code with a dummy token.
 - **Source plan**: plans/20261013-120538_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261013-123717
-- **Related target files**: tests/mcp_servers/github/test_github_server_endpoints.py
+- **Related target files**: tests/mcp_servers/github/test_server_file.py

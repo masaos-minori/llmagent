@@ -28,6 +28,8 @@ from mcp_servers.shell.shell_models import (
     ShellValidationError,
 )
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class _FakeService:
     """Minimal stand-in for ShellService, exposing only what shell_server.py touches."""
@@ -51,7 +53,7 @@ def fake_service(monkeypatch: pytest.MonkeyPatch) -> _FakeService:
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(shell_server.app)
+    return TestClient(shell_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
 class TestShellRunEndpoint:

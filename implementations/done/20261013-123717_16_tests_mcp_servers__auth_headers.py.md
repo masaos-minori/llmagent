@@ -71,8 +71,8 @@ MCP_TEST_AUTH_HEADERS: dict[str, str] = {"Authorization": f"Bearer {MCP_TEST_TOK
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the helper module | Pending | — | — | Plan Step 2; must land before rows 17-28 |
-| 2 | Run the validation commands | Pending | — | — |  |
+| 1 | Create the helper module | Completed | — | — | Plan Step 2; must land before rows 17-28 |
+| 2 | Run the validation commands | Completed | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

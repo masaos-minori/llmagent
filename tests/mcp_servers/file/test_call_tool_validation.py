@@ -9,6 +9,8 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class TestFileReadCallToolDisabledGate:
     def test_disabled_when_allowed_dirs_empty(
@@ -18,7 +20,7 @@ class TestFileReadCallToolDisabledGate:
         from mcp_servers.file.read_models import FileReadConfig
 
         monkeypatch.setattr(read_server, "_cfg", FileReadConfig(allowed_dirs=[]))
-        client = TestClient(read_server.app)
+        client = TestClient(read_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool", json={"name": "list_directory", "args": {"path": "/tmp"}}
         )
@@ -37,7 +39,7 @@ class TestFileReadCallToolDisabledGate:
 
         monkeypatch.setattr(read_server, "_cfg", FileReadConfig(allowed_dirs=[]))
         monkeypatch.setattr(read_server, "_dispatch_read_tool", _spy)
-        client = TestClient(read_server.app)
+        client = TestClient(read_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool", json={"name": "list_directory", "args": {"path": "/tmp"}}
         )
@@ -51,7 +53,7 @@ class TestFileReadCallToolDisabledGate:
         from mcp_servers.file.read_models import FileReadConfig
 
         monkeypatch.setattr(read_server, "_cfg", FileReadConfig(allowed_dirs=["/tmp"]))
-        client = TestClient(read_server.app)
+        client = TestClient(read_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool", json={"name": "list_directory", "args": {"path": "/tmp"}}
         )
@@ -67,7 +69,7 @@ class TestFileWriteCallToolDisabledGate:
         from mcp_servers.file.write_models import FileWriteConfig
 
         monkeypatch.setattr(write_server, "_cfg", FileWriteConfig(allowed_dirs=[]))
-        client = TestClient(write_server.app)
+        client = TestClient(write_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool",
             json={"name": "write_file", "args": {"path": "/tmp/x", "content": ""}},
@@ -87,7 +89,7 @@ class TestFileWriteCallToolDisabledGate:
 
         monkeypatch.setattr(write_server, "_cfg", FileWriteConfig(allowed_dirs=[]))
         monkeypatch.setattr(write_server, "_dispatch_write_tool", _spy)
-        client = TestClient(write_server.app)
+        client = TestClient(write_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool",
             json={"name": "write_file", "args": {"path": "/tmp/x", "content": ""}},
@@ -104,7 +106,7 @@ class TestFileWriteCallToolDisabledGate:
         monkeypatch.setattr(
             write_server, "_cfg", FileWriteConfig(allowed_dirs=["/tmp"])
         )
-        client = TestClient(write_server.app)
+        client = TestClient(write_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool",
             json={"name": "write_file", "args": {"path": "/tmp/x", "content": ""}},
@@ -121,7 +123,7 @@ class TestFileDeleteCallToolDisabledGate:
         from mcp_servers.file.delete_models import FileDeleteConfig
 
         monkeypatch.setattr(delete_server, "_cfg", FileDeleteConfig(allowed_dirs=[]))
-        client = TestClient(delete_server.app)
+        client = TestClient(delete_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool", json={"name": "delete_file", "args": {"path": "/tmp/x"}}
         )
@@ -140,7 +142,7 @@ class TestFileDeleteCallToolDisabledGate:
 
         monkeypatch.setattr(delete_server, "_cfg", FileDeleteConfig(allowed_dirs=[]))
         monkeypatch.setattr(delete_server, "_dispatch_delete_tool", _spy)
-        client = TestClient(delete_server.app)
+        client = TestClient(delete_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool", json={"name": "delete_file", "args": {"path": "/tmp/x"}}
         )
@@ -156,7 +158,7 @@ class TestFileDeleteCallToolDisabledGate:
         monkeypatch.setattr(
             delete_server, "_cfg", FileDeleteConfig(allowed_dirs=["/tmp"])
         )
-        client = TestClient(delete_server.app)
+        client = TestClient(delete_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool", json={"name": "delete_file", "args": {"path": "/tmp/x"}}
         )
