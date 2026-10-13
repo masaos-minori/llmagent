@@ -16,6 +16,11 @@
 #   NUTKA_EXTRA_FLAGS="--onefile-no-compression" bash deploy/build_binaries.sh
 #   # 出力先を変更:
 #   BIN_DIR=/opt/llm/bin OUTPUT_DIR=/data/nuitka_dist bash deploy/build_binaries.sh
+#
+# nuitka4.x に関する注記:
+#   --onefile（スタンドアロン実行可能）と --module（インポート用拡張モジュール）は
+#   x4 で両立できない。そのため各エントリの __main__ を再現するランチャ (.py) を
+#   生成し、それを --onefile の対象（位置引数）としてコンパイルする。
 
 set -euo pipefail
 
@@ -23,19 +28,23 @@ set -euo pipefail
 BIN_DIR="${BIN_DIR:-/opt/llm/bin}"
 OUTPUT_DIR="${OUTPUT_DIR:-/opt/llm/dist}"
 
+# プロジェクトの `agent` / `mcp_servers` は installed package ではない
+# (scripts/ に __init__.py が無い)。tests/conftest.py が sys.path に挿入するのと同様、
+# nuitka が対象モジュールを解析できるように PYTHONPATH に scripts/ を追加する。
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export PYTHONPATH="${REPO_ROOT}/scripts${PYTHONPATH:+:${PYTHONPATH}}"
+
 # 既定の Nuitka フラグ (implementation procedure method step 3 に準拠)。
 #   --onefile            : 単一バイナリ
-#   --no-strip           : デバッグシンタ保留 (問題時のトレース用)
+#   --unstripped         : デバッグシンタ保留 (問題時のトレース用)。nuitka4.x では --no-strip が廃止。
 #   --include-package-data=sudachipy : sudachipy/resources/* の同梱 (必須・数KB)
 BASE_NUTKA_ARGS=(
     --onefile
-    --no-strip
+    --unstripped
     --include-package-data=sudachipy
 )
 
 # ホスト固有のフラグ (空白区切り)。例: --onefile-no-compression (低メモリ用)。
-# plan REQ-006 / Phase 0 事実(約3.7GB RAM で既定 zstd 圧縮が失敗) に従い、
-# 低メモリホストで --onefile-no-compression を注入して使用する。
 NUTKA_EXTRA_FLAGS="${NUTKA_EXTRA_FLAGS:-}"
 
 # 遅延 import (--include-module)。PoC で発見した遅延 import を記載。
@@ -44,33 +53,70 @@ NUTKA_EXTRA_FLAGS="${NUTKA_EXTRA_FLAGS:-}"
 LAZY_IMPORTS=()
 
 # Nuitka コマンド (既定は `uv run nuitka`)。
-NUTKA_CMD=("${NUTKA_CMD[@]:-uv}" run nuitka)
+# nuitka は pyproject の依存ではないことが多いため、既定が解決できなければ
+# `uv run --with nuitka` で都度解決する。バージョンは再現のため固定デフォルト。
+NUTKA_VERSION="${NUTKA_VERSION:-4.2.2}"
+NUTKA_PRIMARY_CMD=( "${NUTKA_CMD[@]:-uv}" run nuitka )
+NUTKA_FALLBACK_CMD=( uv run --with nuitka==${NUTKA_VERSION} nuitka )
 
-# ── エントリポイント表 (モジュールパス : 出力バイナリ名) ──────────────────────
+# ── エントリ表 (モジュールパス : 出力バイナリ名 : サーバークラス) ──────────────
 # 計11件 (エージェント1 + MCP サーバー10)。出力名は config/agent.toml の
 # [mcp_servers.<key>] セクション名 に準拠 (例: mcp_servers.shell -> mcp_shell)。
+# クラス名が空のエントリは agent.repl のように main() を呼ぶ種別。
 ENTRIES=(
-    "agent.repl:agent"
-    "mcp_servers.shell.shell_server:mcp_shell"
-    "mcp_servers.git.git_server:mcp_git"
-    "mcp_servers.web_search.web_search_server:mcp_web_search"
-    "mcp_servers.file.delete_server:mcp_file_delete"
-    "mcp_servers.file.write_server:mcp_file_write"
-    "mcp_servers.file.read_server:mcp_file_read"
-    "mcp_servers.github.github_server:mcp_github"
-    "mcp_servers.cicd.cicd_server:mcp_cicd"
-    "mcp_servers.rag_pipeline.rag_pipeline_server:mcp_rag_pipeline"
-    "mcp_servers.mdq.mdq_server:mcp_mdq"
+    "agent.repl:agent:"
+    "mcp_servers.shell.shell_server:mcp_shell:ShellMCPServer"
+    "mcp_servers.git.git_server:mcp_git:GitMCPServer"
+    "mcp_servers.web_search.web_search_server:mcp_web_search:WebSearchMCPServer"
+    "mcp_servers.file.delete_server:mcp_file_delete:FileDeleteMCPServer"
+    "mcp_servers.file.write_server:mcp_file_write:FileWriteMCPServer"
+    "mcp_servers.file.read_server:mcp_file_read:FileReadMCPServer"
+    "mcp_servers.github.github_server:mcp_github:GithubMCPServer"
+    "mcp_servers.cicd.cicd_server:mcp_cicd:CiCdMCPServer"
+    "mcp_servers.rag_pipeline.rag_pipeline_server:mcp_rag_pipeline:RagPipelineMCPServer"
+    "mcp_servers.mdq.mdq_server:mcp_mdq:MdqMCPServer"
 )
 
 # ── 事前チェック ──────────────────────────────────────────────────────────────
 command -v uv >/dev/null 2>&1 || { echo "[FATAL] uv not found. Install uv first." >&2; exit 1; }
-if ! "${NUTKA_CMD[@]}" --version >/dev/null 2>&1; then
-    echo "[FATAL] nuitka not available via: ${NUTKA_CMD[*]}" >&2
+# nuitka の実コマンドを解決する。既定 (NUTKA_PRIMARY_CMD) が解決できなければ
+# `uv run --with nuitka` で都度解決する (nuitka が pyproject 依存ではないため)。
+if "${NUTKA_PRIMARY_CMD[@]}" --version >/dev/null 2>&1; then
+    NUTKA_CMD=( "${NUTKA_PRIMARY_CMD[@]}" )
+elif "${NUTKA_FALLBACK_CMD[@]}" --version >/dev/null 2>&1; then
+    NUTKA_CMD=( "${NUTKA_FALLBACK_CMD[@]}" )
+else
+    echo "[FATAL] nuitka not available (tried: '${NUTKA_PRIMARY_CMD[*]}' and '${NUTKA_FALLBACK_CMD[*]}')." >&2
     exit 1
 fi
-if ! command -v patchelf >/dev/null 2>&1; then
+# patchelf の事前チェック。nuitka 4.x は既知のバグ版 (0.18.x) をコンパイル時に拒否する
+# (実行段階ではなく、C ビルド後に FATAL で止まる)。検出を早期化し明確なエラーにする。
+if command -v patchelf >/dev/null 2>&1; then
+    _pe_ver="$(patchelf --version 2>/dev/null | awk '{print $2}')"
+    if [[ -n "${_pe_ver}" ]]; then
+        _pe_major="${_pe_ver%%.*}"
+        _pe_minor="${_pe_ver#*.}"; _pe_minor="${_pe_minor%%.*}"
+        [[ "${_pe_major}" =~ ^[0-9]+$ ]] || _pe_major=0
+        [[ "${_pe_minor}" =~ ^[0-9]+$ ]] || _pe_minor=0
+        if (( _pe_major * 100 + _pe_minor < 19 )); then
+            echo "[FATAL] patchelf ${_pe_ver} is too old; nuitka 4.x rejects patchelf < 0.19." >&2
+            echo "       Upgrade patchelf to >= 0.19 (e.g. 'pip install --user patchelf'). or set PATH ahead of it." >&2
+            exit 1
+        fi
+    else
+        echo "[WARN] patchelf --version returned nothing; assuming compatible." >&2
+    fi
+else
     echo "[WARN] patchelf not found; nuitka --onefile が失敗する可能性がある。" >&2
+fi
+# ccache: nuitka の Scons は ccache を使う。CCACHE_DIR が読み取り専用だと
+# "ccache: error: Permission denied" で C ビルドが中断する。書けない場合のみ無効化。
+if [[ -z "${CCACHE_DISABLE:-}" ]] && command -v ccache >/dev/null 2>&1; then
+    _cc_dir="${CCACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/ccache}"
+    if [[ ! -w "${_cc_dir}" ]]; then
+        echo "[WARN] ccache dir '${_cc_dir}' is not writable; setting CCACHE_DISABLE=1." >&2
+        export CCACHE_DISABLE=1
+    fi
 fi
 
 mkdir -p "${OUTPUT_DIR}"
@@ -82,16 +128,51 @@ if [[ "${FS_TYPE}" == *"tmpfs"* && "${ALLOW_TMPFS_OUTPUT:-0}" != "1" ]]; then
     exit 1
 fi
 
+# 生成するランチャを置く一時ディレクトリ（ビルド後に削除）。
+LAUNCHER_DIR="${OUTPUT_DIR}/.launchers"
+mkdir -p "${LAUNCHER_DIR}"
+cleanup_launchers() { rm -rf "${LAUNCHER_DIR}"; }
+trap cleanup_launchers EXIT
+
+# ── ランチャ生成 ──────────────────────────────────────────────────────────────
+# {final_name}.py を生成し、そのエントリの __main__ で行っていた処理を再現する。
+# nuitka4x では --module モードと --onefile は競合するため、ランチャを位置引数で
+# コンパイルしてスタンドアロン実行可能を生産する。
+gen_launcher() {
+    local module="$1" final_name="$2" cls="$3"
+    local dest="${LAUNCHER_DIR}/${final_name}.py"
+
+    if [[ -z "${cls}" ]]; then
+        # agent.repl など main() を呼ぶ種別
+        cat > "${dest}" <<EOF
+# Auto-generated by build_binaries.sh (nuitka4.x launcher for ${module})
+from ${module} import main
+
+if __name__ == "__main__":
+    main()
+EOF
+    else
+        # MCP サーバー。インスタンス化して run_http() を呼ぶ。
+        cat > "${dest}" <<EOF
+# Auto-generated by build_binaries.sh (nuitka4.x launcher for ${module})
+from ${module} import ${cls}
+
+if __name__ == "__main__":
+    ${cls}().run_http()
+EOF
+    fi
+}
+
 # ── ビルド関数 ────────────────────────────────────────────────────────────────
 total_seconds=0
 total_bytes=0
 
 build_one() {
-    local module="$1" final_name="$2"
-    local intermediate="${module##*.}"
-    local out_file="${OUTPUT_DIR}/${intermediate}"
+    local module="$1" final_name="$2" cls="$3"
+    local launcher="${LAUNCHER_DIR}/${final_name}.py"
 
     echo "--- ビルド: ${module} -> ${final_name} ---"
+    gen_launcher "${module}" "${final_name}" "${cls}"
 
     # 遅延 import 用の --include-module フラグを構築
     local include_args=()
@@ -105,7 +186,8 @@ build_one() {
         # shellcheck disable=SC2086  (意図的に単語分割してフラグを渡す)
         args+=(${NUTKA_EXTRA_FLAGS})
     fi
-    args+=(--module="${module}" --output-dir="${OUTPUT_DIR}")
+    # nuitka4x: --onefile 実行可能はランチャ(.py)を位置引数として対象に。--module は不要。
+    args+=(--output-dir="${OUTPUT_DIR}" "${launcher}")
 
     local start=${SECONDS}
     if ! "${NUTKA_CMD[@]}" "${args[@]}"; then
@@ -114,15 +196,21 @@ build_one() {
     fi
     local elapsed=$(( SECONDS - start ))
 
-    # Nuitka (--module) の出力名はモジュール最終コンポーネント。存在確認後に rename。
-    if [[ ! -f "${out_file}" ]]; then
-        echo "[FATAL] Expected Nuitka output not found: ${out_file}" >&2
+    # onefile 出力は nuitka が <final_name>.bin として生成（--onefile の既定名）。
+    # 念のため拡張子なし / .so にも対応。
+    local produced=""
+    local cand
+    for cand in "${OUTPUT_DIR}/${final_name}.bin" "${OUTPUT_DIR}/${final_name}" "${OUTPUT_DIR}/${final_name}.so" "${OUTPUT_DIR}/${final_name}".*.so; do
+        if [[ -f "${cand}" ]]; then produced="${cand}"; break; fi
+    done
+    if [[ -z "${produced}" ]]; then
+        echo "[FATAL] Expected Nuitka output not found for ${final_name}" >&2
         ls -l "${OUTPUT_DIR}" >&2 || true
         exit 1
     fi
 
     mkdir -p "${BIN_DIR}"
-    mv "${out_file}" "${BIN_DIR}/${final_name}"
+    mv "${produced}" "${BIN_DIR}/${final_name}"
     chmod 0755 "${BIN_DIR}/${final_name}"
 
     local size_bytes size_h
@@ -146,8 +234,10 @@ echo ""
 
 for entry in "${ENTRIES[@]}"; do
     module="${entry%%:*}"
-    final_name="${entry##*:}"
-    build_one "${module}" "${final_name}"
+    rest="${entry#*:}"
+    final_name="${rest%%:*}"
+    cls="${rest#*:}"
+    build_one "${module}" "${final_name}" "${cls}"
 done
 
 echo ""
@@ -162,4 +252,3 @@ awk -v secs="${total_seconds}" -v bytes="${total_bytes}" 'BEGIN {
 }'
 echo ""
 echo "配置先: ${BIN_DIR}/"
-ls -l "${BIN_DIR}"
