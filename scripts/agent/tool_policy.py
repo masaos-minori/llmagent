@@ -237,6 +237,19 @@ def _special_case_risk(
     return None
 
 
+def is_plan_mode_blocked(cfg: AgentConfig, tool_name: str) -> bool:
+    """Return True when plan mode must reject the tool call.
+
+    Plan mode permits read-only tools only: a tool is blocked unless its
+    tool_safety_tiers entry is READ_ONLY, so a tool without a tier (including
+    an unknown tool name) fails closed. cfg.tool.plan_blocked_tools names
+    additional tools that are blocked regardless of their tier.
+    """
+    if tool_name in cfg.tool.plan_blocked_tools:
+        return True
+    return cfg.approval.tool_safety_tiers.get(tool_name) != "READ_ONLY"
+
+
 def classify_risk(
     cfg: AgentConfig,
     tool_name: str,

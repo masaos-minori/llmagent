@@ -20,7 +20,11 @@ from agent.tool_audit import audit_tool_exec as _audit_tool_exec
 from agent.tool_audit import log_approval_decision
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome
-from agent.tool_policy import PolicyViolationError, check_preflight
+from agent.tool_policy import (
+    PolicyViolationError,
+    check_preflight,
+    is_plan_mode_blocked,
+)
 from agent.tool_preparation import PreparedToolCall
 from agent.tool_runner import execute_one_tool_call
 from shared.tool_spec import ToolSpec
@@ -768,6 +772,80 @@ class TestRunApprovalChecks:
         approved, denied = await run_approval_checks(ctx, prepared)
         assert len(approved) == 1
         assert denied == []
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "tool_name",
+        [
+            "write_file",
+            "edit_file",
+            "create_directory",
+            "move_file",
+            "delete_file",
+            "delete_directory",
+            "shell_run",
+            "git_add",
+            "git_commit",
+            "git_checkout",
+            "git_pull",
+            "git_push",
+            "github_push_files",
+            "github_create_issue",
+            "rag_delete_document",
+            "index_paths",
+        ],
+    )
+    async def test_plan_mode_blocks_every_non_read_only_tool(
+        self, tool_name: str
+    ) -> None:
+        # plan_blocked_tools is empty: the block comes from the safety tier alone
+        cfg = _make_cfg(plan_blocked_tools=[])
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = True
+        ctx.services_required.audit_logger = MagicMock()
+        approved, denied = await run_approval_checks(ctx, [_pc(tool_name, {})])
+        assert approved == []
+        assert denied == ["call_1"]
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "tool_name",
+        ["read_text_file", "list_directory", "git_status", "git_diff", "search_docs"],
+    )
+    async def test_plan_mode_allows_read_only_tools(self, tool_name: str) -> None:
+        cfg = _make_cfg(plan_blocked_tools=[])
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = True
+        ctx.services_required.audit_logger = MagicMock()
+        approved, denied = await run_approval_checks(ctx, [_pc(tool_name, {})])
+        assert len(approved) == 1
+        assert denied == []
+
+    @pytest.mark.asyncio
+    async def test_plan_mode_blocks_tool_without_tier(self) -> None:
+        cfg = _make_cfg(plan_blocked_tools=[])
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = True
+        ctx.services_required.audit_logger = MagicMock()
+        approved, denied = await run_approval_checks(ctx, [_pc("untiered_tool", {})])
+        assert approved == []
+        assert denied == ["call_1"]
+
+    @pytest.mark.asyncio
+    async def test_plan_mode_off_does_not_apply_tier_block(self) -> None:
+        cfg = _make_cfg(plan_blocked_tools=[])
+        ctx = _make_ctx(cfg)
+        ctx.conv.plan_mode = False
+        ctx.services_required.audit_logger = MagicMock()
+        approved, _denied = await run_approval_checks(
+            ctx, [_pc("list_directory", {"path": "/tmp"})]
+        )
+        assert len(approved) == 1
+
+    def test_is_plan_mode_blocked_honors_configured_read_only_tool(self) -> None:
+        cfg = _make_cfg(plan_blocked_tools=["list_directory"])
+        assert is_plan_mode_blocked(cfg, "list_directory") is True
+        assert is_plan_mode_blocked(cfg, "read_text_file") is False
 
     @pytest.mark.asyncio
     async def test_gateway_bypass_gap_resolved(self) -> None:

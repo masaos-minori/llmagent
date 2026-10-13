@@ -46,20 +46,24 @@ class TestCmdPlan:
         cmd = _make_cmd(plan_mode=False, plan_blocked_tools=["write_file", "shell_run"])
         cmd._cmd_plan()
         out = capsys.readouterr().out
-        assert "Blocked tools:" in out
+        assert "Additionally blocked tools:" in out
         assert "write_file" in out
         assert "shell_run" in out
 
-    def test_no_blocked_tools_line_when_list_empty(
+    def test_tier_rule_stated_even_when_list_empty(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd(plan_mode=False, plan_blocked_tools=[])
         cmd._cmd_plan()
-        assert "Blocked tools:" not in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "outside the READ_ONLY safety tier" in out
+        assert "Additionally blocked tools:" not in out
 
     def test_no_blocked_tools_line_when_turning_off(
         self, capsys: pytest.CaptureFixture
     ) -> None:
         cmd = _make_cmd(plan_mode=True, plan_blocked_tools=["write_file"])
         cmd._cmd_plan()
-        assert "Blocked tools:" not in capsys.readouterr().out
+        out = capsys.readouterr().out
+        assert "Blocked" not in out
+        assert "Additionally blocked tools:" not in out

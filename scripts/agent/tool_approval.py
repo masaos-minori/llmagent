@@ -28,7 +28,7 @@ from agent.tool_output import (
     emit_plan_blocked,
     emit_skipped,
 )
-from agent.tool_policy import check_preflight, classify_risk
+from agent.tool_policy import check_preflight, classify_risk, is_plan_mode_blocked
 from agent.tool_preparation import PreparedToolCall
 from agent.tool_result_formatter import build_preview, mask_args
 
@@ -200,7 +200,7 @@ async def run_approval_checks(
         tc_name = pc.name
         args_preview = pc.args
         masked_preview = mask_args(args_preview, ctx.cfg.tool.masked_fields)
-        if ctx.conv.plan_mode and tc_name in ctx.cfg.tool.plan_blocked_tools:
+        if ctx.conv.plan_mode and is_plan_mode_blocked(ctx.cfg, tc_name):
             emit_plan_blocked(tc_name, _json_dumps(masked_preview))
             logger.info("Plan mode blocked tool: %s", tc_name)
             denied_ids.append(pc.call_id)

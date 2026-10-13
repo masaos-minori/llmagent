@@ -31,7 +31,7 @@ Documents responsibility separation for safety controls, design decisions for `T
 | `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; at runtime (`check_preflight()`) an empty list performs no whitelist check, so all tools are allowed. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error in production (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`) |
 | `allowed_root` | `cfg.approval.allowed_root` | Path jail; if empty, disabled |
 | `approval_github_allowed_repos` | `cfg.approval.*` | GitHub write allowlist; if empty, all are rejected (**Fail-closed**) |
-| `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | Automatic rejection in plan mode |
+| `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | Additional automatic rejection in plan mode (every non-`READ_ONLY` tool is already rejected) |
 | `approval_protected_paths` | `cfg.approval.*` | Escalation to `high` via path prefixes |
 | `approval_high_risk_branches` | `cfg.approval.*` | Escalation to `high` via branch names |
 | `gitops_push_blocked` | `cfg.approval.*` | Globally block all writes to GitHub |

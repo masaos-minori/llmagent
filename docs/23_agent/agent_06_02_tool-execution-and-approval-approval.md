@@ -104,10 +104,11 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 
 `/plan` toggles `ctx.conv.plan_mode`:
 
-- When `True`: Tools in `cfg.tool.plan_blocked_tools` are automatically rejected (without prompt)
-- Blocked by default: `write_file`, `create_directory`, `delete_file`, `delete_directory`
+- When `True`: only tools in the `READ_ONLY` safety tier (`cfg.approval.tool_safety_tiers`) may run. Every other tool is rejected automatically, without a prompt and before the approval flow. A tool with no tier entry, including an unknown tool name, is rejected (fail-closed).
+- Tools in `cfg.tool.plan_blocked_tools` are rejected in addition, whatever their tier. The list is an explicit extension: an empty list does not relax the tier rule.
+- The rule covers the file write, edit, move and delete tools, `shell_run`, the Git write tools (`git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push`), the GitHub write tools, and the RAG and MDQ index-changing tools, because none of them is `READ_ONLY`.
 
-**Design judgment**: Allows LLM to reason and plan without executing destructive operations.
+**Design judgment**: Plan mode lets the LLM read and reason without changing anything: it is a read-only guarantee derived from the safety tiers, not a configured name list.
 
 ## Responsibility Boundary
 

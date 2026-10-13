@@ -27,7 +27,7 @@ Documents the structure and constraints of tool and memory configurations.
 
 - `tool_definitions_strict`: Schema mismatch → `RuntimeError` at startup. Required to be `true` in production: `ProductionConfigValidator` treats an absent or `false` value as an error.
 - `routing_drift_strict`: Detects routing drift → `RuntimeError` (aborts startup). Required to be `true` in production, like `tool_definitions_strict`.
-- `plan_blocked_tools`: Tools that are automatically blocked in plan mode.
+- `plan_blocked_tools`: Tools that are blocked in plan mode in addition to every tool outside the `READ_ONLY` safety tier.
 - `masked_fields`: Argument keys to be masked in console output.
 
 #### Execution Control

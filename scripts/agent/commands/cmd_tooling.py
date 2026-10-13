@@ -23,18 +23,21 @@ class _ToolingMixin(MixinBase):
         super().__init__(*args, **kwargs)
 
     def _cmd_plan(self) -> None:
-        """Toggle plan mode. In plan mode, plan_blocked_tools are automatically blocked.
+        """Toggle plan mode. In plan mode, only READ_ONLY-tier tools may run.
 
-        This prevents destructive file operations from being executed while the agent
-        is drafting a plan, guarding against accidental writes before the user has
-        reviewed the proposal.
+        Every tool whose safety tier is not READ_ONLY, and every tool in
+        plan_blocked_tools, is blocked automatically. This prevents writes from
+        being executed while the agent is drafting a plan, guarding against
+        accidental changes before the user has reviewed the proposal.
         """
         ctx = self._ctx
         ctx.conv.plan_mode = not ctx.conv.plan_mode
         state = "ON" if ctx.conv.plan_mode else "OFF"
         logger.info("Plan mode toggled: %s", state)
         self._out.write(f"Plan mode: {state}")
-        if ctx.conv.plan_mode and ctx.cfg.tool.plan_blocked_tools:
-            self._out.write("  Blocked tools:")
-            for t in ctx.cfg.tool.plan_blocked_tools:
-                self._out.write(f"    - {t}")
+        if ctx.conv.plan_mode:
+            self._out.write("  Blocked: every tool outside the READ_ONLY safety tier")
+            if ctx.cfg.tool.plan_blocked_tools:
+                self._out.write("  Additionally blocked tools:")
+                for t in ctx.cfg.tool.plan_blocked_tools:
+                    self._out.write(f"    - {t}")
