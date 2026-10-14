@@ -92,6 +92,11 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # section (2026-10-13); the ceiling equals the size reached.
     "adr_02_004_environment-failure-handling-policy.md": 31037,
     "adr_02_008_sqlite-4db-separation.md": 33647,
+    # ADR-006 grew past MAX_SIZE by the EVENTBUS-008 resolution follow-up (2026-10-14):
+    # the empty-mapping gap was resolved to deny-all and the superuser residual deviation
+    # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
+    # pushes it over. The ceiling equals the accepted size, so further growth fails.
+    "adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md": 24726,
 }
 
 

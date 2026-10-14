@@ -375,7 +375,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 - Investigation of DLQ promotions
 - DB Schema verification before deployment
-- INV-10 connection exclusivity is verified for `GET /subscribe`; the ACK/NACK token binding is governed by ADR-013 INV-02, and its gap for principals without a `consumer_id` allowlist is tracked as EVENTBUS-008
+- INV-10 connection exclusivity is verified for `GET /subscribe`; its ACK/NACK binding is governed by ADR-013 INV-02. The empty-mapping gap (resolved EVENTBUS-008) is closed — an empty `consumer_authorization` now resolves to deny-all; only superuser `auth_token`/`admin_token` keep no `consumer_id` allowlist
 - INV-01 and INV-06 have no dedicated automated test (INV-01 is exercised indirectly by every persistence test; INV-06 is bounded by the envelope schema's `event_id` format check in `tests/eventbus/test_eventbus_publish_contract.py::TestPublishEnvelopeSchemaContract`)
 
 ## Implementation Notes
@@ -388,7 +388,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-008 — tracked in governance_03 Part 1 (a principal without a `consumer_id` allowlist is unrestricted, namely the CONSUMER token when `consumer_authorization` is an empty mapping and the shared `auth_token`/`admin_token`, so the ACK/NACK binding of INV-10 is not enforced for it)
+- **Residual deviation**: The shared `auth_token`/`admin_token` (superuser tokens) carry no `consumer_id` allowlist, so INV-10's ACK/NACK binding is not enforced for them; retained as an accepted residual deviation. The empty-mapping part of EVENTBUS-008 is resolved — an empty `consumer_authorization` now resolves to deny-all.
 
 ## Review Triggers
 
@@ -463,7 +463,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, INV-06, and INV-10 lack a complete automated test; the ACK/NACK token binding of INV-10 is not enforced for principals without a `consumer_id` allowlist, see EVENTBUS-008)
+- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, INV-06, and INV-10 lack a complete automated test; INV-10's ACK/NACK binding is not enforced for superuser `auth_token`/`admin_token`, which carry no `consumer_id` allowlist — the empty-mapping case is now covered by the deny-all test)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
