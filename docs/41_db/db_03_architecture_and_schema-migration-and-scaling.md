@@ -31,6 +31,7 @@ create_schema()
 
 - For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
 - **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8d) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
+- `create_schema()` is a wrapper that calls the four per-database initializers in order, and the responsibilities differ per database: `create_rag_schema()` and `create_session_schema()` run create-only DDL (idempotent, no migration); `create_workflow_schema()` runs the DDL, then applies the incremental migrations and records the schema version (section 8a); `create_eventbus_schema()` runs the DDL read from `scripts/eventbus/schema.sql`, then applies the incremental migration list (section 8b). Against an existing file the rag and session initializers change nothing, while the workflow and eventbus initializers migrate it.
 - Embedding dimension is a fixed code-level constant returned by `scripts/db/store_protocols.py::get_embedding_dims()`, not a config key.
 
 ### Recreating `session.sqlite`: Session and Memory Recovery
@@ -76,7 +77,7 @@ Each table serves a distinct purpose:
 - **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
 - **New tables:** `_migrate()` additionally creates the `consumer_delivery` and `consumer_offsets` tables via the same idempotent `CREATE TABLE IF NOT EXISTS` pattern used for column/index additions.
 - **Separate data seeding:** `migrate_legacy_offsets()` (see Schema Evolution below) is distinct from `_migrate()`'s schema-DDL role.
-- **Two initialization paths:** `create_schema()` bootstrap (create-only DDL read from `scripts/eventbus/schema.sql` via `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`) (incremental ALTER TABLE operations). A reader must distinguish them — conflating them would incorrectly suggest `eventbus.sqlite` lacks migration support.
+- **Two initialization paths:** `create_schema()` bootstrap (DDL read from `scripts/eventbus/schema.sql` via `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py`, followed by `apply_eventbus_migrations()`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`), which applies its own incremental ALTER TABLE operations. A reader must distinguish them — each path migrates an existing database, but they are separate code paths.
 
 ### 8c. RAG Consistency Verification (Explicit in code)
 
@@ -108,7 +109,7 @@ Schema evolution rules per database are defined in sections 8 through 8d. For `e
 
 ## 9a. AI Reference Guide
 
-rag.sqlite schema location: db_02 section 5; session.sqlite schema location: db_02 section 6; SQLiteHelper supports workflow.sqlite: yes (target="workflow"; see section 8a); embedding dimension fixed by `scripts/db/store_protocols.py::get_embedding_dims()`; schema initializer: `create_schema()` — idempotent DDL-only initialization, not migration; DB triggers documented: `chunks_fts` auto-sync triggers (db_02 section 5), `memories_fts` auto-sync triggers (db_02 section 6).
+rag.sqlite schema location: db_02 section 5; session.sqlite schema location: db_02 section 6; SQLiteHelper supports workflow.sqlite: yes (target="workflow"; see section 8a); embedding dimension fixed by `scripts/db/store_protocols.py::get_embedding_dims()`; schema initializer: `create_schema()` — idempotent wrapper over the four per-database initializers: rag and session are create-only DDL, workflow and eventbus also apply incremental migrations (section 8); DB triggers documented: `chunks_fts` auto-sync triggers (db_02 section 5), `memories_fts` auto-sync triggers (db_02 section 6).
 
 ---
 

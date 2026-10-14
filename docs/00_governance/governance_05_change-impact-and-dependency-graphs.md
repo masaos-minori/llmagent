@@ -53,6 +53,17 @@ To determine which documents are affected by a change:
 | Behavior | Medium | Low | High | Low | Yes (RACI) |
 | Doc-Only | Low | Low | Low | High | No |
 
+### Reading the Approval Required Column
+
+`Approval Required` means design approval of the change by the accountable party. `No` for Doc-Only means no design approval is needed and a documentation-only change does not trigger the broader reviews of the Update Rule. It does not remove the review conditions and merge conditions of [Documentation Policy](governance_01_documentation-policy.md): the Review Rule still applies whenever one of its triggers holds, and Governance-class documents always require review and RACI approval before merge.
+
+| Change | Review | RACI approval | Merge condition |
+|---|---|---|---|
+| Ordinary documentation fix (non-Governance, no Review Rule trigger) | Not required | Not required | Blocking Conditions only |
+| Governance-class document change | Required | Required | Blocking Conditions and RACI approval |
+| ADR edit that does not change the decision (wording, evidence, references) | Required only if a Review Rule trigger holds | Not required; approval is not reopened | Blocking Conditions only |
+| ADR edit that changes the decision | Required | Required; a new approval record in the same change | Blocking Conditions and RACI approval |
+
 ## RACI Model
 
 Each area follows the same role pattern; substitute `<area-lead>` with that area's
@@ -136,10 +147,10 @@ Checked only for broken links, self-reference, and duplicate reference — see
 ## Governance Applicability Matrix
 
 Governance's relationship to each area is expressed as applicability, not as a
-directed graph edge — Governance applies across every area rather than depending
+directed runtime or deployment dependency — Governance applies across every area rather than depending
 on, or being depended on by, any one of them. Governance therefore does not
-participate as a node in the Software Runtime Dependency Graph, the Deployment
-Management Graph, or the Documentation Reference Graph above.
+participate as a node in the Software Runtime Dependency Graph or the Deployment
+Management Graph above. It is a node of the Documentation Reference Graph, because Governance documents cross-reference, and are cross-referenced by, the area documents; the Applicability Matrix is the separate, non-graph view of how governance rules apply to each area. The cycle prohibition of the Software Runtime Dependency Graph does not apply to the Documentation Reference Graph.
 
 | Area | Governance Applies |
 |------|---------------------|

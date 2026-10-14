@@ -276,7 +276,7 @@ bash deploy/init_db.sh
 **Responsibilities of init_db.sh:**
 - Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
 - Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts)
-- Applies incremental schema migrations (idempotent)
+- Applies the incremental migrations of `workflow.sqlite` and `eventbus.sqlite` (idempotent); `rag.sqlite` and `session.sqlite` are create-only and are not migrated
 - Verifies all mandatory tables exist; aborts if any are missing
 
 **Upgrade note (workflow schema 1.1.0):** `init_db.sh` migrates an existing `workflow.sqlite`: tasks that were waiting for the removed approval stage are marked failed and the `approvals` table is dropped. Back up `workflow.sqlite` first, run `init_db.sh` before `setup_services.sh` (which rejects a schema-version mismatch), and make sure the workflow definition no longer contains `require_approval` (the loader rejects the key).

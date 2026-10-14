@@ -135,7 +135,7 @@ Canonical sources for this area are defined in the [Canonical Source Registry](.
 | [mcp_06_12_new-mcp-server-addition-checklist.md](mcp_06_12_new-mcp-server-addition-checklist.md) | New Server Addition Checklist |
 | [mcp_06_13_pre-production-fail-open-checklist.md](mcp_06_13_pre-production-fail-open-checklist.md) | Pre-Production Checklist |
 | [mcp_06_14_mcp-authentication-setup.md](mcp_06_14_mcp-authentication-setup.md) | Authentication Setup |
-| [../91_security/security_01_architecture-and-trust-boundaries.md](../91_security/security_01_architecture-and-trust-boundaries.md) | System architecture / trust boundaries / threat modeling (canonical cross-cutting source) |
+| [../91_security/security_01_architecture-and-trust-boundaries.md](../91_security/security_01_architecture-and-trust-boundaries.md) | System architecture / trust boundaries / threat modeling (cross-cutting overview; not a canonical source) |
 | [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) | High-risk MCP tool common policy (path/repo allowlists, traversal prevention, approval-risk tier mapping) |
 | [mcp_07_tool_schema_export_policy.md](mcp_07_tool_schema_export_policy.md) | Schema Export |
 | [mcp_08_tool_capability_naming_convention.md](mcp_08_tool_capability_naming_convention.md) | Capability Naming Convention |

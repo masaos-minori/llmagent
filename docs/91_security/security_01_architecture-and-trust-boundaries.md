@@ -35,7 +35,7 @@ related:
 
 ## Purpose / how to use this doc
 
-This document is the canonical cross-cutting security architecture reference for the project. It synthesizes trust boundaries, protected assets, threat model, per-API authentication/authorization, secret lifecycle, log redaction, audit retention, production behavior (the only security profile), fail-open/closed behavior, and prompt-injection responsibility boundaries from existing scattered documentation. Other documents should cross-reference this document rather than duplicate its content.
+This document is the cross-cutting security architecture overview for the project. It is not a canonical source: security constraints are normative in the Accepted security ADRs registered in the Canonical Source Registry, and this overview only points to them. It synthesizes trust boundaries, protected assets, threat model, per-API authentication/authorization, secret lifecycle, log redaction, audit retention, production behavior (the only security profile), fail-open/closed behavior, and prompt-injection responsibility boundaries from existing scattered documentation. Other documents should cross-reference this document rather than duplicate its content.
 
 ## Trust-boundary diagram
 
@@ -196,7 +196,14 @@ Prompt injection responsibility is distributed across layers:
 | `persistent` | `/health` endpoint | 503 on degraded; no automatic recovery by the agent | Operator restarts external server |
 | `subprocess` | On-demand check at tool dispatch (`ensure_ready()`); no background watchdog | Start/restart on the next tool dispatch; a failed start triggers a cooldown during which dispatch is rejected | Wait for cooldown, or restart manually; use external process monitoring for liveness |
 
-Fail-fast vs fail-open at MCP startup failure: `production` raises `RuntimeError` (aborts startup, no REPL started).
+MCP startup failure handling follows [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md), which applies one policy to every environment; an environment name never relaxes a safety or integrity requirement. The outcome depends on the failure class and the server's classification:
+
+| Case | Startup result |
+|---|---|
+| Required MCP server unavailable | Startup is aborted (`RuntimeError`; no REPL starts) |
+| Safety or integrity failure (for example duplicate Tool ownership or invalid Allowlist configuration), including in a non-mandatory component | Startup is aborted; no partial availability |
+| Availability failure of an explicitly non-mandatory server | The server is disabled and startup continues in an observable partial-availability state; its Tools are not exposed and new calls are rejected |
+| Agent-launched `subprocess` server that fails to start after its single retry | Startup is aborted regardless of `required` (ADR-004 Exceptions) |
 
 *Source: `shared/mcp_health.py`, `agent/factory.py`*
 

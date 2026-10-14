@@ -223,7 +223,7 @@ Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr_01_index.md`: e
 
 ### 13. Canonical Source Registry Checks (`check_canonical_source_registry.py`, `check_canonical_source_conflicts.py`)
 
-Validate `config/documentation_canonical_sources.toml`: schema conformance, path existence, a single normative source per claim type, ADR-status conformance, and semantic conflicts between registered sources (`GV-019`, `GV-020`, `GV-021`).
+Validate `config/documentation_canonical_sources.toml`: schema conformance, path existence, a single normative source per claim type, ADR-status conformance, and semantic conflicts between registered sources (`GV-019`, `GV-020`, `GV-021`). The semantic checks take the registry as input: they detect duplicate or multiple normative sources for the same target and claim type, an area guide that contradicts the registry, reintroduced universal-precedence wording, and warning-level authority-wording findings. They do not compare unregistered claims or free prose across documents; a conflict that exists only in prose is found by human review (`GV-009`, `GV-010`) and handed over as a Known Issue or a documentation-correction task.
 
 **Enforcement:** `.github/workflows/governance-docs-consistency.yml`.
 
@@ -326,8 +326,8 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-006 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-007 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | None |
 | GV-008 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Existing | None |
-| GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Partial | Automate cross-document canonical source conflict detection (currently manual) |
-| GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Partial | Automate cross-document canonical source conflict detection (currently manual) |
+| GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Partial | Registered claims are checked by `GV-019`; automate detection for unregistered prose (currently manual) |
+| GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Partial | Registered claims are checked by `GV-019`; automate detection for unregistered prose (currently manual) |
 | GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
 | GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
 | GV-013 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Existing | None |
@@ -345,7 +345,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 
 Rules marked "Missing" or "Partial" above need new inspection tools or processes; `GV-012` (Existing) is listed for its optional extension:
 
-1. **GV-009, GV-010**: Automate cross-document canonical source conflict detection (currently manual)
+1. **GV-009, GV-010**: Automate conflict detection for unregistered prose across documents (registered claims are already checked by `GV-019`; the rest is manual)
 2. **GV-011**: Extend `stale_patterns` custom rule config to cover canonical document references
 3. **GV-012**: Optional scope — run each cited test in CI, not just verify that the cited path
      exists.

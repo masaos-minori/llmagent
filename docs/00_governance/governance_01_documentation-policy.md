@@ -354,7 +354,7 @@ The ADR list, dependency graph, and invariant verification matrix are maintained
 ### Merge Workflow
 1. Check blocking conditions — if any fail, reject merge.
 2. If non-blocking conditions exist, add warning to PR description.
-3. Obtain RACI approval from accountable party.
+3. Obtain RACI approval from the accountable party when the change requires it (see "Reading the Approval Required Column" in `governance_05`: Governance-class changes and changes that alter a decision).
 4. Resolve canonical source conflicts before merging.
 5. Verify test suite passes before merging.
 
