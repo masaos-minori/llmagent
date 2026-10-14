@@ -24,7 +24,7 @@ related:
 
 Documents design decisions for approval flows, risk classification, and plan mode.
 
-**Note**: This document only covers **pre-execution approval** (tool-level). For **post-execution approval** (workflow-level), see [agent_06_04_tool-execution-and-approval-canonical.md](agent_06_04_tool-execution-and-approval-canonical.md).
+**Note**: This document covers the tool-level approval decided before a Tool executes; the workflow has no approval stage (see [agent_06_04_tool-execution-and-approval-canonical.md](agent_06_04_tool-execution-and-approval-canonical.md)). Every decision, approved or denied, is written to the audit log as a `tool_approval` event that carries the `workflow_id` and the turn ID in its `task_id` field.
 
 ## Design Intent
 

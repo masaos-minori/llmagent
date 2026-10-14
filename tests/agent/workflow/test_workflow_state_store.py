@@ -12,13 +12,6 @@ from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from agent.workflow.approval_ops import (
-    find_latest_pending_approval,
-    find_pending_approval_by_session,
-    get_latest_approval,
-    request_approval,
-    resolve_approval,
-)
 from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.attempt_ops import count_attempts, finish_attempt, start_attempt
 from agent.workflow.idempotency_ops import begin_stage_if_new, is_event_processed
@@ -92,6 +85,12 @@ class TestCreateTask:
 
     def test_get_by_idempotency_key_missing(self, store) -> None:
         assert get_task_by_idempotency_key(store._db, "nosuchkey") is None
+
+    def test_create_task_without_session_id(self, store) -> None:
+        task = create_task(store._db, None, None, "1.0.0", "wf-test")
+        assert task.session_id is None
+        assert task.turn_number is None
+        assert task.status == "pending"
 
 
 class TestUpdateTaskStatus:
@@ -170,146 +169,10 @@ class TestArtifacts:
         assert ref.uri == "file:///tmp/result.json"
 
 
-class TestApprovals:
-    def test_request_approval_returns_pending_record(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        approval = request_approval(store._db, task.task_id)
-        assert approval.task_id == task.task_id
-        assert approval.status == "pending"
-        assert approval.stage_id is None
-        assert approval.resolved_at is None
-
-    def test_request_approval_with_stage(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        approval = request_approval(store._db, task.task_id, stage_id="execute")
-        assert approval.stage_id == "execute"
-
-    def test_get_latest_approval_returns_latest(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        request_approval(store._db, task.task_id)
-        found = get_latest_approval(store._db, task.task_id)
-        assert found is not None
-        assert found.status == "pending"
-
-    def test_get_latest_approval_returns_none_when_absent(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        assert get_latest_approval(store._db, task.task_id) is None
-
-    def test_resolve_approval_approved(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        approval = request_approval(store._db, task.task_id)
-        resolve_approval(store._db, approval.approval_id, "approved", "looks good")
-        found = get_latest_approval(store._db, task.task_id)
-        assert found is not None
-        assert found.status == "approved"
-        assert found.reason == "looks good"
-        assert found.resolved_at is not None
-
-    def test_resolve_approval_rejected(self, store) -> None:
-        task = create_task(store._db, "s", 1, "1.0.0", "wf-test")
-        approval = request_approval(store._db, task.task_id)
-        resolve_approval(store._db, approval.approval_id, "rejected", "too risky")
-        found = get_latest_approval(store._db, task.task_id)
-        assert found is not None
-        assert found.status == "rejected"
-        assert found.reason == "too risky"
-
-    def test_create_task_without_session_id(self, store) -> None:
-        task = create_task(store._db, None, None, "1.0.0", "wf-test")
-        assert task.session_id is None
-        assert task.turn_number is None
-        assert task.status == "pending"
-
-
-class TestFindPendingApprovalBySession:
-    def test_returns_none_when_no_pending_approval(self, store) -> None:
-        """Returns None when no tasks with pending_approval status exist for the session."""
-        result = find_pending_approval_by_session(store._db, "session-99")
-        assert result is None
-
-    def test_returns_approval_for_matching_session(self, store) -> None:
-        """Returns (task_id, ApprovalRecord) when a pending approval exists for the session."""
-        session_id = "session-find-test"
-        task = create_task(store._db, session_id, 1, "1.0.0", "wf-test")
-        update_task_status(store._db, task.task_id, "pending_approval")
-        approval = request_approval(store._db, task.task_id, stage_id="stage-1")
-
-        result = find_pending_approval_by_session(store._db, session_id)
-
-        assert result is not None
-        returned_task_id, returned_approval = result
-        assert returned_task_id == task.task_id
-        assert returned_approval.approval_id == approval.approval_id
-        assert returned_approval.status == "pending"
-
-    def test_returns_none_for_different_session(self, store) -> None:
-        """Does not return an approval belonging to a different session."""
-        task = create_task(store._db, "session-other", 1, "1.0.0", "wf-test")
-        update_task_status(store._db, task.task_id, "pending_approval")
-        request_approval(store._db, task_id=task.task_id, stage_id="s1")
-
-        result = find_pending_approval_by_session(store._db, "session-mine")
-        assert result is None
-
-    def test_returns_most_recent_when_multiple(self, store) -> None:
-        """Returns the most recently created approval when multiple pending exist."""
-        session_id = "session-multi"
-        task1 = create_task(store._db, session_id, 1, "1.0.0", "wf-test")
-        update_task_status(store._db, task1.task_id, "pending_approval")
-        request_approval(store._db, task_id=task1.task_id, stage_id="s1")
-
-        task2 = create_task(store._db, session_id, 2, "1.0.0", "wf-test")
-        update_task_status(store._db, task2.task_id, "pending_approval")
-        latest = request_approval(store._db, task_id=task2.task_id, stage_id="s2")
-
-        result = find_pending_approval_by_session(store._db, session_id)
-        assert result is not None
-        _, returned_approval = result
-        assert returned_approval.approval_id == latest.approval_id
-
-
-class TestFindLatestPendingApproval:
-    def test_returns_none_when_no_pending_approval(self, store) -> None:
-        """Returns None when no pending approvals exist globally."""
-        result = find_latest_pending_approval(store._db)
-        assert result is None
-
-    def test_returns_most_recent_globally(self, store) -> None:
-        """Returns the most recently created pending approval, regardless of session."""
-        task1 = create_task(store._db, "session-a", 1, "1.0.0", "wf-test")
-        update_task_status(store._db, task1.task_id, "pending_approval")
-        request_approval(store._db, task_id=task1.task_id, stage_id="s1")
-
-        task2 = create_task(store._db, "session-b", 1, "1.0.0", "wf-test")
-        update_task_status(store._db, task2.task_id, "pending_approval")
-        latest = request_approval(store._db, task_id=task2.task_id, stage_id="s2")
-
-        result = find_latest_pending_approval(store._db)
-        assert result is not None
-        returned_task_id, returned_approval = result
-        assert returned_task_id == task2.task_id
-        assert returned_approval.approval_id == latest.approval_id
-        assert returned_approval.status == "pending"
-
-    def test_cross_session_recovery(self, store) -> None:
-        """Returns approval for a task created in a different session (simulates restart)."""
-        old_session_id = "session-old"
-        task = create_task(store._db, old_session_id, 1, "1.0.0", "wf-test")
-        update_task_status(store._db, task.task_id, "pending_approval")
-        request_approval(store._db, task_id=task.task_id, stage_id="plan")
-
-        # After restart, a new session_id would be used — but find_latest_pending_approval()
-        # returns the approval regardless of session.
-        result = find_latest_pending_approval(store._db)
-
-        assert result is not None
-        returned_task_id, returned_approval = result
-
-
 class TestDiagnosticQueries:
     """Characterization tests for StateStore's session-scoped diagnostic counters.
 
-    These methods (get_task_count, get_workflow_count, get_approval_count,
+    These methods (get_task_count, get_workflow_count,
     get_execute_attempt_count, get_artifact_uris) were previously exercised only
     via mocks in tests/agent/test_repl.py — added here to lock behavior before
     extracting the shared count-query pattern.
@@ -331,14 +194,6 @@ class TestDiagnosticQueries:
 
         assert store.get_workflow_count("sess-diag") == 2
         assert store.get_workflow_count("sess-none") == 0
-
-    def test_get_approval_count(self, store) -> None:
-        task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")
-        request_approval(store._db, task.task_id)
-        request_approval(store._db, task.task_id, stage_id="execute")
-
-        assert store.get_approval_count("sess-diag") == 2
-        assert store.get_approval_count("sess-none") == 0
 
     def test_get_execute_attempt_count_filters_by_stage(self, store) -> None:
         task = create_task(store._db, "sess-diag", 1, "1.0.0", "wf-a")

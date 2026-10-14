@@ -110,14 +110,13 @@ In addition to `session_summary` and `mid_turn_error`, the following `kind` valu
 | `fallback_truncate_count` | Number of times fallback truncation occurred (deletion of low-priority messages) |
 | `workflow_count` | Number of workflows started during the session |
 | `task_count` | Number of tasks generated during the session |
-| `approval_events` | Number of approval-related events |
 | `retry_count` | Number of retries for task execution (`execute` stage) |
 | `artifacts` | List of URIs for artifacts generated during the session |
 | `rag_query_count` | Count of `kind=rag_query` diagnostic entries |
 | `rag_stage_outcomes` | Aggregated stage results (`stage_results`) from RAG query diagnostics |
 
 **Implementation Notes:**
-- `workflow_count`, `task_count`, `approval_events`, `retry_count`, and `artifacts` fall back to zero or an empty list if querying the workflow DB fails.
+- `workflow_count`, `task_count`, `retry_count`, and `artifacts` fall back to zero or an empty list if querying the workflow DB fails.
 - If persisting diagnostic information fails, it is logged at DEBUG level; this does not affect the main process (e.g., conversation continuation or session shutdown). `DiagnosticStore.save()` is designed so that failures in saving diagnostics do not block primary operations like conversation continuation or session shutdown.
 
 ## Keywords

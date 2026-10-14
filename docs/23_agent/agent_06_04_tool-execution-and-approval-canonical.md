@@ -1,5 +1,5 @@
 ---
-title: "Agent Tool Execution and Approval - Approval Layers and Partial Completion"
+title: "Agent Tool Execution and Approval - Tool-Level Approval and Partial Completion"
 area: agent
 tags:
   - agent
@@ -21,86 +21,58 @@ related:
 
 ## Purpose
 
-Documents the two approval layers (tool-level and workflow-level) and the persistence of partial completion. ADR-001 defines the Workflow Engine foundation and excludes redesign of the approval policy.
+Documents where human approval is decided (tool-level only) and the persistence of partial completion. ADR-001 defines the Workflow Engine foundation and excludes redesign of the tool-level approval policy.
 
 ## Design Intent
 
-### Approval Layers
+### Tool-Level Approval
 
-There are two approval layers in the agent: tool-level and workflow-level. They coexist without conflict.
+Human approval is decided before a Tool executes, by the tool-level approval in `agent/tool_approval.py`, inside the `execute` stage. The workflow has no approval stage.
 
 #### Terminology
 
 - **Automatic Execution**: Operations that do not require human approval (planning phase, verification phase, low-risk tool operations).
-- **Pre-execution Approval**: A tool-level approval gate triggered before tool execution (real-time risk assessment).
-- **Post-execution Approval**: A workflow-level approval gate triggered after the `execute` stage is complete (batch result verification).
+- **Tool-level Approval**: An approval gate triggered before tool execution (real-time risk assessment, interactive via stdin).
 
-#### Layer Responsibilities
+#### Behavior
 
-Both layers are canonical; boundaries and responsibilities are explicit rather than mutually exclusive.
-
-#### Boundary Table
-
-| Axis | Pre-execution Approval (tool-level) | Post-execution Approval (workflow-level) |
-|------|---------------------------------------|---------------------------------------------|
-| Implementation | `agent/tool_approval.py` | `agent/workflow/workflow_engine.py` |
-| Granularity | Per tool call | Per task (between `execute` → `verify`) |
-| State | Ephemeral (in memory) | Persistent in DB (`approvals`) |
-| Resolution | Interactive via stdin | `/approve` / `/reject` |
-| Currently active | Always active | Active for every loaded workflow definition (the loader rejects a definition whose `require_approval` is absent or false; the bundled default sets it to true) |
-| Risk classification | `approval_risk_rules` per tool | `require_approval` flag on workflow definition |
-
-**Design judgment**: The requirement for a "single canonical approval object" means clearly defining the boundaries and responsibilities of each layer. It does not mean excluding one of the layers. Both layers solve different problems:
-
-- Pre-execution Approval: Real-time risk gate per tool (before execution)
-- Post-execution Approval: Human approval for the entire results of the `execute` stage (after execution)
-- Automatic Execution: Operations that do not require human approval (planning phase, verification phase, low-risk tool calls)
-
-#### Coexistence Rules
-
-When `require_approval=True`:
-
-1. During the `execute` stage: Pre-execution approval (tool-level) triggers for every tool call (only for MEDIUM/HIGH risk tools)
-2. After the `execute` stage: Post-execution approval (workflow-level) pauses the workflow; user executes `/approve` or `/reject`
-3. Both trigger independently. This is intentional, as they operate at different granularities.
-4. Automatic execution (planning phase, verification phase, low-risk tool calls) does not require human approval.
+- Risk classification uses `approval_risk_rules` per tool; a tool without a rule falls back to its safety-tier default.
+- The gate applies per tool call, for MEDIUM and HIGH risk tools only.
+- Every decision, approved or denied, is written to the audit log as a `tool_approval` event that carries the `workflow_id` and the turn ID in its `task_id` field; no separate approval table is kept.
+- A workflow definition that contains the `require_approval` key is rejected at load time.
 
 ### Persistence of Partial Completion
 
 If a workflow fails after some steps are completed, the workflow engine records the final task status via `StateStore.update_task_status()`:
 
 - `"failed"` — Workflow step raised an unhandled exception
-- `"halted"` — Workflow was explicitly stopped by `WorkflowHaltError`
+- `"halted"` — Workflow was stopped by `WorkflowHaltError` (retry exhaustion) or `WorkflowTimeoutError`
 
-**Design judgment**: Completed steps are not persisted individually. Partial completion is **not** automatically resumed — the user must either resubmit the request or use `/reject` to dismiss pending gates.
+**Design judgment**: Completed steps are not persisted individually. Partial completion is **not** automatically resumed — the user must resubmit the request.
 
 ## Responsibility Boundary
 
-- **Canonical Source**: `agent/tool_approval.py` (tool-level), `agent/workflow/workflow_engine.py` (workflow-level)
-- **Workflow Approval DB**: `workflow.sqlite`
+- **Canonical Source**: `agent/tool_approval.py` (tool-level approval)
 
 ## Key Constraints
 
-- Both approval layers are canonical and not mutually exclusive
-- Pre-execution approval (tool-level) is always active
-- Post-execution approval (workflow-level) is active for every loaded workflow definition
+- Tool-level approval is the only human approval and is always active
+- The workflow has no approval stage
 - Partial completion is not automatically resumed
 - Automatic execution (planning/verification phases, low-risk tools) does not require human approval
 
 ## Operational Notes
 
 - Automatic execution (planning phase, verification phase, low-risk tool calls) does not require human approval
-- Pre-execution approval (tool-level) configures risk classification via `ApprovalConfig.approval_risk_rules`
-- Post-execution approval (workflow-level) is enabled via the `WorkflowDef.require_approval` flag
+- Tool-level approval configures risk classification via `ApprovalConfig.approval_risk_rules`
 
 ## Known Limitations
 
-- Post-execution approval (workflow-level) is enabled for every loaded workflow definition, because the loader rejects a definition whose `require_approval` is absent or false; the bundled default definition sets it to true
-- Pre-execution approval (tool-level) can be configured individually via `approval_risk_rules`, but a tool without a rule falls back to its safety-tier default (`READ_ONLY`/`WRITE_SAFE` → `none`, `WRITE_DANGEROUS` → `medium`, `ADMIN` → `high`)
+- Tool-level approval can be configured individually via `approval_risk_rules`, but a tool without a rule falls back to its safety-tier default (`READ_ONLY`/`WRITE_SAFE` → `none`, `WRITE_DANGEROUS` → `medium`, `ADMIN` → `high`)
 - Partial completion is not automatically resumed — manual user intervention is required
 
 ## Keywords
 
-- canonical approval model
+- tool-level approval model
 - ADR-001
 - partial completion persistence

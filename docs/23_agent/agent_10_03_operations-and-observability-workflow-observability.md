@@ -30,7 +30,7 @@ Documents observability (spans, status, state transitions) during workflow execu
 Workflow observability is divided into three layers:
 
 1. **OTel Spans** — Records execution time, errors, and metadata for each workflow stage. Span names follow the `workflow.{stage}` pattern.
-2. **Audit Logs** — Outputs `turn_start`/`turn_end` and workflow-specific events (`workflow_start`, `stage_completed`, `approval_requested`) in JSON-lines format.
+2. **Audit Logs** — Outputs `turn_start`/`turn_end` and workflow-specific events (`workflow_start`, `stage_completed`) in JSON-lines format.
 3. **Session Diagnostics** — Records workflow completion status, retry counts, and final errors in the `session_diagnostics` table.
 
 These three layers support three use cases: real-time execution monitoring, post-mortem failure investigation, and long-term operational metrics.
@@ -38,7 +38,7 @@ These three layers support three use cases: real-time execution monitoring, post
 ## Responsibility Boundary
 
 - **Scope**: Generation and output of observational data during workflow execution.
-- **Out of Scope**: Execution logic of the workflow engine itself, decision logic for post-execution approvals.
+- **Out of Scope**: Execution logic of the workflow engine itself, decision logic for tool-level approvals.
 - **Owners**: `agent/workflow/workflow_engine.py` (`WorkflowEngine`), `agent/tool_audit.py` (Audit Writer).
 
 ## Key Constraints
@@ -54,7 +54,6 @@ These three layers support three use cases: real-time execution monitoring, post
 Expected span names:
 - `workflow.run` — Entire workflow execution
 - `workflow.stage` — Individual stage execution
-- `workflow.approval` — Post-execution approval passed
 - `workflow.retry` — Waiting for retry
 
 ### Troubleshooting Failure
@@ -67,7 +66,6 @@ Expected span names:
 
 - Verify that `workflow_start` occurs after `turn_start`.
 - Verify that `stage_completed` occurs at the end of each stage.
-- Verify that `approval_requested` occurs at steps requiring approval.
 
 ## Known Limitations / Unresolved Issues
 

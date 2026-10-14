@@ -40,7 +40,7 @@ if [ ! -f "${WORKFLOW_DB}" ]; then
   exit 1
 fi
 
-REQUIRED_WORKFLOW_TABLES="tasks attempts processed_events artifacts approvals"
+REQUIRED_WORKFLOW_TABLES="tasks attempts processed_events artifacts"
 MISSING_TABLES=""
 for t in ${REQUIRED_WORKFLOW_TABLES}; do
   FOUND=$(sqlite3 "${WORKFLOW_DB}" \

@@ -184,12 +184,6 @@ class TurnState:
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
     # Error kind from the most recent turn failure; None when last turn succeeded
     last_error_kind: str | None = None
-    # Display cache for the current pending approval ID.
-    # Populated from durable storage (StateStore) at startup by _recover_pending_approvals().
-    # Use StateStore.find_latest_pending_approval() as the authoritative source.
-    pending_approval_id: str | None = None
-    # Task ID to resume after /approve; set by /approve command, cleared by Orchestrator.handle_turn.
-    pending_approval_task_id: str | None = None
     tool_calls: list[dict[str, Any]] = field(default_factory=list)
     turn_count: int = 0
     _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
@@ -233,14 +227,12 @@ class WorkflowState:
 
     Display cache only — not the authoritative source of truth.
     The authoritative state is in workflow.sqlite (StateStore).
-    Populated at startup by _recover_pending_approvals(); cleared by /approve and /reject.
     """
 
     active: bool = False
     current_task_id: str | None = None
     workflow_id: str | None = None
     current_workflow_version: str | None = None
-    approval_pending: bool = False
     last_session_id: str | None = None
 
 

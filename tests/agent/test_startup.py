@@ -1,8 +1,8 @@
 """tests/test_startup.py
 Behavior-lock tests for agent/startup.py: StartupOrchestrator.
 
-_start_servers()/_verify_mcp_health()/_recover_pending_approvals() coverage
-lives in tests/agent/test_startup_approval_recovery.py, run()-rollback
+_start_servers()/_verify_mcp_health() coverage lives in
+tests/agent/test_startup_mcp_lifecycle.py, run()-rollback
 coverage in tests/agent/test_startup_rollback.py, and workflow-preflight
 coverage in tests/agent/test_startup_workflow_preflight.py — all three were
 migrated there when their implementations were extracted out of

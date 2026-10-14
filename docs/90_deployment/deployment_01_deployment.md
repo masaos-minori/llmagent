@@ -275,9 +275,11 @@ bash deploy/init_db.sh
 
 **Responsibilities of init_db.sh:**
 - Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
-- Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts, approvals)
+- Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts)
 - Applies incremental schema migrations (idempotent)
 - Verifies all mandatory tables exist; aborts if any are missing
+
+**Upgrade note (workflow schema 1.1.0):** `init_db.sh` migrates an existing `workflow.sqlite`: tasks that were waiting for the removed approval stage are marked failed and the `approvals` table is dropped. Back up `workflow.sqlite` first, run `init_db.sh` before `setup_services.sh` (which rejects a schema-version mismatch), and make sure the workflow definition no longer contains `require_approval` (the loader rejects the key).
 - Records the schema version
 
 ### 3.2 Deployment Checklist
@@ -300,9 +302,7 @@ bash deploy/init_db.sh
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
-The workflow-level approval gate is mandatory for every workflow definition (it is not configured per operation category); see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
-
-Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of approval state), see [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md).
+Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of workflow state), see [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md).
 
 ### DB Path Reference (auto-generated)
 

@@ -20,7 +20,7 @@ related:
 
 ## Purpose
 
-To document the partial completion model, workflow engine integration, and state changes occurring during each agent turn. This includes the design decision for mandatory workflow execution, the mechanism for approval gates that persist across process boundaries, and the persistence characteristics of turn states.
+To document the partial completion model, workflow engine integration, and state changes occurring during each agent turn. This includes the design decision for mandatory workflow execution, how human approval relates to the workflow (tool-level only), and the persistence characteristics of turn states.
 
 ## Design Intent
 
@@ -41,40 +41,13 @@ If an `existing_task_id` is provided, the existing `TaskRecord` is retrieved and
 
 Any `RuntimeError` is not caught by the caller's `except` block and propagates further up.
 
-### Approval Gates
+### Approval
 
-**Clarification of Terms:**
-- **Pre-execution Approval**: A tool-level approval gate triggered before tool execution (real-time risk assessment).
-- **Post-execution Approval**: A workflow-level approval gate triggered after the `execute` stage completes (batch result verification).
-- **Automatic Execution**: Operations that do not require human approval (planning phase, verification phase, low-risk tool calls).
+Human approval is decided before a Tool executes, by the tool-level approval (see [agent_06_02_tool-execution-and-approval-approval.md](agent_06_02_tool-execution-and-approval-approval.md) and [agent_06_04_tool-execution-and-approval-canonical.md](agent_06_04_tool-execution-and-approval-canonical.md)), inside the `execute` stage; the risk rules are in `config/agent.toml`. The workflow has no approval stage: `plan`, `execute`, and `verify` run in sequence, and a turn that runs write Tools completes without operator action.
 
-When `WorkflowEngine(require_approval=True)` is used, the engine pauses after the `execute` stage completes and before the `verify` stage begins:
+A workflow definition that contains the `require_approval` key is rejected at load time (`WorkflowLoadError`), and Agent startup is aborted.
 
-**Operations Policy (Decided):** The workflow-level gate is not configured per operation category. `WorkflowLoader._validate()` rejects any workflow definition whose `require_approval` is absent or `false` (`WorkflowLoadError`), so every workflow that loads has the gate enabled, and a misconfiguration fails startup rather than silently running without it. The bundled `config/workflows/default.json` sets `require_approval: true`. Because the gate applies uniformly, every operation category (file write, file deletion, shell execution, Git commit/push, GitHub changes, CI/CD execution) is covered by the post-execution approval whenever its tools run inside a workflow. ADR-001 makes the approval stage mandatory (INV-09).
-
-**Tool-level gate:** Independently of `require_approval`, the tool-level pre-execution approval gate (risk rules in `config/agent.toml`) remains active.
-
-**Approval Lifecycle (all paths):**
-- **approve**: `/approve <approval_id> [reason]` → `status=approved`, passes to the `verify` stage on the next run
-- **reject**: `/reject <approval_id> [reason]` → `status=rejected`, `WorkflowHaltError` is raised and the task halts
-- **missing**: If no existing approval record is found, a new record is created and the workflow pauses
-- **expire**: When `_gate_approval()` finds a `pending` record whose `expires_at` has passed, it marks that record `status=expired` and calls `request_approval()` again to re-request approval. `is_expired()` method exists in `approval_ops.py` for checking expiration status.
-- **cancel**: Not supported. By design, `/reject` is the only terminal path
-- **resume**: On the next workflow run after approve/reject, the existing approval record is checked and follows the branches above
-
-1. The engine calls `store.request_approval(task_id)` → creates an `ApprovalRecord` with `status=pending`.
-2. Task status → `pending_approval`.
-3. `WorkflowPendingApprovalError` occurs → orchestrator stores the `approval_id` and logs a WARNING.
-
-When a user executes `/approve <approval_id> [reason]` or `/reject <approval_id> [reason]`, the approval record is updated in the DB. During the next workflow execution for the same task, the gate checks existing approval records:
-
-- `status=approved` → pass to `verify` stage.
-- `status=rejected` → `WorkflowHaltError` occurs; task is halted.
-- `status=pending` → `WorkflowPendingApprovalError` occurs again.
-
-If no existing approval record is found, a new record is created and the workflow pauses.
-
-**Note:** Pre-execution approval (tool-level) and post-execution approval (workflow-level) trigger independently. They operate at different granularities and coexist without conflict.
+Every tool-level approval decision is written to the audit log as a `tool_approval` event that carries the `workflow_id` and the turn ID in its `task_id` field.
 
 ## Responsibility Boundary
 
@@ -129,6 +102,7 @@ When loading workflow definitions from `config/workflows/*.json`:
 - Each stage must have: `id`, `timeout_sec`, `retryable`
 - `retry_policy.max_attempts` must be ≥ 1
 - `retry_policy.backoff_sec` must be ≥ 0
+- The `require_approval` key must not be present: the workflow has no approval stage
 
 See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) for recovery steps when a rule is violated.
 
@@ -138,14 +112,9 @@ See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observabi
 
 During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called. This searches for active attempts during process startup and marks them as `failed`.
 
-### Default Behavior of Approval Gates
-
-With the bundled `config/workflows/default.json`, `require_approval` is true, so the workflow-level approval gate is triggered between the `execute` and `verify` stages. A workflow definition whose `require_approval` is absent or false is rejected at load time (see Approval Gates). The tool-level pre-execution gate is independent of this flag.
-
 ## Operational Notes
 
-- The `halted` state is a terminal state reached via `/reject` or an explicit stop operation; automatic resumption is not performed.
-- If no existing approval record is found, a new record is created and the workflow pauses.
+- The `halted` state is a terminal state reached when a retryable stage exhausts `max_attempts` or a stage times out; automatic resumption is not performed.
 
 ## Known Limitations
 
@@ -170,8 +139,6 @@ With the bundled `config/workflows/default.json`, `require_approval` is true, so
 |---|---|---|---|
 | `ctx.conv.history` | Each LLM/tool round (addition) | Yes — saved to SQLite per message | Also subject to compression by HistoryManager |
 | `ctx.turn.current_turn_id` | At TurnStart (UUID4) / TurnEnd (None) | No — in-memory only | Used for correlation within a turn |
-| `ctx.turn.pending_approval_id` | Set when the workflow approval gate pauses and at startup recovery; cleared by `/approve` and `/reject` | No — in-memory display cache; the approval is persisted in `workflow.sqlite` | Identifies the approval the operator resolves |
-| `ctx.turn.pending_approval_task_id` | Set by `/approve` and at startup recovery; cleared when the next workflow task is initialized | No — in-memory only | The task to resume after approval |
 | `ctx.stats.stat_turns` | After each user message addition | No — in-memory (reported via stats command) | Resets on session restart |
 | `ctx.stats.stat_partial_completions` | On LLM stream interruption | No — in-memory; partial content is stored in `session_diagnostics` | Resets on session restart |
 | `session.title` | First turn (asynchronous background task) | Yes — SQLite `sessions.title` | Non-blocking; falls back to truncating first input if LLM fails |

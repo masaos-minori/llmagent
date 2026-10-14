@@ -59,16 +59,3 @@ def emit_skipped(tool_name: str, output: OutputPort | None = None) -> None:
     """Write the 'skipped' confirmation after user denies a tool call."""
     out = _resolve_out(output)
     out.write(f"{OutputTag.SKIPPED} {tool_name}")
-
-
-def emit_approval_pending_notice(
-    approval_id: str,
-    task_id: str,
-    output: OutputPort | None = None,
-) -> None:
-    """Write a visible terminal notice when a workflow turn is suspended for approval."""
-    out = _resolve_out(output)
-    out.write(
-        f"\n{OutputTag.APPROVAL_PENDING} task '{task_id}' is waiting for approval."
-        f" Use /approve [reason] or /reject [reason]. (id: {approval_id})"
-    )

@@ -94,14 +94,10 @@ class _ContextMixin(MixinBase, TokenDisplay):
                 ]
             )
         self._print_token_line(state)
-        approval_str = (
-            "Yes -> use /approve or /reject" if state.approval_pending else "No"
-        )
         self._out.write_kv(
             [
                 ("Memory layer    ", state.mem_status),
                 ("Git             ", git_str),
-                ("Approval pending", approval_str),
             ]
         )
         self._out.write("Budget breakdown:")

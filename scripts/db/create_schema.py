@@ -10,7 +10,7 @@ SQLテンプレートはdb/schema_sql.pyに定義（正規DDLソース）。
 Functions:
   create_rag_schema()        — rag.sqlite: documents, chunks, chunks_vec, chunks_fts, triggers
   create_session_schema()    — session.sqlite: sessions, messages, memory
-  create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts, approvals, workflow_schema_version
+  create_workflow_schema()   — workflow.sqlite: tasks, attempts, processed_events, artifacts, workflow_schema_version
   create_eventbus_schema()   — eventbus.sqlite: events
   create_schema()            — convenience wrapper calling all four
 """
@@ -79,7 +79,7 @@ def create_session_schema() -> None:
 
 
 def create_workflow_schema() -> None:
-    """Create workflow.sqlite tables (tasks, attempts, processed_events, artifacts, approvals)."""
+    """Create workflow.sqlite tables (tasks, attempts, processed_events, artifacts)."""
     with SQLiteHelper("workflow").open(write_mode=True) as db:
         _execute_schema_ddl(db, build_workflow_schema_sql(), "workflow")
         assert db.conn is not None, (

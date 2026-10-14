@@ -54,7 +54,6 @@ class TestStartupRollback:
         orch._check_services = AsyncMock(
             side_effect=RuntimeError("health check failed")
         )
-        orch._recover_pending_approvals = AsyncMock()
         orch._setup_prompt = AsyncMock()
 
         with pytest.raises(RuntimeError, match="health check failed"):
@@ -63,16 +62,13 @@ class TestStartupRollback:
         mock_lifecycle.shutdown_all.assert_awaited_once()
 
     @pytest.mark.asyncio
-    async def test_rollback_on_recover_pending_failure(self) -> None:
+    async def test_rollback_on_setup_prompt_failure(self) -> None:
         orch, mock_lifecycle = _make_rollback_startup()
         orch._start_servers = AsyncMock()
         orch._check_services = AsyncMock()
-        orch._recover_pending_approvals = AsyncMock(
-            side_effect=RuntimeError("approval recovery failed")
-        )
-        orch._setup_prompt = AsyncMock()
+        orch._setup_prompt = AsyncMock(side_effect=RuntimeError("prompt setup failed"))
 
-        with pytest.raises(RuntimeError, match="approval recovery failed"):
+        with pytest.raises(RuntimeError, match="prompt setup failed"):
             await orch.run()
 
         mock_lifecycle.shutdown_all.assert_awaited_once()
@@ -82,7 +78,6 @@ class TestStartupRollback:
         orch, mock_lifecycle = _make_rollback_startup()
         orch._start_servers = AsyncMock()
         orch._check_services = AsyncMock(side_effect=RuntimeError("original error"))
-        orch._recover_pending_approvals = AsyncMock()
         orch._setup_prompt = AsyncMock()
         mock_lifecycle.shutdown_all.side_effect = OSError("shutdown failed")
 
@@ -93,7 +88,6 @@ class TestStartupRollback:
     async def test_no_rollback_on_initialize_failure(self) -> None:
         orch, mock_lifecycle = _make_rollback_startup()
         orch._check_services = AsyncMock()
-        orch._recover_pending_approvals = AsyncMock()
         orch._setup_prompt = AsyncMock()
 
         with patch.object(
@@ -148,7 +142,6 @@ class TestStartupRollback:
         orch = StartupOrchestrator(ctx, view)
         orch._initialize = MagicMock()
         orch._check_services = AsyncMock(side_effect=RuntimeError("downstream failure"))
-        orch._recover_pending_approvals = AsyncMock()
         orch._setup_prompt = AsyncMock()
 
         with pytest.raises(RuntimeError):
@@ -184,7 +177,6 @@ class TestStartupRollback:
         orch._check_services = AsyncMock(
             side_effect=RuntimeError("health check failed")
         )
-        orch._recover_pending_approvals = AsyncMock()
         orch._setup_prompt = AsyncMock()
         mock_lifecycle.shutdown_all.side_effect = OSError("shutdown failed")
 
@@ -203,7 +195,6 @@ class TestStartupRollback:
         ]
         orch._start_servers = AsyncMock(return_value=fake_procs)
         orch._check_services = AsyncMock()
-        orch._recover_pending_approvals = AsyncMock()
         orch._setup_prompt = AsyncMock()
         orch._cmds = MagicMock()
         orch._orchestrator = MagicMock()

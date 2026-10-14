@@ -40,7 +40,8 @@ The principle that "rag/session do not support backward-compatible migrations" a
 - `db/schema_sql.py` maintains a migration list in `list[tuple[str, str]]` format (ID + SQL statement pairs) and applies them sequentially using `apply_workflow_migrations()`.
 - It catches `sqlite3.OperationalError` containing `"duplicate column name"` (treating it as already applied) while re-raising others.
 - `create_workflow_schema()` creates base tables, then applies migrations, and finally records the version.
-- For new databases, migrations are no-ops since base schemas already contain the required columns. They function as incremental column additions for existing databases.
+- Each list entry holds exactly one SQL statement: `conn.execute` rejects several statements in one entry, which would abort startup.
+- The column-addition migrations are no-ops for new databases, since base schemas already contain the required columns, and function as incremental column additions for existing databases. Two entries remove the post-execution approval stage from existing databases, in this order: one marks tasks left waiting in that stage as failed, and one drops the `approvals` table. Both are idempotent, and neither changes a new database. `WORKFLOW_SCHEMA_VERSION` is `1.1.0` after them.
 
 Incremental migration mechanisms like this do not exist for `rag.sqlite` or `session.sqlite`.
 

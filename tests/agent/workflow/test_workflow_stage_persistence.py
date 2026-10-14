@@ -147,6 +147,11 @@ def test_begin_stage_if_new_idempotent(db: SQLiteHelper) -> None:
 
 def test_migration_adds_columns_to_existing_db() -> None:
     conn = sqlite3.connect(":memory:")
+    # The migration list updates tasks (pending_approval -> failed), so the
+    # table must exist even in this minimal pre-migration database.
+    conn.execute(
+        "CREATE TABLE tasks (task_id TEXT PRIMARY KEY, status TEXT, updated_at TEXT)"
+    )
     conn.execute(
         "CREATE TABLE attempts (attempt_id TEXT PRIMARY KEY, task_id TEXT, stage_id TEXT,"
         " status TEXT, started_at TEXT, ended_at TEXT, error_msg TEXT)"

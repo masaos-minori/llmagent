@@ -60,7 +60,7 @@ The Agent does not run retrieval before the LLM call. RAG runs only when the LLM
 - **Turn processing is separated into 4 layers**: `AgentREPL` (REPL loop) → `Orchestrator` (Turn control / Workflow management) → `LlmTurnExecutor` (LLM streaming + internal tool loop) → `agent/tool_runner.py` (Tool execution). The responsibilities of each layer are declared in the docstrings of `agent/repl.py`.
 - **MDQ/RAG Tool Selection**: `agent/mdq_rag_classifier.py` analyzes the query string; if it contains keywords related to Markdown structure, it injects a hint into the history as an ephemeral message with the `system` role to prioritize MDQ tools, otherwise prioritizing RAG tools. This can also be fixed via configuration. (Explicit in code — `agent/mode_classification.py`)
 - **Tool Loop Guard**: Detects abnormal repetitive tool calling patterns within a turn and returns a stop hint to the LLM to force termination. Details → [`agent_03_02_turn-processing-flow-llm-tool-loop.md`](../23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md) (Explicit in code — `agent/tool_loop_guard.py`)
-- **Workflow Engine**: `agent/workflow/workflow_engine.py` manages stage transitions: plan → execute → [Post-execution approval gate] → verify. The post-execution approval gate is passed using `/approve` / `/reject` slash commands. If waiting for approval at the start of a turn, LLM processing is blocked. (Explicit in code — `agent/orchestrator.py`)
+- **Workflow Engine**: `agent/workflow/workflow_engine.py` manages stage transitions: plan → execute → verify. The workflow has no approval stage: human approval is decided before a Tool executes, by the tool-level approval. (Explicit in code — `agent/workflow/workflow_engine.py`)
 
 **Processing Order within a Turn**
 
@@ -78,10 +78,8 @@ Messages with flags are removed during the system prompt synchronization process
 
 See [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md) for rationale and invariants.
 
-**Post-Execution Approval Gates:**
-In the workflow definition file (`config/workflows/*.json`), the `require_approval` field enables a post-execution approval gate between the `execute` and `verify` stages. The loader requires it to be `true`: a definition whose `require_approval` is absent or `false` is rejected, and the bundled default definition sets it to `true`. Since the pending approval state is persisted in `workflow.sqlite`, pending approvals are restored even after a restart. (Sources: `agent/workflow/models.py`, `agent/workflow/workflow_loader.py`, `agent/orchestrator.py`, `agent/startup.py`)
-
-For the operations policy that follows from this requirement, see [Approval Gates](../23_agent/agent_03_03_turn-processing-flow-workflow-engine.md#approval-gates).
+**No Approval Stage:**
+The workflow has no approval stage. Human approval is decided before a Tool executes, by the tool-level approval described in [Approval Layers](../23_agent/agent_06_04_tool-execution-and-approval-canonical.md). A workflow definition file (`config/workflows/*.json`) that contains the `require_approval` key is rejected at load time, and Agent startup is aborted. (Source: `agent/workflow/workflow_loader.py`)
 
 **MCP Server `startup_mode`**
 

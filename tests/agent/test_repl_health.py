@@ -904,8 +904,7 @@ class TestCheckWorkflowDefinition:
             '{"id": "execute", "timeout_sec": 120, "retryable": true}, '
             '{"id": "verify", "timeout_sec": 10, "retryable": false}'
             "], "
-            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}, '
-            '"require_approval": true'
+            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}'
             "}"
         )
         check_workflow_definition(workflows_dir=tmp_path)  # must not raise
@@ -932,8 +931,7 @@ class TestCheckWorkflowDefinition:
             '{"id": "execute", "timeout_sec": 120, "retryable": true}, '
             '{"id": "verify", "timeout_sec": 10, "retryable": false}'
             "], "
-            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}, '
-            '"require_approval": true}'
+            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}}'
         )
         with pytest.raises(RuntimeError) as exc_info:
             check_workflow_definition(workflows_dir=tmp_path)
@@ -947,8 +945,7 @@ class TestCheckWorkflowDefinition:
             '{"id": "plan", "timeout_sec": 30, "retryable": false}, '
             '{"id": "execute", "timeout_sec": 120, "retryable": true}'
             "], "
-            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}, '
-            '"require_approval": true}'
+            '"retry_policy": {"max_attempts": 3, "backoff_sec": 1}}'
         )
         with pytest.raises(RuntimeError) as exc_info:
             check_workflow_definition(workflows_dir=tmp_path)
@@ -980,9 +977,6 @@ def _create_workflow_db(
             "CREATE TABLE processed_events (event_id TEXT, task_id TEXT)"
         ),
         "artifacts": "CREATE TABLE artifacts (artifact_id TEXT, task_id TEXT)",
-        "approvals": (
-            "CREATE TABLE approvals (approval_id TEXT, task_id TEXT, status TEXT)"
-        ),
     }
     for table, ddl in schemas.items():
         if table == exclude_table:
@@ -1036,12 +1030,6 @@ class TestCheckWorkflowSchema:
         result = check_workflow_schema(db_path=db_path)
         assert result.valid is False
         assert result.error is not None and "artifacts" in result.error
-
-    def test_missing_approvals_table_fails(self, tmp_path: Any) -> None:
-        db_path = _create_workflow_db(tmp_path, exclude_table="approvals")
-        result = check_workflow_schema(db_path=db_path)
-        assert result.valid is False
-        assert result.error is not None and "approvals" in result.error
 
     def test_missing_required_column_fails(self, tmp_path: Any) -> None:
         db_path = _create_workflow_db(tmp_path, missing_column=("tasks", "workflow_id"))

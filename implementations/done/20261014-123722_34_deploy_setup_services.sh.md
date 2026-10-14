@@ -1,0 +1,94 @@
+## Goal
+
+Service setup script: Remove `approvals` from `REQUIRED_WORKFLOW_TABLES` (REQ-004: database and deploy changes).
+
+## Scope
+
+- Remove `approvals` from `REQUIRED_WORKFLOW_TABLES`
+
+## Assumptions
+
+- Plan `plans/20261014-114443_plan.md` is `Frozen`; this file is one of its `Implementation Target Files` rows.
+- Apply only after the repository owner's decision (Plan Step 1) is recorded, together with every other procedure of this plan (Steps 2-11) as one commit unit.
+- Line numbers come from the Plan and may shift; locate edits by symbol, test name, or section.
+
+## Design decisions
+
+- Keep the script otherwise unchanged.
+- Run order stays: init_db.sh before setup_services.sh.
+
+## Alternatives considered
+
+N/A: removal is the decided direction
+
+## Implementation
+
+### Target file
+
+`deploy/setup_services.sh`
+
+### Procedure
+
+Remove `approvals` from `REQUIRED_WORKFLOW_TABLES`.
+
+### Method
+
+Evidence recorded in the Plan: `setup_services.sh` lines 43. Locate the places with a case-sensitive search for the removed names in this file, edit by symbol or section, then format the file.
+
+### Details
+
+- Change the REQUIRED_WORKFLOW_TABLES value on line 43 to tasks attempts processed_events artifacts. It also fails on a schema-version mismatch, so init_db.sh must run first.
+
+## Compatibility considerations
+
+Deploy fails on a leftover approvals requirement after the table is dropped, so this edit is required.
+
+## Security considerations
+
+N/A: the script only checks table names.
+
+## Rollback considerations
+
+N/A: revert the commit; the whole plan lands as one commit unit.
+
+## Validation plan
+
+- `bash -n` on the script reports no syntax error.
+- After the migration, the table check passes against a migrated database.
+
+## Completion criteria
+
+- The required table list no longer names approvals and the script still parses.
+
+## Out of scope
+
+- Tool-level approval (the keep list), the MDQ and eventbus areas, and any file outside this Plan's target table.
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Apply the edit | Completed | 20261014-142001 | 20261014-142001 |  |
+| 2 | Run `bash -n` on the script | Completed | 20261014-142001 | 20261014-142001 |  |
+| 3 | Run the deploy order check (Plan Step 12) | Completed | 20261014-142001 | 20261014-142001 |  |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
+
+## Traceability
+- **Workflow phase**: plan-to-implementation-procedure
+- **Requirement ID**: REQ-004
+- **Source issue**: issues/20261014-112913_appr001_remove-the-post-execution-approval-gate.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20261014-114443_plan.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20261014-123722
+- **Related target files**: deploy/setup_services.sh

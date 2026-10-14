@@ -20,7 +20,6 @@ from shared.logger import Logger
 from agent.context import AgentContext
 from agent.orchestrator import Orchestrator
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
-from agent.startup_approval_recovery import ApprovalRecovery
 from agent.startup_component_init import ComponentInitializer
 from agent.startup_mcp_starter import McpServerStarter
 from agent.startup_prompt_setup import PromptSetup
@@ -62,7 +61,6 @@ class StartupOrchestrator:
         self._mcp_starter = McpServerStarter(ctx, view, shutdown_event)
         self._validation_pipeline = StartupValidationPipeline(ctx, view)
         self._reporter = ReadinessReporter(ctx, view)
-        self._approval_recovery = ApprovalRecovery(ctx, view)
         self._prompt_setup = PromptSetup(ctx, view)
 
     async def run(self) -> tuple[CommandRegistry, Orchestrator, list[subprocess.Popen]]:
@@ -74,7 +72,6 @@ class StartupOrchestrator:
             self._spawned_subprocesses = await self._start_servers()
             await self._verify_mcp_health()
             await self._check_services()
-            await self._recover_pending_approvals()
             await self._setup_prompt()
         except Exception as setup_err:
             try:
@@ -134,10 +131,6 @@ class StartupOrchestrator:
     def _report_readiness(self, pipeline: StartupValidationResult) -> None:
         """Report aggregated readiness status after startup checks complete."""
         self._reporter.report_readiness(pipeline)
-
-    async def _recover_pending_approvals(self) -> None:
-        """Restore workflow approval-pending state from a previous session."""
-        await self._approval_recovery.recover()
 
     def _classify_memory_failure(self, exc: Exception) -> str:
         return self._prompt_setup._classify_memory_failure(exc)

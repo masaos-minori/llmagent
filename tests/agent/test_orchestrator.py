@@ -22,7 +22,6 @@ from agent.turn_result import TurnResult
 from agent.workflow import (
     WorkflowHaltError,
     WorkflowLoadError,
-    WorkflowPendingApprovalError,
     WorkflowTimeoutError,
 )
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
@@ -58,10 +57,8 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_errors = 0
     ctx.stats.stat_tool_calls = 0
     ctx.turn.current_turn_id = None
-    ctx.turn.pending_approval_task_id = None
     ctx.session.session_id = "test-session"
     ctx.workflow.workflow_id = None
-    ctx.workflow.approval_pending = False
     # services
     hist_mgr = AsyncMock()
     hist_mgr.stat_compress_count = 0
@@ -1154,49 +1151,27 @@ class TestToolLoopGuardHelpers:
         assert "repeated" in result.lower() or "duplicate" in result.lower()
 
 
-# ── approval_pending guard ────────────────────────────────────────────────────
+# ── no approval stage ─────────────────────────────────────────────────────────
 
 
-class TestApprovalPendingGuard:
-    @pytest.mark.asyncio
-    async def test_handle_turn_blocked_when_approval_pending(self) -> None:
-        """handle_turn() must call on_error and return without LLM call when approval_pending=True."""
-        on_error = MagicMock()
-        ctx = _make_ctx()
-        ctx.workflow.approval_pending = True
-        ctx.turn.pending_approval_id = "approval-123"
-        orch = _make_orchestrator(ctx, on_error=on_error)
-
-        await orch.handle_turn("do something")
-
-        on_error.assert_called_once()
-        err = on_error.call_args[0][0]
-        assert isinstance(err, RuntimeError)
-        assert "approval-123" in str(err)
-        # LLM must not be called
-        ctx.services_required.llm.assert_not_called()
+class TestNoApprovalStage:
+    """The workflow has no approval stage: turns complete without operator action."""
 
     @pytest.mark.asyncio
-    async def test_handle_turn_not_blocked_when_approval_not_pending(self) -> None:
-        """handle_turn() must proceed normally when approval_pending=False."""
+    async def test_consecutive_turns_complete_without_operator_action(self) -> None:
         on_error = MagicMock()
         ctx = _make_ctx()
-        ctx.workflow.approval_pending = False
         orch = _make_orchestrator(ctx, on_error=on_error)
+        process = AsyncMock(return_value=("ok", None, False))
 
-        # Patch _process_turn to return a successful result without calling LLM
-        with patch.object(
-            orch._workflow_adapter,
-            "_process_turn",
-            new=AsyncMock(return_value=("ok", None, False)),
-        ):
-            await orch.handle_turn("do something")
+        with patch.object(orch._workflow_adapter, "_process_turn", new=process):
+            await orch.handle_turn("write a file")
+            await orch.handle_turn("write another file")
 
-        # on_error must NOT have been called due to the approval guard
-        # (it may be called for other reasons, but not the guard path)
+        # Both turns reached the turn processor: nothing blocked the second one.
+        assert process.await_count == 2
         for call in on_error.call_args_list:
-            err = call[0][0]
-            assert "Approval is pending" not in str(err)
+            assert "approval" not in str(call[0][0]).lower()
 
 
 # ── allowed_tools override ────────────────────────────────────────────────────
@@ -1396,7 +1371,6 @@ class TestInitWorkflowTaskResumeReuse:
         existing_task.workflow_id = "existing-wf-id"
 
         ctx = _make_ctx()
-        ctx.turn.pending_approval_task_id = "existing-task-id"
 
         with (
             patch(
@@ -1907,7 +1881,6 @@ class TestHandleTurnPauseGuard:
     async def test_handle_turn_blocked_when_task_type_paused(self) -> None:
         on_error = MagicMock()
         ctx = _make_ctx()
-        ctx.workflow.approval_pending = False
         orch = _make_orchestrator(
             ctx, on_error=on_error, pause_on_critical_failure=True
         )
@@ -1926,7 +1899,6 @@ class TestHandleTurnPauseGuard:
     async def test_handle_turn_not_blocked_when_no_task_type_paused(self) -> None:
         on_error = MagicMock()
         ctx = _make_ctx()
-        ctx.workflow.approval_pending = False
         orch = _make_orchestrator(
             ctx, on_error=on_error, pause_on_critical_failure=True
         )
@@ -1950,52 +1922,6 @@ class TestHandleTurnPauseGuard:
 class TestHandleWorkflowEngineStatusPreservation:
     """Tests that _handle_workflow_engine does NOT overwrite terminal statuses
     already persisted by WorkflowEngine.run() when an exception occurs."""
-
-    @pytest.mark.asyncio
-    async def test_preserves_pending_approval_status(self) -> None:
-        """When WorkflowEngine.run() raises WorkflowPendingApprovalError after
-        persisting 'pending_approval', the finally block must NOT overwrite it."""
-        ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
-
-        mock_store = MagicMock()
-        mock_store.update_task_status = MagicMock()
-        mock_store.close = MagicMock()
-
-        async def _raise_pending_approval(task, plan_fn, execute_fn, verify_fn):
-            # Simulate WorkflowEngine.run() having already set pending_approval
-            mock_store.update_task_status("task-1", "pending_approval")
-            raise WorkflowPendingApprovalError(
-                approval_id="approval-1", task_id="task-1"
-            )
-
-        mock_engine = MagicMock()
-        mock_engine.run = AsyncMock(side_effect=_raise_pending_approval)
-
-        with (
-            patch.object(
-                orch._workflow_adapter,
-                "init_workflow_task",
-                return_value=("wf-1", MagicMock(task_id="task-1")),
-            ),
-            patch.object(orch._workflow_adapter, "activate_workflow"),
-            patch.object(orch._workflow_adapter, "deactivate_workflow"),
-            patch("agent.orchestrator.StateStore", return_value=mock_store),
-            patch(
-                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
-            ),
-        ):
-            await orch._workflow_adapter.execute_turn("test line", time.time(), "")
-
-        # The finally block should NOT have overwritten pending_approval
-        calls = [
-            c
-            for c in mock_store.update_task_status.call_args_list
-            if c[0][1] != "pending_approval"
-        ]
-        assert len(calls) == 0, (
-            f"Unexpected status writes: {mock_store.update_task_status.call_args_list}"
-        )
 
     @pytest.mark.asyncio
     async def test_preserves_halted_status_via_halt_error(self) -> None:

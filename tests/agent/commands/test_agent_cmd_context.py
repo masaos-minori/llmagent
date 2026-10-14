@@ -553,33 +553,6 @@ class TestCmdContext:
         out = capsys.readouterr().out
         assert "Token limit" in out
 
-    def test_cmd_context_shows_approval_pending(self, capsys: Any) -> None:
-        ctx = _make_ctx()
-        ctx.turn.pending_approval_id = "approval-123"
-        ctx.conv.history = [_system_msg("sys")]
-        self._add_hist_mgr(ctx)
-        cmd = _FakeCmd(ctx)
-        cmd._cmd_context()
-        out = capsys.readouterr().out
-        assert "Approval pending" in out
-        assert "/approve" in out
-
-
-class TestCollectContextStateWorkflow:
-    def test_collect_context_state_approval_pending(self) -> None:
-        from agent.services.context_view import collect_context_state
-
-        ctx = _make_ctx()
-        ctx.turn.pending_approval_id = "wf-approval-abc"
-        hist_mgr = MagicMock()
-        hist_mgr.count_chars.return_value = 0
-        hist_mgr.stat_compress_count = 0
-        hist_mgr.stat_fallback_truncate_count = 0
-        hist_mgr.count_tokens.return_value = None
-        ctx.services_required.hist_mgr = hist_mgr
-        result = collect_context_state(ctx)
-        assert result.approval_pending is True
-
 
 # ── /diff ──────────────────────────────────────────────────────────────────────
 

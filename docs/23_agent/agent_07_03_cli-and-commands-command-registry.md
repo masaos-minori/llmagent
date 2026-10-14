@@ -64,8 +64,6 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 | `/memory` | Manage long-term memory entries |
 | `/debug` | Toggle debug mode / log level |
 | `/audit` | Browse audit log events |
-| `/approve` | Approve the pending workflow task |
-| `/reject` | Reject the pending workflow task |
 
 ### Adding New Commands
 

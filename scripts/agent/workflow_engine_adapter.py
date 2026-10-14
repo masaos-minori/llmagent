@@ -2,10 +2,10 @@
 """scripts/agent/workflow_engine_adapter.py
 
 Workflow engine integration: task creation, activation/deactivation,
-approval pending handling, halt handling.
+halt handling.
 
 Extracted from orchestrator.py (_init_workflow_task, _activate_workflow,
-_deactivate_workflow, _handle_workflow_approval_pending, _handle_workflow_halt).
+_deactivate_workflow, _handle_workflow_halt).
 """
 
 from __future__ import annotations
@@ -23,19 +23,15 @@ from shared.llm_exceptions import LLMTransportError
 from agent.conversation_state_manager import ConversationStateManager
 from agent.llm_turn_executor import LlmTurnExecutor
 from agent.mode_classification import classify_and_inject_mode
-from agent.output_tags import OutputTag
 from agent.tool_audit import (
-    audit_approval_requested,
     audit_stage_completed,
     audit_workflow_start,
 )
-from agent.tool_output import emit_approval_pending_notice
 from agent.workflow import (
     StateStore,
     TaskRecord,
     WorkflowEngine,
     WorkflowHaltError,
-    WorkflowPendingApprovalError,
     WorkflowTimeoutError,
 )
 from agent.workflow.task_ops import create_task, get_task_by_id
@@ -55,7 +51,7 @@ class WorkflowEngineAdapter:
     Responsibilities:
       - Create/resume workflow tasks
       - Activate/deactivate workflow state on context
-      - Handle approval-pending and halt events
+      - Handle halt events
       - Run the workflow engine with plan/execute/verify callbacks
 
     Engine lifecycle: ``self._workflow_engine`` is the single source of truth for
@@ -121,15 +117,6 @@ class WorkflowEngineAdapter:
         """
         self._deactivate_workflow(ctx)
 
-    def handle_workflow_approval_pending(
-        self, ctx: AgentContext, exc: WorkflowPendingApprovalError, session_id: str
-    ) -> None:
-        """Handle workflow approval pending event.
-
-        Backward-compatible alias for _handle_workflow_approval_pending.
-        """
-        self._handle_workflow_approval_pending(exc, session_id)
-
     def handle_workflow_halt(
         self, ctx: AgentContext, exc: WorkflowHaltError | WorkflowTimeoutError
     ) -> None:
@@ -162,7 +149,6 @@ class WorkflowEngineAdapter:
             ) = self._init_workflow_task(
                 self._ctx, session_id, existing_task_id, self._state_store
             )
-            self._ctx.turn.pending_approval_task_id = None
             self._activate_workflow(self._ctx, task)
             assert self._workflow_engine is not None, (
                 "WorkflowEngine must be injected via constructor"
@@ -197,9 +183,6 @@ class WorkflowEngineAdapter:
                 return None
 
             await engine.run(task, plan_fn, execute_fn, verify_fn)
-        except WorkflowPendingApprovalError as exc:
-            engine_status_handled = True
-            self._handle_workflow_approval_pending(exc, session_id)
         except (WorkflowHaltError, WorkflowTimeoutError) as exc:
             engine_status_handled = True
             self._handle_workflow_halt(exc)
@@ -324,36 +307,6 @@ class WorkflowEngineAdapter:
         ctx.workflow.active = False
         ctx.workflow.current_task_id = None
         ctx.workflow.workflow_id = None
-
-    def _handle_workflow_approval_pending(
-        self, exc: WorkflowPendingApprovalError, session_id: str
-    ) -> None:
-        """Handle workflow approval pending event."""
-        ctx = self._ctx
-        logger.info(
-            "Turn suspended: awaiting approval %s for task %s",
-            exc.approval_id,
-            exc.task_id,
-        )
-        audit_approval_requested(
-            ctx,
-            exc.task_id,
-            exc.approval_id,
-            workflow_id=ctx.workflow.workflow_id or "",
-            session_id=session_id,
-        )
-        ctx.turn.pending_approval_id = exc.approval_id
-        ctx.workflow.approval_pending = True
-        emit_approval_pending_notice(
-            approval_id=exc.approval_id,
-            task_id=exc.task_id or "unknown",
-        )
-        logger.warning(
-            "%s Approval required. Use /approve %s [reason] or /reject %s [reason].",
-            OutputTag.WORKFLOW,
-            exc.approval_id,
-            exc.approval_id,
-        )
 
     def _handle_workflow_halt(
         self, exc: WorkflowHaltError | WorkflowTimeoutError

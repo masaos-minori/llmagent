@@ -514,7 +514,6 @@ class TestPersistSessionDiagnostics:
         mock_state_store = MagicMock()
         mock_state_store.get_task_count.return_value = 0
         mock_state_store.get_workflow_count.return_value = 0
-        mock_state_store.get_approval_count.return_value = 0
         mock_state_store.get_execute_attempt_count.return_value = 0
         mock_state_store.get_artifact_uris.return_value = ["file:///tmp/a.txt"]
         repl._diagnostic_store.fetch.return_value = []
@@ -542,7 +541,6 @@ class TestPersistSessionDiagnostics:
         mock_state_store = MagicMock()
         mock_state_store.get_task_count.return_value = 0
         mock_state_store.get_workflow_count.return_value = 0
-        mock_state_store.get_approval_count.return_value = 0
         mock_state_store.get_execute_attempt_count.return_value = 0
         mock_state_store.get_artifact_uris.return_value = []
         repl._diagnostic_store.fetch.return_value = [
@@ -575,7 +573,6 @@ class TestPersistSessionDiagnostics:
         mock_state_store = MagicMock()
         mock_state_store.get_task_count.return_value = 0
         mock_state_store.get_workflow_count.return_value = 0
-        mock_state_store.get_approval_count.return_value = 0
         mock_state_store.get_execute_attempt_count.return_value = 0
         mock_state_store.get_artifact_uris.return_value = []
         repl._diagnostic_store.fetch.return_value = []

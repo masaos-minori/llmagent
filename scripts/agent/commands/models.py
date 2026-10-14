@@ -44,5 +44,4 @@ class StatsViewModel:
     output_tokens: int | None = None
     debug_mode: bool = False
     latency: LatencySnapshot | None = None
-    approval_pending: bool = False
     rag_db_configured: bool = False

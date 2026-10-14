@@ -10,7 +10,12 @@ from unittest.mock import MagicMock
 
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
-from agent.tool_audit import audit_tool_exec, log_approval_decision, write_round_exec
+from agent.tool_audit import (
+    audit_approval,
+    audit_tool_exec,
+    log_approval_decision,
+    write_round_exec,
+)
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome
 
@@ -92,6 +97,36 @@ class TestLogApprovalDecision:
             decision=ApprovalDecisionType.APPROVED,
         )
         log_approval_decision(ctx, outcome)  # must not raise
+
+
+class TestAuditApprovalInv11:
+    """INV-11: every tool-level approval decision is a tool_approval audit event
+    that carries the workflow_id and the task_id field (the turn ID)."""
+
+    @staticmethod
+    def _logged_event(decision: ApprovalDecisionType) -> dict[str, Any]:
+        ctx = _make_ctx()
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.turn.current_turn_id = "turn-xyz"
+        audit_approval(
+            ctx, "write_file", RiskLevel.MEDIUM, {"path": "/tmp/x.txt"}, decision
+        )
+        ctx.services_required.audit_logger.info.assert_called_once()
+        return json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
+
+    def test_approved_decision_is_recorded_with_workflow_context(self) -> None:
+        event = self._logged_event(ApprovalDecisionType.APPROVED)
+        assert event["event"] == "tool_approval"
+        assert event["decision"] == "approved"
+        assert event["workflow_id"] == "wf-test-id"
+        assert event["task_id"] == "turn-xyz"
+
+    def test_denied_decision_is_recorded_with_workflow_context(self) -> None:
+        event = self._logged_event(ApprovalDecisionType.DENIED)
+        assert event["event"] == "tool_approval"
+        assert event["decision"] == "denied"
+        assert event["workflow_id"] == "wf-test-id"
+        assert event["task_id"] == "turn-xyz"
 
 
 class TestAuditToolExec:

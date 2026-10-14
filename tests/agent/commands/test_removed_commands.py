@@ -70,3 +70,29 @@ class TestRemovedMdqCommand:
 
         command_names = {cmd.name for cmd in _COMMANDS}
         assert "/mdq" not in command_names, "/mdq should not be a registered command"
+
+
+class TestRemovedApproveCommand:
+    """Verify /approve is not registered as a built-in command."""
+
+    def test_approve_not_in_registry(self) -> None:
+        """/approve is not registered as a built-in command."""
+        from agent.commands.registry import _COMMANDS
+
+        command_names = {cmd.name for cmd in _COMMANDS}
+        assert "/approve" not in command_names, (
+            "/approve should not be a registered command"
+        )
+
+
+class TestRemovedRejectCommand:
+    """Verify /reject is not registered as a built-in command."""
+
+    def test_reject_not_in_registry(self) -> None:
+        """/reject is not registered as a built-in command."""
+        from agent.commands.registry import _COMMANDS
+
+        command_names = {cmd.name for cmd in _COMMANDS}
+        assert "/reject" not in command_names, (
+            "/reject should not be a registered command"
+        )

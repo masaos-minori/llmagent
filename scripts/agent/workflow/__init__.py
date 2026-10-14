@@ -4,15 +4,13 @@
 Public API (import from this package directly):
     from agent.workflow import (
         WorkflowDef, StateStore, WorkflowEngine, WorkflowLoader,
-        WorkflowHaltError, WorkflowLoadError, WorkflowPendingApprovalError,
-        WorkflowTimeoutError,
-        TaskRecord, AttemptRecord, ApprovalRecord,
+        WorkflowHaltError, WorkflowLoadError, WorkflowTimeoutError,
+        TaskRecord, AttemptRecord,
         ArtifactRef, StageDefinition, RetryPolicy,
     )
 """
 
 from agent.workflow.models import (
-    ApprovalRecord,
     ArtifactRef,
     AttemptRecord,
     RetryPolicy,
@@ -24,7 +22,6 @@ from agent.workflow.state_store import StateStore
 from agent.workflow.workflow_engine import (
     WorkflowEngine,
     WorkflowHaltError,
-    WorkflowPendingApprovalError,
     WorkflowTimeoutError,
 )
 from agent.workflow.workflow_loader import (
@@ -33,7 +30,6 @@ from agent.workflow.workflow_loader import (
 )
 
 __all__ = [
-    "ApprovalRecord",
     "ArtifactRef",
     "AttemptRecord",
     "RetryPolicy",
@@ -45,6 +41,5 @@ __all__ = [
     "WorkflowHaltError",
     "WorkflowLoader",
     "WorkflowLoadError",
-    "WorkflowPendingApprovalError",
     "WorkflowTimeoutError",
 ]

@@ -45,7 +45,7 @@ Describes the primary runtime components, their dependencies, and responsibility
 ## Operational Notes
 
 - `AgentContext.diagnostics` is `None` until `Orchestrator.__init__()` assigns the `DiagnosticStore`.
-- `handle_turn()` executes the plan/execute/verify stages via the workflow engine. New turns are rejected while `ctx.workflow.approval_pending` is `True` or while background tasks are paused. (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
+- `handle_turn()` executes the plan/execute/verify stages via the workflow engine. New turns are rejected while background tasks are paused. (See [agent_03_01_turn-processing-flow-overview.md](agent_03_01_turn-processing-flow-overview.md) for details.)
 
 ## Known Limitations
 
@@ -99,7 +99,7 @@ Describes runtime extension points, lifecycle phases, and shutdown policies, cla
 
 `AgentREPL` is responsible only for the UI loop, command dispatching, and output display, containing no business logic. By delegating all startup sequences to `StartupOrchestrator`, the REPL functions purely as an I/O layer.
 
-Decoupling `StartupOrchestrator` from `AgentREPL` allows complexity during startup (service checks, MCP server startup, approval recovery) to be separated from the REPL's responsibility, ensuring the REPL focuses solely on UI concerns.
+Decoupling `StartupOrchestrator` from `AgentREPL` allows complexity during startup (service checks, MCP server startup) to be separated from the REPL's responsibility, ensuring the REPL focuses solely on UI concerns.
 
 ### Responsibility Boundary
 
@@ -133,7 +133,7 @@ The hub for shared mutable state and component references. All services are inje
 | `ctx.conv` | Session | `history`, `plan_mode`, `debug_mode`, `system_prompt_content` |
 | `ctx.turn` | Per-turn | `current_turn_id` (UUID4, None between turns) |
 | `ctx.stats` | Cumulative | `stat_turns`, `stat_tool_calls`, `stat_latency`, token counts |
-| `ctx.workflow` | Session | `WorkflowState`: `active`, `current_task_id`, `workflow_id`, `approval_pending` (transient) |
+| `ctx.workflow` | Session | `WorkflowState`: `active`, `current_task_id`, `workflow_id` (transient) |
 | `ctx.cfg` | Hot-reload | `AgentConfig` (composite sub-configs) |
 | `ctx.session` | Session | `AgentSession` (SQLite) |
 | `ctx.services` | Injected | All service instances (LLMClient, ToolExecutor, etc.) |

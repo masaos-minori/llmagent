@@ -105,7 +105,6 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx = MagicMock()
     ctx.cfg = cfg or _cfg()
     ctx.turn.current_turn_id = "test-turn-id"
-    ctx.turn.pending_approval_id = None
     ctx.services_required.audit_logger = None
     ctx.services_required.gateway = None
     ctx.services_required.runtime_tools = _default_runtime_tools()
@@ -1126,7 +1125,6 @@ class TestGatewayBypassGapResolution:
         )
         gateway = RepositoryGateway(executor=executor, cfg=cfg, audit_logger=None)
         ctx.services_required.gateway = gateway
-        ctx.turn.pending_approval_id = None
 
         pc = _pc(
             "read_text_file",

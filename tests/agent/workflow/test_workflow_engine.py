@@ -6,28 +6,20 @@ Uses a temp workflow.sqlite and mocks stage callbacks.
 from __future__ import annotations
 
 import asyncio
-from datetime import UTC
 from pathlib import Path
 from unittest.mock import patch
 
 import pytest
-from agent.workflow.approval_ops import (
-    get_latest_approval,
-    request_approval,
-    resolve_approval,
-)
 from agent.workflow.attempt_ops import count_attempts
 from agent.workflow.idempotency_ops import is_event_processed
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.task_ops import (
     create_task,
     get_task_by_idempotency_key,
-    update_task_status,
 )
 from agent.workflow.workflow_engine import (
     WorkflowEngine,
     WorkflowHaltError,
-    WorkflowPendingApprovalError,
     WorkflowTimeoutError,
 )
 from db.config import DbConfig
@@ -42,9 +34,7 @@ def _make_cfg(db_path: str) -> DbConfig:
     )
 
 
-def _make_wdef(
-    max_attempts: int = 3, backoff_sec: int = 0, require_approval: bool = False
-) -> WorkflowDef:
+def _make_wdef(max_attempts: int = 3, backoff_sec: int = 0) -> WorkflowDef:
     stages = [
         StageDefinition(id="plan", timeout_sec=5, retryable=False),
         StageDefinition(id="execute", timeout_sec=5, retryable=True),
@@ -56,7 +46,6 @@ def _make_wdef(
         version="1.0.0",
         stages=stages,
         retry_policy=policy,
-        require_approval=require_approval,
     )
 
 
@@ -101,8 +90,6 @@ class TestWorkflowEngineHappyPath:
         wdef = _make_wdef()
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
-        approval = request_approval(store._db, task.task_id)
-        resolve_approval(store._db, approval.approval_id, "approved")
         await engine.run(task, _noop, _noop, _noop)
         found = get_task_by_idempotency_key(store._db, "s:1")
         assert found is not None
@@ -113,8 +100,6 @@ class TestWorkflowEngineHappyPath:
         wdef = _make_wdef()
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
-        approval = request_approval(store._db, task.task_id)
-        resolve_approval(store._db, approval.approval_id, "approved")
         await engine.run(task, _noop, _noop, _noop)
         for stage in ("plan", "execute", "verify"):
             event_id = f"{task.task_id}:{stage}:1"
@@ -127,8 +112,6 @@ class TestWorkflowEngineRetry:
         wdef = _make_wdef(max_attempts=3, backoff_sec=0)
         task = create_task(store._db, "s", 1, wdef.version, "wf-test")
         engine = WorkflowEngine(wdef, store)
-        approval = request_approval(store._db, task.task_id)
-        resolve_approval(store._db, approval.approval_id, "approved")
 
         calls = {"n": 0}
 
@@ -211,10 +194,6 @@ class TestWorkflowEngineIdempotency:
             call_count["n"] += 1
             return None
 
-        # Pre-approve so the gate passes in both runs
-        approval = request_approval(store._db, task.task_id)
-        resolve_approval(store._db, approval.approval_id, "approved")
-
         # First run
         await engine.run(task, counting_fn, counting_fn, counting_fn)
         first_count = call_count["n"]
@@ -224,174 +203,8 @@ class TestWorkflowEngineIdempotency:
         assert call_count["n"] == first_count  # no additional calls
 
 
-class TestWorkflowEngineApprovalGate:
-    @pytest.mark.asyncio
-    async def test_gate_always_raises_pending_on_new_task(self, store) -> None:
-        wdef = _make_wdef(require_approval=True)
-        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
-        engine = WorkflowEngine(wdef, store)
-        with pytest.raises(WorkflowPendingApprovalError) as exc_info:
-            await engine.run(task, _noop, _noop, _noop)
-        assert exc_info.value.task_id == task.task_id
-
-    @pytest.mark.asyncio
-    async def test_approved_task_gate_passes(self, store) -> None:
-        wdef = _make_wdef(require_approval=True)
-        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
-        engine = WorkflowEngine(wdef, store)
-        approval = request_approval(store._db, task.task_id)
-        resolve_approval(store._db, approval.approval_id, "approved")
-        await engine._gate_approval(task)  # must not raise
-
-    @pytest.mark.asyncio
-    async def test_rejected_task_halts(self, store) -> None:
-        wdef = _make_wdef(require_approval=True)
-        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
-        engine = WorkflowEngine(wdef, store)
-        with pytest.raises(WorkflowPendingApprovalError):
-            await engine.run(task, _noop, _noop, _noop)
-        approval = get_latest_approval(store._db, task.task_id)
-        assert approval is not None
-        resolve_approval(store._db, approval.approval_id, "rejected", "not safe")
-        with pytest.raises(WorkflowHaltError, match="approval rejected"):
-            await engine._gate_approval(task)
-
-    @pytest.mark.asyncio
-    async def test_resume_does_not_rerun_plan_or_execute(self, store) -> None:
-        """After /approve, resume must not rerun plan or execute stages."""
-        wdef = _make_wdef(require_approval=True)
-        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
-        engine = WorkflowEngine(wdef, store)
-
-        # First run — suspends at approval gate
-        with pytest.raises(WorkflowPendingApprovalError):
-            await engine.run(task, _noop, _noop, _noop)
-
-        # Approve the task
-        approval = get_latest_approval(store._db, task.task_id)
-        assert approval is not None
-        resolve_approval(store._db, approval.approval_id, "approved")
-
-        # Resume — plan and execute should be skipped via idempotency
-        call_counts = {"plan": 0, "execute": 0, "verify": 0}
-
-        async def counting_fn(stage: str) -> str | None:
-            call_counts[stage] += 1
-            return None
-
-        # We need to pass the stage name to the callback; use a different approach
-        plan_calls = []
-        execute_calls = []
-        verify_calls = []
-
-        async def plan_fn() -> str | None:
-            plan_calls.append(1)
-            return None
-
-        async def execute_fn() -> str | None:
-            execute_calls.append(1)
-            return None
-
-        async def verify_fn() -> str | None:
-            verify_calls.append(1)
-            return None
-
-        await engine.run(task, plan_fn, execute_fn, verify_fn)
-
-        # Plan and execute should NOT be called again (idempotency)
-        assert len(plan_calls) == 0, "Plan stage should not be rerun after resume"
-        assert len(execute_calls) == 0, "Execute stage should not be rerun after resume"
-        # Verify stage should be called once
-        assert len(verify_calls) == 1, "Verify stage should run after resume"
-
-    @pytest.mark.asyncio
-    async def test_startup_recovered_approval_can_resume(self, store) -> None:
-        """After startup recovery restores pending approval, the task can resume."""
-        wdef = _make_wdef()
-        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
-        engine = WorkflowEngine(wdef, store)
-
-        # Simulate startup recovery: task is still in pending_approval state
-        approval = request_approval(store._db, task.task_id)
-        update_task_status(store._db, task.task_id, "pending_approval")
-
-        # Approve the task (as if user ran /approve after startup)
-        resolve_approval(store._db, approval.approval_id, "approved")
-
-        # Resume — should complete without raising
-        await engine.run(task, _noop, _noop, _noop)
-        found = get_task_by_idempotency_key(store._db, "s:1")
-        assert found is not None
-        assert found.status == "completed"
-
-    @pytest.mark.asyncio
-    async def test_verify_not_called_before_approval_resolution(self, store) -> None:
-        """verify callback must not be invoked until the approval gate is resolved."""
-        wdef = _make_wdef(require_approval=True)
-        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
-        engine = WorkflowEngine(wdef, store)
-
-        verify_called = False
-
-        async def verify_fn() -> str | None:
-            nonlocal verify_called
-            verify_called = True
-            return None
-
-        with pytest.raises(WorkflowPendingApprovalError):
-            await engine.run(task, _noop, _noop, verify_fn)
-
-        assert verify_called is False, (
-            "verify must not be called when approval gate blocks execution"
-        )
-
-
-class TestWorkflowEngineApprovalExpiry:
-    """Tests for approval expiry and re-request behavior."""
-
-    @pytest.mark.asyncio
-    async def test_expired_pending_approval_is_re_requested(self, store) -> None:
-        """Expired pending approval should be re-requested on next gate check."""
-        from datetime import datetime, timedelta
-
-        from agent.workflow.approval_ops import request_approval
-
-        wdef = _make_wdef(require_approval=True)
-        task = create_task(store._db, "s", 1, wdef.version, "wf-test")
-        engine = WorkflowEngine(wdef, store)
-
-        # Create a pending approval with an expired expires_at
-        approval = request_approval(store._db, task.task_id)
-        # Manually set expires_at to the past
-        past = (
-            (datetime.now(UTC) - timedelta(hours=25)).isoformat().replace("+00:00", "Z")
-        )
-        store._db.execute(
-            "UPDATE approvals SET expires_at=? WHERE approval_id=?",
-            (past, approval.approval_id),
-        )
-        store._db.commit()
-
-        engine = WorkflowEngine(wdef, store)
-
-        # The gate should detect the expired approval, mark it expired,
-        # and re-request a new approval
-        with pytest.raises(WorkflowPendingApprovalError) as exc_info:
-            await engine._gate_approval(task)
-
-        # Should have re-requested and raised a new WorkflowPendingApprovalError
-        assert exc_info.value.task_id == task.task_id
-        # The old approval should be marked as expired
-        from agent.workflow.approval_ops import find_approval_by_id, get_latest_approval
-
-        updated = find_approval_by_id(store._db, approval.approval_id)
-        assert updated is not None
-        assert updated.status == "expired"
-        # A new pending approval should have been created
-        new_approval = get_latest_approval(store._db, task.task_id)
-        assert new_approval is not None
-        assert new_approval.approval_id != approval.approval_id
-        assert new_approval.status == "pending"
+class TestWorkflowEngineStages:
+    """Regression guards for how WorkflowEngine.run() invokes its stages."""
 
     @pytest.mark.asyncio
     async def test_run_never_invokes_retry_stage(self, store) -> None:

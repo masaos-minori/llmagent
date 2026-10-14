@@ -80,7 +80,7 @@ Verified Boundaries:
 
 ### StateStore Responsibility Scope
 
-`StateStore` manages tasks/attempts/approvals/artifacts in `workflow.sqlite`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for detailed method lists.
+`StateStore` manages tasks/attempts/artifacts in `workflow.sqlite`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for detailed method lists.
 
 ### Task CRUD Operations
 
@@ -89,10 +89,6 @@ Verified Boundaries:
 ### Attempt Operations
 
 `attempt_ops.py` provides management for attempt records. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
-
-### Approval Operations
-
-`approval_ops.py` provides management for post-execution approvals. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
 
 ### Artifact Operations
 
@@ -115,7 +111,6 @@ The Memory layer uses `session.sqlite` and is independent of `rag.sqlite`.
 ## Operational Notes
 
 - The `/session` maintenance subcommands handle `session.sqlite` maintenance. No slash command exposes `workflow.sqlite` directly for maintenance — workflow states are managed exclusively via `StateStore` through the `WorkflowEngine`.
-- The `request_approval` `workflow_id` argument is stored in the `approvals` table and returned in query results, but currently, it is not used for filtering or routing in the codebase.
 - `finish_attempt`'s `error_kind`/`error_detail` are additional columns in the `attempts` table, providing error classification separate from `error_msg`.
 - `begin_stage_if_new` checks the `event_id` atomically and starts an attempt if new. `begin_immediate` wraps check and insertion in a single transaction without calling `commit()` explicitly.
 

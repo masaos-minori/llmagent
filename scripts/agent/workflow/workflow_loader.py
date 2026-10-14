@@ -30,7 +30,6 @@ class _WorkflowJson(TypedDict, total=False):
     version: str
     stages: list[_StageJson]
     retry_policy: _RetryPolicyJson
-    require_approval: bool
 
 
 class _StageJson(TypedDict):
@@ -90,8 +89,11 @@ def _validate(data: _WorkflowJson) -> None:
     backoff_sec = int(policy["backoff_sec"])
     if backoff_sec < 0:
         raise WorkflowLoadError("retry_policy.backoff_sec must be >= 0")
-    if data.get("require_approval") is not True:
-        raise WorkflowLoadError("require_approval must be true for this workflow")
+    if "require_approval" in data:
+        raise WorkflowLoadError(
+            "require_approval is no longer supported: the workflow has no approval "
+            "stage (human approval is decided before a Tool executes)"
+        )
 
 
 class WorkflowLoader:
@@ -132,7 +134,6 @@ class WorkflowLoader:
             version=data.get("version", ""),
             stages=stages,
             retry_policy=policy,
-            require_approval=bool(data.get("require_approval", False)),
         )
         logger.debug(
             "Loaded workflow %r v%s (%d stages)",

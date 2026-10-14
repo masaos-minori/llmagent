@@ -43,10 +43,8 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_errors = 0
     ctx.stats.stat_tool_calls = 0
     ctx.turn.current_turn_id = None
-    ctx.turn.pending_approval_task_id = None
     ctx.session.session_id = "test-session"
     ctx.workflow.workflow_id = None
-    ctx.workflow.approval_pending = False
     hist_mgr = AsyncMock()
     hist_mgr.stat_compress_count = 0
     _no_op = CompressResult(compressed_count=0, protected_count=0, summary_added=False)
@@ -359,23 +357,6 @@ class TestCompleteTurnExecution:
 
         event = json.loads(ctx.services_required.audit_logger.info.call_args[0][0])
         assert event.get("partial_completion") is False
-
-    @pytest.mark.asyncio
-    async def test_handle_turn_rejects_when_approval_pending(self) -> None:
-        """handle_turn rejects immediately when approval_pending=True."""
-        on_error = MagicMock()
-        ctx = _make_ctx()
-        ctx.workflow.approval_pending = True
-        ctx.turn.pending_approval_id = "approval-123"
-        orch = _make_orchestrator(ctx, on_error=on_error)
-
-        with patch.object(orch._llm_executor, "handle_llm_turn", AsyncMock()):
-            await orch.handle_turn("do something")
-
-        on_error.assert_called_once()
-        err = on_error.call_args[0][0]
-        assert isinstance(err, RuntimeError)
-        assert "approval-123" in str(err)
 
     @pytest.mark.asyncio
     async def test_handle_turn_allowed_tools_override_applied(self) -> None:
@@ -731,42 +712,7 @@ class TestToolCallFlow:
         assert sum(1 for m in second_payload if m.get("_memory_injected")) == 1
 
 
-class TestApprovalWorkflowWithRealDB:
-    @pytest.mark.asyncio
-    async def test_handle_turn_blocked_when_approval_pending(self) -> None:
-        """handle_turn must reject immediately when approval_pending=True."""
-        on_error = MagicMock()
-        ctx = _make_ctx()
-        ctx.workflow.approval_pending = True
-        ctx.turn.pending_approval_id = "approval-123"
-        orch = _make_orchestrator(ctx, on_error=on_error)
-
-        await orch.handle_turn("do something")
-
-        on_error.assert_called_once()
-        err = on_error.call_args[0][0]
-        assert isinstance(err, RuntimeError)
-        assert "approval-123" in str(err)
-
-    @pytest.mark.asyncio
-    async def test_handle_turn_not_blocked_when_approval_not_pending(self) -> None:
-        """handle_turn proceeds normally when approval_pending=False."""
-        on_error = MagicMock()
-        ctx = _make_ctx()
-        ctx.workflow.approval_pending = False
-        orch = _make_orchestrator(ctx, on_error=on_error)
-
-        with patch.object(
-            orch._workflow_adapter,
-            "_process_turn",
-            new=AsyncMock(return_value=("ok", None, False)),
-        ):
-            await orch.handle_turn("do something")
-
-        for call in on_error.call_args_list:
-            err = call[0][0]
-            assert "Approval is pending" not in str(err)
-
+class TestWorkflowResumeWithRealDB:
     @pytest.mark.asyncio
     async def test_resume_reuses_existing_workflow_task(self) -> None:
         """Resuming a workflow task must call get_task_by_id(), not create_task()."""
@@ -775,7 +721,6 @@ class TestApprovalWorkflowWithRealDB:
         existing_task.workflow_id = "existing-wf-id"
 
         ctx = _make_ctx()
-        ctx.turn.pending_approval_task_id = "existing-task-id"
 
         with (
             patch(

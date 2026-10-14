@@ -35,10 +35,6 @@ The FATAL / WARNING / SKIPPED / OK semantics and the per-check severity rules (`
 
 See [SIGINT/SIGTERM Interruption During Startup](agent_10_01_operations-and-observability-startup-and-health.md#sigintsigterm-interruption-during-startup) in the startup and health document.
 
-### Restoration of Pending Post-Execution Approval States
-
-See [Restoration of Pending Post-Execution Approvals](agent_10_01_operations-and-observability-startup-and-health.md#restoration-of-pending-post-execution-approvals) in the startup and health document.
-
 ### Resource Cleanup on Shutdown
 
 See [Resource Cleanup on Shutdown](agent_10_01_operations-and-observability-startup-and-health.md#resource-cleanup-on-shutdown) in the startup and health document.
@@ -180,7 +176,6 @@ Budget breakdown:
 **Implementation Notes:**
 - The Token estimate in `/context` remains constant based on category-aware estimation; the actual value used by `/tokenize` is only used for history compression decisions in the next turn, not for display in `/context`.
 - Category-aware estimation ratio constants use `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` from `shared/token_estimation.py` as the single source. `agent/services/context_view.py::_token_breakdown` imports and uses these and defines no local ratio constants.
-- `/context`'s `Approval pending` is derived from turn state. Meanwhile, `/stats`'s `Approval pending` refers to workflow state. While both fields are always set/cleared in pairs by the orchestrator and startup commands, resulting in consistent operational values, they refer to different implementation fields.
 
 ## `/stats` Interpretation
 
@@ -194,7 +189,6 @@ Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
 
 - **Partial completions:** LLM responses interrupted during streaming are recorded. See [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md) for details.
 - **HB timeouts:** SSE heartbeat timeouts (potential LLM overload).
-- **Approval pending:** Displayed only if `ctx.workflow.approval_pending=True`.
 
 **Implementation Notes:**
 - Actual `/stats` output is key-value format with one item per line, and contains more items than documented here.

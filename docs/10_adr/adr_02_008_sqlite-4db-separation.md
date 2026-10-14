@@ -85,7 +85,7 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 |---|---|---|---|---|
 | Persistence-domain identifier | rag | session | workflow | eventbus |
 | Database file | rag.sqlite | session.sqlite | workflow.sqlite | eventbus.sqlite |
-| System of record | documents, chunks, FTS5, Vector Index | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, approvals, processed events | events, offsets, deliveries, DLQ state |
+| System of record | documents, chunks, FTS5, Vector Index | sessions, messages, memories, memories_vec | tasks, attempts, artifacts, processed events | events, offsets, deliveries, DLQ state |
 | Derived or rebuildable data | FTS5, Vector Index (from chunks) | memories_vec (from memories) | none | none |
 | Owning component | RAG layer | Agent layer | Workflow engine (Agent layer) | EventBus service |
 | Required service stop scope | Agent process, rag-pipeline-mcp, and any running ingester | Agent process | Agent process (Workflow Engine runs in-process) | EventBus process |
@@ -97,7 +97,7 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 | Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived via `rotate_eventbus_db()` alongside other three databases |
 | WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup |
 | Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | not applicable (no automated restore) | not applicable (no automated restore) |
-| Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling; pending approvals are recovered by `_recover_pending_approvals()` at Agent startup) | none automated (manual operator handling) |
+| Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling) | none automated (manual operator handling) |
 | Service restart condition | Agent process, rag-pipeline-mcp, and any ingester restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore |
 | Rollback condition | atomic replacement leaves the original intact if a restore fails | atomic replacement leaves the original intact if a restore fails | not applicable (no automated restore) | not applicable (no automated restore) |
 | Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) |
@@ -109,7 +109,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 
 1. `rag.sqlite`: canonical store for documents, chunks, FTS5, and the Vector Index. Owned by the RAG layer.
 2. `session.sqlite`: canonical store for Agent Sessions, Messages, and conversation state. Owned by the Agent layer.
-3. `workflow.sqlite`: canonical store for Tasks, Attempts, Approvals, Artifacts, and processed Events. Owned by the workflow engine in the Agent layer.
+3. `workflow.sqlite`: canonical store for Tasks, Attempts, Artifacts, and processed Events. Owned by the workflow engine in the Agent layer.
 4. `eventbus.sqlite`: canonical store for Events, Offsets, Delivery, and the DLQ. Owned by the EventBus service.
 5. Reasons for DB separation: differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
@@ -335,7 +335,7 @@ Whether to make them unrecoverable or to provide a manual operator recovery proc
 
 - INV-01: `rag.sqlite` is the canonical store for documents, chunks, FTS5, and the Vector Index.
 - INV-02: `session.sqlite` is the canonical store for Agent Sessions, Messages, and conversation state.
-- INV-03: `workflow.sqlite` is the canonical store for Tasks, Attempts, Approvals, Artifacts, and processed Events.
+- INV-03: `workflow.sqlite` is the canonical store for Tasks, Attempts, Artifacts, and processed Events.
 - INV-04: `eventbus.sqlite` is the canonical store for Events, Offsets, Delivery, and the DLQ.
 - INV-05: Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 - INV-06: Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
@@ -502,6 +502,7 @@ See Implementation References for the current file/symbol list.
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
 - **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering the Derived Stores section and the Recovery Policy Matrix; reviewer names are not recorded.
+- **Decision Change (2026-10-14)**: Task-level approval decision (repository owner); approvals removed from Decision #3 and INV-03.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -524,7 +525,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/db/session_consistency.py` (`check_session_consistency()`)
 - `rag.sqlite` (`documents`, `chunks`, `chunks_fts`, `chunks_vec`)
 - `session.sqlite` (`sessions`, `messages`, `memories`, `memories_vec`)
-- `workflow.sqlite` (`tasks`, `attempts`, `artifacts`, `approvals`)
+- `workflow.sqlite` (`tasks`, `attempts`, `artifacts`)
 - `eventbus.sqlite` (`events`)
 - Tests — `tests/db/test_db_maintenance.py`, `tests/db/test_db_recovery.py`, `tests/db/test_sqlite_helper.py`, `tests/db/test_create_schema.py`, `tests/integration/test_session_recovery.py`
 

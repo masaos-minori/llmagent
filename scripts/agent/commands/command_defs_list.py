@@ -147,18 +147,4 @@ _COMMANDS: list[CommandDef] = [
         handler="_cmd_audit",
         help="tail [N] | turn <task_id> | tool <name>  Browse audit log events",
     ),
-    CommandDef(
-        name="/approve",
-        prefix=True,
-        is_async=False,
-        handler="_cmd_approve",
-        help="<approval_id> [reason]  Approve the pending workflow task",
-    ),
-    CommandDef(
-        name="/reject",
-        prefix=True,
-        is_async=False,
-        handler="_cmd_reject",
-        help="<approval_id> [reason]  Reject the pending workflow task",
-    ),
 ]

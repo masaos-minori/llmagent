@@ -48,7 +48,6 @@ REQUIRED_WORKFLOW_TABLES: dict[str, list[str]] = {
     "attempts": ["attempt_id", "task_id", "stage_id", "status"],
     "processed_events": ["event_id", "task_id"],
     "artifacts": ["artifact_id", "task_id"],
-    "approvals": ["approval_id", "task_id", "status"],
     "workflow_schema_version": ["version", "applied_at"],
 }
 

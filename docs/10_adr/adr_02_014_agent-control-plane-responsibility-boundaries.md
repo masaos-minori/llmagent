@@ -53,7 +53,7 @@ ADR-001 established that the Workflow Engine is the mandatory and sole workflow 
 
 1. The responsibility boundaries are fixed as follows.
 
-   - **Workflow Engine** (`scripts/agent/workflow/workflow_engine.py`): responsible for persistent business state (Task, Attempt), stage transitions (`plan -> execute -> approval -> verify -> complete/failed`), retries, and approvals. The mandatoriness and uniqueness defined by ADR-001 are maintained as is. Another retry concept (`ToolLoopGuard.check_retry()` in `scripts/agent/tool_loop_guard.py`) operates at a different granularity from the Workflow Engine `retry_policy` and is described in `docs/23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md`.
+   - **Workflow Engine** (`scripts/agent/workflow/workflow_engine.py`): responsible for persistent business state (Task, Attempt), stage transitions (`plan -> execute -> verify -> complete/failed`) and retries. The mandatoriness and uniqueness defined by ADR-001 are maintained as is. Another retry concept (`ToolLoopGuard.check_retry()` in `scripts/agent/tool_loop_guard.py`) operates at a different granularity from the Workflow Engine `retry_policy` and is described in `docs/23_agent/agent_03_02_turn-processing-flow-llm-tool-loop.md`.
    - **Orchestrator** (`scripts/agent/orchestrator.py`): responsible for coordinating processing within a single turn. It performs only coordination that completes within a turn, such as delegating task initialization and startup to the Workflow Engine, managing conversation state, and emitting audit events, and delegates decisions about persistent business state to the Workflow Engine.
     - **LlmTurnExecutor** (`scripts/agent/llm_turn_executor.py`): responsible for the short loop between the LLM and Tool Calls (streaming and Tool call round-trips within a turn). Creating and holding this loop is centralized in the component that actually drives the loop (currently `LlmTurnExecutor`), and no other component holds duplicate unused instances.
     - **ToolExecutor** (`scripts/shared/tool_executor.py`): responsible for executing a single Tool Call (gate checks, lifecycle checks, transport resolution, execution records). State spanning multiple calls and per-turn coordination are left to the Orchestrator/LlmTurnExecutor.
@@ -74,7 +74,7 @@ ADR-001 established that the Workflow Engine is the mandatory and sole workflow 
 ### Out of Scope
 
 - Redefinition of the mandatoriness and uniqueness of the Workflow Engine (handled by ADR-001)
-- Redesign of the approval policy
+- Redesign of the tool-level approval policy
 - Redesign of the component structure itself, such as merging `LlmTurnExecutor` and `ToolExecutor`
 - Details of the safety policy of each individual MCP Server (allowlist contents, sandbox types, and so on)
 
@@ -156,7 +156,7 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 
 ## Invariants
 
-- INV-01: Components other than the Workflow Engine (`Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`) do not themselves decide persistent Task/Attempt state, stage transitions, retries, or whether to approve. These are decided only under the management of the Workflow Engine.
+- INV-01: Components other than the Workflow Engine (`Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`) do not themselves decide persistent Task/Attempt state, stage transitions, or retries. These are decided only under the management of the Workflow Engine.
 - INV-02: Creation of `LlmTurnExecutor` instances is centralized in the one component that actually drives the LLM/Tool Call round-trip loop. No other component holds unused or duplicate `LlmTurnExecutor` instances.
 - INV-03: The technical safety judgments of external operations that the MCP Server is responsible for (allowlist validation, path validation, sandboxed execution, resource limits, argument validation) are not taken over or duplicated in the Orchestrator layer or the ToolExecutor layer.
 
@@ -221,6 +221,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
+- **Decision Change (2026-10-14)**: Task-level approval decision (repository owner instruction) covering the Workflow Engine responsibility text, the Out of Scope line, and INV-01 (the workflow has no approval stage; tool-level approval is decided on the tool path); individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

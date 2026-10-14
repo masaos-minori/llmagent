@@ -29,7 +29,7 @@ To document the design intent and operational methods for audit logs and OTel tr
 
 ### Audit Logs
 
-Two events, `turn_start` and `turn_end`, are generated for each turn. Workflow-specific events (`workflow_start`, `stage_completed`, `approval_requested`) are additionally issued by the workflow engine.
+Two events, `turn_start` and `turn_end`, are generated for each turn. Workflow-specific events (`workflow_start`, `stage_completed`) are additionally issued by the workflow engine.
 
 Audit logs serve as a persistent record, enabling analysis even after restarts. Unlike in-session observation counters like `RuntimeStats`, they can be used for incident response and change management decisions.
 
@@ -55,7 +55,7 @@ The OTel SDK is treated as an optional dependency; the agent always falls back t
 ### Reading Audit Logs
 
 - `turn_start` / `turn_end` are basic events occurring in all turns.
-- `workflow_start` / `stage_completed` / `approval_requested` are additional events issued by the workflow engine.
+- `workflow_start` / `stage_completed` are additional events issued by the workflow engine.
 - The `turn_end` event includes workflow context (`workflow_id`).
 - If no audit logger is configured, none of these events will be issued.
 
@@ -66,7 +66,6 @@ Expected span names:
 - `compress` — History compression
 - `workflow.run` — Workflow execution
 - `workflow.stage` — Stage execution
-- `workflow.approval` — Post-execution approval completion
 - `workflow.retry` — Retry wait
 
 ### Troubleshooting

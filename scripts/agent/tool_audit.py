@@ -134,30 +134,6 @@ def audit_stage_completed(
     )
 
 
-def audit_approval_requested(
-    ctx: AgentContext,
-    task_id: str,
-    approval_id: str,
-    workflow_id: str = "",
-    session_id: str = "",
-) -> None:
-    """Write approval_requested event to audit log."""
-    if ctx.services_required.audit_logger is None:
-        return
-    ctx.services_required.audit_logger.info(
-        _json_dumps(
-            {
-                "event": "approval_requested",
-                "task_id": task_id,
-                "workflow_id": workflow_id,
-                "session_id": session_id,
-                "approval_id": approval_id,
-                "ts": time.time(),
-            }
-        )
-    )
-
-
 def audit_tool_exec(
     ctx: AgentContext,
     tool_name: str,

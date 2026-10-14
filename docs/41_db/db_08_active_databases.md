@@ -45,7 +45,7 @@ Each database is owned by a single component (see the **Owner** line of each sec
 - **Config source**: `workflow_db_path` (read by `scripts/db/config.py`; optional key of the `agent.toml` configuration, with a code-level default)
 - **Schema authority**: `scripts/db/schema_sql.py` (`build_workflow_schema_sql()`)
 - **Lifecycle**: Created on first workflow use; persists until deleted
-- **Tables**: tasks, attempts, processed_events, artifacts, approvals, workflow_schema_version
+- **Tables**: tasks, attempts, processed_events, artifacts, workflow_schema_version
 
 ## eventbus.sqlite
 

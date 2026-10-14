@@ -35,7 +35,7 @@ Details → [`agent_07_01_cli-and-commands-cli-reference.md`](../23_agent/agent_
 - SSE Streaming
 - Slash Commands
 - Tool Loop Guard (dedup/cycle/retry/error limits)
-- Workflow Engine (plan/execute/approval/verify)
+- Workflow Engine (plan/execute/verify)
 - MDQ/RAG Query Routing
 - Dependency Injection Hub (AgentContext)
 - Diagnostic Store (turn/session statistics)

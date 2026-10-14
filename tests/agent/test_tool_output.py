@@ -13,7 +13,6 @@ from unittest.mock import MagicMock
 
 from agent.output_tags import OutputTag
 from agent.tool_output import (
-    emit_approval_pending_notice,
     emit_approval_prompt,
     emit_denied,
     emit_plan_blocked,
@@ -73,13 +72,3 @@ class TestEmitSkipped:
         out = MagicMock()
         emit_skipped("write_file", output=out)
         out.write.assert_called_once_with(f"{OutputTag.SKIPPED} write_file")
-
-
-class TestEmitApprovalPendingNotice:
-    def test_uses_explicit_output_port(self) -> None:
-        out = MagicMock()
-        emit_approval_pending_notice("approval-1", "task-1", output=out)
-        out.write.assert_called_once()
-        written = out.write.call_args[0][0]
-        assert "approval-1" in written
-        assert "task-1" in written

@@ -21,7 +21,6 @@ class OutputTag(StrEnum):
     USAGE = "[usage]"
     TOOL = "[tool]"
     APPROVAL = "[approval]"
-    APPROVAL_PENDING = "[approval-pending]"
     DENIED = "[denied]"
     PLAN_BLOCKED = "[plan-blocked]"
     SKIPPED = "[skipped]"

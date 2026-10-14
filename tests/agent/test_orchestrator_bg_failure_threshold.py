@@ -30,10 +30,8 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_errors = 0
     ctx.stats.stat_tool_calls = 0
     ctx.turn.current_turn_id = None
-    ctx.turn.pending_approval_task_id = None
     ctx.session.session_id = "test-session"
     ctx.workflow.workflow_id = None
-    ctx.workflow.approval_pending = False
     ctx.services_required.hist_mgr = AsyncMock()
     ctx.services_required.llm = MagicMock()
     ctx.services_required.audit_logger = None

@@ -68,14 +68,6 @@ The Orchestrator never falls back directly to unapproved execution if it cannot 
 
 **Design judgment**: This is a fail-closed policy — safety is prioritized over availability.
 
-### Workflow Approval Recovery
-
-Workflow-level approval states are persisted in the `approvals` table of `workflow.sqlite`:
-
-- **Startup Recovery**: At startup, searches the `approvals` table to check for pending approvals
-- **Post-restart Resolution**: `/approve` and `/reject` require an explicit `approval_id` and resolve that record in the workflow database only if it is still pending; they never pick a pending approval automatically
-- **IDs in Warning Messages**: Operators can match logs to identify which tasks need attention
-
 ## Responsibility Boundary
 
 - **Canonical Source**: `shared/tool_executor.py` (ToolExecutor), `agent/tool_loop_guard.py` (ToolLoopGuard)
@@ -97,4 +89,3 @@ See Known Limitations in [agent_06_02_tool-execution-and-approval-approval.md](a
 - ToolLoopGuard
 - concurrency limits
 - fail-closed execution policy
-- workflow approval recovery

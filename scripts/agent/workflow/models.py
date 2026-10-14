@@ -17,26 +17,11 @@ class TaskRecord:
     session_id: str | None
     turn_number: int | None
     workflow_version: str
-    status: str  # pending | running | pending_approval | completed | failed | halted
+    status: str  # pending | running | completed | failed | halted
     idempotency_key: str
     created_at: str  # ISO-8601
     updated_at: str  # ISO-8601
     workflow_id: str = ""
-
-
-@dataclass
-class ApprovalRecord:
-    """Database record for a workflow approval gate."""
-
-    approval_id: str
-    task_id: str
-    stage_id: str | None  # None = task-level gate
-    status: str  # pending | approved | rejected | expired
-    reason: str | None
-    created_at: str  # ISO-8601
-    resolved_at: str | None
-    workflow_id: str = ""
-    expires_at: str | None = None
 
 
 @dataclass
@@ -90,7 +75,6 @@ class WorkflowDef:
     retry_policy: RetryPolicy = field(
         default_factory=lambda: RetryPolicy(max_attempts=3, backoff_sec=1)
     )
-    require_approval: bool = False
 
     def get_stage(self, stage_id: str) -> StageDefinition | None:
         """Return the StageDefinition for the given id, or None."""

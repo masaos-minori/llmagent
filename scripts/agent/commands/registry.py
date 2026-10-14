@@ -17,7 +17,6 @@ Mixins (keep in sync with CommandRegistry base class list):
   cmd_audit.py      — _AuditMixin:      /audit
   cmd_rag_export.py — _RagExportMixin:  /compact
   cmd_memory.py     — _MemoryMixin:     /memory
-  cmd_workflow.py   — _WorkflowMixin:   /approve, /reject
 
 _COMMANDS ownership:
   _COMMANDS is IMPORTED from agent.commands.command_defs_list.
@@ -38,7 +37,6 @@ from agent.commands.cmd_memory import _MemoryMixin
 from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
-from agent.commands.cmd_workflow import _WorkflowMixin
 from agent.commands.command_defs import CommandDef
 from agent.commands.command_defs_list import _COMMANDS
 from agent.commands.output_port import CliOutputPort, OutputPort
@@ -57,7 +55,6 @@ class CommandRegistry(
     _AuditMixin,
     _RagExportMixin,
     _MemoryMixin,
-    _WorkflowMixin,
 ):
     """Slash-command dispatcher for AgentREPL.
 

@@ -86,7 +86,7 @@ MCP servers are called via HTTP POST `/v1/call_tool`.
 
 ### Workflow Engine Execution
 
-`agent/orchestrator.py`'s `Orchestrator.handle_turn()` uses a `WorkflowDef` loaded at startup via `WorkflowLoader().load()` (equivalent to `config/workflows/default.json`) to execute each user turn as three stages (plan/execute/verify) via `WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)`. The simple pattern diagram above corresponds to the LLM turn processing within `execute_fn` (memory injection → user message addition → history compression → LLM turn). If workflow definition loading fails, `Orchestrator.__init__()` raises `RuntimeError` and startup stops. During approval pending (`ctx.workflow.approval_pending`), new turns are rejected with an error prompting `/approve` or `/reject`. See `agent_03` (turn processing flow) for details.
+`agent/orchestrator.py`'s `Orchestrator.handle_turn()` uses a `WorkflowDef` loaded at startup via `WorkflowLoader().load()` (equivalent to `config/workflows/default.json`) to execute each user turn as three stages (plan/execute/verify) via `WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)`. The simple pattern diagram above corresponds to the LLM turn processing within `execute_fn` (memory injection → user message addition → history compression → LLM turn). If workflow definition loading fails, `Orchestrator.__init__()` raises `RuntimeError` and startup stops. See `agent_03` (turn processing flow) for details.
 
 ### Session, SSE, and History Compression
 

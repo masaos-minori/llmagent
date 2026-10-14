@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
 """scripts/agent/workflow/workflow_engine.py
 
-Stage transition engine: plan -> execute -> [approval gate] -> verify -> (retry loop).
+Stage transition engine: plan -> execute -> verify -> (retry loop).
 
 Callers pass async callbacks for each stage. WorkflowEngine handles
-timeout enforcement, retry counting, idempotency, state persistence, and
-optional human approval gates between execute and verify.
+timeout enforcement, retry counting, idempotency, and state persistence.
 """
 
 from __future__ import annotations
@@ -16,11 +15,6 @@ from collections.abc import Awaitable, Callable
 from contextlib import nullcontext
 from typing import Protocol
 
-from agent.workflow.approval_ops import (
-    get_latest_approval,
-    is_expired,
-    request_approval,
-)
 from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.idempotency_ops import begin_stage_if_new
 from agent.workflow.models import TaskRecord, WorkflowDef
@@ -86,28 +80,12 @@ class WorkflowTimeoutError(Exception):
     """Raised when a stage exceeds its timeout_sec."""
 
 
-class WorkflowPendingApprovalError(Exception):
-    """Raised when a task is suspended waiting for human approval."""
-
-    def __init__(self, approval_id: str, task_id: str) -> None:
-        """Initialize the pending approval exception with approval and task identifiers."""
-        self.approval_id = approval_id
-        self.task_id = task_id
-        super().__init__(f"task {task_id} awaiting approval {approval_id}")
-
-
 class WorkflowEngine:
     """Runs a workflow definition against a set of stage callbacks.
 
-    Approval gate (optional):
-      When require_approval=True on the WorkflowDef, a human approval gate is
-      inserted between the execute and verify stages. The gate raises
-      WorkflowPendingApprovalError, suspending the workflow until the user
-      runs /approve or /reject.
-
-      This is distinct from per-tool approval (tool_approval.run_approval_checks),
-      which fires interactively during the execute stage for MEDIUM/HIGH risk tools.
-      Both can be active simultaneously; they operate at different granularities.
+    The workflow has no approval stage. Human approval is decided before a Tool
+    executes (tool_approval.run_approval_checks), during the execute stage, for
+    MEDIUM/HIGH risk tools.
     """
 
     def __init__(
@@ -134,7 +112,7 @@ class WorkflowEngine:
         execute_fn: StageCallback,
         verify_fn: StageCallback,
     ) -> None:
-        """Execute plan -> execute -> [approval gate] -> verify with retry on execute failure."""
+        """Execute plan -> execute -> verify with retry on execute failure."""
         with self._span_ctx("workflow.run") as span:
             span.set_attribute("workflow.task_id", task.task_id)
             span.set_attribute("workflow.version", task.workflow_version)
@@ -144,11 +122,7 @@ class WorkflowEngine:
             try:
                 await self._run_stage_with_retry(task, "plan", plan_fn)
                 await self._run_stage_with_retry(task, "execute", execute_fn)
-                if self._wdef.require_approval:
-                    await self._gate_approval(task)
                 await self._run_stage_with_retry(task, "verify", verify_fn)
-            except WorkflowPendingApprovalError:
-                raise
             except (WorkflowHaltError, WorkflowTimeoutError):
                 self._store.update_task_status(task.task_id, "halted")
                 raise
@@ -156,77 +130,6 @@ class WorkflowEngine:
                 self._store.update_task_status(task.task_id, "failed")
                 raise
             self._store.update_task_status(task.task_id, "completed")
-
-    async def _gate_approval(self, task: TaskRecord) -> None:
-        """Suspend execution until a human approves the task."""
-        existing = get_latest_approval(self._store._db, task.task_id)
-        with self._span_ctx("workflow.approval") as approval_span:
-            approval_span.set_attribute("workflow.workflow_id", task.workflow_id or "")
-            if existing is None:
-                approval = request_approval(
-                    self._store._db, task.task_id, task.workflow_id
-                )
-                self._store.update_task_status(task.task_id, "pending_approval")
-                approval_span.set_attribute(
-                    "workflow.approval_id", approval.approval_id
-                )
-                approval_span.set_attribute("workflow.approval_status", "pending")
-                raise WorkflowPendingApprovalError(approval.approval_id, task.task_id)
-            approval_span.set_attribute("workflow.approval_id", existing.approval_id)
-            approval_span.set_attribute("workflow.approval_status", existing.status)
-            if existing.status == "approved":
-                logger.info(
-                    "Approval gate passed: task %s approved (resume)",
-                    task.task_id,
-                )
-                return  # pass through to next stage
-            if existing.status == "pending":
-                if is_expired(existing):
-                    logger.info(
-                        "Approval expired, re-requesting: task %s, approval %s",
-                        task.task_id,
-                        existing.approval_id,
-                    )
-                    # Mark the expired approval as expired and re-request
-                    # Note: we update the status to expired so it doesn't block future requests
-                    self._store._db.execute(
-                        "UPDATE approvals SET status='expired' WHERE approval_id=?",
-                        (existing.approval_id,),
-                    )
-                    self._store._db.commit()
-                    # Re-request approval
-                    approval = request_approval(
-                        self._store._db, task.task_id, task.workflow_id
-                    )
-                    self._store.update_task_status(task.task_id, "pending_approval")
-                    approval_span.set_attribute(
-                        "workflow.approval_id", approval.approval_id
-                    )
-                    approval_span.set_attribute("workflow.approval_status", "pending")
-                    raise WorkflowPendingApprovalError(
-                        approval.approval_id, task.task_id
-                    )
-                raise WorkflowPendingApprovalError(existing.approval_id, task.task_id)
-            if existing.status == "rejected":
-                # Defensive fallback: /reject (cmd_workflow.py) already halts the task
-                # immediately when the user rejects. This branch only fires if the
-                # engine re-evaluates a task whose approval was resolved as "rejected"
-                # through some other path before the halt was applied.
-                self._store.update_task_status(task.task_id, "halted")
-                raise WorkflowHaltError(f"approval rejected: {existing.reason}")
-            if existing.status == "expired":
-                # Should not reach here as we handle expired above, but defensive
-                logger.info(
-                    "Found expired approval, re-requesting: task %s, approval %s",
-                    task.task_id,
-                    existing.approval_id,
-                )
-                # Re-request approval
-                approval = request_approval(
-                    self._store._db, task.task_id, task.workflow_id
-                )
-                self._store.update_task_status(task.task_id, "pending_approval")
-                raise WorkflowPendingApprovalError(approval.approval_id, task.task_id)
 
     async def _run_stage_with_retry(
         self, task: TaskRecord, stage_id: str, fn: StageCallback

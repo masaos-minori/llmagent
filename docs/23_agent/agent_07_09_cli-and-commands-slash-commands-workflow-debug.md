@@ -1,5 +1,5 @@
 ---
-title: "Agent CLI and Commands - Slash Commands: Workflow, Debug/Audit, Compact"
+title: "Agent CLI and Commands - Slash Commands: Debug/Audit, Compact"
 area: agent
 tags:
   - agent
@@ -27,28 +27,9 @@ related:
 
 ## Purpose
 
-Documents the purpose and side effects of slash commands in the Workflow, Debug/Audit, Git/Diff, and Compact categories.
+Documents the purpose and side effects of slash commands in the Debug/Audit, Git/Diff, and Compact categories.
 
 ## Design Intent
-
-### Workflow Category
-
-A group of commands regarding **post-execution approval gates**.
-
-| Command | Side Effect | Related State |
-|---|---|---|
-| `/approve <approval_id> [reason]` | Resolves a pending post-execution approval as "approved" | `approval_id` is a required argument — omitting it causes a validation error (no DB lookup fallback exists) |
-| `/reject <approval_id> [reason]` | Resolves a pending post-execution approval as "rejected" | `approval_id` is a required argument — omitting it causes a validation error (no DB lookup fallback exists) |
-
-> **Scope:** `/approve` and `/reject` resolve **only post-execution approval gates** (`approvals` DB records). They do not affect **pre-execution approvals** (real-time tool-level approval prompts). For the formal approval model, see [Tool Execution and Approval](agent_06_01_tool-execution-and-approval-execution.md).
-
-#### Recovery on Startup
-
-If the agent restarts with post-execution approvals pending, those pending states are automatically detected from the `approvals` database table at startup by `StateStore.find_latest_pending_approval()`.
-
-**Cross-session behavior:** Resolution is keyed only by the `approval_id` argument and is validated against the `approvals` DB table (the record must exist and be pending), not against in-memory state. After a restart or crash, the operator supplies the `approval_id` shown in the startup notice. The commands never select a pending approval on the operator's behalf.
-
-**Overwrite Warning:** `/approve` clears `ctx.turn.pending_approval_id` (the approval being resolved) and sets `ctx.turn.pending_approval_task_id` (the task to resume on the next turn). If `pending_approval_task_id` already contains a value, `/approve` overwrites it and emits a `WARNING` log to the `cmd_workflow.py` logger. Only one task id is held, with no queue, so the warning lets operators track a missed approval.
 
 ### Debug / Audit Category
 
@@ -66,7 +47,6 @@ RAG search is not provided as a slash command — it is automatically called by 
 
 ## Responsibility Boundary
 
-- **Workflow**: Post-execution approval gate management
 - **Debug/Audit**: Debug mode and audit logs
 - **Git/Diff**: Displaying file changes within a session
 - **Compact**: History compression
@@ -77,7 +57,6 @@ RAG search is not provided as a slash command — it is automatically called by 
 
 ## Keywords
 
-- workflow category
 - debug/audit category
 - git/diff category
 - compact category

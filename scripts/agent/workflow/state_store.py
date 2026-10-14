@@ -222,14 +222,6 @@ class StateStore:
             (session_id,),
         )
 
-    def get_approval_count(self, session_id: str) -> int:
-        """Return the number of approval events for tasks in a session."""
-        return self._scalar_count(
-            "SELECT COUNT(*) as cnt FROM approvals"
-            " WHERE task_id IN (SELECT task_id FROM tasks WHERE session_id=?)",
-            (session_id,),
-        )
-
     def get_execute_attempt_count(self, session_id: str) -> int:
         """Return the number of execute-stage attempts for tasks in a session.
 

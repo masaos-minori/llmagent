@@ -95,21 +95,9 @@ class RepositoryGateway:
     ) -> ToolCallResult:
         """Enforce policy, execute, audit.
 
-        Approval must be granted before execution. When ctx.turn.pending_approval_id
-        is not None, write operations are denied until the user explicitly approves
-        via /approve or /reject. This method does not prompt.
+        Tool-level approval is decided earlier, before the Tool call reaches this
+        gate. This method applies the policy preflight and does not prompt.
         """
-        # Reject write operations when approval is pending
-        if ctx.turn.pending_approval_id is not None:
-            logger.warning(
-                "gateway.write_denied tool=%r reason=pending_approval id=%s",
-                tool_name,
-                ctx.turn.pending_approval_id,
-            )
-            return _denied_result(
-                "Approval pending — use /approve or /reject to grant access."
-            )
-
         try:
             check_preflight(self._cfg, tool_name, args)
         except PolicyViolationError as exc:

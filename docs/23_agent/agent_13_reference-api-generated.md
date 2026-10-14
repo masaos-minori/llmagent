@@ -132,7 +132,6 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 | `scripts/agent/signal_handler.py` | `SignalHandler` | `class SignalHandler` | Encapsulates platform-specific signal handling for graceful shutdown. |
 | `scripts/agent/startup.py` | `StartupInterrupted` | `class StartupInterrupted` | Raised when a SIGINT/SIGTERM shutdown request interrupts the startup sequence. |
 |  | `StartupOrchestrator` | `class StartupOrchestrator` | Runs the full agent startup sequence before the REPL input loop begins. |
-| `scripts/agent/startup_approval_recovery.py` | `ApprovalRecovery` | `class ApprovalRecovery` | Owns approval recovery from previous sessions. |
 | `scripts/agent/startup_banner.py` | `StartupBanner` | `class StartupBanner` | Handles startup display and banner printing. |
 | `scripts/agent/startup_component_init.py` | `ComponentInitializer` | `class ComponentInitializer` | Owns DI wiring, command registry init, orchestrator construction, and workflow preflight. |
 | `scripts/agent/startup_mcp_starter.py` | `McpServerStarter` | `class McpServerStarter` | Owns MCP subprocess startup, health verification, and retry-once-with-delay. |
@@ -148,7 +147,6 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `log_approval_decision` | `def log_approval_decision(ctx, outcome) -> None` | Write a structured approval_decision event to the audit log. |
 |  | `audit_workflow_start` | `def audit_workflow_start(ctx, task_id, workflow_version, workflow_id, session_id) -> None` | Write workflow_start event to audit log. |
 |  | `audit_stage_completed` | `def audit_stage_completed(ctx, task_id, stage_id, elapsed_ms, workflow_id, session_id) -> None` | Write stage_completed event to audit log. |
-|  | `audit_approval_requested` | `def audit_approval_requested(ctx, task_id, approval_id, workflow_id, session_id) -> None` | Write approval_requested event to audit log. |
 |  | `audit_tool_exec` | `def audit_tool_exec(ctx, tool_name, args, is_error, mcp_request_id, error_type, artifact_uri, source, idempotency_key, task_linkage) -> None` | Write a tool_exec event with mcp_request_id to the audit log. |
 |  | `write_round_exec` | `def write_round_exec(ctx, *, round_id, tool_count, mode, has_side_effect, trigger_tool, elapsed_ms, affected_tools, serial_reason, estimated_parallel_ms, scheduling_mode) -> None` | Log a round-wide execution event, capturing serialization impact. |
 | `scripts/agent/tool_enums.py` | `RiskLevel` | `class RiskLevel` | Risk level classification for tool operations. |
@@ -175,7 +173,6 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `emit_denied` | `def emit_denied(reason, output) -> None` | Write the denial line for a tool call. `reason` must include the tool name. |
 |  | `emit_plan_blocked` | `def emit_plan_blocked(tool_name, args_json, output) -> None` | Write plan-mode block notification. |
 |  | `emit_skipped` | `def emit_skipped(tool_name, output) -> None` | Write the 'skipped' confirmation after user denies a tool call. |
-|  | `emit_approval_pending_notice` | `def emit_approval_pending_notice(approval_id, task_id, output) -> None` | Write a visible terminal notice when a workflow turn is suspended for approval. |
 | `scripts/agent/tool_policy.py` | `classify_operation_type` | `def classify_operation_type(tool_name, registry) -> OperationType` | Return the operation type for a tool. |
 |  | `classify_risk` | `def classify_risk(cfg, tool_name, args, registry) -> RiskLevel` | Return the risk level for a tool call. |
 |  | `check_allowed_root` | `def check_allowed_root(cfg, tool_name, args) -> bool` | Return False when any path argument is outside cfg.approval.allowed_root. |

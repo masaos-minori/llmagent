@@ -76,6 +76,41 @@ class TestPatternDetection:
         pattern = COMPAT_PATTERNS["/mdq command"]
         assert bool(re.search(pattern, text)) is should_match
 
+    @pytest.mark.parametrize(
+        ("text", "should_match"),
+        [
+            ("from agent.workflow.approval_ops import x", True),
+            ("request_approval(db, task_id)", True),
+            ("await self._gate_approval(task)", True),
+            ("raise WorkflowPendingApprovalError(a, b)", True),
+            ("ctx.workflow.approval_pending = True", True),
+            ("ctx.turn.pending_approval_id", True),
+            ("ctx.turn.pending_approval_task_id", True),
+            ("run /approve to continue", True),
+            ("use `/reject`", True),
+            ("event approval_requested", True),
+            ("ApprovalDecisionType.APPROVED", False),
+            ("audit_approval(ctx, tool, risk, args, decision)", False),
+            ("log_approval_decision(ctx, outcome)", False),
+            ("require_approval_for = []", False),
+            ("a workflow definition with require_approval is rejected", False),
+            ("CREATE TABLE IF NOT EXISTS approvals", False),
+            ("status = 'pending_approval'", False),
+            ("run_approval_gate(ctx)", False),
+            ("/approve-docs/index.md", False),
+        ],
+    )
+    def test_approval_gate_patterns_match_removed_names_only(
+        self, text: str, should_match: bool
+    ) -> None:
+        matched = any(
+            re.search(pattern, text)
+            for key, pattern in COMPAT_PATTERNS.items()
+            if "post-execution approval stage removed" in key
+            or key in ("/approve command", "/reject command")
+        )
+        assert matched is should_match
+
     def test_clean_file_has_no_matches(self, tmp_path: Path) -> None:
         clean = tmp_path / "clean.py"
         clean.write_text("# This file has no compat patterns\n")

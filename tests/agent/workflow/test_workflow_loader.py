@@ -26,7 +26,6 @@ _VALID = {
         {"id": "verify", "timeout_sec": 10, "retryable": False},
     ],
     "retry_policy": {"max_attempts": 3, "backoff_sec": 1},
-    "require_approval": True,
 }
 
 
@@ -201,40 +200,33 @@ class TestWorkflowLoaderLoad:
         assert {s.id for s in wdef.stages} == {"plan", "execute", "verify"}
 
 
-class TestRequireApprovalEnforcement:
-    """REQ-001: a workflow definition must carry require_approval: true at load time."""
+class TestRequireApprovalKeyRejected:
+    """INV-10: the workflow has no approval stage; the key is rejected at load time."""
 
-    def test_require_approval_absent_rejected(self, tmp_path: Path) -> None:
-        data = {k: v for k, v in _VALID.items() if k != "require_approval"}
+    @pytest.mark.parametrize("value", [True, False, None, "yes", 0])
+    def test_require_approval_key_rejected_for_any_value(
+        self, tmp_path: Path, value: object
+    ) -> None:
+        data = dict(_VALID, require_approval=value)
         _write_json(tmp_path, "default", data)
         loader = WorkflowLoader(workflows_dir=tmp_path)
-        with pytest.raises(WorkflowLoadError, match="require_approval must be true"):
+        with pytest.raises(WorkflowLoadError, match="require_approval"):
             loader.load()
 
-    def test_require_approval_false_rejected(self, tmp_path: Path) -> None:
-        data = dict(_VALID, require_approval=False)
-        _write_json(tmp_path, "default", data)
+    def test_definition_without_the_key_loads(self, tmp_path: Path) -> None:
+        _write_json(tmp_path, "default", _VALID)
         loader = WorkflowLoader(workflows_dir=tmp_path)
-        with pytest.raises(WorkflowLoadError, match="require_approval must be true"):
-            loader.load()
+        assert loader.load().name == "default"
 
-    def test_require_approval_true_accepted(self, tmp_path: Path) -> None:
-        data = dict(_VALID, require_approval=True)
-        _write_json(tmp_path, "default", data)
-        loader = WorkflowLoader(workflows_dir=tmp_path)
-        wdef = loader.load()
-        assert wdef.require_approval is True
-
-    def test_default_workflow_satisfies_require_approval(self) -> None:
-        """Shipped config/workflows/default.json sets require_approval: true."""
+    def test_shipped_default_workflow_has_no_require_approval_key(self) -> None:
+        """Shipped config/workflows/default.json loads, so it carries no such key."""
         import pathlib
 
         workflows_dir = (
             pathlib.Path(__file__).parent.parent.parent.parent / "config" / "workflows"
         )
-        loader = WorkflowLoader(workflows_dir=workflows_dir)
-        wdef = loader.load()
-        assert wdef.require_approval is True
+        wdef = WorkflowLoader(workflows_dir=workflows_dir).load()
+        assert wdef.name
 
 
 class TestWorkflowsDirResolver:

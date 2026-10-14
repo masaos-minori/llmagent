@@ -32,7 +32,7 @@ Documents the agent startup procedure, operational verification, health checks, 
 
 ## Design Intent
 
-The startup process is divided into three phases: server start, health check, and restoration of approval states. If an exception occurs in any phase, a rollback is triggered to ensure all started subprocesses are reliably terminated.
+The startup process is divided into two phases: server start and health check. If an exception occurs in any phase, a rollback is triggered to ensure all started subprocesses are reliably terminated.
 
 `StartupOrchestrator` centrally manages the entire startup sequence. If startup fails, it closes all resources via `shutdown_all()` and re-raises the original exception. Even if the rollback itself fails, the original exception is preserved (only a log is recorded).
 
@@ -69,14 +69,6 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 - `routing_drift` follows `routing_drift_strict`: a detected drift is FATAL when strict and WARNING otherwise, and an unexpected failure of the drift check itself follows the same rule (FATAL when strict, WARNING otherwise), so a broken check is never reported as a clean result.
 - `mcp_tool_discovery` follows the ADR-004 rule: an unreachable or invalid required MCP server (`McpServerConfig.required`), a missing required tool, a duplicate tool name, or an unexpected discovery exception is FATAL and aborts startup; an unreachable or invalid non-required server is WARNING and startup continues with that server's tools disabled. Drift and tool-definition findings are FATAL only in strict mode. See [mcp_06_09](../22_mcp/mcp_06_09_startup-validation-behavior-tool_definitions_strict.md).
 - `mcp_auth` ("1b. MCP authentication check", runs between the security audit and service-readiness checks): FATAL if any `[mcp_servers.*]` entry has an empty `auth_token`, listing every offending server key in one outcome. In practice this is unreachable via a real `McpServerConfig` — construction itself already rejects an empty `auth_token` (see [mcp_06_01](../22_mcp/mcp_06_01_configuration-file-inventory.md)) — so this check only fires for a `ctx` assembled some other way than the normal config-load path. `check_services()` does not short-circuit on an earlier FATAL: every check listed here always runs and reports independently; only the final aggregated `has_fatal` decides whether startup aborts.
-
-### Restoration of Pending Post-Execution Approvals
-
-If post-execution approvals from a previous session remain unresolved upon agent startup, they are restored from `workflow.sqlite` via `StateStore.find_latest_pending_approval()`. Only one such approval is tracked at a time, applying the latest record across all sessions.
-
-If a restoration value is set while a `pending_approval_task_id` is already configured, a `WARNING` level log is emitted and the process does not abort. When the existing value differs from the recovered id, the existing value is preserved (the log reads "Keeping existing pending_approval_task_id X instead of overwriting with Y"). When the values are equal, the assignment is idempotent (the log reads "Overwriting pending_approval_task_id X with Y" but the value is unchanged). When the existing value is `None`, the recovered value is simply assigned (no overwrite log).
-
-Recovery runs once per process, during startup, before any turn. The approval id shown to the operator is a display cache assigned from the recovered record; the authoritative source is the approval stored in `workflow.sqlite`, so it is refreshed without a stale-check. Only the task to resume after approval is guarded against overwriting, because it is a live value.
 
 ### Resource Cleanup on Shutdown
 
@@ -142,7 +134,7 @@ rm -f eventbus.sqlite eventbus.sqlite-wal eventbus.sqlite-shm
 # From the deployment root, with PYTHONPATH set to the deployed scripts directory
 uv run python -c 'from db.create_schema import create_workflow_schema, create_eventbus_schema; create_workflow_schema(); create_eventbus_schema()'
 ```
-The recreated databases contain schema only: all workflow state (tasks, attempts, processed events, artifacts) including all pending approvals, and all events, consumer delivery state, and offsets are lost. If the data loss is significant, escalate before proceeding — the removal is irreversible apart from the Step 2 copies.
+The recreated databases contain schema only: all workflow state (tasks, attempts, processed events, artifacts), and all events, consumer delivery state, and offsets are lost. If the data loss is significant, escalate before proceeding — the removal is irreversible apart from the Step 2 copies.
 
 **Step 7 — Start the agent process again** and confirm normal startup (see Severity Mapping above).
 

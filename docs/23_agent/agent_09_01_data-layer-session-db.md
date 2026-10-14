@@ -29,7 +29,7 @@ Documents the responsibility scope of the Session DB, data ownership boundaries,
 | `session.sqlite` | Agent layer | Sessions, messages, memory, diagnostics |
 | `rag.sqlite` | RAG layer | Documents, chunks, vectors |
 | `mdq.sqlite` | MCP (mdq-mcp) | Indexing Markdown documents and context compression |
-| `workflow.sqlite` | Workflow engine | Tasks, attempts, processed events, approvals, artifacts |
+| `workflow.sqlite` | Workflow engine | Tasks, attempts, processed events, artifacts |
 
 **Design judgment:** `session_diagnostics` is separated from `messages` — since diagnostic events are not visible to the LLM, they are managed separately from conversation history.
 

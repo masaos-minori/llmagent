@@ -15,7 +15,7 @@ A workflow definition that cannot be loaded is a fatal construction error: there
 is no fallback mode (ADR-001 Decision 4, ADR-004 INV-03).
 
 ADR-014: Orchestrator arbitrates processing within a single turn; it delegates
-persistent task state, stage transitions, retries, and approval to
+persistent task state, stage transitions, and retries to
 WorkflowEngine, and delegates the LLM/tool-call loop to LlmTurnExecutor.
 """
 
@@ -156,10 +156,6 @@ class Orchestrator:
     # ── Public entry point ────────────────────────────────────────────────────
 
     async def handle_turn(self, line):
-        ctx = self._ctx
-        if ctx.workflow.approval_pending:
-            await self._on_approval_pending(ctx.turn.pending_approval_id)
-            return
         is_paused, paused_names = self._bg_task_monitor.check_pause_state()
         if is_paused:
             await self._on_pause_blocked(paused_names)
@@ -185,20 +181,6 @@ class Orchestrator:
         if self._ctx.workflow.active:
             return {"tracking": "running"}
         return {"tracking": "enabled"}
-
-    async def _on_approval_pending(self, pending_approval_id):
-        logger.warning(
-            "Turn blocked: workflow pending approval. Use /approve %s or /reject %s.",
-            pending_approval_id,
-            pending_approval_id,
-        )
-        if self._on_error:
-            self._on_error(
-                RuntimeError(
-                    f"{OutputTag.WORKFLOW} Approval is pending — use /approve {pending_approval_id} [reason] "
-                    f"or /reject {pending_approval_id} [reason]."
-                )
-            )
 
     async def _on_pause_blocked(self, paused_names):
         logger.warning(

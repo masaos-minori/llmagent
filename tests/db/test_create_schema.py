@@ -361,16 +361,6 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
         created_at  TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS approvals (
-        approval_id TEXT PRIMARY KEY,
-        task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-        stage_id    TEXT,
-        status      TEXT NOT NULL DEFAULT 'pending',
-        reason      TEXT,
-        created_at  TEXT NOT NULL,
-        resolved_at TEXT
-    );
-
     CREATE TABLE IF NOT EXISTS workflow_schema_version (
         version    TEXT NOT NULL,
         applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -380,7 +370,7 @@ _WORKFLOW_SCHEMA_NO_VEC0 = """
 
 class TestCreateWorkflowSchema:
     def test_creates_all_tables(self, tmp_path: Path) -> None:
-        """All 5 workflow tables defined in docs/41_db/db_02_architecture_and_schema-schema-reference.md are created."""
+        """All 4 workflow tables defined in docs/41_db/db_02_architecture_and_schema-schema-reference.md are created."""
         db_file = tmp_path / "workflow.sqlite"
         cfg = DbConfig(
             rag_db_path="/tmp/rag.sqlite",
@@ -403,8 +393,8 @@ class TestCreateWorkflowSchema:
             "attempts",
             "processed_events",
             "artifacts",
-            "approvals",
         } <= tables
+        assert "approvals" not in tables
 
     def test_idempotent(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow2.sqlite"
@@ -630,6 +620,102 @@ def _second_chunk_payload(field: str, value: str) -> dict:
     return base
 
 
+_OLD_APPROVALS_DDL = """
+    CREATE TABLE IF NOT EXISTS approvals (
+        approval_id TEXT PRIMARY KEY,
+        task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+        stage_id    TEXT,
+        status      TEXT NOT NULL DEFAULT 'pending',
+        reason      TEXT,
+        created_at  TEXT NOT NULL,
+        resolved_at TEXT
+    );
+"""
+
+
+def _make_old_schema_db(db_file: Path, *, with_pending_task: bool) -> None:
+    """Build a workflow database shaped like the pre-removal schema (version 1.0.0)."""
+    now = "2026-01-01T00:00:00Z"
+    conn = sqlite3.connect(str(db_file))
+    conn.executescript(_WORKFLOW_SCHEMA_NO_VEC0)
+    conn.executescript(_OLD_APPROVALS_DDL)
+    conn.execute(
+        "INSERT INTO workflow_schema_version (version, applied_at) VALUES ('1.0.0', ?)",
+        (now,),
+    )
+    conn.execute(
+        "INSERT INTO tasks (task_id, session_id, workflow_version, status,"
+        " idempotency_key, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+        ("t-done", "s1", "1.0.0", "completed", "s1:1", now, now),
+    )
+    conn.execute(
+        "INSERT INTO approvals (approval_id, task_id, status, created_at)"
+        " VALUES ('a1', 't-done', 'approved', ?)",
+        (now,),
+    )
+    if with_pending_task:
+        conn.execute(
+            "INSERT INTO tasks (task_id, session_id, workflow_version, status,"
+            " idempotency_key, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
+            ("t-pending", "s1", "1.0.0", "pending_approval", "s1:2", now, now),
+        )
+    conn.commit()
+    conn.close()
+
+
+def _migrate(db_file: Path) -> None:
+    cfg = _make_db_config(db_file, "workflow")
+    with (
+        patch("db.helper.build_db_config", return_value=cfg),
+        patch(
+            "db.create_schema.build_workflow_schema_sql",
+            return_value=_WORKFLOW_SCHEMA_NO_VEC0,
+        ),
+    ):
+        cs.create_workflow_schema()
+
+
+class TestApprovalsMigration:
+    """The post-execution approval stage is removed: migration drops its table."""
+
+    def test_migration_fails_pending_approval_tasks(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "old_workflow.sqlite"
+        _make_old_schema_db(db_file, with_pending_task=True)
+        _migrate(db_file)
+        conn = sqlite3.connect(str(db_file))
+        status = dict(conn.execute("SELECT task_id, status FROM tasks").fetchall())
+        tables = _table_names(conn)
+        conn.close()
+        assert status == {"t-done": "completed", "t-pending": "failed"}
+        assert "approvals" not in tables
+
+    def test_migration_is_idempotent_after_drop(self, tmp_path: Path) -> None:
+        from db.schema_sql import WORKFLOW_SCHEMA_VERSION
+
+        db_file = tmp_path / "old_workflow2.sqlite"
+        _make_old_schema_db(db_file, with_pending_task=False)
+        _migrate(db_file)
+        _migrate(db_file)  # second run must not raise or change anything
+        conn = sqlite3.connect(str(db_file))
+        status = dict(conn.execute("SELECT task_id, status FROM tasks").fetchall())
+        latest = conn.execute(
+            "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC"
+        ).fetchone()[0]
+        conn.close()
+        assert status == {"t-done": "completed"}
+        assert latest == WORKFLOW_SCHEMA_VERSION
+        assert WORKFLOW_SCHEMA_VERSION != "1.0.0"
+
+    def test_new_database_has_no_approvals_table(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "new_workflow.sqlite"
+        _migrate(db_file)
+        conn = sqlite3.connect(str(db_file))
+        tables = _table_names(conn)
+        conn.close()
+        assert "approvals" not in tables
+        assert {"tasks", "attempts", "processed_events", "artifacts"} <= tables
+
+
 class TestRagSchemaColumnIntegrity:
     """Verify NOT NULL enforcement on the four target columns via real INSERT."""
 
@@ -773,9 +859,14 @@ class TestTimestampDefaults:
 
     def test_rag_schema_timestamps(self, tmp_path: Path) -> None:
         db_file = tmp_path / "rag_ts.sqlite"
-        with patch(
-            "db.create_schema.build_rag_schema_sql",
-            return_value=_RAG_SCHEMA_NO_VEC0,
+        cfg = _make_db_config(db_file, "rag")
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_rag_schema_sql",
+                return_value=_RAG_SCHEMA_NO_VEC0,
+            ),
+            patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         ):
             cs.create_rag_schema()
         conn = sqlite3.connect(str(db_file))
@@ -790,9 +881,14 @@ class TestTimestampDefaults:
 
     def test_session_schema_timestamps(self, tmp_path: Path) -> None:
         db_file = tmp_path / "session_ts.sqlite"
-        with patch(
-            "db.create_schema.build_session_schema_sql",
-            return_value=_SESSION_SCHEMA_NO_VEC0,
+        cfg = _make_db_config(db_file, "session")
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_session_schema_sql",
+                return_value=_SESSION_SCHEMA_NO_VEC0,
+            ),
+            patch.object(SQLiteHelper, "_load_vec_extension", return_value=None),
         ):
             cs.create_session_schema()
         conn = sqlite3.connect(str(db_file))
@@ -815,10 +911,10 @@ class TestTimestampDefaults:
 
     def test_workflow_schema_timestamps(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow_ts.sqlite"
-        with patch(
-            "db.create_schema.build_workflow_schema_sql",
-            return_value=_WORKFLOW_SCHEMA_NO_VEC0,
-        ):
+        cfg = _make_db_config(db_file, "workflow")
+        # The real workflow DDL has no vec0 dependency, so it is checked as-is;
+        # the database path is redirected so no test ever writes under /opt/llm.
+        with patch("db.helper.build_db_config", return_value=cfg):
             cs.create_workflow_schema()
         conn = sqlite3.connect(str(db_file))
         for table in (
@@ -826,13 +922,15 @@ class TestTimestampDefaults:
             "attempts",
             "processed_events",
             "artifacts",
-            "approvals",
         ):
             info = conn.execute(f"PRAGMA table_info({table})").fetchall()
+            assert info, f"{table} was not created in the temporary database"
             for row in info:
                 col_name = row[1]
                 default = row[4]
-                if col_name.endswith("_at"):
+                not_null = row[3]
+                # Nullable columns such as attempts.ended_at carry no default.
+                if col_name.endswith("_at") and not_null:
                     assert default is not None, f"{table}.{col_name} has no DEFAULT"
                     assert "datetime('now')" not in (default or ""), (
                         f"{table}.{col_name} uses datetime('now')"
@@ -841,17 +939,24 @@ class TestTimestampDefaults:
 
     def test_eventbus_schema_timestamps(self, tmp_path: Path) -> None:
         db_file = tmp_path / "eventbus_ts.sqlite"
-        with patch(
-            "db.create_schema.build_eventbus_schema_sql",
-            return_value=_EVENTBUS_SCHEMA_NO_VEC0,
+        cfg = _make_db_config(db_file, "eventbus")
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            patch(
+                "db.create_schema.build_eventbus_schema_sql",
+                return_value=_EVENTBUS_SCHEMA_NO_VEC0,
+            ),
         ):
             cs.create_eventbus_schema()
         conn = sqlite3.connect(str(db_file))
         info = conn.execute("PRAGMA table_info(events)").fetchall()
+        assert info, "events was not created in the temporary database"
         for row in info:
             col_name = row[1]
             default = row[4]
-            if col_name.endswith("_at"):
+            not_null = row[3]
+            # Nullable columns such as events.dlq_at carry no default.
+            if col_name.endswith("_at") and not_null:
                 assert default is not None, f"events.{col_name} has no DEFAULT"
                 assert "datetime('now')" not in (default or ""), (
                     f"events.{col_name} uses datetime('now')"
@@ -878,28 +983,21 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
 );
 """
 
-        original_init = cs.SQLiteHelper.__init__
-
-        captured_path = {}
-
-        def capture_init(self, target="rag", **kwargs):
-            original_init(self, target=target, **kwargs)
-            if target == "eventbus":
-                captured_path["path"] = self._db_path
-
-        with mock.patch.object(cs.SQLiteHelper, "__init__", capture_init):
-            with mock.patch(
+        db_file = tmp_path / "eventbus_new_tables.sqlite"
+        cfg = _make_db_config(db_file, "eventbus")
+        with (
+            patch("db.helper.build_db_config", return_value=cfg),
+            mock.patch(
                 "db.create_schema.build_eventbus_schema_sql",
                 side_effect=lambda: _EVENTBUS_SCHEMA_NO_VEC0 + extra_ddl,
-            ):
-                cs.create_eventbus_schema()
+            ),
+        ):
+            cs.create_eventbus_schema()
 
-        # Re-open the captured DB path
-        if "path" in captured_path:
-            conn = sqlite3.connect(captured_path["path"])
-            tables = _table_names(conn)
-            conn.close()
-            assert {"events", "consumer_delivery", "consumer_offsets"} <= tables
+        conn = sqlite3.connect(str(db_file))
+        tables = _table_names(conn)
+        conn.close()
+        assert {"events", "consumer_delivery", "consumer_offsets"} <= tables
 
 
 # ── DDL error propagation (behavior lock for the refactor extracting the shared ────

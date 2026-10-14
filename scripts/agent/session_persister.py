@@ -67,7 +67,6 @@ class SessionPersister:
 
             workflow_count = 0
             task_count = 0
-            approval_events = 0
             retry_count = 0
             artifacts: list[str] = []
             if session_id is not None:
@@ -78,7 +77,6 @@ class SessionPersister:
                     sid = str(session_id)
                     task_count = store.get_task_count(sid)
                     workflow_count = store.get_workflow_count(sid)
-                    approval_events = store.get_approval_count(sid)
                     execute_attempts = store.get_execute_attempt_count(sid)
                     # Defensive: _scalar_count() always returns int, but guard against
                     # future modifications that might change this contract.
@@ -129,7 +127,6 @@ class SessionPersister:
                 "latency_summary": latency_summary,
                 "workflow_count": workflow_count,
                 "task_count": task_count,
-                "approval_events": approval_events,
                 "retry_count": retry_count,
                 "artifacts": artifacts,
                 "rag_query_count": rag_query_count,

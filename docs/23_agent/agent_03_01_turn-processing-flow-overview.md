@@ -23,7 +23,7 @@ To document the exact sequence of operations in a single conversation turn, incl
 
 ## Design Intent
 
-Execution via the workflow engine is mandatory. Failure to load workflow definitions is detected at startup as a `RuntimeError`, and there are no fallback paths for direct execution. This design ensures all side-effecting operations are traceable and that approval states persist across process boundaries.
+Execution via the workflow engine is mandatory. Failure to load workflow definitions is detected at startup as a `RuntimeError`, and there are no fallback paths for direct execution. This design ensures all side-effecting operations are traceable and that workflow state persists across process boundaries.
 
 ## Responsibility Boundary
 
@@ -36,7 +36,6 @@ User input (line)
    │    └─ CommandRegistry.dispatch(line)     — Slash command, no LLM call
    │
    └─ Orchestrator.handle_turn(line)
-         │  (If workflow.approval_pending is set, block here and return an error prompting `/approve` or `/reject` subcommands)
         │  (Also block here if any background task type is temporarily paused via _bg_pause_state)
         │
         ① Turn Start Processing
@@ -90,7 +89,7 @@ The session title generation task scheduled on the first turn manages consecutiv
 - When the consecutive failure threshold is reached, `BgTaskMonitor.notify_bg_failure_threshold()` is called exactly once.
 - `BgTaskMonitor.notify_bg_failure_threshold()` guarantees notification to the user. If an exception occurs, it falls back to `logger.critical()` and does not propagate the exception.
 - If the constructor opt-in parameter `pause_on_critical_failure` is `True`, the corresponding task type is marked as paused when the threshold is reached. This is per-task-type control, not a global pause flag.
-- `handle_turn()` returns early and notifies the user if any entry in `_bg_pause_state` is `True` immediately after the `approval_pending` guard.
+- `handle_turn()` returns early and notifies the user if any entry in `_bg_pause_state` is `True`.
 - The paused state is held only in process memory and persists until the process restarts.
 - Since `pause_on_critical_failure` defaults to `False`, existing callers are unaffected unless they explicitly opt-in.
 

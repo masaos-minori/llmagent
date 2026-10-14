@@ -22,7 +22,7 @@ from pathlib import Path
 logger = logging.getLogger(__name__)
 
 # Bump this constant whenever a new entry is added to _WORKFLOW_MIGRATIONS.
-WORKFLOW_SCHEMA_VERSION = "1.0.0"
+WORKFLOW_SCHEMA_VERSION = "1.1.0"
 
 _RAG_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS documents (
@@ -209,18 +209,6 @@ CREATE TABLE IF NOT EXISTS artifacts (
     attempt_number INTEGER
 );
 
-CREATE TABLE IF NOT EXISTS approvals (
-    approval_id TEXT PRIMARY KEY,
-    task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-    stage_id    TEXT,
-    status      TEXT NOT NULL DEFAULT 'pending',
-    reason      TEXT,
-    created_at  TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    resolved_at TEXT,
-    workflow_id TEXT NOT NULL DEFAULT '',
-    expires_at  TEXT
-);
-
 CREATE TABLE IF NOT EXISTS workflow_schema_version (
     version    TEXT NOT NULL,
     applied_at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now'))
@@ -276,6 +264,16 @@ _WORKFLOW_MIGRATIONS: list[tuple[str, str]] = [
         "2026_add_processed_events_workflow_id",
         "ALTER TABLE processed_events ADD COLUMN workflow_id TEXT",
     ),
+    # The post-execution approval stage was removed: tasks left waiting in it never
+    # reach their verify stage, so they are failed; then the table is dropped.
+    # One statement per entry (conn.execute runs a single statement).
+    (
+        "2026_fail_pending_approval_tasks",
+        "UPDATE tasks SET status='failed',"
+        " updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')"
+        " WHERE status='pending_approval'",
+    ),
+    ("2026_drop_approvals", "DROP TABLE IF EXISTS approvals"),
 ]
 
 
