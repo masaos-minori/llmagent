@@ -142,8 +142,8 @@ A row whose Verification Status is "Not verified" is Non-Blocking, because a gat
 |----------------|-------------------|
 | CI (pull request), confirmed | ADR-001 INV-01 and INV-08; ADR-002 INV-01 and INV-02; ADR-003 INV-02; ADR-004 INV-14; ADR-005 INV-02; ADR-006 INV-05, INV-09 and INV-16; ADR-007 INV-06, INV-09 and INV-11; ADR-009 INV-07 and INV-10; ADR-010 INV-03 and INV-04; ADR-012 INV-01, INV-02, INV-03 and INV-04; ADR-014 INV-02 |
 | CI (pull request), partial or not verified | ADR-006 INV-02 (partial: no test injects a write failure); ADR-004 INV-07, INV-10 (partial) and INV-15, INV-16 (manual audit only) |
-| Startup validation | ADR-004 INV-01, INV-02, INV-07 (partial), INV-08, INV-09 (partial: AGENT-004), INV-10 (partial) and INV-14 |
-| Pre-deployment validation | ADR-008 INV-01 to INV-05; ADR-013 INV-07 (partial: EVENTBUS-015) |
+| Startup validation | ADR-004 INV-01, INV-02, INV-07 (partial), INV-08, INV-09, INV-10 (partial) and INV-14 |
+| Pre-deployment validation | ADR-008 INV-01 to INV-05; ADR-013 INV-07 (manual review: deployment checklist) |
 | Manual Review (code review) | ADR-014 INV-01 and INV-03 |
 
 ## Keywords

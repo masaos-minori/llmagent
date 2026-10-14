@@ -104,7 +104,7 @@ Rule: An explicit `since_seq=0` and an omitted `since_seq` (defaults to 0 via `Q
 
 `consumer_id` is validated against the caller's token before `/subscribe`, `/events/{event_id}/ack`, and `/nack` accept it: a token that has an explicit `consumer_id` allowlist configured is rejected (HTTP 403) if it presents a `consumer_id` outside that allowlist.
 
-The allowlist comes from `consumer_authorization` and `topic_authorization` in `config/eventbus.toml`, and applies to the CONSUMER-role token only. Startup rejects a `consumer_token` when `consumer_authorization` is absent (fail-closed). When `consumer_authorization` is present but empty (and `topic_authorization` is empty), no allowlist is built, so the CONSUMER token is not restricted to any `consumer_id`: an empty mapping means "no restriction," not "deny all." The shared `auth_token` and the `admin_token` carry no allowlist and are likewise unrestricted. This residual gap is tracked as EVENTBUS-008 in `governance_03_issue-and-uncertainty-management.md`.
+The allowlist comes from `consumer_authorization` and `topic_authorization` in `config/eventbus.toml`, and applies to the CONSUMER-role token only. Startup rejects a `consumer_token` when `consumer_authorization` is absent (fail-closed). An empty `consumer_authorization` mapping resolves to deny-all, so a `consumer_token` with an empty mapping rejects every `consumer_id`. The shared `auth_token` and the `admin_token` carry no `consumer_id` allowlist by design (superuser tokens) and skip consumer identity validation as an accepted residual deviation.
 
 ---
 

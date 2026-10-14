@@ -87,7 +87,7 @@ Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_ini
 | Caller | Token to give it | Never give it |
 |---|---|---|
 | Publisher process | `publisher_token` | `auth_token`, `admin_token` |
-| Consumer process | `consumer_token` (with a non-empty `consumer_authorization`) | `auth_token`, `admin_token` |
+| Consumer process | `consumer_token` (its `consumer_authorization` mapping resolves to deny-all when empty) | `auth_token`, `admin_token` |
 | Monitoring probe | `monitoring_token` | `auth_token`, `admin_token` |
 | Operator (DLQ, replay) | `operator_token` | — |
 | Administrator | `admin_token` | — |
