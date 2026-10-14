@@ -40,7 +40,7 @@ Add a method to `TestListSessions`, e.g. `test_message_count_counts_messages_per
 
 ### Method
 
-Place the method inside `class TestListSessions` (after `test_marks_current_session`, around line 392). Keep the existing `self, session` signature. Do not modify other tests.
+Place the method inside `class TestListSessions` as its last method, immediately after `test_marks_current_session` (lines 384-387), before the class closes at line 388. Keep the existing `self, session` signature. Do not modify other tests.
 
 ### Details
 
