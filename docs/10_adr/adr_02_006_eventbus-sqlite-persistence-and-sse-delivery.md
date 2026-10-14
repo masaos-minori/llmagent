@@ -375,7 +375,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 - Investigation of DLQ promotions
 - DB Schema verification before deployment
-- INV-10 connection exclusivity is verified for `GET /subscribe`; its ACK/NACK binding is governed by ADR-013 INV-02. The empty-mapping gap (resolved EVENTBUS-008) is closed — an empty `consumer_authorization` now resolves to deny-all; only superuser `auth_token`/`admin_token` keep no `consumer_id` allowlist
+- INV-10 connection exclusivity is verified for `GET /subscribe`; its ACK/NACK binding is governed by ADR-013 INV-02. The empty-mapping gap is closed — an empty `consumer_authorization` now resolves to deny-all; only superuser `auth_token`/`admin_token` keep no `consumer_id` allowlist
 - INV-01 and INV-06 have no dedicated automated test (INV-01 is exercised indirectly by every persistence test; INV-06 is bounded by the envelope schema's `event_id` format check in `tests/eventbus/test_eventbus_publish_contract.py::TestPublishEnvelopeSchemaContract`)
 
 ## Implementation Notes
@@ -388,7 +388,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Known Deviations
 
-- **Residual deviation**: The shared `auth_token`/`admin_token` (superuser tokens) carry no `consumer_id` allowlist, so INV-10's ACK/NACK binding is not enforced for them; retained as an accepted residual deviation. The empty-mapping part of EVENTBUS-008 is resolved — an empty `consumer_authorization` now resolves to deny-all.
+- **Residual deviation**: The shared `auth_token`/`admin_token` (superuser tokens) carry no `consumer_id` allowlist, so INV-10's ACK/NACK binding is not enforced for them; retained as an accepted residual deviation. An empty `consumer_authorization` now resolves to deny-all.
 
 ## Review Triggers
 
