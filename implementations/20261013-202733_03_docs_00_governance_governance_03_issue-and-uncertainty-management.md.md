@@ -14,9 +14,10 @@ edits:
   section lines 183-199) to record the resolution, per the owner's confirmed decision (see
   Alternatives considered). The item's canonical scope (Title + Resolution Target) is the
   empty-mapping case, now fully resolved to deny-all.
-- Re-check `ADR-013` (lines 42/238/252) and `ADR-006` (lines 378/391/466) Known Deviations
-  references to EVENTBUS-008, and schedule the mandatory follow-up that updates them (see
-  Method).
+- Re-check the `ADR-013` (`adr_02_013_eventbus-authentication-authorization.md`) and
+  `ADR-006` (`adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md`) Known Deviations
+  references to EVENTBUS-008 (ADR-013 lines 42/238/252; ADR-006 lines 378/391/466), and
+  schedule the mandatory follow-up that updates them (see Method).
 
 ## Assumptions
 
@@ -81,8 +82,9 @@ inventory per lines 59-60. Evidence (a passing deny-all test) must exist before 
      removal loses no issue tracking.
    - Apply only after the deny-all implementation test evidence exists (line 308).
 3. **Re-check `ADR-013` and `ADR-006`** (read-only):
-   - Confirm the current references: `ADR-013` lines 42 (deviation description), 238 (test
-     comment), 252 (Known Issue); `ADR-006` lines 378, 391, 466.
+   - Confirm the current references in
+     `adr_02_013_eventbus-authentication-authorization.md` (lines 42, 238, 252) and
+     `adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md` (lines 378, 391, 466).
    - These describe EVENTBUS-008 as an open deviation where an empty mapping leaves the
      CONSUMER token unrestricted. Removing the governance entry makes these references dangling
      and leaves the false "empty mapping = unrestricted" claim in the ADRs.
@@ -92,13 +94,15 @@ inventory per lines 59-60. Evidence (a passing deny-all test) must exist before 
 - Edit only the EVENTBUS-008 section and its table row; preserve the doc's 17-field entry
   structure (Entry Template, line 51) for any entry that stays.
 - Path A: do NOT modify `ADR-013`/`ADR-006` in this change (out of the frozen 3-file scope).
-- MANDATORY FOLLOW-UP (separate change, not this one): update `ADR-013` (line 252) and
-  `ADR-006` (line 391) Known Deviations to remove the empty-mapping mention while retaining
-  the `auth_token`/`admin_token` superuser deviation (the empty-mapping part is resolved; the
-  superuser part is a valid residual deviation). This closes the dangling reference created by
-  the governance removal and removes the now-false "empty mapping = unrestricted" claim. Track
-  it as its own change (adding these files to `Implementation Target Files` requires re-freezing
-  the plan); do not fold it into the 3-file EVENTBUS-008 change.
+- MANDATORY FOLLOW-UP (separate change, not this one): update
+  `adr_02_013_eventbus-authentication-authorization.md` (line 252) and
+  `adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md` (line 391) Known Deviations
+  to remove the empty-mapping mention while retaining the `auth_token`/`admin_token`
+  superuser deviation (the empty-mapping part is resolved; the superuser part is a valid
+  residual deviation). This closes the dangling reference created by the governance removal
+  and removes the now-false "empty mapping = unrestricted" claim. Track it as its own change
+  (adding these files to `Implementation Target Files` requires re-freezing the plan); do not
+  fold it into the 3-file EVENTBUS-008 change.
 
 ## Compatibility considerations
 

@@ -100,7 +100,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | AGENT-012 | Agent statistics and health members are defined but never reached | open | Low | Agent | design-gap |
 | DEPLOY-001 | LLM service start procedure is not provided by any repository script | open | Medium | Deployment | operational-gap |
 | DEPLOY-002 | Production auxiliary uv run calls do not exclude the dev dependency group | open | Medium | Deployment | operational-gap |
-| EVENTBUS-008 | Consumer-role token is unrestricted when the authorization mappings are empty | open | Medium | EventBus | design-gap |
 | EVENTBUS-017 | No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency | open | Medium | EventBus | design-gap |
 
 #### AGENT-006
@@ -182,26 +181,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: An auxiliary `uv run` step can install development dependencies in production.
 - **Recommended Action**: Exclude the dev group in the production scripts, or document a separate production sync.
 - **Resolution Target**: Production excludes the dev group, or the production sync is documented.
-
-#### EVENTBUS-008
-
-- **ID**: EVENTBUS-008
-- **Title**: Consumer-role token is unrestricted when the authorization mappings are empty
-- **Status**: open
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: `scripts/eventbus/auth.py`
-- **Owner**: Repository owner
-- **First Found**: ADR Known Deviations review
-- **Target**: `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`
-- **Related**: `docs/10_adr/adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md`
-- **Summary**: A CONSUMER token whose `consumer_authorization` and `topic_authorization` mappings are both empty is not restricted to any consumer_id, and `auth_token` and `admin_token` are never restricted.
-- **Current Description**: ADR-013 INV-02 forbids acting as another `consumer_id`.
-- **Observed Implementation**: A `consumer_token` without `consumer_authorization` is rejected at startup. With empty `consumer_authorization` and `topic_authorization` mappings, the CONSUMER token gets `allowed_consumer_ids=None` (unrestricted), as do `auth_token` and `admin_token`.
-- **Impact**: An unrestricted principal can use any `consumer_id`.
-- **Recommended Action**: Deny all consumers when both mappings are empty, or reject an empty `consumer_authorization` at startup when `consumer_token` is configured.
-- **Resolution Target**: Every CONSUMER token has a non-empty allowlist or is denied, covered by a test.
 
 #### EVENTBUS-017
 

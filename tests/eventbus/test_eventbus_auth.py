@@ -860,8 +860,9 @@ class TestPrincipalFieldValidation:
 class TestFailClosedConsumerAuthorization:
     """Regression (EVENTBUS-008 / ADR-013 INV-02): a consumer_token declared
     without an explicit consumer_authorization MUST fail closed (raise
-    ValueError) at startup. An empty mapping {} is accepted and leaves the consumer
-    token unrestricted; only None is rejected — never weaken this guarantee."""
+    ValueError) at startup. An empty mapping resolves to frozenset() (deny-all)
+    and rejects every consumer_id; only None (a missing key) raises at startup.
+    Never weaken this guarantee."""
 
     @staticmethod
     def test_consumer_token_without_consumer_authorization_raises() -> None:
@@ -884,6 +885,117 @@ class TestFailClosedConsumerAuthorization:
             )
             with pytest.raises(ValueError, match="consumer_authorization is missing"):
                 _populate_token_maps(cfg)
+        finally:
+            _TOKEN_PRINCIPAL_MAP.clear()
+            _TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+    @pytest.mark.asyncio
+    async def test_empty_mappings_deny_all_consumers(self) -> None:
+        """REQ-001/REQ-002 (EVENTBUS-008): empty consumer/topic authorization
+        mappings resolve to frozenset() (deny-all); every consumer_id is rejected
+        by require_consumer_identity."""
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import (
+            _TOKEN_PRINCIPAL_MAP,
+            Principal,
+            Role,
+            _populate_token_maps,
+            require_consumer_identity,
+        )
+        from eventbus.config import EventBusConfig
+        from fastapi import HTTPException
+
+        token = "consumer-token"
+        snapshot = dict(_TOKEN_PRINCIPAL_MAP)
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-denyall.sqlite",
+                storage_dir="/tmp/test-eventbus-denyall",
+                offsets_dir="/tmp/test-eventbus-denyall",
+                deadletter_dir="/tmp/test-eventbus-denyall",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="shared-token",
+                consumer_token=token,
+                consumer_authorization={},
+                topic_authorization={},
+            )
+            _populate_token_maps(cfg)
+            principal = _TOKEN_PRINCIPAL_MAP[token]
+            assert isinstance(principal, Principal)
+            assert principal.roles == frozenset({Role.CONSUMER})
+            assert principal.allowed_consumer_ids == frozenset()
+            assert principal.allowed_topics == frozenset()
+            mock_request = MagicMock()
+            mock_request.state.request_id = "req-denyall"
+            mock_request.url.path = "/subscribe"
+            with pytest.raises(HTTPException) as exc:
+                await require_consumer_identity(
+                    mock_request,
+                    consumer_id="consumer-x",
+                    principal=principal,
+                )
+            assert exc.value.status_code == 403
+        finally:
+            _TOKEN_PRINCIPAL_MAP.clear()
+            _TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+    @pytest.mark.asyncio
+    async def test_non_empty_mapping_restricts_to_allowlist(self) -> None:
+        """REQ-003 (EVENTBUS-008): a non-empty consumer/topic authorization
+        mapping restricts the CONSUMER principal to its allowlist union; in-
+        allowlist consumer_ids pass and out-of-allowlist ones are rejected."""
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import (
+            _TOKEN_PRINCIPAL_MAP,
+            Principal,
+            _populate_token_maps,
+            require_consumer_identity,
+        )
+        from eventbus.config import EventBusConfig
+        from fastapi import HTTPException
+
+        token = "consumer-token"
+        snapshot = dict(_TOKEN_PRINCIPAL_MAP)
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-allowlist.sqlite",
+                storage_dir="/tmp/test-eventbus-allowlist",
+                offsets_dir="/tmp/test-eventbus-allowlist",
+                deadletter_dir="/tmp/test-eventbus-allowlist",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="shared-token",
+                consumer_token=token,
+                consumer_authorization={"consumer_a": ["test"], "consumer_b": ["test"]},
+                topic_authorization={"test": ["consumer_a", "consumer_b"]},
+            )
+            _populate_token_maps(cfg)
+            principal = _TOKEN_PRINCIPAL_MAP[token]
+            assert isinstance(principal, Principal)
+            allowed_ids = frozenset({"consumer_a", "consumer_b"})
+            assert principal.allowed_consumer_ids == allowed_ids
+            assert principal.allowed_topics == frozenset({"test"})
+            mock_request = MagicMock()
+            mock_request.state.request_id = "req-allowlist"
+            mock_request.url.path = "/subscribe"
+            accepted = await require_consumer_identity(
+                mock_request,
+                consumer_id="consumer_a",
+                principal=principal,
+            )
+            assert accepted is principal
+            with pytest.raises(HTTPException) as exc:
+                await require_consumer_identity(
+                    mock_request,
+                    consumer_id="consumer_c",
+                    principal=principal,
+                )
+            assert exc.value.status_code == 403
         finally:
             _TOKEN_PRINCIPAL_MAP.clear()
             _TOKEN_PRINCIPAL_MAP.update(snapshot)

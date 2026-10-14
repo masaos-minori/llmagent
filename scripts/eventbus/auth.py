@@ -143,6 +143,11 @@ def _populate_token_maps(config: Any) -> None:
             ids.update(consumer_ids)
         consumer_allowed_ids = frozenset(ids)
         consumer_allowed_topics = frozenset(topics)
+    else:
+        # Both mappings empty: deny-all (frozenset()) instead of None (unrestricted).
+        # Keeps empty distinct from a missing key, which still raises above.
+        consumer_allowed_ids = frozenset()
+        consumer_allowed_topics = frozenset()
 
     # Each per-role token grants only its own role.
     for field, role in _PER_ROLE_TOKEN_FIELDS:
@@ -295,10 +300,11 @@ async def require_consumer_identity(
 
     Returns a Principal object with authorization context for the caller.
     """
-    # Validate consumer_id is in the allowlist for this caller. An empty allowlist
-    # (no entry, or an explicit empty set) means "no consumer_id restriction" for
-    # this token, per _populate_token_maps()'s own "Empty means any consumer_id"
-    # convention (e.g. the shared auth_token is deliberately given an empty set).
+    # Validate consumer_id is in the allowlist for this caller. Only None (a missing
+    # config key) means "no consumer_id restriction"; an empty frozenset() is deny-all
+    # and rejects every consumer_id. This mirrors _populate_token_maps(): None stays
+    # unrestricted (e.g. the shared auth_token/admin_token), while an empty
+    # consumer_authorization mapping resolves to frozenset() (deny-all).
     if (
         consumer_id
         and principal.allowed_consumer_ids is not None
@@ -321,10 +327,10 @@ async def require_consumer_identity(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
-    # Validate topic access. An empty _TOKEN_PRINCIPAL_MAP entry (no entry, or an
-    # explicit empty set) means "no topic restriction" for this token, per
-    # _populate_token_maps()'s own "Empty means any topic" convention — mirrors
-    # the consumer_id-allowlist convention above.
+    # Validate topic access. Only None (a missing config key) means "no topic
+    # restriction"; an empty frozenset() is deny-all and rejects every topic, per
+    # _populate_token_maps()'s convention — mirrors the consumer_id-allowlist
+    # convention above (None unrestricted, empty mapping = frozenset() deny-all).
     if principal.allowed_topics is not None and topics:
         for topic in topics:
             if topic not in principal.allowed_topics:

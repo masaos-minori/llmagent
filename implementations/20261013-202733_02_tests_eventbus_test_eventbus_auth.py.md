@@ -55,7 +55,7 @@ Single file: `tests/eventbus/test_eventbus_auth.py`. Changes:
    weaken this guarantee.") with deny-all semantics: an empty mapping resolves to
    `frozenset()` (deny-all), and only `None` (missing key) raises at startup.
 2. **Add a deny-all test (REQ-001, REQ-002, T-1).** Inside the class, add
-   `test_empty_mappings_deny_all_consumers`: build an `EventBusConfig` with `consumer_token`
+   `test_empty_mappings_deny_all_consumers` (new): build an `EventBusConfig` with `consumer_token`
    set and both `consumer_authorization={}` and `topic_authorization={}`, call
    `_populate_token_maps(cfg)`, and assert the CONSUMER principal has
    `allowed_consumer_ids == frozenset()` and `allowed_topics == frozenset()`. Then assert
@@ -63,7 +63,7 @@ Single file: `tests/eventbus/test_eventbus_auth.py`. Changes:
    request-mock / audit-record pattern from
    `test_consumer_identity_rejection_produces_structured_audit_record`.
 3. **Add a non-empty allowlist regression test (REQ-003, T-2).** Add
-   `test_non_empty_mapping_restricts_to_allowlist`: build a config with a non-empty
+   `test_non_empty_mapping_restricts_to_allowlist` (new): build a config with a non-empty
    `consumer_authorization`/`topic_authorization`, assert the CONSUMER principal is restricted
    to the union allowlist, and that a `consumer_id` outside the allowlist is rejected while one
    inside is allowed.
