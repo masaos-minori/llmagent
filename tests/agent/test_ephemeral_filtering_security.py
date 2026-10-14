@@ -34,14 +34,6 @@ class TestFakeEphemeralKeyInjection:
         assert result.success is False
         assert "Ephemeral keys not allowed" in result.reason
 
-    def test_untrusted_source_with_skill_ephemeral_key_rejected(self) -> None:
-        """Untrusted source cannot inject _skill_ephemeral key."""
-        result = validate_message(
-            {"role": "user", "content": "hi", "_skill_ephemeral": True}
-        )
-        assert result.success is False
-        assert "Ephemeral keys not allowed" in result.reason
-
     def test_unknown_role_with_ephemeral_key_rejected(self) -> None:
         """Unknown role with ephemeral key is rejected before ephemeral check."""
         result = validate_message(
@@ -258,19 +250,6 @@ class TestEphemeralOnlyFromTrustedSources:
         assert result.success is False
         assert "Unauthorized ephemeral keys" in result.reason
 
-    def test_cmd_handler_cannot_use_skill_ephemeral(self) -> None:
-        """cmd_handler cannot inject _skill_ephemeral key."""
-        result = validate_message(
-            {
-                "role": "user",
-                "content": "hi",
-                "_skill_ephemeral": True,
-                "source": "cmd_handler",
-            }
-        )
-        assert result.success is False
-        assert "Unauthorized ephemeral keys" in result.reason
-
     def test_memory_injection_can_use_memory_injected(self) -> None:
         """memory_injection can inject _memory_injected key."""
         result = validate_message(
@@ -297,77 +276,10 @@ class TestEphemeralOnlyFromTrustedSources:
         assert result.success is False
         assert "Unauthorized ephemeral keys" in result.reason
 
-    def test_memory_injection_cannot_use_skill_ephemeral(self) -> None:
-        """memory_injection cannot inject _skill_ephemeral key."""
-        result = validate_message(
-            {
-                "role": "system",
-                "content": "injected",
-                "_skill_ephemeral": True,
-                "source": "memory_injection",
-            }
-        )
-        assert result.success is False
-        assert "Unauthorized ephemeral keys" in result.reason
-
-    def test_skill_mixin_can_use_skill_ephemeral(self) -> None:
-        """skill_mixin can inject _skill_ephemeral key."""
-        result = validate_message(
-            {
-                "role": "system",
-                "content": "skill hint",
-                "_skill_ephemeral": True,
-                "source": "skill_mixin",
-            }
-        )
-        assert result.success is True
-        assert result.reason == ""
-
-    def test_skill_mixin_cannot_use_ephemeral(self) -> None:
-        """skill_mixin cannot inject _ephemeral key."""
-        result = validate_message(
-            {
-                "role": "system",
-                "content": "skill hint",
-                "_ephemeral": True,
-                "source": "skill_mixin",
-            }
-        )
-        assert result.success is False
-        assert "Unauthorized ephemeral keys" in result.reason
-
-    def test_skill_mixin_cannot_use_memory_injected(self) -> None:
-        """skill_mixin cannot inject _memory_injected key."""
-        result = validate_message(
-            {
-                "role": "system",
-                "content": "skill hint",
-                "_memory_injected": True,
-                "source": "skill_mixin",
-            }
-        )
-        assert result.success is False
-        assert "Unauthorized ephemeral keys" in result.reason
-
-    def test_multiple_ephemeral_keys_from_trusted_source_partial_failure(self) -> None:
-        """Trusted source with multiple ephemeral keys of mixed authorization fails."""
-        result = validate_message(
-            {
-                "role": "system",
-                "content": "hint",
-                "_skill_ephemeral": True,
-                "_ephemeral": True,
-                "source": "skill_mixin",
-            }
-        )
-        assert result.success is False
-        assert "Unauthorized ephemeral keys" in result.reason
-
     def test_is_trusted_source_returns_true_for_known_sources(self) -> None:
         """is_trusted_source returns True for known sources."""
         assert is_trusted_source("cmd_handler") is True
         assert is_trusted_source("memory_injection") is True
-        assert is_trusted_source("skill_mixin") is True
 
     def test_is_trusted_source_returns_false_for_unknown_sources(self) -> None:
         """is_trusted_source returns False for unknown sources."""
@@ -379,7 +291,6 @@ class TestEphemeralOnlyFromTrustedSources:
         """get_allowed_ephemeral_keys returns correct ephemeral keys per source."""
         assert get_allowed_ephemeral_keys("cmd_handler") == {"_ephemeral"}
         assert get_allowed_ephemeral_keys("memory_injection") == {"_memory_injected"}
-        assert get_allowed_ephemeral_keys("skill_mixin") == {"_skill_ephemeral"}
 
     def test_get_allowed_ephemeral_keys_returns_empty_for_unknown(self) -> None:
         """get_allowed_ephemeral_keys returns empty set for unknown source."""
@@ -390,12 +301,10 @@ class TestEphemeralOnlyFromTrustedSources:
         assert set(TRUSTED_SOURCES.keys()) == {
             "cmd_handler",
             "memory_injection",
-            "skill_mixin",
             "loop_guard",
         }
         assert TRUSTED_SOURCES["cmd_handler"] == {"_ephemeral"}
         assert TRUSTED_SOURCES["memory_injection"] == {"_memory_injected"}
-        assert TRUSTED_SOURCES["skill_mixin"] == {"_skill_ephemeral"}
         assert TRUSTED_SOURCES["loop_guard"] == {"_ephemeral"}
 
 

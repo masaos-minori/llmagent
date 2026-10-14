@@ -26,7 +26,7 @@ related:
 
 ## Purpose
 
-Documents the purpose and side effects of slash commands in the Memory, MDQ, and Skill categories.
+Documents the purpose and side effects of slash commands in the Memory and MDQ categories.
 
 ## Design Intent
 
@@ -38,14 +38,6 @@ A group of commands for long-term memory. `/memory rebuild` imports records from
 
 All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. MDQ uses `mdq.sqlite` (separate from `rag.sqlite`). For the distinction between MDQ and RAG, see [MDQ vs RAG Boundary](../22_mcp/mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary).
 
-### Skill Category
-
-`/skill` displays a list of directory names under `skills/` (no LLM call occurs).
-
-`/skill <name> [args]` passes the content of `skills/<name>/SKILL.md` to the next LLM turn. Re-running within the same session replaces the previous one.
-
-**Known Limitation (Known Issue AGENT-009):** The message constructed by `_cmd_skill()` has both `_ephemeral: True` and `_skill_ephemeral: True`, but since `TRUSTED_SOURCES["skill_mixin"]` only authorizes `_skill_ephemeral`, the `append_message()` validation fails, causing the `_ephemeral` key to be sanitized (removed, with a `warning` log) before saving. As a result, only `_skill_ephemeral: True` remains in history. This is a known and accepted behavior change; the impact is that the orchestrator's generic `_ephemeral`-based pre-turn clearing no longer automatically removes injected skill messages at the start of the next turn.
-
 ### Other Category
 
 `/help` displays this help output.
@@ -54,15 +46,9 @@ All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. M
 
 - **Memory**: Management of long-term memory entries
 - **MDQ**: Document indexing and search
-- **Skill**: Skill injection
 - **Other**: Help display
-
-## Known Limitations
-
-- `/skill` ephemeral messages leave only `_skill_ephemeral: True` in history
 
 ## Keywords
 
 - memory category
 - mdq category
-- skill category

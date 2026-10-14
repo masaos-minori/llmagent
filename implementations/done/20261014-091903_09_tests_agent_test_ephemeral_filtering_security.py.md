@@ -69,9 +69,9 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove skill cases and edit assertions | Pending | — | — | |
-| 2 | Run the affected tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove skill cases and edit assertions | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the affected tests | Completed | 20261014-094631 | 20261014-094631 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

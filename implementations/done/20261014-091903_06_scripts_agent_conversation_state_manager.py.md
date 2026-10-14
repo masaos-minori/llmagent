@@ -1,10 +1,10 @@
 ## Goal
 
-Remove the `/skill` entry from the command definition table (REQ-001: remove the command).
+Remove `_skill_ephemeral` from the ephemeral key set (REQ-002: remove skill plumbing).
 
 ## Scope
 
-- Delete one `CommandDef` block. Only the `/skill` block (lines 164-170); other commands are untouched.
+- Shrink a frozenset literal. Lines 30-32 only.
 
 ## Assumptions
 
@@ -13,8 +13,8 @@ Remove the `/skill` entry from the command definition table (REQ-001: remove the
 
 ## Design decisions
 
-- `_COMMANDS` is the single source for dispatch, completion, and `/help`; removing the block removes the command everywhere.
-- Keep the `# ── Prefix async` comment that follows the block.
+- Result must be `frozenset({"_ephemeral", "_memory_injected"})`; the turn-start clearing order in `workflow_engine_adapter.py` stays unchanged (out of scope).
+- Run `ruff format` since the literal may fit on one line.
 
 ## Alternatives considered
 
@@ -24,23 +24,23 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`scripts/agent/commands/command_defs_list.py`
+`scripts/agent/conversation_state_manager.py`
 
 ### Procedure
 
-Delete the `CommandDef(...)` block whose `name="/skill"` (handler `_cmd_skill`, help text mentioning `skills/<name>/SKILL.md`).
+Edit `_EPHEMERAL_KEYS` to contain only `_ephemeral` and `_memory_injected`.
 
 ### Method
 
-Locate with `rg -n '/skill' scripts/agent/commands/command_defs_list.py`; remove from `CommandDef(` through its closing `),`.
+Edit by symbol; leave the `EPHEMERAL_KEYS` alias and the class attribute unchanged.
 
 ### Details
 
-`tests/agent/commands/test_command_def_sync.py` requires every `handler` to exist on the registry, so this edit and procedure 03 must land together.
+No `EPHEMERAL_KEYS` assertion exists in tests (`rg` verified), so only the orchestrator tests (procedure 10) touch this behavior.
 
 ## Compatibility considerations
 
-Removes `/skill` from tab completion and `/help` output.
+Messages tagged only `_skill_ephemeral` would no longer be cleared, but nothing produces them after procedure 01.
 
 ## Security considerations
 
@@ -52,26 +52,24 @@ N/A: revert the commit; apply procedures 01-06 and 07-11 as one commit unit
 
 ## Validation plan
 
-- `uv run pytest tests/agent/commands/test_command_def_sync.py tests/agent/commands/test_command_defs.py -q` passes.
-- `rg -n '_cmd_skill|"/skill"' scripts` has no match.
+- `uv run pytest tests/agent/test_orchestrator.py -q` passes after procedure 10.
 
 ## Completion criteria
 
-- `_COMMANDS` contains no `/skill` entry.
-- The sync tests pass.
+- `_EPHEMERAL_KEYS` equals `{"_ephemeral", "_memory_injected"}`.
 
 ## Out of scope
 
-- Other `CommandDef` entries and help wording.
+- Clearing logic and call order.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the CommandDef block | Pending | — | — | |
-| 2 | Run the tests that cover this file (updated by procedures 07-11) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Edit the key set | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the tests that cover this file (updated by procedures 07-11) | Completed | 20261014-094631 | 20261014-094631 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -85,10 +83,10 @@ N/A: revert the commit; apply procedures 01-06 and 07-11 as one commit unit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-001
+- **Requirement ID**: REQ-002
 - **Source issue**: issues/20261014-090429_skill001_remove-the-skill-slash-command-and-its-ephemeral-plumbing.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: scripts/agent/commands/command_defs_list.py
+- **Related target files**: scripts/agent/conversation_state_manager.py

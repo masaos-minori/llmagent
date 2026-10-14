@@ -1,10 +1,10 @@
 ## Goal
 
-Remove skill_mixin cases from the message schema tests (REQ-003: update tests).
+Add the `/skill` unregistered regression test (REQ-003: update tests).
 
 ## Scope
 
-- Delete skill-only tests and single skill assertions. Lines 153-260 region only; keep every non-skill case.
+- Add one test class. Append one class to this file; do not change existing classes.
 
 ## Assumptions
 
@@ -13,8 +13,8 @@ Remove skill_mixin cases from the message schema tests (REQ-003: update tests).
 
 ## Design decisions
 
-- Delete whole tests: `test_trusted_skill_mixin_can_add_skill_ephemeral_key` (line 153) and `test_multiple_ephemeral_keys_from_trusted_source_accepted` (line 176, whose only source is `skill_mixin`).
-- Edit, do not delete: in `TestTrustedSourceHelpers`, remove the `skill_mixin` lines at about 241, 251, and 260, and change `assert len(TRUSTED_SOURCES) == 4` (about 262) to `== 3`.
+- Mirror `TestRemovedNoteCommand`: assert `"/skill"` is not among `{cmd.name for cmd in _COMMANDS}`.
+- This test is the effective guard against reintroduction, because `_REMOVED_NAME_PATTERNS` scans `*.md` only and is opt-in.
 
 ## Alternatives considered
 
@@ -24,19 +24,19 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`tests/agent/test_message_schema.py`
+`tests/agent/commands/test_removed_commands.py`
 
 ### Procedure
 
-Remove the tests and assertion lines that reference `skill_mixin` or `_skill_ephemeral`.
+Add `TestRemovedSkillCommand` (new) with `test_skill_not_in_registry` (new), importing `_COMMANDS` from `agent.commands.registry` inside the test like the existing classes.
 
 ### Method
 
-Edit by test name from the bottom of the file upward; compare `pytest --collect-only -q` counts before and after (only the two deleted tests should disappear).
+Follow the surrounding style: docstring on class and test, `-> None` annotation, assertion message `"/skill should not be a registered command"`.
 
 ### Details
 
-`get_allowed_ephemeral_keys("skill_mixin")` now returns an empty set, so rewriting that assertion is unnecessary; delete it.
+Place after `TestRemovedNoteCommand`. Run `ruff format` and `ruff check` on the file.
 
 ## Compatibility considerations
 
@@ -52,26 +52,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/agent/test_message_schema.py -q` passes.
-- `rg -n 'skill' tests/agent/test_message_schema.py` has no match.
+- `uv run pytest tests/agent/commands/test_removed_commands.py -q` passes after procedures 01-03; it fails if `/skill` is re-added.
 
 ## Completion criteria
 
-- No skill reference remains.
-- Non-skill tests are unchanged and passing.
+- The new test exists and passes.
 
 ## Out of scope
 
-- Non-skill schema tests.
+- Existing removed-command tests; `_REMOVED_NAME_PATTERNS`.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove skill cases and assertions | Pending | — | — | |
-| 2 | Run the affected tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the test class | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the affected tests | Completed | 20261014-094631 | 20261014-094631 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,4 +89,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: tests/agent/test_message_schema.py
+- **Related target files**: tests/agent/commands/test_removed_commands.py

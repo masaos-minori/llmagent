@@ -27,9 +27,7 @@ if TYPE_CHECKING:
     from agent.diagnostic_store import DiagnosticStore
 
 # Ephemeral keys used to identify messages that should be cleaned up between turns.
-_EPHEMERAL_KEYS: frozenset[str] = frozenset(
-    {"_ephemeral", "_memory_injected", "_skill_ephemeral"}
-)
+_EPHEMERAL_KEYS: frozenset[str] = frozenset({"_ephemeral", "_memory_injected"})
 
 # Backward-compatible alias for existing callers that import EPHEMERAL_KEYS
 EPHEMERAL_KEYS = _EPHEMERAL_KEYS

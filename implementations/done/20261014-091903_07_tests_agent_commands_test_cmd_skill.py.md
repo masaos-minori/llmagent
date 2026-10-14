@@ -1,10 +1,10 @@
 ## Goal
 
-Remove `_skill_ephemeral` from the core types lifecycle list (REQ-004: update documentation).
+Delete the `/skill` command tests (REQ-003: update tests).
 
 ## Scope
 
-- Edit one phrase on line 51. The lifecycle list on line 51 only.
+- Delete the file. Only this test file.
 
 ## Assumptions
 
@@ -13,37 +13,37 @@ Remove `_skill_ephemeral` from the core types lifecycle list (REQ-004: update do
 
 ## Design decisions
 
-- Result: `_ephemeral`/`_memory_injected` (lifecycle).
+- The whole file tests the removed command (25 matches, imports `agent.commands.cmd_skill`).
 
 ## Alternatives considered
 
-N/A: the docs follow the code removal
+N/A: deletion is the decided direction (Plan Design)
 
 ## Implementation
 
 ### Target file
 
-`docs/40_shared/shared_02_01_types_and_protocols-core-types.md`
+`tests/agent/commands/test_cmd_skill.py`
 
 ### Procedure
 
-Delete `/`_skill_ephemeral`` from the lifecycle list in the `LLMMessage` description.
+Delete `tests/agent/commands/test_cmd_skill.py` with `git rm`.
 
 ### Method
 
-Edit with the Edit tool.
+No edit.
 
 ### Details
 
-Keep the trailing `(Explicit in code)` marker.
+The replacement guard is the new test in procedure 11.
 
 ## Compatibility considerations
 
-Docs-only change.
+N/A: test-only change
 
 ## Security considerations
 
-N/A: docs-only change
+N/A: test-only change
 
 ## Rollback considerations
 
@@ -51,24 +51,25 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `check_docs_quality.py` and `check_docs_consistency.py --domain agent` pass.
-- `rg -n 'skill' <this file>` has no match.
+- `uv run pytest tests/agent/commands/ -q` passes with no collection error.
 
 ## Completion criteria
 
-- The phrase no longer names `_skill_ephemeral`.
+- The file does not exist.
+- No test imports `cmd_skill`.
 
 ## Out of scope
 
-- Other type descriptions.
+- Other test files.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the phrase | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Delete the file | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the affected tests | Completed | 20261014-094631 | 20261014-094631 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -82,10 +83,10 @@ N/A: revert the commit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-004
+- **Requirement ID**: REQ-003
 - **Source issue**: issues/20261014-090429_skill001_remove-the-skill-slash-command-and-its-ephemeral-plumbing.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: docs/40_shared/shared_02_01_types_and_protocols-core-types.md
+- **Related target files**: tests/agent/commands/test_cmd_skill.py

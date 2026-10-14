@@ -68,8 +68,8 @@ N/A: revert the commit
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the five edits | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Apply the five edits | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

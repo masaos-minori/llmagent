@@ -1,7 +1,7 @@
 """scripts/agent/message_schema.py — Schema validation for conversation history messages.
 
 Prevents LLM from manipulating ephemeral message filtering by injecting/removing
-keys like ``_ephemeral``, ``_memory_injected``, or ``_skill_ephemeral``.
+keys like ``_ephemeral`` or ``_memory_injected``.
 
 Ephemeral key injection is restricted to trusted sources only (command handlers).
 """
@@ -18,7 +18,6 @@ logger = logging.getLogger(__name__)
 TRUSTED_SOURCES: dict[str, set[str]] = {
     "cmd_handler": {"_ephemeral"},
     "memory_injection": {"_memory_injected"},
-    "skill_mixin": {"_skill_ephemeral"},
     "loop_guard": {"_ephemeral"},
 }
 

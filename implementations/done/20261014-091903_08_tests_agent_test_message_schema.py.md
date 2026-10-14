@@ -1,10 +1,10 @@
 ## Goal
 
-Remove `_skill_ephemeral` cases from the orchestrator clearing tests (REQ-003: update tests).
+Remove skill_mixin cases from the message schema tests (REQ-003: update tests).
 
 ## Scope
 
-- Edit one test, delete one test, change one fixture key. `TestClearPreviousTurnEphemeralMessages` only (lines 1567-1630).
+- Delete skill-only tests and single skill assertions. Lines 153-260 region only; keep every non-skill case.
 
 ## Assumptions
 
@@ -13,8 +13,8 @@ Remove `_skill_ephemeral` cases from the orchestrator clearing tests (REQ-003: u
 
 ## Design decisions
 
-- Keep `test_removes_ephemeral_memory_injected_and_skill_ephemeral_messages` but drop its `_skill_ephemeral` history entry (line 1575) and rename it to `test_removes_ephemeral_and_memory_injected_messages` (new).
-- Delete `test_skill_ephemeral_only_message_removed_without_other_ephemeral_keys` (1581). In the mixed-role test, change the assistant message key at line 1624 from `_skill_ephemeral` to `_memory_injected` so the assistant-role coverage stays.
+- Delete whole tests: `test_trusted_skill_mixin_can_add_skill_ephemeral_key` (line 153) and `test_multiple_ephemeral_keys_from_trusted_source_accepted` (line 176, whose only source is `skill_mixin`).
+- Edit, do not delete: in `TestTrustedSourceHelpers`, remove the `skill_mixin` lines at about 241, 251, and 260, and change `assert len(TRUSTED_SOURCES) == 4` (about 262) to `== 3`.
 
 ## Alternatives considered
 
@@ -24,19 +24,19 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`tests/agent/test_orchestrator.py`
+`tests/agent/test_message_schema.py`
 
 ### Procedure
 
-Apply the three edits in Design decisions.
+Remove the tests and assertion lines that reference `skill_mixin` or `_skill_ephemeral`.
 
 ### Method
 
-Edit by test name; the expected remaining history in each test is unchanged because the removed entries were cleared in the original expectation.
+Edit by test name from the bottom of the file upward; compare `pytest --collect-only -q` counts before and after (only the two deleted tests should disappear).
 
 ### Details
 
-The deleted test's docstring references a past requirement fix that no longer applies once the key is gone.
+`get_allowed_ephemeral_keys("skill_mixin")` now returns an empty set, so rewriting that assertion is unnecessary; delete it.
 
 ## Compatibility considerations
 
@@ -52,26 +52,26 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/agent/test_orchestrator.py -q` passes.
-- `rg -n 'skill' tests/agent/test_orchestrator.py` has no match.
+- `uv run pytest tests/agent/test_message_schema.py -q` passes.
+- `rg -n 'skill' tests/agent/test_message_schema.py` has no match.
 
 ## Completion criteria
 
 - No skill reference remains.
-- The class still covers `_ephemeral`, `_memory_injected`, role mix, and empty history.
+- Non-skill tests are unchanged and passing.
 
 ## Out of scope
 
-- Other orchestrator tests.
+- Non-skill schema tests.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit and delete the skill cases | Pending | — | — | |
-| 2 | Run the affected tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove skill cases and assertions | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the affected tests | Completed | 20261014-094631 | 20261014-094631 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,4 +91,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: tests/agent/test_orchestrator.py
+- **Related target files**: tests/agent/test_message_schema.py

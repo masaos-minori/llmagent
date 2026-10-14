@@ -1,10 +1,10 @@
 ## Goal
 
-Remove the `/skill` AgentREPL sentence from routing (REQ-004: update documentation).
+Rewrite the Agent to LLM trust-boundary row without `/skill` (REQ-004: update documentation).
 
 ## Scope
 
-- Delete line 8. Line 8 only; line 7 describes Claude Code skills and stays.
+- Rewrite one table row. The Agent to LLM row on line 167 only.
 
 ## Assumptions
 
@@ -13,7 +13,8 @@ Remove the `/skill` AgentREPL sentence from routing (REQ-004: update documentati
 
 ## Design decisions
 
-- Line 7 ("Skills can be invoked as slash commands ... via `Skill(...)`") is about Claude Code, not the AgentREPL command, so keep it.
+- Target text: "Two kinds of content enter system-role messages: memory snippets (a `--- USER MEMORY ---` block, PII-redacted and length-limited by `snippet_filter.py`) and fixed MDQ/RAG routing hints. Ephemeral markers are accepted only from trusted sources."
+- Drop `scripts/agent/commands/cmd_skill.py` from the evidence list (the file is deleted); keep `conversation_state_manager.py` and `snippet_filter.py`.
 
 ## Alternatives considered
 
@@ -23,19 +24,19 @@ N/A: the docs follow the code removal
 
 ### Target file
 
-`routing.md`
+`docs/91_security/security_01_architecture-and-trust-boundaries.md`
 
 ### Procedure
 
-Delete the line starting with `` `/skill <name> [args]` is the equivalent runtime-invocable form inside AgentREPL``.
+Replace the row text with the target text and update its `Explicit in code` file list.
 
 ### Method
 
-Edit with the Edit tool; no other line changes.
+Edit with the Edit tool; keep the table column count.
 
 ### Details
 
-Run `uv run python tools/check_skills_references.py` afterward.
+`check_docs_consistency.py` verifies referenced file paths exist, so the stale path must go.
 
 ## Compatibility considerations
 
@@ -43,7 +44,7 @@ Docs-only change.
 
 ## Security considerations
 
-N/A: docs-only change
+The text must not claim any content that bypasses filtering.
 
 ## Rollback considerations
 
@@ -51,24 +52,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run python tools/check_skills_references.py` passes.
-- `rg -n --pcre2 '/skill(?![\w-])' routing.md` has no match.
+- `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_consistency.py --domain overview` and `--domain agent` pass.
+- `rg -n 'skill' <this file>` has no match.
 
 ## Completion criteria
 
-- Line 8 is gone and line 7 is intact.
+- The row lists two content kinds and no deleted path.
 
 ## Out of scope
 
-- Other routing content.
+- Other trust-boundary rows.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the sentence | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Rewrite the row | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -88,4 +89,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: routing.md
+- **Related target files**: docs/91_security/security_01_architecture-and-trust-boundaries.md

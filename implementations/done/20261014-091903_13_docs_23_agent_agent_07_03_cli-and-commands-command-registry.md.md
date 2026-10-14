@@ -1,10 +1,10 @@
 ## Goal
 
-Remove `_skill_ephemeral` from the ephemeral key set (REQ-002: remove skill plumbing).
+Remove the `/skill` row from the built-in command index (REQ-004: update documentation).
 
 ## Scope
 
-- Shrink a frozenset literal. Lines 30-32 only.
+- Delete one table row. The `/skill` row at line 69 only.
 
 ## Assumptions
 
@@ -13,63 +13,61 @@ Remove `_skill_ephemeral` from the ephemeral key set (REQ-002: remove skill plum
 
 ## Design decisions
 
-- Result must be `frozenset({"_ephemeral", "_memory_injected"})`; the turn-start clearing order in `workflow_engine_adapter.py` stays unchanged (out of scope).
-- Run `ruff format` since the literal may fit on one line.
+- `tests/docs/test_command_docs_sync.py` does not check `/skill` (its regex covers mcp, db, debug, audit, memory, mdq, rag), so the edit is safe and required for accuracy.
 
 ## Alternatives considered
 
-N/A: deletion is the decided direction (Plan Design)
+N/A: the docs follow the code removal
 
 ## Implementation
 
 ### Target file
 
-`scripts/agent/conversation_state_manager.py`
+`docs/23_agent/agent_07_03_cli-and-commands-command-registry.md`
 
 ### Procedure
 
-Edit `_EPHEMERAL_KEYS` to contain only `_ephemeral` and `_memory_injected`.
+Delete the table row `| `/skill` | List skills or load a skill as ephemeral system context |`.
 
 ### Method
 
-Edit by symbol; leave the `EPHEMERAL_KEYS` alias and the class attribute unchanged.
+Edit with the Edit tool.
 
 ### Details
 
-No `EPHEMERAL_KEYS` assertion exists in tests (`rg` verified), so only the orchestrator tests (procedure 10) touch this behavior.
+Follow `skills/python-documentation` for docs edits; keep English.
 
 ## Compatibility considerations
 
-Messages tagged only `_skill_ephemeral` would no longer be cleared, but nothing produces them after procedure 01.
+Docs-only change.
 
 ## Security considerations
 
-N/A: removal only; no new input path
+N/A: docs-only change
 
 ## Rollback considerations
 
-N/A: revert the commit; apply procedures 01-06 and 07-11 as one commit unit
+N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/agent/test_orchestrator.py -q` passes after procedure 10.
+- `uv run python tools/check_docs_quality.py`, `check_docs_structure.py`, `check_docs_consistency.py --domain agent`, and `uv run pytest tests/docs -q` pass.
 
 ## Completion criteria
 
-- `_EPHEMERAL_KEYS` equals `{"_ephemeral", "_memory_injected"}`.
+- The row is gone and the table is still well-formed.
 
 ## Out of scope
 
-- Clearing logic and call order.
+- Other command rows.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the key set | Pending | — | — | |
-| 2 | Run the tests that cover this file (updated by procedures 07-11) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the row | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -83,10 +81,10 @@ N/A: revert the commit; apply procedures 01-06 and 07-11 as one commit unit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002
+- **Requirement ID**: REQ-004
 - **Source issue**: issues/20261014-090429_skill001_remove-the-skill-slash-command-and-its-ephemeral-plumbing.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: scripts/agent/conversation_state_manager.py
+- **Related target files**: docs/23_agent/agent_07_03_cli-and-commands-command-registry.md

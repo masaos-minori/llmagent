@@ -28,7 +28,6 @@ class LLMMessage(_LLMMessageRequired, total=False):
     _ephemeral: (
         bool  # excluded from persistence/compression; dropped before the next turn
     )
-    _skill_ephemeral: bool  # like _ephemeral, but scoped to skill-injected messages
     _memory_injected: bool  # marks a message as memory-layer injected context
     source: str  # trusted source identifier for ephemeral key injection validation
 

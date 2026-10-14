@@ -1564,7 +1564,7 @@ class TestEphemeralMessageLifecycle:
 class TestClearPreviousTurnEphemeralMessages:
     """Direct unit coverage for Orchestrator._clear_previous_turn_ephemeral_messages()."""
 
-    def test_removes_ephemeral_memory_injected_and_skill_ephemeral_messages(
+    def test_removes_ephemeral_and_memory_injected_messages(
         self,
     ) -> None:
         ctx = _make_ctx()
@@ -1572,21 +1572,6 @@ class TestClearPreviousTurnEphemeralMessages:
             {"role": "system", "content": "kept"},
             {"role": "system", "content": "eph", "_ephemeral": True},
             {"role": "system", "content": "mem", "_memory_injected": True},
-            {"role": "system", "content": "skill", "_skill_ephemeral": True},
-        ]
-        orch = _make_orchestrator(ctx)
-        orch._conversation_manager.clear_previous_turn_ephemeral_messages()
-        assert ctx.conv.history == [{"role": "system", "content": "kept"}]
-
-    def test_skill_ephemeral_only_message_removed_without_other_ephemeral_keys(
-        self,
-    ) -> None:
-        """A message tagged only with _skill_ephemeral (no _ephemeral key) must
-        still be cleared -- this is the specific gap REQ-001 fixes."""
-        ctx = _make_ctx()
-        ctx.conv.history = [
-            {"role": "system", "content": "kept"},
-            {"role": "system", "content": "skill only", "_skill_ephemeral": True},
         ]
         orch = _make_orchestrator(ctx)
         orch._conversation_manager.clear_previous_turn_ephemeral_messages()
@@ -1621,7 +1606,7 @@ class TestClearPreviousTurnEphemeralMessages:
         ctx = _make_ctx()
         ctx.conv.history = [
             {"role": "user", "content": "eph-user", "_ephemeral": True},
-            {"role": "assistant", "content": "eph-assist", "_skill_ephemeral": True},
+            {"role": "assistant", "content": "eph-assist", "_memory_injected": True},
             {"role": "system", "content": "kept"},
         ]
         orch = _make_orchestrator(ctx)

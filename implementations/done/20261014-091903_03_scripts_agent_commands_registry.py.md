@@ -1,10 +1,10 @@
 ## Goal
 
-Remove the `_skill_ephemeral` field from `LLMMessage` (REQ-002: remove skill plumbing).
+Remove the skill mixin from the command registry composition (REQ-001: remove the command).
 
 ## Scope
 
-- Delete one TypedDict field. Line 31 only.
+- Delete the docstring line, the import, and the base class entry. Only the three `_SkillMixin` mentions (lines 22, 43, 66).
 
 ## Assumptions
 
@@ -13,8 +13,8 @@ Remove the `_skill_ephemeral` field from `LLMMessage` (REQ-002: remove skill plu
 
 ## Design decisions
 
-- The field has no reader outside the removed command, the ephemeral key set, and tests (`rg` verified).
-- Do not touch the neighboring `_ephemeral` and `_memory_injected` fields.
+- Remove the mixin from the base-class tuple and its import; do not reorder the remaining mixins.
+- Update the file docstring's mixin list, which is marked as kept in sync.
 
 ## Alternatives considered
 
@@ -24,23 +24,23 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`scripts/shared/types.py`
+`scripts/agent/commands/registry.py`
 
 ### Procedure
 
-Delete the `_skill_ephemeral: bool` line and its trailing comment.
+Remove the `cmd_skill.py — _SkillMixin: /skill commands` docstring line, `from agent.commands.cmd_skill import _SkillMixin`, and the `_SkillMixin,` base class entry.
 
 ### Method
 
-Locate with `rg -n '_skill_ephemeral' scripts/shared/types.py`.
+Locate with `rg -n 'Skill|cmd_skill' scripts/agent/commands/registry.py`; edit by symbol, then run `uv run ruff format` on the file.
 
 ### Details
 
-`shared.types` is widely imported, but only a TypedDict key is removed, so no importer changes.
+The class's remaining mixin order is unchanged, so method resolution for other commands is unchanged.
 
 ## Compatibility considerations
 
-TypedDict key removal; code that never set the key is unaffected.
+No public API change: `CommandRegistry` loses only `_cmd_skill`.
 
 ## Security considerations
 
@@ -52,26 +52,26 @@ N/A: revert the commit; apply procedures 01-06 and 07-11 as one commit unit
 
 ## Validation plan
 
+- `uv run pytest tests/agent/commands/test_command_registry_consistency.py -q` passes.
 - `uv run mypy --no-namespace-packages scripts/` shows no new error.
-- `rg -n '_skill_ephemeral' scripts` has no match.
 
 ## Completion criteria
 
-- `LLMMessage` has no `_skill_ephemeral` field.
-- mypy reports no new error.
+- `registry.py` contains no `skill` mention.
+- Registry consistency test passes.
 
 ## Out of scope
 
-- Other `LLMMessage` fields and `shared/types.py` content.
+- Other mixins, `_COMMANDS` ownership text, docs.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the field | Pending | — | — | |
-| 2 | Run the tests that cover this file (updated by procedures 07-11) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the three mixin mentions | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the tests that cover this file (updated by procedures 07-11) | Completed | 20261014-094631 | 20261014-094631 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-094631 | 20261014-094631 | scope amendment approved by user: tests/agent/commands/test_command_registry_consistency.py mixin counts updated to 13 total / 11 direct |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -85,10 +85,10 @@ N/A: revert the commit; apply procedures 01-06 and 07-11 as one commit unit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002
+- **Requirement ID**: REQ-001
 - **Source issue**: issues/20261014-090429_skill001_remove-the-skill-slash-command-and-its-ephemeral-plumbing.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: scripts/shared/types.py
+- **Related target files**: scripts/agent/commands/registry.py

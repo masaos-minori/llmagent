@@ -48,7 +48,7 @@ List of major common types (refer to code for details):
 
 ## 3. `LLMMessage` (`shared/types.py`)
 
-A `TypedDict` containing field categories: `role` (required), `content`/`tool_calls` (conditional based on role), `importance`/`pinned` (compression), `_ephemeral`/`_skill_ephemeral`/`_memory_injected` (lifecycle), and `source` (validation). It inherits from `_LLMMessageRequired(TypedDict)` to isolate `role` as a required field. (Explicit in code)
+A `TypedDict` containing field categories: `role` (required), `content`/`tool_calls` (conditional based on role), `importance`/`pinned` (compression), `_ephemeral`/`_memory_injected` (lifecycle), and `source` (validation). It inherits from `_LLMMessageRequired(TypedDict)` to isolate `role` as a required field. (Explicit in code)
 
 Auxiliary `TypedDict`s for representing tool call deltas during streaming (`ToolCallFunctionDelta`, `ToolCallDelta`, `AccumulatedToolCall`, etc.) are also defined here. (Explicit in code — `scripts/shared/types.py`)
 

@@ -164,7 +164,7 @@ Prompt injection responsibility is distributed across layers:
 | Boundary Crossing | Responsible Layer | Mechanism |
 |---|---|---|
 | User input → Agent | Agent | Message structure validation when appended to history (disallowed keys are stripped); user-input content is not filtered for injection patterns |
-| Agent → LLM | Agent | Three kinds of content enter system-role messages: memory snippets (a `--- USER MEMORY ---` block, PII-redacted and length-limited by `snippet_filter.py`), fixed MDQ/RAG routing hints, and `/skill` content (the skill file plus the user-supplied invocation arguments, as an ephemeral message). Ephemeral markers are accepted only from trusted sources; the `/skill` arguments are not filtered for injection patterns (Explicit in code — `scripts/agent/conversation_state_manager.py`, `scripts/agent/commands/cmd_skill.py`, `scripts/agent/memory/snippet_filter.py`) |
+| Agent → LLM | Agent | Two kinds of content enter system-role messages: memory snippets (a `--- USER MEMORY ---` block, PII-redacted and length-limited by `snippet_filter.py`) and fixed MDQ/RAG routing hints. Ephemeral markers are accepted only from trusted sources (Explicit in code — `scripts/agent/conversation_state_manager.py`, `scripts/agent/memory/snippet_filter.py`) |
 | LLM output → Tool args | Agent | `validate_tool_arguments()` in `agent_06_01`; schema validation |
 | Tool args → MCP server | MCP | Path allowlist, command allowlist, schema validation |
 | RAG ingestion → Vector store | RAG ingestion | `sanitize_document()` in `rag_03_05` removes scripts, iframes, suspicious patterns |

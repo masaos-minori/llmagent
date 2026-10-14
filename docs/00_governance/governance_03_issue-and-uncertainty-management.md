@@ -95,7 +95,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 |----|-------|--------|----------|------|------|
 | AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
 | AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
-| AGENT-009 | /skill messages lose the _ephemeral marker during append validation | open | Low | Agent | design-gap |
 | AGENT-010 | The workflow loader requires require_approval=true although ADR-001 allows skipping approval | open | Medium | Agent | document-code-mismatch |
 | AGENT-011 | The Agent startup security audit reads MCP server configuration models outside ADR-002's exceptions | open | Medium | Agent | document-code-mismatch |
 | AGENT-012 | Agent statistics and health members are defined but never reached | open | Low | Agent | design-gap |
@@ -143,27 +142,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Original messages cannot be recovered after compression.
 - **Recommended Action**: Keep originals recoverable, or record the limitation as accepted.
 - **Resolution Target**: The undo range after compression is defined and tested, or the limitation is recorded as accepted.
-
-#### AGENT-009
-
-- **ID**: AGENT-009
-- **Title**: /skill messages lose the _ephemeral marker during append validation
-- **Status**: open
-- **Severity**: Low
-- **Area**: Agent
-- **Type**: design-gap
-- **Source**: `scripts/agent/commands/cmd_skill.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md`
-- **Related**: None
-- **Summary**: The `/skill` message carries `_ephemeral` and `_skill_ephemeral`, but only `_skill_ephemeral` survives history validation.
-- **Current Description**: Documented only as a chapter-level Known Limitation in the CLI skill-command chapter.
-- **Observed Implementation**: `TRUSTED_SOURCES["skill_mixin"]` authorizes only `_skill_ephemeral`, so `append_message()` removes `_ephemeral` with a warning log.
-- **Impact**: The orchestrator's generic `_ephemeral` pre-turn clearing does not remove injected skill messages at the start of the next turn.
-- **Recommended Action**: Authorize `_ephemeral` for the skill source, or make the pre-turn clearing also handle `_skill_ephemeral`, or record the behavior as accepted.
-- **Resolution Target**: Skill messages are cleared by one defined mechanism, with a test, or the behavior is recorded as accepted.
-
 
 #### DEPLOY-001
 

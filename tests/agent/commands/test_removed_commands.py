@@ -46,3 +46,16 @@ class TestRemovedNoteCommand:
 
         command_names = {cmd.name for cmd in _COMMANDS}
         assert "/note" not in command_names, "/note should not be a registered command"
+
+
+class TestRemovedSkillCommand:
+    """Verify /skill is not registered as a built-in command."""
+
+    def test_skill_not_in_registry(self) -> None:
+        """/skill is not registered as a built-in command."""
+        from agent.commands.registry import _COMMANDS
+
+        command_names = {cmd.name for cmd in _COMMANDS}
+        assert "/skill" not in command_names, (
+            "/skill should not be a registered command"
+        )

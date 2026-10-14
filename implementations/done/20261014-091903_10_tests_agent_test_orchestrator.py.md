@@ -1,10 +1,10 @@
 ## Goal
 
-Delete the `/skill` command tests (REQ-003: update tests).
+Remove `_skill_ephemeral` cases from the orchestrator clearing tests (REQ-003: update tests).
 
 ## Scope
 
-- Delete the file. Only this test file.
+- Edit one test, delete one test, change one fixture key. `TestClearPreviousTurnEphemeralMessages` only (lines 1567-1630).
 
 ## Assumptions
 
@@ -13,7 +13,8 @@ Delete the `/skill` command tests (REQ-003: update tests).
 
 ## Design decisions
 
-- The whole file tests the removed command (25 matches, imports `agent.commands.cmd_skill`).
+- Keep `test_removes_ephemeral_memory_injected_and_skill_ephemeral_messages` but drop its `_skill_ephemeral` history entry (line 1575) and rename it to `test_removes_ephemeral_and_memory_injected_messages` (new).
+- Delete `test_skill_ephemeral_only_message_removed_without_other_ephemeral_keys` (1581). In the mixed-role test, change the assistant message key at line 1624 from `_skill_ephemeral` to `_memory_injected` so the assistant-role coverage stays.
 
 ## Alternatives considered
 
@@ -23,19 +24,19 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`tests/agent/commands/test_cmd_skill.py`
+`tests/agent/test_orchestrator.py`
 
 ### Procedure
 
-Delete `tests/agent/commands/test_cmd_skill.py` with `git rm`.
+Apply the three edits in Design decisions.
 
 ### Method
 
-No edit.
+Edit by test name; the expected remaining history in each test is unchanged because the removed entries were cleared in the original expectation.
 
 ### Details
 
-The replacement guard is the new test in procedure 11.
+The deleted test's docstring references a past requirement fix that no longer applies once the key is gone.
 
 ## Compatibility considerations
 
@@ -51,25 +52,26 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/agent/commands/ -q` passes with no collection error.
+- `uv run pytest tests/agent/test_orchestrator.py -q` passes.
+- `rg -n 'skill' tests/agent/test_orchestrator.py` has no match.
 
 ## Completion criteria
 
-- The file does not exist.
-- No test imports `cmd_skill`.
+- No skill reference remains.
+- The class still covers `_ephemeral`, `_memory_injected`, role mix, and empty history.
 
 ## Out of scope
 
-- Other test files.
+- Other orchestrator tests.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the file | Pending | — | — | |
-| 2 | Run the affected tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Edit and delete the skill cases | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the affected tests | Completed | 20261014-094631 | 20261014-094631 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,4 +91,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: tests/agent/commands/test_cmd_skill.py
+- **Related target files**: tests/agent/test_orchestrator.py

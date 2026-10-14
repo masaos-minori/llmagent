@@ -66,7 +66,6 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 | `/audit` | Browse audit log events |
 | `/approve` | Approve the pending workflow task |
 | `/reject` | Reject the pending workflow task |
-| `/skill` | List skills or load a skill as ephemeral system context |
 | `/mdq` | Markdown query operations (status, index, search, outline, etc.) |
 
 ### Adding New Commands

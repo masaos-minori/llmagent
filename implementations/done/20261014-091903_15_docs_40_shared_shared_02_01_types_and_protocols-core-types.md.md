@@ -1,10 +1,10 @@
 ## Goal
 
-Remove Known Issue AGENT-009 from the ledger (REQ-004: update documentation).
+Remove `_skill_ephemeral` from the core types lifecycle list (REQ-004: update documentation).
 
 ## Scope
 
-- Delete one table row and one detail entry. AGENT-009 row (line 98) and `#### AGENT-009` entry (143-160) only.
+- Edit one phrase on line 51. The lifecycle list on line 51 only.
 
 ## Assumptions
 
@@ -13,8 +13,7 @@ Remove Known Issue AGENT-009 from the ledger (REQ-004: update documentation).
 
 ## Design decisions
 
-- Run `git fetch` and rebase first: this file had 89 commits in 30 days (Plan Risks).
-- Ledger convention: a resolved item is removed, not kept closed (governance_03 line 59); do not add a replacement note.
+- Result: `_ephemeral`/`_memory_injected` (lifecycle).
 
 ## Alternatives considered
 
@@ -24,19 +23,19 @@ N/A: the docs follow the code removal
 
 ### Target file
 
-`docs/00_governance/governance_03_issue-and-uncertainty-management.md`
+`docs/40_shared/shared_02_01_types_and_protocols-core-types.md`
 
 ### Procedure
 
-Delete the table row and the whole `#### AGENT-009` section through the blank line before the next heading.
+Delete `/`_skill_ephemeral`` from the lifecycle list in the `LLMMessage` description.
 
 ### Method
 
-Edit with the Edit tool; afterward `rg -n 'AGENT-009' docs scripts tests tools` must be empty. Do not hard-code any item count.
+Edit with the Edit tool.
 
 ### Details
 
-Run `check_known_deviation_sync.py` and `check_issue_inventory_conformance.py`.
+Keep the trailing `(Explicit in code)` marker.
 
 ## Compatibility considerations
 
@@ -52,23 +51,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run python tools/check_known_deviation_sync.py`, `check_issue_inventory_conformance.py`, `check_docs_quality.py`, `check_docs_structure.py` pass.
+- `check_docs_quality.py` and `check_docs_consistency.py --domain agent` pass.
+- `rg -n 'skill' <this file>` has no match.
 
 ## Completion criteria
 
-- AGENT-009 appears nowhere in the ledger or other docs.
+- The phrase no longer names `_skill_ephemeral`.
 
 ## Out of scope
 
-- Other ledger entries.
+- Other type descriptions.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fetch and rebase, then delete the row and entry | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Edit the phrase | Completed | 20261014-094631 | 20261014-094631 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261014-094631 | 20261014-094631 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -88,4 +88,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261014-091322_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-091903
-- **Related target files**: docs/00_governance/governance_03_issue-and-uncertainty-management.md
+- **Related target files**: docs/40_shared/shared_02_01_types_and_protocols-core-types.md
