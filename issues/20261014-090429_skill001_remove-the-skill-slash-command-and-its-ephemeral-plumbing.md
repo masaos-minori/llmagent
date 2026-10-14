@@ -48,7 +48,7 @@ Docs and governance:
 - `routing.md` (the `/skill <name> [args]` sentence in the header; not in memo2)
 - `docs/23_agent/agent_07_03_*` (command row), `agent_07_10_*` (title/Purpose, Skill Category section, Responsibility Boundary, Known Limitations, Keywords)
 - `docs/40_shared/shared_02_01_*`, `docs/91_security/security_01_*`
-- `docs/00_governance/governance_03_*` (AGENT-009 table row and detail entry; ledger goes from 6 to 5 active items)
+- `docs/00_governance/governance_03_*` (AGENT-009 table row and detail entry; the active-item count drops by one)
 - `tools/check_compat_shims.py` and `tests/tools/test_check_compat_shims.py` (see Constraints)
 
 Checked and needing no change: `agent_07_01_*`, `agent_04_01_*`, `agent_13_*` (no skill references), `orchestrator.py`, `tools/TOOL_DESCRIPTIONS.md`.
