@@ -51,7 +51,7 @@ _COMMANDS: list[CommandDef] = [
         prefix=False,
         is_async=False,
         handler="_cmd_context",
-        help="Runtime context state (messages, chars, compression, system prompt)",
+        help="Runtime context state: history amount, budget, mode and pending-approval state",
     ),
     CommandDef(
         name="/plan",
@@ -117,7 +117,7 @@ _COMMANDS: list[CommandDef] = [
         prefix=True,
         is_async=False,
         handler="_cmd_history",
-        help="[n]  Show last N user/assistant messages (default: 5)",
+        help="[n]  Show the content of recent user/assistant messages (default: 5)",
     ),
     CommandDef(
         name="/system",

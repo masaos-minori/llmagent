@@ -50,7 +50,7 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 | `/help` | Show the command help |
 | `/config` | Show the current configuration and config file paths |
 | `/stats` | Show session statistics |
-| `/context` | Show the runtime context state |
+| `/context` | Show history amount, budget, mode and pending-approval state |
 | `/plan` | Toggle plan mode |
 | `/undo` | Roll back the last user+assistant turn |
 | `/reload` | Reload config files and apply runtime-configurable parameters |
@@ -59,7 +59,7 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 | `/mcp` | Show MCP server status, tool list and connectivity |
 | `/session` | Manage sessions and session database maintenance |
 | `/clear` | Reset conversation history, optionally starting a new session |
-| `/history` | Show recent user/assistant messages |
+| `/history` | Show the content of recent user/assistant messages |
 | `/system` | Switch the system prompt preset |
 | `/memory` | Manage long-term memory entries |
 | `/debug` | Toggle debug mode / log level |
