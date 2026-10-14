@@ -24,7 +24,7 @@ from agent.memory.count_ops import (
 from agent.memory.pin_ops import pin, unpin
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry
-from agent.memory.write_ops import add, clear_by_session, delete, upsert
+from agent.memory.write_ops import add, delete, upsert
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -253,25 +253,6 @@ class TestDelete:
             "SELECT memory_id FROM memories WHERE memory_id=?", (entry.memory_id,)
         ).fetchall()
         assert rows == []
-
-
-# ── clear_by_session() ───────────────────────────────────────────────────────
-
-
-class TestClearBySession:
-    def test_clear_removes_only_matching_session(
-        self, store: MemoryStore, db_conn: sqlite3.Connection
-    ) -> None:
-        add(_make_entry(session_id=1))
-        add(_make_entry(session_id=2, memory_type="episodic"))
-        count = clear_by_session(1)
-        assert count == 1
-        remaining = db_conn.execute("SELECT session_id FROM memories").fetchall()
-        assert len(remaining) == 1
-        assert remaining[0][0] == 2
-
-    def test_clear_empty_returns_zero(self, store: MemoryStore) -> None:
-        assert clear_by_session(99) == 0
 
 
 # ── search_by_type() ─────────────────────────────────────────────────────────

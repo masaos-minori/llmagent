@@ -3,7 +3,7 @@
 
 Read-only CRUD layer for the memories / memories_fts / memories_vec SQLite tables.
 
-Write operations (add, upsert, delete, clear_by_session) are in write_ops module.
+Write operations (add, upsert, delete) are in write_ops module.
 
 Responsibilities:
   - search_by_type()   : Filter memories by memory_type (semantic|episodic)
@@ -32,7 +32,7 @@ _MEMORY_COLUMNS = """memory_id, memory_type, source_type, session_id, turn_id,
 class MemoryStore:
     """CRUD operations for memories, memories_fts, and memories_vec tables.
 
-    Write operations (add, upsert, delete, clear_by_session) are delegated to
+    Write operations (add, upsert, delete) are delegated to
     the write_ops module.
     """
 

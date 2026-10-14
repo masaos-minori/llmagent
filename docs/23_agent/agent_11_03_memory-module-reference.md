@@ -61,7 +61,7 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 - When `EmbeddingClient.enabled=False`, `fetch()` returns `EmbeddingResult(success=False, error_kind=DISABLED)` immediately without making an HTTP call.
 - If embedding retrieval fails, processing continues and the entry is saved without embeddings (`stat_embed_skip` counter increases).
-- `JsonlMemoryStore` is an append-only archive. Deletions and changes to pin/unpin status are not replayed.
+- `JsonlMemoryStore` is an append-only archive of memory lines and change events (`delete`, `pin`, `unpin`); lines without an `event` field are memory lines, and existing lines are never rewritten.
 - Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but manual writes intentionally bypass this deduplication.
 - After retrieving embeddings, KNN nearest neighbors are searched; if an existing entry is found that is closer than the threshold for its `source_type`, the new entry is discarded (SKIP_NEW).
 - If writing to JSONL fails with `OSError`, a warning is logged and processing continues (not treated as a fatal error since SQLite is the source of truth).
@@ -75,6 +75,8 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 ### Core and Store
 
 - Write operations are in `write_ops.py`; read operations are in `store.py`.
+- There is no session-scoped memory deletion: memory is independent of the source session, so rows are removed only per memory (`delete`) or by retention (`/memory prune`).
+- Retrieval for injection excludes memories whose provenance `session_id` equals the current session, because that session's restored history is already in context.
 - Chunk splitting occurs for content exceeding `memory_max_content_chars`. This is a limit per chunk, not on total content volume.
 
 ### Retrieval and Injection
@@ -93,7 +95,7 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 ### Ops and Scoring
 
-- `import_from_jsonl()` imports entries from a JSONL archive into SQLite. Deletions and changes to pin/unpin status are not replayed.
+- `import_from_jsonl()` replays the JSONL archive in order to compute the final state (memory lines add or overwrite, `delete` removes, `pin` / `unpin` update `pinned`, unparsable lines are skipped with a warning) and imports that state into SQLite.
 - Use `rebuild_fts()` to rebuild the FTS5 index and `rebuild_vec()` to rebuild the vector index.
 
 ## Known Limitations

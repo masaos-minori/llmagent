@@ -119,20 +119,3 @@ def delete(memory_id: str) -> bool:
             )
         db.commit()
     return deleted
-
-
-def clear_by_session(session_id: int) -> int:
-    """Delete all entries for session_id; return count deleted."""
-    with SQLiteHelper("session").open(write_mode=True) as db:
-        rows = db.fetchall(
-            "SELECT memory_id FROM memories WHERE session_id = ?",
-            (session_id,),
-        )
-        cur = db.execute("DELETE FROM memories WHERE session_id = ?", (session_id,))
-        for row in rows:
-            mid = row[0]
-            db.execute("DELETE FROM memories_fts WHERE memory_id = ?", (mid,))
-            db.execute("DELETE FROM memories_vec WHERE memory_id = ?", (mid,))
-        count: int = cur.rowcount
-        db.commit()
-    return count

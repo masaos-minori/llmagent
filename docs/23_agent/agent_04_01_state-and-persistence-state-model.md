@@ -83,8 +83,28 @@ AgentSession (session.sqlite: sessions + messages)
 - During a session, `history` is the source of truth.
 - The database is a persistent backup.
 - `session load <id>` subcommand reconstructs `ctx.conv.history` from the database.
-- `delete_last_turn()` deletes the last (up to 2) rows from the DB.
-- `undo_last_turn()` deletes everything after the last `role='user'` message.
+- `undo_last_turn()` deletes everything from the last `role='user'` message after the compression boundary; messages at or before the boundary are never deleted. The DB deletion succeeds before the in-memory history is changed.
+
+### Session and Memory Responsibility Boundary
+
+A session is responsible for restoring a conversation. Long-term memory is
+responsible for reusing knowledge across sessions.
+
+- `sessions` and `messages` preserve conversation history for `/session load`.
+- `memories`, `memories_fts`, `memories_vec`, and `memory_links` preserve
+  reusable knowledge extracted from conversations.
+- Deleting or purging a session deletes its conversation history but does not
+  delete memories extracted from that session.
+- `memories.session_id` is provenance metadata, not an ownership relationship.
+  It may refer to a session that has already been deleted and has no foreign-key
+  constraint to `sessions`.
+- `/undo`, history compression, `/session load`, `/session delete`, and
+  `/session purge` do not modify long-term memory.
+- Long-term memory is modified only by memory ingestion and `/memory` operations.
+- `/session export` exports conversation history only. Memory backup and
+  recovery use the JSONL archive and `/memory rebuild`.
+
+Lifetimes differ: `ctx.conv.history` is session-scoped and is restored from `messages`. The memory injection message is a temporary system context for one turn; it is never persisted to `messages`, is not restored by `/session load`, and is removed when the turn ends. Deduplication between restored history and injected memory belongs to memory injection, which skips memories whose provenance `session_id` equals the current session; the session side has no deduplication duty.
 
 ## Key Constraints
 

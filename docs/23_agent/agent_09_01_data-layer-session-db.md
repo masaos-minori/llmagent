@@ -37,9 +37,11 @@ Documents the responsibility scope of the Session DB, data ownership boundaries,
 
 Session messages are persisted only through `SessionMessageRepository` over `SQLiteHelper`; it owns role validation, `strict_mode`, content normalization and `tool_calls` JSON encoding.
 
+`replace_messages()` writes the compressed snapshot and updates the `/undo` compression boundary (`sessions.undo_floor_message_id`) in the same transaction, so the boundary and the snapshot never diverge. The boundary is a `messages` row ID, which keeps it valid after `/session load`.
+
 ### Session Retention Policy
 
-`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`. The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
+`db/maintenance.py`'s `purge_old_sessions()` deletes old sessions based on `RetentionConfig`, following an age-based then count-based order. Deleting a session propagates to `messages` via `ON DELETE CASCADE`, but never to memory tables; memory retention is independent and is applied only by `/memory prune`. The purge runs only on demand (`/session purge`); no scheduler invokes it automatically. (Explicit in code — `scripts/agent/commands/cmd_session.py`, `scripts/agent/services/db_maintenance_service.py`)
 
 ### Memory Table Ownership
 
@@ -53,7 +55,11 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 | SQLite: `memory_links` | Same DB | Many-to-many links between memories |
 | SQLite: `memories_vec` | Same DB | KNN embeddings for any vector search |
 
-**Design judgment:** The SQLite memory tables are the source of truth for the current memory state. JSONL is maintained as an append-only archive for import/export and disaster recovery. Deletions and changes to pin/unpin status are NOT replayed from JSONL.
+`memories.session_id` records the source session of a memory for provenance.
+It does not establish ownership and intentionally has no foreign-key constraint
+to `sessions`. The value is retained after the source session is deleted.
+
+**Design judgment:** The SQLite memory tables are the source of truth for the current memory state. JSONL is maintained as an append-only archive for import/export and disaster recovery. Deletes and pin changes are recorded as change events in the JSONL archive and replayed by `/memory rebuild`; those made before change events were recorded are not reproduced.
 
 ### Role of `session_diagnostics`
 
@@ -76,7 +82,7 @@ When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
 - Valid roles for the `messages` table: `user` / `assistant` / `tool` / `system` — `diagnostic` is **NOT** a valid role.
 - Diagnostic events are persisted ONLY in the `session_diagnostics` table.
-- JSONL is an append-only archive — deletions and state changes are NOT replayed.
+- JSONL is an append-only archive of memory lines and change events (delete, pin, unpin); existing lines are never rewritten.
 
 ## Known Limitations
 

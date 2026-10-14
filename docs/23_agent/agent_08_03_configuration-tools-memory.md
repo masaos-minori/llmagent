@@ -106,7 +106,8 @@ identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
 - `memory_fts_limit`: Upper limit of FTS5 candidates before re-ranking.
 - `memory_rrf_k`: RRF fusion constant.
 - `memory_recency_days`: Window for recency boost (days).
-- `memory_retention_days`: Retention period (days).
+- `memory_retention_days`: Default number of days for `/memory prune`. Memories are never deleted automatically.
+- `memory_max_pinned`: Upper limit of pinned memories (default 10).
 
 #### Deduplication
 

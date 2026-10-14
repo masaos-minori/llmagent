@@ -99,5 +99,4 @@ Generated from `scripts/agent/memory/*.py` top-level public classes and function
 | `scripts/agent/memory/write_ops.py` | `add` | `def add(entry, embedding, embed_dim) -> None` | Insert a new MemoryEntry; sets created_at/updated_at if empty. |
 |  | `upsert` | `def upsert(entry, embedding, embed_dim) -> None` | Insert or replace a MemoryEntry; updates updated_at. |
 |  | `delete` | `def delete(memory_id) -> bool` | Delete one entry by memory_id; return True when found and deleted. |
-|  | `clear_by_session` | `def clear_by_session(session_id) -> int` | Delete all entries for session_id; return count deleted. |
 <!-- END AUTO-GENERATED -->

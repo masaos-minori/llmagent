@@ -33,6 +33,15 @@ create_schema()
 - **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8d) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
 - Embedding dimension is a fixed code-level constant returned by `scripts/db/store_protocols.py::get_embedding_dims()`, not a config key.
 
+### Recreating `session.sqlite`: Session and Memory Recovery
+
+Recreating `session.sqlite` physically removes both sessions and memories, but they are recovered by different paths:
+
+1. Export any conversation worth keeping with `/session export` before recreating.
+2. Recreate `session.sqlite` (Archive → Delete → Recreate).
+3. Recover memory only, from the JSONL archive, with `/memory rebuild`.
+4. Past session history is not restored into the database; `/memory rebuild` does not recover sessions and `/session export` output is for human reference only.
+
 ### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)
 
 The principle that "rag/session do not support backward-compatible migrations" applies only to those two databases. `workflow.sqlite` is an exception, as `db/schema_sql.py` implements a dedicated incremental migration mechanism.

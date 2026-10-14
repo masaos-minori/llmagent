@@ -27,12 +27,13 @@ def _make_entry(
     memory_type: str = "semantic",
     content: str = "test content",
     importance: float = 0.7,
+    session_id: int | None = 1,
 ) -> MemoryEntry:
     return MemoryEntry(
         memory_id="test-id",
         memory_type=memory_type,
         source_type="rule",
-        session_id=1,
+        session_id=session_id,
         turn_id=None,
         project="proj",
         repo="repo",
@@ -149,7 +150,7 @@ class TestOnUserPrompt:
         mock_embed.fetch = AsyncMock(
             return_value=EmbeddingResult(success=False, error_kind="disabled")
         )
-        snippets = await svc.on_user_prompt("some query", session_id=1)
+        snippets = await svc.on_user_prompt("some query", session_id=99)
         assert len(snippets) == 2
         assert any("Semantic" in s.text for s in snippets)
         assert any("Episodic" in s.text for s in snippets)
@@ -167,7 +168,7 @@ class TestOnUserPrompt:
         mock_embed.fetch = AsyncMock(
             return_value=EmbeddingResult(success=False, error_kind="disabled")
         )
-        snippets = await svc.on_user_prompt("some query", session_id=1)
+        snippets = await svc.on_user_prompt("some query", session_id=99)
         assert len(snippets) == 1
         assert "[REDACTED_PHONE]" in snippets[0].text
         assert "555-123-4567" not in snippets[0].text
@@ -183,7 +184,7 @@ class TestOnUserPrompt:
         mock_embed.fetch = AsyncMock(
             return_value=EmbeddingResult(success=False, error_kind="disabled")
         )
-        snippets = await svc.on_user_prompt("some query", session_id=1)
+        snippets = await svc.on_user_prompt("some query", session_id=99)
         assert len(snippets) == 1
         assert "...[truncated]" in snippets[0].text
 
@@ -193,7 +194,7 @@ class TestOnUserPrompt:
 
         svc, _, _ = _make_injection_svc()
         with pytest.raises(InjectionValidationError):
-            await svc.on_user_prompt("   ", session_id=1)
+            await svc.on_user_prompt("   ", session_id=99)
 
     @pytest.mark.asyncio
     async def test_raises_on_retriever_error(self) -> None:
@@ -203,7 +204,7 @@ class TestOnUserPrompt:
             return_value=EmbeddingResult(success=False, error_kind="disabled")
         )
         with pytest.raises(Exception, match="db error"):
-            await svc.on_user_prompt("query", session_id=1)
+            await svc.on_user_prompt("query", session_id=99)
 
     @pytest.mark.asyncio
     async def test_returns_empty_when_no_matches(self) -> None:
@@ -212,7 +213,41 @@ class TestOnUserPrompt:
         mock_embed.fetch = AsyncMock(
             return_value=EmbeddingResult(success=False, error_kind="disabled")
         )
-        assert await svc.on_user_prompt("nothing here", session_id=1) == []
+        assert await svc.on_user_prompt("nothing here", session_id=99) == []
+
+    @pytest.mark.asyncio
+    async def test_excludes_memories_from_current_session(self) -> None:
+        svc, mock_ret, mock_embed = _make_injection_svc()
+        same = _make_entry(memory_type="semantic", content="same origin", session_id=7)
+        other = _make_entry(
+            memory_type="semantic", content="other origin", session_id=8
+        )
+        deleted_source = _make_entry(
+            memory_type="episodic", content="deleted source", session_id=404
+        )
+        mock_ret.search.side_effect = [
+            [MemoryHit(entry=same, score=1.0), MemoryHit(entry=other, score=0.9)],
+            [MemoryHit(entry=deleted_source, score=0.8)],
+        ]
+        mock_embed.fetch = AsyncMock(
+            return_value=EmbeddingResult(success=False, error_kind="disabled")
+        )
+        snippets = await svc.on_user_prompt("query", session_id=7)
+        texts = " ".join(s.text for s in snippets)
+        assert "same origin" not in texts
+        assert "other origin" in texts
+        assert "deleted source" in texts
+
+    @pytest.mark.asyncio
+    async def test_keeps_all_memories_when_session_id_unknown(self) -> None:
+        svc, mock_ret, mock_embed = _make_injection_svc()
+        entry = _make_entry(memory_type="semantic", content="kept", session_id=7)
+        mock_ret.search.side_effect = [[MemoryHit(entry=entry, score=1.0)], []]
+        mock_embed.fetch = AsyncMock(
+            return_value=EmbeddingResult(success=False, error_kind="disabled")
+        )
+        snippets = await svc.on_user_prompt("query", session_id=None)
+        assert len(snippets) == 1
 
 
 # ── on_session_stop() ────────────────────────────────────────────────────────

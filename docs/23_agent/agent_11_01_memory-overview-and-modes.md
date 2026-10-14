@@ -27,6 +27,14 @@ The memory layer is **optional**. Since RAG already provides search capabilities
 
 It separates semantic memory (long-term rules/decisions) from episodic memory (session-specific failures/Q&A). This is due to differences in injection timing and search strategies. Semantic memory is filtered by an importance threshold and injected into the initial system prompt at session start; on every user prompt, both semantic and episodic memory are retrieved via hybrid search and injected as an ephemeral system message for that turn.
 
+### Independence from Conversation Sessions
+
+Long-term memory has a lifecycle independent from conversation sessions.
+Deleting, purging, loading, exporting, undoing, or compressing a session does
+not modify memory. Memory deletion and retention are controlled only through
+`/memory delete`, `/memory prune`, and the memory ingestion/recovery process.
+The canonical statement of the session/memory boundary is in agent_04_01.
+
 ## Responsibility Boundary
 
 - **Memory Layer owns:** Cross-session context restoration (rules, decisions, failure patterns, conversation Q&A).
@@ -77,7 +85,7 @@ Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.
 
 - Set `memory_local_only = true` if data must not leave the machine.
 - Current mode can be checked with `/memory status` (Hybrid / FTS-only / Degraded / Disabled).
-- `/memory rebuild` imports records from the JSONL archive; delete/pin/unpin operations are not replayed, so deleted entries may be re-inserted (Explicit in code — `scripts/agent/commands/memory_rebuild_ops.py`). It is a dry run by default; `--confirm` applies the rebuild.
+- JSONL records memory entries and change events (delete, pin, unpin); `rebuild` replays them. `/memory rebuild` is a dry run by default; `--confirm` applies it, `--allow-loss` is required when memories exist only in SQLite, and a backup of the current `memories` rows is written first. Deletes and pin changes made before change events were recorded are not reproduced.
 
 ## Known Limitations / Unresolved Issues
 

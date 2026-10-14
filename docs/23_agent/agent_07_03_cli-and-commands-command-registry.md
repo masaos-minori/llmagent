@@ -52,7 +52,7 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 | `/stats` | Show session statistics |
 | `/context` | Show history amount, budget, mode and pending-approval state |
 | `/plan` | Toggle plan mode |
-| `/undo` | Roll back the last user+assistant turn |
+| `/undo` | Roll back the last user+assistant turn added after the last history compression |
 | `/reload` | Reload config files and apply runtime-configurable parameters |
 | `/compact` | Force immediate compression of conversation history |
 | `/diff` | Show diffs for files written/edited this session |
@@ -61,7 +61,7 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 | `/clear` | Reset conversation history, optionally starting a new session |
 | `/history` | Show the content of recent user/assistant messages |
 | `/system` | Switch the system prompt preset |
-| `/memory` | Manage long-term memory entries |
+| `/memory` | Manage long-term memory (status, list, delete, pin, prune, reindex, rebuild) |
 | `/debug` | Toggle debug mode / log level |
 | `/audit` | Browse audit log events |
 

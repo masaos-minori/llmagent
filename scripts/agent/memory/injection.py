@@ -22,6 +22,19 @@ from agent.memory.types import MemoryEntry, MemoryHit, MemoryQuery
 logger = logging.getLogger(__name__)
 
 
+def _exclude_current_session(
+    hits: Sequence[MemoryHit], session_id: int | None
+) -> list[MemoryHit]:
+    """Drop hits extracted from the session whose history is already in context.
+
+    Deduplication belongs to injection, not to the session layer: the restored
+    history already carries the same information.
+    """
+    if session_id is None:
+        return list(hits)
+    return [hit for hit in hits if hit.entry.session_id != session_id]
+
+
 @dataclass(frozen=True)
 class InjectionPolicy:
     """Controls how many semantic/episodic memories are injected per turn."""
@@ -137,7 +150,11 @@ class MemoryInjectionService:
         query: str,
         session_id: int | None,
     ) -> list[MemorySnippet]:
-        """Perform query-based hybrid retrieval for semantic memory injection."""
+        """Perform query-based hybrid retrieval for semantic memory injection.
+
+        Memories whose provenance `session_id` equals the current session are
+        excluded because that session's history is already in context.
+        """
         # Primary task-specific restoration path. Performs query-based hybrid retrieval.
         if not query.strip():
             raise InjectionValidationError("on_user_prompt query must not be empty")
@@ -166,10 +183,14 @@ class MemoryInjectionService:
             branch=self._branch,
         )
         snippets_s = self._build_snippets_from_hits(
-            hits_s, self._policy.format_prefix_semantic, "semantic"
+            _exclude_current_session(hits_s, session_id),
+            self._policy.format_prefix_semantic,
+            "semantic",
         )
         snippets_e = self._build_snippets_from_hits(
-            hits_e, self._policy.format_prefix_episodic, "episodic"
+            _exclude_current_session(hits_e, session_id),
+            self._policy.format_prefix_episodic,
+            "episodic",
         )
         snippets = snippets_s + snippets_e
         if snippets:

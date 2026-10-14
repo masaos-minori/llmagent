@@ -58,6 +58,12 @@ To prevent orphaned records, `delete_document()` enforces a strict deletion orde
 
 **Design judgment:** MCP tools are the recommended and supported route. Direct imports of `sqlite3` for `rag.sqlite` or `mdq.sqlite` are prohibited in standard application code.
 
+### Session and Memory Access Rule
+
+Session operations (`AgentSession`, `SessionMessageRepository`, `/session`, `/undo`) must not call memory operations, and memory operations must not read or modify `sessions` or `messages`. Memory is read for context only through the memory injection path and written only by memory ingestion and `/memory` commands.
+
+**Design judgment:** `memories.session_id` has no foreign key, so the database does not enforce this separation; the access rule does.
+
 ## Responsibility Boundary
 
 - **Canonical Source**: `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`, `scripts/mcp_servers/rag_pipeline/document_manager.py`

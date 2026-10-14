@@ -61,6 +61,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 |---|---|
 | What is the agent? Major components/deps, function signatures | `agent_01` / `agent_02` / `agent_12` |
 | 1-user-turn flow, history compression, persistence vs memory state | `agent_03` / `agent_04` |
+| Session vs memory responsibility boundary (canonical) | `agent_04_01` / `agent_11_01` |
 | SSE streaming, retry, `LLMTransportError` | `agent_05` |
 | Tool execution/approval, `/plan` mode, slash commands, `/reload` | `agent_06` / `agent_07` |
 | Config fields, defaults, control files | `agent_08` |

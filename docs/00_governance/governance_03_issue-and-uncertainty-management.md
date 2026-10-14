@@ -94,7 +94,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 | ID | Title | Status | Severity | Area | Type |
 |----|-------|--------|----------|------|------|
 | AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
-| AGENT-008 | /undo after a compressed session reload can undo fewer turns than expected | open | Low | Agent | design-gap |
 | EVENTBUS-017 | No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency | open | Medium | EventBus | design-gap |
 
 #### AGENT-006
@@ -116,26 +115,6 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 - **Impact**: Other secret shapes can reach logs and reports.
 - **Recommended Action**: Extend the patterns or reuse the shared redaction registry.
 - **Resolution Target**: Registered secrets in subprocess output are masked, tested.
-
-#### AGENT-008
-
-- **ID**: AGENT-008
-- **Title**: /undo after a compressed session reload can undo fewer turns than expected
-- **Status**: open
-- **Severity**: Low
-- **Area**: Agent
-- **Type**: design-gap
-- **Source**: `scripts/agent/services/undo_service.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/23_agent/agent_04_02_state-and-persistence-history-compression.md`
-- **Related**: None
-- **Summary**: Compression replaces original messages with a summary, so fewer turns are undoable.
-- **Current Description**: Documented only as a chapter-level limitation in agent_04_02.
-- **Observed Implementation**: `undo_last_turn()` removes the last turn from history and DB rows and only warns when it removes a summary.
-- **Impact**: Original messages cannot be recovered after compression.
-- **Recommended Action**: Keep originals recoverable, or record the limitation as accepted.
-- **Resolution Target**: The undo range after compression is defined and tested, or the limitation is recorded as accepted.
 
 #### EVENTBUS-017
 

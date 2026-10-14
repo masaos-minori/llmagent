@@ -282,6 +282,20 @@ bash deploy/init_db.sh
 **Upgrade note (workflow schema 1.1.0):** `init_db.sh` migrates an existing `workflow.sqlite`: tasks that were waiting for the removed approval stage are marked failed and the `approvals` table is dropped. Back up `workflow.sqlite` first, run `init_db.sh` before `setup_services.sh` (which rejects a schema-version mismatch), and make sure the workflow definition no longer contains `require_approval` (the loader rejects the key).
 - Records the schema version
 
+**Upgrade note (`/undo` compression boundary):** the `/undo` compression boundary adds `sessions.undo_floor_message_id`. `session.sqlite` has no incremental migration, so the release that introduces the column requires recreating `session.sqlite`; the recreated file is empty, and the memory tables recover separately.
+
+| Step | Action |
+|---|---|
+| 1. Prepare | Export sessions worth keeping with `/session export`; note the pinned memories |
+| 2. Stop | Stop the agent |
+| 3. Archive | Archive every DB with `rotate_all_dbs()` (db_07, DB Recreation Procedure, Step 1) |
+| 4. Delete | Delete only `session.sqlite` (`session_db_path` in `agent.toml`) |
+| 5. Create | Run only `create_session_schema()`; do not touch other DBs |
+| 6. Recover memory | Start the agent and run `/memory rebuild` (dry run first, then `--confirm`; add `--allow-loss` if memories exist only in SQLite). Deletes and pins recorded as change events are reproduced; earlier ones are not |
+| 7. Verify | Confirm `undo_floor_message_id` with `PRAGMA table_info(sessions)` |
+
+Sessions, messages, and diagnostics are not recovered; past sessions can no longer be loaded.
+
 ### 3.2 Deployment Checklist
 
 - [ ] `config/workflows/default.json` exists

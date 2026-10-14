@@ -314,10 +314,10 @@ async def test_b07_import_from_jsonl_after_delete(tmp_path: Path):
     assert json.loads(lines[0])["memory_id"] == memory_id
 
 
-# ── TC-B08: clear_by_session() atomicity ──────────────────────────────────────
+# ── TC-B08: bulk delete atomicity ──────────────────────────────────────
 
 
-def test_b08_clear_by_session_atomicity(tmp_path: Path):
+def test_b08_bulk_delete_atomicity(tmp_path: Path):
     db_path = str(tmp_path / "b08.sqlite")
     _init_wal_db(db_path)
 

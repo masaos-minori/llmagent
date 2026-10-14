@@ -36,7 +36,7 @@ The system overview should answer "what does this agent do" and "how does it fit
 **In scope:**
 - CLI REPL (`python -m agent`, entry point: `scripts/agent/__main__.py`)
 - Communication with MCP tool servers (HTTP)
-- Multi-turn conversation via SQLite session persistence
+- Multi-turn conversation via SQLite session persistence (a session restores a conversation; long-term memory reuses knowledge across sessions)
 - Slash command interface
 - SSE streaming for LLM responses
 

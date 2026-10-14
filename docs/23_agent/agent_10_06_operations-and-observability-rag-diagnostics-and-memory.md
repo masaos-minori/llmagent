@@ -95,6 +95,7 @@ Last retrieval mode     hybrid
 Entries (total)         142
   semantic              89
   episodic              53
+Pinned                  3 / 10
 Embed skip count        8
   source:RULE           34
   source:DECISION       22
@@ -104,7 +105,8 @@ Embed skip count        8
 
 - **Mode** label: `Hybrid mode (semantic + FTS)` | `Memory enabled, embedding disabled (FTS-only)` | `Degraded mode (circuit open, FTS fallback)` | `Memory layer disabled`
 - **Local-only**: `enabled` if `memory_local_only = true` in `config/agent.toml`
-- **FTS fallback count**: Number of sessions where embedding was unavailable and only FTS was used
+- **FTS fallback count**: Number of searches since process start that used FTS only; reset on restart
+- **Pinned**: Number of pinned memories and the limit `memory_max_pinned`
 - **Embed skip count**: Number of entries saved without embedding (due to circuit open or embedding disabled)
 
 ## Graceful Shutdown

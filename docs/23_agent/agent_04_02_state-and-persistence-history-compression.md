@@ -71,8 +71,16 @@ Key behaviors:
 - The in-memory `ctx.conv.history` remains the source of truth for the current session; database persistence serves as a backup for reloads.
 - `/history` and `/session export` continue to operate against `ctx.conv.history`; no changes required.
 - `stat_turns` counter and other in-memory statistics are reset upon reload (existing behavior).
+- Each compression updates the undo boundary (`sessions.undo_floor_message_id`) in the same transaction as the snapshot. Messages at or before the boundary, including the summary and the protected recent turns, cannot be undone.
 
 ## Responsibility Boundary
+
+### Memory Boundary
+
+History compression changes conversation history only. It does not create,
+delete, update, pin, or unpin long-term memory. Memory extraction at session
+end operates on the current compressed history; details already removed by
+compression are not available for extraction.
 
 ### Token Counting
 
@@ -84,11 +92,12 @@ Priority: (1) LLM's `usage.input_tokens` (accurate), (2) `/tokenize` endpoint (a
 |---|---|---|---|---|
 | `ctx.conv.history` | Session | In-memory | Per message (asynchronously, before LLM call) | `/clear` or end of session |
 | `ctx.conv.*` flags | Session | In-memory | — (not persisted) | Session restart |
+| `ctx.conv.undo_floor` | Session | In-memory | Updated at each compression; restored from `sessions` on `/session load` | `/clear` (reset to 0) |
 | `ctx.turn.current_turn_id` | Turn | In-memory | — (not persisted) | End of each turn |
 | `ctx.stats.*` | Session | In-memory | — (reported via `/stats`) | `/clear` |
-| `sessions` table | Persistent | SQLite | Upon session creation; title generated asynchronously during the first turn | `/session delete` |
+| `sessions` table | Persistent | SQLite | Upon session creation; title generated asynchronously during the first turn; compression boundary for `/undo` updated at each compression | `/session delete` |
 | `messages` table | Persistent | SQLite | Every call to `AgentSession.save()` | `/session delete` or `/undo` |
-| Memory JSONL / `memories` table | Persistent | JSONL + SQLite | During memory extraction (asynchronously) | `/memory delete` or `/memory prune` |
+| Memory JSONL / `memories` table | Persistent | JSONL + SQLite | During memory extraction (asynchronously) | `/memory delete` or `/memory prune` (not cleared by `/session delete`) |
 
 ## Key Constraints
 
@@ -107,7 +116,7 @@ Even during fallback truncation, character limits are strictly enforced.
 
 ## Known Limitations
 
-- Known Issue AGENT-008: after reloading a compressed session, `/undo` operates on the compressed DB rows, so fewer turns may be undoable than expected.
+- Memory extraction at session end operates on the current conversation history. Details already removed by history compression are not available for extraction.
 
 ## Keywords
 

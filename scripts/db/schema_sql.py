@@ -110,6 +110,8 @@ _SESSION_SCHEMA_TEMPLATE: str = """
         memory_id   TEXT PRIMARY KEY,
         memory_type TEXT NOT NULL CHECK(memory_type IN ('semantic','episodic')),
         source_type TEXT NOT NULL DEFAULT 'conversation',
+        -- Provenance only. This value may refer to a session that has been deleted.
+        -- It does not establish ownership and has no foreign-key constraint.
         session_id  INTEGER,
         turn_id     TEXT,
         project     TEXT NOT NULL DEFAULT '',

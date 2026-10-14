@@ -53,6 +53,8 @@ DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `w
 
 > **Note:** The Memory layer (`MemoryStore` in `agent/memory/store.py`) uses `SQLiteHelper("session")` and persists to `memories`/`memories_fts`/`memories_vec` tables in `session.sqlite`. It is separate from `rag.sqlite` and independent from the RAG document/chunk embedding store. `JsonlMemoryStore` in `agent/memory/jsonl_store.py` separately archives memory to a non-authoritative append-only JSONL file (for backup/audit purposes). `read_all()` returns all entries; no retention filtering is applied at this layer.
 
+**Logical ownership inside `session.sqlite`:** the file is shared physically, but the tables have separate logical owners. `AgentSession` owns `sessions`, `messages`, and `session_diagnostics`; `MemoryStore` owns `memories`, `memories_fts`, `memories_vec`, and `memory_links`. Session operations never write the memory tables, and memory operations never write the session tables. `memories.session_id` is provenance only (no foreign key), so deleting a session leaves its memories in place. There is no session-scoped memory deletion API: memory rows are removed only by `/memory delete` and `/memory prune`.
+
 ### Session / RAG Responsibility Boundaries
 
 `AgentSession` does not import any modules or methods from the RAG layer. All RAG document operations (ingestion, search, chunk management) are performed via the RAG MCP path. RAG maintenance operations are performed via `RagMaintenanceService` — they do not go through the session object.

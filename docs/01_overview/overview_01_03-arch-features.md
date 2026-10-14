@@ -29,8 +29,8 @@ Details → [`agent_07_01_cli-and-commands-cli-reference.md`](../23_agent/agent_
 
 - RAG Search (MQE + KNN + BM25 + RRF + Rerank + Refiner)
 - MCP Tool Calling (HTTP)
-- Memory Layer (semantic/episodic)
-- Session Persistence & Restoration
+- Memory Layer (semantic/episodic): long-term knowledge reused across sessions, independent of session lifecycle
+- Session Persistence & Restoration: conversation history only; does not include memory
 - Context Compression (LLM Summarization)
 - SSE Streaming
 - Slash Commands

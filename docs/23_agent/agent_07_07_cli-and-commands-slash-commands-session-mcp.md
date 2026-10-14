@@ -31,11 +31,18 @@ Documents the purpose and side effects of slash commands in the Session, MCP, an
 
 ### Session Category
 
-A group of commands for session management and history operations. `/clear new` starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB.
+A group of commands for session management and history operations. `/clear new` starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
 
 #### Session DB operation subcommands
 
 Session subcommands are invoked as `/session <subcmd>`. This includes the maintenance subcommands (`stats`, `health`, `checkpoint`, `vacuum`, `purge`, `recover`, `rag-consistency`, `rag-rebuild-fts`, `rag-rebuild-vec`); see agent_04_03 for the services they call.
+
+### Session and Memory Separation
+
+`/session load`, `/session delete`, `/session export`, and `/session purge`
+operate on conversation sessions and messages only. They never delete or
+restore long-term memory. Memories extracted from a deleted session remain
+available for reuse across later sessions. `/undo` likewise rolls back conversation history only and never deletes or modifies long-term memory.
 
 ### MCP Category
 

@@ -95,12 +95,12 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 ```
 
 **Characteristics:**
-- Append-only: Entries within the file are not modified or deleted (`agent/memory/jsonl_store.py` docstring: "JSONL does NOT record mutations (delete, pin, unpin); SQLite is the authoritative source of truth")
+- Append-only: Existing lines are never modified or deleted. Memory lines carry the full entry; change events (`delete`, `pin`, `unpin`) are separate lines that carry an `event` field, `memory_id`, and a UTC timestamp. SQLite remains the authoritative source of truth.
 - One entry per line. UTF-8 encoded. Each line is valid JSON.
 - File path is controlled by `memory_jsonl_dir` config (Filename: `memories.jsonl`)
 - Non-authoritative: JSONL is an append-only archive; SQLite is the authoritative source of truth.
 
-> **Implementation Note (Explicit in code):** The `jsonl_store.py` docstring explicitly states that SQLite (via `MemoryStore`) is the authoritative source of truth, and JSONL is an append-only archive. `read_all()` is limited to auditing, exporting, and initial import; do NOT use it to rebuild authoritative state. Use `MemoryStore` directly or restore from a SQLite backup. Rebuilding using `import_ops.import_from_jsonl()` is a destructive operation that deletes all rows in `memories` / `memories_fts` / `memories_vec` before re-inserting from JSONL; deletions and pin/unpin changes are not replayed (as they don't exist in the JSONL history). For fixing inconsistencies between FTS/vec and SQLite, use `rebuild_ops.rebuild_fts()` / `rebuild_vec()`.
+> **Implementation Note (Explicit in code):** The `jsonl_store.py` docstring explicitly states that SQLite (via `MemoryStore`) is the authoritative source of truth, and JSONL is an append-only archive. `read_all()` is limited to auditing, exporting, and initial import; do NOT use it to rebuild authoritative state. Use `MemoryStore` directly or restore from a SQLite backup. Rebuilding using `import_ops.import_from_jsonl()` is a destructive operation that deletes all rows in `memories` / `memories_fts` / `memories_vec` / `memory_links` before re-inserting the final state computed by replaying the JSONL lines in order (a `delete` event removes the entry unless a later memory line re-adds it; `pin` / `unpin` update `pinned` when the entry exists; unparsable lines are skipped with a warning). Deletes and pin changes made before change events were recorded are not in the archive and are not reproduced. For fixing inconsistencies between FTS/vec and SQLite, use `rebuild_ops.rebuild_fts()` / `rebuild_vec()`.
 
 ---
 
