@@ -91,6 +91,10 @@ Assert: after `replace_messages()`, `sessions.undo_floor_message_id == MAX(messa
 
 The in-memory `ctx.conv.undo_floor` field (row 04), the restore conversion logic (row 10), and the `/undo` gating (rows 05/07).
 
+## Plan gap
+
+`fetch_messages()` changes from a 2-tuple to a 3-tuple. Existing tests that unpack it as a 2-tuple will break, e.g. `tests/agent/test_regression_undo_artifact.py` (uses `_msgs()` = `messages, found = fetch_messages(...)`). That file is NOT an Implementation Target Files row, so updating it is an additional target-file discovery: report it as `Blocked` / Needs confirmation and add a dedicated row (or get explicit authorization) rather than editing it silently here. Other `_msgs()` callers in `test_agent_session.py` (row 11), `test_session_message_repo.py` (this row), and `test_history_compression_consistency.py` (row 13) are covered by their rows.
+
 ## Execution Status
 
 ### Execution Status
