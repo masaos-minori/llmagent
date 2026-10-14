@@ -160,6 +160,18 @@ class TestCheckCommandDrift:
         assert issues[0].severity == "WARNING"
         assert "/db" in issues[0].message
 
+    def test_log_path_with_command_like_name_is_not_a_reference(
+        self, tmp_path: Path
+    ) -> None:
+        repo_root = tmp_path
+        (repo_root / "scripts" / "agent" / "commands").mkdir(parents=True)
+        (
+            repo_root / "scripts" / "agent" / "commands" / "command_defs_list.py"
+        ).write_text('CommandDef("/help", False, False, "_cmd_help", "help")')
+        doc = _mk_file("05_agent_00_b.md", ["Logs: `<log_dir>/mdq-mcp.log`"])
+        issues = check_command_drift(tmp_path, [doc], repo_root)
+        assert issues == []
+
     def test_historical_marker_line_skipped(self, tmp_path: Path) -> None:
         repo_root = tmp_path
         (repo_root / "scripts" / "agent" / "commands").mkdir(parents=True)

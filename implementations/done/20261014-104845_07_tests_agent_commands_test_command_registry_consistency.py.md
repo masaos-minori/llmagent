@@ -1,10 +1,10 @@
 ## Goal
 
-Add a command-drift test for the log-path false positive (REQ-005: keep docs checks warning-free).
+Update the mixin-count regression test (REQ-002: update tests).
 
 ## Scope
 
-- Add one test method. One method in `TestCheckCommandDrift` (lines 140-186).
+- Change two numbers, one test name, one docstring, and two messages. `TestCommandRegistryMixinCount` only (lines 112-141).
 
 ## Assumptions
 
@@ -13,8 +13,8 @@ Add a command-drift test for the log-path false positive (REQ-005: keep docs che
 
 ## Design decisions
 
-- Build the same temp repo as `test_unregistered_command_is_warning` with `/help` registered, a doc line `Logs: <log_dir>/mdq-mcp.log`, and assert `check_command_drift(...) == []`.
-- Name it `test_log_path_with_command_like_name_is_not_a_reference` (new); keep the existing `/db rag stats` warning test as the positive case.
+- Totals become 12 and 10: docstring `10 direct + 2 nested via _ConfigMixin = 12 total` (lines 114-115), `== 12` with message `Expected 12 *Mixin classes` (lines 129-130), `test_direct_base_mixin_count_is_10` (new) with `== 10` and message `Expected 10 direct *Mixin` (lines 134-141).
+- No docs state these counts, so no doc edit accompanies it.
 
 ## Alternatives considered
 
@@ -24,19 +24,19 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`tests/tools/test_check_agent_docs_consistency.py`
+`tests/agent/commands/test_command_registry_consistency.py`
 
 ### Procedure
 
-Add the method after `test_unregistered_command_is_warning`.
+Apply the edits in Design decisions.
 
 ### Method
 
-Reuse `_mk_file` and the temp-repo setup; run `ruff format` and `ruff check` on the file.
+Edit by test name; run `uv run ruff format` since an assertion message line may reflow.
 
 ### Details
 
-Tests do not depend on the real `_COMMANDS`; they write a temporary `command_defs_list.py`.
+The counts are 13 and 11 before this change because the `/skill` removal already lowered them.
 
 ## Compatibility considerations
 
@@ -52,24 +52,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/tools/test_check_agent_docs_consistency.py -q` passes and the new test fails without procedure 14.
+- `uv run pytest tests/agent/commands/test_command_registry_consistency.py -q` passes with 12 and 10 after procedures 01-03.
 
 ## Completion criteria
 
-- The new test exists and passes.
+- Both count assertions use 12 and 10 and the renamed test passes.
 
 ## Out of scope
 
-- Other drift tests.
+- Other consistency tests.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the test | Pending | — | — | |
-| 2 | Run the tests that cover this file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update counts, name, docstring, messages | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the tests that cover this file | Completed | 20261014-110318 | 20261014-110318 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -83,10 +83,10 @@ N/A: revert the commit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-005
+- **Requirement ID**: REQ-002
 - **Source issue**: issues/20261014-095505_mdq001_remove-the-mdq-slash-command.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: tests/tools/test_check_agent_docs_consistency.py
+- **Related target files**: tests/agent/commands/test_command_registry_consistency.py

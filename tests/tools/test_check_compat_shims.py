@@ -59,6 +59,23 @@ class TestPatternDetection:
         matched = any(re.search(pat, content) for pat in COMPAT_PATTERNS.values())
         assert matched, f"Pattern for '{phrase}' was not detected"
 
+    @pytest.mark.parametrize(
+        ("text", "should_match"),
+        [
+            ("run /mdq status", True),
+            ("`/mdq`", True),
+            ("/opt/llm/db/mdq.sqlite", False),
+            ("mdq.sqlite", False),
+            ("Logs: <log_dir>/mdq-mcp.log", False),
+            ("scripts/mcp_servers/mdq/server.py", False),
+        ],
+    )
+    def test_mdq_command_pattern_matches_command_form_only(
+        self, text: str, should_match: bool
+    ) -> None:
+        pattern = COMPAT_PATTERNS["/mdq command"]
+        assert bool(re.search(pattern, text)) is should_match
+
     def test_clean_file_has_no_matches(self, tmp_path: Path) -> None:
         clean = tmp_path / "clean.py"
         clean.write_text("# This file has no compat patterns\n")

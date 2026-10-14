@@ -36,7 +36,7 @@ File index for this chapter (07 CLI and Commands).
 | [agent_07_07_cli-and-commands-slash-commands-session-mcp.md](agent_07_07_cli-and-commands-slash-commands-session-mcp.md) | Slash commands: Session, MCP, Config/stats |
 | [agent_07_08_cli-and-commands-slash-commands-context-plan.md](agent_07_08_cli-and-commands-slash-commands-context-plan.md) | Slash commands: Context, Plan |
 | [agent_07_09_cli-and-commands-slash-commands-workflow-debug.md](agent_07_09_cli-and-commands-slash-commands-workflow-debug.md) | Slash commands: Workflow, Debug/audit, Git/Diff, Compact |
-| [agent_07_10_cli-and-commands-slash-commands-memory-other.md](agent_07_10_cli-and-commands-slash-commands-memory-other.md) | Slash commands: Memory, MDQ, Other |
+| [agent_07_10_cli-and-commands-slash-commands-memory-other.md](agent_07_10_cli-and-commands-slash-commands-memory-other.md) | Slash commands: Memory and Other |
 | [agent_07_06_cli-and-commands-hot-reload.md](agent_07_06_cli-and-commands-hot-reload.md) | Hot-reload scope (reload subcommand) |
 
 ## Keywords

@@ -211,7 +211,7 @@ def check_directory_listing_completeness(
 
 _COMMAND_DEF_RE = re.compile(r'CommandDef\(\s*(?:name\s*=\s*)?"(/[a-z][a-z0-9_]*)"')
 _DOC_SLASH_COMMAND_RE = re.compile(
-    r"(?<![`/a-zA-Z0-9])/(mcp|db|debug|audit|memory|mdq|rag|help|config|"
+    r"(?<![`/a-zA-Z0-9>])/(mcp|db|debug|audit|memory|mdq|rag|help|config|"
     r"stats|set|reload|context|compact|system|session|clear|undo|history|"
     r"export|plan|approve|reject|skill)(?:[- ][a-z][a-z0-9_-]*)?\b"
 )

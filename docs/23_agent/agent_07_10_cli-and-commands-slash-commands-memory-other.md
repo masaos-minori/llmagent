@@ -1,5 +1,5 @@
 ---
-title: "Agent CLI and Commands - Slash Commands: Memory, MDQ, Other"
+title: "Agent CLI and Commands - Slash Commands: Memory and Other"
 area: agent
 tags:
   - agent
@@ -17,7 +17,6 @@ related:
   - agent_07_08_cli-and-commands-slash-commands-context-plan.md
   - agent_07_09_cli-and-commands-slash-commands-workflow-debug.md
   - agent_01_system-overview.md
-  - mcp_05_04_mdq-rag-boundary.md
 ---
 
 # Agent CLI and Commands
@@ -26,17 +25,13 @@ related:
 
 ## Purpose
 
-Documents the purpose and side effects of slash commands in the Memory and MDQ categories.
+Documents the purpose and side effects of slash commands in the Memory and Other categories.
 
 ## Design Intent
 
 ### Memory Category
 
 A group of commands for long-term memory. `/memory rebuild` imports records from the JSONL archive into SQLite; it is a dry run unless `--confirm` is passed, and deletes and pin/unpin changes are not replayed (Explicit in code — `scripts/agent/commands/memory_rebuild_ops.py`).
-
-### MDQ Category
-
-All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. MDQ uses `mdq.sqlite` (separate from `rag.sqlite`). For the distinction between MDQ and RAG, see [MDQ vs RAG Boundary](../22_mcp/mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary).
 
 ### Other Category
 
@@ -45,10 +40,8 @@ All `/mdq` commands call MCP tools of `mdq-mcp` via the agent's tool executor. M
 ## Responsibility Boundary
 
 - **Memory**: Management of long-term memory entries
-- **MDQ**: Document indexing and search
 - **Other**: Help display
 
 ## Keywords
 
 - memory category
-- mdq category

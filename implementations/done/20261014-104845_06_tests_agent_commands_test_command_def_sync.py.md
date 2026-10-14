@@ -1,10 +1,10 @@
 ## Goal
 
-Remove the `/mdq` registration test from the docs-sync tests (REQ-002: update tests).
+Remove the `_cmd_mdq_*` entries from the handler exclusion set (REQ-002: update tests).
 
 ## Scope
 
-- Delete one test method. Lines 119-122 only; keep `mdq` in the scan regex at line 41.
+- Delete seven set entries. Lines 22-28 of `INTENTIONAL_HANDLER_EXCLUSIONS` only.
 
 ## Assumptions
 
@@ -13,8 +13,7 @@ Remove the `/mdq` registration test from the docs-sync tests (REQ-002: update te
 
 ## Design decisions
 
-- Keeping `mdq` in the regex means a `/mdq` mention in a scanned doc (agent_01, agent_07_01 to agent_07_10) fails `test_active_docs_match_registered_commands`, which is a useful guard.
-- Delete `test_mdq_commands_in_registry`; do not invert it (the unregistered check lives in `test_removed_commands.py`, procedure 11).
+- After removal the frozenset keeps `_cmd_mcp_status` and `_cmd_mcp_tools`; the rest of the file never mentions mdq.
 
 ## Alternatives considered
 
@@ -24,19 +23,19 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`tests/docs/test_command_docs_sync.py`
+`tests/agent/commands/test_command_def_sync.py`
 
 ### Procedure
 
-Delete the `test_mdq_commands_in_registry` method.
+Delete the seven `"_cmd_mdq_*"` strings (get, grep, index, outline, refresh, search, status).
 
 ### Method
 
-Edit by test name.
+Edit by value; run `uv run ruff format` on the file.
 
 ### Details
 
-No other test in the file refers to `/mdq`.
+`test_every_handler_has_commanddef` would not fail if the entries stayed, but they would be stale.
 
 ## Compatibility considerations
 
@@ -52,25 +51,25 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/docs/test_command_docs_sync.py -q` passes after procedure 19.
-- `rg -n '/mdq' tests/docs/test_command_docs_sync.py` has no match.
+- `uv run pytest tests/agent/commands/test_command_def_sync.py -q` passes.
+- `rg -n 'mdq' tests/agent/commands/test_command_def_sync.py` has no match.
 
 ## Completion criteria
 
-- The test is gone and the regex line is unchanged.
+- The set contains only the two `_cmd_mcp_*` entries.
 
 ## Out of scope
 
-- The scan regex and the other command tests.
+- Other sync tests.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the test | Pending | — | — | |
-| 2 | Run the tests that cover this file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the entries | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the tests that cover this file | Completed | 20261014-110318 | 20261014-110318 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -90,4 +89,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: tests/docs/test_command_docs_sync.py
+- **Related target files**: tests/agent/commands/test_command_def_sync.py

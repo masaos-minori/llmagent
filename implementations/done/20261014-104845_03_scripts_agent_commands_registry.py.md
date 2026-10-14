@@ -1,10 +1,10 @@
 ## Goal
 
-Remove the `/mdq` entry from the command definition table (REQ-001: remove the command).
+Remove the MDQ mixin from the command registry composition (REQ-001: remove the command).
 
 ## Scope
 
-- Delete one `CommandDef` block and the comment above it. Lines 164-171 only; the `/reject` entry before it stays.
+- Delete the docstring line, the import, and the base class entry. Only the three `_MdqMixin` mentions (lines 21, 38, 63).
 
 ## Assumptions
 
@@ -13,8 +13,8 @@ Remove the `/mdq` entry from the command definition table (REQ-001: remove the c
 
 ## Design decisions
 
-- `_COMMANDS` is the single source for dispatch, completion, and `/help`; removing the block removes the command everywhere.
-- The `# ── Prefix async` comment at line 164 heads only this entry, so remove it too; the list then ends after the `/reject` entry.
+- Remove the mixin from the base-class list and its import; do not reorder the remaining mixins.
+- Update the docstring's mixin list at line 21.
 
 ## Alternatives considered
 
@@ -24,23 +24,23 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`scripts/agent/commands/command_defs_list.py`
+`scripts/agent/commands/registry.py`
 
 ### Procedure
 
-Delete the `# ── Prefix async` comment and the `CommandDef(...)` block whose `name="/mdq"` (handler `_cmd_mdq`).
+Remove the `cmd_mdq.py — _MdqMixin: /mdq commands` docstring line, `from agent.commands.cmd_mdq import _MdqMixin`, and the `_MdqMixin,` base class entry.
 
 ### Method
 
-Locate with `rg -n '/mdq|Prefix async' scripts/agent/commands/command_defs_list.py`; remove from the comment through the block's closing `),`, then run `uv run ruff format` on the file.
+Locate with `rg -n 'Mdq|cmd_mdq' scripts/agent/commands/registry.py`; edit by symbol, then run `uv run ruff format` on the file.
 
 ### Details
 
-`tests/agent/commands/test_command_def_sync.py` requires every `handler` to exist on the registry, so this edit and procedure 03 must land together.
+The remaining mixin order is unchanged, so method resolution for other commands is unchanged. The mixin counts drop to 12 total and 10 direct (procedure 07).
 
 ## Compatibility considerations
 
-Removes `/mdq` from tab completion and `/help` output.
+No public API change: `CommandRegistry` loses only `_cmd_mdq` and `_cmd_mdq_*`.
 
 ## Security considerations
 
@@ -52,26 +52,26 @@ N/A: removal only, applied as one commit unit with procedures 01-15 (revert the 
 
 ## Validation plan
 
-- `uv run pytest tests/agent/commands/test_command_def_sync.py tests/agent/commands/test_command_defs.py -q` passes.
-- `rg -n '_cmd_mdq|"/mdq"' scripts` has no match.
+- `uv run pytest tests/agent/commands/test_command_registry_consistency.py -q` passes after procedure 07.
+- `uv run mypy --no-namespace-packages scripts/` shows no new error.
 
 ## Completion criteria
 
-- `_COMMANDS` contains no `/mdq` entry.
-- The sync tests pass.
+- `registry.py` contains no `Mdq` mention.
+- Registry consistency test passes.
 
 ## Out of scope
 
-- Other `CommandDef` entries and help wording.
+- Other mixins and the `_COMMANDS` ownership text.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the comment and CommandDef block | Pending | — | — | |
-| 2 | Run the tests that cover this file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the three mixin mentions | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the tests that cover this file | Completed | 20261014-110318 | 20261014-110318 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -91,4 +91,4 @@ N/A: removal only, applied as one commit unit with procedures 01-15 (revert the 
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: scripts/agent/commands/command_defs_list.py
+- **Related target files**: scripts/agent/commands/registry.py

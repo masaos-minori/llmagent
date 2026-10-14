@@ -10,7 +10,6 @@ from types import SimpleNamespace
 
 import pytest
 from agent.commands.cmd_mcp import _McpMixin
-from agent.commands.cmd_mdq import _MdqMixin
 from agent.commands.exceptions import UnknownSubcommandError
 
 
@@ -48,33 +47,14 @@ class _Mcp(_McpMixin):
         )
 
 
-class _Mdq(_MdqMixin):
-    """Concrete mixin for testing — adds missing _cmd_mdq prefix handler."""
-
-    async def _cmd_mdq(self, args: str) -> None:
-        """Dispatch /mdq subcommands (stub)."""
-        pass
-
-
 # ── CommandRegistry dispatch-level tests ────────────────────────────────────────
 
 
 class _PatchedCommandRegistry:
-    """Thin wrapper that patches CommandRegistry with the missing _cmd_mdq handler.
-
-    Uses a monkey-patch approach to avoid MRO conflicts from diamond inheritance.
-    """
+    """Thin wrapper exposing CommandRegistry.dispatch for the note-removal tests."""
 
     def __init__(self, ctx: _Ctx) -> None:
         from agent.commands.registry import CommandRegistry as _CR
-
-        # Patch CommandRegistry directly to add the missing _cmd_mdq handler
-        if not hasattr(_CR, "_cmd_mdq"):
-
-            async def _cmd_mdq(self, args: str) -> None:
-                pass
-
-            setattr(_CR, "_cmd_mdq", _cmd_mdq)
 
         self._registry = _CR(ctx)
 

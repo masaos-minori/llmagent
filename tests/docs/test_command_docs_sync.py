@@ -115,8 +115,3 @@ class TestCommandDocsSync:
         """/memory is registered as a built-in command."""
         registered = self.get_registered_commands()
         assert "/memory" in registered, "/memory should be registered"
-
-    def test_mdq_commands_in_registry(self) -> None:
-        """/mdq is registered as a built-in command."""
-        registered = self.get_registered_commands()
-        assert "/mdq" in registered, "/mdq should be registered"

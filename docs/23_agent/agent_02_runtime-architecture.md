@@ -61,9 +61,8 @@ Because an untested execution path may bypass the gate, every path requires a te
 | # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
 |---|---|---|---|---|---|
 | 1 | `scripts/agent/repository_gateway.py` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
-| 2 | `scripts/agent/commands/cmd_mdq.py` | `_MdqMixin._execute_mdq()` → `/mdq <subcommand>` | Enforced | Covered (`tests/agent/commands/test_cmd_mdq.py`, preflight denial case) | None |
-| 3 | `scripts/agent/commands/cmd_context.py` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | Covered (`tests/agent/commands/test_agent_cmd_context.py`, `git_diff` denial case) | None |
-| 4 | `scripts/agent/tool_approval.py` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
+| 2 | `scripts/agent/commands/cmd_context.py` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | Covered (`tests/agent/commands/test_agent_cmd_context.py`, `git_diff` denial case) | None |
+| 3 | `scripts/agent/tool_approval.py` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
 
 ### Exempt Paths
 
@@ -77,9 +76,9 @@ Because an untested execution path may bypass the gate, every path requires a te
 
 Two distinct patterns exist where `tools.execute()` is called directly without going through the gateway:
 
-**Pattern 1: Preflight gate present, gateway bypass** (cmd_mdq.py, cmd_context.py)
-- These paths have `check_preflight()` gates but bypass the gateway.
-- They are partially covered but inconsistent with the gateway-centric enforcement model.
+**Pattern 1: Preflight gate present, gateway bypass** (cmd_context.py)
+- This path has a `check_preflight()` gate but bypasses the gateway.
+- It is partially covered but inconsistent with the gateway-centric enforcement model.
 
 **Pattern 2: Preflight gate present, no gateway** (tool_runner.py)
 - The `else` branch (gateway is `None`) calls `check_preflight()` for non-READ operations before `tools.execute()`.

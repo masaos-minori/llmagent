@@ -1,10 +1,10 @@
 ## Goal
 
-Remove the `_cmd_mdq_*` entries from the handler exclusion set (REQ-002: update tests).
+Remove the `/mdq` call site and mention from the runtime architecture doc (REQ-004: update documentation).
 
 ## Scope
 
-- Delete seven set entries. Lines 22-28 of `INTENTIONAL_HANDLER_EXCLUSIONS` only.
+- Delete one table row, renumber two rows, edit one paragraph. The call-site table (row 2 at line 64) and the Pattern 1 paragraph (line 80).
 
 ## Assumptions
 
@@ -13,37 +13,38 @@ Remove the `_cmd_mdq_*` entries from the handler exclusion set (REQ-002: update 
 
 ## Design decisions
 
-- After removal the frozenset keeps `_cmd_mcp_status` and `_cmd_mcp_tools`; the rest of the file never mentions mdq.
+- Delete the row for `scripts/agent/commands/cmd_mdq.py`, renumber the remaining rows 3 and 4 to 2 and 3.
+- Pattern 1 then names only `cmd_context.py`: change the heading mention to `(cmd_context.py)` and the next bullet to singular wording; keep the sentence "Two distinct patterns exist".
 
 ## Alternatives considered
 
-N/A: deletion is the decided direction (Plan Design)
+N/A: the docs follow the code removal
 
 ## Implementation
 
 ### Target file
 
-`tests/agent/commands/test_command_def_sync.py`
+`docs/23_agent/agent_02_runtime-architecture.md`
 
 ### Procedure
 
-Delete the seven `"_cmd_mdq_*"` strings (get, grep, index, outline, refresh, search, status).
+Apply the edits in Design decisions.
 
 ### Method
 
-Edit by value; run `uv run ruff format` on the file.
+Edit with the Edit tool, by section; re-read the table after the edit. This doc had 16 commits in 30 days, so fetch and rebase first.
 
 ### Details
 
-`test_every_handler_has_commanddef` would not fail if the entries stayed, but they would be stale.
+Do not touch Pattern 2 or the Exempt Paths table.
 
 ## Compatibility considerations
 
-N/A: test-only change
+N/A: docs-only change
 
 ## Security considerations
 
-N/A: test-only change
+N/A: docs-only change
 
 ## Rollback considerations
 
@@ -51,25 +52,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/agent/commands/test_command_def_sync.py -q` passes.
-- `rg -n 'mdq' tests/agent/commands/test_command_def_sync.py` has no match.
+- `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain agent` pass.
+- `rg -n -i 'cmd_mdq|/mdq' <this file>` has no match.
 
 ## Completion criteria
 
-- The set contains only the two `_cmd_mcp_*` entries.
+- Rows are numbered 1 to 3 and Pattern 1 names only `cmd_context.py`.
 
 ## Out of scope
 
-- Other sync tests.
+- Other sections.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the entries | Pending | — | — | |
-| 2 | Run the tests that cover this file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Edit the table and paragraph | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -83,10 +83,10 @@ N/A: revert the commit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002
+- **Requirement ID**: REQ-004
 - **Source issue**: issues/20261014-095505_mdq001_remove-the-mdq-slash-command.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: tests/agent/commands/test_command_def_sync.py
+- **Related target files**: docs/23_agent/agent_02_runtime-architecture.md

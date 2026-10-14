@@ -1,10 +1,10 @@
 ## Goal
 
-Add a test case for the `/mdq` compat pattern (REQ-003: guard reintroduction).
+Add the `/mdq` unregistered regression test (REQ-003: guard reintroduction).
 
 ## Scope
 
-- Add one test method. One method in `TestPatternDetection` (lines 40-73).
+- Add one test class. Append one class after the existing `/skill` and `/note` classes; do not change existing classes.
 
 ## Assumptions
 
@@ -13,8 +13,8 @@ Add a test case for the `/mdq` compat pattern (REQ-003: guard reintroduction).
 
 ## Design decisions
 
-- The existing phrase test passes on any pattern, so add a method that matches `COMPAT_PATTERNS["/mdq command"]` directly: positives `/mdq status`, `` `/mdq` ``; negatives `mdq.sqlite`, `/opt/llm/db/mdq.sqlite`, `<log_dir>/mdq-mcp.log`, `scripts/mcp_servers/mdq/server.py`.
-- Name it `test_mdq_command_pattern_matches_command_form_only` (new).
+- Mirror the existing classes: assert `"/mdq"` is not among `{cmd.name for cmd in _COMMANDS}`.
+- Keep the strings `cmd_mdq` and `_MdqMixin` out of the new text, because AC-002 greps `tests` for them; `/mdq` itself is allowed here (the file is on the compat allowlist).
 
 ## Alternatives considered
 
@@ -24,19 +24,19 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`tests/tools/test_check_compat_shims.py`
+`tests/agent/commands/test_removed_commands.py`
 
 ### Procedure
 
-Add the method to `TestPatternDetection`.
+Add `TestRemovedMdqCommand` (new) with `test_mdq_not_in_registry` (new), importing `_COMMANDS` from `agent.commands.registry` inside the test like the existing classes.
 
 ### Method
 
-Use `re.search(COMPAT_PATTERNS["/mdq command"], text)` per sample; follow the file's style and run `ruff format`.
+Follow the surrounding style: class and test docstrings, `-> None`, assertion message `"/mdq should not be a registered command"`. Run `ruff format` and `ruff check` on the file.
 
 ### Details
 
-The file is allowlisted, so its own `/mdq` samples do not fail the checker.
+Place after the last existing class.
 
 ## Compatibility considerations
 
@@ -52,24 +52,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/tools/test_check_compat_shims.py -q` passes and fails if the entry is removed.
+- `uv run pytest tests/agent/commands/test_removed_commands.py -q` passes after procedures 01-03 and fails if `/mdq` is re-added.
 
 ## Completion criteria
 
-- The method exists and covers positives and negatives.
+- The new test exists and passes.
 
 ## Out of scope
 
-- Other pattern tests.
+- Existing removed-command tests.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the test | Pending | — | — | |
-| 2 | Run the tests that cover this file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the test class | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the tests that cover this file | Completed | 20261014-110318 | 20261014-110318 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,4 +89,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: tests/tools/test_check_compat_shims.py
+- **Related target files**: tests/agent/commands/test_removed_commands.py

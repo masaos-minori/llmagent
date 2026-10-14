@@ -59,3 +59,14 @@ class TestRemovedSkillCommand:
         assert "/skill" not in command_names, (
             "/skill should not be a registered command"
         )
+
+
+class TestRemovedMdqCommand:
+    """Verify /mdq is not registered as a built-in command."""
+
+    def test_mdq_not_in_registry(self) -> None:
+        """/mdq is not registered as a built-in command."""
+        from agent.commands.registry import _COMMANDS
+
+        command_names = {cmd.name for cmd in _COMMANDS}
+        assert "/mdq" not in command_names, "/mdq should not be a registered command"

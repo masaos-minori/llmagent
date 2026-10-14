@@ -1,10 +1,10 @@
 ## Goal
 
-Update the mixin-count regression test (REQ-002: update tests).
+Update the chapter-index description of the memo/commands chapter (REQ-004: update documentation).
 
 ## Scope
 
-- Change two numbers, one test name, one docstring, and two messages. `TestCommandRegistryMixinCount` only (lines 112-141).
+- Edit one table cell. Line 39 only.
 
 ## Assumptions
 
@@ -13,38 +13,37 @@ Update the mixin-count regression test (REQ-002: update tests).
 
 ## Design decisions
 
-- Totals become 12 and 10: docstring `10 direct + 2 nested via _ConfigMixin = 12 total` (lines 114-115), `== 12` with message `Expected 12 *Mixin classes` (lines 129-130), `test_direct_base_mixin_count_is_10` (new) with `== 10` and message `Expected 10 direct *Mixin` (lines 134-141).
-- No docs state these counts, so no doc edit accompanies it.
+- Change the description to "Slash commands: Memory and Other", matching the retitle in procedure 19; the file has no `/mdq` command list.
 
 ## Alternatives considered
 
-N/A: deletion is the decided direction (Plan Design)
+N/A: the docs follow the code removal
 
 ## Implementation
 
 ### Target file
 
-`tests/agent/commands/test_command_registry_consistency.py`
+`docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md`
 
 ### Procedure
 
-Apply the edits in Design decisions.
+Edit the description cell of the `agent_07_10` row.
 
 ### Method
 
-Edit by test name; run `uv run ruff format` since an assertion message line may reflow.
+Edit with the Edit tool.
 
 ### Details
 
-The counts are 13 and 11 before this change because the `/skill` removal already lowered them.
+Keep the link target unchanged.
 
 ## Compatibility considerations
 
-N/A: test-only change
+N/A: docs-only change
 
 ## Security considerations
 
-N/A: test-only change
+N/A: docs-only change
 
 ## Rollback considerations
 
@@ -52,24 +51,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/agent/commands/test_command_registry_consistency.py -q` passes with 12 and 10 after procedures 01-03.
+- `check_docs_structure.py` and `check_docs_quality.py` pass.
+- `rg -n 'Memory, MDQ' <this file>` has no match.
 
 ## Completion criteria
 
-- Both count assertions use 12 and 10 and the renamed test passes.
+- The description reads "Slash commands: Memory and Other".
 
 ## Out of scope
 
-- Other consistency tests.
+- Other index rows.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update counts, name, docstring, messages | Pending | — | — | |
-| 2 | Run the tests that cover this file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Edit the cell | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -83,10 +82,10 @@ N/A: revert the commit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002
+- **Requirement ID**: REQ-004
 - **Source issue**: issues/20261014-095505_mdq001_remove-the-mdq-slash-command.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: tests/agent/commands/test_command_registry_consistency.py
+- **Related target files**: docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md

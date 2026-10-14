@@ -1,10 +1,10 @@
 ## Goal
 
-Update the chapter-index description of the memo/commands chapter (REQ-004: update documentation).
+Delete the cmd_mdq file-content test from the DB ownership tests (REQ-002: update tests).
 
 ## Scope
 
-- Edit one table cell. Line 39 only.
+- Delete one test function. Lines 93-99 only; keep `test_no_unauthorized_mdq_db_access`.
 
 ## Assumptions
 
@@ -13,37 +13,37 @@ Update the chapter-index description of the memo/commands chapter (REQ-004: upda
 
 ## Design decisions
 
-- Change the description to "Slash commands: Memory and Other", matching the retitle in procedure 19; the file has no `/mdq` command list.
+- `test_cmd_mdq_no_direct_db_access` returns early when the file is absent, so after deletion it would pass vacuously; remove it.
 
 ## Alternatives considered
 
-N/A: the docs follow the code removal
+N/A: deletion is the decided direction (Plan Design)
 
 ## Implementation
 
 ### Target file
 
-`docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md`
+`tests/docs/test_db_ownership_boundaries.py`
 
 ### Procedure
 
-Edit the description cell of the `agent_07_10` row.
+Delete the `test_cmd_mdq_no_direct_db_access` function.
 
 ### Method
 
-Edit with the Edit tool.
+Edit by test name; check that `AGENT_DIR` stays used by the remaining tests.
 
 ### Details
 
-Keep the link target unchanged.
+The directory-wide scan test `test_no_unauthorized_mdq_db_access` still protects the agent code.
 
 ## Compatibility considerations
 
-N/A: docs-only change
+N/A: test-only change
 
 ## Security considerations
 
-N/A: docs-only change
+N/A: test-only change
 
 ## Rollback considerations
 
@@ -51,24 +51,25 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `check_docs_structure.py` and `check_docs_quality.py` pass.
-- `rg -n 'Memory, MDQ' <this file>` has no match.
+- `uv run pytest tests/docs/test_db_ownership_boundaries.py -q` passes.
+- `rg -n 'cmd_mdq' tests/docs/test_db_ownership_boundaries.py` has no match.
 
 ## Completion criteria
 
-- The description reads "Slash commands: Memory and Other".
+- The function is gone and the other tests pass.
 
 ## Out of scope
 
-- Other index rows.
+- Other ownership tests.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the cell | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Delete the test | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the tests that cover this file | Completed | 20261014-110318 | 20261014-110318 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -82,10 +83,10 @@ N/A: revert the commit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-004
+- **Requirement ID**: REQ-002
 - **Source issue**: issues/20261014-095505_mdq001_remove-the-mdq-slash-command.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md
+- **Related target files**: tests/docs/test_db_ownership_boundaries.py

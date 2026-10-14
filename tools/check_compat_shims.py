@@ -43,6 +43,7 @@ COMPAT_PATTERNS = {
     "/db clean alias": r"/db\s+clean\b(?!.*rag|session)",
     "/db rebuild-fts alias": r"/db\s+rebuild-fts\b(?!.*rag|session)",
     "/db recover alias": r"/db\s+recover\b(?!.*rag|session)",
+    "/mdq command": r"(?<![\w/.-])/mdq(?![\w./-])",
     "auto_inject_notes": r"auto_inject_notes",
     "notes table": r"notes[ _]table",
     "_MCP_TOOLS": r"_MCP_TOOLS",

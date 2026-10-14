@@ -88,13 +88,3 @@ def test_cmd_db_no_direct_rag_access() -> None:
     assert 'SQLiteHelper("rag")' not in content, (
         "cmd_db.py must not directly access rag DB — use rag_maintenance_service.py"
     )
-
-
-def test_cmd_mdq_no_direct_db_access() -> None:
-    cmd_mdq_path = AGENT_DIR / "commands" / "cmd_mdq.py"
-    if not cmd_mdq_path.exists():
-        return
-    content = cmd_mdq_path.read_text()
-    assert 'SQLiteHelper("mdq")' not in content, (
-        "cmd_mdq.py must not directly access mdq DB — use MCP tool executor"
-    )

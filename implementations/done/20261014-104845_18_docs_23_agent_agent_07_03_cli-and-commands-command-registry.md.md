@@ -1,10 +1,10 @@
 ## Goal
 
-Remove MDQ content from the memory/other commands chapter (REQ-004: update documentation).
+Remove the `/mdq` row from the built-in command index (REQ-004: update documentation).
 
 ## Scope
 
-- Retitle, edit Purpose, delete one section, one bullet, one keyword, and one related entry. Title (line 2), `related:` entry (line 20), Purpose (line 29), MDQ Category section (lines 37-39), Responsibility Boundary bullet (line 48), keyword (line 54).
+- Delete one table row. The `/mdq` row at line 69 only.
 
 ## Assumptions
 
@@ -13,8 +13,7 @@ Remove MDQ content from the memory/other commands chapter (REQ-004: update docum
 
 ## Design decisions
 
-- Title becomes `Agent CLI and Commands - Slash Commands: Memory and Other`; Purpose reads "... slash commands in the Memory and Other categories."
-- Delete the `### MDQ Category` section, the `- **MDQ**: Document indexing and search` bullet, the `- mdq category` keyword, and the `mcp_05_04_mdq-rag-boundary.md` entry under `related:` (nothing in the body references it afterwards; `check_docs_structure.py` does not require it).
+- `tests/docs/test_command_docs_sync.py` scans this doc, so the row must go for that test to pass.
 
 ## Alternatives considered
 
@@ -24,19 +23,19 @@ N/A: the docs follow the code removal
 
 ### Target file
 
-`docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md`
+`docs/23_agent/agent_07_03_cli-and-commands-command-registry.md`
 
 ### Procedure
 
-Apply the edits in Design decisions; the file name stays unchanged.
+Delete the table row `| `/mdq` | Markdown query operations (status, index, search, outline, etc.) |`.
 
 ### Method
 
-Edit with the Edit tool, top to bottom, re-reading line numbers after each edit.
+Edit with the Edit tool.
 
 ### Details
 
-Do not edit the other `related:` entries; the chapter-index description is procedure 17.
+No other MDQ text exists in this file.
 
 ## Compatibility considerations
 
@@ -52,24 +51,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain agent`, and `uv run pytest tests/docs -q` pass.
+- `uv run pytest tests/docs -q`, `check_docs_quality.py`, `check_docs_structure.py` pass.
 - `rg -n -i 'mdq' <this file>` has no match.
 
 ## Completion criteria
 
-- No MDQ reference remains; headings, bullets, keywords, and front matter are consistent.
+- The row is gone and the table is still well-formed.
 
 ## Out of scope
 
-- Memory and Other sections.
+- Other command rows.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the six edits | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Delete the row | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -89,4 +88,4 @@ N/A: revert the commit
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md
+- **Related target files**: docs/23_agent/agent_07_03_cli-and-commands-command-registry.md

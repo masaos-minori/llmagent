@@ -161,12 +161,4 @@ _COMMANDS: list[CommandDef] = [
         handler="_cmd_reject",
         help="<approval_id> [reason]  Reject the pending workflow task",
     ),
-    # ── Prefix async ───────────────────────────────────────────────────────────
-    CommandDef(
-        name="/mdq",
-        prefix=True,
-        is_async=True,
-        handler="_cmd_mdq",
-        help="status | index <path> [--force] | refresh <path> [--force] | search <query> | outline <path> | get <chunk_id> | grep <pattern>",
-    ),
 ]

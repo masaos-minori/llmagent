@@ -18,7 +18,6 @@ Mixins (keep in sync with CommandRegistry base class list):
   cmd_rag_export.py — _RagExportMixin:  /compact
   cmd_memory.py     — _MemoryMixin:     /memory
   cmd_workflow.py   — _WorkflowMixin:   /approve, /reject
-  cmd_mdq.py        — _MdqMixin:        /mdq commands
 
 _COMMANDS ownership:
   _COMMANDS is IMPORTED from agent.commands.command_defs_list.
@@ -35,7 +34,6 @@ from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _ContextMixin
 from agent.commands.cmd_debug import _DebugMixin
 from agent.commands.cmd_mcp import _McpMixin
-from agent.commands.cmd_mdq import _MdqMixin
 from agent.commands.cmd_memory import _MemoryMixin
 from agent.commands.cmd_rag_export import _RagExportMixin
 from agent.commands.cmd_session import _SessionMixin
@@ -60,7 +58,6 @@ class CommandRegistry(
     _RagExportMixin,
     _MemoryMixin,
     _WorkflowMixin,
-    _MdqMixin,
 ):
     """Slash-command dispatcher for AgentREPL.
 

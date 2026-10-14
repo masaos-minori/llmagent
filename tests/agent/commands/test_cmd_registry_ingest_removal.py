@@ -1,7 +1,7 @@
 """tests/test_cmd_registry_ingest_removal.py
 
 Tests that the removed `/ingest`, `/rag`, and standalone `/export` commands are
-no longer dispatched, while `/compact` and `/mdq` remain functional and `/export`
+no longer dispatched, while `/compact` remains functional and `/export`
 is documented as a `/session` subcommand.
 """
 

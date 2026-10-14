@@ -1,10 +1,10 @@
 ## Goal
 
-Delete the cmd_mdq file-content test from the DB ownership tests (REQ-002: update tests).
+Add a command-drift test for the log-path false positive (REQ-005: keep docs checks warning-free).
 
 ## Scope
 
-- Delete one test function. Lines 93-99 only; keep `test_no_unauthorized_mdq_db_access`.
+- Add one test method. One method in `TestCheckCommandDrift` (lines 140-186).
 
 ## Assumptions
 
@@ -13,7 +13,8 @@ Delete the cmd_mdq file-content test from the DB ownership tests (REQ-002: updat
 
 ## Design decisions
 
-- `test_cmd_mdq_no_direct_db_access` returns early when the file is absent, so after deletion it would pass vacuously; remove it.
+- Build the same temp repo as `test_unregistered_command_is_warning` with `/help` registered, a doc line `Logs: <log_dir>/mdq-mcp.log`, and assert `check_command_drift(...) == []`.
+- Name it `test_log_path_with_command_like_name_is_not_a_reference` (new); keep the existing `/db rag stats` warning test as the positive case.
 
 ## Alternatives considered
 
@@ -23,19 +24,19 @@ N/A: deletion is the decided direction (Plan Design)
 
 ### Target file
 
-`tests/docs/test_db_ownership_boundaries.py`
+`tests/tools/test_check_agent_docs_consistency.py`
 
 ### Procedure
 
-Delete the `test_cmd_mdq_no_direct_db_access` function.
+Add the method after `test_unregistered_command_is_warning`.
 
 ### Method
 
-Edit by test name; check that `AGENT_DIR` stays used by the remaining tests.
+Reuse `_mk_file` and the temp-repo setup; run `ruff format` and `ruff check` on the file.
 
 ### Details
 
-The directory-wide scan test `test_no_unauthorized_mdq_db_access` still protects the agent code.
+Tests do not depend on the real `_COMMANDS`; they write a temporary `command_defs_list.py`.
 
 ## Compatibility considerations
 
@@ -51,25 +52,24 @@ N/A: revert the commit
 
 ## Validation plan
 
-- `uv run pytest tests/docs/test_db_ownership_boundaries.py -q` passes.
-- `rg -n 'cmd_mdq' tests/docs/test_db_ownership_boundaries.py` has no match.
+- `uv run pytest tests/tools/test_check_agent_docs_consistency.py -q` passes and the new test fails without procedure 14.
 
 ## Completion criteria
 
-- The function is gone and the other tests pass.
+- The new test exists and passes.
 
 ## Out of scope
 
-- Other ownership tests.
+- Other drift tests.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the test | Pending | — | — | |
-| 2 | Run the tests that cover this file | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the test | Completed | 20261014-110318 | 20261014-110318 |  |
+| 2 | Run the tests that cover this file | Completed | 20261014-110318 | 20261014-110318 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-110318 | 20261014-110318 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -83,10 +83,10 @@ N/A: revert the commit
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: REQ-002
+- **Requirement ID**: REQ-005
 - **Source issue**: issues/20261014-095505_mdq001_remove-the-mdq-slash-command.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261014-100930_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261014-104845
-- **Related target files**: tests/docs/test_db_ownership_boundaries.py
+- **Related target files**: tests/tools/test_check_agent_docs_consistency.py
