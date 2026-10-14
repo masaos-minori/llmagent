@@ -148,10 +148,10 @@ Single file: `tests/eventbus/test_eventbus_auth.py`. Changes:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-14 | 2026-10-14 | Drives config.py empty-mapping deny-all fix; covers superuser auth_token/admin_token residual deviation |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-14 | 2026-10-14 | test_empty_mappings_deny_all_consumers added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-14 | 2026-10-14 | 40 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-14 | 2026-10-14 | ADR-013/ADR-006 EVENTBUS-008 resolution documented (commit 81ea3db97) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
