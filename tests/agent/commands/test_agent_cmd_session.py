@@ -147,6 +147,31 @@ class TestCmdSessionList:
         out = capsys.readouterr().out
         assert "(no title)" in out
 
+    @pytest.mark.asyncio
+    async def test_list_roundtrip_load_and_delete(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        sessions = [
+            {
+                "session_id": 5,
+                "title": "Roundtrip",
+                "created_at": "2026-01-01",
+                "is_current": False,
+                "message_count": 3,
+            }
+        ]
+        cmd = _make_cmd(session_id=1, sessions=sessions)
+        await cmd._cmd_session("list")
+        out = capsys.readouterr().out
+        data_line = next(line for line in out.splitlines() if "Roundtrip" in line)
+        listed_id = int(data_line.lstrip().split()[0])
+        assert listed_id == 5
+        with patch.object(cmd, "_load_session") as mock_load:
+            await cmd._cmd_session(f"load {listed_id}")
+        mock_load.assert_called_once_with(listed_id)
+        await cmd._cmd_session(f"delete {listed_id}")
+        assert "deleted" in capsys.readouterr().out.lower()
+
 
 class TestCmdSessionDelete:
     @pytest.mark.asyncio

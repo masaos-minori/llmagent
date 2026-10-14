@@ -31,7 +31,7 @@ Add one or more test methods to the existing `TestListSessions` class in `tests/
 
 ### Procedure
 
-Add a method to `TestListSessions`, e.g. `test_message_count_counts_messages_per_session`:
+Add a method to `TestListSessions`, e.g. `test_message_count_counts_messages_per_session`(new):
 
 1. `session.start()` then `session.save("user", "a")` and `session.save("user", "b")` (2 messages on the new session).
 2. `rows = {r["session_id"]: r for r in session.list_sessions()}`.
@@ -79,8 +79,8 @@ Source query change (`scripts/agent/session.py`) is a separate row.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | N/A | — | — | test-only row |
-| 2 | Add or update tests per Validation plan | Pending | — | — | unit test for `message_count` |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
+| 2 | Add or update tests per Validation plan | Completed | 20261014-210710 | 20261014-210710 | unit test for `message_count` |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261014-210710 | 20261014-210710 | — |
 | 4 | Update documentation | N/A | — | — | not in scope for this row |
 
 ### Blocker Log

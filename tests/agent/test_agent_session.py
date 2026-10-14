@@ -386,6 +386,18 @@ class TestListSessions:
         rows = session.list_sessions()
         assert any(r["is_current"] for r in rows)
 
+    def test_message_count_counts_messages_per_session(
+        self, session: AgentSession
+    ) -> None:
+        session.start()
+        session.save("user", "a")
+        session.save("user", "b")
+        rows = {r["session_id"]: r for r in session.list_sessions()}
+        sid = session.session_id
+        assert sid is not None
+        assert rows[sid]["message_count"] == 2
+        assert rows[1]["message_count"] == 0
+
 
 # ── delete_session() ─────────────────────────────────────────────────────────
 

@@ -31,12 +31,12 @@ Add one test method to the existing `TestCmdSessionList` class in `tests/agent/c
 
 ### Procedure
 
-Add `test_list_roundtrip_load_and_delete` to `TestCmdSessionList`:
+Add `test_list_roundtrip_load_and_delete`(new) to `TestCmdSessionList`:
 
 1. Build `sessions` as a list with one dict: `{"session_id": <id>, "title": "Roundtrip", "created_at": "2026-01-01", "is_current": False, "message_count": 3}`.
 2. `cmd = _make_cmd(session_id=<different current id>, sessions=sessions)`.
 3. `await cmd._cmd_session("list")`; capture `out`; assert the printed id substring appears in `out`.
-4. Parse the id from `out` (e.g. strip to digits) into `listed_id`.
+4. Parse the id from `out` (e.g. strip to digits) into `listed_id`(new).
 5. `with patch.object(cmd, "_load_session") as mock_load:` run `await cmd._cmd_session(f"load {listed_id}")`; assert `mock_load.assert_called_once_with(listed_id)`.
 6. Set `cmd._ctx.session.delete_session.return_value = True`; run `await cmd._cmd_session(f"delete {listed_id}")`; assert `"deleted"` is in the lowercased output.
 
@@ -81,8 +81,8 @@ Source changes (`scripts/agent/commands/cmd_session.py`, `scripts/agent/session.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | N/A | — | — | test-only row |
-| 2 | Add or update tests per Validation plan | Pending | — | — | roundtrip command test |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
+| 2 | Add or update tests per Validation plan | Completed | 20261014-210723 | 20261014-210723 | roundtrip command test |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261014-210723 | 20261014-210723 | — |
 | 4 | Update documentation | N/A | — | — | not in scope for this row |
 
 ### Blocker Log

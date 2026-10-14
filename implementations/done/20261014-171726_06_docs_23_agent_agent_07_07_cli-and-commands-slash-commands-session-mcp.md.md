@@ -11,7 +11,7 @@ Modify only `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-m
 ## Assumptions
 
 - Line 38 currently enumerates only the maintenance subcommands; the data subcommands are undocumented.
-- The four data subcommands and their behavior are defined by the implementation in `scripts/agent/commands/cmd_session.py` (`_session_list`, `_session_load`, `_session_rename`, `_session_delete`) — read there for accurate one-line descriptions, but do not modify that file.
+- The four data subcommands and their behavior are defined by the implementation in `scripts/agent/commands/cmd_session.py` (the `/session` dispatcher routes `list` / `load` / `rename` / `delete` to its handlers) — read there for accurate one-line descriptions, but do not modify that file.
 
 ## Design decisions
 
@@ -77,8 +77,8 @@ The Session Category doc lists the data subcommands (`list`, `load`, `rename`, `
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | N/A | — | — | docs-only row |
 | 2 | Add or update tests per Validation plan | N/A | — | — | no tests for a doc change |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | doc checkers per routing.md |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-003 / AC-4 |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261014-210736 | 20261014-210736 | doc checkers per routing.md |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261014-210736 | 20261014-210736 | REQ-003 / AC-4 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

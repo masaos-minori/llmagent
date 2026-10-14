@@ -35,7 +35,7 @@ A group of commands for session management and history operations. `/clear new` 
 
 #### Session DB operation subcommands
 
-Session subcommands are invoked as `/session <subcmd>`. This includes the maintenance subcommands (`stats`, `health`, `checkpoint`, `vacuum`, `purge`, `recover`, `rag-consistency`, `rag-rebuild-fts`, `rag-rebuild-vec`); see agent_04_03 for the services they call.
+Session subcommands are invoked as `/session <subcmd>`. The data subcommands manage session rows directly: `list` shows recent sessions with their message count, `load` resumes a session by id, `rename` sets a session title, and `delete` removes a session by id. This includes the maintenance subcommands (`stats`, `health`, `checkpoint`, `vacuum`, `purge`, `recover`, `rag-consistency`, `rag-rebuild-fts`, `rag-rebuild-vec`); see agent_04_03 for the services they call.
 
 ### Session and Memory Separation
 
