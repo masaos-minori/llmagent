@@ -86,9 +86,9 @@ N/A: revert the commit to restore the prior chapter text.
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-007: rewrite the secret-masking chapter |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-14 | 2026-10-14 | REQ-007: rewrote the secret-masking chapter with the three masked forms |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Documentation-only change; no tests |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run python tools/check_docs_quality.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-14 | 2026-10-14 | `uv run python tools/check_docs_quality.py` passed |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | This document is the documentation change |
 
 ### Blocker Log

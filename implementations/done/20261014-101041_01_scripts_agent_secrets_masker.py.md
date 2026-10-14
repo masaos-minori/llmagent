@@ -133,9 +133,9 @@ Sequential application is safe even if one pattern's output feeds the other: the
 
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-002, REQ-003, REQ-004 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261014-114628 | 20261014-114628 | REQ-002, REQ-003, REQ-004 |
 | 2 | Add or update tests per Validation plan | N/A | — | — | Tests owned by paired doc `20261014-101041_02_tests_agent_test_secrets_masker.py.md` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `ruff`, `mypy`, `bandit` | Pending | — | — | — |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `ruff`, `mypy`, `bandit` | Completed | 20261014-114628 | 20261014-114628 | — |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Doc update owned by paired doc `20261014-101041_03_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md` |
 
 ### Blocker Log

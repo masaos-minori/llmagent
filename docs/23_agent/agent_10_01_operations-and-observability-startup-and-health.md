@@ -95,7 +95,7 @@ If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupte
 
 ### Secret Masking in MCP Subprocess Failure Reports
 
-When an MCP subprocess fails to start, the tail of its stderr is included in the startup failure report, and a failed first start attempt is logged. Both pass through `agent/secrets_masker.py`, which replaces values written as `key=value` for key names such as `password`, `api_key`, `secret` and `token` (case-insensitive) with a masked form. Only that `key=value` form is recognized; other shapes (for example an `Authorization: Bearer ...` header) are not masked.
+When an MCP subprocess fails to start, the tail of its stderr is included in the startup failure report, and a failed first start attempt is logged. Both pass through `agent/secrets_masker.py`, which masks three shapes (case-insensitive): `key=value` values for key names such as `password`, `passwd`, `pwd`, `api_key`, `apikey`, `secret` and `token`; `Authorization:` header lines such as `Authorization: Bearer <token>` or `Authorization: Basic <token>` (the token is masked, the scheme keyword is preserved); and standalone `Bearer <token>` tokens that appear without an `Authorization:` prefix.
 
 ### Manual Recovery: workflow.sqlite / eventbus.sqlite
 

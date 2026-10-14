@@ -105,8 +105,8 @@ N/A: revert the commit to remove the added cases; existing cases are untouched.
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | N/A | — | — | No source change; source owned by paired doc `20261014-101041_01_scripts_agent_secrets_masker.py.md` |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-006: add bearer cases, retain regression cases |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `uv run pytest tests/agent/test_secrets_masker.py` |
+| 2 | Add or update tests per Validation plan | Completed | 20261014-114805 | 20261014-114805 | REQ-006: add bearer cases, retain regression cases |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261014-114805 | 20261014-114805 | `uv run pytest tests/agent/test_secrets_masker.py` |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | Doc update owned by paired doc `20261014-101041_03_docs_23_agent_agent_10_01_operations-and-observability-startup-and-health.md.md` |
 
 ### Blocker Log

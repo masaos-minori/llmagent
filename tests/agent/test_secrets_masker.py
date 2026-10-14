@@ -30,6 +30,29 @@ class TestMaskSecrets:
         result = _mask_secrets(input_text)
         assert result == expected
 
+    @pytest.mark.parametrize(
+        "input_text,expected",
+        [
+            # REQ-002: Authorization: Bearer <token>
+            (
+                "Authorization: Bearer dGhpczBzZWNyZXQ=",
+                "Authorization: Bearer ***MASKED***",
+            ),
+            # REQ-003: generic Authorization: <scheme> <token>
+            (
+                "Authorization: Basic YWxsb246cGFzcw==",
+                "Authorization: Basic ***MASKED***",
+            ),
+            ("Authorization: Digest abc123def", "Authorization: Digest ***MASKED***"),
+            # REQ-004: standalone Bearer <token> (no Authorization: prefix)
+            ("Bearer eyJhbGciOiJIUzI1NiJ9.payload.sig", "Bearer ***MASKED***"),
+        ],
+    )
+    def test_bearer_header_shapes(self, input_text: str, expected: str) -> None:
+        """Bearer-header and standalone bearer-token shapes are masked."""
+        result = _mask_secrets(input_text)
+        assert result == expected
+
     def test_no_secret_returns_unchanged(self) -> None:
         """Text with no secrets is returned unchanged."""
         text = "hello world"
