@@ -270,8 +270,8 @@ The following conditions require review before merging:
 
 ### ADR Acceptance Evidence Standard
 
-An ADR's `## Approval` > `### Approval Record` section satisfies the "RACI approval not
-obtained from accountable party" Blocking Condition (see Merge Conditions) when either of
+An ADR's `## Approval` > `### Approval Record` section satisfies the "RACI approval required
+for the change but not obtained from the accountable party" Blocking Condition (see Merge Conditions) when either of
 the following holds:
 
 1. **Named Approval Record**: the section records a specific reviewer, approval date, and
@@ -340,8 +340,9 @@ The ADR list, dependency graph, and invariant verification matrix are maintained
 
 ### Blocking Conditions (Prevent Merge)
 - High-severity open Known Issue exists in affected area (Known Issue severity values are `High`, `Medium`, and `Low`; see `governance_03_issue-and-uncertainty-management.md` Severity Values)
-- RACI approval not obtained from accountable party (for ADRs, see ADR Acceptance
-  Evidence Standard for what counts as approval)
+- RACI approval required for the change but not obtained from the accountable party
+  (which changes require it: see "Reading the Approval Required Column" in `governance_05`;
+  for ADRs, see ADR Acceptance Evidence Standard for what counts as approval)
 - Canonical source conflict unresolved
 - Test suite failing
 
