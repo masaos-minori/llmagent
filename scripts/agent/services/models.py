@@ -240,12 +240,13 @@ __all__ = [
 
 @dataclass(frozen=True)
 class SessionRow:
-    """One row from the sessions table as returned by session.list_sessions()."""
+    """One row from session.list_sessions(): session_id, title, created_at, is_current, message_count."""
 
     session_id: int
     title: str | None
     created_at: str
     is_current: bool
+    message_count: int
 
 
 @dataclass(frozen=True)

@@ -102,6 +102,7 @@ class _SessionMixin(MixinBase):
                     title=r.get("title"),
                     created_at=ca if ca is not None else "",
                     is_current=bool(r.get("is_current", False)),
+                    message_count=int(r.get("message_count", 0)),
                 )
             )
         current_id = self._ctx.session.session_id
@@ -123,9 +124,10 @@ class _SessionMixin(MixinBase):
                     f"{sr.session_id:>4}{'*' if sr.is_current else ' '}",
                     title_display,
                     sr.created_at,
+                    str(sr.message_count),
                 ]
             )
-        self._out.write_table(["ID  ", "Title", "Created"], table_rows)
+        self._out.write_table(["ID  ", "Title", "Created", "Messages"], table_rows)
 
     def _db_session_stats(self) -> None:
         """Print session/message counts from the Session database."""

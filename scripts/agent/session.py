@@ -165,12 +165,12 @@ class AgentSession:
     def list_sessions(self, limit: int = 20) -> list[dict]:
         """Return the most recent sessions from DB as structured data.
 
-        Each dict: session_id, created_at, title, is_current (bool).
+        Each dict: session_id, created_at, title, is_current (bool), message_count (int).
         Raises sqlite3.Error on DB failure.
         """
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
-                "SELECT session_id, created_at, title FROM sessions ORDER BY session_id DESC LIMIT ?",
+                "SELECT s.session_id, s.created_at, s.title, COUNT(m.message_id) AS message_count FROM sessions s LEFT JOIN messages m ON m.session_id = s.session_id GROUP BY s.session_id, s.created_at, s.title ORDER BY s.session_id DESC LIMIT ?",
                 (limit,),
             )
         return [
@@ -179,6 +179,7 @@ class AgentSession:
                 "created_at": r["created_at"],
                 "title": r["title"],
                 "is_current": r["session_id"] == self.session_id,
+                "message_count": r["message_count"],
             }
             for r in rows
         ]

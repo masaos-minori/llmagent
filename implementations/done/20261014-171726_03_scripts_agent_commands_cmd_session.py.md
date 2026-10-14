@@ -17,7 +17,7 @@ Modify only `_session_list` in `scripts/agent/commands/cmd_session.py`: the `Ses
 ## Design decisions
 
 - In the `SessionRow(...)` call (line 100), add `message_count=int(r.get("message_count", 0))`. `.get(...)` keeps backward compatibility with any caller that omits the key; `int(...)` coerces SQLite's count to a plain int.
-- In the render loop, append `sr.message_count` to each `table_rows` list (after `sr.created_at`, line 125).
+- In the render loop, append `str(sr.message_count)` to each `table_rows` list (after `sr.created_at`, line 125). `write_table` expects `list[list[str]]`, so the int count is cast to str.
 - Extend the header on line 128 to `["ID  ", "Title", "Created", "Messages"]`. Column count must match the appended row length (4).
 
 ## Alternatives considered
@@ -34,7 +34,7 @@ Modify only `_session_list` in `scripts/agent/commands/cmd_session.py`: the `Ses
 ### Procedure
 
 1. Add `message_count=int(r.get("message_count", 0))` to the `SessionRow(...)` constructor (inside lines 100-106).
-2. Append `sr.message_count` to the `table_rows` list in the render loop (inside lines 121-127).
+2. Append `str(sr.message_count)` to the `table_rows` list in the render loop (inside lines 121-127). Cast to str: `write_table` requires `list[list[str]]`.
 3. Change the header on line 128 to include `"Messages"` as a fourth column.
 
 ### Method
@@ -77,9 +77,9 @@ Query change (`scripts/agent/session.py`) and dataclass extension (`scripts/agen
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Render `message_count` column in `_session_list` | Pending | — | — | REQ-001 / AC-1 |
-| 2 | Add/update tests per Validation plan | Pending | — | — | roundtrip test in `test_agent_cmd_session.py` |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
+| 1 | Render `message_count` column in `_session_list` | Completed | 20261014-192531 | 20261014-192531 | SessionRow ctor gets message_count; table_rows appends str(count); header -> 4 cols; mypy requires str() cast |
+| 2 | Add/update tests per Validation plan | Completed | 20261014-192531 | 20261014-192531 | test_agent_cmd_session.py 54 pass; new tests belong to rows 04/05 (out of batch) |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261014-192531 | 20261014-192531 | ruff/mypy/bandit/lint-imports clean; full suite 8248 passed, 17 pre-existing unrelated failures |
 | 4 | Update documentation | N/A | — | — | not in scope for this row |
 
 ### Blocker Log

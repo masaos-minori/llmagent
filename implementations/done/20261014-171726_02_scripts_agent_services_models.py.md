@@ -72,9 +72,9 @@ Query change (`scripts/agent/session.py`) and table rendering (`scripts/agent/co
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `SessionRow` with `message_count` | Pending | — | — | REQ-001 / AC-1 |
-| 2 | Add/update tests per Validation plan | Pending | — | — | covered via command test |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
+| 1 | Extend `SessionRow` with `message_count` | Completed | 20261014-192531 | 20261014-192531 | field added after is_current; single construction site updated by sibling row 03 |
+| 2 | Add/update tests per Validation plan | Completed | 20261014-192531 | 20261014-192531 | test_agent_cmd_session.py 54 pass; new tests belong to rows 04/05 (out of batch) |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261014-192531 | 20261014-192531 | ruff/mypy/bandit/lint-imports clean; full suite 8248 passed, 17 pre-existing unrelated failures |
 | 4 | Update documentation | N/A | — | — | not in scope for this row |
 
 ### Blocker Log

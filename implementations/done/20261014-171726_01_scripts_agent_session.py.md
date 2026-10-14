@@ -2,7 +2,7 @@
 
 ## Goal
 
-Add a per-session `message_count` to each dict returned by `AgentSession.list_sessions()` (`REQ-001` / `AC-1`), computed with a `LEFT JOIN` on `messages` grouped by `session_id`.
+Add a per-session `message_count` (new) to each dict returned by `AgentSession.list_sessions()` (`REQ-001` / `AC-1`), computed with a `LEFT JOIN` on `messages` grouped by `session_id`.
 
 ## Scope
 
@@ -34,7 +34,7 @@ Modify only `list_sessions()` in `scripts/agent/session.py`: the `SELECT` query 
 
 1. Update the `SELECT` in `list_sessions()` (line 173) to the `LEFT JOIN` query above.
 2. Add `"message_count": r["message_count"]` to the dict comprehension (after `is_current`, line 181).
-3. Update the docstring (line 168) to list `message_count` among the returned keys.
+3. Update the docstring (line 168) to list `message_count` (new) among the returned keys.
 
 ### Method
 
@@ -62,11 +62,11 @@ Revert the commit touching `scripts/agent/session.py`.
 
 | Target/Module | Strategy | Command | Expected |
 |---|---|---|---|
-| `scripts/agent/session.py` | Unit — seed sessions with differing message counts, assert `message_count` | `uv run pytest tests/agent/test_agent_session.py` | Counts match `messages` rows; zero-message sessions show `0` |
+| `scripts/agent/session.py` | Unit — seed sessions with differing message counts, assert `message_count` (new) | `uv run pytest tests/agent/test_agent_session.py` | Counts match `messages` rows; zero-message sessions show `0` |
 
 ## Completion criteria
 
-`list_sessions()` returns one dict per session carrying an integer `message_count` equal to that session's `messages` row count, including `0` for sessions with no messages.
+`list_sessions()` returns one dict per session carrying an integer `message_count` (new) equal to that session's `messages` row count, including `0` for sessions with no messages.
 
 ## Out of scope
 
@@ -77,9 +77,9 @@ Extending `SessionRow` (`scripts/agent/services/models.py`) and rendering the co
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `message_count` in `list_sessions()` (LEFT JOIN) | Pending | — | — | REQ-001 / AC-1 |
-| 2 | Add/update tests per Validation plan | Pending | — | — | unit test in `test_agent_session.py` |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | — |
+| 1 | Implement `message_count` (new) in `list_sessions()` (LEFT JOIN) | Completed | 20261014-191032 | 20261014-191032 | ruff/mypy/bandit clean; LEFT JOIN + message_count key added; single caller `_session_list` reads by name so additive key is safe |
+| 2 | Add/update tests per Validation plan | Completed | 20261014-191032 | 20261014-191032 | existing `TestListSessions` pass; new `message_count` tests belong to test rows 04/05 (out of this batch) |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261014-191032 | 20261014-191032 | full suite 8248 passed, 17 pre-existing eventbus/startup failures unrelated to `session.py`; diff-cover exit 0 |
 | 4 | Update documentation | N/A | — | — | not in scope for this row |
 
 ### Blocker Log
