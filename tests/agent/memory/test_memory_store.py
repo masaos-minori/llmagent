@@ -12,7 +12,7 @@ import os
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
-from unittest.mock import patch
+from unittest.mock import MagicMock, Mock, patch
 
 import pytest
 from agent.memory.count_ops import (
@@ -55,6 +55,11 @@ CREATE VIRTUAL TABLE memories_fts USING fts5(
 CREATE TABLE memories_vec (
     memory_id TEXT PRIMARY KEY,
     embedding BLOB
+);
+CREATE TABLE memory_links (
+    src_id  TEXT NOT NULL REFERENCES memories(memory_id),
+    dst_id  TEXT NOT NULL REFERENCES memories(memory_id),
+    PRIMARY KEY (src_id, dst_id)
 );
 """
 
@@ -235,13 +240,30 @@ class TestUpsert:
 
 
 class TestDelete:
+    @pytest.fixture(autouse=True)
+    def emit(self) -> Generator[Mock]:
+        """Patch the SQLite-first archive append so delete() never touches disk.
+
+        ``delete()`` appends a ``delete`` change event to the JSONL archive after
+        committing; the spy records calls instead of writing to the real archive.
+        Autouse keeps it active for every test in the class; tests that assert on
+        the call site request it by name.
+        """
+        with patch(
+            "agent.memory.write_ops._emit_delete_event", new=MagicMock()
+        ) as target:
+            yield target
+
     def test_delete_existing_returns_true(self, store: MemoryStore) -> None:
         entry = _make_entry()
         add(entry)
         assert delete(entry.memory_id) is True
 
-    def test_delete_nonexistent_returns_false(self, store: MemoryStore) -> None:
+    def test_delete_nonexistent_returns_false(
+        self, store: MemoryStore, emit: Mock
+    ) -> None:
         assert delete("no-such-id") is False
+        emit.assert_not_called()
 
     def test_delete_removes_from_memories(
         self, store: MemoryStore, db_conn: sqlite3.Connection
@@ -253,6 +275,62 @@ class TestDelete:
             "SELECT memory_id FROM memories WHERE memory_id=?", (entry.memory_id,)
         ).fetchall()
         assert rows == []
+
+    def test_delete_clears_all_four_tables(
+        self, store: MemoryStore, db_conn: sqlite3.Connection
+    ) -> None:
+        entry = _make_entry()
+        add(entry)  # seeds memories + memories_fts + memories_vec
+        db_conn.execute(
+            "INSERT INTO memory_links(src_id, dst_id) VALUES(?,?)",
+            (entry.memory_id, entry.memory_id),
+        )
+        delete(entry.memory_id)
+
+        # Plain tables: filter directly.
+        assert (
+            db_conn.execute(
+                "SELECT 1 FROM memories WHERE memory_id=?", (entry.memory_id,)
+            ).fetchone()
+            is None
+        )
+        assert (
+            db_conn.execute(
+                "SELECT 1 FROM memories_vec WHERE memory_id=?", (entry.memory_id,)
+            ).fetchone()
+            is None
+        )
+        # memory_links cleared from BOTH columns.
+        assert (
+            db_conn.execute(
+                "SELECT 1 FROM memory_links WHERE src_id=?", (entry.memory_id,)
+            ).fetchone()
+            is None
+        )
+        assert (
+            db_conn.execute(
+                "SELECT 1 FROM memory_links WHERE dst_id=?", (entry.memory_id,)
+            ).fetchone()
+            is None
+        )
+        # memories_fts is a virtual table; scan all and confirm the id is gone.
+        fts_ids = [
+            r[0]
+            for r in db_conn.execute("SELECT memory_id FROM memories_fts").fetchall()
+        ]
+        assert entry.memory_id not in fts_ids
+
+    def test_delete_appends_delete_event(self, store: MemoryStore, emit: Mock) -> None:
+        entry = _make_entry()
+        add(entry)
+        delete(entry.memory_id)
+        emit.assert_called_once_with(entry.memory_id)
+
+    def test_delete_nonexistent_does_not_emit_event(
+        self, store: MemoryStore, emit: Mock
+    ) -> None:
+        delete("no-such-id")
+        emit.assert_not_called()
 
 
 # ── search_by_type() ─────────────────────────────────────────────────────────
@@ -429,6 +507,61 @@ class TestPinUnpin:
 
     def test_unpin_nonexistent_returns_false(self, store: MemoryStore) -> None:
         assert unpin("no-such-id") is False
+
+
+# ── pin() / unpin() event emission (main path) ──────────────────────────────
+
+
+class TestPinUnpinEvents:
+    @pytest.fixture(autouse=True)
+    def emit(self, db_conn: sqlite3.Connection) -> Generator[Mock]:
+        """Exercise the main path against in-memory SQLite while spying on the
+        SQLite-first archive append so pin/unpin never touch the real archive.
+
+        ``pin()``/``unpin()`` append a change event to the JSONL archive after
+        committing on the main path (no injected conn); the spy records calls
+        instead of writing to disk. pin_ops imports SQLiteHelper from db.helper at
+        call time, and add() resolves it in write_ops, so both are patched to back
+        the writes with db_conn.
+        """
+        fake = _FakeSQLiteHelper(db_conn)
+        with (
+            patch(  # mock-patch-ok: SQLiteHelper imported at call time; write_ops patched at its own namespace
+                "db.helper.SQLiteHelper", return_value=fake
+            ),
+            patch("agent.memory.write_ops.SQLiteHelper", return_value=fake),
+            patch("agent.memory.pin_ops._emit_event", new=MagicMock()) as target,
+        ):
+            yield target
+
+    def test_pin_emits_event_on_success(self, emit: Mock) -> None:
+        entry = _make_entry(memory_id="pin-event")
+        add(entry)
+        assert pin("pin-event") is True
+        emit.assert_called_once_with("pin", "pin-event")
+
+    def test_unpin_emits_event_on_success(self, emit: Mock) -> None:
+        entry = dataclasses.replace(_make_entry(memory_id="unpin-event"), pinned=True)
+        add(entry)
+        assert unpin("unpin-event") is True
+        emit.assert_called_once_with("unpin", "unpin-event")
+
+    def test_pin_no_event_on_noop(self, emit: Mock) -> None:
+        assert pin("no-such-id") is False
+        emit.assert_not_called()
+
+    def test_unpin_no_event_on_noop(self, emit: Mock) -> None:
+        assert unpin("no-such-id") is False
+        emit.assert_not_called()
+
+    def test_pin_injected_conn_does_not_emit(
+        self, db_conn: sqlite3.Connection, emit: Mock
+    ) -> None:
+        entry = _make_entry(memory_id="pin-injected")
+        add(entry)
+        # injected-connection callers are unaffected by event emission
+        assert pin("pin-injected", conn=db_conn) is True
+        emit.assert_not_called()
 
 
 # ── get_by_id() ───────────────────────────────────────────────────────────────
