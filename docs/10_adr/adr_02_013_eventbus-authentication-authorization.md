@@ -111,45 +111,21 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 
 ### Alternative A: Rely entirely on loopback-only binding and leave EventBus without authentication/authorization
 
-#### Advantages
-
-Less code; simpler deployment; no token management overhead.
-
-#### Disadvantages
-
-No protection if loopback binding is bypassed (e.g., misconfiguration, container network changes); no accountability for who performs which action; no separation of concerns between roles.
-
-#### Reason for Rejection
-
-Violates the fail-closed security boundary principle adopted for other high-risk components; loopback-only binding alone is insufficient for a multi-tenant security model even on localhost.
+- **Advantages:** Less code; simpler deployment; no token management overhead.
+- **Disadvantages:** No protection if loopback binding is bypassed (e.g., misconfiguration, container network changes); no accountability for who performs which action; no separation of concerns between roles.
+- **Reason for Rejection:** Violates the fail-closed security boundary principle adopted for other high-risk components; loopback-only binding alone is insufficient for a multi-tenant security model even on localhost.
 
 ### Alternative B: Use mutual TLS instead of Bearer tokens
 
-#### Advantages
-
-Stronger cryptographic guarantees; no token storage or rotation concerns.
-
-#### Disadvantages
-
-Overkill for loopback-only deployment; adds operational complexity (certificate management); no benefit over static token for single-operator use case.
-
-#### Reason for Rejection
-
-Static Bearer token sufficient for loopback-only deployment; mTLS would add unnecessary complexity without security benefit for this threat model.
+- **Advantages:** Stronger cryptographic guarantees; no token storage or rotation concerns.
+- **Disadvantages:** Overkill for loopback-only deployment; adds operational complexity (certificate management); no benefit over static token for single-operator use case.
+- **Reason for Rejection:** Static Bearer token sufficient for loopback-only deployment; mTLS would add unnecessary complexity without security benefit for this threat model.
 
 ### Alternative C: Migrate to `ConfigLoader` for configuration validation
 
-#### Advantages
-
-Consistent configuration validation across the project; centralized schema management.
-
-#### Disadvantages
-
-Key validation through a `ConfigLoader`-based schema conflicts with the local-invariant exception ADR-002 documents (EventBus loads its configuration through `ConfigLoader` without `restrict_to()`).
-
-#### Reason for Rejection
-
-ADR-002 documents the exception. Equivalent fail-closed validation is implemented locally in `load_config()` instead.
+- **Advantages:** Consistent configuration validation across the project; centralized schema management.
+- **Disadvantages:** Key validation through a `ConfigLoader`-based schema conflicts with the local-invariant exception ADR-002 documents (EventBus loads its configuration through `ConfigLoader` without `restrict_to()`).
+- **Reason for Rejection:** ADR-002 documents the exception. Equivalent fail-closed validation is implemented locally in `load_config()` instead.
 
 ## Consequences
 
@@ -178,15 +154,8 @@ ADR-002 documents the exception. Equivalent fail-closed validation is implemente
 
 ### Operational Consequences
 
-- Operators configuring EventBus must populate `auth_token` in `config/eventbus.toml` before starting.
-- An empty/missing token causes startup failure (fail-closed), not silent unauthenticated operation.
-- Operators may additionally configure `publisher_token`/`consumer_token`/
-  `operator_token`/`monitoring_token`/`admin_token` to grant per-role access
-  instead of distributing the single shared `auth_token` to every caller.
-  `auth_token` and `admin_token` both remain broad, superuser-equivalent
-  credentials (every role) — operators who want strict role separation should
-  distribute only the specific per-role token each caller needs, not `auth_token`
-  or `admin_token`.
+- Operators must populate `auth_token` in `config/eventbus.toml` before starting; an empty/missing token causes startup failure (see Failure Policy).
+- Operators may additionally configure per-role tokens (see Decision Details #1); those who want strict role separation should distribute only the specific per-role token each caller needs, not `auth_token` or `admin_token`.
 
 ### Security Consequences
 
@@ -233,17 +202,19 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 
 ### Automated Tests
 
-- **Test**: Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) — **Verifies**: INV-01 — **Type**: Integration — **Blocking**: Yes (the fixture-app tests are complemented by `TestProductionRouteWiring`, which checks the production app's route dependencies and the 401/403/200 behavior of `/health` and `/publish`)
-- **Test**: Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) — **Verifies**: INV-03 (operator-gated routes) — **Type**: Integration — **Blocking**: Yes
-- **Test**: consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`) — **Verifies**: INV-02 (topic access) — **Type**: Unit — **Blocking**: Yes
-- **Test**: the superuser tokens carry no consumer_id or topic restriction (`test_superuser_tokens_skip_consumer_identity_validation`) — **Verifies**: INV-02 exception — **Type**: Unit — **Blocking**: Yes
-- **Test**: empty `consumer_authorization`/`topic_authorization` mappings resolve to deny-all and reject every `consumer_id` (`test_empty_mappings_deny_all_consumers`) — **Verifies**: INV-02 empty-mapping case — **Type**: Unit — **Blocking**: Yes
-- **Test**: `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) — **Verifies**: Decision Details #7 — **Type**: Unit — **Blocking**: Yes
-- **Test**: `load_config()` rejects unknown TOML keys (`test_load_config_rejects_unknown_key`) — **Verifies**: INV-04 — **Type**: Unit — **Blocking**: Yes
-- **Test**: `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) — **Verifies**: INV-04 — **Type**: Unit — **Blocking**: Yes
-- **Test**: `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) — **Verifies**: INV-06 — **Type**: Regression — **Blocking**: Yes
-- **Test**: audit records do not include token values (`test_no_credential_leakage_in_audit_records`) — **Verifies**: INV-05 — **Type**: Unit — **Blocking**: Yes
-- **Test**: none — **Verifies**: INV-07 — **Type**: Manual Review (deployment checklist in `deployment_01_deployment.md` section 3.2 and the Token Distribution check in `eventbus_07_configuration-and-operations.md`) — **Blocking**: Yes
+| Test | Verifies | Type | Blocking |
+|---|---|---|---|
+| Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) | INV-01 | Integration | Yes (the fixture-app tests are complemented by `TestProductionRouteWiring`, which checks the production app's route dependencies and the 401/403/200 behavior of `/health` and `/publish`) |
+| Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) | INV-03 (operator-gated routes) | Integration | Yes |
+| consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`) | INV-02 (topic access) | Unit | Yes |
+| the superuser tokens carry no consumer_id or topic restriction (`test_superuser_tokens_skip_consumer_identity_validation`) | INV-02 exception | Unit | Yes |
+| empty `consumer_authorization`/`topic_authorization` mappings resolve to deny-all and reject every `consumer_id` (`test_empty_mappings_deny_all_consumers`) | INV-02 empty-mapping case | Unit | Yes |
+| `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) | Decision Details #7 | Unit | Yes |
+| `load_config()` rejects unknown TOML keys (`test_load_config_rejects_unknown_key`) | INV-04 | Unit | Yes |
+| `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) | INV-04 | Unit | Yes |
+| `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) | INV-06 | Regression | Yes |
+| audit records do not include token values (`test_no_credential_leakage_in_audit_records`) | INV-05 | Unit | Yes |
+| none | INV-07 | Manual Review (deployment checklist in `deployment_01_deployment.md` section 3.2 and the Token Distribution check in `eventbus_07_configuration-and-operations.md`) | Yes |
 
 ## Implementation Notes
 

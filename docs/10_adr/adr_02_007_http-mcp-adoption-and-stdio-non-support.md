@@ -38,7 +38,7 @@ Accepted
 
 ## Summary
 
-This ADR unifies the official Transport between the Agent and MCP servers on HTTP and canonicalizes the decision not to use stdio, together with its operation and safety conditions. It distinguishes subprocess startup from the Tool Transport and defines the responsibilities for Timeout, Retry, and Health Check. It records that MCP servers bind to loopback only, are authenticated with a Bearer token, and that exposure beyond localhost is not supported. The stdio transport value is rejected at configuration load.
+This ADR makes HTTP the only Transport between the Agent and MCP servers and rejects stdio, with loopback-only binding and Bearer authentication. It distinguishes subprocess startup from the Tool Transport and assigns Timeout, Retry, and Health Check responsibilities. See Decision, Exceptions, and Failure Policy for the normative text.
 
 ## Context
 
@@ -96,7 +96,7 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 
 ### 1. Primary Reason for Adoption — Operability
 
-With HTTP, MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent. Fault isolation becomes possible and operational monitoring becomes easier.
+With HTTP, MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent (Decision 8), which enables fault isolation and easier operational monitoring.
 
 ### 2. Second Reason for Adoption — Security
 
@@ -110,83 +110,30 @@ With HTTP, a server can be restarted, upgraded, or replaced without restarting t
 
 ### Alternative A: Stdio Transport support
 
-#### Description
+Officially support the stdio Transport (stdin/stdout between the Agent and MCP servers).
 
-Officially support the stdio Transport and use stdin/stdout for communication between the Agent and MCP servers.
-
-#### Advantages
-
-- The MCP standard protocol
-- Simple implementation
-- Suitable for local inter-process communication
-
-#### Disadvantages
-
-- No fault isolation
-- Operational monitoring is difficult
-- No per-request authentication point
-- No independent deployment
-
-#### Reason for Rejection
-
-Rejected to prioritize Operability and Security, because it would rule out fault isolation and operational monitoring.
-
-#### Reconsideration Conditions
-
-- It is used only in the local development environment
-- Fault isolation is not needed
+- **Advantages:** the MCP standard protocol; simple implementation; suitable for local inter-process communication
+- **Disadvantages:** no fault isolation; operational monitoring is difficult; no per-request authentication point; no independent deployment
+- **Reason for Rejection:** Rejected to prioritize Operability and Security, because it would rule out fault isolation and operational monitoring.
+- **Reconsideration Conditions:** it is used only in the local development environment; fault isolation is not needed
 
 ### Alternative B: No subprocess startup mode
 
-#### Description
-
 Abolish the subprocess startup mode and make everything external persistent mode.
 
-#### Advantages
-
-- Simple structure
-- Few dependencies
-
-#### Disadvantages
-
-- Automatic startup is no longer possible
-- Manual management is required
-- Failure recovery is delayed
-
-#### Reason for Rejection
-
-Rejected to prioritize Operability, because it would rule out automatic startup and automatic restart.
-
-#### Reconsideration Conditions
-
-- Manual management is acceptable
-- Automatic startup is not needed
+- **Advantages:** simple structure; few dependencies
+- **Disadvantages:** automatic startup is no longer possible; manual management is required; failure recovery is delayed
+- **Reason for Rejection:** Rejected to prioritize Operability, because it would rule out automatic startup and automatic restart.
+- **Reconsideration Conditions:** manual management is acceptable; automatic startup is not needed
 
 ### Alternative C: No authentication for remote exposure
 
-#### Description
-
 Do not implement authentication; prevent external exposure with Firewall restrictions only.
 
-#### Advantages
-
-- Simple implementation
-- Low overhead
-
-#### Disadvantages
-
-- Security risk
-- Accessible without authentication
-- Auditing is difficult
-
-#### Reason for Rejection
-
-Rejected to prioritize Security and prevent unauthenticated access.
-
-#### Reconsideration Conditions
-
-- Firewall restrictions are sufficiently robust
-- Unauthenticated access is acceptable
+- **Advantages:** simple implementation; low overhead
+- **Disadvantages:** security risk; accessible without authentication; auditing is difficult
+- **Reason for Rejection:** Rejected to prioritize Security and prevent unauthenticated access.
+- **Reconsideration Conditions:** Firewall restrictions are sufficiently robust; unauthenticated access is acceptable
 
 ## Consequences
 
@@ -272,47 +219,15 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 
 ### Automated Tests
 
-- **Test**: Communication after subprocess startup happens over HTTP
-  - **Verifies**: INV-03
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected` (the only transport value is `http`, for every startup mode)
-
-- **Test**: Tool Call Timeouts and Transport Errors are converted into common errors
-  - **Verifies**: INV-07
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/shared/test_tool_transport_invoker.py::TestToolTransportInvoker::test_transport_error_returns_error_type_transport`, `tests/integration/test_mcp_transport_crash.py::test_d05_http_timeout_races_lifecycle_termination`
-
-- **Test**: Health Checks are also usable from outside the Agent
-  - **Verifies**: INV-08
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/agent/test_http_lifecycle_health_check.py`
-
-- **Test**: No path references stdio as a runtime Transport
-  - **Verifies**: INV-04
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected`, `tests/shared/test_mcp_config.py` (`test_unsupported_transport_raises_from_toml`)
-
-- **Test**: Circuit Breaker state transitions (reaching the DEGRADED/UNAVAILABLE thresholds, the HALF_OPEN cooldown, returning to UNAVAILABLE on a HALF_OPEN failure) behave as specified
-  - **Verifies**: INV-11
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/shared/test_mcp_health.py`
-
-- **Test**: A non-loopback bind address is rejected by `run_http()`
-  - **Verifies**: INV-09 (loopback bind)
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/mcp_servers/test_mcp_server_base.py::TestBindAddressValidation::test_private_lan_rejected`
-
-- **Test**: Each of the shell, github, and file-read/write/delete servers rejects a request without a matching Bearer token (401) and refuses to start with an empty token
-  - **Verifies**: INV-09
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/mcp_servers/shell/test_shell_server_auth.py`, `tests/mcp_servers/github/test_github_server_auth.py`, `tests/mcp_servers/file/test_file_server_auth.py`
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| Communication after subprocess startup happens over HTTP | INV-03 | Integration | Yes | `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected` (the only transport value is `http`, for every startup mode) |
+| Tool Call Timeouts and Transport Errors are converted into common errors | INV-07 | Regression | Yes | `tests/shared/test_tool_transport_invoker.py::TestToolTransportInvoker::test_transport_error_returns_error_type_transport`, `tests/integration/test_mcp_transport_crash.py::test_d05_http_timeout_races_lifecycle_termination` |
+| Health Checks are also usable from outside the Agent | INV-08 | Integration | Yes | `tests/agent/test_http_lifecycle_health_check.py` |
+| No path references stdio as a runtime Transport | INV-04 | Regression | Yes | `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected`, `tests/shared/test_mcp_config.py` (`test_unsupported_transport_raises_from_toml`) |
+| Circuit Breaker state transitions (reaching the DEGRADED/UNAVAILABLE thresholds, the HALF_OPEN cooldown, returning to UNAVAILABLE on a HALF_OPEN failure) behave as specified | INV-11 | Unit | Yes | `tests/shared/test_mcp_health.py` |
+| A non-loopback bind address is rejected by `run_http()` | INV-09 (loopback bind) | Unit | Yes | `tests/mcp_servers/test_mcp_server_base.py::TestBindAddressValidation::test_private_lan_rejected` |
+| Each of the shell, github, and file-read/write/delete servers rejects a request without a matching Bearer token (401) and refuses to start with an empty token | INV-09 | Unit | Yes | `tests/mcp_servers/shell/test_shell_server_auth.py`, `tests/mcp_servers/github/test_github_server_auth.py`, `tests/mcp_servers/file/test_file_server_auth.py` |
 
 ### Startup Validation
 
@@ -337,7 +252,6 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 - Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Every server module except mdq-mcp attaches the Bearer-token authentication middleware through `attach_auth_middleware()`; mdq-mcp attaches it with an empty token (see Exceptions) and rag-pipeline-mcp attaches it with its own `auth_token` (`MCP_RAG_PIPELINE_AUTH_TOKEN`).
 - `HttpTransport.call()` posts to `/v1/call_tool` with a bounded retry for 429/502/503/504 and for transport request errors other than timeouts; timeouts and other HTTP status errors surface as `TransportError`.
 - `ToolTransportInvoker.invoke()` applies the per-server Semaphore and records success or failure in `McpServerHealthRegistry`.
-- `TransportType` accepts only `http`; the startup mode (`none`, `persistent`, `subprocess`) selects how the process is launched, not the transport.
 
 See Implementation References for the current file/symbol list.
 

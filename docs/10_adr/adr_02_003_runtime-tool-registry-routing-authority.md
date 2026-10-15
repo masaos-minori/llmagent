@@ -33,7 +33,7 @@ Accepted
 
 The authority that determines the target MCP server from a Tool name is consolidated into `RuntimeToolRegistry`, preventing duplicated routing through static definitions, configuration, and Discovery results. At startup, Tool definitions obtained from each MCP server are normalized and registered as `RuntimeTool`, and `ToolRouteResolver` references only `RuntimeToolRegistry`. The static `ToolRegistry`, Tool name lists in configuration, and Tool definitions in the LLM Prompt are not used for runtime Routing.
 
-`RuntimeToolRegistry` is also the sole authority not only for Tool ownership and Routing but also for the related group of concepts: LLM visibility, static availability, Dynamic Health, approval state, and execution eligibility. These are mutually distinct concepts and are not merged into a single "enabled/disabled" flag.
+`RuntimeToolRegistry` is also the sole authority for LLM visibility, static availability, Dynamic Health, approval state, and execution eligibility, which are distinct concepts and are not merged into a single "enabled/disabled" flag.
 
 ## Context
 
@@ -127,131 +127,43 @@ Because the Routing authority is limited to one, it is always clear which path's
 
 ### 4. Fourth Reason for Adoption — Correctness / Maintainability
 
-A single "enabled/disabled" concept that actually carries several different meanings causes code to reference the wrong concept and leads to documentation describing processing stages as filtering when they actually do not. Explicitly distinguishing "static availability vs. Dynamic Health" and "Approval vs. disabled state" prevents the cheap and likely mistake of writing a Dynamic Health-driven feature into the same field as LLM visibility.
+A single "enabled/disabled" concept carrying several meanings causes the misreferences described in Context. Explicitly distinguishing "static availability vs. Dynamic Health" and "Approval vs. disabled state" prevents the cheap and likely mistake of writing a Dynamic Health-driven feature into the same field as LLM visibility.
 
 ## Alternatives Considered
 
 ### Alternative A: Dual routing authority (ToolRegistry + RuntimeToolRegistry)
 
-#### Description
-
-Reference both the static `ToolRegistry` and `RuntimeToolRegistry`, and fall back to static definitions when there are no Discovery results.
-
-#### Advantages
-
-- Redundancy when Discovery fails
-- Continued support for the legacy specification
-
-#### Disadvantages
-
-- Possible ownership conflicts
-- Unexpected routing due to mismatches between configuration and Discovery results
-- Reduced safety for unregistered Tools
-- Inconsistent Safety Tier and Write attributes
-
-#### Reason for Rejection
-
-Rejected to prioritize Security and reject execution of unregistered Tools Fail-Closed.
-
-#### Reconsideration Conditions
-
-- The reliability of the Discovery mechanism improves significantly
-- Consistency between static definitions and Discovery results is guaranteed
+- **Advantages:** Redundancy when Discovery fails; Continued support for the legacy specification
+- **Disadvantages:** Possible ownership conflicts; Unexpected routing due to mismatches between configuration and Discovery results; Reduced safety for unregistered Tools; Inconsistent Safety Tier and Write attributes
+- **Reason for Rejection:** Rejected to prioritize Security and reject execution of unregistered Tools Fail-Closed.
+- **Reconsideration Conditions:** The reliability of the Discovery mechanism improves significantly; Consistency between static definitions and Discovery results is guaranteed
 
 ### Alternative B: Dynamic tool registration at runtime
 
-#### Description
-
-Add and remove Tools dynamically while updating RuntimeToolRegistry.
-
-#### Advantages
-
-- Flexible Tool management
-- Tools can be added at runtime
-
-#### Disadvantages
-
-- Difficulty keeping consistency with Tools being executed
-- More complex Security Controls
-- Risk of approval state becoming stale
-
-#### Reason for Rejection
-
-Rejected to prioritize Data Integrity and guarantee consistency with Tools being executed.
-
-#### Reconsideration Conditions
-
-- Adding Tools at runtime becomes necessary
-- Dynamic updates of approval state become necessary
+- **Advantages:** Flexible Tool management; Tools can be added at runtime
+- **Disadvantages:** Difficulty keeping consistency with Tools being executed; More complex Security Controls; Risk of approval state becoming stale
+- **Reason for Rejection:** Rejected to prioritize Data Integrity and guarantee consistency with Tools being executed.
+- **Reconsideration Conditions:** Adding Tools at runtime becomes necessary; Dynamic updates of approval state become necessary
 
 ### Alternative C: No static definition at all
 
-#### Description
-
-Abolish static definitions entirely and use only Discovery results.
-
-#### Advantages
-
-- Simple structure
-- Low complexity
-
-#### Disadvantages
-
-- No expected values for tests and Drift validation
-- No seed data for documentation generation
-- New Tools cannot be pre-registered
-
-#### Reason for Rejection
-
-Rejected to prioritize Operability, because expected values are needed for tests.
-
-#### Reconsideration Conditions
-
-- Discovery results alone allow sufficient verification
-- Test automation is sufficiently advanced
+- **Advantages:** Simple structure; Low complexity
+- **Disadvantages:** No expected values for tests and Drift validation; No seed data for documentation generation; New Tools cannot be pre-registered
+- **Reason for Rejection:** Rejected to prioritize Operability, because expected values are needed for tests.
+- **Reconsideration Conditions:** Discovery results alone allow sufficient verification; Test automation is sufficiently advanced
 
 ### Alternative D: Unify static availability and dynamic health into one `enabled` signal
 
-#### Description
-
-Merge static availability and Dynamic Health into a single `enabled` signal.
-
-#### Advantages
-
-- Simple mental model
-- Only one flag to check
-
-#### Disadvantages
-
-- The list of LLM-visible Tools changes every time a Circuit Breaker trips, so temporary network trouble destabilizes Tool availability as seen by the LLM
-- The impact is far larger than that of a runtime error
-
-#### Reason for Rejection
-
-The current separation is the safer design.
-
-#### Reconsideration Conditions
-
-- A new requirement arises that changes in Dynamic Health should be reflected in LLM visibility
+- **Advantages:** Simple mental model; Only one flag to check
+- **Disadvantages:** The list of LLM-visible Tools changes every time a Circuit Breaker trips, so temporary network trouble destabilizes Tool availability as seen by the LLM; The impact is far larger than that of a runtime error
+- **Reason for Rejection:** The current separation is the safer design.
+- **Reconsideration Conditions:** A new requirement arises that changes in Dynamic Health should be reflected in LLM visibility
 
 ### Alternative E: Represent approval-required as a disabled state
 
-#### Description
-
-Represent the approval-required state as part of the disabled-Tool mechanism.
-
-#### Advantages
-
-- The existing disabled-Tool mechanism can be reused
-
-#### Disadvantages
-
-- Approval is a per-call decision involving Risk Escalation based on arguments (for example, a path or a Branch) and cannot be expressed as a static per-Tool disable flag
-- Merging the two would make Approval-target Tools invisible even where they should be visible to the LLM, making the design of gating at runtime impossible
-
-#### Reason for Rejection
-
-Confuses call-time Policy decisions with per-Tool availability flags.
+- **Advantages:** The existing disabled-Tool mechanism can be reused
+- **Disadvantages:** Approval is a per-call decision involving Risk Escalation based on arguments (for example, a path or a Branch) and cannot be expressed as a static per-Tool disable flag; Merging the two would make Approval-target Tools invisible even where they should be visible to the LLM, making the design of gating at runtime impossible
+- **Reason for Rejection:** Confuses call-time Policy decisions with per-Tool availability flags.
 
 ## Consequences
 
@@ -334,47 +246,16 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 
 ### Automated Tests
 
-- **Test**: Startup fails on duplicate Tool name ownership
-  - **Verifies**: INV-01
-  - **Type**: Integration
-  - **Blocking**: Yes
-
-- **Test**: Unregistered Tools are not executed
-  - **Verifies**: INV-02
-  - **Type**: Unit
-  - **Blocking**: Yes
-
-- **Test**: There is no Fallback to the static ToolRegistry
-  - **Verifies**: INV-04
-  - **Type**: Regression
-  - **Blocking**: Yes
-
-- **Test**: Startup Drift validation (config/live comparison) uses the static `ToolRegistry` as input and does not change the `RuntimeToolRegistry`-based Routing decision itself
-  - **Verifies**: INV-04 (Decision Detail #15)
-  - **Type**: Integration
-  - **Blocking**: No (warning only; in strict mode startup is aborted, but the Routing decision itself is not affected)
-  - **Test files**: `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py`
-
-- **Test**: Routing, approval, and auditing reference the same Safety Tier
-  - **Verifies**: INV-03
-  - **Type**: Integration
-  - **Blocking**: Yes
-
-- **Test**: A registered write tool outside the static sets is never classified as READ, and a write-flag mismatch is reported at startup
-  - **Verifies**: INV-03
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Test files**: `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/services/test_mcp_tool_discovery.py`
-
-- **Test**: A statically disabled Tool is not included in `llm_tool_definitions()`
-  - **Verifies**: INV-06
-  - **Type**: Regression
-  - **Blocking**: Yes
-
-- **Test**: Tools belonging to a Circuit-Open server remain in `llm_tool_definitions()`
-  - **Verifies**: INV-07
-  - **Type**: Integration
-  - **Blocking**: Yes
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| Startup fails on duplicate Tool name ownership | INV-01 | Integration | Yes | - |
+| Unregistered Tools are not executed | INV-02 | Unit | Yes | - |
+| There is no Fallback to the static ToolRegistry | INV-04 | Regression | Yes | - |
+| Startup Drift validation (config/live comparison) uses the static `ToolRegistry` as input and does not change the `RuntimeToolRegistry`-based Routing decision itself | INV-04 (Decision Detail #15) | Integration | No (warning only; in strict mode startup is aborted, but the Routing decision itself is not affected) | `tests/agent/shared/test_startup_validation_pipeline.py`, `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py`, `tests/shared/test_tool_registry.py`, `tests/shared/test_tool_safety_tiers.py` |
+| Routing, approval, and auditing reference the same Safety Tier | INV-03 | Integration | Yes | - |
+| A registered write tool outside the static sets is never classified as READ, and a write-flag mismatch is reported at startup | INV-03 | Unit | Yes | `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/services/test_mcp_tool_discovery.py` |
+| A statically disabled Tool is not included in `llm_tool_definitions()` | INV-06 | Regression | Yes | - |
+| Tools belonging to a Circuit-Open server remain in `llm_tool_definitions()` | INV-07 | Integration | Yes | - |
 
 ### Startup Validation
 

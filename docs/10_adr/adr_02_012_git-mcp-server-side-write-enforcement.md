@@ -34,7 +34,7 @@ Agent-side approval confirms user intent; it does not verify that a Git write op
 
 ### Problem
 
-Approval and technical safety are different concerns: Agent-side approval confirms user intent before a call is made, but it does not itself validate that the call is safe to execute against the target repository. Git MCP's write tools (`git_checkout`/`git_pull`/`git_push`) must therefore enforce their own technical constraints — protected-branch policy, ref/remote shape, worktree/HEAD state, and postcondition verification — independently of whatever approval state exists on the Agent side, and without assuming a call it receives was already approved.
+Approval and technical safety are different concerns: Agent-side approval confirms user intent before a call is made, but it does not itself validate that the call is safe to execute against the target repository. Git MCP's write tools (`git_checkout`/`git_pull`/`git_push`) must therefore enforce their own technical constraints (see Decision Details) independently of Agent-side approval state.
 
 ### Constraints
 
@@ -90,30 +90,20 @@ A write surface with this risk profile (repository state mutation, potential his
 
 ### Alternative A: Rely entirely on Agent-side approval and leave Git MCP as a thin wrapper
 
-#### Advantages
-Less code in the MCP server; simpler tool implementation.
-
-#### Disadvantages
-No protection if the approval step is bypassed or the MCP endpoint is reached directly; unvalidated `branch`/`remote` values reaching the underlying `git` CLI remain exploitable regardless of approval-layer changes.
-
-#### Reason for Rejection
-Violates the layered-protection principle already adopted for other high-risk MCP tools (`security_02_high-risk-tool-common-policy.md`); approval is a UX/intent layer, not a technical control.
+- **Advantages:** Less code in the MCP server; simpler tool implementation.
+- **Disadvantages:** No protection if the approval step is bypassed or the MCP endpoint is reached directly; unvalidated `branch`/`remote` values reaching the underlying `git` CLI remain exploitable regardless of approval-layer changes.
+- **Reason for Rejection:** Violates the layered-protection principle already adopted for other high-risk MCP tools (`security_02_high-risk-tool-common-policy.md`); approval is a UX/intent layer, not a technical control.
 
 ### Alternative B: Block `git_checkout`/`git_pull`/`git_push` entirely until guards are implemented
 
-#### Advantages
-Removes the exploitable surface immediately.
-
-#### Disadvantages
-Removes legitimate, currently-relied-upon functionality; disproportionate to the risk for a single-operator local-git use case.
-
-#### Reason for Rejection
-A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the remaining guards) addresses the risk without removing the tools.
+- **Advantages:** Removes the exploitable surface immediately.
+- **Disadvantages:** Removes legitimate, currently-relied-upon functionality; disproportionate to the risk for a single-operator local-git use case.
+- **Reason for Rejection:** A low-cost mitigation (reject option-shaped `branch`/`remote` values, plus the remaining guards) addresses the risk without removing the tools.
 
 ## Consequences
 
 ### Positive Consequences
-- Git MCP's safety posture is independent of, and does not rely on, Agent-side approval state.
+- Git MCP's safety posture is independent of Agent-side approval state (INV-04).
 - Makes Git MCP's safety posture consistent with the common high-risk-tool policy it is supposed to follow.
 
 ### Negative Consequences
@@ -163,15 +153,18 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 ## Verification
 
 ### Automated Tests
-- **Test**: `git_checkout`/`git_pull`/`git_push` reject a `branch`/`remote` value shaped like a CLI option (`test_is_safe_ref`, `test_git_pull_unsafe_remote`, `test_git_show_unsafe_ref`) — **Verifies**: INV-01 — **Type**: Regression — **Blocking**: Yes
-- **Test**: write tools reject malformed `branch`/`remote` through the `git check-ref-format --branch`-equivalent allow-list (`TestWriteRefAllowlist::test_rejected_branch_forms`, `test_rejected_remote_forms`; `TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`); read-tool ref tests (`test_is_safe_ref`, `test_git_show_unsafe_ref`) remain for the option-injection-only check — **Verifies**: INV-01 — **Type**: Regression — **Blocking**: Yes
-- **Test**: `git_push` rejects branch values carrying refspec or revision syntax (`+main`, `HEAD:main`, `refs/heads/main`, `main~1`) before any GitPython call (`TestWriteRefAllowlist::test_rejected_branch_forms`; `TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`) — **Verifies**: INV-01, INV-02 — **Type**: Regression — **Blocking**: Yes
-- **Test**: push/checkout/pull against a configured protected branch is rejected (`test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_git_pull_protected_branch`, `test_write_tools_reject_shipped_protected_branches`; `TestLiveCallToolAuthorization`: `test_checkout_protected_branch_denied`, `test_pull_protected_branch_denied`, `test_push_protected_branch_denied`, `test_checkout_non_protected_branch_allowed`, `test_pull_non_protected_branch_allowed`, `test_push_non_protected_branch_allowed`, `test_checkout_implicit_target_denied`, `test_pull_implicit_target_denied`, `test_push_implicit_target_denied`); a protected destination is also rejected when reached directly through the pipeline (`test_repository_state.py::TestStage3DestinationProtection`; `test_git_service_dispatch.py::TestDestinationBasedProtection`), and checkout away from a protected branch is allowed — **Verifies**: INV-03 — **Type**: Integration — **Blocking**: Yes
-- **Test**: Dirty Worktree / Detached HEAD are rejected (or explicitly allowed) per policy (`test_git_checkout_dirty_worktree_denied`, `test_git_pull_dirty_worktree_denied`, `test_git_checkout_detached_head_denied`, `test_git_pull_detached_head_denied`, `test_git_checkout_detached_head_allowed`, `test_git_pull_detached_head_allowed`; `TestDryRunAndDetachedHeadLivePath`: `test_dry_run_checkout_skips_dirty_and_detached_precondition`, `test_dry_run_checkout_protected_branch_still_denied`, `test_non_dry_run_detached_head_denied_then_allowed`, `test_dry_run_pull_and_push_skip_dirty_precondition`) — **Verifies**: Decision Details #5 — **Type**: Integration — **Blocking**: Yes
-- **Test**: Postcondition verification runs on the live path and cannot be bypassed (`TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`) — **Verifies**: Decision Details #6 — **Type**: Integration — **Blocking**: Yes
-- **Test**: `RepositoryState` is a frozen dataclass and snapshots capture the required fields (`test_snapshot_frozen_dataclass`, plus the `TestRepositoryStateSnapshot` suite) — **Verifies**: Decision Details #8 — **Type**: Unit — **Blocking**: Yes
-- **Test**: audit records include the correct repository identity and pre/post-condition state (`test_audit_record_includes_repo_identity`, `test_audit_record_has_pre_condition`, `test_audit_record_has_post_condition`) — **Verifies**: Decision Details #7, #10 — **Type**: Unit — **Blocking**: Yes
-- **Test**: the pipeline stages execute in the documented order for `git_checkout`/`git_pull`/`git_push` (`TestCompletePipelineCoverage`: `test_all_stages_execute_in_order_for_checkout`, `test_all_stages_execute_in_order_for_pull`, `test_all_stages_execute_in_order_for_push`) — **Verifies**: Decision Details #9 — **Type**: Integration — **Blocking**: Yes
+
+| Test | Verifies | Type | Blocking |
+|---|---|---|---|
+| `git_checkout`/`git_pull`/`git_push` reject a `branch`/`remote` value shaped like a CLI option (`test_is_safe_ref`, `test_git_pull_unsafe_remote`, `test_git_show_unsafe_ref`) | INV-01 | Regression | Yes |
+| write tools reject malformed `branch`/`remote` through the `git check-ref-format --branch`-equivalent allow-list (`TestWriteRefAllowlist::test_rejected_branch_forms`, `test_rejected_remote_forms`; `TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`); read-tool ref tests (`test_is_safe_ref`, `test_git_show_unsafe_ref`) remain for the option-injection-only check | INV-01 | Regression | Yes |
+| `git_push` rejects branch values carrying refspec or revision syntax (`+main`, `HEAD:main`, `refs/heads/main`, `main~1`) before any GitPython call (`TestWriteRefAllowlist::test_rejected_branch_forms`; `TestGitPushRefRejectionBeforeGit::test_rejected_before_snapshot`) | INV-01, INV-02 | Regression | Yes |
+| push/checkout/pull against a configured protected branch is rejected (`test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_git_pull_protected_branch`, `test_write_tools_reject_shipped_protected_branches`; `TestLiveCallToolAuthorization`: `test_checkout_protected_branch_denied`, `test_pull_protected_branch_denied`, `test_push_protected_branch_denied`, `test_checkout_non_protected_branch_allowed`, `test_pull_non_protected_branch_allowed`, `test_push_non_protected_branch_allowed`, `test_checkout_implicit_target_denied`, `test_pull_implicit_target_denied`, `test_push_implicit_target_denied`); a protected destination is also rejected when reached directly through the pipeline (`test_repository_state.py::TestStage3DestinationProtection`; `test_git_service_dispatch.py::TestDestinationBasedProtection`), and checkout away from a protected branch is allowed | INV-03 | Integration | Yes |
+| Dirty Worktree / Detached HEAD are rejected (or explicitly allowed) per policy (`test_git_checkout_dirty_worktree_denied`, `test_git_pull_dirty_worktree_denied`, `test_git_checkout_detached_head_denied`, `test_git_pull_detached_head_denied`, `test_git_checkout_detached_head_allowed`, `test_git_pull_detached_head_allowed`; `TestDryRunAndDetachedHeadLivePath`: `test_dry_run_checkout_skips_dirty_and_detached_precondition`, `test_dry_run_checkout_protected_branch_still_denied`, `test_non_dry_run_detached_head_denied_then_allowed`, `test_dry_run_pull_and_push_skip_dirty_precondition`) | Decision Details #5 | Integration | Yes |
+| Postcondition verification runs on the live path and cannot be bypassed (`TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`) | Decision Details #6 | Integration | Yes |
+| `RepositoryState` is a frozen dataclass and snapshots capture the required fields (`test_snapshot_frozen_dataclass`, plus the `TestRepositoryStateSnapshot` suite) | Decision Details #8 | Unit | Yes |
+| audit records include the correct repository identity and pre/post-condition state (`test_audit_record_includes_repo_identity`, `test_audit_record_has_pre_condition`, `test_audit_record_has_post_condition`) | Decision Details #7, #10 | Unit | Yes |
+| the pipeline stages execute in the documented order for `git_checkout`/`git_pull`/`git_push` (`TestCompletePipelineCoverage`: `test_all_stages_execute_in_order_for_checkout`, `test_all_stages_execute_in_order_for_pull`, `test_all_stages_execute_in_order_for_push`) | Decision Details #9 | Integration | Yes |
 
 ## Implementation Notes
 

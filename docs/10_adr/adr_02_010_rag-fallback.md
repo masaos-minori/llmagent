@@ -32,7 +32,7 @@ Accepted
 
 ## Summary
 
-This ADR canonicalizes the decision to fall back automatically to the in-process local RAG when execution of the RAG pipeline's external service fails. The execution mode is switched by whether `rag_service_url` is set, HTTP errors are distinguished from empty results, and idempotent re-execution is made possible.
+Canonicalizes the automatic fallback to the in-process local RAG when the RAG pipeline's external service fails (see Decision).
 
 ## Context
 
@@ -111,78 +111,24 @@ Tracking the result source makes it possible to know which path produced the res
 
 ### Alternative A: No Fallback
 
-#### Description
-
-Return an error when the external RAG service fails.
-
-#### Advantages
-
-- Simple implementation
-- Result consistency is ensured
-
-#### Disadvantages
-
-- Availability decreases
-- The user experience deteriorates
-
-#### Reason for Rejection
-
-Rejected to prioritize Availability and keep the search function working even when the external service fails.
-
-#### Reconsideration Conditions
-
-- Result consistency becomes mandatory
-- Fallback causes confusion
+- **Advantages:** simple implementation; result consistency is ensured
+- **Disadvantages:** availability decreases; the user experience deteriorates
+- **Reason for Rejection:** Rejected to prioritize Availability and keep the search function working even when the external service fails.
+- **Reconsideration Conditions:** result consistency becomes mandatory; fallback causes confusion
 
 ### Alternative B: Fallback Only on Specific Errors
 
-#### Description
-
-Make only specific HTTP status codes (for example, 5xx) fallback conditions.
-
-#### Advantages
-
-- Prevents unintended fallback
-- Improves result consistency
-
-#### Disadvantages
-
-- Cannot handle other errors such as network failures
-- Requires complex rules
-
-#### Reason for Rejection
-
-Rejected to prioritize Availability and handle every technical failure.
-
-#### Reconsideration Conditions
-
-- It becomes necessary to make only specific errors fallback conditions
-- Result consistency becomes important
+- **Advantages:** prevents unintended fallback; improves result consistency
+- **Disadvantages:** cannot handle other errors such as network failures; requires complex rules
+- **Reason for Rejection:** Rejected to prioritize Availability and handle every technical failure.
+- **Reconsideration Conditions:** it becomes necessary to make only specific errors fallback conditions; result consistency becomes important
 
 ### Alternative C: Separate Corpus for Local
 
-#### Description
-
-Use different corpora for the local RAG and the external RAG.
-
-#### Advantages
-
-- Result consistency is ensured
-- Corpus independence improves
-
-#### Disadvantages
-
-- Corpus synchronization becomes complex
-- Data redundancy increases
-
-#### Reason for Rejection
-
-Rejected to prioritize Availability and avoid the cost of corpus synchronization.
-
-#### Reconsideration Conditions
-
-- Result consistency becomes mandatory
-- The cost of corpus synchronization becomes acceptable
+- **Advantages:** result consistency is ensured; corpus independence improves
+- **Disadvantages:** corpus synchronization becomes complex; data redundancy increases
+- **Reason for Rejection:** Rejected to prioritize Availability and avoid the cost of corpus synchronization.
+- **Reconsideration Conditions:** result consistency becomes mandatory; the cost of corpus synchronization becomes acceptable
 
 ## Consequences
 
@@ -261,47 +207,15 @@ Rejected to prioritize Availability and avoid the cost of corpus synchronization
 
 ### Automated Tests
 
-- **Test**: Falls back to the in-process local RAG when the external RAG service fails
-  - **Verifies**: INV-04
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_rag_pipeline_service.py::TestResponseParsing::test_5xx_retries_and_returns_transient_failure`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_400_still_triggers_fallback`
-
-- **Test**: An empty result is treated as a valid result
-  - **Verifies**: INV-03
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process`
-
-- **Test**: The result source is tracked correctly
-  - **Verifies**: INV-06
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_remote_empty_sets_result_source_remote`, `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_pipeline_http_result_kind.py`
-
-- **Test**: The pipeline is re-executed idempotently on fallback
-  - **Verifies**: INV-05
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback` (the in-process `run` is stubbed; no test asserts the full stage sequence)
-
-- **Test**: The mode is selected by whether `rag_service_url` is set
-  - **Verifies**: INV-01
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_pipeline_http_result_kind.py::test_no_http_mode`
-
-- **Test**: A response parse error is treated as an empty result
-  - **Verifies**: INV-07
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_pipeline_service.py::TestFallbackReasonCallback::test_json_parse_error_does_not_call_set_fallback_reason`
-
-- **Test**: The external call is tagged `auth_error` for 401/403 and records an authentication reason; `augment()` raises `RagPipelineError` and never enters the in-process pipeline
-  - **Verifies**: INV-04
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_403_no_fallback`, `tests/rag/test_pipeline_http_result_kind.py::test_auth_error_fails_closed_without_in_process_fallback`
+| Test | Verifies | Type | Blocking | Implementation |
+| --- | --- | --- | --- | --- |
+| Falls back to the in-process local RAG when the external RAG service fails | INV-04 | Integration | Yes | `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_rag_pipeline_service.py::TestResponseParsing::test_5xx_retries_and_returns_transient_failure`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_400_still_triggers_fallback` |
+| An empty result is treated as a valid result | INV-03 | Regression | Yes | `tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process` |
+| The result source is tracked correctly | INV-06 | Integration | Yes | `tests/rag/test_rag_http_mode.py::test_remote_empty_sets_result_source_remote`, `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback`, `tests/rag/test_pipeline_http_result_kind.py` |
+| The pipeline is re-executed idempotently on fallback | INV-05 | Integration | Yes | `tests/rag/test_rag_http_mode.py::test_in_process_fallback_sets_result_source_fallback` (the in-process `run` is stubbed; no test asserts the full stage sequence) |
+| The mode is selected by whether `rag_service_url` is set | INV-01 | Integration | Yes | `tests/rag/test_pipeline_http_result_kind.py::test_no_http_mode` |
+| A response parse error is treated as an empty result | INV-07 | Unit | Yes | `tests/rag/test_rag_pipeline_service.py::TestFallbackReasonCallback::test_json_parse_error_does_not_call_set_fallback_reason` |
+| The external call is tagged `auth_error` for 401/403 and records an authentication reason; `augment()` raises `RagPipelineError` and never enters the in-process pipeline | INV-04 | Unit | Yes | `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_401_no_fallback`, `tests/rag/test_rag_pipeline_service.py::TestAuthErrorHandling::test_403_no_fallback`, `tests/rag/test_pipeline_http_result_kind.py::test_auth_error_fails_closed_without_in_process_fallback` |
 
 ### Startup Validation
 

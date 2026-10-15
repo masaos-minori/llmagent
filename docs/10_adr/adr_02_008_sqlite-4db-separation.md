@@ -37,7 +37,7 @@ Accepted
 
 ## Summary
 
-This ADR canonicalizes the decision to separate data with different update frequencies, failure scopes, retention periods, and recovery methods into four SQLite DBs. It defines the responsibilities of `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, and `eventbus.sqlite`, and explains that cross-DB Transactions are not used and how consistency is ensured. It limits the scope of sqlite-vec and organizes the Backup, Recovery, and retention policy per DB. It also canonicalizes the safety boundary for recovery from physical corruption (failure classification, independent verification of backup candidates, Atomic replacement, a no-change guarantee for Dry Run, and a recovery policy per persistence domain).
+This ADR canonicalizes the separation of data into four SQLite DBs (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`) with per-DB responsibilities, no cross-DB Transactions, a limited sqlite-vec scope, and a Backup, Recovery, and retention policy per DB. It also canonicalizes the safety boundary for recovery from physical corruption (see Decision Details #14 to #20).
 
 mdq.sqlite, owned by mdq-mcp, is a separate derived store outside the four platform persistence domains of this ADR; its policy is recorded under "Out of Scope" and "Derived Stores Outside the Four Domains".
 
@@ -47,7 +47,7 @@ mdq.sqlite, owned by mdq-mcp, is a separate derived store outside the four platf
 
 The RAG index, session state, workflow state, and event bus state differ in update frequency, lock contention, failure scope, retention period, and recovery method. Single-DB management causes WAL contention, failure propagation, and complex backups.
 
-When separated into multiple SQLite files, a recovery mechanism without an explicit safety contract is dangerous. One that cannot distinguish physical corruption from temporary lock contention may run against a DB that is not actually broken—more dangerous than no recovery at all. Restoring from an unverified backup or non-atomic DB overwrite turns a single-file corruption into loss of both original and backup.
+With multiple SQLite files, a recovery mechanism without an explicit safety contract is dangerous: one that cannot distinguish physical corruption from temporary lock contention may run against a DB that is not actually broken, which is worse than no recovery at all, and restoring from an unverified backup or by non-atomic overwrite turns a single-file corruption into loss of both original and backup.
 
 ### Constraints
 
@@ -95,13 +95,13 @@ When separated into multiple SQLite files, a recovery mechanism without an expli
 | Manual restore allowed or prohibited | allowed | allowed | operator intervention only | operator intervention only |
 | Operator approval requirement | required for manual restore | required for manual restore | required (manual operation only) | required (manual operation only) |
 | Backup retention requirement | regular file copy via `rotate_all_dbs()` | regular file copy via `rotate_all_dbs()` | archived via `rotate_all_dbs()` but no automated restoration | archived via `rotate_eventbus_db()` alongside other three databases |
-| WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup | WAL mode enforced; checkpoint before backup |
+| WAL checkpoint and backup consistency requirement | WAL mode enforced; checkpoint before backup | same | same | same |
 | Physical integrity verification | independent validation before restore (INV-14) | independent validation before restore (INV-14) | not applicable (no automated restore) | not applicable (no automated restore) |
 | Database-specific logical verification | `check_rag_consistency()` post-restore | `check_session_consistency()` post-restore | none automated (manual operator handling) | none automated (manual operator handling) |
 | Service restart condition | Agent process, rag-pipeline-mcp, and any ingester restart after restore | Agent process restart after restore | Agent process restart after restore | EventBus process restart after restore |
 | Rollback condition | atomic replacement leaves the original intact if a restore fails | atomic replacement leaves the original intact if a restore fails | not applicable (no automated restore) | not applicable (no automated restore) |
-| Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) | Error/Audit records exclude row-level DB content (Security Consequences) |
-| Data-loss disclosure requirement | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported | loss between backup point and failure time must be reported |
+| Audit requirement | Error/Audit records exclude row-level DB content (Security Consequences) | same | same | same |
+| Data-loss disclosure requirement | loss between backup point and failure time must be reported | same | same | same |
 
 Future persistence domains: default policy is fail-closed—no automatic restore until an approved architectural decision defines its recovery policy.
 
@@ -164,138 +164,48 @@ When data with different update frequencies is in the same DB, WAL contention de
 
 ### 3. Third Reason for Adoption — Data Integrity
 
-Each DB can define its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period. This accommodates the differences: RAG emphasizes rebuildability, Session history retention, Workflow resumption and auditing, and EventBus unprocessed Events and Offsets. Because restoring from an unverified backup or a non-Atomic overwrite turns an incident into the risk of losing both the corrupted original and a good backup, independent verification of the candidate and Atomic replacement are required.
+Each DB can define its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period, accommodating the differences listed in Decision Details #10 and #11. Because an unverified or non-Atomic restore risks losing both the corrupted original and a good backup (see Context), independent verification of the candidate and Atomic replacement are required.
 
 ### 4. Fourth Reason for Adoption — Correctness (Recovery Safety)
 
-A recovery mechanism that cannot distinguish corruption from a temporary lock may run even against a DB that is not actually broken, so it is more dangerous than having no recovery mechanism at all. If the recovery policy for the `workflow`/`eventbus` domains were left undefined, there would be no action for operators to take when a failure actually occurs in those domains, so this ADR defines that policy explicitly.
+A recovery mechanism that cannot distinguish corruption from a temporary lock is more dangerous than none (see Context). If the recovery policy for the `workflow`/`eventbus` domains were left undefined, operators would have no action to take when a failure occurs there, so this ADR defines that policy explicitly.
 
 ## Alternatives Considered
 
 ### Alternative A: Single SQLite Database
 
-#### Description
-
-Manage all data in a single SQLite DB.
-
-#### Advantages
-
-- Simple structure
-- JOINs across DBs are possible
-- Transactions are easy
-
-#### Disadvantages
-
-- Performance degradation from WAL contention
-- Failure propagation
-- More complex backups
-- Retention periods must be unified
-
-#### Reason for Rejection
-
-Operability and Performance require preventing lock contention and failure propagation.
-
-#### Reconsideration Conditions
-
-- Concurrency is very low
-- JOINs across DBs become necessary
+- **Advantages:** Simple structure; JOINs across DBs are possible; Transactions are easy
+- **Disadvantages:** Performance degradation from WAL contention; failure propagation; more complex backups; retention periods must be unified
+- **Reason for Rejection:** Operability and Performance require preventing lock contention and failure propagation.
+- **Reconsideration Conditions:** Concurrency is very low; JOINs across DBs become necessary
 
 ### Alternative B: No sqlite-vec extension
 
-#### Description
-
-Do not use sqlite-vec for vector search.
-
-#### Advantages
-
-- No dependency on sqlite-vec
-- Can be managed with standard SQLite only
-
-#### Disadvantages
-
-- Inferior vector search performance
-- KNN search cannot be achieved
-- Lower embedding search accuracy
-
-#### Reason for Rejection
-
-Performance requires high-accuracy KNN search via sqlite-vec.
-
-#### Reconsideration Conditions
-
-- sqlite-vec becomes supported as a standard SQLite extension
-- Vector search is no longer needed
+- **Advantages:** No dependency on sqlite-vec; can be managed with standard SQLite only
+- **Disadvantages:** Inferior vector search performance; KNN search cannot be achieved; lower embedding search accuracy
+- **Reason for Rejection:** Performance requires high-accuracy KNN search via sqlite-vec.
+- **Reconsideration Conditions:** sqlite-vec becomes supported as a standard SQLite extension; vector search is no longer needed
 
 ### Alternative C: Cross-database Transactions
 
-#### Description
-
-Allow transactions across DBs.
-
-#### Advantages
-
-- Consistency is ensured
-- Composite queries are possible
-
-#### Disadvantages
-
-- The implementation becomes complex
-- Performance degrades
-- The failure scope expands
-
-#### Reason for Rejection
-
-Operability requires keeping the failure scope localized.
-
-#### Reconsideration Conditions
-
-- Consistency across DBs becomes mandatory
-- Composite transactions become necessary
+- **Advantages:** Consistency is ensured; composite queries are possible
+- **Disadvantages:** The implementation becomes complex; performance degrades; the failure scope expands
+- **Reason for Rejection:** Operability requires keeping the failure scope localized.
+- **Reconsideration Conditions:** Consistency across DBs becomes mandatory; composite transactions become necessary
 
 ### Alternative D: Treat every DB-open failure as corruption and always restore from backup
 
-#### Description
-
-Always treat a DB open failure as corruption and always restore from a backup.
-
-#### Advantages
-
-- Simple, with a single code path
-
-#### Disadvantages
-
-- A restore runs needlessly even for temporary Lock/Permission failures
-- If the state was actually temporary, there is a risk of losing recent writes
-
-#### Reason for Rejection
-
-Rejected because it violates the classification invariant (Lock Contention and Permission Failure are not treated as Corruption).
-
-#### Reconsideration Conditions
-
-- Not applicable
+- **Advantages:** Simple, with a single code path
+- **Disadvantages:** A restore runs needlessly even for temporary Lock/Permission failures; if the state was actually temporary, there is a risk of losing recent writes
+- **Reason for Rejection:** Rejected because it violates the classification invariant (Lock Contention and Permission Failure are not treated as Corruption).
+- **Reconsideration Conditions:** Not applicable
 
 ### Alternative E: Leave workflow/eventbus unrecoverable by policy, permanently
 
-#### Description
-
-Treat `workflow.sqlite`/`eventbus.sqlite` as permanently unrecoverable.
-
-#### Advantages
-
-- No implementation work required
-
-#### Disadvantages
-
-- It becomes an unannounced permanent gap, and operators may mistakenly believe they can recover it like `rag`/`session`
-
-#### Reason for Rejection
-
-Whether to make them unrecoverable or to provide a manual operator recovery procedure should be an explicit decision; this ADR adopts the latter (manual operator recovery), so this alternative was rejected.
-
-#### Reconsideration Conditions
-
-- Not applicable
+- **Advantages:** No implementation work required
+- **Disadvantages:** It becomes an unannounced permanent gap, and operators may mistakenly believe they can recover it like `rag`/`session`
+- **Reason for Rejection:** Whether to make them unrecoverable or to provide a manual operator recovery procedure should be an explicit decision; this ADR adopts the latter (manual operator recovery), so this alternative was rejected.
+- **Reconsideration Conditions:** Not applicable
 
 ## Consequences
 
@@ -319,11 +229,9 @@ Whether to make them unrecoverable or to provide a manual operator recovery proc
 
 ### Operational Consequences
 
-- Each DB's connection is confirmed at startup
 - Configuration changes require restarting the owning process
 - Incident response requires a recovery procedure per DB
-- No automatic restore for `workflow.sqlite`/`eventbus.sqlite` physical corruption; operators must handle recovery manually
-- Deletion of set-aside corrupted DB copies is left to the operator's manual judgment (no automatic deletion)
+- Operators handle `workflow.sqlite`/`eventbus.sqlite` recovery and the deletion of set-aside corrupted DB copies manually (Decision Details #19 and #20)
 
 ### Security Consequences
 
@@ -390,47 +298,15 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 
 ### Automated Tests
 
-- **Test**: Each DB has its own schema creation and its own recovery target path
-  - **Verifies**: INV-01, INV-02, INV-03, INV-04
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_four_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_uses_correct_db_path`
-
-- **Test**: sqlite-vec is not loaded into anything other than `rag.sqlite`
-  - **Verifies**: INV-08
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/db/test_sqlite_helper.py::TestSQLiteHelperTargetValidation::test_dbtarget_enum_member_resolves_to_value` (asserts the `rag` default only; the non-`rag` default is set in `SQLiteHelper.__init__()`)
-
-- **Test**: Lock Contention and Permission Failure are not classified as physical corruption
-  - **Verifies**: INV-13
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode`
-
-- **Test**: Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results
-  - **Verifies**: INV-16
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_eventbus_prohibited` (no test asserts byte-identity of a corrupt DB under Dry Run)
-
-- **Test**: A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore
-  - **Verifies**: INV-18
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_healthy_eventbus_prohibited`
-
-- **Test**: A restore candidate with a corrupt or wrong-domain backup is rejected and the target DB is left untouched
-  - **Verifies**: INV-14, INV-15
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_bad_backup`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_rejected`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_leaves_db_untouched`
-
-- **Test**: An unclassifiable integrity-check failure preserves the target DB and requires operator intervention
-  - **Verifies**: INV-17
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/db/test_db_recovery.py::test_recover_unknown_preserved_operator_intervention_required`
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| Each DB has its own schema creation and its own recovery target path | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_four_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_uses_correct_db_path` |
+| sqlite-vec is not loaded into anything other than `rag.sqlite` | INV-08 | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperTargetValidation::test_dbtarget_enum_member_resolves_to_value` (asserts the `rag` default only; the non-`rag` default is set in `SQLiteHelper.__init__()`) |
+| Lock Contention and Permission Failure are not classified as physical corruption | INV-13 | Regression | Yes | `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode` |
+| Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_eventbus_prohibited` (no test asserts byte-identity of a corrupt DB under Dry Run) |
+| A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore | INV-18 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_healthy_eventbus_prohibited` |
+| A restore candidate with a corrupt or wrong-domain backup is rejected and the target DB is left untouched | INV-14, INV-15 | Unit | Yes | `tests/db/test_db_recovery.py::test_recover_bad_backup`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_rejected`, `tests/db/test_db_recovery.py::test_recover_wrong_domain_backup_leaves_db_untouched` |
+| An unclassifiable integrity-check failure preserves the target DB and requires operator intervention | INV-17 | Unit | Yes | `tests/db/test_db_recovery.py::test_recover_unknown_preserved_operator_intervention_required` |
 
 ### Startup Validation
 
@@ -459,9 +335,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 ## Implementation Notes
 
 - `SQLiteHelper` resolves one of four targets (`rag`, `session`, `workflow`, `eventbus`) to its configured file path and loads the sqlite-vec extension by default only for `rag`.
-- `create_schema()` creates the schema of each database separately.
 - `recover_corruption()` rejects `workflow` and `eventbus` with `no_recovery_allowed` before any integrity check, classifies the other targets through `_run_integrity_check()` and `_classify_error()`, and restores from a verified backup through `_restore_from_backup()`.
-- `rotate_all_dbs()` archives each of the four databases.
 
 See Implementation References for the current file/symbol list.
 

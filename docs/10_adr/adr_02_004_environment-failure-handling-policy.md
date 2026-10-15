@@ -33,7 +33,7 @@ Accepted
 
 ## Summary
 
-Single common failure handling policy for every environment. Environment names do not change startup validation, auth/authz, Allowlist enforcement, approval control, Tool ownership, Routing, resource-scope validation, DB integrity, or Workflow requirements. Failures classified into "safety/integrity failures" and "availability failures"; safety/integrity failures always Fail-Fast/Fail-Closed. Mandatory component unavailability aborts startup; only availability failures of non-mandatory components permit continued startup in partial-availability state. Fallback permitted only when another Accepted ADR explicitly defines trigger, destination, eligibility, restrictions, result semantics, observability. ADR-010 RAG fallback is the only such exception.
+Single common failure handling policy for every environment (Decision Group 1); environment names change no safety/validation behavior. Failures are classified as safety/integrity failures (always Fail-Fast/Fail-Closed) or availability failures. Mandatory component unavailability aborts startup; only availability failures of non-mandatory components permit continued startup in partial-availability state. Fallback is permitted only when another Accepted ADR explicitly defines trigger, destination, eligibility, restrictions, result semantics, and observability; ADR-010 RAG fallback is the only such exception.
 
 ## Context
 
@@ -157,116 +157,37 @@ The startup validation results built by `StartupOrchestrator` are an in-memory a
 
 ### Alternative A: Separate failure-handling policies per Environment Profile
 
-#### Description
-
-Define environment-specific failure handling policies (Fail-Fast conditions and the permitted extent of Fail-Open) for Local, Development, Production, and so on.
-
-#### Advantages
-
-- Less friction during development
-
-#### Disadvantages
-
-- Behavioral differences between environments can lead to unintended relaxation of safety
-- It becomes hard to predict which guarantees hold in which environment
-
-#### Reason for Rejection
-
-Prioritizing Security and Predictability, a single common policy whose guarantees do not change with the environment name was adopted.
-
-#### Reconsideration Conditions
-
-- Friction during development becomes a serious Availability problem
+- **Advantages:** Less friction during development
+- **Disadvantages:** Behavioral differences between environments can lead to unintended relaxation of safety; It becomes hard to predict which guarantees hold in which environment
+- **Reason for Rejection:** Prioritizing Security and Predictability, a single common policy whose guarantees do not change with the environment name was adopted.
+- **Reconsideration Conditions:** Friction during development becomes a serious Availability problem
 
 ### Alternative B: Treat every dependency as required
 
-#### Description
-
-Treat every dependency component uniformly as mandatory and always abort startup when any of them is unavailable.
-
-#### Advantages
-
-- Simple rule
-- No risk of misclassification
-
-#### Disadvantages
-
-- Even a temporary failure of a peripheral component that does not affect core processing stops startup as a whole
-- Operational flexibility is lost
-
-#### Reason for Rejection
-
-Prioritizing Availability, partial availability was permitted under explicit criteria for components that do not affect core safety and integrity.
-
-#### Reconsideration Conditions
-
-- The operational cost of the classification criteria turns out to exceed the actual availability improvement
+- **Advantages:** Simple rule; No risk of misclassification
+- **Disadvantages:** Even a temporary failure of a peripheral component that does not affect core processing stops startup as a whole; Operational flexibility is lost
+- **Reason for Rejection:** Prioritizing Availability, partial availability was permitted under explicit criteria for components that do not affect core safety and integrity.
+- **Reconsideration Conditions:** The operational cost of the classification criteria turns out to exceed the actual availability improvement
 
 ### Alternative C: Continue startup after any dependency failure
 
-#### Description
-
-Permit startup to continue on any failure, regardless of the kind of dependency component.
-
-#### Advantages
-
-- Startup interruptions are minimized
-
-#### Disadvantages
-
-- It would allow continuing even through safety/integrity failures, which carries a significantly high Security risk
-
-#### Reason for Rejection
-
-Security is the top priority; safety/integrity failures are always Fail-Fast/Fail-Closed.
-
-#### Reconsideration Conditions
-
-- Not applicable (permitting continuation through safety/integrity failures is not reconsidered)
+- **Advantages:** Startup interruptions are minimized
+- **Disadvantages:** It would allow continuing even through safety/integrity failures, which carries a significantly high Security risk
+- **Reason for Rejection:** Security is the top priority; safety/integrity failures are always Fail-Fast/Fail-Closed.
+- **Reconsideration Conditions:** Not applicable (permitting continuation through safety/integrity failures is not reconsidered)
 
 ### Alternative D: Allow only explicitly classified non-required components to be disabled
 
-#### Description
-
-The approach adopted by this ADR. Only components explicitly classified as non-mandatory are disabled on an availability failure, and startup is permitted to continue.
-
-#### Advantages
-
-- Because the classification criteria are explicit, arbitrary continuation decisions are prevented
-- It can be handled independently of safety/integrity failures
-
-#### Disadvantages
-
-- There is a cost to maintaining the classification of each component
-- A misclassification could either prevent a necessary startup abort or needlessly disable an available function
-
-#### Reason for Rejection
-
-Not rejected; this is the approach adopted by this ADR. It is listed for comparison.
+- **Advantages:** Because the classification criteria are explicit, arbitrary continuation decisions are prevented; It can be handled independently of safety/integrity failures
+- **Disadvantages:** There is a cost to maintaining the classification of each component; A misclassification could either prevent a necessary startup abort or needlessly disable an available function
+- **Reason for Rejection:** Not rejected; this is the approach adopted by this ADR. It is listed for comparison.
 
 ### Alternative E: Dynamic failure policy based on real-time risk assessment
 
-#### Description
-
-Change the failure policy dynamically based on real-time risk assessment.
-
-#### Advantages
-
-- More flexible failure response
-
-#### Disadvantages
-
-- Requires a complex implementation
-- Risk of misjudgment in real-time assessment
-- Unpredictable behavior
-
-#### Reason for Rejection
-
-Rejected to prioritize Predictability and Maintainability, because static classification criteria were judged sufficient.
-
-#### Reconsideration Conditions
-
-- The accuracy of real-time risk assessment is proven and the operational cost exceeds an acceptable level
+- **Advantages:** More flexible failure response
+- **Disadvantages:** Requires a complex implementation; Risk of misjudgment in real-time assessment; Unpredictable behavior
+- **Reason for Rejection:** Rejected to prioritize Predictability and Maintainability, because static classification criteria were judged sufficient.
+- **Reconsideration Conditions:** The accuracy of real-time risk assessment is proven and the operational cost exceeds an acceptable level
 
 ## Consequences
 
@@ -323,59 +244,17 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 
 ### Automated Tests
 
-- **Test**: Missing/invalid Workflow → abort
-  - **Verifies**: INV-03
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Status**: Confirmed
-
-- **Test**: Inconsistent DB Schema → abort
-  - **Verifies**: INV-05
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Status**: Confirmed
-
-- **Test**: Duplicate Tool ownership → abort
-  - **Verifies**: INV-04
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Status**: Confirmed
-
-- **Test**: Initialization failure of RuntimeToolRegistry, failure of a required DB connection, and failures of authentication/authorization/Allowlist/Safety Tier/Config Isolation/establishing approval control abort startup
-  - **Verifies**: INV-06, INV-07
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Status**: Partial (see `adr_01_index.md`)
-
-- **Test**: Unavailability of a mandatory component (such as a required MCP server) aborts startup
-  - **Verifies**: INV-08
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Status**: Confirmed
-
-- **Test**: An availability failure of a non-mandatory component permits startup to continue and disables that component
-  - **Verifies**: INV-09
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Status**: Confirmed (spawn path: see Exceptions)
-
-- **Test**: Safety/integrity failures not converted to partial availability
-  - **Verifies**: INV-10
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Status**: Partial (see `adr_01_index.md`)
-
-- **Test**: Calls to Tools of disabled component → rejected
-  - **Verifies**: INV-11, INV-12
-  - **Type**: Unit
-  - **Blocking**: No
-  - **Status**: Confirmed
-
-- **Test**: Fallback only per ADR-010
-  - **Verifies**: INV-15, INV-16
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Status**: Not verified (manual audit only; see Manual Review)
+| Test | Verifies | Type | Blocking | Status |
+|---|---|---|---|---|
+| Missing/invalid Workflow → abort | INV-03 | Integration | Yes | Confirmed |
+| Inconsistent DB Schema → abort | INV-05 | Integration | Yes | Confirmed |
+| Duplicate Tool ownership → abort | INV-04 | Integration | Yes | Confirmed |
+| Initialization failure of RuntimeToolRegistry, failure of a required DB connection, and failures of authentication/authorization/Allowlist/Safety Tier/Config Isolation/establishing approval control abort startup | INV-06, INV-07 | Integration | Yes | Partial (see `adr_01_index.md`) |
+| Unavailability of a mandatory component (such as a required MCP server) aborts startup | INV-08 | Integration | Yes | Confirmed |
+| An availability failure of a non-mandatory component permits startup to continue and disables that component | INV-09 | Integration | Yes | Confirmed (spawn path: see Exceptions) |
+| Safety/integrity failures not converted to partial availability | INV-10 | Regression | Yes | Partial (see `adr_01_index.md`) |
+| Calls to Tools of disabled component → rejected | INV-11, INV-12 | Unit | No | Confirmed |
+| Fallback only per ADR-010 | INV-15, INV-16 | Integration | Yes | Not verified (manual audit only; see Manual Review) |
 
 ### Startup Validation
 

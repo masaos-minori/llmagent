@@ -29,7 +29,7 @@ Accepted
 
 ## Summary
 
-To manage the Agent's execution state, retries, verification, persistence, and post-restart recovery with a common state model, the Workflow Engine is the mandatory foundation for Agent execution. Every operation by the Agent that changes external state, executes a Tool, or involves multiple steps runs under the management of the Workflow Engine. Human approval is decided before a Tool executes; the workflow itself has no approval stage. There is no workflow-disable mode and no direct execution path that bypasses the workflow.
+The Workflow Engine is the mandatory foundation for Agent execution: all Agent processing runs under it, with no workflow-disable mode and no bypass path. Human approval is decided before a Tool executes; the workflow has no approval stage. See Decision for the normative rules.
 
 ## Context
 
@@ -90,7 +90,7 @@ This system executes tasks planned by the LLM. Some tools have side effects, som
 
 ### 1. Primary Reason for Adoption — Correctness
 
-Every operation with side effects must be traceable. A direct execution path makes auditing and recovery difficult.
+Every operation with side effects must be traceable (see Context). A direct execution path makes auditing and recovery difficult.
 
 ### 2. Second Reason for Adoption — Recoverability
 
@@ -108,128 +108,38 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 
 ### Alternative A: Direct tool execution without workflow
 
-#### Description
-
-Allow a direct path from the LLM to tools and skip workflow management.
-
-#### Advantages
-
-- Simple structure
-- Reduced overhead for low-risk operations
-
-#### Disadvantages
-
-- Auditing and recovery become difficult
-- No persistent state for retry logic
-- Partially completed tasks cannot be inspected
-
-#### Reason for Rejection
-
-To prioritize Correctness and Recoverability and to ensure auditability and recoverability.
-
-#### Reconsideration Conditions
-
-- Audit requirements are significantly relaxed
-- Recoverability is no longer needed
+- **Advantages:** Simple structure; reduced overhead for low-risk operations
+- **Disadvantages:** Auditing and recovery become difficult; no persistent state for retry logic; partially completed tasks cannot be inspected
+- **Reason for Rejection:** To prioritize Correctness and Recoverability and to ensure auditability and recoverability.
+- **Reconsideration Conditions:** Audit requirements are significantly relaxed; Recoverability is no longer needed
 
 ### Alternative B: Optional workflow mode
 
-#### Description
-
-Make workflow mode optional and allow enabling/disabling it per environment.
-
-#### Advantages
-
-- Simpler development
-- Flexible deployment options
-
-#### Disadvantages
-
-- Inconsistent behavior between workflow-enabled and workflow-disabled modes
-- Operators cannot predict execution patterns
-- Audit trails and approval decision tracking are still needed when disabled
-
-#### Reason for Rejection
-
-Rejected to prioritize Operability and Data Integrity, because environment-specific rules cause confusion.
-
-#### Reconsideration Conditions
-
-- The operational scale grows and the overhead of workflow management exceeds an acceptable level
+- **Advantages:** Simpler development; flexible deployment options
+- **Disadvantages:** Inconsistent behavior between workflow-enabled and workflow-disabled modes; operators cannot predict execution patterns; audit trails and approval decision tracking are still needed when disabled
+- **Reason for Rejection:** Rejected to prioritize Operability and Data Integrity, because environment-specific rules cause confusion.
+- **Reconsideration Conditions:** The operational scale grows and the overhead of workflow management exceeds an acceptable level
 
 ### Alternative C: Fallback execution when workflow definition is missing
 
-#### Description
-
-Fall back to direct execution when the workflow definition is missing.
-
-#### Advantages
-
-- Silent mitigation of configuration errors
-- Flexibility during a migration period
-
-#### Disadvantages
-
-- Hides configuration errors
-- Does not provide immediate feedback through a startup failure
-
-#### Reason for Rejection
-
-Rejected to prioritize the Fail-Fast principle and detect configuration errors immediately.
-
-#### Reconsideration Conditions
-
-- A long migration period is required and a phased rollout becomes mandatory
+- **Advantages:** Silent mitigation of configuration errors; flexibility during a migration period
+- **Disadvantages:** Hides configuration errors; does not provide immediate feedback through a startup failure
+- **Reason for Rejection:** Rejected to prioritize the Fail-Fast principle and detect configuration errors immediately.
+- **Reconsideration Conditions:** A long migration period is required and a phased rollout becomes mandatory
 
 ### Alternative D: Per-tool approval without workflow state
 
-#### Description
-
-Manage approvals only through tool-level approval and keep no workflow state (no Task or Attempt records).
-
-#### Advantages
-
-- Simple execution flow
-- Low complexity
-
-#### Disadvantages
-
-- Tasks and Attempts cannot be tracked or recovered after an interruption
-- Retry and idempotency behavior cannot be managed centrally
-
-#### Reason for Rejection
-
-Rejected to prioritize Recoverability, because workflow state is needed to track and recover Tasks and Attempts. Tool-level approval is kept, and the workflow keeps its own state alongside it.
-
-#### Reconsideration Conditions
-
-- Task and Attempt state are no longer needed for recovery
+- **Advantages:** Simple execution flow; low complexity
+- **Disadvantages:** Tasks and Attempts cannot be tracked or recovered after an interruption; retry and idempotency behavior cannot be managed centrally
+- **Reason for Rejection:** Rejected to prioritize Recoverability, because workflow state is needed to track and recover Tasks and Attempts. Tool-level approval is kept, and the workflow keeps its own state alongside it.
+- **Reconsideration Conditions:** Task and Attempt state are no longer needed for recovery
 
 ### Alternative E: Post-execution approval stage
 
-#### Description
-
-Pause every Task after the `execute` stage until an operator approves or rejects it with the approve and reject operator commands, and persist the pending approval in `workflow.sqlite`.
-
-#### Advantages
-
-- A recorded human checkpoint for the result of each turn
-- The next input is blocked until the result is reviewed
-
-#### Disadvantages
-
-- Cannot prevent an operation: the Tools have already run, and rejection does not revert their effects
-- An approval on every turn, including turns without side effects
-- Encourages approving without reading, which weakens the tool-level approval
-- Adds persistent pending state, startup recovery, and expiry handling
-
-#### Reason for Rejection
-
-Rejected because it adds operator burden and state without preventing any operation; tool-level approval and the audit log provide the control and the trace.
-
-#### Reconsideration Conditions
-
-- Tool effects become staged so that they are applied only after approval (for example, changes held in a working area until the turn is approved)
+- **Advantages:** A recorded human checkpoint for the result of each turn; the next input is blocked until the result is reviewed
+- **Disadvantages:** Cannot prevent an operation: the Tools have already run, and rejection does not revert their effects; an approval on every turn, including turns without side effects; encourages approving without reading, which weakens the tool-level approval; adds persistent pending state, startup recovery, and expiry handling
+- **Reason for Rejection:** Rejected because it adds operator burden and state without preventing any operation; tool-level approval and the audit log provide the control and the trace.
+- **Reconsideration Conditions:** Tool effects become staged so that they are applied only after approval (for example, changes held in a working area until the turn is approved)
 
 ## Consequences
 
@@ -245,8 +155,7 @@ Rejected because it adds operator burden and state without preventing any operat
 
 ### Negative Consequences
 
-- Deployment requires the workflow definition file
-- Startup fails when workflow artifacts are missing
+- Deployment requires the workflow definition file, and startup fails when workflow artifacts are missing (INV-01)
 - The workflow schema must be initialized before service startup
 - Simple chat and tool-based tasks share the same execution control plane
 - Startup requires checking consistency between the workflow definition file and the DB Schema, and incident response requires investigating workflow state
@@ -268,50 +177,17 @@ Rejected because it adds operator burden and state without preventing any operat
 
 ### Automated Tests
 
-- **Test**: Startup-failure test when the workflow definition is missing
-  - **Verifies**: INV-01
-  - **Type**: Integration
-  - **Blocking**: Yes
-
-- **Test**: Startup-failure test when the workflow definition is invalid
-  - **Verifies**: INV-05
-  - **Type**: Integration
-  - **Blocking**: Yes
-
-- **Test**: Startup-failure test when the required DB Schema is inconsistent
-  - **Verifies**: INV-06
-  - **Type**: Integration
-  - **Blocking**: Yes
-
-- **Test**: Test that no external state-change path bypasses the Workflow Engine
-  - **Verifies**: INV-02
-  - **Type**: Regression
-  - **Blocking**: Yes
-
-- **Test**: `test_execute_success_verify_failure_marks_task_failed` (confirms that when verify fails after a successful execute, the task state becomes `failed`, not `completed`)
-  - **Verifies**: INV-03
-  - **Type**: Unit
-  - **Blocking**: Yes
-
-- **Test**: Optimistic-locking and recovery behavior test for `recover_stale_attempts()` (`tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`)
-  - **Verifies**: INV-07
-  - **Type**: Unit
-  - **Blocking**: Yes
-
-- **Test**: `test_begin_stage_if_new_idempotent` (confirms that a double start of `begin_stage_if_new()` with the same event_id is rejected, `tests/agent/workflow/test_workflow_stage_persistence.py`, passing)
-  - **Verifies**: INV-08
-  - **Type**: Unit
-  - **Blocking**: Yes
-
-- **Test**: The loader rejects a workflow definition that contains the `require_approval` key, for any value (`tests/agent/workflow/test_workflow_loader.py::TestRequireApprovalKeyRejected`)
-  - **Verifies**: INV-10
-  - **Type**: Unit
-  - **Blocking**: Yes
-
-- **Test**: A tool-level approval decision, approved or denied, is written as a `tool_approval` event with the `workflow_id` and the turn ID in `task_id` (`tests/agent/test_tool_audit.py::TestAuditApprovalInv11`)
-  - **Verifies**: INV-11
-  - **Type**: Unit
-  - **Blocking**: Yes
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| Startup-failure test when the workflow definition is missing | INV-01 | Integration | Yes | - |
+| Startup-failure test when the workflow definition is invalid | INV-05 | Integration | Yes | - |
+| Startup-failure test when the required DB Schema is inconsistent | INV-06 | Integration | Yes | - |
+| Test that no external state-change path bypasses the Workflow Engine | INV-02 | Regression | Yes | - |
+| `test_execute_success_verify_failure_marks_task_failed` (confirms that when verify fails after a successful execute, the task state becomes `failed`, not `completed`) | INV-03 | Unit | Yes | - |
+| Optimistic-locking and recovery behavior test for `recover_stale_attempts()` | INV-07 | Unit | Yes | `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py` |
+| `test_begin_stage_if_new_idempotent` (confirms that a double start of `begin_stage_if_new()` with the same event_id is rejected, passing) | INV-08 | Unit | Yes | `tests/agent/workflow/test_workflow_stage_persistence.py` |
+| The loader rejects a workflow definition that contains the `require_approval` key, for any value | INV-10 | Unit | Yes | `tests/agent/workflow/test_workflow_loader.py::TestRequireApprovalKeyRejected` |
+| A tool-level approval decision, approved or denied, is written as a `tool_approval` event with the `workflow_id` and the turn ID in `task_id` | INV-11 | Unit | Yes | `tests/agent/test_tool_audit.py::TestAuditApprovalInv11` |
 
 ### Startup Validation
 

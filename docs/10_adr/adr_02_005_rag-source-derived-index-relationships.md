@@ -113,81 +113,24 @@ Because the indexes can be rebuilt even if FTS5 or the Vector Engine is replaced
 
 ### Alternative A: Derived indexes as authoritative
 
-#### Description
-
-Make `chunks_fts` and `chunks_vec` the canonical data and `documents` and `chunks` the derived data.
-
-#### Advantages
-
-- Reverse lookup from the indexes is possible
-- The original text might be regenerated from search results
-
-#### Disadvantages
-
-- The original text is lost when a search index breaks
-- Complete data loss if both indexes break
-- Consistency checks run in the opposite direction
-
-#### Reason for Rejection
-
-Rejected to prioritize Data Integrity and prevent data loss caused by search-index corruption.
-
-#### Reconsideration Conditions
-
-- Search indexes become a more accurate source of information than the original text
-- Redundancy of both indexes is established
+- **Advantages:** reverse lookup from the indexes is possible; the original text might be regenerated from search results
+- **Disadvantages:** the original text is lost when a search index breaks; complete data loss if both indexes break; consistency checks run in the opposite direction
+- **Reason for Rejection:** rejected to prioritize Data Integrity and prevent data loss caused by search-index corruption
+- **Reconsideration Conditions:** search indexes become a more accurate source of information than the original text; redundancy of both indexes is established
 
 ### Alternative B: No deletion order invariant
 
-#### Description
-
-Do not define a deletion order; each index cleans up independently.
-
-#### Advantages
-
-- Simple structure
-- Few dependencies
-
-#### Disadvantages
-
-- Orphan records arise
-- Risk of data loss
-- Consistency checks become more complex
-
-#### Reason for Rejection
-
-Rejected to prioritize Data Integrity and prevent orphan records.
-
-#### Reconsideration Conditions
-
-- sqlite-vec supports FK constraints
-- FTS5 supports standard DELETE
+- **Advantages:** simple structure; few dependencies
+- **Disadvantages:** orphan records arise; risk of data loss; consistency checks become more complex
+- **Reason for Rejection:** rejected to prioritize Data Integrity and prevent orphan records
+- **Reconsideration Conditions:** sqlite-vec supports FK constraints; FTS5 supports standard DELETE
 
 ### Alternative C: Manual sync only
 
-#### Description
-
-Abolish automatic synchronization by triggers and manage everything manually.
-
-#### Advantages
-
-- Explicit control is possible
-- No trigger overhead
-
-#### Disadvantages
-
-- Inconsistencies caused by human operational errors
-- No real-time synchronization
-- Increased operational burden
-
-#### Reason for Rejection
-
-Rejected to prioritize Operability, ensuring real-time synchronization and preventing human operational errors.
-
-#### Reconsideration Conditions
-
-- Trigger performance problems become serious
-- Manual synchronization tools become sufficiently mature
+- **Advantages:** explicit control is possible; no trigger overhead
+- **Disadvantages:** inconsistencies caused by human operational errors; no real-time synchronization; increased operational burden
+- **Reason for Rejection:** rejected to prioritize Operability, ensuring real-time synchronization and preventing human operational errors
+- **Reconsideration Conditions:** trigger performance problems become serious; manual synchronization tools become sufficiently mature
 
 ## Consequences
 
@@ -197,11 +140,10 @@ Rejected to prioritize Operability, ensuring real-time synchronization and preve
 - The deletion-order invariant prevents orphan records
 - Consistency checks and repair procedures are unified
 - Replacing FTS5 or the Vector Engine becomes easier
-- The ingestion path and the MCP deletion path are unified under the same rules
 
 ### Negative Consequences
 
-- Because `chunks_vec` has no FK, explicit deletion is the primary mechanism; the `chunks_vec_ad` trigger is only a backstop
+- `chunks_vec` has no FK (see Exceptions)
 - The consistency-check thresholds are strict (zero tolerance)
 - Trigger overhead
 - Cost at rebuild time
@@ -262,53 +204,16 @@ Not applicable (no Fallback exists: a mismatch is reported and repaired through 
 
 ### Automated Tests
 
-- **Test**: No orphan `chunks_vec` rows remain after deletion
-  - **Verifies**: INV-02
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec`
-
-- **Test**: Deleting `documents` cascades the deletion to `chunks`
-  - **Verifies**: INV-02
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_canonical_deletion_leaves_no_orphans_and_cascades_chunks`
-
-- **Test**: The output of the FTS Trigger and of a manual rebuild match
-  - **Verifies**: INV-03
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`
-
-- **Test**: The consistency check detects Gaps and Orphans
-  - **Verifies**: INV-04
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_consistency_check_detects_fts_gap`
-
-- **Test**: The MCP deletion path removes `chunks_vec` and cascades to `chunks`
-  - **Verifies**: INV-05
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/mcp_servers/rag_pipeline/test_document_manager.py::TestDeleteDocument::test_cascades_to_chunks_and_removes_chunks_vec`
-
-- **Test**: The deletion helper deletes `chunks_vec` before `documents`
-  - **Verifies**: INV-02
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/ingestion/test_delete_chain.py::TestDeleteDocumentChain::test_delete_chunks_vec_before_documents`
-
-- **Test**: A direct `chunks_fts` INSERT/UPDATE outside the sanctioned paths is detected
-  - **Verifies**: INV-01
-  - **Type**: Lint regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/test_chunks_fts_invariant_lint.py::test_violation_detected`
-
-- **Test**: `chunks_fts` is derived from `chunks` (no direct INSERTs)
-  - **Verifies**: INV-01
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/agent/services/test_rag_index_integrity.py::test_chunks_fts_is_trigger_synced`
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| No orphan `chunks_vec` rows remain after deletion | INV-02 | Integration | Yes | `tests/agent/services/test_rag_index_integrity.py::test_delete_document_chain_no_orphan_vec` |
+| Deleting `documents` cascades the deletion to `chunks` | INV-02 | Integration | Yes | `tests/agent/services/test_rag_index_integrity.py::test_canonical_deletion_leaves_no_orphans_and_cascades_chunks` |
+| The output of the FTS Trigger and of a manual rebuild match | INV-03 | Integration | Yes | `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule` |
+| The consistency check detects Gaps and Orphans | INV-04 | Regression | Yes | `tests/agent/services/test_rag_index_integrity.py::test_consistency_check_detects_fts_gap` |
+| The MCP deletion path removes `chunks_vec` and cascades to `chunks` | INV-05 | Integration | Yes | `tests/mcp_servers/rag_pipeline/test_document_manager.py::TestDeleteDocument::test_cascades_to_chunks_and_removes_chunks_vec` |
+| The deletion helper deletes `chunks_vec` before `documents` | INV-02 | Unit | Yes | `tests/rag/ingestion/test_delete_chain.py::TestDeleteDocumentChain::test_delete_chunks_vec_before_documents` |
+| A direct `chunks_fts` INSERT/UPDATE outside the sanctioned paths is detected | INV-01 | Lint regression | Yes | `tests/test_chunks_fts_invariant_lint.py::test_violation_detected` |
+| `chunks_fts` is derived from `chunks` (no direct INSERTs) | INV-01 | Integration | Yes | `tests/agent/services/test_rag_index_integrity.py::test_chunks_fts_is_trigger_synced` |
 
 ### Startup Validation
 

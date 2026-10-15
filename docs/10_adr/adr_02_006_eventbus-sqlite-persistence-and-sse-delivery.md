@@ -36,7 +36,7 @@ Accepted
 
 ## Summary
 
-This ADR canonicalizes SQLite as the persistent canonical store of Events and SSE as the Live delivery channel, and clarifies delivery guarantees for reconnection, Replay, ACK, NAK, and DLQ. At-Least-Once Delivery is the baseline: duplicates tolerated, losses not. Offset monotonicity and Consumer ID conflict policy are finalized.
+Canonicalizes SQLite as the persistent store of Events and SSE as the Live delivery channel, with At-Least-Once Delivery (duplicates tolerated, losses not), offset monotonicity, and Consumer ID conflict detection (see Decision).
 
 ## Context
 
@@ -116,81 +116,27 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 
 ### Alternative A: SSE Delivery as a Substitute for Persistence
 
-#### Description
-
-Treat successful SSE delivery as a substitute for successful persistence, attempting SSE delivery before writing to SQLite.
-
-#### Advantages
-
-- Low-latency delivery takes priority
-- Simple implementation
-
-#### Disadvantages
-
-- Risk of Event loss
-- Recovery is difficult when delivery fails
-- Unclear responsibility between persistence and delivery
-
-#### Reason for Rejection
-
-Data Integrity requires preventing Event loss.
-
-#### Reconsideration Conditions
-
-- SSE delivery becomes 100% reliable
-- Event loss becomes acceptable
+- **Description:** Attempt SSE delivery before writing to SQLite.
+- **Advantages:** Low-latency delivery takes priority; Simple implementation
+- **Disadvantages:** Risk of Event loss; Recovery is difficult when delivery fails; Unclear responsibility between persistence and delivery
+- **Reason for Rejection:** Data Integrity requires preventing Event loss.
+- **Reconsideration Conditions:** SSE delivery becomes 100% reliable; Event loss becomes acceptable
 
 ### Alternative B: No offset monotonicity guarantee
 
-#### Description
-
-Permit ACKed Offsets to move backward so that Consumers can ACK in any order.
-
-#### Advantages
-
-- More flexible Consumer implementation
-- Parallel ACKs are possible
-
-#### Disadvantages
-
-- Unpredictable movement of Offsets
-- Risk of data loss
-- Reduced reproducibility
-
-#### Reason for Rejection
-
-Data Integrity prevents data loss from backward-moving offsets.
-
-#### Reconsideration Conditions
-
-- Consumers implement fully idempotent processing
-- Parallel ACKs become necessary
+- **Description:** Permit ACKed Offsets to move backward so that Consumers can ACK in any order.
+- **Advantages:** More flexible Consumer implementation; Parallel ACKs are possible
+- **Disadvantages:** Unpredictable movement of Offsets; Risk of data loss; Reduced reproducibility
+- **Reason for Rejection:** Data Integrity prevents data loss from backward-moving offsets.
+- **Reconsideration Conditions:** Consumers implement fully idempotent processing; Parallel ACKs become necessary
 
 ### Alternative C: No consumer ID conflict detection
 
-#### Description
-
-Permit concurrent use of the same Consumer ID, with the last write winning.
-
-#### Advantages
-
-- Simple implementation
-- Adding Consumers is easy
-
-#### Disadvantages
-
-- Unintended Event reception
-- Offset conflicts
-- Risk of data loss
-
-#### Reason for Rejection
-
-Security requires preventing unintended Event reception.
-
-#### Reconsideration Conditions
-
-- Consumer IDs are guaranteed to be fully unique
-- Unintended Event reception becomes acceptable
+- **Description:** Permit concurrent use of the same Consumer ID, with the last write winning.
+- **Advantages:** Simple implementation; Adding Consumers is easy
+- **Disadvantages:** Unintended Event reception; Offset conflicts; Risk of data loss
+- **Reason for Rejection:** Security requires preventing unintended Event reception.
+- **Reconsideration Conditions:** Consumer IDs are guaranteed to be fully unique; Unintended Event reception becomes acceptable
 
 ## Consequences
 
@@ -277,83 +223,21 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ### Automated Tests
 
-- **Test**: Events are stored even when no Subscriber is present
-  - **Verifies**: INV-03
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_publish.py::test_publish_inserts_event`
-
-- **Test**: Un-ACKed Events are Replayed on reconnection
-  - **Verifies**: INV-04
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_unacked_event_replayed_on_reconnect`, `tests/eventbus/test_eventbus_restart_resume.py::TestOutOfOrderAckNoSkipOnReconnect::test_out_of_order_ack_no_skip_on_reconnect`
-
-- **Test**: Offsets do not move backward
-  - **Verifies**: INV-05
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq`
-
-- **Test**: A failure to persist an ACK is not treated as success
-  - **Verifies**: INV-12
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state` (the failure raises and nothing is committed; no HTTP-level test exists)
-
-- **Test**: Consumers can handle duplicates when switching between Replay and Live
-  - **Verifies**: INV-14
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_subscribe_transition.py::TestReplayToLiveTransition::test_event_published_during_replay_delivered_via_live_push` (server-side Replay-to-Live transition; consumer-side idempotency is not testable here)
-
-- **Test**: Events move to the DLQ after the Retry limit
-  - **Verifies**: INV-13
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry`, `tests/eventbus/test_eventbus_dlq.py::test_inline_dlq_promotion_on_nack`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestMultiConsumerPromotion` (multi-consumer rule, sweep and inline paths)
-
-- **Test**: Consumer ID collisions are detected
-  - **Verifies**: INV-11
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_subscribe.py::test_subscribe_duplicate_consumer_id_returns_409`, `tests/eventbus/test_eventbus_broker.py::test_duplicate_consumer_id_rejected`
-
-- **Test**: A lower-`seq` ACK leaves the offset unchanged
-  - **Verifies**: INV-09
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq`, `tests/eventbus/test_eventbus_ack_nack.py::TestAckHttpBehavior::test_ack_lower_seq_keeps_offset`
-
-- **Test**: The Delivery-State UPSERT and the Offset advancement are committed atomically within a single transaction
-  - **Verifies**: INV-16
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state`
-
-- **Test**: Identical retries return the original seq and conflicting retries are rejected without modifying stored data
-  - **Verifies**: INV-07
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_publish.py::test_identical_content_retry_returns_same_seq`, `tests/eventbus/test_eventbus_publish.py::test_conflicting_content_retry_returns_409`
-
-- **Test**: NACK counters and requeue counters are persisted per Event
-  - **Verifies**: INV-08
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_nack_increments_delivery_failure_count`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count`
-
-- **Test**: A non-loopback host is rejected at configuration validation
-  - **Verifies**: INV-15
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_config.py::test_non_loopback_host_raises_value_error`
-
-- **Test**: A publish whose JSONL append fails still succeeds after the SQLite commit (persistence precedes the secondary paths)
-  - **Verifies**: INV-02 (partial: no test injects a SQLite write failure on `POST /publish`)
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails`
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| Events are stored even when no Subscriber is present | INV-03 | Integration | Yes | `tests/eventbus/test_eventbus_publish.py::test_publish_inserts_event` |
+| Un-ACKed Events are Replayed on reconnection | INV-04 | Integration | Yes | `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_unacked_event_replayed_on_reconnect`, `tests/eventbus/test_eventbus_restart_resume.py::TestOutOfOrderAckNoSkipOnReconnect::test_out_of_order_ack_no_skip_on_reconnect` |
+| Offsets do not move backward | INV-05 | Regression | Yes | `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq` |
+| A failure to persist an ACK is not treated as success | INV-12 | Integration | Yes | `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state` (the failure raises and nothing is committed; no HTTP-level test exists) |
+| Consumers can handle duplicates when switching between Replay and Live | INV-14 | Integration | Yes | `tests/eventbus/test_eventbus_subscribe_transition.py::TestReplayToLiveTransition::test_event_published_during_replay_delivered_via_live_push` (server-side Replay-to-Live transition; consumer-side idempotency is not testable here) |
+| Events move to the DLQ after the Retry limit | INV-13 | Integration | Yes | `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry`, `tests/eventbus/test_eventbus_dlq.py::test_inline_dlq_promotion_on_nack`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestMultiConsumerPromotion` (multi-consumer rule, sweep and inline paths) |
+| Consumer ID collisions are detected | INV-11 | Integration | Yes | `tests/eventbus/test_eventbus_subscribe.py::test_subscribe_duplicate_consumer_id_returns_409`, `tests/eventbus/test_eventbus_broker.py::test_duplicate_consumer_id_rejected` |
+| A lower-`seq` ACK leaves the offset unchanged | INV-09 | Regression | Yes | `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq`, `tests/eventbus/test_eventbus_ack_nack.py::TestAckHttpBehavior::test_ack_lower_seq_keeps_offset` |
+| The Delivery-State UPSERT and the Offset advancement are committed atomically within a single transaction | INV-16 | Regression | Yes | `tests/eventbus/test_eventbus_crash_ack.py::TestCrashBeforeAck::test_offset_write_failure_after_delivery_state` |
+| Identical retries return the original seq and conflicting retries are rejected without modifying stored data | INV-07 | Integration | Yes | `tests/eventbus/test_eventbus_publish.py::test_identical_content_retry_returns_same_seq`, `tests/eventbus/test_eventbus_publish.py::test_conflicting_content_retry_returns_409` |
+| NACK counters and requeue counters are persisted per Event | INV-08 | Integration | Yes | `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_nack_increments_delivery_failure_count`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count` |
+| A non-loopback host is rejected at configuration validation | INV-15 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_non_loopback_host_raises_value_error` |
+| A publish whose JSONL append fails still succeeds after the SQLite commit (persistence precedes the secondary paths) | INV-02 (partial: no test injects a SQLite write failure on `POST /publish`) | Integration | Yes | `tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails` |
 
 ### Startup Validation
 
@@ -380,9 +264,6 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Implementation Notes
 
-- Transaction guarantee: see INV-16 (a single transaction inside `ack_event_for_consumer()`)
-- Monotonicity Enforcement: see INV-05, INV-09
-- Resume position: the lowest unacked `seq` at or below the stored offset when one exists, otherwise `stored_offset + 1` (see Decision item 13)
 - Offset store: `consumer_delivery` tracks per-consumer delivery progress and `consumer_offsets` stores monotonic offsets; `ack_event_for_consumer()` updates both atomically. At startup, `migrate_legacy_offsets()` reads each offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; without a `.map` companion, the sanitized filename is the `consumer_id`.
 - INV-07 is enforced by content comparison logic in `insert_event()`: duplicate events cannot corrupt stored data; identical retries return the original seq, conflicting retries return HTTP 409.
 

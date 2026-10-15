@@ -27,7 +27,7 @@ Accepted
 
 ## Summary
 
-The Workflow Engine is the mandatory and sole workflow control path (ADR-001), but actual Agent processing is composed of multiple layered components, `Orchestrator`, `LlmTurnExecutor`, `ToolExecutor`, and MCP Server, which also effectively handle processing order and verification. This ADR fixes the responsibility boundaries of these five components and establishes that no component duplicates responsibilities of other layers beyond its own layer (such as deciding persistent business state, managing the tool call execution order, or judging the technical safety of external operations).
+This ADR fixes the responsibility boundaries of `Orchestrator`, `WorkflowEngine`, `LlmTurnExecutor`, `ToolExecutor`, and the MCP Server beneath the mandatory, sole Workflow Engine control path (ADR-001); no component duplicates responsibilities of other layers (see Decision and Invariants).
 
 ## Context
 
@@ -96,51 +96,17 @@ The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are a
 
 ### Alternative A: Leave Responsibility Boundaries Undocumented and Rely on Implicit Implementation Practice (Status Quo)
 
-#### Description
-
-Do not document each component's scope of responsibility, and treat the structure of the existing code as is as an implicit contract.
-
-#### Advantages
-
-- No additional documentation work
-- No impact on the existing implementation
-
-#### Disadvantages
-
-- Duplicated holding of the LLM/Tool Call loop cannot be prevented in advance by documentation alone
-- The risk remains that new implementers mistakenly implement responsibilities that cross layers
-
-#### Reason for Rejection
-
-Rejected to prioritize Maintainability and prevent recurrence by making the boundaries explicit.
-
-#### Reconsideration Conditions
-
-- The component structure is greatly simplified and the cost of documenting boundaries is no longer justified
+- **Advantages:** No additional documentation work; no impact on the existing implementation
+- **Disadvantages:** Duplicated holding of the LLM/Tool Call loop cannot be prevented in advance by documentation alone; the risk remains that new implementers mistakenly implement responsibilities that cross layers
+- **Reason for Rejection:** Rejected to prioritize Maintainability and prevent recurrence by making the boundaries explicit.
+- **Reconsideration Conditions:** The component structure is greatly simplified and the cost of documenting boundaries is no longer justified
 
 ### Alternative B: Merge `Orchestrator` and `LlmTurnExecutor` into a Single Component
 
-#### Description
-
-Merge turn coordination and the LLM/Tool round-trip loop into a single class, structurally eliminating the responsibility-boundary problem itself.
-
-#### Advantages
-
-- The risk of duplicate creation between components disappears structurally
-- The call path is simplified
-
-#### Disadvantages
-
-- A large-scale refactoring of the already extracted concern classes (`WorkflowEngineAdapter`, `LlmTurnExecutor`, and so on) is required
-- The responsibilities of a single class grow, with a risk of reduced readability instead
-
-#### Reason for Rejection
-
-Rejected because this ADR aims to clarify responsibility boundaries, and a redesign of the component structure itself should be a separate refactoring decision (see Out of Scope).
-
-#### Reconsideration Conditions
-
-- Operational experience shows that making the responsibility boundaries explicit alone cannot prevent duplicate creation from recurring
+- **Advantages:** The risk of duplicate creation between components disappears structurally; the call path is simplified
+- **Disadvantages:** A large-scale refactoring of the already extracted concern classes (`WorkflowEngineAdapter`, `LlmTurnExecutor`, and so on) is required; the responsibilities of a single class grow, with a risk of reduced readability instead
+- **Reason for Rejection:** Rejected because this ADR aims to clarify responsibility boundaries, and a redesign of the component structure itself should be a separate refactoring decision (see Out of Scope).
+- **Reconsideration Conditions:** Operational experience shows that making the responsibility boundaries explicit alone cannot prevent duplicate creation from recurring
 
 ## Consequences
 
@@ -164,10 +130,9 @@ Rejected because this ADR aims to clarify responsibility boundaries, and a redes
 
 ### Automated Tests
 
-- **Test**: A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance (`tests/agent/test_orchestrator.py`)
-  - **Verifies**: INV-02
-  - **Type**: Unit
-  - **Blocking**: No (INV-02 regression test in `tests/agent/test_orchestrator.py`)
+| Test | Verifies | Type | Blocking | Implementation |
+| --- | --- | --- | --- | --- |
+| A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance | INV-02 | Unit | No | `tests/agent/test_orchestrator.py` |
 
 ### Startup Validation
 

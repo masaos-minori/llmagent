@@ -29,13 +29,13 @@ Accepted
 
 ## Summary
 
-`docs/00_governance/governance_01_documentation-policy.md`'s Document Classification defines a "Reference" class (API/command/configuration reference material), but the mechanical-content removal criteria of the documentation policy conflict with hand-written Reference documents by design — their entire content is exactly the kind of code-derivable listing the policy wants removed. This ADR adopts treating Reference-class documents as generated artifacts (Option B), produced from source code via `tools/generate_reference_table.py`, rather than retiring the class or accepting continued drift.
+The mechanical-content removal criteria of `docs/00_governance/governance_01_documentation-policy.md` conflict with hand-written documents of its "Reference" class (see Problem). This ADR adopts treating Reference-class documents as generated artifacts (Option B), produced from source code via `tools/generate_reference_table.py`, rather than retiring the class or accepting continued drift.
 
 ## Context
 
 ### Problem
 
-Mechanical-content removal against Reference-class documents requires knowing whether their content should be deleted, generated, or left alone. Three options exist:
+The documentation policy's Document Classification defines a "Reference" class (API/command/configuration reference material), whose entire hand-written content is exactly the kind of code-derivable listing the mechanical-content removal criteria want removed. It must be decided whether that content is deleted, generated, or left alone. Three options exist:
 
 - **Option A**: Retire the Reference class; keep only canonical-source pointers.
 - **Option B**: Treat Reference documents as generated artifacts (auto-produced from code/docstrings; hand-editing prohibited).
@@ -85,11 +85,13 @@ A generated projection is not a competing copy: the code remains the sole canoni
 
 ### Alternative A: Retire the Reference class
 
-Remove the "Reference" document class entirely, replacing existing Reference documents with pointers directly into source code (e.g. a short doc naming the module to read). Rejected: this loses the "one place to look" value Reference documents provide today, and does not by itself resolve the mechanical-content policy conflict for any Reference document still in active use during a transition period.
+- Replace existing Reference documents with pointers directly into source code (e.g. a short doc naming the module to read).
+- **Reason for Rejection:** this loses the "one place to look" value Reference documents provide today, and does not by itself resolve the mechanical-content policy conflict for any Reference document still in active use during a transition period.
 
 ### Alternative C: Keep the status quo
 
-Leave Reference-class documents hand-maintained and accept ongoing drift risk, treating each drift instance as a documentation bug to fix individually (per `rules/coding.md`'s "Documentation notes" classification). Rejected: the mechanical-content removal policy has no answer for Reference-class content under this option, since removing it would delete real information with no generation path to replace it.
+- Leave Reference-class documents hand-maintained and accept ongoing drift risk, treating each drift instance as a documentation bug to fix individually (per `rules/coding.md`'s "Documentation notes" classification).
+- **Reason for Rejection:** the mechanical-content removal policy has no answer for Reference-class content under this option, since removing it would delete real information with no generation path to replace it.
 
 ## Consequences
 

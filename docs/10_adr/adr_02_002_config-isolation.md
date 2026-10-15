@@ -30,7 +30,7 @@ Accepted
 
 ## Summary
 
-This ADR canonicalizes the design in which the Agent, each MCP server, the RAG ingestion processes, and the EventBus own their own configuration files and read only the configuration files they are permitted to read. Creating a new shared configuration file is prohibited, and duplicated values are permitted as explicit dependency declarations of independent processes. Minimal exposure of Secrets and Prefix/Allowlist rules for environment variables prevent configuration leakage across process boundaries.
+The Agent, each MCP server, the RAG ingestion processes, and the EventBus own their own configuration files and read only the files they are permitted to read (see Decision). No new shared configuration file is created, and Secrets are minimally exposed.
 
 ## Context
 
@@ -110,11 +110,11 @@ Each process restricts itself to its OWN configuration file via `ConfigLoader.re
 
 ### 1. Primary Reason for Adoption — Security
 
-Minimal exposure of Secrets prevents configuration leakage across process boundaries. Because each process reads only its own configuration file, access to other processes' Secrets is physically blocked.
+Minimal exposure of Secrets prevents configuration leakage across process boundaries; access to other processes' Secrets is physically blocked.
 
 ### 2. Second Reason for Adoption — Operability
 
-The impact scope and restart targets of a configuration change can be made clear per owning process. Because there is no shared configuration file, a configuration change does not unexpectedly affect other processes.
+The impact scope and restart targets of a configuration change are clear per owning process, and a change does not unexpectedly affect other processes.
 
 ### 3. Third Reason for Adoption — Data Integrity
 
@@ -124,83 +124,24 @@ Because each process's configuration is managed independently, data corruption f
 
 ### Alternative A: Shared common config file
 
-#### Description
-
-All processes read a shared configuration file and reference only the values they need.
-
-#### Advantages
-
-- Centralized configuration management
-- Duplication of the same values can be avoided
-
-#### Disadvantages
-
-- Excessive exposure of Secrets
-- Configuration interdependence
-- Unclear impact scope of configuration changes
-- Bloated configuration files
-
-#### Reason for Rejection
-
-Rejected to prioritize Security and Operability and to prevent the excessive Secret exposure and configuration interdependence caused by a shared configuration file.
-
-#### Reconsideration Conditions
-
-- The operational scale grows and centralized configuration management becomes necessary
-- Introducing an external configuration store makes Secret separation possible
+- **Advantages:** Centralized configuration management; Duplication of the same values can be avoided
+- **Disadvantages:** Excessive exposure of Secrets; Configuration interdependence; Unclear impact scope of configuration changes; Bloated configuration files
+- **Reason for Rejection:** Rejected to prioritize Security and Operability and to prevent the excessive Secret exposure and configuration interdependence caused by a shared configuration file.
+- **Reconsideration Conditions:** The operational scale grows and centralized configuration management becomes necessary; Introducing an external configuration store makes Secret separation possible
 
 ### Alternative B: Dynamic config resolution at runtime
 
-#### Description
-
-Search for configuration files dynamically at process startup and automatically read whichever configuration files exist.
-
-#### Advantages
-
-- Flexible configuration management
-- Configuration files are easy to add
-
-#### Disadvantages
-
-- Unclear configuration ownership
-- Unintended configuration loading
-- Unclear impact scope of configuration changes
-
-#### Reason for Rejection
-
-Rejected to prioritize Data Integrity and make configuration ownership clear.
-
-#### Reconsideration Conditions
-
-- Dynamic generation of configuration files becomes necessary
-- Configuration management in a cloud environment becomes necessary
+- **Advantages:** Flexible configuration management; Configuration files are easy to add
+- **Disadvantages:** Unclear configuration ownership; Unintended configuration loading; Unclear impact scope of configuration changes
+- **Reason for Rejection:** Rejected to prioritize Data Integrity and make configuration ownership clear.
+- **Reconsideration Conditions:** Dynamic generation of configuration files becomes necessary; Configuration management in a cloud environment becomes necessary
 
 ### Alternative C: No config isolation enforcement
 
-#### Description
-
-Do not enforce configuration separation between processes; each process reads configuration files freely.
-
-#### Advantages
-
-- Simple structure
-- Low complexity
-
-#### Disadvantages
-
-- Excessive exposure of Secrets
-- Configuration interdependence
-- Unclear impact scope of configuration changes
-- Security risk
-
-#### Reason for Rejection
-
-Rejected to prioritize Security and prevent configuration leakage across process boundaries.
-
-#### Reconsideration Conditions
-
-- The trust boundary changes significantly
-- The system moves to a single-process configuration
+- **Advantages:** Simple structure; Low complexity
+- **Disadvantages:** Excessive exposure of Secrets; Configuration interdependence; Unclear impact scope of configuration changes; Security risk
+- **Reason for Rejection:** Rejected to prioritize Security and prevent configuration leakage across process boundaries.
+- **Reconsideration Conditions:** The trust boundary changes significantly; The system moves to a single-process configuration
 
 ## Consequences
 
@@ -209,7 +150,6 @@ Rejected to prioritize Security and prevent configuration leakage across process
 - Minimal exposure of Secrets is ensured
 - The impact scope of a configuration change becomes clear
 - Each process's configuration is managed independently
-- MCP servers do not depend on the Agent's configuration
 - Configuration file ownership becomes clear
 
 ### Negative Consequences
@@ -229,7 +169,6 @@ Rejected to prioritize Security and prevent configuration leakage across process
 - Trust boundary: privileges are granted only within each process
 - Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
-- Fail-Closed: abort startup when a configuration file is missing
 - Audit Log: `ConfigLoader` emits no configuration-loading audit event
 
 ## Invariants
@@ -286,33 +225,13 @@ Not applicable (this ADR defines no retry policy of its own)
 
 ### Automated Tests
 
-- **Test**: Each process can read only its permitted configuration files
-  - **Verifies**: INV-01
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Citation**: `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_allows_authorized`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error`, `tests/mcp_servers/test_config_isolation_fail_closed.py`
-
-- **Test**: Only the security audit loader imports MCP server configuration models, and the audit DTOs hold no secret fields
-  - **Verifies**: INV-01
-  - **Type**: Unit
-  - **Blocking**: Yes
-  - **Citation**: `tests/agent/test_security_audit_config_isolation.py::test_only_audit_module_imports_security_server_config`, `tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields`, and the `agent-mcp-config-models` import-linter contract in `.importlinter`
-
-- **Test**: Access to non-permitted configuration files is rejected
-  - **Verifies**: INV-02
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Citation**: `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_denies_unauthorized`, `tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error`
-
-- **Test**: An MCP server can start standalone without agent.toml
-  - **Verifies**: INV-03
-  - **Type**: Integration
-  - **Blocking**: Yes
-
-- **Test**: The Agent can start without being given MCP-specific Secrets
-  - **Verifies**: INV-04
-  - **Type**: Integration
-  - **Blocking**: Yes
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| Each process can read only its permitted configuration files | INV-01 | Integration | Yes | `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_allows_authorized`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error`, `tests/mcp_servers/test_config_isolation_fail_closed.py` |
+| Only the security audit loader imports MCP server configuration models, and the audit DTOs hold no secret fields | INV-01 | Unit | Yes | `tests/agent/test_security_audit_config_isolation.py::test_only_audit_module_imports_security_server_config`, `tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields`, and the `agent-mcp-config-models` import-linter contract in `.importlinter` |
+| Access to non-permitted configuration files is rejected | INV-02 | Regression | Yes | `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_denies_unauthorized`, `tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error` |
+| An MCP server can start standalone without agent.toml | INV-03 | Integration | Yes | - |
+| The Agent can start without being given MCP-specific Secrets | INV-04 | Integration | Yes | - |
 
 ### Startup Validation
 
@@ -338,7 +257,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 - EventBus does not call `ConfigLoader.restrict_to()`. Its isolation is a local invariant: `load_config()` in `scripts/eventbus/config.py` accepts only the path returned by `get_config_path()`, and `tests/eventbus/test_eventbus_config.py` locks both call sites in `scripts/eventbus/app.py` to that invariant.
 - The Agent calls `ConfigLoader.restrict_to("agent.toml")` in `AgentContext.__init__` (`scripts/agent/context.py`).
-- Config isolation is enforced at startup (fail-closed): a missing `agent.toml` is not silently bypassed, and no process starts with incomplete configuration. The required-file/required-key table in the Per-Process Required Files and Keys subsection of Decision lets operators audit configuration completeness without reading dataclass definitions.
+- The required-file/required-key table in the Per-Process Required Files and Keys subsection of Decision lets operators audit configuration completeness without reading dataclass definitions.
 
 ## Known Deviations
 

@@ -96,92 +96,38 @@ Japanese BM25 search requires normalization by morphological analysis, but the c
 
 ### 1. Primary Reason for Adoption — Search Quality
 
-Japanese BM25 search requires normalization by morphological analysis, and search accuracy drops if the original text is used as is. Indexing the normalized text in FTS5 improves search quality.
+Normalization by morphological analysis is required for Japanese BM25 search (see Context), and indexing the normalized text in FTS5 improves search quality.
 
 ### 2. Second Reason for Adoption — LLM Usability
 
-The context presented to the LLM must use the original readable text. Presenting normalized text to the LLM loses meaning and reduces the LLM's comprehension.
+Presenting normalized text to the LLM loses meaning and reduces its comprehension, so the LLM must receive the original readable text (see Context).
 
 ### 3. Third Reason for Adoption — Data Integrity
 
-Keeping `content` as a separate, never-replaced field guarantees that every stored chunk carries its original text. When normalization fails for a file, the file is skipped as a whole rather than indexed with altered or partial text, so a stored chunk is never a lossy copy. Because the original text cannot be restored from `normalized_content`, `content` is always a reliable source of information.
+Keeping `content` as a separate, never-replaced field guarantees that every stored chunk carries its original text (INV-05, INV-06). A file whose normalization fails is skipped as a whole rather than indexed with altered or partial text, so a stored chunk is never a lossy copy and `content` is always a reliable source of information.
 
 ## Alternatives Considered
 
 ### Alternative A: Single Text Field
 
-#### Description
-
-Keep only `content` and use the same text for both FTS5 and the LLM.
-
-#### Advantages
-
-- Simple structure
-- No data redundancy
-
-#### Disadvantages
-
-- Lower Japanese search accuracy
-- A trade-off between normalization and readability
-
-#### Reason for Rejection
-
-Rejected to prioritize Search Quality and LLM Usability and satisfy both requirements.
-
-#### Reconsideration Conditions
-
-- Japanese search is no longer needed
-- Normalization becomes unnecessary
+- **Advantages:** simple structure; no data redundancy
+- **Disadvantages:** lower Japanese search accuracy; a trade-off between normalization and readability
+- **Reason for Rejection:** Rejected to prioritize Search Quality and LLM Usability and satisfy both requirements.
+- **Reconsideration Conditions:** Japanese search is no longer needed; normalization becomes unnecessary
 
 ### Alternative B: Normalize Both Fields
 
-#### Description
-
-Normalize `content` as well and use the same normalized text for FTS5 and the LLM.
-
-#### Advantages
-
-- Simple structure
-- Data consistency is ensured
-
-#### Disadvantages
-
-- Lower LLM comprehension
-- The original readable text is lost
-
-#### Reason for Rejection
-
-Rejected to prioritize LLM Usability and preserve LLM comprehension.
-
-#### Reconsideration Conditions
-
-- The LLM can understand normalized text
-- The original readable text is no longer needed
+- **Advantages:** simple structure; data consistency is ensured
+- **Disadvantages:** lower LLM comprehension; the original readable text is lost
+- **Reason for Rejection:** Rejected to prioritize LLM Usability and preserve LLM comprehension.
+- **Reconsideration Conditions:** the LLM can understand normalized text; the original readable text is no longer needed
 
 ### Alternative C: No COALESCE Fallback
 
-#### Description
-
-Skip FTS5 search when `normalized_content` is NULL.
-
-#### Advantages
-
-- Simple implementation
-- No errors occur
-
-#### Disadvantages
-
-- English/code cannot be searched
-- Search quality becomes uneven
-
-#### Reason for Rejection
-
-Rejected to prioritize Search Quality and enable search in all languages.
-
-#### Reconsideration Conditions
-
-- English/code search is no longer needed
-- Normalization becomes mandatory
+- **Advantages:** simple implementation; no errors occur
+- **Disadvantages:** English/code cannot be searched; search quality becomes uneven
+- **Reason for Rejection:** Rejected to prioritize Search Quality and enable search in all languages.
+- **Reconsideration Conditions:** English/code search is no longer needed; normalization becomes mandatory
 
 ## Consequences
 
@@ -189,8 +135,7 @@ Rejected to prioritize Search Quality and enable search in all languages.
 
 - Japanese search accuracy improves
 - The quality of context presented to the LLM improves
-- A stored chunk never loses its original text to normalization; a file whose normalization fails is skipped and must be re-chunked after the cause is fixed
-- Changes to the Tokenizer or normalization method do not affect the original LLM-facing text
+- A stored chunk never loses its original text to normalization (INV-05, INV-08); a file whose normalization fails is skipped and must be re-chunked after the cause is fixed
 
 ### Negative Consequences
 
@@ -255,41 +200,14 @@ Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, c
 
 ### Automated Tests
 
-- **Test**: Normalized text is registered in FTS5 for Japanese
-  - **Verifies**: INV-03
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_ja_normalized_content_indexed_in_fts`, `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_trigger_uses_coalesce_order`
-
-- **Test**: The original text is used for the LLM Context
-  - **Verifies**: INV-01
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_content_appears_in_output`
-
-- **Test**: For English and code, `content` is used for FTS5
-  - **Verifies**: INV-04
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_fts_fallback.py::TestCodeFtsFallback::test_code_search_returns_original_content`, `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_ja_raw_content_fallback_when_normalized_null`
-
-- **Test**: The Index content is the same after an FTS rebuild
-  - **Verifies**: INV-07
-  - **Type**: Regression
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`, `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_rebuild_fts_preserves_normalized_content_semantics`, `tests/agent/services/test_rag_index_integrity.py::test_rebuild_fts_uses_coalesce`
-
-- **Test**: `normalized_content` does not leak into the RAG Context Block
-  - **Verifies**: INV-02
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_normalized_content_does_not_appear`
-
-- **Test**: AugmentStage outputs only `content`
-  - **Verifies**: INV-10
-  - **Type**: Integration
-  - **Blocking**: Yes
-  - **Implementation**: `tests/rag/test_rag_pipeline_stage.py::TestAugmentStage::test_augment_stage_content_only_invariant`
+| Test | Verifies | Type | Blocking | Implementation |
+|---|---|---|---|---|
+| Normalized text is registered in FTS5 for Japanese | INV-03 | Integration | Yes | `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_ja_normalized_content_indexed_in_fts`, `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_trigger_uses_coalesce_order` |
+| The original text is used for the LLM Context | INV-01 | Integration | Yes | `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_content_appears_in_output` |
+| For English and code, `content` is used for FTS5 | INV-04 | Integration | Yes | `tests/rag/test_fts_fallback.py::TestCodeFtsFallback::test_code_search_returns_original_content`, `tests/rag/test_fts_japanese.py::TestChunksAiTrigger::test_ja_raw_content_fallback_when_normalized_null` |
+| The Index content is the same after an FTS rebuild | INV-07 | Regression | Yes | `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_fts_trigger_and_manual_rebuild_use_same_text_selection_rule`, `tests/rag/test_fts_sync.py::TestFtsTriggerSync::test_rebuild_fts_preserves_normalized_content_semantics`, `tests/agent/services/test_rag_index_integrity.py::test_rebuild_fts_uses_coalesce` |
+| `normalized_content` does not leak into the RAG Context Block | INV-02 | Integration | Yes | `tests/rag/test_rag_pipeline.py::TestFormatChunksDesign2::test_normalized_content_does_not_appear` |
+| AugmentStage outputs only `content` | INV-10 | Integration | Yes | `tests/rag/test_rag_pipeline_stage.py::TestAugmentStage::test_augment_stage_content_only_invariant` |
 
 ### Startup Validation
 
@@ -319,8 +237,6 @@ Not applicable (no failure Fallback exists). The `COALESCE(normalized_content, c
 
 - `ChunkSplitter` produces `(chunk_type, content, normalized_content)` triples: Japanese text is split and normalized by `ChunkJapaneseMixin`; English text, code blocks, and Markdown heading chunks (selected by `_is_markdown_source()`) get an empty `normalized_content`.
 - The ingestion transaction stores an empty `normalized_content` as NULL in `chunks`; the chunk embedding is computed from `content`.
-- The `chunks_ai`, `chunks_au`, and `chunks_ad` triggers and `RagMaintenanceService.rebuild_fts()` index `COALESCE(normalized_content, content)`.
-- `AugmentStage` formats only `content` of each reranked hit into the RAG context block.
 
 See Implementation References for the current file/symbol list.
 
