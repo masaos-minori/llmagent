@@ -15,6 +15,7 @@ from typing import Any, TypedDict, cast
 
 from pydantic import BaseModel, Field
 from shared.config_loader import ConfigLoader
+from shared.config_utils import get_str
 from shared.config_validator import RagConfigValidator
 from shared.types import RagConfig
 
@@ -90,7 +91,7 @@ class RagPipelineConfig:
             refiner_max_chars_per_chunk=int(d.get("refiner_max_chars_per_chunk", 300)),
             refiner_timeout=float(d.get("refiner_timeout", 30.0)),
             rag_auth_token=str(d.get("rag_auth_token", "")),
-            auth_token=str(d.get("auth_token", "")),
+            auth_token=get_str(d, "auth_token"),
         )
 
     @classmethod

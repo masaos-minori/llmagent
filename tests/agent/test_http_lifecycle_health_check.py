@@ -294,3 +294,122 @@ class TestStartupPollWithDistinctServerToken:
                 shutdown_event=None,
             )
         assert seen == ["Bearer main-secret"]
+
+
+class TestHealthPollDegradedTolerance:
+    """Spawn-phase health poll must accept degraded-but-live servers.
+
+    github-mcp and cicd-mcp report HTTP 503 (degraded, liveness=true) when
+    GITHUB_TOKEN is unset. The post-startup verify phase already tolerates
+    this; the spawn phase must agree, else startup aborts a server that is
+    actually alive.
+    """
+
+    @pytest.mark.asyncio
+    async def test_tolerates_degraded_but_live(self, mgr) -> None:
+        """A 503 with liveness=true counts as ready and keeps the process alive."""
+        import time
+
+        import httpx
+        import respx
+
+        cfg = _make_cfg()
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        with (
+            respx.mock as router,
+            patch.object(mgr, "_cleanup_server_resources", return_value=""),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=True),
+            ),
+        ):
+            router.get("http://localhost:8080/health").mock(
+                return_value=httpx.Response(
+                    503,
+                    headers={"content-type": "application/json"},
+                    json={"status": "degraded", "ready": False, "liveness": True},
+                )
+            )
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=time.monotonic() + 5, shutdown_event=None
+            )
+            # Degraded-but-live keeps the process running — no termination requested.
+            mgr._process_terminator.terminate_with_timeout.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_rejects_503_without_liveness_flag(self, mgr) -> None:
+        """A 503 whose body lacks a truthy liveness flag is still rejected."""
+        import time
+
+        import httpx
+        import respx
+
+        cfg = _make_cfg()
+        proc = Mock(pid=1234, poll=Mock(return_value=None))
+        with (
+            respx.mock as router,
+            patch.object(hl_module, "HEALTH_POLL_INTERVAL_SEC", 0.01),
+            patch.object(mgr, "_cleanup_server_resources", return_value=""),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=True),
+            ),
+            pytest.raises(HttpStartupError),
+        ):
+            router.get("http://localhost:8080/health").mock(
+                return_value=httpx.Response(
+                    503,
+                    headers={"content-type": "application/json"},
+                    json={"status": "degraded", "ready": False},
+                )
+            )
+            await mgr._health_poll_until_ready(
+                "srv", cfg, proc, deadline=time.monotonic() + 0.05, shutdown_event=None
+            )
+
+    @pytest.mark.asyncio
+    async def test_is_degraded_but_live_branches(self) -> None:
+        """Unit-cover every branch of the degraded-detection helper."""
+        import httpx
+        from agent.http_lifecycle import HttpServerLifecycleManager
+
+        mgr = HttpServerLifecycleManager()
+
+        ok = httpx.Response(200, json={"liveness": True})
+        assert await mgr._is_degraded_but_live(ok) is False
+
+        server_error = httpx.Response(500, json={"liveness": True})
+        assert await mgr._is_degraded_but_live(server_error) is False
+
+        non_json = httpx.Response(
+            503, headers={"content-type": "text/plain"}, text="unavailable"
+        )
+        assert await mgr._is_degraded_but_live(non_json) is False
+
+        no_flag = httpx.Response(
+            503,
+            headers={"content-type": "application/json"},
+            json={"status": "degraded"},
+        )
+        assert await mgr._is_degraded_but_live(no_flag) is False
+
+        dead = httpx.Response(
+            503,
+            headers={"content-type": "application/json"},
+            json={"liveness": False},
+        )
+        assert await mgr._is_degraded_but_live(dead) is False
+
+        broken = httpx.Response(
+            503, headers={"content-type": "application/json"}, content=b"{nope"
+        )
+        assert await mgr._is_degraded_but_live(broken) is False
+
+        live = httpx.Response(
+            503,
+            headers={"content-type": "application/json"},
+            json={"liveness": True},
+        )
+        assert await mgr._is_degraded_but_live(live) is True

@@ -22,6 +22,7 @@ Custom logic retained in this class:
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import os
 import shutil  # noqa: F401 — kept for tests patching agent.http_lifecycle.shutil.which (shared module object also used by CommandValidator)
@@ -374,6 +375,25 @@ class HttpServerLifecycleManager:
             )
         )
 
+    async def _is_degraded_but_live(self, resp: httpx.Response) -> bool:
+        """Return True iff a non-200 /health response is degraded-but-live.
+
+        Mirrors McpServerStartupStarter.verify_health: a 503 with a JSON body
+        whose `liveness` flag is true means the server started but an optional
+        dependency (e.g. GITHUB_TOKEN) is unavailable. Such a server is alive
+        and must count as ready at startup rather than abort it. The spawn and
+        post-startup phases must agree on what "live" means.
+        """
+        if resp.status_code != HTTPStatus(503):
+            return False
+        if "application/json" not in resp.headers.get("content-type", ""):
+            return False
+        try:
+            body = resp.json()
+        except (json.JSONDecodeError, httpx.DecodingError):
+            return False
+        return bool(body.get("liveness", False))
+
     async def _health_poll_until_ready(
         self,
         server_key: str,
@@ -426,6 +446,13 @@ class HttpServerLifecycleManager:
                         self._last_health_check[server_key] = time.monotonic()
                         logger.info(
                             "Lifecycle: HTTP subprocess %r ready",
+                            server_key,
+                        )
+                        return
+                    if await self._is_degraded_but_live(resp):
+                        self._last_health_check[server_key] = time.monotonic()
+                        logger.info(
+                            "Lifecycle: HTTP subprocess %r ready (degraded but live)",
                             server_key,
                         )
                         return

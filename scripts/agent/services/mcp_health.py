@@ -68,47 +68,55 @@ async def _probe_mcp_health_detail(
 
 
 async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
-    """Probe LLM and Embed service health at startup; return warning strings on failure.
+    """Probe LLM and Embed service health at startup.
 
-    Failure is non-fatal: the REPL continues regardless.
-    Derives the /health URL by stripping the path from each endpoint URL.
+    The LLM is a required service: its failure is reported as a fatal error. The
+    embed-llm is optional: the agent runs in degraded mode without it, so its
+    failure is a non-fatal warning. Derives each /health URL by stripping the path
+    from the endpoint URL.
     """
     if ctx.services_required.http is None:
         raise RuntimeError("http service not initialized")
-    checks = [
-        ("llm", ctx.cfg.llm.llm_url),
-        ("embed-llm", ctx.cfg.rag.embed_url),
+    # (label, url, required): required-service failures are fatal; optional ones degrade.
+    checks: list[tuple[str, str, bool]] = [
+        ("llm", ctx.cfg.llm.llm_url, True),
+        ("embed-llm", ctx.cfg.rag.embed_url, False),
     ]
     warnings: list[ServiceWarning] = []
-    for label, url in checks:
+    errors: list[ServiceWarning] = []
+    for label, url, required in checks:
         if not url:
             continue
         parsed = urlparse(url)
         health_url = f"{parsed.scheme}://{parsed.netloc}/health"
+        failure: str | None = None
         try:
             resp = await ctx.services_required.http.get(health_url, timeout=2.0)
             if resp.status_code != HTTPStatus.OK:
-                msg = f"{label} health check returned HTTP {resp.status_code}"
-                logger.warning(msg)
-                warnings.append(
-                    ServiceWarning(label=label, url=health_url, message=msg)
-                )
-        except (httpx.HTTPError, OSError) as e:
-            msg = f"{OutputTag.NON_FATAL} {label} unreachable at {health_url}: {e}"
-            logger.warning(msg)
-            warnings.append(ServiceWarning(label=label, url=health_url, message=msg))
-    return HealthCheckResult(warnings=warnings)
+                failure = f"{label} health check returned HTTP {resp.status_code}"
+        except (httpx.HTTPError, OSError) as exc:
+            reason = f"unreachable at {health_url}: {exc}"
+            failure = f"{OutputTag.NON_FATAL} {label} {reason}"
+        if failure is not None:
+            entry = ServiceWarning(label=label, url=health_url, message=failure)
+            if required:
+                errors.append(entry)
+            else:
+                logger.warning("%s", failure)
+                warnings.append(entry)
+    return HealthCheckResult(warnings=warnings, errors=errors)
 
 
 async def check_readiness(ctx: AgentContext) -> HealthCheckResult:
-    """Probe required services at startup; raise RuntimeError on failure.
+    """Probe required services at startup; raise RuntimeError on required-service failure.
 
-    Any failed health check raises RuntimeError listing which services are
-    unavailable.
+    Only required services (currently the LLM) block startup. Optional services
+    (currently embed-llm) degrade: their failures surface as non-fatal warnings
+    instead of raising.
     """
     result = await check_service_health(ctx)
-    if result.has_issues:
-        error_msgs = [f"{w.label}: {w.message}" for w in result.warnings]
+    if result.errors:
+        error_msgs = [f"{w.label}: {w.message}" for w in result.errors]
         msg = (
             "Startup readiness check failed (required services unavailable): "
             + "; ".join(error_msgs)

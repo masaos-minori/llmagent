@@ -769,7 +769,11 @@ class TestDiscoverAllUnreachableServers:
     async def test_one_unreachable_server_others_still_processed(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
 
-        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+        async def _get(
+            url: str,
+            timeout: float = 5.0,
+            headers: dict | None = None,
+        ) -> MagicMock:
             if "bad" in url:
                 raise httpx.ConnectError("refused")
             return _resp(
@@ -915,7 +919,11 @@ class TestDiscoverAllDuplicates:
     def _dup_ctx(self, security_profile: SecurityProfile) -> MagicMock:
         http = AsyncMock(spec=httpx.AsyncClient)
 
-        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+        async def _get(
+            url: str,
+            timeout: float = 5.0,
+            headers: dict | None = None,
+        ) -> MagicMock:
             return _resp(
                 200,
                 {
@@ -1517,7 +1525,11 @@ class TestDriftDetection:
     async def test_duplicate_live_tool_warns_when_local(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
 
-        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+        async def _get(
+            url: str,
+            timeout: float = 5.0,
+            headers: dict | None = None,
+        ) -> MagicMock:
             return _resp(
                 200,
                 {
@@ -1560,7 +1572,11 @@ class TestDriftDetection:
     async def test_duplicate_live_tool_fatal_when_production(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
 
-        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+        async def _get(
+            url: str,
+            timeout: float = 5.0,
+            headers: dict | None = None,
+        ) -> MagicMock:
             return _resp(
                 200,
                 {
@@ -1601,7 +1617,11 @@ class TestDriftDetection:
     async def test_duplicate_live_tool_fatal_when_strict_even_if_local(self) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
 
-        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+        async def _get(
+            url: str,
+            timeout: float = 5.0,
+            headers: dict | None = None,
+        ) -> MagicMock:
             return _resp(
                 200,
                 {
@@ -1654,7 +1674,11 @@ class TestDriftDetection:
         try:
             http = AsyncMock(spec=httpx.AsyncClient)
 
-            async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+            async def _get(
+                url: str,
+                timeout: float = 5.0,
+                headers: dict | None = None,
+            ) -> MagicMock:
                 if "srv1" in url:
                     return _resp(
                         200,
@@ -1722,7 +1746,11 @@ class TestDriftDetection:
         try:
             http = AsyncMock(spec=httpx.AsyncClient)
 
-            async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+            async def _get(
+                url: str,
+                timeout: float = 5.0,
+                headers: dict | None = None,
+            ) -> MagicMock:
                 if "srv1" in url:
                     return _resp(
                         200,
@@ -1796,7 +1824,11 @@ class TestUnifiedSeverity:
     ) -> None:
         http = AsyncMock(spec=httpx.AsyncClient)
 
-        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+        async def _get(
+            url: str,
+            timeout: float = 5.0,
+            headers: dict | None = None,
+        ) -> MagicMock:
             return _resp(
                 200,
                 {
@@ -1863,7 +1895,11 @@ class TestUnifiedSeverity:
 
         http = AsyncMock(spec=httpx.AsyncClient)
 
-        async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+        async def _get(
+            url: str,
+            timeout: float = 5.0,
+            headers: dict | None = None,
+        ) -> MagicMock:
             return _resp(
                 200,
                 {
@@ -1907,7 +1943,11 @@ async def test_tool_definitions_check_surfaces_as_outcome_not_exception(
 
     http = AsyncMock(spec=httpx.AsyncClient)
 
-    async def _get(url: str, timeout: float = 5.0) -> MagicMock:
+    async def _get(
+        url: str,
+        timeout: float = 5.0,
+        headers: dict | None = None,
+    ) -> MagicMock:
         return _resp(
             200,
             {
@@ -2146,3 +2186,33 @@ class TestRequiredToolPresenceCheck:
             f for f in mcp_findings if "not found in discovery results" in f.message
         ]
         assert len(missing_tool_findings) == 0
+
+
+# ── auth-header propagation on the /v1/tools probe ────────────────────────────
+
+
+class TestToolDiscoveryAuthHeader:
+    @pytest.mark.asyncio
+    async def test_probe_sends_bearer_auth_header(self) -> None:
+        """The /v1/tools probe must carry the server's Bearer token.
+
+        Regression: without it every authenticated server answers 401 and the
+        startup tool-discovery gate fails for all servers at once.
+        """
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(_resp(200, {"schema_version": "1.0", "tools": []}))
+        cfg = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9000",
+            startup_mode=StartupMode.PERSISTENT,
+            auth_token="secret-token",
+            required=True,
+        )
+        ctx = _make_ctx({"srv": cfg}, http)
+
+        await McpToolDiscoveryService(ctx).discover_all()
+
+        tool_calls = [c for c in http.get.call_args_list if "/v1/tools" in c.args[0]]
+        assert tool_calls, "expected a /v1/tools probe"
+        _, kwargs = tool_calls[-1]
+        assert kwargs["headers"] == {"Authorization": "Bearer secret-token"}

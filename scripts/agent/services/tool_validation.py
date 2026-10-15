@@ -79,6 +79,7 @@ async def _collect_server_tool_names(ctx: AgentContext) -> tuple[set[str], list[
                 resp = await ctx.services_required.http.get(
                     f"{srv_cfg.url}/v1/tools",
                     timeout=5.0,
+                    headers=srv_cfg.auth_headers(),
                 )
                 if resp.status_code == HTTPStatus.OK:
                     try:

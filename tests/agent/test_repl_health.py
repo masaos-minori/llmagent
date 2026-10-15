@@ -301,7 +301,8 @@ class TestCheckServiceHealth:
         assert not result.has_issues
 
     @pytest.mark.asyncio
-    async def test_returns_warning_on_non_200(self) -> None:
+    async def test_returns_error_on_non_200_for_llm(self) -> None:
+        # llm is a required service: a non-200 health status is reported as an error.
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
         ctx.cfg.rag.embed_url = ""
@@ -313,12 +314,14 @@ class TestCheckServiceHealth:
 
         result = await check_service_health(ctx)
 
-        msgs = result.warning_messages()
+        msgs = result.error_messages()
         assert len(msgs) == 1
         assert "503" in msgs[0]
+        assert not result.warning_messages()
 
     @pytest.mark.asyncio
-    async def test_returns_warning_on_exception(self) -> None:
+    async def test_returns_error_on_exception_for_llm(self) -> None:
+        # llm is a required service: an unreachable probe is reported as an error.
         ctx = MagicMock()
         ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
         ctx.cfg.rag.embed_url = ""
@@ -328,9 +331,37 @@ class TestCheckServiceHealth:
 
         result = await check_service_health(ctx)
 
-        msgs = result.warning_messages()
+        msgs = result.error_messages()
         assert len(msgs) == 1
         assert "refused" in msgs[0]
+        assert not result.warning_messages()
+
+    @pytest.mark.asyncio
+    async def test_embed_llm_failure_is_warning_not_error(self) -> None:
+        # embed-llm is optional: its failure degrades to a warning, never an error.
+        healthy = MagicMock()
+        healthy.status_code = 200
+        embed_resp = MagicMock()
+        embed_resp.status_code = 503
+
+        async def _get(url: str, *args, **kwargs):
+            if url.startswith("http://localhost:8000"):
+                return healthy
+            return embed_resp
+
+        ctx = MagicMock()
+        ctx.cfg.llm.llm_url = "http://localhost:8000/v1/chat/completions"
+        ctx.cfg.rag.embed_url = "http://localhost:8081/embedding"
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _get
+        ctx.services_required.http = http
+
+        result = await check_service_health(ctx)
+
+        msgs = result.warning_messages()
+        assert len(msgs) == 1
+        assert "embed-llm" in msgs[0]
+        assert not result.error_messages()
 
     @pytest.mark.asyncio
     async def test_skips_empty_urls(self) -> None:
@@ -882,6 +913,26 @@ class TestCheckReadiness:
         with pytest.raises(RuntimeError) as exc_info:
             await check_readiness(ctx)
         assert "llm" in str(exc_info.value)
+
+    @pytest.mark.asyncio
+    async def test_embed_llm_down_does_not_raise(self) -> None:
+        # Only embed-llm is down; the LLM probe succeeds. Degraded mode must not raise.
+        llm_resp = MagicMock()
+        llm_resp.status_code = 200
+        embed_resp = MagicMock()
+        embed_resp.status_code = 503
+
+        async def _get(url: str, *args, **kwargs):
+            if url.startswith("http://127.0.0.1:8080"):
+                return llm_resp
+            return embed_resp
+
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _get
+        ctx = self._make_ctx(http)
+        result = await check_readiness(ctx)
+        assert result.warning_messages()
+        assert not result.error_messages()
 
 
 class TestCheckWorkflowDefinition:
