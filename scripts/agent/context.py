@@ -104,6 +104,9 @@ class ConversationState:
     memory_warning_shown: bool = (
         False  # Whether the "memory disabled" warning was displayed
     )
+    undo_floor: int = (
+        0  # index into history of the /undo compression boundary; 0 = none
+    )
 
     @property
     def _ensure_lock(self) -> asyncio.Lock:

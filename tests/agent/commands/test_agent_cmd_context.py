@@ -15,7 +15,9 @@ from agent.commands.cmd_context import _ContextMixin
 from agent.commands.token_display import _token_source_label
 from agent.services.context_view import _build_budget, _format_memory_status
 from agent.services.context_view import budget_breakdown as _budget_breakdown
+from agent.services.models import UndoResult
 from shared.transport_dto import ToolCallResult
+from shared.types import LLMMessage
 
 # ── Test harness ──────────────────────────────────────────────────────────────
 
@@ -36,6 +38,7 @@ def _make_ctx() -> MagicMock:
     ctx.conv.plan_mode = False
     ctx.conv.system_prompt_name = "default"
     ctx.conv.system_prompt_content = "You are helpful."
+    ctx.conv.undo_floor = 0
     ctx.conv.history = []
     ctx.session.session_id = 1
     ctx.services_required.hist_mgr = None
@@ -201,6 +204,39 @@ class TestCmdUndo:
             _assistant_msg("first reply"),
         ]
 
+    def test_undo_success_renders_removed_count(self, capsys: Any) -> None:
+        # A success UndoResult (block_reason is None) renders the removed count.
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), _user_msg(), _assistant_msg()]
+        ctx.stats.stat_turns = 1
+        cmd = _FakeCmd(ctx)
+        with patch(
+            "agent.services.undo_service.undo_last_turn",
+            return_value=UndoResult(n_removed=2),
+        ) as mock_undo:
+            cmd._cmd_undo()
+        mock_undo.assert_called_once_with(ctx)
+        out = capsys.readouterr().out
+        assert "2 messages removed" in out
+
+    def test_undo_block_renders_block_reason(self, capsys: Any) -> None:
+        # A blocked UndoResult (block_reason set) renders the reason and changes
+        # neither history nor stats.
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), _user_msg(), _assistant_msg()]
+        ctx.stats.stat_turns = 1
+        cmd = _FakeCmd(ctx)
+        reason = "Nothing to undo: at or before the compression boundary."
+        with patch(
+            "agent.services.undo_service.undo_last_turn",
+            return_value=UndoResult(n_removed=0, block_reason=reason),
+        ):
+            cmd._cmd_undo()
+        out = capsys.readouterr().out
+        assert reason in out
+        assert ctx.conv.history == [_system_msg(), _user_msg(), _assistant_msg()]
+        assert ctx.stats.stat_turns == 1
+
 
 # ── _cmd_clear ────────────────────────────────────────────────────────────────
 
@@ -265,27 +301,39 @@ class TestCmdSystem:
 
 class TestBudgetBreakdown:
     def test_budget_breakdown_counts_system(self) -> None:
-        messages = [{"role": "system", "content": "hello"}]
+        messages: list[LLMMessage] = [{"role": "system", "content": "hello"}]
         result = _budget_breakdown(messages)
         assert result.system == 5
 
     def test_budget_breakdown_counts_tool(self) -> None:
-        messages = [{"role": "tool", "content": "result"}]
+        messages: list[LLMMessage] = [{"role": "tool", "content": "result"}]
         result = _budget_breakdown(messages)
         assert result.tool_messages == 6
 
     def test_budget_breakdown_counts_assistant(self) -> None:
-        messages = [{"role": "assistant", "content": "answer"}]
+        messages: list[LLMMessage] = [{"role": "assistant", "content": "answer"}]
         result = _budget_breakdown(messages)
         assert result.history == 6
 
     def test_budget_breakdown_counts_tool_calls(self) -> None:
-        messages = [{"role": "assistant", "content": "", "tool_calls": [{"id": "t1"}]}]
+        messages: list[LLMMessage] = [
+            {
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {
+                        "id": "t1",
+                        "type": "function",
+                        "function": {"name": "f", "arguments": "{}"},
+                    }
+                ],
+            }
+        ]
         result = _budget_breakdown(messages)
         assert result.tool_messages > 0
 
     def test_budget_breakdown_counts_user_as_history(self) -> None:
-        messages = [{"role": "user", "content": "question"}]
+        messages: list[LLMMessage] = [{"role": "user", "content": "question"}]
         result = _budget_breakdown(messages)
         assert result.history == 8
 
@@ -303,7 +351,7 @@ class TestTokenBreakdown:
     """
 
     def test_token_breakdown_representative_mix(self) -> None:
-        messages = [
+        messages: list[LLMMessage] = [
             {
                 "role": "system",
                 "content": "You are a helpful assistant that writes concise code.",

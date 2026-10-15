@@ -24,7 +24,8 @@ def _msgs(result):
 
 _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
-    session_id INTEGER PRIMARY KEY AUTOINCREMENT
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    undo_floor_message_id INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS messages (
     message_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -258,7 +259,10 @@ class TestFetchMessages:
     def test_returns_empty_when_session_not_found(
         self, repo: SessionMessageRepository
     ) -> None:
-        assert _msgs(repo.fetch_messages(999)) == []
+        messages, found, floor = repo.fetch_messages(999)
+        assert messages == []
+        assert found is False
+        assert floor == 0
 
     def test_returns_messages_in_order(self, repo: SessionMessageRepository) -> None:
         repo.save("user", "first")
@@ -522,6 +526,71 @@ class TestReplaceMessages:
         assert len(rows) == 2
         assert rows[0]["content"] == "[Conversation summary]"
         assert rows[1]["content"] == "new user"
+
+    def test_replace_messages_sets_boundary_to_max_message_id(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+        conn.commit()
+
+        def _make(target: str = "session") -> _FakeSQLiteHelper:
+            return _FakeSQLiteHelper(conn)
+
+        with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+            r = SessionMessageRepository(session_id=1)
+            r.replace_messages(
+                1,
+                [
+                    {"role": "user", "content": "u"},
+                    {"role": "assistant", "content": "a"},
+                ],
+            )
+            rows = conn.execute(
+                "SELECT undo_floor_message_id FROM sessions WHERE session_id = 1"
+            ).fetchall()
+            assert rows[0][0] == 2  # MAX(message_id) of the just-written snapshot
+
+    def test_fetch_messages_returns_three_tuple_with_boundary(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+        conn.commit()
+
+        def _make(target: str = "session") -> _FakeSQLiteHelper:
+            return _FakeSQLiteHelper(conn)
+
+        with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+            r = SessionMessageRepository(session_id=1)
+            r.replace_messages(1, [{"role": "user", "content": "u"}])
+            messages, found, floor = r.fetch_messages(1)
+            assert found is True
+            assert floor == 1
+            assert len(messages) == 1
+
+    def test_fetch_messages_boundary_zero_when_no_messages(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+        conn.commit()
+
+        def _make(target: str = "session") -> _FakeSQLiteHelper:
+            return _FakeSQLiteHelper(conn)
+
+        with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+            r = SessionMessageRepository(session_id=1)
+            messages, found, floor = r.fetch_messages(1)
+            assert found is True
+            assert floor == 0
+            assert messages == []
 
 
 class TestCustomRoles:

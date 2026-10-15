@@ -299,11 +299,20 @@ class TestCreateSessionSchema:
         assert "tool_call_id" in cols
 
     def test_build_session_schema_emits_undo_floor_column(self) -> None:
-        """build_session_schema_sql() emits sessions.undo_floor_message_id column."""
+        """build_session_schema_sql() emits the undo_floor_message_id column with
+        its NOT NULL DEFAULT 0 constraint against the real (unstubbed) builder."""
+        import re
+
         import db.schema_sql as schema_sql_mod
 
         ddl = schema_sql_mod.build_session_schema_sql(384)
         assert "undo_floor_message_id" in ddl
+        # Exact constraint: NOT NULL DEFAULT 0 (catches wrong nullability/default).
+        assert re.search(
+            r"undo_floor_message_id\s+INTEGER\s+NOT NULL\s+DEFAULT\s+0",
+            ddl,
+            re.IGNORECASE,
+        )
 
     def test_idempotent(self, tmp_path: Path) -> None:
         db_file = tmp_path / "session2.sqlite"

@@ -18,12 +18,23 @@ def _make_ctx(
     system_prompt_content: str = "",
     extra_history: list[dict] | None = None,
     session_found: bool = True,
+    undo_floor_id: int = 0,
 ) -> MagicMock:
-    """Build a minimal AgentContext mock."""
+    """Build a minimal AgentContext mock.
+
+    ``fetch_messages`` returns the 3-tuple ``(messages, found, undo_floor_id)``
+    that the restored service unpacks (rows 02/03). ``undo_floor_id`` defaults
+    to 0 (no boundary); set it non-zero to exercise the boundary conversion.
+    """
     ctx = MagicMock()
-    ctx.session.fetch_messages.return_value = (messages or [], session_found)
+    ctx.session.fetch_messages.return_value = (
+        messages or [],
+        session_found,
+        undo_floor_id,
+    )
     ctx.conv = ConversationState()
     ctx.conv.system_prompt_content = system_prompt_content
+    ctx.conv.undo_floor = 0
     ctx.conv.history = list(extra_history or [])
     ctx.session.session_id = 0
     return ctx
@@ -144,3 +155,32 @@ class TestRestoreSession:
         ) as mock_reset:
             await restore_session(ctx, session_id=4)
             mock_reset.assert_called_once_with(ctx)
+
+    async def test_undo_floor_zero_when_no_boundary(self) -> None:
+        msgs = [{"role": "user", "content": "hi"}]
+        ctx = _make_ctx(messages=msgs, system_prompt_content="Canonical.")
+        await restore_session(ctx, session_id=6)
+        assert ctx.conv.undo_floor == 0
+
+    async def test_undo_floor_converts_boundary_to_index(self) -> None:
+        # Snapshot = first 2 rows (system summary + user); post-compression =
+        # the remaining assistant + user rows. system_prompt is set, so the
+        # rebuilt history is [canonical SYS] + non-system rows.
+        messages = [
+            {"role": "system", "content": "[summary]"},
+            {"role": "user", "content": "q1"},
+            {"role": "assistant", "content": "a1"},
+            {"role": "user", "content": "q2"},
+        ]
+        ctx = _make_ctx(
+            messages=messages, system_prompt_content="Canonical.", undo_floor_id=2
+        )
+        ctx.session.count_messages_up_to.return_value = 2  # n_snapshot
+        await restore_session(ctx, session_id=42)
+        # 1 + n_snapshot - system_count = 1 + 2 - 1 = 2 -> first post-compression
+        # turn (a1) is the first undoable index; snapshot turns stay blocked.
+        assert ctx.conv.undo_floor == 2
+        assert ctx.conv.history[0]["role"] == "system"
+        assert ctx.conv.history[0]["content"] == "Canonical."
+        # index 1 (q1, last snapshot user) is below the floor; index 2 (a1) above.
+        assert ctx.conv.history[1]["content"] == "q1"

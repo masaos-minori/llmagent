@@ -67,17 +67,19 @@ class AgentSession:
         """Persist multiple messages in a single DB transaction."""
         self._message_repo.save_many(messages)
 
-    def replace_messages(self, messages: list[LLMMessage]) -> None:
+    def replace_messages(self, messages: list[LLMMessage]) -> int | None:
         """Persist compressed history snapshot back to DB.
 
         Skips silently if session_id is None (before session.start()).
+        Returns the persisted /undo compression boundary (int) on success,
+        or None when nothing was persisted.
         """
         if self.session_id is None:
             logger.warning(
                 "replace_messages called before session.start(); skipping persist"
             )
-            return
-        self._message_repo.replace_messages(self.session_id, messages)
+            return None
+        return self._message_repo.replace_messages(self.session_id, messages)
 
     def save_diagnostic(self, content: str) -> None:
         """Persist a diagnostic event to the session_diagnostics table via DiagnosticStore; never written to messages."""
@@ -100,14 +102,19 @@ class AgentSession:
         """Number of save calls skipped due to invalid role."""
         return self._message_repo.stat_skipped_invalid_role
 
-    def fetch_messages(self, session_id: int) -> tuple[list[LLMMessage], bool]:
+    def fetch_messages(self, session_id: int) -> tuple[list[LLMMessage], bool, int]:
         """Fetch messages for a session from DB.
 
-        Returns a tuple of (messages, session_found).
+        Returns a 3-tuple of (messages, session_found, undo_floor_message_id).
         - messages: list of message dicts in insertion order. Empty list if none.
         - session_found: True if session exists in the sessions table, False otherwise.
+        - undo_floor_message_id: the persisted /undo compression boundary (0 when none).
         """
         return self._message_repo.fetch_messages(session_id)
+
+    def count_messages_up_to(self, session_id: int, message_id: int) -> int:
+        """Delegate to the message repo (row 10): snapshot count at the boundary."""
+        return self._message_repo.count_messages_up_to(session_id, message_id)
 
     # ── Session lifecycle ────────────────────────────────────────────────────
 
@@ -184,45 +191,24 @@ class AgentSession:
             for r in rows
         ]
 
-    def delete_last_turn(self) -> None:
-        """Delete the last user+assistant message pair from DB for the current session.
-
-        Deletes the two highest message_id rows so that both the user message
-        and the assistant reply are removed together.  If only one message exists
-        (e.g. LLM failed before saving the assistant reply), that one is removed.
-        """
-        if self.session_id is None:
-            return
-        with SQLiteHelper("session").open(write_mode=True) as db:
-            rows = db.fetchall(
-                "SELECT message_id FROM messages WHERE session_id = ? ORDER BY message_id DESC LIMIT 2",
-                (self.session_id,),
-            )
-            if not rows:
-                return
-            ids = [r[0] for r in rows]
-            placeholders = ",".join("?" * len(ids))
-            db.execute(
-                f"DELETE FROM messages WHERE message_id IN ({placeholders})",  # nosec B608 — placeholders is "?" * n, not user input
-                tuple(ids),
-            )
-            db.commit()
-        logger.info(
-            "Deleted last turn from session %s: %s messages",
-            self.session_id,
-            len(ids),
-        )
-
     def undo_last_turn(self) -> int:
-        """Delete all DB messages from the last user message onwards.
+        """Delete the last turn, gated by the /undo compression boundary.
 
-        Handles turns with tool_call and injection messages correctly by
-        walking back to the last 'user' role message and deleting everything
-        from that point (inclusive).  Returns the number of rows deleted.
+        Walks back to the last 'user' role message (skipping turns at or before
+        the persisted boundary sessions.undo_floor_message_id), then deletes every
+        message from that user message onwards (message_id >= last_user_id).
+        Returns 0 when nothing is undoable (no user message, or the last user
+        turn is at/before the boundary). Returns the number of rows deleted.
         """
         if self.session_id is None:
             return 0
         with SQLiteHelper("session").open(write_mode=True) as db:
+            # read floor
+            floor_row = db.execute(
+                "SELECT undo_floor_message_id FROM sessions WHERE session_id = ?",
+                (self.session_id,),
+            ).fetchone()
+            undo_floor = floor_row[0] if floor_row else 0
             rows = db.fetchall(
                 "SELECT message_id, role FROM messages WHERE session_id = ? ORDER BY message_id DESC",
                 (self.session_id,),
@@ -234,8 +220,8 @@ class AgentSession:
                 if r[1] == "user":
                     last_user_id = r[0]
                     break
-            if last_user_id is None:
-                return 0
+            if last_user_id is None or last_user_id <= undo_floor:
+                return 0  # last user is at/before the boundary: nothing undoable
             deleted: int = db.execute(
                 "SELECT COUNT(*) FROM messages WHERE session_id = ? AND message_id >= ?",
                 (self.session_id, last_user_id),

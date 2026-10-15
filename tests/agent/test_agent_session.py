@@ -3,7 +3,7 @@ tests/test_agent_session.py
 Behavior-lock tests for AgentSession.
 
 Covers: start, save, save_many, fetch_messages, set_title,
-        list_sessions, delete_session, delete_last_turn.
+        list_sessions, delete_session.
 SQLiteHelper is replaced with an in-memory SQLite connection so no
 real DB file or sqlite-vec extension is required.
 """
@@ -34,7 +34,8 @@ _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    title TEXT
+    title TEXT,
+    undo_floor_message_id INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS messages (
     message_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -229,7 +230,7 @@ class TestSave:
 class TestSaveMany:
     def test_saves_multiple_messages(self, session: AgentSession) -> None:
         session.start()
-        rows: list[tuple[str, str, list[dict] | None, str | None]] = [
+        rows: list[tuple[str, str | None, list[dict] | None, str | None]] = [
             ("tool", "result A", None, "tc1"),
             ("tool", "result B", None, "tc2"),
         ]
@@ -250,7 +251,7 @@ class TestSaveMany:
 
     def test_filters_invalid_roles(self, session: AgentSession) -> None:
         session.start()
-        rows: list[tuple[str, str, list[dict] | None, str | None]] = [
+        rows: list[tuple[str, str | None, list[dict] | None, str | None]] = [
             ("user", "valid", None, None),
             ("bad_role", "invalid", None, None),
         ]
@@ -331,6 +332,16 @@ class TestFetchMessages:
         # Corrupted row should still return without KeyError; tool_calls absent
         assert msgs is not None
         assert "tool_calls" not in (msgs[0] if msgs else {})
+
+    def test_returns_three_tuple_with_boundary(self, session: AgentSession) -> None:
+        session.start()
+        session.save("user", "q1")
+        messages, found, floor = session.fetch_messages(
+            session.session_id  # type: ignore[arg-type]
+        )
+        assert found is True
+        assert isinstance(floor, int)
+        assert len(messages) == 1
 
 
 # ── set_title() ───────────────────────────────────────────────────────────────
@@ -423,25 +434,6 @@ class TestDeleteSession:
         assert msgs == []
 
 
-# ── delete_last_turn() ────────────────────────────────────────────────────────
-
-
-class TestDeleteLastTurn:
-    def test_removes_last_user_assistant_pair(self, session: AgentSession) -> None:
-        session.start()
-        session.save("user", "q1")
-        session.save("assistant", "a1")
-        session.save("user", "q2")
-        session.save("assistant", "a2")
-        session.delete_last_turn()
-        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
-        assert msgs is not None
-        assert len(msgs) == 2
-
-    def test_no_op_when_session_id_none(self, session: AgentSession) -> None:
-        session.delete_last_turn()  # should not raise
-
-
 # ── TestSessionIdConcurrency ──────────────────────────────────────────────────
 
 
@@ -523,7 +515,7 @@ class TestUndoLastTurn:
         session.save("assistant", "a2")
         deleted = session.undo_last_turn()
         assert deleted == 2
-        msgs = _msgs(session.fetch_messages(session.session_id))
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert len(msgs) == 2
         assert msgs[0]["content"] == "q1"
@@ -537,7 +529,7 @@ class TestUndoLastTurn:
         session.save("user", "q2")
         deleted = session.undo_last_turn()
         assert deleted == 1
-        msgs = _msgs(session.fetch_messages(session.session_id))
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs is not None
         assert len(msgs) == 3
 
@@ -555,6 +547,88 @@ class TestUndoLastTurn:
         session.start()
         deleted = session.undo_last_turn()
         assert deleted == 0
+
+
+class TestReplaceMessages:
+    def test_returns_none_before_start(self) -> None:
+        session = AgentSession()
+        assert session.replace_messages([{"role": "user", "content": "x"}]) is None
+
+    def test_returns_boundary_after_rewrite(self, session: AgentSession) -> None:
+        session.start()
+        boundary = session.replace_messages([{"role": "user", "content": "hi"}])
+        assert isinstance(boundary, int)
+        assert boundary >= 1
+
+
+class TestUndoLastTurnBoundary:
+    """DB-boundary gate for undo_last_turn (rows 02/03)."""
+
+    def test_blocks_when_last_user_at_or_before_boundary(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.commit()
+
+        def _make(target: str = "session") -> _FakeSQLiteHelper:
+            return _FakeSQLiteHelper(conn)
+
+        with (
+            patch("agent.session.SQLiteHelper", side_effect=_make),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
+        ):
+            session = AgentSession()
+            session.start()
+            sid = session.session_id
+            session.save("user", "q1")
+            session.save("assistant", "a1")
+            session.save("user", "q2")
+            session.save("assistant", "a2")
+            conn.execute(
+                "UPDATE sessions SET undo_floor_message_id = ? WHERE session_id = ?",
+                (3, sid),
+            )
+            conn.commit()
+            # q2 lives at message_id 3 == boundary: nothing undoable
+            assert session.undo_last_turn() == 0
+            rows = _msgs(session.fetch_messages(sid))  # type: ignore[arg-type]
+            assert rows is not None
+            assert len(rows) == 4
+
+    def test_deletes_only_last_turn_beyond_boundary(self) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.commit()
+
+        def _make(target: str = "session") -> _FakeSQLiteHelper:
+            return _FakeSQLiteHelper(conn)
+
+        with (
+            patch("agent.session.SQLiteHelper", side_effect=_make),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
+        ):
+            session = AgentSession()
+            session.start()
+            sid = session.session_id
+            session.save("user", "q1")
+            session.save("assistant", "a1")
+            session.save("user", "q2")
+            session.save("assistant", "a2")
+            conn.execute(
+                "UPDATE sessions SET undo_floor_message_id = ? WHERE session_id = ?",
+                (1, sid),
+            )
+            conn.commit()
+            # boundary at id 1: only q2(3)/a2(4) are undoable
+            assert session.undo_last_turn() == 2
+            rows = _msgs(session.fetch_messages(sid))  # type: ignore[arg-type]
+            assert rows is not None
+            assert [m["content"] for m in rows] == ["q1", "a1"]
 
 
 # ── TestAgentSessionRagBoundary ────────────────────────────────────────────────
@@ -583,6 +657,10 @@ class TestAgentSessionRagBoundary:
             f"AgentSession must not import from rag.*; found: {rag_imports}"
         )
 
+    def test_delete_last_turn_absent_from_facade(self) -> None:
+        # Row 03 removed AgentSession.delete_last_turn; no such attribute remains.
+        assert not hasattr(AgentSession, "delete_last_turn")
+
 
 class TestSaveDiagnosticIsolation:
     """Tests verifying that save_diagnostic() writes to DiagnosticStore, not messages."""
@@ -598,7 +676,7 @@ class TestSaveDiagnosticIsolation:
         session.save_diagnostic("test diagnostic content")
         diag_mock.save.assert_called_once()
         # Verify messages table is not touched
-        msgs = _msgs(session.fetch_messages(session.session_id))
+        msgs = _msgs(session.fetch_messages(session.session_id))  # type: ignore[arg-type]  # session_id narrowed by start() but typed int | None
         assert msgs == []
 
     def test_save_diagnostic_calls_diagnostic_store_with_kind(

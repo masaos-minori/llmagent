@@ -137,14 +137,18 @@ class SessionMessageRepository:
             db.commit()
         # sqlite3.Error propagates to caller
 
-    def replace_messages(self, session_id: int, messages: list[LLMMessage]) -> None:
+    def replace_messages(
+        self, session_id: int, messages: list[LLMMessage]
+    ) -> int | None:
         """Atomically clear and re-insert all messages for a session.
 
         Used after history compression to persist the compressed snapshot.
-        Runs in a single transaction: DELETE + executemany INSERT.
+        Runs in a single transaction: DELETE + executemany INSERT + UPDATE the
+        /undo boundary. Returns the persisted boundary (MAX message_id), or None
+        when nothing was persisted.
         """
         if not messages:
-            return
+            return None
         rows = []
         for msg in messages:
             role = msg.get("role", "user")
@@ -157,40 +161,66 @@ class SessionMessageRepository:
             rows.append((session_id, role, content, tc_json, tool_call_id))
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
-            if rows:
-                db.executemany(_INSERT_MESSAGE_SQL, rows)
+            db.executemany(_INSERT_MESSAGE_SQL, rows)
+            boundary = db.execute(
+                "SELECT COALESCE(MAX(message_id), 0) FROM messages WHERE session_id = ?",
+                (session_id,),
+            ).fetchone()[0]
+            db.execute(
+                "UPDATE sessions SET undo_floor_message_id = ? WHERE session_id = ?",
+                (boundary, session_id),
+            )
             db.commit()
+        return int(boundary)
 
     def get_valid_roles(self) -> frozenset[str]:
         """Return the currently active valid roles set."""
         return self._valid_roles
 
-    def fetch_messages(self, session_id: int) -> tuple[list[LLMMessage], bool]:
+    def count_messages_up_to(self, session_id: int, message_id: int) -> int:
+        """Count messages for a session whose ``message_id`` is <= ``message_id``.
+
+        Messages are stored in insertion order, so this is the number of
+        snapshot messages at the /undo boundary (row 10): messages with an id at
+        or below the boundary belong to the compressed snapshot; later ids are
+        turns added after compression. Raises sqlite3.Error on DB failure.
+        """
+        with SQLiteHelper("session").open() as db:
+            return int(
+                db.execute(
+                    "SELECT COUNT(*) FROM messages WHERE session_id = ? AND message_id <= ?",
+                    (session_id, message_id),
+                ).fetchone()[0]
+            )
+
+    def fetch_messages(self, session_id: int) -> tuple[list[LLMMessage], bool, int]:
         """Fetch and parse messages for a session from DB.
 
-        Returns a tuple of (messages, session_found).
+        Returns a 3-tuple of (messages, session_found, undo_floor_message_id).
         - messages: list of message dicts (role/content/tool_calls) in insertion order.
           Empty list if no messages exist for this session.
         - session_found: True if session exists in the sessions table, False otherwise.
-        Returns ([], False) when session does not exist.
-        Returns ([], True) when session exists but has no messages.
+        - undo_floor_message_id: the persisted /undo compression boundary (0 when none).
+        Returns ([], False, 0) when session does not exist.
+        Returns ([], True, 0) when session exists but has no messages.
         Raises sqlite3.Error on DB failure.
         """
         with SQLiteHelper("session").open(row_factory=True) as db:
             session_rows = db.fetchall(
-                "SELECT 1 FROM sessions WHERE session_id = ?",
+                "SELECT undo_floor_message_id FROM sessions WHERE session_id = ?",
                 (session_id,),
             )
+            undo_floor = session_rows[0][0] if session_rows else 0
             session_found = len(session_rows) > 0
         if not session_found:
-            return ([], False)
+            return ([], False, 0)
         rows = db.fetchall(
             "SELECT message_id, role, content, tool_calls, tool_call_id"
             " FROM messages WHERE session_id = ? ORDER BY message_id",
             (session_id,),
         )
         if not rows:
-            return ([], True)
+            return ([], True, 0)
         messages: list[LLMMessage] = []
         for r in rows:
             msg: LLMMessage = {"role": r["role"], "content": r["content"]}
@@ -215,4 +245,4 @@ class SessionMessageRepository:
             if r["tool_call_id"]:
                 msg["tool_call_id"] = r["tool_call_id"]
             messages.append(msg)
-        return (messages, True)
+        return (messages, True, undo_floor)

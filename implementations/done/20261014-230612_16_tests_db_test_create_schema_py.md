@@ -83,10 +83,10 @@ The DDL definition itself (row 01) and the migration/recreation strategy.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | additive; real builder not stubbed |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261015-191020 | 20261015-191020 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261015-191020 | 20261015-191020 | additive; real builder not stubbed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261015-191020 | 20261015-191020 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

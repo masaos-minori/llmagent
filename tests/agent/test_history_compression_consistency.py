@@ -9,11 +9,17 @@ from __future__ import annotations
 
 import sqlite3
 from collections.abc import Generator
-from unittest.mock import AsyncMock, patch
+from types import SimpleNamespace
+from typing import cast
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
+from agent.commands.cmd_rag_export import _RagExportMixin
+from agent.context import AgentContext, ConversationState
+from agent.conversation_state_manager import ConversationStateManager
 from agent.history import HistoryManager
+from agent.services.undo_service import undo_last_turn
 from agent.session import AgentSession
 from agent.session_message_repo import SessionMessageRepository
 from shared.types import LLMMessage
@@ -30,7 +36,8 @@ _SCHEMA_SQL = """
 CREATE TABLE IF NOT EXISTS sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    title TEXT
+    title TEXT,
+    undo_floor_message_id INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE IF NOT EXISTS messages (
     message_id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -274,3 +281,135 @@ def test_compress_result_count_matches_replace(repo: SessionMessageRepository) -
     repo.replace_messages(1, compressed_messages)
     loaded = _msgs(repo.fetch_messages(1))
     assert len(loaded) == len(compressed_messages)
+
+
+# --- Compression entry points establish the /undo boundary (rows 08/09) ---
+
+
+def _compression_ctx(
+    session: AgentSession,
+    history: list[LLMMessage],
+    *,
+    force: bool,
+) -> object:
+    """Build a minimal ctx driving a compression entry point.
+
+    ``session`` is backed by a real (patched) in-memory DB so that
+    ``replace_messages()`` persists the boundary; ``hist_mgr`` is stubbed to
+    return a compressed result with ``compressed_count > 0``.
+    """
+    conv = ConversationState()
+    conv.history = list(history)
+    conv.undo_floor = 0
+    conv.system_prompt_content = ""
+    result = SimpleNamespace(compressed_count=1, summary_added=True, is_fallback=False)
+    if force:
+        hist_mgr = SimpleNamespace(
+            compress_turns=2,
+            force_compress=AsyncMock(return_value=(list(history), result)),
+        )
+    else:
+        hist_mgr = SimpleNamespace(
+            compress=AsyncMock(return_value=(list(history), result)),
+        )
+    return SimpleNamespace(
+        conv=conv,
+        session=session,
+        services_required=SimpleNamespace(hist_mgr=hist_mgr),
+    )
+
+
+async def test_manager_path_sets_undo_floor_to_snapshot_length(
+    session_and_conn: tuple[AgentSession, sqlite3.Connection],
+) -> None:
+    session, conn = session_and_conn
+    history = _make_history(4)  # 8 messages
+    ctx = cast(AgentContext, _compression_ctx(session, history, force=False))
+    mgr = ConversationStateManager(ctx, tasks=set(), on_discard=lambda t: None)
+    await mgr.handle_history_compression()
+    assert ctx.conv.undo_floor == len(history)
+    boundary = conn.execute(
+        "SELECT undo_floor_message_id FROM sessions WHERE session_id = 1"
+    ).fetchone()[0]
+    assert boundary == len(history)
+
+
+async def test_compact_path_sets_undo_floor_to_snapshot_length(
+    session_and_conn: tuple[AgentSession, sqlite3.Connection],
+) -> None:
+    session, conn = session_and_conn
+    history = _make_history(4)  # 8 messages
+    ctx = cast(AgentContext, _compression_ctx(session, history, force=True))
+    mixin = _RagExportMixin()
+    mixin._ctx = ctx
+    mixin._out = MagicMock()
+    await mixin._cmd_compact()
+    assert ctx.conv.undo_floor == len(history)
+    boundary = conn.execute(
+        "SELECT undo_floor_message_id FROM sessions WHERE session_id = 1"
+    ).fetchone()[0]
+    assert boundary == len(history)
+
+
+# --- /undo gated by the boundary (rows 02/03) ---
+
+
+def _gate_ctx(
+    session: AgentSession,
+    history: list[LLMMessage],
+    *,
+    undo_floor: int,
+    db_floor: int,
+) -> object:
+    conv = ConversationState()
+    conv.history = list(history)
+    conv.undo_floor = undo_floor
+    conv.system_prompt_content = ""
+    return SimpleNamespace(
+        conv=conv,
+        session=session,
+        stats=SimpleNamespace(stat_turns=0),
+        services_required=SimpleNamespace(),
+    )
+
+
+async def test_undo_blocked_when_last_user_at_boundary(
+    session_and_conn: tuple[AgentSession, sqlite3.Connection],
+) -> None:
+    session, conn = session_and_conn
+    history = _make_history(2)  # [q0,a0,q1,a1], ids 1..4
+    for m in history:
+        session.save(m["role"], m["content"])  # type: ignore[arg-type]  # test messages always carry string content
+    # In-memory floor lets the search reach q1 (idx 2); DB floor at id 3 blocks it.
+    ctx = cast(AgentContext, _gate_ctx(session, history, undo_floor=2, db_floor=3))
+    conn.execute("UPDATE sessions SET undo_floor_message_id = 3 WHERE session_id = 1")
+    result = undo_last_turn(ctx)
+    assert result.block_reason is not None
+    assert result.n_removed == 0
+    assert len(ctx.conv.history) == 4  # history untouched
+    remaining = conn.execute(
+        "SELECT COUNT(*) FROM messages WHERE session_id = 1"
+    ).fetchone()[0]
+    assert remaining == 4
+
+
+async def test_undo_after_boundary_removes_turn_from_history_and_db(
+    session_and_conn: tuple[AgentSession, sqlite3.Connection],
+) -> None:
+    session, conn = session_and_conn
+    history = _make_history(2)  # [q0,a0,q1,a1], ids 1..4
+    for m in history:
+        session.save(m["role"], m["content"])  # type: ignore[arg-type]  # test messages always carry string content
+    ctx = cast(AgentContext, _gate_ctx(session, history, undo_floor=2, db_floor=2))
+    conn.execute("UPDATE sessions SET undo_floor_message_id = 2 WHERE session_id = 1")
+    result = undo_last_turn(ctx)
+    assert result.block_reason is None
+    assert result.n_removed == 2
+    assert [m["content"] for m in ctx.conv.history] == [
+        "User message 0",
+        "Assistant reply 0",
+    ]
+    remaining = conn.execute(
+        "SELECT COUNT(*) FROM messages WHERE session_id = 1"
+    ).fetchone()[0]
+    assert remaining == 2

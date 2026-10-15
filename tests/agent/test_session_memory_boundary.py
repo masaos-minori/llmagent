@@ -24,7 +24,8 @@ _SCHEMA_SQL = """
 CREATE TABLE sessions (
     session_id INTEGER PRIMARY KEY AUTOINCREMENT,
     created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    title TEXT
+    title TEXT,
+    undo_floor_message_id INTEGER NOT NULL DEFAULT 0
 );
 CREATE TABLE messages (
     message_id INTEGER PRIMARY KEY AUTOINCREMENT,

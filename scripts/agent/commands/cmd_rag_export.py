@@ -50,6 +50,9 @@ class _RagExportMixin(MixinBase):
                 or result.is_fallback
             ):
                 ctx.session.replace_messages(ctx.conv.history)
+                # establish the /undo boundary at the end of the new snapshot
+                # (rows 02/04); mirrors the manager path in row 08.
+                ctx.conv.undo_floor = len(ctx.conv.history)
         except HistoryCompressionError as e:
             self._out.write_error(f"Compression failed: {e}")
             return

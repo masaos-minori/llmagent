@@ -131,23 +131,18 @@ class _ContextMixin(MixinBase, TokenDisplay):
         self._out.write_success(result.message)
 
     def _cmd_undo(self) -> None:
-        """Roll back the last user+assistant turn from in-memory history and DB."""
-        from agent.services.exceptions import (  # lazy import
-            NothingToUndoError,
-        )
+        """Roll back the last user+assistant turn, gated by the compression boundary."""
         from agent.services.undo_service import (  # lazy import
             undo_last_turn,
         )
 
-        try:
-            result = undo_last_turn(self._ctx)
+        result = undo_last_turn(self._ctx)
+        if result.block_reason:  # blocked by the boundary (rows 05/06)
+            self._out.write_no_data(result.block_reason)
+        else:
             self._out.write_success(
                 f"Last turn undone. ({result.n_removed} messages removed)"
             )
-            if result.warning:
-                self._out.write_warning(result.warning)
-        except NothingToUndoError as e:
-            self._out.write_no_data(str(e))
 
     def _cmd_history(self, args: str) -> None:
         """Print last N user/assistant messages in compact form."""

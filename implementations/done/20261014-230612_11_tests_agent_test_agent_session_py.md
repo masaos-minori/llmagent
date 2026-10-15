@@ -79,10 +79,10 @@ The repo-level contract tests (row 12) and the end-to-end undo-gating tests (row
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | update _msgs() 2-tuple unwrap |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261015-191020 | 20261015-191020 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261015-191020 | 20261015-191020 | update _msgs() 2-tuple unwrap |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261015-191020 | 20261015-191020 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

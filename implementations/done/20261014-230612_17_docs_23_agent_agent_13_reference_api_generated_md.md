@@ -83,10 +83,10 @@ The code changes themselves (rows 01-16) and method-level documentation.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate per Procedure/Method | Pending | — | — | run --type agent |
+| 1 | Regenerate per Procedure/Method | Completed | 20261015-191058 | 20261015-191058 | run --type agent |
 | 2 | Add or update tests per Validation plan | N/A | — | — | no tests for a generated doc |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this is the doc update |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261015-191058 | 20261015-191058 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261015-191058 | 20261015-191058 | this is the doc update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

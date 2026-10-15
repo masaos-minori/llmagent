@@ -118,10 +118,14 @@ class SessionRestoreResult:
 
 @dataclass(frozen=True)
 class UndoResult:
-    """Result of undoing a conversation action."""
+    """Result of undoing a conversation action.
+
+    `block_reason` is set when the undo was refused because the last turn is at or
+    before the compression boundary; otherwise it is `None`.
+    """
 
     n_removed: int
-    warning: str | None = None
+    block_reason: str | None = None
 
 
 @dataclass(frozen=True)

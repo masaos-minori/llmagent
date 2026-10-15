@@ -159,6 +159,10 @@ class ConversationStateManager:
             )
             if result.compressed_count > 0:
                 ctx.session.replace_messages(ctx.conv.history)
+                # establish the /undo boundary at the end of the new snapshot
+                # (rows 02/04): nothing in the compressed snapshot is undoable;
+                # only turns appended after this point are undoable.
+                ctx.conv.undo_floor = len(ctx.conv.history)
 
     @contextmanager
     def tool_override(self, allowed: list[str] | None) -> Iterator[None]:

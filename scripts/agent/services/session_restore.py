@@ -23,13 +23,34 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
+def _boundary_to_index(
+    n_snapshot: int,
+    messages: list[LLMMessage],
+    *,
+    system_prompt_set: bool,
+) -> int:
+    """Convert a snapshot message count into a rebuilt-history index.
+
+    Adjusts for the single prepended system prompt that restore injects, so
+    ``ctx.conv.undo_floor`` indexes the rebuilt history consistently with the
+    compression path (rows 02/04). Returns 0 when the snapshot is empty.
+    """
+    if not n_snapshot:
+        return 0
+    snapshot_msgs = messages[:n_snapshot]
+    system_count = sum(1 for m in snapshot_msgs if m.get("role") == "system")
+    if system_prompt_set:
+        return 1 + n_snapshot - system_count
+    return n_snapshot
+
+
 async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreResult:
     """Restore session: rebuild history, switch session ID, reset stats.
 
     Raises SessionNotFoundError when the session does not exist.
     Raises SessionNoMessagesError when the session exists but has no messages.
     """
-    messages, session_found = ctx.session.fetch_messages(session_id)
+    messages, session_found, undo_floor_id = ctx.session.fetch_messages(session_id)
     if not session_found:
         raise SessionNotFoundError(f"Session {session_id} not found.")
     if not messages:
@@ -45,6 +66,17 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
         await ctx.conv.replace_history(messages)
     ctx.session.session_id = session_id
     reset_session_stats(ctx)
+    # convert the persisted boundary row ID into a rebuilt-history index
+    # (rows 02/04): nothing in the compressed snapshot is undoable after load.
+    if undo_floor_id:
+        n_snapshot = ctx.session.count_messages_up_to(session_id, undo_floor_id)
+        ctx.conv.undo_floor = _boundary_to_index(
+            n_snapshot,
+            messages,
+            system_prompt_set=bool(ctx.conv.system_prompt_content),
+        )
+    else:
+        ctx.conv.undo_floor = 0
     logger.info("Session %s loaded: %s messages", session_id, len(messages))
     # Note: n_messages reflects the originally fetched row count, not the
     # post-sanitization stored count; a tampered/corrupted persisted row
