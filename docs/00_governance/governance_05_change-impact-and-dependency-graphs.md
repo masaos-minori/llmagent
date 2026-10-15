@@ -28,21 +28,29 @@ When a change occurs, the following documents must be updated based on the chang
 
 To determine which documents are affected by a change:
 
-1. Identify the change category (architecture, configuration, command, behavioral, deployment, governance-policy, documentation-only)
-2. Select which relation type governs the change, by category:
-   - Architecture, behavioral, or command changes → Software Runtime Dependency Graph
-   - Deployment changes → Deployment Management Graph
-   - Documentation-only changes → Documentation Reference Graph
-   - Governance-policy changes → Governance Applicability Matrix
-   - Configuration or API changes → continue to use the existing Canonical Source
-     Precedence matrix ([Resolution Matrix](governance_01_documentation-policy.md#resolution-matrix)) until a dedicated
-     map exists; owner decision: a Configuration Ownership Map or API
-     Consumer Map is needed for per-key ownership traceability, but building it is
-     separate, unstarted follow-up work — not part of this change
+1. Identify the change category:
+   - architecture
+   - configuration
+   - command
+   - behavioral
+   - deployment
+   - governance-policy
+   - documentation-only
 
-   Map the change to the areas or components covered by the selected graph or matrix.
-3. List all documents in affected areas that reference the changed element
-4. Prioritize updates by document class priority: Guide > Reference > Operations > Note
+2. Select the applicable relation type:
+   - Architecture, behavioral, or command changes: Software Runtime Dependency Graph
+   - Deployment changes: Deployment Management Graph
+   - Documentation-only changes: Documentation Reference Graph
+   - Governance-policy changes: Governance Applicability Matrix
+   - Configuration or API changes: [Resolution Matrix](governance_01_documentation-policy.md#resolution-matrix), until a dedicated ownership map exists
+
+   Note: owner decision: a Configuration Ownership Map or API Consumer Map is needed for per-key ownership traceability, but building it is separate, unstarted follow-up work — not part of this change.
+
+3. Map the change to the areas or components covered by the selected graph or matrix.
+
+4. List the documents in affected areas that reference the changed element.
+
+5. Prioritize updates by document class: Guide > Reference > Operations > Note.
 
 ## Change-Impact Matrix
 
@@ -55,7 +63,7 @@ To determine which documents are affected by a change:
 
 ### Reading the Approval Required Column
 
-`Approval Required` means design approval of the change by the accountable party. `No` for Doc-Only means no design approval is needed and a documentation-only change does not trigger the broader reviews of the Update Rule. It does not remove the review conditions and merge conditions of [Documentation Policy](governance_01_documentation-policy.md): the Review Rule still applies whenever one of its triggers holds, and Governance-class documents always require review and RACI approval before merge.
+`Approval Required` means design approval of the change by the accountable party. `No` for Doc-Only means no design approval is needed and a documentation-only change does not trigger the broader reviews of the Update Rule. It does not remove the Review Rule or the Merge Conditions of [Documentation Policy](governance_01_documentation-policy.md#review-rule), which remain the canonical definition of when review is required and which conditions block a merge; this section defines only which change types also require RACI approval, as summarized in the table below.
 
 | Change | Review | RACI approval | Merge condition |
 |---|---|---|---|

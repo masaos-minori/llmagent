@@ -36,6 +36,12 @@ The following four metadata fields are required in every document's front matter
   not required to cover every body link. Human-oriented navigation lives in the index and
   the per-area document guides.
 
+### Related Rules
+
+- A document MUST NOT list itself in `related`, and MUST NOT link to itself by file path in the body. In-document navigation uses an anchor-only link (`#section-name`), which is not a self-reference.
+- The same related document MUST NOT appear more than once in `related`.
+- Paths that resolve to the same document are duplicates even when they use different equivalent relative-path forms.
+
 `category` is not a front-matter key either; do not use it. `keywords` is not a front-matter key. Every document instead uses a `## Keywords` body-section heading — see `tools/check_docs_structure.py`'s own check, which looks for that heading, not a front-matter key. The section body is a bulleted list with one term per item (no comma-separated lines and no sub-headings).
 
 ## Recommended Additional Fields
@@ -57,8 +63,9 @@ status: stable
 ### class
 
 Document class (see `governance_01_documentation-policy.md`'s Document
-Classification). Optional — no default; a document without this field has an
-unclassified status, not an error.
+Classification). Optional unless explicitly required for that document. When
+omitted, `unclassified` describes only the front-matter state; the document
+still has a conceptual class under the Documentation Policy.
 
 - Allowed values: `Governance`, `Guide`, `Reference`, `Operations`, `Note`, `Known Issues`
 - Example:

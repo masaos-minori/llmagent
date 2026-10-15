@@ -298,13 +298,7 @@ left neither fixed nor excepted is treated as incomplete review, not a passing P
 
 ### 20. Cross-Area Reference Validation
 
-Verify that cross-document references follow the Link Rules in [governance_02_documentation-metadata.md](governance_02_documentation-metadata.md#link-rules).
-
-**Link format examples:**
-- Same area: `[Documentation Policy](governance_01_documentation-policy.md)`
-- Cross area: `[RAG Guide](../21_rag/rag_00_document-guide.md)`
-- ADR: `[ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md)`
-- Internal anchor: `[Section](governance_01_documentation-policy.md#review-rule)`
+Verify cross-document links against the Link Rules in [governance_02_documentation-metadata.md](governance_02_documentation-metadata.md#link-rules).
 
 ## Governance Verification Matrix
 
@@ -314,7 +308,8 @@ tool and identifies follow-up work needed.
 
 Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **Meta**
 = `governance_02_documentation-metadata.md`, **Iss** =
-`governance_03_issue-and-uncertainty-management.md`, **Chk** = this document.
+`governance_03_issue-and-uncertainty-management.md`, **Chk** = this document, **Imp** =
+`governance_05_change-impact-and-dependency-graphs.md`.
 
 | Rule ID | Rule | Doc | Method | Tool/Review | Timing | Gate | Status | Follow-up |
 |---------|------|-----|--------|--------------|--------|------|--------|-----------|
@@ -322,15 +317,15 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-002 | Valid Document Status | Meta | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-003 | Unique ADR ID | Pol | Auto | `check_docs_structure.py` | PR | Blocking | Existing | None |
 | GV-004 | Related section placement (no body Related section anywhere; ADRs keep `## Related ADRs`/`## Implementation References`; ADR front matter `related:` covers body `.md` references; general documents are not required to) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
-| GV-005 | Self-reference prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
-| GV-006 | Duplicate Related Link prohibition | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-005 | Self-reference prohibition (Metadata Related Rules) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
+| GV-006 | Duplicate Related Link prohibition (Metadata Related Rules) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-007 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | None |
-| GV-008 | Needs Confirmation owner and deadline | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Existing | None |
+| GV-008 | Needs Confirmation assignment, review metadata, priority, and resolution target (`Assigned To`, `Last Reviewed`, `Priority`, `Resolution Target`, and Status/Blocking consistency) | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Partial | The tool checks `Assigned To` and `Resolution Target`; `Last Reviewed`, `Priority`, and Status/Blocking consistency are manual review |
 | GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Partial | Registered claims are checked by `GV-019`; automate detection for unregistered prose (currently manual) |
 | GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Partial | Registered claims are checked by `GV-019`; automate detection for unregistered prose (currently manual) |
 | GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
 | GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
-| GV-013 | Software vs Documentation dependency graph separation | Pol | Manual | Human review | PR | Warning | Existing | None |
+| GV-013 | Software vs Documentation dependency graph separation | Imp | Manual | Human review | PR | Warning | Existing | None |
 | GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Partial | Automate auto-check implementation audit (currently manual) |
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
 | GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
@@ -376,7 +371,13 @@ See [Policy's Maintenance Rules](governance_01_documentation-policy.md#maintenan
 
 ## Non-Goals
 
-Same as the Non-Goals in [governance_01_documentation-policy.md](governance_01_documentation-policy.md#non-goals).
+This document does not:
+
+- Define the underlying documentation policies or metadata rules.
+- Define area-specific implementation or testing strategies.
+- Resolve individual Known Issues, Needs Confirmation items, canonical-source conflicts, or configuration drift.
+- Replace the canonical rules in governance_01, governance_02, governance_03, or governance_05.
+- Treat the existence of a checker as authority to create a new policy rule.
 
 ## Keywords
 

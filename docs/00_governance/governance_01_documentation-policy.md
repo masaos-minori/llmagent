@@ -55,6 +55,8 @@ Documents in the design documentation set are classified into six classes:
 - **Note** — Working notes, investigation results, and temporary documentation
 - **Known Issues** — Documents tracking known inconsistencies between documentation and implementation
 
+Every active document has one conceptual document class. The class may be implicit unless a policy, checker, or generator requires an explicit `class` front-matter field. An omitted field does not create a seventh document class.
+
 ## Canonical Source Precedence
 
 Canonical authority is resolved by the Claim Type Taxonomy and its Resolution Matrix below, at the level of individual claims rather than whole-document-level rankings.
@@ -223,9 +225,8 @@ From detection to record-keeping:
 
 1. Detect the conflict during normal review or through automated checks
 2. Classify the conflict type using the rules above
-3. Apply the appropriate resolution rule based on classification
-4. Update affected documents or code to eliminate the conflict
-5. Remove the item from the active inventory in `governance_03_issue-and-uncertainty-management.md` once resolved; no resolution record is kept
+3. Route the discrepancy to exactly one ledger (see Routing Rules below). A design-vs-implementation discrepancy goes to a Known Issue; a documentation-only edit does not resolve it
+4. Resolve it, and remove it from the active inventory, according to the Resolution Rules in [governance_03_issue-and-uncertainty-management.md](governance_03_issue-and-uncertainty-management.md#resolution-rules)
 
 ### Routing Rules
 
@@ -259,6 +260,8 @@ The following conditions require review before merging:
 - Any change affecting more than three area documents simultaneously
 - Any change that removes or renames a documented feature
 - Any change that alters cross-area relationships or dependencies
+
+Whether a change also requires RACI approval, by change type, is defined in `governance_05`'s "Reading the Approval Required Column".
 
 ## ADR Status Definitions
 
@@ -355,7 +358,7 @@ The ADR list, dependency graph, and invariant verification matrix are maintained
 ### Merge Workflow
 1. Check blocking conditions — if any fail, reject merge.
 2. If non-blocking conditions exist, add warning to PR description.
-3. Obtain RACI approval from the accountable party when the change requires it (see "Reading the Approval Required Column" in `governance_05`: Governance-class changes and changes that alter a decision).
+3. Obtain RACI approval from the accountable party when the change requires it (see "Reading the Approval Required Column" in `governance_05`).
 4. Resolve canonical source conflicts before merging.
 5. Verify test suite passes before merging.
 
