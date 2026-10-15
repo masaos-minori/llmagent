@@ -10,6 +10,8 @@ import pytest
 from eventbus.db import NackResult
 from fastapi.testclient import TestClient
 
+from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+
 
 @pytest.fixture
 def db(tmp_path: Path) -> Any:
@@ -121,7 +123,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=2,
-        auth_token="test-token",
+        **eventbus_test_tokens("test-token"),
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (

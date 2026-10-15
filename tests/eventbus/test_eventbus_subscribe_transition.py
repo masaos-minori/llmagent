@@ -118,7 +118,10 @@ class TestReplayToLiveTransition:
             assert resp.status_code == 200
 
         # Subscribe from seq=0 — should get all events via keyset pagination
-        resp = client.get("/subscribe?since_seq=0&topic=boundary", timeout=(5.0, 10.0))
+        resp = client.get(
+            "/subscribe?since_seq=0&topic=boundary&consumer_id=default-consumer",
+            timeout=(5.0, 10.0),
+        )
         assert resp.status_code == 200
 
         # Collect all event IDs from the SSE stream
@@ -152,7 +155,10 @@ class TestReplayToLiveTransition:
             assert resp.status_code == 200
 
         # Subscribe from seq=0 — should get all events via replay
-        resp = client.get("/subscribe?since_seq=0&topic=overlap", timeout=(5.0, 10.0))
+        resp = client.get(
+            "/subscribe?since_seq=0&topic=overlap&consumer_id=default-consumer",
+            timeout=(5.0, 10.0),
+        )
         assert resp.status_code == 200
 
         # Collect all event IDs from the SSE stream
@@ -370,7 +376,7 @@ class TestStaleLastEventID:
 
         # Subscribe with Last-Event-ID above max seq should return 412
         resp = client.get(
-            "/subscribe?since_seq=0",
+            "/subscribe?since_seq=0&consumer_id=default-consumer",
             headers={"Last-Event-ID": "999999"},
         )
         assert resp.status_code == 412

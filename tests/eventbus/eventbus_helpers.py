@@ -9,6 +9,70 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+# ids and topics used by the Event Bus tests; Consumer routes admit only principals
+# with explicit authorizations (ADR-013 INV-02), so these are granted explicitly.
+TEST_CONSUMER_IDS = (
+    "consumer-A",
+    "consumer-B",
+    "consumer-a",
+    "consumer-b",
+    "consumer_a",
+    "consumer_b",
+    "consumer_c",
+    "c1",
+    "test-consumer",
+    "dup-health",
+    "resume-consumer",
+    "reconnect-test",
+    "overflow-test",
+    "duplicate",
+    "default-consumer",
+    "svc-A",
+    "shared-consumer",
+    "ordered-consumer",
+    "oof-route-consumer",
+    "consumer-mono",
+    "consumer1",
+    "consumer2",
+    "test-precedence",
+)
+TEST_TOPICS = (
+    "t",
+    "t1",
+    "t2",
+    "a",
+    "test",
+    "test.topic",
+    "target",
+    "other",
+    "empty",
+    "precedence",
+    "resume",
+    "orders",
+    "users",
+    "boundary",
+    "overlap",
+    "resume2",
+)
+
+
+def eventbus_test_tokens(token: str = "test-token") -> dict[str, Any]:
+    """Config kwargs giving one test token the data-plane and operator roles.
+
+    The shared ``auth_token`` holds only control-plane roles, so the token the
+    tests present is registered as a publisher, consumer, operator, and
+    monitoring token. The consumer role is bound to explicit consumer_id and
+    topic authorizations.
+    """
+    return {
+        "auth_token": f"{token}-control",
+        "publisher_token": token,
+        "consumer_token": token,
+        "operator_token": token,
+        "monitoring_token": token,
+        "consumer_authorization": {c: list(TEST_TOPICS) for c in TEST_CONSUMER_IDS},
+    }
+
 
 def make_eventbus_client(
     tmp_path: Path,
@@ -26,7 +90,7 @@ def make_eventbus_client(
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=max_retry,
-        auth_token="test-token",
+        **eventbus_test_tokens("test-token"),
     )
     if sse_idle_timeout is not None:
         # The constructor validates the idle timeout against the heartbeat

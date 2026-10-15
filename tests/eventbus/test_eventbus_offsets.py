@@ -19,6 +19,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+
 
 async def _init_state(cfg: Any) -> None:
     import pathlib
@@ -62,7 +64,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
-        auth_token="test-token",
+        **eventbus_test_tokens("test-token"),
     )
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
@@ -667,7 +669,7 @@ class TestLegacyOffsetMigrationDirect:
             offsets_dir=str(tmp_path / "offsets"),
             deadletter_dir=str(tmp_path / "deadletter"),
             max_retry=3,
-            auth_token="test-token",
+            **eventbus_test_tokens("test-token"),
         )
         (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
         # Create one offset file + .map companion — both named after the consumer_id
@@ -705,7 +707,7 @@ class TestLegacyOffsetMigrationDirect:
             offsets_dir=str(tmp_path / "offsets"),
             deadletter_dir=str(tmp_path / "deadletter"),
             max_retry=3,
-            auth_token="test-token",
+            **eventbus_test_tokens("test-token"),
         )
         (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
         # Create multiple offset files + .map companions — names match .map content
@@ -746,7 +748,7 @@ class TestLegacyOffsetMigrationDirect:
             offsets_dir=str(tmp_path / "offsets"),
             deadletter_dir=str(tmp_path / "deadletter"),
             max_retry=3,
-            auth_token="test-token",
+            **eventbus_test_tokens("test-token"),
         )
         (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
         # Create an offset file WITHOUT a .map companion
@@ -777,7 +779,7 @@ class TestLegacyOffsetMigrationDirect:
             offsets_dir=str(tmp_path / "offsets"),
             deadletter_dir=str(tmp_path / "deadletter"),
             max_retry=3,
-            auth_token="test-token",
+            **eventbus_test_tokens("test-token"),
         )
         (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
         # Two files that sanitize to the same name (both have ".." which collapses to "_")

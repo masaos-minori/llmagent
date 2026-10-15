@@ -92,7 +92,7 @@ class EventBusConfig:
     auth_token: str = ""
     # Per-role tokens (optional, for role-based access control).
     # When set, each token grants only its own role (e.g., publisher_token → PUBLISHER).
-    # The shared auth_token (if set) grants ALL roles for backward compatibility.
+    # The shared auth_token and admin_token hold only the Operator, Monitoring, and Admin roles (no Consumer or Publisher role).
     # At least one per-role token must be configured when using role-based access control.
     publisher_token: str = ""
     consumer_token: str = ""

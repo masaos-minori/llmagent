@@ -7,26 +7,20 @@ offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 
-# Shared token (optional, for backward compatibility).
-# When set, this token grants ALL roles (publisher, consumer, operator, monitoring).
-# It is equivalent to setting all per-role tokens to the same value.
-# If not set, the system requires per-role tokens below.
+# Shared token (required). It is a control-plane credential: it holds only the
+# operator, monitoring, and admin roles. It holds no publisher or consumer role,
+# so it cannot publish, subscribe, ACK, or NACK.
 auth_token = ""
 
 # Per-role tokens (optional, for role-based access control).
-# At least one of: auth_token OR any per-role token must be configured.
-# Valid combinations:
-#   - auth_token alone (shared token mode, grants all roles)
-#   - auth_token + one or more per-role tokens (role-based mode)
-#   - publisher_token + auth_token (publisher-only deployment)
-#   - monitoring_token + auth_token (monitoring-only deployment)
-#   - Any combination of per-role tokens + auth_token
+# auth_token must always be configured; add the per-role tokens each caller needs.
 # Each token grants only its own role:
 #   - publisher_token → PUBLISHER role (can publish events)
-#   - consumer_token → CONSUMER role (can subscribe, ack, nack)
+#   - consumer_token → CONSUMER role (can subscribe, ack, nack); it requires
+#     consumer_authorization (and optionally topic_authorization) below
 #   - operator_token → OPERATOR role (can manage DLQ, replay)
 #   - monitoring_token → MONITORING role (can access /health)
-#   - admin_token → ALL roles (superuser credential)
+#   - admin_token → operator, monitoring, and admin roles (no publisher or consumer role)
 publisher_token = ""
 consumer_token = ""
 operator_token = ""

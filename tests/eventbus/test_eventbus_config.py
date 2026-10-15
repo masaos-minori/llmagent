@@ -509,8 +509,8 @@ def test_admin_role_exists_in_enum() -> None:
     )
 
 
-def test_admin_token_grants_all_roles() -> None:
-    """REQ-004, REQ-005: admin_token grants every role via _populate_token_maps()."""
+def test_admin_token_grants_control_plane_roles_only() -> None:
+    """ADR-013: admin_token holds only the Operator, Monitoring, and Admin roles (no Consumer or Publisher role)."""
     from eventbus.auth import (
         _TOKEN_PRINCIPAL_MAP,
         Principal,
@@ -534,7 +534,7 @@ def test_admin_token_grants_all_roles() -> None:
     assert "admin-token" in _TOKEN_PRINCIPAL_MAP
     principal = _TOKEN_PRINCIPAL_MAP["admin-token"]
     assert isinstance(principal, Principal)
-    assert set(principal.roles) == set(Role)
+    assert set(principal.roles) == {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
 
 
 def test_publisher_only_deployment_succeeds(tmp_path: Path) -> None:

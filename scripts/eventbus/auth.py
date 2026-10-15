@@ -62,6 +62,11 @@ _CONSUMER_ID_ALLOWLIST: dict[str, set[str]] = {}
 # Token-to-principal mapping: token -> Principal object
 _TOKEN_PRINCIPAL_MAP: dict[str, Principal] = {}
 
+# Roles held by the shared auth_token and the admin_token. Never includes CONSUMER.
+_CONTROL_PLANE_ROLES: frozenset[Role] = frozenset(
+    {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+)
+
 # Per-role token config field -> the single Role it grants
 _PER_ROLE_TOKEN_FIELDS: tuple[tuple[str, Role], ...] = (
     ("publisher_token", Role.PUBLISHER),
@@ -106,13 +111,15 @@ def _populate_token_maps(config: Any) -> None:
 
         return hashlib.sha256(token.encode()).hexdigest()[:16]
 
-    # The shared auth_token grants every role, preserving backward compatibility
-    # with the existing single-token deployment model.
+    # The shared auth_token and admin_token are control-plane credentials: they hold
+    # only the Operator, Monitoring, and Admin roles. They never hold the Consumer
+    # role (ADR-013 INV-02/INV-07), so no superuser bypasses consumer identity or
+    # topic authorization, and they carry no Publisher role either.
     if hasattr(config, "auth_token") and config.auth_token:
         _TOKEN_PRINCIPAL_MAP[config.auth_token] = Principal(
-            roles=frozenset(Role),
-            allowed_consumer_ids=None,  # Empty means any consumer_id
-            allowed_topics=None,  # Empty means any topic
+            roles=_CONTROL_PLANE_ROLES,
+            allowed_consumer_ids=frozenset(),
+            allowed_topics=frozenset(),
             token_fingerprint=_fingerprint(config.auth_token),
         )
 
@@ -149,53 +156,32 @@ def _populate_token_maps(config: Any) -> None:
         consumer_allowed_ids = frozenset()
         consumer_allowed_topics = frozenset()
 
-    # Each per-role token grants only its own role.
+    # Each per-role token grants only its own role. The consumer_id/topic bindings
+    # of a principal come from the consumer authorization mappings only when it holds
+    # the CONSUMER role; any other principal is bound to nothing (deny-all).
     for field, role in _PER_ROLE_TOKEN_FIELDS:
         token = getattr(config, field, None)
-        if token:
-            role_allowed_ids = consumer_allowed_ids if role == Role.CONSUMER else None
-            role_allowed_topics = (
-                consumer_allowed_topics if role == Role.CONSUMER else None
-            )
-            principal = _TOKEN_PRINCIPAL_MAP.get(token)
-            if principal is None:
-                _TOKEN_PRINCIPAL_MAP[token] = Principal(
-                    roles=frozenset({role}),
-                    allowed_consumer_ids=role_allowed_ids,
-                    allowed_topics=role_allowed_topics,
-                    token_fingerprint=_fingerprint(token),
-                )
-            else:
-                # Merge: add role to existing principal. allowed_ids/topics
-                # combine permissively across roles sharing one token — None
-                # (unrestricted) on either side wins, otherwise the union of
-                # both restrictions applies, matching the `roles` OR-merge
-                # immediately above.
-                merged_ids = (
-                    None
-                    if principal.allowed_consumer_ids is None
-                    or role_allowed_ids is None
-                    else principal.allowed_consumer_ids | role_allowed_ids
-                )
-                merged_topics = (
-                    None
-                    if principal.allowed_topics is None or role_allowed_topics is None
-                    else principal.allowed_topics | role_allowed_topics
-                )
-                _TOKEN_PRINCIPAL_MAP[token] = Principal(
-                    roles=frozenset(principal.roles | {role}),
-                    allowed_consumer_ids=merged_ids,
-                    allowed_topics=merged_topics,
-                    token_fingerprint=principal.token_fingerprint,
-                )
+        if not token:
+            continue
+        existing = _TOKEN_PRINCIPAL_MAP.get(token)
+        roles = frozenset({role}) if existing is None else existing.roles | {role}
+        has_consumer = Role.CONSUMER in roles
+        _TOKEN_PRINCIPAL_MAP[token] = Principal(
+            roles=frozenset(roles),
+            allowed_consumer_ids=consumer_allowed_ids if has_consumer else frozenset(),
+            allowed_topics=consumer_allowed_topics if has_consumer else frozenset(),
+            token_fingerprint=(
+                _fingerprint(token) if existing is None else existing.token_fingerprint
+            ),
+        )
 
-    # admin_token is a superuser credential: grants every role, same as auth_token.
+    # admin_token holds the same control-plane roles as auth_token and no Consumer role.
     admin_token = getattr(config, "admin_token", None)
     if admin_token:
         _TOKEN_PRINCIPAL_MAP[admin_token] = Principal(
-            roles=frozenset(Role),
-            allowed_consumer_ids=None,  # Empty means any consumer_id
-            allowed_topics=None,  # Empty means any topic
+            roles=_CONTROL_PLANE_ROLES,
+            allowed_consumer_ids=frozenset(),
+            allowed_topics=frozenset(),
             token_fingerprint=_fingerprint(admin_token),
         )
 
@@ -300,16 +286,29 @@ async def require_consumer_identity(
 
     Returns a Principal object with authorization context for the caller.
     """
-    # Validate consumer_id is in the allowlist for this caller. Only None (a missing
-    # config key) means "no consumer_id restriction"; an empty frozenset() is deny-all
-    # and rejects every consumer_id. This mirrors _populate_token_maps(): None stays
-    # unrestricted (e.g. the shared auth_token/admin_token), while an empty
-    # consumer_authorization mapping resolves to frozenset() (deny-all).
+    # No principal bypasses consumer identity or topic authorization (ADR-013 INV-02,
+    # INV-07): a principal admitted here holds the CONSUMER role and explicit
+    # consumer_id and topic authorizations. An empty frozenset() is deny-all.
     if (
-        consumer_id
-        and principal.allowed_consumer_ids is not None
-        and consumer_id not in principal.allowed_consumer_ids
+        Role.CONSUMER not in principal.roles
+        or principal.allowed_consumer_ids is None
+        or principal.allowed_topics is None
     ):
+        logger.warning("Authorization failed: Consumer-scoped credential required")
+        log_auth_failure(
+            consumer_id=consumer_id,
+            request_id=request.state.request_id,
+            route=request.url.path,
+            target=consumer_id,
+            error_type="consumer_identity_rejected",
+            detail="",
+        )
+        raise HTTPException(
+            status_code=403,
+            detail="Forbidden: a Consumer-scoped credential is required",
+        )
+
+    if consumer_id and consumer_id not in principal.allowed_consumer_ids:
         logger.warning(
             "Authorization failed: consumer_id=%s not allowed for this caller",
             consumer_id,
@@ -327,11 +326,8 @@ async def require_consumer_identity(
             detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
-    # Validate topic access. Only None (a missing config key) means "no topic
-    # restriction"; an empty frozenset() is deny-all and rejects every topic, per
-    # _populate_token_maps()'s convention — mirrors the consumer_id-allowlist
-    # convention above (None unrestricted, empty mapping = frozenset() deny-all).
-    if principal.allowed_topics is not None and topics:
+    # Validate topic access: an empty frozenset() is deny-all and rejects every topic.
+    if topics:
         for topic in topics:
             if topic not in principal.allowed_topics:
                 logger.warning(

@@ -667,28 +667,30 @@ class TestRequireConsumerIdentityTopicSemantics:
     """
 
     @pytest.mark.asyncio
-    async def test_no_topic_restriction_returns_none(self) -> None:
+    async def test_principal_without_topic_binding_is_rejected(self) -> None:
+        """ADR-013 INV-07: a principal without explicit topic authorization is denied."""
         from unittest.mock import MagicMock
 
-        from eventbus.auth import (
-            Principal,
-            Role,
-            require_consumer_identity,
-        )
+        from eventbus.auth import Principal, Role, require_consumer_identity
+        from fastapi import HTTPException
 
         principal = Principal(
             roles=frozenset([Role.CONSUMER]),
-            allowed_consumer_ids=frozenset(),
+            allowed_consumer_ids=frozenset({"c1"}),
             allowed_topics=None,
             token_fingerprint="test-fingerprint",
         )
-        try:
-            result = await require_consumer_identity(
-                MagicMock(), consumer_id="", topics=["any-topic"], principal=principal
+        mock_request = MagicMock()
+        mock_request.state.request_id = "req-no-topic-binding"
+        mock_request.url.path = "/subscribe"
+        with pytest.raises(HTTPException) as exc:
+            await require_consumer_identity(
+                mock_request,
+                consumer_id="c1",
+                topics=["any-topic"],
+                principal=principal,
             )
-            assert result.allowed_topics is None
-        finally:
-            pass
+        assert exc.value.status_code == 403
 
     @pytest.mark.asyncio
     async def test_non_empty_topic_restriction_is_enforced_and_returned(self) -> None:
@@ -890,18 +892,19 @@ class TestFailClosedConsumerAuthorization:
             _TOKEN_PRINCIPAL_MAP.update(snapshot)
 
     @pytest.mark.asyncio
-    async def test_superuser_tokens_skip_consumer_identity_validation(self) -> None:
-        """ADR-013 INV-02 exception: the shared auth_token and admin_token carry no
-        consumer_id/topic restriction, so any consumer_id and topic passes, even
-        while the consumer token is restricted to an allowlist."""
+    async def test_shared_and_admin_tokens_have_no_consumer_bypass(self) -> None:
+        """ADR-013 INV-02/INV-07: auth_token and admin_token hold no Consumer role,
+        so require_consumer_identity rejects them for any consumer_id and topic."""
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
             _TOKEN_PRINCIPAL_MAP,
+            Role,
             _populate_token_maps,
             require_consumer_identity,
         )
         from eventbus.config import EventBusConfig
+        from fastapi import HTTPException
 
         snapshot = dict(_TOKEN_PRINCIPAL_MAP)
         try:
@@ -925,15 +928,26 @@ class TestFailClosedConsumerAuthorization:
             mock_request.url.path = "/subscribe"
             for token in ("shared-token", "admin-token"):
                 principal = _TOKEN_PRINCIPAL_MAP[token]
-                assert principal.allowed_consumer_ids is None
-                assert principal.allowed_topics is None
-                result = await require_consumer_identity(
+                assert Role.CONSUMER not in principal.roles
+                assert Role.PUBLISHER not in principal.roles
+                with pytest.raises(HTTPException) as exc:
+                    await require_consumer_identity(
+                        mock_request,
+                        consumer_id="consumer-a",
+                        topics=["topic-a"],
+                        principal=principal,
+                    )
+                assert exc.value.status_code == 403
+            consumer = _TOKEN_PRINCIPAL_MAP["consumer-token"]
+            assert (
+                await require_consumer_identity(
                     mock_request,
-                    consumer_id="any-consumer",
-                    topics=["any-topic"],
-                    principal=principal,
+                    consumer_id="consumer-a",
+                    topics=["topic-a"],
+                    principal=consumer,
                 )
-                assert result is principal
+                is consumer
+            )
         finally:
             _TOKEN_PRINCIPAL_MAP.clear()
             _TOKEN_PRINCIPAL_MAP.update(snapshot)
@@ -1398,9 +1412,8 @@ class TestProductionRouteWiring:
                 eb_app.app.state.config,
                 publisher_token="prod-publisher-token",
                 consumer_token="prod-consumer-token",
-                # Fail-closed (ADR-013 INV-02): consumer_token requires a
-                # non-None consumer_authorization. These tests gate on ROLE only,
-                # so {} (unrestricted consumer) preserves their semantics.
+                # consumer_token requires a non-None consumer_authorization;
+                # these tests gate on ROLE only, so an empty (deny-all) mapping suffices.
                 consumer_authorization={},
                 monitoring_token="prod-monitoring-token",
             )
@@ -1457,4 +1470,9 @@ class TestProductionRouteWiring:
         assert self._call(prod_client, method, path, "unknown").status_code == 401
         assert self._call(prod_client, method, path, wrong_token).status_code == 403
         assert self._call(prod_client, method, path, right_token).status_code == 200
-        assert self._call(prod_client, method, path, "test-token").status_code == 200
+        # The shared auth_token holds only control-plane roles (no Publisher/Consumer).
+        control_status = 200 if path == "/health" else 403
+        assert (
+            self._call(prod_client, method, path, "test-token-control").status_code
+            == control_status
+        )
