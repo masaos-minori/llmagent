@@ -93,28 +93,7 @@ Active Items follow an ordering convention: entries are grouped by ID-prefix (RA
 
 | ID | Title | Status | Severity | Area | Type |
 |----|-------|--------|----------|------|------|
-| AGENT-006 | Secret masking of MCP subprocess output recognizes only key=value forms | open | Medium | Agent | design-gap |
 | EVENTBUS-017 | No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency | open | Medium | EventBus | design-gap |
-
-#### AGENT-006
-
-- **ID**: AGENT-006
-- **Title**: Secret masking of MCP subprocess output recognizes only key=value forms
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Agent
-- **Type**: design-gap
-- **Source**: `scripts/agent/secrets_masker.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md`
-- **Related**: None
-- **Summary**: Masking of MCP subprocess output matches only `key=value` forms.
-- **Current Description**: Documented only as a chapter-level limitation in agent_10_01.
-- **Observed Implementation**: `_mask_secrets()` matches `password`, `api_key`, `secret` and `token` as `key=value`; a Bearer header is not masked.
-- **Impact**: Other secret shapes can reach logs and reports.
-- **Recommended Action**: Extend the patterns or reuse the shared redaction registry.
-- **Resolution Target**: Registered secrets in subprocess output are masked, tested.
 
 #### EVENTBUS-017
 

@@ -335,7 +335,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
 | GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
 | GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
-| GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Partial | Not yet wired into CI (`.github/workflows/`); promote to default-on (PR-gated) once wired |
+| GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Existing | Wired into `governance-docs-consistency.yml` as a report-only step (`continue-on-error`); promote to a blocking step once the corpus is compliant |
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
@@ -358,11 +358,6 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
      `check_compat_shims.py`'s own "report-only until compliant" convention. The retired
      identifier patterns and historical-context markers are defined in
      `tools/check_compat_shims.py` (`_REMOVED_NAME_PATTERNS`, `_HISTORICAL_CONTEXT_MARKERS`).
-8. **GV-018**: `check_docs_content_policy.py` is not wired into any CI workflow
-     (`.github/workflows/`) — its Warning findings are report-only, produced by a
-     local/manual run rather than enforced on every PR. Promote it to default-on
-     (PR-gated) once wired into CI; until then, the Matrix Status is `Partial`, not
-     `Existing`.
 
 ## Change Impact Assessment
 

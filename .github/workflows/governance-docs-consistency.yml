@@ -7,6 +7,7 @@ on:
       - "tools/check_needs_confirmation_inventory.py"
       - "tools/check_dependency_graph_cycles.py"
       - "tools/check_docs_structure.py"
+      - "tools/check_docs_content_policy.py"
       - "tools/check_canonical_source_conflicts.py"
       - "tools/check_canonical_source_registry.py"
       - "tools/check_issue_inventory_conformance.py"
@@ -19,6 +20,7 @@ on:
       - "tools/check_needs_confirmation_inventory.py"
       - "tools/check_dependency_graph_cycles.py"
       - "tools/check_docs_structure.py"
+      - "tools/check_docs_content_policy.py"
       - "tools/check_canonical_source_conflicts.py"
       - "tools/check_canonical_source_registry.py"
       - "tools/check_issue_inventory_conformance.py"
@@ -84,3 +86,9 @@ jobs:
         run: |
           set -euo pipefail
           python tools/check_docs_structure.py "docs/**/*.md" --schema schemas/doc_front_matter.json --check-duplicates
+
+      - name: Run docs content policy check (report-only)
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python tools/check_docs_content_policy.py
