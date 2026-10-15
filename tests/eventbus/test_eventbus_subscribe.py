@@ -7,6 +7,19 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+_TEST_TOPICS = ["t", "empty"]
+_CONSUMER_AUTHORIZATION = {
+    consumer_id: _TEST_TOPICS
+    for consumer_id in (
+        "duplicate",
+        "test-hb",
+        "test-config",
+        "resume-consumer",
+        "c1",
+        "default-consumer",
+    )
+}
+
 
 @pytest.fixture
 def client(
@@ -26,11 +39,9 @@ def client(
         auth_token="shared-token",
         publisher_token="publisher-token",
         consumer_token="consumer-token",
-        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. {} yields an unrestricted consumer principal
-        # (allowed_consumer_ids=None), preserving these tests' multi-consumer-id
-        # usage; the fail-closed guarantee (rejecting None) is intact.
-        consumer_authorization={},
+        # Fail-closed (ADR-013 INV-02): an empty mapping is deny-all, so allow the
+        # consumer_ids and topics these tests use.
+        consumer_authorization=_CONSUMER_AUTHORIZATION,
         operator_token="operator-token",
         admin_token="admin-token",
     )
@@ -66,11 +77,9 @@ def operator_client(
         auth_token="shared-token",
         publisher_token="publisher-token",
         consumer_token="consumer-token",
-        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. {} yields an unrestricted consumer principal
-        # (allowed_consumer_ids=None), preserving these tests' multi-consumer-id
-        # usage; the fail-closed guarantee (rejecting None) is intact.
-        consumer_authorization={},
+        # Fail-closed (ADR-013 INV-02): an empty mapping is deny-all, so allow the
+        # consumer_ids and topics these tests use.
+        consumer_authorization=_CONSUMER_AUTHORIZATION,
         operator_token="operator-token",
         admin_token="admin-token",
     )
@@ -170,10 +179,9 @@ def _make_subscriber_client(
         max_retry=3,
         auth_token="shared-token",
         consumer_token="consumer-token",
-        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. {} yields an unrestricted consumer principal,
-        # preserving these SSE-stream tests' arbitrary consumer_id usage.
-        consumer_authorization={},
+        # Fail-closed (ADR-013 INV-02): an empty mapping is deny-all, so allow the
+        # consumer_ids and topics these tests use.
+        consumer_authorization=_CONSUMER_AUTHORIZATION,
     )
     # Monkey-patch sse_idle_timeout since it's not a real EventBusConfig field
     object.__setattr__(cfg, "sse_idle_timeout", idle_timeout)
@@ -276,10 +284,9 @@ def test_subscribe_heartbeat_resets_idle_timeout(
         max_retry=3,
         auth_token="shared-token",
         consumer_token="consumer-token",
-        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. {} yields an unrestricted consumer principal,
-        # preserving these SSE-stream tests' arbitrary consumer_id usage.
-        consumer_authorization={},
+        # Fail-closed (ADR-013 INV-02): an empty mapping is deny-all, so allow the
+        # consumer_ids and topics these tests use.
+        consumer_authorization=_CONSUMER_AUTHORIZATION,
     )
     object.__setattr__(cfg, "sse_heartbeat_interval", 0.1)
     object.__setattr__(cfg, "sse_idle_timeout", 0.5)
@@ -318,10 +325,9 @@ def test_sse_idle_timeout_loaded_from_config(
         max_retry=3,
         auth_token="shared-token",
         consumer_token="consumer-token",
-        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. {} yields an unrestricted consumer principal,
-        # preserving these SSE-stream tests' arbitrary consumer_id usage.
-        consumer_authorization={},
+        # Fail-closed (ADR-013 INV-02): an empty mapping is deny-all, so allow the
+        # consumer_ids and topics these tests use.
+        consumer_authorization=_CONSUMER_AUTHORIZATION,
     )
     object.__setattr__(cfg, "sse_idle_timeout", 1.0)
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
@@ -388,7 +394,7 @@ def test_last_event_id_zero_resumes_from_seq_1(client: TestClient) -> None:
     assert resp.status_code == 200
 
     resp = client.get(
-        "/subscribe?since_seq=0",
+        "/subscribe?since_seq=0&consumer_id=default-consumer",
         headers={"Last-Event-ID": "0"},
         timeout=2.0,
     )
@@ -409,7 +415,9 @@ def test_last_event_id_current_max_resumes_from_next_seq(client: TestClient) -> 
         assert resp.status_code == 200
 
     # Use SSE stream to get max_seq (since /replay requires operator role)
-    resp = client.get("/subscribe?since_seq=0", timeout=2.0)
+    resp = client.get(
+        "/subscribe?since_seq=0&consumer_id=default-consumer", timeout=2.0
+    )
     assert resp.status_code == 200
     all_ids = []
     for line in resp.iter_lines():
@@ -418,7 +426,7 @@ def test_last_event_id_current_max_resumes_from_next_seq(client: TestClient) -> 
     max_seq = max(all_ids)
 
     resp = client.get(
-        "/subscribe?since_seq=0",
+        "/subscribe?since_seq=0&consumer_id=default-consumer",
         headers={"Last-Event-ID": str(max_seq)},
         timeout=2.0,
     )
@@ -439,7 +447,7 @@ def test_last_event_id_above_max_returns_412(client: TestClient) -> None:
     assert resp.status_code == 200
 
     resp = client.get(
-        "/subscribe?since_seq=0",
+        "/subscribe?since_seq=0&consumer_id=default-consumer",
         headers={"Last-Event-ID": "999999"},
     )
     assert resp.status_code == 412
@@ -458,6 +466,8 @@ def _subscribe_ids(
     client: TestClient, query: str, headers: dict[str, str] | None = None
 ) -> list[int]:
     """Replay through /subscribe and return every id: value until the stream idles."""
+    if "consumer_id=" not in query:
+        query += "&consumer_id=default-consumer"
     resp = client.get(f"/subscribe?{query}", headers=headers or {}, timeout=5.0)
     assert resp.status_code == 200
     return _extract_first_n_event_ids(resp, n=1000)
@@ -570,7 +580,7 @@ def test_last_event_id_fallback_when_since_seq_and_offset_are_zero(
         assert resp.status_code == 200
 
     resp = client.get(
-        "/subscribe?since_seq=0&consumer_id=",
+        "/subscribe?since_seq=0&consumer_id=default-consumer",
         headers={"Last-Event-ID": "1"},
         timeout=5.0,
     )
@@ -585,7 +595,10 @@ def test_last_event_id_fallback_when_since_seq_and_offset_are_zero(
 
 def test_zero_rows_replay_empty_stream(client: TestClient) -> None:
     """T-1: Zero rows replay — subscribing with since_seq beyond max sequence returns empty stream."""
-    resp = client.get("/subscribe?since_seq=999999&topic=empty", timeout=3.0)
+    resp = client.get(
+        "/subscribe?since_seq=999999&topic=empty&consumer_id=default-consumer",
+        timeout=3.0,
+    )
     assert resp.status_code == 200
 
     event_ids = _extract_first_n_event_ids(resp)

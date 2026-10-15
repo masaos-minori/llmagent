@@ -24,10 +24,9 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         auth_token="principal-token",
         publisher_token="publisher-token",
         consumer_token="consumer-token",
-        # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
-        # consumer_authorization. {} yields an unrestricted consumer principal,
-        # preserving these DLQ pagination tests' consumer_id usage.
-        consumer_authorization={},
+        # Fail-closed (ADR-013 INV-02): an empty mapping is deny-all, so allow the
+        # consumer_id these DLQ pagination tests use.
+        consumer_authorization={"consumer-A": ["t"]},
         operator_token="operator-token",
         monitoring_token="monitoring-token",
         admin_token="admin-token",
