@@ -87,8 +87,7 @@ jobs:
           set -euo pipefail
           python tools/check_docs_structure.py "docs/**/*.md" --schema schemas/doc_front_matter.json --check-duplicates
 
-      - name: Run docs content policy check (report-only)
-        continue-on-error: true
+      - name: Run docs content policy check (blocking)
         run: |
           set -euo pipefail
-          python tools/check_docs_content_policy.py
+          python tools/check_docs_content_policy.py --strict

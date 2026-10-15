@@ -81,6 +81,7 @@ Checks consistency between documentation and source code for each domain.
 - DB table completeness (documented tables exist in actual DB)
 - Command drift (documented commands match actual CLI commands)
 - Command coverage (Agent domain, `GV-023`): every `_COMMANDS` command is in the `agent_07_03` index and a per-command chapter; every index row is registered or REPL-reserved. `ERROR`; `--skip commandcoverage` disables it
+- Command contract (`GV-023`): registry usages and documented `/<command> ...` forms match both ways, with defaults. `ERROR`; `--skip commandcontract`
 - File path references (documented file paths exist)
 - Function references (documented function signatures match actual)
 - Broken internal links (`.md` links resolve correctly)
@@ -181,12 +182,11 @@ Checks all `docs/*.md` for implementation-detail content the docs content
 policy prohibits: full file trees, per-file descriptions embedded in a tree
 or table, class/function/method index tables, implementation-location
 mappings, and literal port numbers (see `skills/DESIGN.md` Docs content
-policy — remove). Report-only (Warning) — findings never block CI; see
-`GV-018` below.
+policy — remove). `--strict` exits 1 on any warning (CI); see `GV-018`.
 
 **Usage:**
 ```bash
-uv run python tools/check_docs_content_policy.py
+uv run python tools/check_docs_content_policy.py [--strict]
 ```
 
 ### 10. ADR Structure Check (`check_adr_structure.py`)
@@ -331,12 +331,12 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
 | GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
 | GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
-| GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py` | PR | Warning | Existing | Wired into `governance-docs-consistency.yml` as a report-only step (`continue-on-error`); promote to a blocking step once the corpus is compliant |
+| GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py --strict` | PR | Blocking | Existing | None |
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no Known Issue ID cited outside the ledger that lacks a ledger entry (Error; dangling ID in an ADR's Known Deviations: Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
-| GV-023 | Agent command docs match `_COMMANDS` by command name | Chk | Auto | `check_docs_consistency.py --domain agent` | PR | Blocking | Partial | Subcommands and arguments are manual review (`SubcommandSpec` is unused) |
+| GV-023 | Agent command docs match `_COMMANDS` by name, subcommand, and argument | Chk | Auto | `check_docs_consistency.py --domain agent` | PR | Blocking | Existing | `/memory` is exempt until AGENT-013 is resolved |
 
 ### Follow-up Work Needed
 

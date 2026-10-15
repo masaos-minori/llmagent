@@ -53,7 +53,7 @@ Agent-side approval confirms user intent and presents the expected operation and
 | **Postcondition verification** | Confirming the resulting state matches intent; detecting unresolved conflicts; preventing partial results from being reported as success | Preventing the operation from starting (that is the guard layers' job) |
 | **Audit** | Recording repository/resource identity, operation type, before/after state, approval correlation, and result — without secrets or full sensitive output | Blocking or allowing the operation |
 
-**Current coverage is uneven across tools.** Every high-risk server implements the common-guard layer (allowlist + read-only/write gating). Command-specific guards, postcondition verification, and rich audit correlation are implemented for some tool categories (e.g., mdq path/symlink checks) but are an open gap for others — see each tool's own document for its current layer coverage, and do not assume a layer is implemented here merely because this policy defines it as a concept.
+**Current coverage is uneven across tools.** Every high-risk server implements the common-guard layer (allowlist + read-only/write gating). Command-specific guards, postcondition verification, and rich audit correlation are implemented for some tool categories (e.g., mdq path/symlink checks) but are not implemented for others (tracked as Known Issue MCP-006 in `governance_03_issue-and-uncertainty-management.md`) — see each tool's own document for its current layer coverage, and do not assume a layer is implemented here merely because this policy defines it as a concept.
 
 ## Allowed paths/repos
 

@@ -7,7 +7,10 @@ retain-category-only content.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
+
+import pytest
 
 from tools.check_docs_content_policy import (
     DocFile,
@@ -436,3 +439,18 @@ def test_code_fallback_value_comparison_not_flagged_for_unrelated_table() -> Non
     doc = _doc("| Component | Owner |\n|---|---|\n| RAG | rag-team |\n")
     issues = check_code_fallback_value_comparison([doc])
     assert issues == []
+
+
+def test_strict_flag_exits_1_on_warning_and_default_exits_0(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import tools.check_docs_content_policy as mod
+
+    warning = mod.Issue(file="x.md", line_no=1, severity="WARNING", message="w")
+    monkeypatch.setattr(mod, "check_full_file_tree", lambda files: [warning])
+    monkeypatch.setattr(mod, "discover_all_md_files", lambda d: [])
+
+    monkeypatch.setattr(sys, "argv", ["check_docs_content_policy.py"])
+    assert mod.main() == 0
+    monkeypatch.setattr(sys, "argv", ["check_docs_content_policy.py", "--strict"])
+    assert mod.main() == 1

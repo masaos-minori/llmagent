@@ -115,3 +115,40 @@ def test_existing_generators_unaffected() -> None:
     assert generate_deployment_reference_table().startswith(
         "| DB | Config key | Set in `agent.toml`? |"
     )
+
+
+class TestCheckDrift:
+    """--check detects hand edits and stale guarded blocks without writing."""
+
+    def test_live_docs_have_no_drift(self) -> None:
+        from tools.generate_reference_table import DOMAIN_DOCS, check_drift
+
+        assert check_drift(list(DOMAIN_DOCS)) == []
+
+    def test_hand_edit_inside_guard_is_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import tools.generate_reference_table as mod
+
+        doc = tmp_path / "doc.md"
+        doc.write_text("# Doc\n", encoding="utf-8")
+        monkeypatch.setattr(mod, "DOMAIN_DOCS", {"deployment": doc})
+        monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+        doc.write_text(mod.render_updated_doc("deployment", doc.read_text()))
+        assert mod.check_drift(["deployment"]) == []
+
+        edited = doc.read_text().replace("| ", "| HAND-EDIT ", 1)
+        doc.write_text(edited, encoding="utf-8")
+        assert mod.check_drift(["deployment"]) == ["doc.md (--type deployment)"]
+        assert doc.read_text() == edited  # --check never writes
+
+    def test_missing_guard_is_reported(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import tools.generate_reference_table as mod
+
+        doc = tmp_path / "doc.md"
+        doc.write_text("# no guard\n", encoding="utf-8")
+        monkeypatch.setattr(mod, "DOMAIN_DOCS", {"deployment": doc})
+        monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+        assert mod.check_drift(["deployment"]) == ["doc.md (guarded block missing)"]

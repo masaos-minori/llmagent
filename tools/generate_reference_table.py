@@ -338,13 +338,71 @@ DOMAIN_HEADING = {
     "eventbus": "## Module Class/Function Reference (auto-generated)",
 }
 
+
+def render_updated_doc(domain: str, doc_content: str) -> str:
+    """Return doc_content with the domain's guarded block regenerated from live code."""
+    _, generator = DOMAIN_GENERATORS[domain]
+    table = generator()
+    guard_start, guard_end = DOMAIN_GUARDS[domain]
+    welcome = DOMAIN_WELCOME_LINES.get(domain, "")
+    generated = f"{guard_start}\n{welcome}\n\n{table}\n{guard_end}"
+    start = doc_content.find(guard_start)
+    end = doc_content.find(guard_end)
+    if start != -1 and end != -1:
+        return doc_content[:start] + generated + doc_content[end + len(guard_end) :]
+    heading = DOMAIN_HEADING.get(domain, "")
+    return doc_content.rstrip("\n") + f"\n\n{heading}\n\n" + generated + "\n"
+
+
+def check_drift(domains: list[str]) -> list[str]:
+    """Return the repository-relative path of every doc whose guarded block drifted.
+
+    A doc drifts when its guard-comment block is missing or differs from the output
+    of the generator (hand edit, or code changed without regenerating).
+    """
+    drifted: list[str] = []
+    for domain in domains:
+        doc_path = DOMAIN_DOCS.get(domain)
+        if doc_path is None:
+            continue
+        content = doc_path.read_text(encoding="utf-8")
+        guard_start, guard_end = DOMAIN_GUARDS[domain]
+        if guard_start not in content or guard_end not in content:
+            drifted.append(f"{doc_path.relative_to(REPO_ROOT)} (guarded block missing)")
+        elif render_updated_doc(domain, content) != content:
+            drifted.append(f"{doc_path.relative_to(REPO_ROOT)} (--type {domain})")
+    return drifted
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate reference tables from live code."
     )
-    parser.add_argument("--type", required=True, choices=list(DOMAIN_GENERATORS.keys()))
+    parser.add_argument("--type", choices=list(DOMAIN_GENERATORS.keys()))
     parser.add_argument("--dry-run", action="store_true", help="Print to stdout only")
+    parser.add_argument(
+        "--check",
+        action="store_true",
+        help="Write nothing; exit 1 when a generated doc block drifted from live code "
+        "(all doc-backed domains unless --type is given)",
+    )
     args = parser.parse_args()
+
+    if args.check:
+        domains = [args.type] if args.type else list(DOMAIN_DOCS)
+        drifted = check_drift(domains)
+        for entry in drifted:
+            print(f"DRIFT: {entry}")
+        if drifted:
+            print(
+                "Run `uv run python tools/generate_reference_table.py --type <domain>` "
+                "and commit the result."
+            )
+            raise SystemExit(1)
+        print("No drift found")
+        raise SystemExit(0)
+    if args.type is None:
+        parser.error("--type is required unless --check is given")
 
     description, generator = DOMAIN_GENERATORS[args.type]
     table = generator()
@@ -357,28 +415,8 @@ if __name__ == "__main__":
             # No target doc file — just print the table.
             print(table)
         else:
-            guard_start, guard_end = DOMAIN_GUARDS.get(args.type, (None, None))
-            generated = ""
-            if guard_start and guard_end:
-                welcome = DOMAIN_WELCOME_LINES.get(args.type, "")
-                heading = DOMAIN_HEADING.get(args.type, "")
-                generated = f"{guard_start}\n{welcome}\n\n{table}\n{guard_end}"
-            else:
-                generated = table
-
             doc_content = doc_path.read_text(encoding="utf-8")
-            start = doc_content.find(guard_start) if guard_start else -1
-            end = doc_content.find(guard_end) if guard_end else -1
-            if start != -1 and end != -1 and guard_end is not None:
-                updated = (
-                    doc_content[:start]
-                    + generated
-                    + doc_content[end + len(guard_end) :]
-                )
-            else:
-                heading = DOMAIN_HEADING.get(args.type, "")
-                updated = (
-                    doc_content.rstrip("\n") + f"\n\n{heading}\n\n" + generated + "\n"
-                )
-            doc_path.write_text(updated, encoding="utf-8")
+            doc_path.write_text(
+                render_updated_doc(args.type, doc_content), encoding="utf-8"
+            )
             print(f"Updated {doc_path.relative_to(REPO_ROOT)}")

@@ -37,7 +37,7 @@ Documents the responsibilities of `CommandRegistry`, which handles dispatching a
 
 | Component | Responsible for | Not responsible for |
 |---|---|---|
-| `command_defs.py` | `CommandDef`, `SubcommandSpec` dataclasses | Command list |
+| `command_defs.py` | `CommandDef`, `SubcommandSpec`, `ArgSpec` dataclasses | Command list |
 | `command_defs_list.py` | Built-in command definitions | Dispatch logic |
 | `registry.py` | Dispatch behavior, imports command list from `command_defs_list` | Definition of command list |
 
@@ -67,7 +67,7 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 
 ### Adding New Commands
 
-Add a `CommandDef(...)` entry to `command_defs_list.py` and implement the corresponding handler in the appropriate mixin file.
+Add a `CommandDef(...)` entry to `command_defs_list.py` (with `SubcommandSpec`/`ArgSpec` for its subcommands and arguments) and implement the corresponding handler in the appropriate mixin file. Document each usage line in the per-command chapter; `check_docs_consistency.py --domain agent` verifies the contract.
 
 `AgentREPL.SLASH_COMMANDS` (for tab completion) is derived from `command_defs_list._COMMANDS` plus REPL-reserved commands via `completion_command_names()`, so it does not drift from the dispatch table.
 

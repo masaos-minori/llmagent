@@ -29,6 +29,7 @@ import re
 import sys
 import tomllib
 from pathlib import Path
+from typing import Any
 
 if __package__ in (None, ""):
     # Allow `python tools/check_docs_consistency.py` (script form) in addition
@@ -88,6 +89,7 @@ ALL_SKIP_OPTIONS: frozenset[str] = frozenset(
         "removedfiles",
         "commanddrift",
         "commandcoverage",
+        "commandcontract",
         "filerefs",
         "funcrefs",
         "schemadrift",
@@ -277,6 +279,153 @@ def check_command_coverage(docs_dir: Path, repo_root: Path) -> list[Issue]:
                 )
             )
     return issues
+
+
+# ---------------------------------------------------------------------------
+# Check: subcommand / argument contract vs the structured registry (Agent, ERROR)
+# ---------------------------------------------------------------------------
+
+# Commands whose documented contract is known to differ from the registry; each is
+# tracked as a Known Issue and excluded until it is resolved (remove the entry then).
+_CONTRACT_EXEMPT_COMMANDS: dict[str, str] = {"/memory": "AGENT-013"}
+_CODE_SPAN_RE = re.compile(r"`([^`\n]+)`")
+
+
+def _load_registered_commands(repo_root: Path) -> list[Any] | None:
+    """Import _COMMANDS from command_defs_list.py; None when it cannot be imported."""
+    scripts_dir = repo_root / "scripts"
+    if not (scripts_dir / "agent" / "commands" / "command_defs_list.py").is_file():
+        return None
+    if str(scripts_dir) not in sys.path:
+        sys.path.insert(0, str(scripts_dir))
+    try:
+        from agent.commands.command_defs_list import _COMMANDS  # noqa: PLC0415
+    except ImportError:
+        return None
+    return list(_COMMANDS)
+
+
+def _default_documented(blocks: list[list[str]], usage: str, default: str) -> bool:
+    """True when the block holding usage (or the one after it) states the default."""
+    pattern = re.compile(rf"default[^\n]*{re.escape(default)}", re.IGNORECASE)
+    for index, block in enumerate(blocks):
+        if any(usage in line.replace("\\|", "|") for line in block):
+            window = block + (blocks[index + 1] if index + 1 < len(blocks) else [])
+            return bool(pattern.search("\n".join(window)))
+    return False
+
+
+def check_command_contracts(docs_dir: Path, repo_root: Path) -> list[Issue]:
+    """Flag subcommand and argument drift between _COMMANDS and the command chapters.
+
+    The structured registry (CommandDef / SubcommandSpec / ArgSpec) is the canonical
+    source. Every usage line it renders must appear as an inline code span in a
+    per-command chapter (agent_07_07 to agent_07_10), and every documented
+    `/<command> ...` code span must be a registered usage, a registered subcommand
+    name, or the bare command. An argument with a default must state it next to its
+    usage. Commands listed in _CONTRACT_EXEMPT_COMMANDS are skipped.
+    """
+    commands = _load_registered_commands(repo_root)
+    if commands is None:
+        return []
+    agent_dir = docs_dir / DOMAIN_SUBFOLDERS["agent"]
+    chapters = [
+        doc
+        for prefix in _COMMAND_CHAPTER_DOCS
+        for doc in discover_md_files(agent_dir, prefix=prefix)
+    ]
+    if not chapters:
+        return []
+    issues: list[Issue] = []
+    active = [c for c in commands if c.name not in _CONTRACT_EXEMPT_COMMANDS]
+    by_name = {c.name: c for c in active}
+    allowed: dict[str, set[str]] = {}
+    for cmd in active:
+        names = {cmd.name, *cmd.usages()}
+        names.update(f"{cmd.name} {sub.name}" for sub in cmd.subcommands)
+        names.update(f"{cmd.name} {arg.token}" for arg in cmd.args)
+        allowed[cmd.name] = names
+
+    spans: dict[str, list[tuple[str, int]]] = {}
+    blocks_by_file: dict[str, list[list[str]]] = {}
+    for doc in chapters:
+        blocks: list[list[str]] = [[]]
+        for line_no, line in enumerate(doc.lines, start=1):
+            if not line.strip():
+                blocks.append([])
+                continue
+            blocks[-1].append(line)
+            for match in _CODE_SPAN_RE.finditer(line):
+                text = match.group(1).replace("\\|", "|").strip()
+                spans.setdefault(doc.rel_path, []).append((text, line_no))
+        blocks_by_file[doc.rel_path] = blocks
+
+    documented = {text for entries in spans.values() for text, _ in entries}
+    index_file = chapters[0].rel_path
+    for cmd in active:
+        for sub_usage, spec_args in _usage_pairs(cmd):
+            if sub_usage not in documented:
+                issues.append(
+                    Issue(
+                        file=index_file,
+                        line_no=0,
+                        severity="ERROR",
+                        message=(
+                            f"registered usage `{sub_usage}` is not documented in "
+                            f"any per-command chapter (agent_07_07 to agent_07_10)"
+                        ),
+                    )
+                )
+                continue
+            for arg in spec_args:
+                if arg.default is None:
+                    continue
+                if not any(
+                    _default_documented(blocks, sub_usage, arg.default)
+                    for blocks in blocks_by_file.values()
+                ):
+                    issues.append(
+                        Issue(
+                            file=index_file,
+                            line_no=0,
+                            severity="ERROR",
+                            message=(
+                                f"`{sub_usage}`: default {arg.default!r} of argument "
+                                f"{arg.token!r} is not stated next to its usage"
+                            ),
+                        )
+                    )
+
+    for rel_path, entries in spans.items():
+        for text, line_no in entries:
+            head = text.split(" ", 1)[0]
+            cmd_def = by_name.get(head)
+            if cmd_def is None or text in allowed[head]:
+                continue
+            issues.append(
+                Issue(
+                    file=rel_path,
+                    line_no=line_no,
+                    severity="ERROR",
+                    message=(
+                        f"documented form `{text}` is not a registered usage of "
+                        f"{head} (subcommand or argument drift against _COMMANDS)"
+                    ),
+                )
+            )
+    return issues
+
+
+def _usage_pairs(cmd: Any) -> list[tuple[str, tuple[Any, ...]]]:
+    """Return (usage line, ArgSpecs) for each form of a registered command."""
+    from agent.commands.command_defs import format_usage  # noqa: PLC0415
+
+    if cmd.subcommands:
+        return [
+            (format_usage(cmd.name, sub.name, sub.args), sub.args)
+            for sub in cmd.subcommands
+        ]
+    return [(format_usage(cmd.name, "", cmd.args), cmd.args)]
 
 
 # ---------------------------------------------------------------------------
@@ -844,6 +993,8 @@ def main(argv: list[str] | None = None) -> int:
     if args.domain == "agent":
         if "commandcoverage" not in skip:
             all_issues.extend(check_command_coverage(docs_dir, repo_root))
+        if "commandcontract" not in skip:
+            all_issues.extend(check_command_contracts(docs_dir, repo_root))
         if "schemadrift" not in skip:
             all_issues.extend(check_schema_drift(docs_dir, repo_root))
         if "diagnostics" not in skip:

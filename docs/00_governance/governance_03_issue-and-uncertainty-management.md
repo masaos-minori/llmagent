@@ -91,7 +91,45 @@ Part 1 entries, Part 2 items, and "Proposed" ADRs are reviewed quarterly (`gover
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
-No active Known Issues remain.
+#### AGENT-013
+
+- **ID**: AGENT-013
+- **Title**: The documented `/memory` subcommands and arguments differ from the implemented command
+- **Status**: open
+- **Severity**: Medium
+- **Area**: Agent
+- **Type**: document-code-mismatch
+- **Source**: `scripts/agent/commands/cmd_memory.py`, `scripts/agent/commands/memory_data_ops.py`, `scripts/agent/commands/memory_rebuild_ops.py`, `scripts/agent/commands/command_defs_list.py`
+- **Owner**: Repository owner
+- **First Found**: Documentation review (memo1 review, V22-07)
+- **Target**: `docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md`
+- **Related**: `docs/00_governance/governance_04_documentation-checks.md`
+- **Summary**: The `/memory` chapter specifies `reindex`, `list --type --pinned --query`, `prune --days`, and `rebuild --confirm --allow-loss`, which the command does not implement.
+- **Current Description**: The chapter describes a subcommand set and argument contract for `/memory`, and `GV-023` cannot check it because it differs from the registry.
+- **Observed Implementation**: The registry and handlers provide `status`, `list [semantic|episodic] [--source <type>] [--branch <branch>] [limit]`, `search`, `show`, `pin`, `unpin`, `delete`, `prune [days]`, `check-consistency`, `rebuild [--dry-run]`, `rebuild-fts`, `rebuild-vec`, and `import-jsonl`. `reindex`, `--pinned`, `--query`, `--days`, `--confirm`, and `--allow-loss` do not exist.
+- **Impact**: A reader following the chapter issues commands that are rejected or behave differently, and the `/memory` contract is the one command excluded from the `GV-023` argument check.
+- **Recommended Action**: Decide whether the chapter or the command is authoritative, align the other, then remove the `/memory` exemption (`_CONTRACT_EXEMPT_COMMANDS` in `tools/check_docs_consistency.py`).
+- **Resolution Target**: The `/memory` chapter and the registry state the same subcommands and arguments, and `GV-023` verifies `/memory` without an exemption.
+
+#### MCP-006
+
+- **ID**: MCP-006
+- **Title**: Command-specific guards, postcondition verification, and audit correlation are not implemented for every high-risk tool category
+- **Status**: open
+- **Severity**: Medium
+- **Area**: MCP
+- **Type**: design-gap
+- **Source**: `scripts/mcp_servers/{file,shell,github,git,mdq}/`
+- **Owner**: Repository owner
+- **First Found**: Documentation review (memo1 review, V22-01)
+- **Target**: `docs/91_security/security_02_high-risk-tool-common-policy.md`
+- **Related**: `docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md`, `docs/22_mcp/mcp_04_05_git.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`
+- **Summary**: The Layered protection model defines five layers, but only git-mcp implements postcondition verification, and no server records before/after state or approval correlation in its audit record.
+- **Current Description**: The policy states that coverage is uneven and refers to each tool's own document for its current layer coverage.
+- **Observed Implementation**: Every high-risk server implements the common guard (allowlist and read-only or write gating). Postcondition verification exists only in `scripts/mcp_servers/git/repository_state.py`. Command-specific guards exist for git (ref, remote, and protected-branch checks), mdq (path and symlink checks), file-delete (recursive deletion of an allowed root is rejected), and shell (command allowlist, cwd, and env filtering); file-write and github have none beyond the common guard and the configured denylists. file-write-mcp writes no audit record, and the audit records of the other servers carry no before/after state or approval correlation.
+- **Impact**: For file-write, file-delete, shell, and github, a partial or unintended result is not detected after the operation, and an audit record cannot be tied to the approval that authorized it.
+- **Recommended Action**: Per tool category, either implement the missing layer or record in the tool's document that the layer is not applicable, then remove this entry.
+- **Resolution Target**: Each high-risk tool category has every layer of the Layered protection model implemented or explicitly documented as not applicable, and this policy no longer describes an open gap.
 
 ## Part 2: Needs Confirmation Inventory
 

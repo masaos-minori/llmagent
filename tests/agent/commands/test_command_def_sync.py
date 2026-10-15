@@ -153,3 +153,73 @@ def test_all_commands_have_nonempty_help() -> None:
 def test_all_command_names_start_with_slash() -> None:
     for cmd in _COMMANDS:
         assert cmd.name.startswith("/"), f"CommandDef {cmd.name!r} must start with '/'"
+
+
+# --- Subcommand / argument contract sync (GV-023) ---
+
+
+def _handler_source(handler: str) -> str:
+    import inspect
+
+    return inspect.getsource(getattr(CommandRegistry, handler))
+
+
+def test_every_registered_subcommand_is_handled_by_its_handler() -> None:
+    """Each SubcommandSpec name appears as a string literal in its handler source."""
+    missing: list[str] = []
+    for cmd in _COMMANDS:
+        if not cmd.subcommands:
+            continue
+        source = _handler_source(cmd.handler)
+        for sub in cmd.subcommands:
+            if f'"{sub.name}"' not in source:
+                missing.append(f"{cmd.name} {sub.name}")
+    assert not missing, f"Registered subcommands not handled: {missing}"
+
+
+def test_mcp_registered_subcommands_equal_the_handler_valid_set() -> None:
+    import asyncio
+
+    import pytest
+    from agent.commands.exceptions import UnknownSubcommandError
+
+    registry = _make_registry()
+    with pytest.raises(UnknownSubcommandError) as exc_info:
+        asyncio.run(registry._cmd_mcp("no-such-subcommand"))
+    mcp = next(c for c in _COMMANDS if c.name == "/mcp")
+    assert set(exc_info.value.valid) == {s.name for s in mcp.subcommands}
+
+
+def test_memory_registered_subcommands_equal_the_handler_valid_set() -> None:
+    import pytest
+    from agent.commands.exceptions import UnknownSubcommandError
+
+    registry = _make_registry()
+    registry._ctx.services_required.memory = MagicMock()
+    with pytest.raises(UnknownSubcommandError) as exc_info:
+        registry._cmd_memory("no-such-subcommand")
+    memory = next(c for c in _COMMANDS if c.name == "/memory")
+    # "status" is handled before the dispatch table, so it is not in `valid`.
+    registered = {s.name for s in memory.subcommands} - {"status"}
+    assert set(exc_info.value.valid) == registered
+
+
+def test_prefix_help_names_every_registered_subcommand() -> None:
+    """The one-line /help text of a command lists each of its subcommand names."""
+    stale: list[str] = []
+    for cmd in _COMMANDS:
+        stale.extend(
+            f"{cmd.name} {sub.name}"
+            for sub in cmd.subcommands
+            if sub.name not in cmd.help
+        )
+    assert not stale, f"/help text omits registered subcommands: {stale}"
+
+
+def test_usage_lines_render_required_and_optional_arguments() -> None:
+    from agent.commands.command_defs import ArgSpec, format_usage
+
+    assert format_usage("/x", "go", (ArgSpec("id", required=True), ArgSpec("n"))) == (
+        "/x go <id> [n]"
+    )
+    assert format_usage("/x", "", ()) == "/x"

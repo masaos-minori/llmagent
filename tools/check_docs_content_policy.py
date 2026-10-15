@@ -5,9 +5,10 @@
 implementation-detail content a `docs/*.md` document should not contain: full
 file trees, per-file descriptions embedded in a tree or table, class/function/
 method index tables, implementation-location mappings, and literal port
-numbers. This is a report-only (Warning) check — it never blocks CI; see
-`docs/00_governance/governance_04_documentation-checks.md`'s Governance Verification
-Matrix for its registered entry.
+numbers. Findings are Warnings: the default run is report-only (exit 0), and
+`--strict` exits 1 on any warning — CI runs it with `--strict`, so a finding blocks
+the pull request; see `docs/00_governance/governance_04_documentation-checks.md`'s
+Governance Verification Matrix (GV-018) for its registered entry.
 
 Scans the full `docs/` tree recursively (including `docs/10_adr/`,
 `docs/databases/`, etc.) — deliberately does not reuse
@@ -15,11 +16,13 @@ Scans the full `docs/` tree recursively (including `docs/10_adr/`,
 non-recursively and requires a domain `prefix`.
 
 Usage:
-    python tools/check_docs_content_policy.py
+    python tools/check_docs_content_policy.py            # report-only
+    python tools/check_docs_content_policy.py --strict   # exit 1 on any warning
 """
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from dataclasses import dataclass, field
@@ -834,6 +837,13 @@ def check_code_fallback_value_comparison(files: list[DocFile]) -> list[Issue]:
 
 
 def main() -> int:
+    parser = argparse.ArgumentParser(description="Scan docs for implementation detail.")
+    parser.add_argument(
+        "--strict",
+        action="store_true",
+        help="exit 1 when any warning is found (default: report-only)",
+    )
+    args = parser.parse_args()
     files = discover_all_md_files(DOCS_DIR)
 
     all_issues: list[Issue] = []
@@ -854,7 +864,10 @@ def main() -> int:
     all_issues += check_full_json_example(files)
     all_issues += check_code_fallback_value_comparison(files)
 
-    return report_and_exit(all_issues)
+    exit_code = report_and_exit(all_issues)
+    if args.strict and all_issues:
+        return 1
+    return exit_code
 
 
 if __name__ == "__main__":

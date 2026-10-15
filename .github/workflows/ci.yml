@@ -29,6 +29,10 @@ jobs:
         run: uv run bandit -r scripts/ -c pyproject.toml
       - name: Architecture check
         run: PYTHONPATH=scripts uv run lint-imports
+      - name: SQLite 4DB separation check
+        run: uv run python tools/check_db_separation.py
+      - name: Generated reference docs drift check
+        run: uv run python tools/generate_reference_table.py --check
       - name: Pre-commit
         run: uv run pre-commit run --all-files
 

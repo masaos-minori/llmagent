@@ -104,6 +104,66 @@ def test_publish_succeeds_if_jsonl_append_fails(client: TestClient) -> None:
     assert ev["event_id"] in event_ids
 
 
+class _CommitFailingConn:
+    """Connection proxy whose commit() fails, simulating a SQLite commit error."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def execute(self, *args: Any, **kwargs: Any) -> sqlite3.Cursor:
+        return self._conn.execute(*args, **kwargs)
+
+    def commit(self) -> None:
+        raise sqlite3.OperationalError("disk I/O error")
+
+
+def _failing_insert_event(mode: str) -> Any:
+    """Return an insert_event replacement that fails at the given SQLite stage."""
+    from eventbus.event_repo import insert_event as real_insert_event
+
+    def _insert(conn: sqlite3.Connection, *args: Any, **kwargs: Any) -> Any:
+        if mode == "insert":
+            raise sqlite3.OperationalError("database or disk is full")
+        return real_insert_event(_CommitFailingConn(conn), *args, **kwargs)  # type: ignore[arg-type]  # test-only: proxy connection stand-in
+
+    return _insert
+
+
+@pytest.mark.parametrize("mode", ["insert", "commit"])
+def test_publish_sqlite_write_failure_reports_failure_without_side_effects(
+    client: TestClient, tmp_path: Path, mode: str
+) -> None:
+    """ADR-006 INV-02: a SQLite write failure is never reported as a successful publish.
+
+    Verifies HTTP response, SQLite state, JSONL append and broker notification together.
+    """
+    import eventbus.app as eb_app
+
+    ev = _event()
+    broker_publish = MagicMock()
+    failing_client = TestClient(client.app, raise_server_exceptions=False)
+    failing_client.headers["Authorization"] = "Bearer test-token"
+
+    with (
+        patch("eventbus.publish_route.insert_event", _failing_insert_event(mode)),
+        patch.object(eb_app.app.state.broker, "publish", broker_publish),
+    ):
+        resp = failing_client.post("/publish", json=ev)
+
+    assert resp.status_code >= 500
+
+    # A separate connection sees only committed state.
+    with sqlite3.connect(tmp_path / "eventbus.sqlite") as other:
+        count = other.execute(
+            "SELECT COUNT(*) FROM events WHERE event_id = ?", (ev["event_id"],)
+        ).fetchone()[0]
+    assert count == 0
+
+    jsonl_path = tmp_path / "storage" / "events.jsonl"
+    assert not jsonl_path.exists() or ev["event_id"] not in jsonl_path.read_text()
+    broker_publish.assert_not_called()
+
+
 def test_identical_content_retry_returns_same_seq(client: TestClient) -> None:
     """Identical retries return the existing sequence and do not cause redelivery."""
     ev = _event()

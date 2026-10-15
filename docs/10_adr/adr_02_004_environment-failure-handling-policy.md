@@ -370,7 +370,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Negative consequences recorded
 - [x] Invariants defined
 - [x] Each Invariant has Verification
-- [x] Automatable verification does not rely only on Manual Review
+- [ ] Automatable verification does not rely only on Manual Review (INV-01 and INV-02 rely only on Manual Review; INV-07 and INV-10 are Partial; INV-15 and INV-16 rely on a manual audit; see the ADR Index Invariant Verification Matrix)
 - [x] Relationship with existing ADRs recorded
 - [x] ADR does not contradict related Specifications
 - [x] Discrepancies registered as Known Issues

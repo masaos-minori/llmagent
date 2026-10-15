@@ -301,6 +301,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 | Test | Verifies | Type | Blocking | Implementation |
 |---|---|---|---|---|
 | Each DB has its own schema creation and its own recovery target path | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_four_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_uses_correct_db_path` |
+| The four-database boundary holds: each table is created only in its owning database, no DDL foreign key crosses databases, the four database paths are distinct files, and no `ATTACH` or schema-qualified `FROM`/`JOIN` exists in `scripts/` SQL | INV-01, INV-02, INV-03, INV-04, INV-05 | Static check | Yes | `tools/check_db_separation.py` (CI `lint` job and the deploy pre-deploy check), `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`, `tests/tools/test_check_db_separation.py::test_detects_table_in_wrong_database`, `tests/tools/test_check_db_separation.py::test_detects_cross_db_foreign_key`, `tests/tools/test_check_db_separation.py::test_detects_shared_physical_path`, `tests/tools/test_check_db_separation.py::test_detects_attach_and_qualified_access` |
 | sqlite-vec is not loaded into anything other than `rag.sqlite` | INV-08 | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperTargetValidation::test_dbtarget_enum_member_resolves_to_value` (asserts the `rag` default only; the non-`rag` default is set in `SQLiteHelper.__init__()`) |
 | Lock Contention and Permission Failure are not classified as physical corruption | INV-13 | Regression | Yes | `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode` |
 | Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_eventbus_prohibited` (no test asserts byte-identity of a corrupt DB under Dry Run) |
@@ -330,7 +331,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 
 - DB Schema verification before deployment
 - Manual recovery of `workflow.sqlite`/`eventbus.sqlite` (INV-18): `agent_10_01` Manual Recovery
-- INV-05, INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 describe design rules without a dedicated automated test
+- INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 describe design rules without a dedicated automated test
 
 ## Implementation Notes
 
@@ -417,7 +418,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-05, INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 have no automated test)
+- [ ] Each Invariant has a corresponding Verification (INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 have no automated test)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications

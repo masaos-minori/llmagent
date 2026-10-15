@@ -31,7 +31,7 @@ Documents the purpose and side effects of slash commands in the Session, MCP, an
 
 ### Session Category
 
-A group of commands for session management and history operations. `/clear new` starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
+A group of commands for session management and history operations. `/clear [new]` resets the history, and `/clear new` also starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
 
 #### History and export
 
@@ -44,7 +44,23 @@ A group of commands for session management and history operations. `/clear new` 
 
 #### Session DB operation subcommands
 
-Session subcommands are invoked as `/session <subcmd>`. The data subcommands manage session rows directly: `list` shows recent sessions with their message count, `load` resumes a session by id, `rename` sets a session title, and `delete` removes a session by id. This includes the maintenance subcommands (`stats`, `health`, `checkpoint`, `vacuum`, `purge`, `recover`, `rag-consistency`, `rag-rebuild-fts`, `rag-rebuild-vec`); see agent_04_03 for the services they call.
+`/session` without a subcommand runs `list`. The data subcommands manage session rows directly; the maintenance subcommands operate on the session and RAG databases (see agent_04_03 for the services they call).
+
+| Form | Effect |
+|---|---|
+| `/session list [n]` | Shows recent sessions with their message count (default 20) |
+| `/session load <id>` | Resumes a session by id |
+| `/session rename <title>` | Sets the title of the current session |
+| `/session delete <id>` | Removes a session by id |
+| `/session stats` | Shows session database statistics |
+| `/session health` | Shows session database integrity and size |
+| `/session checkpoint [PASSIVE\|FULL\|RESTART\|TRUNCATE]` | Runs a WAL checkpoint; without a mode the configured mode is used |
+| `/session vacuum` | Rebuilds the session database file |
+| `/session purge [--max-sessions <n>] [--max-age-days <n>]` | Purges old sessions |
+| `/session recover [backup_path]` | Checks integrity and restores from the backup when corruption is found |
+| `/session rag-consistency` | Checks the consistency of the RAG database |
+| `/session rag-rebuild-fts` | Rebuilds `chunks_fts` from `chunks` |
+| `/session rag-rebuild-vec` | Rebuilds `chunks_vec` from `chunks` |
 
 ### Session and Memory Separation
 
@@ -56,6 +72,8 @@ available for reuse across later sessions. `/undo` likewise rolls back conversat
 ### MCP Category
 
 `/mcp` / `/mcp status` provides a health view of the **currently running** MCP server settings; it is not a preview of pending `/reload` changes.
+
+`/mcp tools` prints the RuntimeToolRegistry diagnostics table.
 
 The output of `/mcp status` includes a list of servers, a list of servers in DEGRADED/UNAVAILABLE states, and serialization event statistics.
 

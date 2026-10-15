@@ -10,11 +10,17 @@ python3 -m compileall -q scripts/
 
 If any file reports `SyntaxError`: fix the error before proceeding (see `SKILL.md` Required behavior).
 
-**Completed when**: `compileall` reports no `SyntaxError` and the copy-list diff below is empty.
+**Completed when**: `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, and the copy-list diff below is empty.
 **On a repeat `SyntaxError` after a fix**: per `AGENTS.md` Loop Prevention > Attempt Limit,
 at most 3 fix-and-recheck attempts for the same file; if it still fails after 3 attempts,
 stop and report `Blocked: {file} still has a syntax error after 3 attempts` rather than
 continuing to patch.
+
+Verify the SQLite 4DB separation (ADR-008); a non-zero exit blocks the deploy:
+
+```bash
+uv run python tools/check_db_separation.py
+```
 
 Confirm `deploy/deploy.sh` copy list is up to date if any script or config file was added or removed:
 

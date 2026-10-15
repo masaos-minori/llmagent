@@ -110,7 +110,7 @@ A generated projection is not a competing copy: the code remains the sole canoni
 
 ## Verification
 
-- **Test**: Run the corresponding `tools/generate_reference_table.py --type <domain>` generator and confirm the guarded block matches current source (`--dry-run` output equals the live-written content). No automated CI check enforces this invariant yet; it is manually verified when a generator is run. — **Verifies**: INV-01 — **Type**: Manual Review — **Blocking**: No
+- **Test**: `uv run python tools/generate_reference_table.py --check` regenerates the guarded block of every generated document in memory and exits 1 when a document's block is missing or differs from the generator output, so a hand edit or a code change without regeneration is detected. It runs in the CI `lint` job on every pull request (`tests/tools/test_generate_reference_table.py::TestCheckDrift`). — **Verifies**: INV-01 — **Type**: Static Check — **Blocking**: Yes
 
 ## Implementation Notes
 
@@ -172,7 +172,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
 - [x] Each Invariant has a corresponding Verification
-- [ ] Automatable verification does not rely only on Manual Review (INV-01 is verified manually; no automated check exists)
+- [x] Automatable verification does not rely only on Manual Review
 - [x] Discrepancies with the current implementation are registered as Known Issues (none applicable; see Known Deviations)
 - [x] The Owner and required Reviewers are defined (see Approval Record — review completed through a Named Approval Record)
 - [x] Review Triggers are recorded

@@ -9,7 +9,11 @@ Owns:
                                 prefix commands follow.
 
 Does NOT own:
-  CommandDef / SubcommandSpec dataclasses — defined in agent.commands.command_defs.
+  CommandDef / SubcommandSpec / ArgSpec dataclasses — defined in agent.commands.command_defs.
+
+The subcommand and argument contract (SubcommandSpec / ArgSpec) is the canonical
+source checked against the Agent command docs by tools/check_docs_consistency.py
+(GV-023); update the docs together with it.
 
 To add a built-in command:
   1. Append (or insert) a CommandDef(...) entry in _COMMANDS below.
@@ -19,7 +23,7 @@ To add a built-in command:
 
 from __future__ import annotations
 
-from agent.commands.command_defs import CommandDef
+from agent.commands.command_defs import ArgSpec, CommandDef, SubcommandSpec
 
 # Single source of truth for all built-in slash commands.
 # Exact-match commands are listed first, followed by prefix commands.
@@ -95,7 +99,11 @@ _COMMANDS: list[CommandDef] = [
         prefix=True,
         is_async=True,
         handler="_cmd_mcp",
-        help="MCP server status, tool list, connectivity check",
+        help="[status|tools]  MCP server status, tool list, connectivity check",
+        subcommands=[
+            SubcommandSpec("status", "MCP server status (default)"),
+            SubcommandSpec("tools", "RuntimeToolRegistry diagnostics"),
+        ],
     ),
     CommandDef(
         name="/session",
@@ -104,6 +112,40 @@ _COMMANDS: list[CommandDef] = [
         handler="_cmd_session",
         help="list [n] | load <id> | rename <title> | delete <id>"
         " | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec",
+        subcommands=[
+            SubcommandSpec("list", "List sessions", (ArgSpec("n", default="20"),)),
+            SubcommandSpec("load", "Resume a session", (ArgSpec("id", required=True),)),
+            SubcommandSpec(
+                "rename", "Set the session title", (ArgSpec("title", required=True),)
+            ),
+            SubcommandSpec(
+                "delete", "Delete a session", (ArgSpec("id", required=True),)
+            ),
+            SubcommandSpec(
+                "export",
+                "Export the in-memory history",
+                (ArgSpec("markdown|json", default="markdown"), ArgSpec("file")),
+            ),
+            SubcommandSpec("stats", "Session DB statistics"),
+            SubcommandSpec("health", "Session DB health"),
+            SubcommandSpec(
+                "checkpoint",
+                "Run a WAL checkpoint",
+                (ArgSpec("PASSIVE|FULL|RESTART|TRUNCATE"),),
+            ),
+            SubcommandSpec("vacuum", "VACUUM the session DB"),
+            SubcommandSpec(
+                "purge",
+                "Purge old sessions",
+                (ArgSpec("--max-sessions <n>"), ArgSpec("--max-age-days <n>")),
+            ),
+            SubcommandSpec(
+                "recover", "Integrity check and restore", (ArgSpec("backup_path"),)
+            ),
+            SubcommandSpec("rag-consistency", "RAG DB consistency check"),
+            SubcommandSpec("rag-rebuild-fts", "Rebuild chunks_fts"),
+            SubcommandSpec("rag-rebuild-vec", "Rebuild chunks_vec"),
+        ],
     ),
     CommandDef(
         name="/clear",
@@ -111,6 +153,7 @@ _COMMANDS: list[CommandDef] = [
         is_async=False,
         handler="_cmd_clear",
         help="Reset conversation history; 'new' also starts a new session",
+        args=(ArgSpec("new"),),
     ),
     CommandDef(
         name="/history",
@@ -118,6 +161,7 @@ _COMMANDS: list[CommandDef] = [
         is_async=False,
         handler="_cmd_history",
         help="[n]  Show the content of recent user/assistant messages (default: 5)",
+        args=(ArgSpec("n", default="5"),),
     ),
     CommandDef(
         name="/system",
@@ -125,13 +169,46 @@ _COMMANDS: list[CommandDef] = [
         is_async=False,
         handler="_cmd_system",
         help="[name]  Switch system prompt preset; list presets if no name given",
+        args=(ArgSpec("name"),),
     ),
     CommandDef(
         name="/memory",
         prefix=True,
         is_async=False,
         handler="_cmd_memory",
-        help="list|search|pin|unpin|delete|show|prune  Manage long-term memory entries",
+        help="status|list|search|show|pin|unpin|delete|prune|check-consistency|rebuild|rebuild-fts|rebuild-vec|import-jsonl  Manage long-term memory entries",
+        subcommands=[
+            SubcommandSpec("status", "Embedding, circuit state, retrieval mode"),
+            SubcommandSpec(
+                "list",
+                "List entries",
+                (
+                    ArgSpec("semantic|episodic"),
+                    ArgSpec("--source RULE|DECISION|FAILURE|CONVERSATION"),
+                    ArgSpec("--branch <branch>"),
+                    ArgSpec("limit", default="10"),
+                ),
+            ),
+            SubcommandSpec(
+                "search",
+                "FTS5 search",
+                (ArgSpec("query", required=True), ArgSpec("--branch <branch>")),
+            ),
+            SubcommandSpec("show", "Show one entry", (ArgSpec("id", required=True),)),
+            SubcommandSpec("pin", "Pin an entry", (ArgSpec("id", required=True),)),
+            SubcommandSpec("unpin", "Unpin an entry", (ArgSpec("id", required=True),)),
+            SubcommandSpec(
+                "delete", "Delete one entry", (ArgSpec("id", required=True),)
+            ),
+            SubcommandSpec("prune", "Delete old entries", (ArgSpec("days"),)),
+            SubcommandSpec("check-consistency", "Compare JSONL, SQLite, FTS5, vec"),
+            SubcommandSpec(
+                "rebuild", "Import from the JSONL archive", (ArgSpec("--dry-run"),)
+            ),
+            SubcommandSpec("rebuild-fts", "Rebuild memories_fts"),
+            SubcommandSpec("rebuild-vec", "Rebuild memories_vec"),
+            SubcommandSpec("import-jsonl", "Alias of rebuild", (ArgSpec("--dry-run"),)),
+        ],
     ),
     CommandDef(
         name="/debug",
@@ -139,6 +216,10 @@ _COMMANDS: list[CommandDef] = [
         is_async=False,
         handler="_cmd_debug",
         help="[verbose|normal]  Toggle debug mode; subcommands: verbose/normal=log level",
+        subcommands=[
+            SubcommandSpec("verbose", "Debug loggers at DEBUG level"),
+            SubcommandSpec("normal", "Debug loggers at INFO level"),
+        ],
     ),
     CommandDef(
         name="/audit",
@@ -146,5 +227,16 @@ _COMMANDS: list[CommandDef] = [
         is_async=False,
         handler="_cmd_audit",
         help="tail [N] | turn <task_id> | tool <name>  Browse audit log events",
+        subcommands=[
+            SubcommandSpec(
+                "tail", "Last N raw lines (default)", (ArgSpec("N", default="20"),)
+            ),
+            SubcommandSpec(
+                "turn", "Events of one turn", (ArgSpec("task_id", required=True),)
+            ),
+            SubcommandSpec(
+                "tool", "Recent events of one tool", (ArgSpec("name", required=True),)
+            ),
+        ],
     ),
 ]

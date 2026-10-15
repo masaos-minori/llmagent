@@ -237,7 +237,8 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 | Identical retries return the original seq and conflicting retries are rejected without modifying stored data | INV-07 | Integration | Yes | `tests/eventbus/test_eventbus_publish.py::test_identical_content_retry_returns_same_seq`, `tests/eventbus/test_eventbus_publish.py::test_conflicting_content_retry_returns_409` |
 | NACK counters and requeue counters are persisted per Event | INV-08 | Integration | Yes | `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_nack_increments_delivery_failure_count`, `tests/eventbus/test_eventbus_dlq_promotion.py::TestDLQPromotionSemantics::test_dlq_requeue_increments_dlq_requeue_count_not_delivery_failure_count` |
 | A non-loopback host is rejected at configuration validation | INV-15 | Unit | Yes | `tests/eventbus/test_eventbus_config.py::test_non_loopback_host_raises_value_error` |
-| A publish whose JSONL append fails still succeeds after the SQLite commit (persistence precedes the secondary paths) | INV-02 (partial: no test injects a SQLite write failure on `POST /publish`) | Integration | Yes | `tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails` |
+| A publish whose JSONL append fails still succeeds after the SQLite commit (persistence precedes the secondary paths) | INV-02 | Integration | Yes | `tests/eventbus/test_eventbus_publish_contract.py::TestPublishContract::test_publish_succeeds_if_jsonl_append_fails` |
+| A SQLite insert or commit failure on `POST /publish` returns a non-success response, leaves no committed Event, and triggers neither the JSONL append nor the SSE broker notification | INV-02 | Integration | Yes | `tests/eventbus/test_eventbus_publish.py::test_publish_sqlite_write_failure_reports_failure_without_side_effects` |
 
 ### Startup Validation
 
@@ -344,7 +345,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, and INV-06 lack a complete automated test; INV-10's consumer binding is verified through ADR-013 Verification)
+- [ ] Each Invariant has a corresponding Verification (INV-01 and INV-06 lack a complete automated test; INV-10's consumer binding is verified through ADR-013 Verification)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
