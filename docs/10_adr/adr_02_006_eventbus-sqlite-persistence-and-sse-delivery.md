@@ -75,7 +75,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 9. At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not.
 10. The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 11. The following delivery rules apply:
-    - 11a. Reject `new_offset <= current_offset` (Monotonicity Invariant); enforced by an atomic SQL statement against the per-consumer offset table.
+    - 11a. An ACK with `new_offset <= current_offset` is accepted, offset unchanged (Monotonicity Invariant); enforced atomically in SQL on the per-consumer offset table.
     - 11b. A non-empty Consumer ID may have only one active `GET /subscribe` connection at a time; a second concurrent connection is rejected (Conflict Detection Required). Exclusivity on `POST /events/{event_id}/ack` and `POST /nack` is provided by binding the caller's token to its permitted `consumer_id` values (ADR-013), not by binding the call to a live connection.
     - 11c. When ACK persistence fails, an error response is returned and neither the delivery state nor the offset advances; the event therefore remains eligible for redelivery (At-Least-Once).
     - 11d. DLQ promotion paths are unified: inline promotion is prioritized and the background loop supplements it.
@@ -231,7 +231,7 @@ Security requires preventing unintended Event reception.
 - INV-06: Event IDs are assigned so that Consumers can process idempotently.
 - INV-07: At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not.
 - INV-08: The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
-- INV-09: `new_offset <= current_offset` is rejected.
+- INV-09: An ACK with `new_offset <= current_offset` never updates the offset.
 - INV-10: A non-empty Consumer ID has at most one active `GET /subscribe` connection. On ACK and NACK, a caller may use only the `consumer_id` values bound to its token (ADR-013 INV-02).
 - INV-11: A second concurrent `GET /subscribe` with an active Consumer ID is detected and rejected with HTTP 409.
 - INV-12: When ACK persistence fails, an error response is returned, the delivery state and offset are not advanced, and the Event stays eligible for redelivery.
@@ -246,7 +246,7 @@ Security requires preventing unintended Event reception.
 
 - When a SQLite write fails (persistence failure)
 - When ACK persistence fails (risk of breaking idempotency)
-- When `new_offset <= current_offset` is violated (breaking monotonicity)
+- When the offset would move backward
 - When a second concurrent `GET /subscribe` uses a Consumer ID that is already connected (rejected with HTTP 409)
 
 ### Fail-Open or Degraded Conditions
@@ -319,11 +319,11 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
   - **Blocking**: Yes
   - **Implementation**: `tests/eventbus/test_eventbus_subscribe.py::test_subscribe_duplicate_consumer_id_returns_409`, `tests/eventbus/test_eventbus_broker.py::test_duplicate_consumer_id_rejected`
 
-- **Test**: `new_offset <= current_offset` is rejected
+- **Test**: A lower-`seq` ACK leaves the offset unchanged
   - **Verifies**: INV-09
   - **Type**: Regression
   - **Blocking**: Yes
-  - **Implementation**: `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq`
+  - **Implementation**: `tests/eventbus/test_eventbus_offsets.py::TestConsumerOffsetsTable::test_offset_does_not_regress_on_older_seq`, `tests/eventbus/test_eventbus_ack_nack.py::TestAckHttpBehavior::test_ack_lower_seq_keeps_offset`
 
 - **Test**: The Delivery-State UPSERT and the Offset advancement are committed atomically within a single transaction
   - **Verifies**: INV-16
@@ -419,7 +419,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering INV-10 to INV-12; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner) covers the current decision (2026-10-15).
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

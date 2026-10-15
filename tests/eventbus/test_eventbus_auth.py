@@ -890,6 +890,55 @@ class TestFailClosedConsumerAuthorization:
             _TOKEN_PRINCIPAL_MAP.update(snapshot)
 
     @pytest.mark.asyncio
+    async def test_superuser_tokens_skip_consumer_identity_validation(self) -> None:
+        """ADR-013 INV-02 exception: the shared auth_token and admin_token carry no
+        consumer_id/topic restriction, so any consumer_id and topic passes, even
+        while the consumer token is restricted to an allowlist."""
+        from unittest.mock import MagicMock
+
+        from eventbus.auth import (
+            _TOKEN_PRINCIPAL_MAP,
+            _populate_token_maps,
+            require_consumer_identity,
+        )
+        from eventbus.config import EventBusConfig
+
+        snapshot = dict(_TOKEN_PRINCIPAL_MAP)
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-superuser.sqlite",
+                storage_dir="/tmp/test-eventbus-superuser",
+                offsets_dir="/tmp/test-eventbus-superuser",
+                deadletter_dir="/tmp/test-eventbus-superuser",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="shared-token",
+                admin_token="admin-token",
+                consumer_token="consumer-token",
+                consumer_authorization={"consumer-a": ["topic-a"]},
+                topic_authorization={},
+            )
+            _populate_token_maps(cfg)
+            mock_request = MagicMock()
+            mock_request.state.request_id = "req-superuser"
+            mock_request.url.path = "/subscribe"
+            for token in ("shared-token", "admin-token"):
+                principal = _TOKEN_PRINCIPAL_MAP[token]
+                assert principal.allowed_consumer_ids is None
+                assert principal.allowed_topics is None
+                result = await require_consumer_identity(
+                    mock_request,
+                    consumer_id="any-consumer",
+                    topics=["any-topic"],
+                    principal=principal,
+                )
+                assert result is principal
+        finally:
+            _TOKEN_PRINCIPAL_MAP.clear()
+            _TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+    @pytest.mark.asyncio
     async def test_empty_mappings_deny_all_consumers(self) -> None:
         """REQ-001/REQ-002 (EVENTBUS-008): empty consumer/topic authorization
         mappings resolve to frozenset() (deny-all); every consumer_id is rejected

@@ -197,7 +197,7 @@ ADR-002 documents the exception. Equivalent fail-closed validation is implemente
 ## Invariants
 
 - INV-01: All EventBus routes MUST reject unauthenticated requests with HTTP 401.
-- INV-02: A caller MUST NOT be able to act as another `consumer_id` or access an unauthorized topic.
+- INV-02: A caller holding a per-role token MUST NOT be able to act as another `consumer_id` or access an unauthorized topic. The superuser tokens (`auth_token`, `admin_token`) are the sole exception: they carry no `consumer_id` or topic restriction (see Known Deviations and INV-07).
 - INV-03: DLQ administration and privileged replay MUST require operator authorization.
 - INV-04: Unknown, missing, or incorrectly-typed configuration keys MUST be rejected by `load_config()`.
 - INV-05: Audit records MUST never include secret/token values.
@@ -236,6 +236,7 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 - **Test**: Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) — **Verifies**: INV-01 — **Type**: Integration — **Blocking**: Yes (the fixture-app tests are complemented by `TestProductionRouteWiring`, which checks the production app's route dependencies and the 401/403/200 behavior of `/health` and `/publish`)
 - **Test**: Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) — **Verifies**: INV-03 (operator-gated routes) — **Type**: Integration — **Blocking**: Yes
 - **Test**: consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`) — **Verifies**: INV-02 (topic access) — **Type**: Unit — **Blocking**: Yes
+- **Test**: the superuser tokens carry no consumer_id or topic restriction (`test_superuser_tokens_skip_consumer_identity_validation`) — **Verifies**: INV-02 exception — **Type**: Unit — **Blocking**: Yes
 - **Test**: empty `consumer_authorization`/`topic_authorization` mappings resolve to deny-all and reject every `consumer_id` (`test_empty_mappings_deny_all_consumers`) — **Verifies**: INV-02 empty-mapping case — **Type**: Unit — **Blocking**: Yes
 - **Test**: `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) — **Verifies**: Decision Details #7 — **Type**: Unit — **Blocking**: Yes
 - **Test**: `load_config()` rejects unknown TOML keys (`test_load_config_rejects_unknown_key`) — **Verifies**: INV-04 — **Type**: Unit — **Blocking**: Yes
@@ -270,7 +271,7 @@ See Implementation References for the current file/symbol list.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering the authentication description, INV-07, and the Known Deviations; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-15; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

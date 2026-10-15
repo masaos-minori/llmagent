@@ -91,29 +91,7 @@ Part 1 entries, Part 2 items, and "Proposed" ADRs are reviewed quarterly (`gover
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
-| ID | Title | Status | Severity | Area | Type |
-|----|-------|--------|----------|------|------|
-| EVENTBUS-017 | No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency | open | Medium | EventBus | design-gap |
-
-#### EVENTBUS-017
-
-- **ID**: EVENTBUS-017
-- **Title**: No runtime component uses the EventBus although ADR-008 INV-07 relies on Events for cross-DB consistency
-- **Status**: open
-- **Severity**: Medium
-- **Area**: EventBus
-- **Type**: design-gap
-- **Source**: `scripts/agent/eventbus_client.py`, `scripts/agent/eventbus_subscriber.py`, `scripts/agent/eventbus_topic_admin_client.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review
-- **Target**: `docs/10_adr/adr_02_008_sqlite-4db-separation.md`, `docs/01_overview/overview_02_files.md`
-- **Related**: None
-- **Summary**: ADR-008 Decision 8 and INV-07 guarantee cross-DB consistency by Events, but nothing at runtime publishes to or subscribes from the EventBus.
-- **Current Description**: governance_05 states that no runtime component calls the EventBus; the three client modules under `scripts/agent/` are imported only by their unit tests.
-- **Observed Implementation**: The EventBus service runs standalone; no Agent, RAG, or MCP code imports the client, subscriber, or topic-admin classes.
-- **Impact**: The consistency mechanism named by INV-07 has no runtime path, so cross-DB consistency rests on idempotent processing and state reconciliation alone.
-- **Recommended Action**: Wire a producer and consumer into the runtime, or amend ADR-008 through the ADR approval process and remove the unused client modules.
-- **Resolution Target**: INV-07 names only mechanisms that run, or the EventBus has a runtime user.
+No active Known Issues remain.
 
 ## Part 2: Needs Confirmation Inventory
 

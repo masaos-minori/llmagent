@@ -171,7 +171,7 @@ See `scripts/eventbus/` for the current file layout. See `conf.d/` for per-serve
 
 ### Event Bus Architecture
 
-The event bus is a standalone service that provides publish-subscribe messaging with SQLite-backed persistence and delivery guarantees. No Agent, RAG, or MCP runtime component publishes to or subscribes from it; the client modules under `scripts/agent/` are used only by their unit tests (Known Issue EVENTBUS-017).
+The event bus is a standalone service that provides publish-subscribe messaging with SQLite-backed persistence and delivery guarantees. No Agent, RAG, or MCP runtime component publishes to or subscribes from it; the client modules under `scripts/agent/` are used only by their unit tests.
 
 ### Delivery Mechanisms
 

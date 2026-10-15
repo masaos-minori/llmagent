@@ -270,6 +270,40 @@ class TestAckHttpBehavior:
         ).fetchone()
         assert offset is None
 
+    def test_ack_lower_seq_keeps_offset(self, client: Any) -> None:
+        """ADR-006 Decision 11a: an older-seq ACK is accepted, but the offset does not move."""
+        import eventbus.app as eb_app
+
+        first, second = _event(), _event()
+        for body in (first, second):
+            assert client.post("/publish", json=body).status_code == 200
+            _simulate_delivery_http(client, body["event_id"], "consumer-A")
+
+        resp_high = client.post(
+            f"/events/{second['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
+        assert resp_high.status_code == 200
+        high_seq = resp_high.json()["seq"]
+
+        resp_low = client.post(
+            f"/events/{first['event_id']}/ack", params={"consumer_id": "consumer-A"}
+        )
+        assert resp_low.status_code == 200
+        assert resp_low.json()["acked"] is True
+        assert resp_low.json()["seq"] < high_seq
+
+        db = eb_app.app.state.db
+        delivery = db.execute(
+            "SELECT acked FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", first["event_id"]),
+        ).fetchone()
+        assert delivery["acked"] == 1
+        offset = db.execute(
+            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
+            ("consumer-A",),
+        ).fetchone()
+        assert offset["offset"] == high_seq
+
     def test_two_consumers_ack_same_event_independently(self, client: Any) -> None:
         """Two distinct consumer_ids can each ACK the same event_id independently (REQ-001)."""
         body = _event()

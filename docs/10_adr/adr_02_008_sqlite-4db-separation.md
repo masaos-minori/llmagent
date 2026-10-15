@@ -114,7 +114,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 5. Reasons for DB separation: differences in write characteristics, lock contention, failure isolation, retention periods, recovery methods, and extension-loading scope.
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 7. Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
-8. Cross-DB consistency is guaranteed by Events, idempotent processing, and state reconciliation.
+8. Cross-DB consistency is guaranteed by idempotent processing and state reconciliation. No runtime component publishes to or consumes from the EventBus, so Events are not a consistency mechanism.
 9. sqlite-vec is loaded only into `rag.sqlite`.
 10. Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period.
 11. RAG: rebuildability; Session: history retention; Workflow: resumption and auditing; EventBus: unprocessed Events and Offsets.
@@ -339,7 +339,7 @@ Whether to make them unrecoverable or to provide a manual operator recovery proc
 - INV-04: `eventbus.sqlite` is the canonical store for Events, Offsets, Delivery, and the DLQ.
 - INV-05: Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 - INV-06: Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
-- INV-07: Cross-DB consistency is guaranteed by Events, idempotent processing, and state reconciliation.
+- INV-07: Cross-DB consistency is guaranteed by idempotent processing and state reconciliation; Events are not relied on for it.
 - INV-08: sqlite-vec is loaded only into `rag.sqlite`.
 - INV-09: Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period.
 - INV-10: A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
@@ -467,7 +467,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-017 — tracked in governance_03 Part 1 (INV-07)
+Not applicable
 
 ## Review Triggers
 
@@ -501,8 +501,7 @@ See Implementation References for the current file/symbol list.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Decision Change (2026-10-08)**: Task-level approval decision (repository owner instruction) covering the Derived Stores section and the Recovery Policy Matrix; reviewer names are not recorded.
-- **Decision Change (2026-10-14)**: Task-level approval decision (repository owner); approvals removed from Decision #3 and INV-03.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-15; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
