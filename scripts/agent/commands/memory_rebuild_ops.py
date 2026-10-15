@@ -2,13 +2,17 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
+from pathlib import Path
 from typing import TYPE_CHECKING
+
+from shared.json_utils import dumps as _json_dumps
 
 from agent.commands.output_port import OutputPort
 from agent.context import AgentContext
 from agent.memory.import_ops import import_from_jsonl
-from agent.memory.rebuild_ops import rebuild_fts, rebuild_vec
+from agent.memory.rebuild_ops import reindex as _reindex
 
 if TYPE_CHECKING:
     from agent.memory.services import MemoryServices
@@ -26,10 +30,13 @@ class RebuildResult:
     sqlite_before: int
     inserted: int | None = None
     sqlite_after: int | None = None
+    sqlite_only: int = 0
+    loss_blocked: bool = False
+    error: str | None = None
 
 
 class MemoryRebuildOps:
-    """Handles memory rebuild operations (rebuild, rebuild-fts, rebuild-vec, check-consistency)."""
+    """Handles memory rebuild/reindex operations (rebuild, reindex, check-consistency)."""
 
     def __init__(self, ctx: AgentContext, out: OutputPort) -> None:
         """Initialize the memory rebuild operations handler with context and output port."""
@@ -37,24 +44,32 @@ class MemoryRebuildOps:
         self._out = out
 
     def rebuild(self, mem: MemoryServices, args: list[str]) -> RebuildResult:
-        """Rebuild memories from JSONL archive.
+        """Rebuild memories from the JSONL archive.
 
-        Default is dry-run. Pass --confirm to perform the actual rebuild.
+        Default is dry-run. Pass ``--confirm`` to perform the actual rebuild; a
+        confirmed run backs up the current SQLite memories first (aborting on
+        backup failure) and refuses to drop SQLite-only memories unless
+        ``--allow-loss`` is given (REQ-007).
         """
-        dry_run = "--confirm" not in args
+        confirm = "--confirm" in args
+        allow_loss = "--allow-loss" in args
 
         jsonl_store = mem.ingestion._jsonl
         jsonl_count = jsonl_store.count_all()
-        consistency = mem.store.check_consistency()
-        sqlite_before = consistency.memories
+        sqlite_before = mem.store.check_consistency().memories
+        sqlite_only = self._count_sqlite_only(mem, jsonl_store)
 
-        self._out.write(f"  JSONL archive records:   {jsonl_count}")
-        self._out.write(f"  Current SQLite memories: {sqlite_before}")
-        self._out.write(f"  Expected after rebuild:  {jsonl_count}")
-        self._out.write("  WARNING: delete/pin/unpin operations are NOT replayed.")
-        self._out.write("           Deleted entries may be re-inserted from JSONL.")
-
-        if dry_run:
+        # Dry-run table (spec 5.8-1)
+        self._out.write_table(
+            ["Metric", "Value"],
+            [
+                ["JSONL archive records", str(jsonl_count)],
+                ["Current SQLite memories", str(sqlite_before)],
+                ["Expected after rebuild", str(jsonl_count)],
+                ["SQLite-only (at risk)", str(sqlite_only)],
+            ],
+        )
+        if not confirm:
             self._out.write("  [dry-run] No changes made. Add --confirm to proceed.")
             _emit_memory_audit(
                 self._ctx,
@@ -67,10 +82,43 @@ class MemoryRebuildOps:
                 ),
             )
             return RebuildResult(
-                dry_run=True, jsonl_count=jsonl_count, sqlite_before=sqlite_before
+                dry_run=True,
+                jsonl_count=jsonl_count,
+                sqlite_before=sqlite_before,
+                sqlite_only=sqlite_only,
             )
 
-        _, inserted = import_from_jsonl(jsonl_store, dry_run=False)
+        # Pre-run backup (abort on failure)
+        try:
+            self._backup_memories_as_jsonl(mem)
+        except Exception as e:  # noqa: BLE001 — REQ-007: abort rebuild on ANY backup failure
+            self._out.write(f"  [memory] Rebuild aborted: backup failed: {e}")
+            return RebuildResult(
+                dry_run=False,
+                jsonl_count=jsonl_count,
+                sqlite_before=sqlite_before,
+                sqlite_only=sqlite_only,
+                error=str(e),
+            )
+
+        # Refuse SQLite-only loss unless allowed
+        if sqlite_only > 0 and not allow_loss:
+            self._out.write(
+                f"  [memory] Rebuild refused: {sqlite_only} SQLite-only memor"
+                f"{'y' if sqlite_only == 1 else 'ies'} would be lost. "
+                "Re-run with --allow-loss to proceed."
+            )
+            return RebuildResult(
+                dry_run=False,
+                jsonl_count=jsonl_count,
+                sqlite_before=sqlite_before,
+                sqlite_only=sqlite_only,
+                loss_blocked=True,
+            )
+
+        _, inserted = import_from_jsonl(
+            jsonl_store, dry_run=False, backup=True, allow_loss=allow_loss
+        )
         self._out.write_success(
             f"Imported {inserted} entries from {jsonl_count} JSONL archive records."
         )
@@ -86,37 +134,59 @@ class MemoryRebuildOps:
         )
 
         self.check_consistency(mem)
-
-        after_consistency = mem.store.check_consistency()
+        after = mem.store.check_consistency().memories
         return RebuildResult(
             dry_run=False,
             jsonl_count=jsonl_count,
             sqlite_before=sqlite_before,
             inserted=inserted,
-            sqlite_after=after_consistency.memories,
+            sqlite_after=after,
+            sqlite_only=sqlite_only,
         )
 
-    def rebuild_fts(self, mem: MemoryServices) -> None:
-        """Rebuild the memories_fts index from SQLite."""
-        count = rebuild_fts()
-        self._out.write_success(f"memories_fts rebuilt: {count} rows [Memory]")
-        _emit_memory_audit(
-            self._ctx,
-            MemoryOpResult(ok=True, memory_id="", action="rebuild-fts", count=count),
-        )
+    def reindex(self, mem: MemoryServices, args: list[str]) -> None:
+        """Rebuild only the requested FTS or vec index (REQ-008).
 
-    def rebuild_vec(self, mem: MemoryServices) -> None:
-        """Rebuild the memories_vec index from SQLite."""
+        ``/memory reindex [--fts|--vec]`` rebuilds the selected index in place;
+        ``memories`` and the JSONL archive are unchanged.
+        """
+        mode = next((a for a in args if a in ("--fts", "--vec")), None)
+        if mode not in ("--fts", "--vec"):
+            self._out.write_validation_error("/memory reindex [--fts|--vec]")
+            return
+        idx = "fts" if mode == "--fts" else "vec"
         embed_enabled = self._ctx.cfg.memory.memory_embed_enabled
-        if not embed_enabled:
+        if idx == "vec" and not embed_enabled:
             self._out.write("  [memory] embedding disabled — cannot rebuild vec index")
             return
-        count = rebuild_vec()
-        self._out.write_success(f"memories_vec rebuilt: {count} rows [Memory]")
+        count = _reindex(idx)
+        self._out.write_success(f"memories_{idx} rebuilt: {count} rows [Memory]")
         _emit_memory_audit(
             self._ctx,
-            MemoryOpResult(ok=True, memory_id="", action="rebuild-vec", count=count),
+            MemoryOpResult(ok=True, memory_id="", action=f"reindex-{idx}", count=count),
         )
+
+    def _count_sqlite_only(self, mem: MemoryServices, jsonl_store) -> int:
+        """Count SQLite memory ids absent from the JSONL archive."""
+        seen = {
+            d.get("memory_id")
+            for kind, d in jsonl_store.iter_records()
+            if kind == "memory"
+        }
+        seen.discard(None)
+        existing = mem.store.list_entries(limit=100000)
+        return sum(1 for e in existing if e.memory_id not in seen)
+
+    def _backup_memories_as_jsonl(self, mem: MemoryServices) -> None:
+        """Write the current SQLite memories to a JSONL backup file. Raise on failure."""
+        entries = mem.store.list_entries(limit=100000)
+        base_dir = self._ctx.cfg.memory.memory_jsonl_dir
+        ts = datetime.now(UTC).isoformat()
+        backup_path = Path(base_dir) / f"memories-backup-{ts}.jsonl"
+        backup_path.parent.mkdir(parents=True, exist_ok=True)
+        with backup_path.open("w", encoding="utf-8") as f:
+            for e in entries:
+                f.write(_json_dumps(asdict(e)) + "\n")
 
     def check_consistency(self, mem: MemoryServices) -> None:
         """Check consistency between SQLite, JSONL, FTS5, and vec row counts."""

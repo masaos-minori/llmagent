@@ -63,7 +63,7 @@ Generated from `scripts/agent/memory/*.py` top-level public classes and function
 | `scripts/agent/memory/extract.py` | `ExtractionPolicy` | `class ExtractionPolicy` | Configurable thresholds for memory extraction. |
 |  | `extract_memories` | `def extract_memories(history, session_id, turn_id, project, repo, branch, max_content_chars, policy) -> list[MemoryEntry]` | Extract MemoryEntry candidates from a conversation history list. |
 | `scripts/agent/memory/fts_query.py` | `build_fts_query` | `def build_fts_query(text) -> str` | Build FTS5 MATCH query with token quoting to escape reserved terms. |
-| `scripts/agent/memory/import_ops.py` | `import_from_jsonl` | `def import_from_jsonl(jsonl_store, *, dry_run, embed_dim) -> tuple[int, int]` | Import entries from a JSONL archive into SQLite memories/FTS/vec tables. |
+| `scripts/agent/memory/import_ops.py` | `import_from_jsonl` | `def import_from_jsonl(jsonl_store, *, dry_run, embed_dim, backup, allow_loss) -> tuple[int, int]` | Import entries from a JSONL archive into SQLite memories/FTS/vec tables. |
 | `scripts/agent/memory/ingestion.py` | `MemoryIngestionService` | `class MemoryIngestionService` | Extracts, deduplicates, and persists memory entries from session history. |
 | `scripts/agent/memory/injection.py` | `InjectionPolicy` | `class InjectionPolicy` | Controls how many semantic/episodic memories are injected per turn. |
 |  | `MemoryInjectionService` | `class MemoryInjectionService` | Injects relevant memory snippets into the LLM context per lifecycle hook. |
@@ -77,6 +77,7 @@ Generated from `scripts/agent/memory/*.py` top-level public classes and function
 |  | `unpin` | `def unpin(memory_id, conn) -> bool` | Set pinned=0 for memory_id; return True when found. |
 | `scripts/agent/memory/rebuild_ops.py` | `rebuild_fts` | `def rebuild_fts() -> int` | Rebuild memories_fts from the memories table. Returns number of rows inserted. |
 |  | `rebuild_vec` | `def rebuild_vec() -> int` | Rebuild memories_vec from the memories table. Returns number of rows inserted. |
+|  | `reindex` | `def reindex(index_type) -> int` | Rebuild a single memory index ('fts' or 'vec'); return rows inserted. |
 | `scripts/agent/memory/retriever.py` | `FtsRetriever` | `class FtsRetriever` | FTS5 BM25 search with importance / pin / recency rescoring. |
 |  | `VectorRetriever` | `class VectorRetriever` | KNN search on memories_vec using sqlite-vec extension. |
 |  | `HybridRetriever` | `class HybridRetriever` | FTS5 + optional KNN hybrid search with RRF merge. |

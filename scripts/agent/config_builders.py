@@ -262,6 +262,7 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
         cfg, "memory_embed_timeout_sec", _get_float, 5.0
     )
     memory_retention_days = _get_or_default(cfg, "memory_retention_days", _get_int, 90)
+    memory_max_pinned = _get_or_default(cfg, "memory_max_pinned", _get_int, 10)
     memory_fts_limit = _get_or_default(cfg, "memory_fts_limit", _get_int, 50)
     memory_rrf_k = _get_or_default(cfg, "memory_rrf_k", _get_int, 60)
     memory_recency_days = _get_or_default(cfg, "memory_recency_days", _get_float, 7.0)
@@ -278,6 +279,7 @@ def _build_memory_config(cfg: dict[str, Any]) -> MemoryConfig:
             memory_dedup_threshold=memory_dedup_threshold,
             memory_embed_timeout_sec=memory_embed_timeout_sec,
             memory_retention_days=memory_retention_days,
+            memory_max_pinned=memory_max_pinned,
             memory_fts_limit=memory_fts_limit,
             memory_rrf_k=memory_rrf_k,
             memory_recency_days=memory_recency_days,

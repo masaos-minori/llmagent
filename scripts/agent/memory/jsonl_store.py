@@ -21,6 +21,7 @@ from pathlib import Path
 
 import orjson
 from shared.json_utils import dumps as _json_dumps
+from shared.json_utils import now_iso
 
 from agent.memory.enums import MemoryType
 from agent.memory.exceptions import JsonlFormatError
@@ -68,6 +69,22 @@ class JsonlMemoryStore:
             with self._path.open("a", encoding="utf-8") as f:
                 f.write(line)
 
+    def append_event(self, event: str, memory_id: str) -> None:
+        """Append a change-event line: {"event", "memory_id", "at"}.
+
+        Synchronous primitive for the sync memory handlers (delete/pin/prune).
+        Thread-unsafe like the rest of this store: rely on a single asyncio
+        event loop for ordering against write(); callers must append after their
+        SQLite write so the archive never diverges from the authoritative store.
+        """
+        line = (
+            _json_dumps({"event": event, "memory_id": memory_id, "at": now_iso()})
+            + "\n"
+        )
+        self._path.parent.mkdir(parents=True, exist_ok=True)
+        with self._path.open("a", encoding="utf-8") as f:
+            f.write(line)
+
     def read_all(self) -> list[MemoryEntry]:
         """Read all entries; raises JsonlFormatError on first malformed line."""
         if not self._path.exists():
@@ -80,6 +97,8 @@ class JsonlMemoryStore:
                     continue
                 try:
                     d = orjson.loads(line)
+                    if isinstance(d, Mapping) and "event" in d:
+                        continue
                     entries.append(_entry_from_dict(d))
                 except (orjson.JSONDecodeError, ValueError, TypeError) as e:
                     raise JsonlFormatError(
@@ -90,3 +109,23 @@ class JsonlMemoryStore:
     def count_all(self) -> int:
         """Return total number of valid records in the JSONL file."""
         return len(self.read_all())
+
+    def iter_records(self):
+        """Yield (kind, data) for every non-blank line:
+        ('memory', dict) | ('event', dict) | ('malformed', raw_text)."""
+        if not self._path.exists():
+            return
+        with self._path.open("r", encoding="utf-8") as f:
+            for raw_line in f:
+                line = raw_line.strip()
+                if not line:
+                    continue
+                try:
+                    d = orjson.loads(line)
+                except orjson.JSONDecodeError:
+                    yield ("malformed", raw_line)
+                    continue
+                if isinstance(d, Mapping) and "event" in d:
+                    yield ("event", d)
+                else:
+                    yield ("memory", d)

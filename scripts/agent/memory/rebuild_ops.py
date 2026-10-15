@@ -32,3 +32,12 @@ def rebuild_vec() -> int:
                 (row["memory_id"], row["embedding"]),
             )
         return len(rows)
+
+
+def reindex(index_type: str) -> int:
+    """Rebuild a single memory index ('fts' or 'vec'); return rows inserted."""
+    if index_type == "fts":
+        return rebuild_fts()
+    if index_type == "vec":
+        return rebuild_vec()
+    raise ValueError(f"Unknown index type {index_type!r}; expected 'fts' or 'vec'")

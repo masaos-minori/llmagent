@@ -2,8 +2,10 @@
 """scripts/agent/memory/write_ops.py — Write operations for memory CRUD."""
 
 import logging
+from pathlib import Path
 
 from db.helper import SQLiteHelper
+from shared.config_loader import ConfigLoader
 from shared.json_utils import dumps, now_iso
 
 from agent.memory.mapper import _floats_to_blob, _stamp_entry
@@ -107,7 +109,14 @@ def upsert(
 
 
 def delete(memory_id: str) -> bool:
-    """Delete one entry by memory_id; return True when found and deleted."""
+    """Delete one entry by memory_id; return True when found and deleted.
+
+    Also removes any ``memory_links`` rows referencing ``memory_id`` in either
+    column within the same transaction (SQLite foreign keys are off, so cascade
+    cannot be relied on), and appends a ``delete`` change event to the JSONL
+    archive after the commit (SQLite-first; a failed append propagates so the
+    caller can surface M-07 while the SQLite change stands). REQ-001, REQ-004.
+    """
     with SQLiteHelper("session").open(write_mode=True) as db:
         cur = db.execute("DELETE FROM memories WHERE memory_id = ?", (memory_id,))
         deleted = cur.rowcount > 0
@@ -117,5 +126,22 @@ def delete(memory_id: str) -> bool:
                 "DELETE FROM memories_vec WHERE memory_id = ?",
                 (memory_id,),
             )
+            db.execute("DELETE FROM memory_links WHERE src_id = ?", (memory_id,))
+            db.execute("DELETE FROM memory_links WHERE dst_id = ?", (memory_id,))
         db.commit()
+    if deleted:
+        _emit_delete_event(memory_id)
     return deleted
+
+
+def _emit_delete_event(memory_id: str) -> None:
+    """Append a 'delete' change event after the SQLite write (SQLite-first).
+
+    The SQLite change stands even if the archive append fails; the error
+    propagates so the caller can surface M-07.
+    """
+    from agent.memory.jsonl_store import JsonlMemoryStore
+
+    cfg = ConfigLoader().load("agent.toml")
+    store = JsonlMemoryStore(Path(cfg["memory"]["memory_jsonl_dir"]) / "memories.jsonl")
+    store.append_event("delete", memory_id)

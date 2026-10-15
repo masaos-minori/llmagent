@@ -177,7 +177,8 @@ class SQLiteMemoryDeleteStore:
     def delete_memories_before(self, older_than_days: int) -> MemoryDeleteResult:
         """Delete memories older than N days atomically across all memory tables."""
         rows = self._db.fetchall(
-            "SELECT memory_id FROM memories WHERE created_at < datetime('now', ?)",
+            "SELECT memory_id FROM memories "
+            "WHERE created_at < datetime('now', ?) AND pinned = 0",
             (f"-{older_than_days} days",),
         )
         if not rows:
@@ -195,4 +196,17 @@ class SQLiteMemoryDeleteStore:
                 self._db.execute("DELETE FROM memories_fts WHERE memory_id=?", (mid,))
             for mid in mids:
                 self._db.execute("DELETE FROM memories_vec WHERE memory_id=?", (mid,))
+            for mid in mids:
+                self._db.execute("DELETE FROM memory_links WHERE src_id=?", (mid,))
+            for mid in mids:
+                self._db.execute("DELETE FROM memory_links WHERE dst_id=?", (mid,))
         return MemoryDeleteResult(deleted=deleted)
+
+    def collect_prunable_ids(self, older_than_days: int) -> list[str]:
+        """Return memory_ids older than older_than_days that are not pinned."""
+        rows = self._db.fetchall(
+            "SELECT memory_id FROM memories "
+            "WHERE created_at < datetime('now', ?) AND pinned = 0",
+            (f"-{older_than_days} days",),
+        )
+        return [row[0] for row in rows]

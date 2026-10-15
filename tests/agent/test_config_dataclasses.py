@@ -328,3 +328,13 @@ class TestMemoryConfigValidation:
             ValueError, match=re.escape("memory_retention_days must be >= 1, got 0")
         ):
             MemoryConfig(memory_retention_days=0)
+
+    def test_memory_max_pinned_zero_raises(self) -> None:
+        with pytest.raises(
+            ValueError, match=re.escape("memory_max_pinned must be >= 1, got 0")
+        ):
+            MemoryConfig(memory_max_pinned=0)
+
+    def test_memory_max_pinned_default_and_one_passes(self) -> None:
+        assert MemoryConfig().memory_max_pinned == 10
+        MemoryConfig(memory_max_pinned=1)

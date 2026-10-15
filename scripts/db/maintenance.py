@@ -339,6 +339,7 @@ def prune_old_memories(
     """
     try:
         store = SQLiteMemoryDeleteStore(db)
+        pruned_ids = store.collect_prunable_ids(older_than_days)
         delete_result = store.delete_memories_before(older_than_days)
         logger.info(
             "prune_old_memories: removed %s entries older than %s days",
@@ -349,7 +350,7 @@ def prune_old_memories(
             success=True,
             action="prune",
             mode=mode,
-            data={"deleted": delete_result.deleted},
+            data={"deleted": delete_result.deleted, "pruned_ids": pruned_ids},
         )
     except sqlite3.Error as e:
         return _handle_maintenance_error(e, "prune", mode)

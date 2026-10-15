@@ -427,3 +427,22 @@ class TestSQLiteMemoryDeleteStore:
         assert any("DELETE FROM memories WHERE" in c for c in calls)
         assert any("memories_fts" in c for c in calls)
         assert any("memories_vec" in c for c in calls)
+
+    def test_collect_prunable_ids_filters_pinned(self) -> None:
+        mock_db = MagicMock()
+        mock_db.fetchall.return_value = [
+            ("old-1",),
+            ("old-2",),
+        ]
+        store = SQLiteMemoryDeleteStore(mock_db)
+        ids = store.collect_prunable_ids(30)
+        assert ids == ["old-1", "old-2"]
+        sql, args = mock_db.fetchall.call_args[0]
+        assert "pinned = 0" in sql
+        assert args == ("-30 days",)
+
+    def test_collect_prunable_ids_empty(self) -> None:
+        mock_db = MagicMock()
+        mock_db.fetchall.return_value = []
+        store = SQLiteMemoryDeleteStore(mock_db)
+        assert store.collect_prunable_ids(30) == []

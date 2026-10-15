@@ -57,6 +57,11 @@ CREATE VIRTUAL TABLE memories_fts USING fts5(
     memory_id UNINDEXED, content, summary, tags
 );
 CREATE TABLE memories_vec (memory_id TEXT PRIMARY KEY, embedding BLOB);
+CREATE TABLE memory_links (
+    src_id  TEXT NOT NULL REFERENCES memories(memory_id),
+    dst_id  TEXT NOT NULL REFERENCES memories(memory_id),
+    PRIMARY KEY (src_id, dst_id)
+);
 """
 
 
@@ -194,6 +199,17 @@ class TestSessionOperationsKeepMemory:
 
 
 class TestMemoryOperationsKeepSession:
+    @pytest.fixture(autouse=True)
+    def _suppress_archive_write(self) -> Generator[None]:
+        """Prevent delete()'s SQLite-first archive append from touching disk.
+
+        ``delete()`` appends a ``delete`` change event to the JSONL archive after
+        committing; patch the helper so this boundary test never writes to the
+        real production archive (test isolation).
+        """
+        with patch("agent.memory.write_ops._emit_delete_event"):
+            yield
+
     def test_memory_delete_removes_target_only(
         self, wired: AgentSession, conn: sqlite3.Connection
     ) -> None:

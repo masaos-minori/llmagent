@@ -222,3 +222,28 @@ class TestBuildStatusTableModeLabels:
         rows = build_status_table(status)
         mode_row = next(r for r in rows if r[0] == "Mode")
         assert mode_row[1] == "Memory enabled, embedding disabled (FTS-only)"
+
+
+# ── Pinned row (REQ-001) ──────────────────────────────────────────────────────
+
+
+class TestPinnedRow:
+    def test_pinned_row_renders_ratio(self) -> None:
+        from agent.commands.memory_status import MemoryStatus, build_status_table
+
+        status = MemoryStatus(
+            memory_layer_enabled=True,
+            pinned_count=3,
+            memory_max_pinned=10,
+        )
+        rows = build_status_table(status)
+        pinned_row = next(r for r in rows if r[0] == "Pinned")
+        assert pinned_row[1] == "3 / 10"
+
+    def test_pinned_row_defaults_to_zero(self) -> None:
+        from agent.commands.memory_status import MemoryStatus, build_status_table
+
+        status = MemoryStatus()
+        rows = build_status_table(status)
+        pinned_row = next(r for r in rows if r[0] == "Pinned")
+        assert pinned_row[1] == "0 / 0"

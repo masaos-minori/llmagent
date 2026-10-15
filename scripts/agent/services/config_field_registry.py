@@ -92,6 +92,7 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("gitops_push_blocked", "approval", False),
     # Memory section
     ConfigFieldRegistry("memory_retention_days", "memory", True),
+    ConfigFieldRegistry("memory_max_pinned", "memory", True),
     ConfigFieldRegistry("memory_local_only", "memory", True),
     ConfigFieldRegistry("use_memory_layer", "memory", False),
     ConfigFieldRegistry("memory_embed_enabled", "memory", False),

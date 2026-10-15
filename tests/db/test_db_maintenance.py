@@ -334,6 +334,7 @@ class TestPruneOldMemories:
         assert result.success is True
         assert result.data is not None
         assert result.data["deleted"] == 1
+        assert result.data["pruned_ids"] == [mid]
         # memories テーブルと memories_fts テーブルから削除されること
         calls = [str(c) for c in mock_db.execute.call_args_list]
         assert any("DELETE FROM memories WHERE" in c for c in calls)

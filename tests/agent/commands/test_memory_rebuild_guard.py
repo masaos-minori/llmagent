@@ -89,26 +89,16 @@ def test_rebuild_shows_jsonl_count_in_output() -> None:
     mem = _make_mem(jsonl_count=42)
     ops, out = _make_ops()
     ops.rebuild(mem, [])
-    output_lines = [str(c[0][0]) for c in out.write.call_args_list]
-    assert any("42" in line for line in output_lines)
+    _, rows = out.write_table.call_args[0]
+    assert any("42" in str(r) for r in rows)
 
 
 def test_rebuild_shows_sqlite_count_in_output() -> None:
     mem = _make_mem(sqlite_count=17)
     ops, out = _make_ops()
     ops.rebuild(mem, [])
-    output_lines = [str(c[0][0]) for c in out.write.call_args_list]
-    assert any("17" in line for line in output_lines)
-
-
-def test_rebuild_shows_warning_about_non_replayed_state() -> None:
-    mem = _make_mem()
-    ops, out = _make_ops()
-    ops.rebuild(mem, [])
-    output_lines = [str(c[0][0]) for c in out.write.call_args_list]
-    assert any(
-        "delete" in line.lower() or "pin" in line.lower() for line in output_lines
-    )
+    _, rows = out.write_table.call_args[0]
+    assert any("17" in str(r) for r in rows)
 
 
 def test_rebuild_dry_run_message_shown() -> None:

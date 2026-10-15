@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from agent.config_dataclasses import AgentConfig
     from agent.memory.services import MemoryServices
 
 
@@ -21,6 +22,8 @@ class MemoryStatus:
     circuit_detail: str = ""
     consecutive_failures: int = 0
     fts_fallback_count: int = 0
+    pinned_count: int = 0
+    memory_max_pinned: int = 0
     last_retrieval_mode: str = ""
     total_entries: int = 0
     semantic_entries: int = 0
@@ -60,6 +63,7 @@ def build_status_table(status: MemoryStatus) -> list[list[str]]:
     rows.append(["Circuit", circuit_display])
     rows.append(["Consecutive failures", str(status.consecutive_failures)])
     rows.append(["FTS fallback count", str(status.fts_fallback_count)])
+    rows.append(["Pinned", f"{status.pinned_count} / {status.memory_max_pinned}"])
     rows.append(["Last retrieval mode", mode_display])
     rows.append(["Entries (total)", str(status.total_entries)])
     rows.append(["  semantic", str(status.semantic_entries)])
@@ -70,10 +74,20 @@ def build_status_table(status: MemoryStatus) -> list[list[str]]:
     return rows
 
 
-def build_memory_status(mem: MemoryServices | None) -> MemoryStatus | None:
+def build_memory_status(
+    mem: MemoryServices | None, cfg: AgentConfig
+) -> MemoryStatus | None:
     """Build a MemoryStatus from a MemoryServices instance."""
     if mem is None:
         return None
+
+    # Pinned count is not exposed by services.py, so compute it directly.
+    from db.helper import SQLiteHelper
+
+    with SQLiteHelper("session").open() as db:
+        pinned_rows = db.fetchall("SELECT count(*) FROM memories WHERE pinned = 1")
+    pinned_count = int(pinned_rows[0][0]) if pinned_rows else 0
+    max_pinned = cfg.memory.memory_max_pinned
 
     embed_client = mem.retriever.embed_client
     if embed_client is None:
@@ -93,6 +107,8 @@ def build_memory_status(mem: MemoryServices | None) -> MemoryStatus | None:
             episodic_entries=stats["episodic"],
             embed_skip_count=0,
             by_source=stats.get("by_source", {}),
+            pinned_count=pinned_count,
+            memory_max_pinned=max_pinned,
         )
 
     status_info = embed_client.get_status()
@@ -118,4 +134,6 @@ def build_memory_status(mem: MemoryServices | None) -> MemoryStatus | None:
         episodic_entries=stats["episodic"],
         embed_skip_count=stats["embed_skip"],
         by_source=stats["by_source"],
+        pinned_count=pinned_count,
+        memory_max_pinned=max_pinned,
     )

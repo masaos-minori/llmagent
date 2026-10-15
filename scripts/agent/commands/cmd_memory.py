@@ -4,13 +4,14 @@
 /memory slash-command mixin for CommandRegistry.
 
 Subcommands:
-  /memory list [semantic|episodic] [limit]  — List entries by type
-  /memory search <query>                    — FTS5 search across all entries
-  /memory show <id>                         — Show full content of one entry
-  /memory pin <id>                          — Pin an entry
-  /memory unpin <id>                        — Unpin an entry
-  /memory delete [--dry-run] <id>           — Delete one entry
-  /memory prune [--dry-run] [days]          — Delete entries older than N days
+  /memory status       — Show mode, counts, pinned count (runs on no-args too)
+  /memory list [n]     — List memories with short IDs
+  /memory delete <id>  — Delete one memory after confirmation
+  /memory pin <id>     — Fix a memory
+  /memory unpin <id>   — Release a memory
+  /memory prune        — Delete stale memories (never pinned)
+  /memory reindex      — Rebuild FTS/vec indexes only
+  /memory rebuild      — Rebuild memories from the JSONL archive
 """
 
 from __future__ import annotations
@@ -66,21 +67,10 @@ def _emit_memory_audit(ctx: AgentContext, result: MemoryOpResult) -> None:
     )
 
 
-_MEMORY_HELP = """\
-/memory list [semantic|episodic] [--source RULE|DECISION|FAILURE|CONVERSATION] [--branch <branch>] [limit]
-                                          List entries (default: all, limit 10)
-/memory search <query> [--branch <branch>]  FTS5 search across all entries
-/memory show <id>                         Show full content of one entry
-/memory pin <id>                          Pin an entry (always injected at session start)
-/memory unpin <id>                        Remove pin from an entry
-/memory delete <id>                       Delete one entry by memory_id
-/memory prune [days]                      Delete entries older than N days (default: retention_days config)
-/memory status                            Embedding enabled, circuit state, retrieval mode
-/memory check-consistency                 Compare JSONL, SQLite, FTS5, and vec row counts
- /memory rebuild [--dry-run]               Import records from JSONL archive (does not replay deletes or pin state)
- /memory rebuild-fts                       Rebuild memories_fts index from SQLite
- /memory rebuild-vec                       Rebuild memories_vec index from SQLite
-"""
+# M-02: emitted when the memory layer is disabled and a non-status subcommand runs.
+# The normative target table/behavior lives in
+# docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md.
+_M02_DISABLED = "  [memory] M-02: memory layer is disabled (use_memory_layer=false)"
 
 
 class _MemoryMixin(MixinBase):
@@ -96,14 +86,15 @@ class _MemoryMixin(MixinBase):
         self._rebuild_ops = MemoryRebuildOps(self._ctx, self._out)
 
     def _cmd_memory(self, args: str) -> None:
-        """Dispatch memory subcommands: status, pin, unpin, flush, rebuild."""
+        """Dispatch memory subcommands: status, list, delete, pin, unpin, prune, reindex, rebuild."""
         ctx = self._ctx
         raw_tokens = args.strip().split()
         sub = raw_tokens[0] if raw_tokens else ""
         sub_tokens = raw_tokens[1:] if raw_tokens else []
 
-        if not sub or sub == "help":
-            self._out.write(_MEMORY_HELP)
+        # No-args runs status.
+        if not sub:
+            self._memory_status(ctx.services_required.memory)
             return
 
         mem = ctx.services_required.memory
@@ -113,25 +104,19 @@ class _MemoryMixin(MixinBase):
             self._memory_status(mem)
             return
 
+        # Every other subcommand requires the memory layer.
         if mem is None:
-            self._out.write(
-                "  [memory] Memory layer is disabled (use_memory_layer=false)"
-            )
+            self._out.write(_M02_DISABLED)
             return
 
         dispatch = {
             "list": lambda: self._data_ops.memory_list(mem, sub_tokens),
-            "search": lambda: self._data_ops.memory_search(mem, sub_tokens),
-            "show": lambda: self._data_ops.memory_show(mem, sub_tokens),
+            "delete": lambda: self._data_ops.memory_delete(mem, sub_tokens),
             "pin": lambda: self._data_ops.memory_pin(mem, sub_tokens, pin=True),
             "unpin": lambda: self._data_ops.memory_pin(mem, sub_tokens, pin=False),
-            "delete": lambda: self._data_ops.memory_delete(mem, sub_tokens),
             "prune": lambda: self._data_ops.memory_prune(mem, ctx, sub_tokens),
-            "check-consistency": lambda: self._rebuild_ops.check_consistency(mem),
+            "reindex": lambda: self._rebuild_ops.reindex(mem, sub_tokens),
             "rebuild": lambda: self._rebuild_ops.rebuild(mem, sub_tokens),
-            "import-jsonl": lambda: self._rebuild_ops.rebuild(mem, sub_tokens),
-            "rebuild-fts": lambda: self._rebuild_ops.rebuild_fts(mem),
-            "rebuild-vec": lambda: self._rebuild_ops.rebuild_vec(mem),
         }
         handler = dispatch.get(sub)
         if handler:
@@ -147,7 +132,7 @@ class _MemoryMixin(MixinBase):
             )
             return
 
-        status = build_memory_status(mem)
+        status = build_memory_status(mem, self._ctx.cfg)
         assert status is not None
         if not status.embedding_enabled:
             self._out.write("  [memory] embed_client not available")

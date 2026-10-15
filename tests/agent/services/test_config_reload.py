@@ -805,6 +805,7 @@ class TestRegistryFieldClassification:
         ]
         expected = {
             "memory_retention_days",
+            "memory_max_pinned",
             "memory_local_only",
             "use_memory_layer",
             "memory_embed_enabled",

@@ -212,6 +212,7 @@ class SessionMessageRepository:
             )
             undo_floor = session_rows[0][0] if session_rows else 0
             session_found = len(session_rows) > 0
+            undo_floor_message_id = session_rows[0][1] if session_found else 0
         if not session_found:
             return ([], False, 0)
         rows = db.fetchall(

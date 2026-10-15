@@ -10,16 +10,21 @@ from __future__ import annotations
 
 import asyncio
 import sqlite3
+import tempfile
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.memory.import_ops import import_from_jsonl
 from agent.memory.jsonl_store import JsonlMemoryStore
+from agent.memory.models import ConsistencyReport
 from agent.memory.types import MemoryEntry
 from agent.memory.write_ops import add as write_add
+
+# Backing dir for rebuild backup writes in unit tests.
+_TMP_JSONL_DIR = tempfile.mkdtemp(prefix="mem-consistency-test-jsonl-")
 
 
 def _make_entry(
@@ -296,6 +301,7 @@ def _make_mixin(embed_enabled: bool = False) -> object:
     ctx = MagicMock()
     ctx.services_required.audit_logger = None
     ctx.cfg.memory.memory_embed_enabled = embed_enabled
+    ctx.cfg.memory.memory_jsonl_dir = _TMP_JSONL_DIR
     out = MagicMock(spec=CliOutputPort)
     return MemoryRebuildOps(ctx, out)
 
@@ -359,6 +365,8 @@ class TestCmdMemoryRebuild:
         mem = MagicMock()
         mem.ingestion._jsonl = MagicMock()
         mem.ingestion._jsonl.count_all.return_value = 5
+        mem.ingestion._jsonl.iter_records.return_value = []
+        mem.store.list_entries.return_value = []
 
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 0)
@@ -367,7 +375,9 @@ class TestCmdMemoryRebuild:
 
         all_messages = [c[0][0] for c in mixin._out.write.call_args_list]
         assert any("dry-run" in msg for msg in all_messages)
-        assert any("5" in msg for msg in all_messages)
+        # Dry-run table reports the JSONL record count.
+        table_rows = mixin._out.write_table.call_args[0][1]
+        assert any("5" in str(row) for row in table_rows)
 
     def test_rebuild_writes_success(self) -> None:
         from unittest.mock import patch
@@ -381,6 +391,8 @@ class TestCmdMemoryRebuild:
         mem.store.check_consistency.return_value = ConsistencyReport(
             memories=4, fts=4, vec=0
         )
+        mem.ingestion._jsonl.iter_records.return_value = []
+        mem.store.list_entries.return_value = []
 
         with patch(
             "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(4, 4)
@@ -390,3 +402,237 @@ class TestCmdMemoryRebuild:
         mixin._out.write_success.assert_called_once()
         msg = mixin._out.write_success.call_args[0][0]
         assert "4" in msg
+
+    def test_dry_run_table_reports_metrics(self) -> None:
+        from unittest.mock import patch
+
+        mixin = _make_mixin()
+        mem = MagicMock()
+        jsonl = MagicMock()
+        jsonl.count_all.return_value = 7
+        jsonl.iter_records.return_value = []
+        mem.store.list_entries.return_value = []
+        mem.store.check_consistency.return_value = ConsistencyReport(
+            memories=6, fts=6, vec=0
+        )
+        mem.ingestion._jsonl = jsonl
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(7, 0)
+        ):
+            mixin.rebuild(mem, ["--dry-run"])
+
+        headers, rows = mixin._out.write_table.call_args[0]
+        assert headers == ["Metric", "Value"]
+        values = {r[0]: r[1] for r in rows}
+        assert values["JSONL archive records"] == "7"
+        assert values["Current SQLite memories"] == "6"
+        assert "SQLite-only (at risk)" in values
+
+    def test_sqlite_only_counts_ids_absent_from_archive(self) -> None:
+        from types import SimpleNamespace
+        from unittest.mock import patch
+
+        mixin = _make_mixin()
+        mem = MagicMock()
+        jsonl = MagicMock()
+        jsonl.count_all.return_value = 2
+        # Archive has m1, m2; SQLite has m1, m2, m3 → 1 SQLite-only.
+        jsonl.iter_records.return_value = [
+            ("memory", {"memory_id": "m1"}),
+            ("memory", {"memory_id": "m2"}),
+        ]
+        mem.store.list_entries.return_value = [
+            SimpleNamespace(memory_id="m1"),
+            SimpleNamespace(memory_id="m2"),
+            SimpleNamespace(memory_id="m3"),
+        ]
+        mem.store.check_consistency.return_value = ConsistencyReport(
+            memories=3, fts=3, vec=0
+        )
+        mem.ingestion._jsonl = jsonl
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
+        ):
+            result = mixin.rebuild(mem, ["--dry-run"])
+
+        assert result.sqlite_only == 1
+
+    def test_confirm_refuses_sqlite_only_without_allow_loss(self) -> None:
+
+        from unittest.mock import patch
+
+        mixin = _make_mixin()
+        mem = MagicMock()
+        jsonl = MagicMock()
+        jsonl.count_all.return_value = 2
+        jsonl.iter_records.return_value = [
+            ("memory", {"memory_id": "m1"}),
+            ("memory", {"memory_id": "m2"}),
+        ]
+        mem.store.list_entries.return_value = [
+            _make_entry(memory_id="m1"),
+            _make_entry(memory_id="m2"),
+            _make_entry(memory_id="m3"),
+        ]
+        mem.store.check_consistency.return_value = ConsistencyReport(
+            memories=3, fts=3, vec=0
+        )
+        mem.ingestion._jsonl = jsonl
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
+        ) as patched_import:
+            result = mixin.rebuild(mem, ["--confirm"])
+
+        assert result.loss_blocked is True
+        assert result.sqlite_only == 1
+        patched_import.assert_not_called()
+
+    def test_confirm_proceeds_with_allow_loss(self) -> None:
+        from unittest.mock import patch
+
+        mixin = _make_mixin()
+        mem = MagicMock()
+        jsonl = MagicMock()
+        jsonl.count_all.return_value = 2
+        jsonl.iter_records.return_value = [("memory", {"memory_id": "m1"})]
+        mem.store.list_entries.return_value = [
+            _make_entry(memory_id="m1"),
+            _make_entry(memory_id="m3"),  # SQLite-only
+        ]
+        mem.store.check_consistency.return_value = ConsistencyReport(
+            memories=2, fts=2, vec=0
+        )
+        mem.ingestion._jsonl = jsonl
+
+        with patch(
+            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(2, 2)
+        ) as patched_import:
+            result = mixin.rebuild(mem, ["--confirm", "--allow-loss"])
+
+        assert result.loss_blocked is False
+        assert result.sqlite_only == 1
+        patched_import.assert_called_once()
+
+    def test_backup_failure_aborts_rebuild(self) -> None:
+        from unittest.mock import patch
+
+        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
+
+        mixin = _make_mixin()
+        mem = MagicMock()
+        jsonl = MagicMock()
+        jsonl.count_all.return_value = 2
+        jsonl.iter_records.return_value = []
+        mem.store.list_entries.return_value = []
+        mem.store.check_consistency.return_value = ConsistencyReport(
+            memories=2, fts=2, vec=0
+        )
+        mem.ingestion._jsonl = jsonl
+
+        with (
+            patch.object(
+                MemoryRebuildOps,
+                "_backup_memories_as_jsonl",
+                side_effect=RuntimeError("disk full"),
+            ),
+            patch(
+                "agent.commands.memory_rebuild_ops.import_from_jsonl",
+                return_value=(2, 2),
+            ) as patched_import,
+        ):
+            result = mixin.rebuild(mem, ["--confirm"])
+
+        assert result.error == "disk full"
+        patched_import.assert_not_called()
+
+
+# ── /memory reindex command ───────────────────────────────────────────────────
+
+
+class TestCmdMemoryReindex:
+    def test_reindex_fts_delegates_and_audits(self) -> None:
+        mixin = _make_mixin()
+        mem = MagicMock()
+        with patch(
+            "agent.commands.memory_rebuild_ops._reindex", return_value=42
+        ) as spy:
+            mixin.reindex(mem, ["--fts"])
+
+        spy.assert_called_once_with("fts")
+        mixin._out.write_success.assert_called_once()
+        msg = mixin._out.write_success.call_args[0][0]
+        assert "memories_fts rebuilt: 42" in msg
+
+    def test_reindex_vec_requires_embedding(self) -> None:
+        mixin = _make_mixin(embed_enabled=False)
+        mem = MagicMock()
+        with patch(
+            "agent.commands.memory_rebuild_ops._reindex", return_value=99
+        ) as spy:
+            mixin.reindex(mem, ["--vec"])
+
+        spy.assert_not_called()
+        any_msg = " ".join(c[0][0] for c in mixin._out.write.call_args_list)
+        assert "embedding disabled" in any_msg
+
+    def test_reindex_missing_args_prints_usage(self) -> None:
+        mixin = _make_mixin()
+        mem = MagicMock()
+        with patch("agent.commands.memory_rebuild_ops._reindex", return_value=1) as spy:
+            mixin.reindex(mem, [])
+
+        spy.assert_not_called()
+        mixin._out.write_validation_error.assert_called_once()
+
+    def test_reindex_vec_success(self) -> None:
+        mixin = _make_mixin(embed_enabled=True)
+        mem = MagicMock()
+        with patch("agent.commands.memory_rebuild_ops._reindex", return_value=7) as spy:
+            mixin.reindex(mem, ["--vec"])
+
+        spy.assert_called_once_with("vec")
+        msg = mixin._out.write_success.call_args[0][0]
+        assert "memories_vec rebuilt: 7" in msg
+
+
+# ── rebuild_ops.reindex dispatcher ────────────────────────────────────────────
+
+
+class TestReindex:
+    def test_reindex_fts_delegates_to_rebuild_fts(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import agent.memory.rebuild_ops as rebuild_ops
+
+        spy = MagicMock(return_value=7)
+        monkeypatch.setattr(rebuild_ops, "rebuild_fts", spy)
+        monkeypatch.setattr(rebuild_ops, "rebuild_vec", MagicMock(return_value=0))
+
+        assert rebuild_ops.reindex("fts") == 7
+        spy.assert_called_once()
+
+    def test_reindex_vec_delegates_to_rebuild_vec(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import agent.memory.rebuild_ops as rebuild_ops
+
+        spy = MagicMock(return_value=3)
+        monkeypatch.setattr(rebuild_ops, "rebuild_vec", spy)
+        monkeypatch.setattr(rebuild_ops, "rebuild_fts", MagicMock(return_value=0))
+
+        assert rebuild_ops.reindex("vec") == 3
+        spy.assert_called_once()
+
+    def test_reindex_unknown_raises_value_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import agent.memory.rebuild_ops as rebuild_ops
+
+        monkeypatch.setattr(rebuild_ops, "rebuild_fts", MagicMock(return_value=0))
+        monkeypatch.setattr(rebuild_ops, "rebuild_vec", MagicMock(return_value=0))
+
+        with pytest.raises(ValueError, match="Unknown index type"):
+            rebuild_ops.reindex("bogus")

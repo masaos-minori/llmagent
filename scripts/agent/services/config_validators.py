@@ -172,6 +172,11 @@ def validate_memory_retention_days(cfg: MemoryConfig) -> None:
     _require_at_least("memory_retention_days", cfg.memory_retention_days, 1)
 
 
+def validate_memory_max_pinned(cfg: MemoryConfig) -> None:
+    """Validate that memory_max_pinned is at least 1."""
+    _require_at_least("memory_max_pinned", cfg.memory_max_pinned, 1)
+
+
 def validate_approval_risk_rules(cfg: ApprovalConfig) -> None:
     """Validate that all approval_risk_rules values are valid."""
     _valid_risk = {"none", "medium", "high"}

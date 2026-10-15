@@ -85,6 +85,7 @@ memory_local_only = false
 memory_embed_timeout_sec = 5.0
 memory_max_content_chars = 500
 memory_retention_days = 90
+memory_max_pinned = 10
 
 # ── Observability ─────────────────────────────────────────────────────────────
 

@@ -1,11 +1,18 @@
 """tests/test_cmd_memory.py
-Tests for _MemoryMixin._cmd_memory() CLI help and rebuild/import-jsonl behavior.
+Tests for _MemoryMixin._cmd_memory() dispatch: no-args→status, disabled→M-02,
+removed-subcommand rejection, and reindex routing.
 """
 
 from __future__ import annotations
 
+import tempfile
 from types import SimpleNamespace
 from unittest.mock import patch
+
+import pytest
+
+# Backing dir for rebuild backup writes in unit tests.
+_TMP_JSONL_DIR = tempfile.mkdtemp(prefix="mem-cmd-test-jsonl-")
 
 
 class _MockRebuildOps:
@@ -13,13 +20,19 @@ class _MockRebuildOps:
 
     def __init__(self, out):
         self._out = out
+        self.reindex_calls: list[tuple[object, list]] = []
 
     def rebuild(self, mem, sub_tokens=None):
         from agent.commands.memory_rebuild_ops import MemoryRebuildOps
 
         # Create a minimal context for the real implementation
         ctx = SimpleNamespace(
-            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
+            cfg=SimpleNamespace(
+                memory=SimpleNamespace(
+                    memory_embed_enabled=True,
+                    memory_jsonl_dir=_TMP_JSONL_DIR,
+                )
+            ),
             services=SimpleNamespace(audit_logger=None),
             services_required=SimpleNamespace(memory=mem, audit_logger=None),
             stats=SimpleNamespace(stat_memory_consistency_failures=0),
@@ -27,41 +40,8 @@ class _MockRebuildOps:
         ops = MemoryRebuildOps(ctx, self._out)
         ops.rebuild(mem, sub_tokens)
 
-    def rebuild_fts(self, mem):
-        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
-
-        ctx = SimpleNamespace(
-            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
-            services=SimpleNamespace(audit_logger=None),
-            services_required=SimpleNamespace(memory=mem),
-            stats=SimpleNamespace(stat_memory_consistency_failures=0),
-        )
-        ops = MemoryRebuildOps(ctx, self._out)
-        ops.rebuild_fts(mem)
-
-    def rebuild_vec(self, mem):
-        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
-
-        ctx = SimpleNamespace(
-            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
-            services=SimpleNamespace(audit_logger=None),
-            services_required=SimpleNamespace(memory=mem),
-            stats=SimpleNamespace(stat_memory_consistency_failures=0),
-        )
-        ops = MemoryRebuildOps(ctx, self._out)
-        ops.rebuild_vec(mem)
-
-    def check_consistency(self, mem):
-        from agent.commands.memory_rebuild_ops import MemoryRebuildOps
-
-        ctx = SimpleNamespace(
-            cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
-            services=SimpleNamespace(audit_logger=None),
-            services_required=SimpleNamespace(memory=mem, audit_logger=None),
-            stats=SimpleNamespace(stat_memory_consistency_failures=0),
-        )
-        ops = MemoryRebuildOps(ctx, self._out)
-        ops.check_consistency(mem)
+    def reindex(self, mem, sub_tokens=None):
+        self.reindex_calls.append((mem, list(sub_tokens or [])))
 
 
 class _MockDataOps:
@@ -94,7 +74,9 @@ def _make_mixin():
     from agent.commands.cmd_memory import _MemoryMixin
 
     ctx = SimpleNamespace(
-        cfg=SimpleNamespace(memory=SimpleNamespace(memory_embed_enabled=True)),
+        cfg=SimpleNamespace(
+            memory=SimpleNamespace(memory_embed_enabled=True, memory_max_pinned=10)
+        ),
         services=SimpleNamespace(audit_logger=None),
         services_required=SimpleNamespace(memory=_make_memory_store()),
         stats=SimpleNamespace(stat_memory_consistency_failures=0),
@@ -131,9 +113,20 @@ def _make_memory_store():
 
     store.import_from_jsonl = _import
     store.check_consistency = lambda: SimpleNamespace(memories=3, fts=3, vec=0)
+    # Entries whose ids all exist in the archive below (SQLite-only count is 0).
+    store.list_entries = lambda limit=50: [
+        SimpleNamespace(memory_id="m1"),
+        SimpleNamespace(memory_id="m2"),
+    ]
 
     # Mock the JSONL ingestion layer
-    jsonl = SimpleNamespace(count_all=lambda: 5)
+    jsonl = SimpleNamespace(
+        count_all=lambda: 5,
+        iter_records=lambda: [
+            ("memory", {"memory_id": "m1"}),
+            ("memory", {"memory_id": "m2"}),
+        ],
+    )
     ingestion = SimpleNamespace(_jsonl=jsonl)
 
     mem = SimpleNamespace(
@@ -141,31 +134,6 @@ def _make_memory_store():
         ingestion=ingestion,
     )
     return mem
-
-
-class TestMemoryHelp:
-    def test_memory_help_describes_jsonl_as_archive(self):
-        """CLI help should describe JSONL as archive, not source of truth."""
-        mixin, messages = _make_mixin()
-        mixin._cmd_memory("help")
-
-        help_text = " ".join(messages)
-        assert "archive" in help_text.lower(), (
-            f"Help text should mention 'archive', got: {help_text}"
-        )
-        assert "source of truth" not in help_text.lower(), (
-            f"Help text must not describe JSONL as source of truth, got: {help_text}"
-        )
-
-    def test_memory_rebuild_help_mentions_archive(self):
-        """The rebuild subcommand help line should mention archive."""
-        mixin, messages = _make_mixin()
-        mixin._cmd_memory("help")
-
-        help_text = " ".join(messages)
-        assert "archive" in help_text.lower(), (
-            f"Rebuild help should mention 'archive', got: {help_text}"
-        )
 
 
 class TestMemoryRebuild:
@@ -199,78 +167,82 @@ class TestMemoryRebuild:
             f"Rebuild output should mention 'archive', got: {messages}"
         )
 
-    def test_memory_rebuild_mentions_not_replayed(self):
-        """Actual rebuild output should clarify what is NOT replayed."""
+
+class TestMemoryDispatch:
+    """No-args→status, disabled→M-02, removed-subcommand rejection, reindex routing."""
+
+    def test_no_args_runs_status(self):
+        """A bare /memory runs status (not help)."""
+        mixin, messages = _make_mixin()
+        # Provide a mem whose embed_client is absent so status takes the
+        # enabled-but-no-client branch (distinct from the disabled/help paths).
+        mixin._ctx.services_required.memory = SimpleNamespace(
+            retriever=SimpleNamespace(
+                embed_client=None, fts_fallback_count=0, last_retrieval_mode=""
+            ),
+            get_stats=lambda: {
+                "total": 0,
+                "semantic": 0,
+                "episodic": 0,
+                "by_source": {},
+            },
+            get_activation_mode=lambda: "",
+        )
+
+        mixin._cmd_memory("")
+
+        joined = " ".join(messages)
+        assert "embed_client not available" in joined, (
+            f"Expected status output, got: {messages}"
+        )
+
+    def test_disabled_non_status_writes_m02(self):
+        """With the layer disabled, a non-status subcommand prints M-02 and changes nothing."""
+        mixin, messages = _make_mixin()
+        mixin._ctx.services_required.memory = None  # type: ignore[attr-defined] — ctx is a SimpleNamespace stub; memory assigned dynamically
+
+        mixin._cmd_memory("list")
+
+        joined = " ".join(messages)
+        assert "M-02" in joined, f"Expected M-02, got: {messages}"
+
+    def test_status_runs_even_when_disabled(self):
+        """status remains reachable when the layer is disabled."""
+        mixin, messages = _make_mixin()
+        mixin._ctx.services_required.memory = None  # type: ignore[attr-defined] — ctx is a SimpleNamespace stub; memory assigned dynamically
+
+        mixin._cmd_memory("status")
+
+        assert any("disabled" in m.lower() for m in messages), (
+            f"status should report disabled, got: {messages}"
+        )
+
+    def test_removed_subcommand_raises(self):
+        """A removed subcommand raises UnknownSubcommandError over the reduced set."""
+        from agent.commands.exceptions import UnknownSubcommandError
+
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
         mixin._ctx.services_required.memory = mem
 
-        with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
-        ):
-            mixin._cmd_memory("rebuild --confirm")
+        with pytest.raises(UnknownSubcommandError) as exc_info:
+            mixin._cmd_memory("search")
 
-        assert any(
-            "NOT replayed" in msg or "not replayed" in msg for msg in messages
-        ), f"Rebuild output should mention what is NOT replayed, got: {messages}"
+        assert exc_info.value.sub == "search"
+        for kept in ("list", "delete", "pin", "unpin", "prune", "reindex", "rebuild"):
+            assert kept in exc_info.value.valid, (
+                f"{kept} should remain a valid subcommand"
+            )
+        assert "search" not in exc_info.value.valid
 
-
-class TestMemoryImportJsonlAlias:
-    def test_memory_import_jsonl_alias_if_added(self):
-        """The import-jsonl subcommand should work as an alias for rebuild."""
+    def test_reindex_routes_to_rebuild_ops(self):
+        """reindex routes to MemoryRebuildOps.reindex with the sub tokens."""
         mixin, messages = _make_mixin()
         mem = _make_memory_store()
         mixin._ctx.services_required.memory = mem
 
-        with patch(
-            "agent.commands.memory_rebuild_ops.import_from_jsonl", return_value=(5, 5)
-        ):
-            mixin._cmd_memory("import-jsonl --confirm")
+        mixin._cmd_memory("reindex --fts")
 
-        # Should produce the same output as /memory rebuild --confirm
-        assert any("Imported" in msg for msg in messages), (
-            f"import-jsonl should produce import confirmation, got: {messages}"
-        )
-
-
-class TestMemoryCheckConsistency:
-    def test_memory_check_consistency_does_not_recommend_jsonl_import_for_index_repair(
-        self,
-    ):
-        """Consistency output must not recommend JSONL import for FTS/vector repair."""
-        from agent.memory.models import ConsistencyReport
-
-        mixin, messages = _make_mixin()
-        mem = SimpleNamespace(
-            store=SimpleNamespace(
-                check_consistency=lambda: ConsistencyReport(memories=10, fts=8, vec=9),
-            ),
-            ingestion=SimpleNamespace(_jsonl=SimpleNamespace(count_all=lambda: 12)),
-        )
-        mixin._ctx.services_required.memory = mem
-
-        mixin._cmd_memory("check-consistency")
-
-        full_output = " ".join(messages)
-        assert (
-            "rebuild" not in full_output.lower() or "rebuild-fts" in full_output.lower()
-        ), f"Should not recommend /memory rebuild for index repair, got: {full_output}"
-
-    def test_memory_check_consistency_reports_jsonl_count_as_info_only(self):
-        """JSONL count should be reported as info only, not as a repair target."""
-        from agent.memory.models import ConsistencyReport
-
-        mixin, messages = _make_mixin()
-        mem = SimpleNamespace(
-            store=SimpleNamespace(
-                check_consistency=lambda: ConsistencyReport(memories=10, fts=8, vec=9),
-            ),
-            ingestion=SimpleNamespace(_jsonl=SimpleNamespace(count_all=lambda: 12)),
-        )
-        mixin._ctx.services_required.memory = mem
-
-        mixin._cmd_memory("check-consistency")
-
-        assert any("info" in msg.lower() for msg in messages), (
-            f"JSONL count should be labeled as info only, got: {messages}"
+        assert mixin._rebuild_ops.reindex_calls == [(mem, ["--fts"])], (
+            f"reindex should route to rebuild_ops.reindex, got: {mixin._rebuild_ops.reindex_calls}"
         )

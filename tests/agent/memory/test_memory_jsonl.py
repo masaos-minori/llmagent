@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import asyncio
 
+import orjson
 import pytest
 from agent.memory.exceptions import JsonlFormatError
 from agent.memory.jsonl_store import JsonlMemoryStore
@@ -292,3 +293,91 @@ class TestEntryFromDict:
         store = JsonlMemoryStore(path)
         with pytest.raises((ValueError, KeyError)):
             store.read_all()
+
+
+class TestAppendEvent:
+    def test_append_event_writes_valid_line(self, tmp_path) -> None:
+        path = tmp_path / "memories.jsonl"
+        store = JsonlMemoryStore(path)
+        store.append_event("delete", "id-1")
+        line = path.read_text(encoding="utf-8").strip()
+        obj = orjson.loads(line)
+        assert obj["event"] == "delete"
+        assert obj["memory_id"] == "id-1"
+        assert "at" in obj
+
+    def test_append_event_creates_file(self, tmp_path) -> None:
+        path = tmp_path / "new_dir" / "memories.jsonl"
+        store = JsonlMemoryStore(path)
+        store.append_event("pin", "id-2")
+        assert path.exists()
+
+    def test_read_all_ignores_event_lines(self, tmp_path) -> None:
+        path = tmp_path / "memories.jsonl"
+        store = JsonlMemoryStore(path)
+        asyncio.run(store.write(_make_entry(memory_id="keep-me")))
+        store.append_event("delete", "gone")
+        entries = store.read_all()
+        assert len(entries) == 1
+        assert entries[0].memory_id == "keep-me"
+
+    def test_count_all_ignores_event_lines(self, tmp_path) -> None:
+        path = tmp_path / "memories.jsonl"
+        store = JsonlMemoryStore(path)
+        asyncio.run(store.write(_make_entry(memory_id="a")))
+        asyncio.run(store.write(_make_entry(memory_id="b")))
+        store.append_event("unpin", "x")
+        assert store.count_all() == 2
+
+
+class TestIterRecords:
+    def test_tags_memory_event_malformed(self, tmp_path) -> None:
+        path = tmp_path / "memories.jsonl"
+        good_line = orjson.dumps(
+            {
+                "memory_id": "mem-1",
+                "memory_type": "semantic",
+                "source_type": "rule",
+                "content": "c",
+            }
+        )
+        event_line = orjson.dumps(
+            {"event": "delete", "memory_id": "ev-1", "at": "2025-01-01T00:00:00Z"}
+        )
+        with path.open("wb") as f:
+            f.write(good_line + b"\n")
+            f.write(b"{{malformed\n")
+            f.write(event_line + b"\n")
+        store = JsonlMemoryStore(path)
+        records = list(store.iter_records())
+        memory_ids = {data["memory_id"] for kind, data in records if kind == "memory"}
+        event_ids = {data["memory_id"] for kind, data in records if kind == "event"}
+        malformed = [r for r in records if r[0] == "malformed"]
+        assert memory_ids == {"mem-1"}
+        assert event_ids == {"ev-1"}
+        assert len(malformed) == 1
+
+    def test_skips_blank_lines(self, tmp_path) -> None:
+        path = tmp_path / "memories.jsonl"
+        with path.open("wb") as f:
+            f.write(
+                orjson.dumps(
+                    {
+                        "memory_id": "mem-2",
+                        "memory_type": "semantic",
+                        "source_type": "rule",
+                        "content": "c",
+                    }
+                )
+                + b"\n"
+            )
+            f.write(b"\n")
+            f.write(b"\n")
+        store = JsonlMemoryStore(path)
+        records = list(store.iter_records())
+        assert all(kind == "memory" for kind, _ in records)
+        assert len(records) == 1
+
+    def test_returns_nothing_when_file_missing(self, tmp_path) -> None:
+        store = JsonlMemoryStore(tmp_path / "missing.jsonl")
+        assert list(store.iter_records()) == []

@@ -72,6 +72,9 @@ from agent.services.config_validators import (
     validate_memory_max_inject_semantic as _v_mem_mis,
 )
 from agent.services.config_validators import (
+    validate_memory_max_pinned as _v_mem_mmp,
+)
+from agent.services.config_validators import (
     validate_memory_recency_days as _v_mem_rec,
 )
 from agent.services.config_validators import (
@@ -228,6 +231,8 @@ class MemoryConfig:
     memory_embed_timeout_sec: float = 5.0
     # Entries older than this are pruned
     memory_retention_days: int = 90
+    # Max entries that may be pinned at once
+    memory_max_pinned: int = 10
     # FTS5 candidate limit before rescoring
     memory_fts_limit: int = 50
     # RRF fusion constant
@@ -246,6 +251,7 @@ class MemoryConfig:
         _v_mem_mie(self)
         _v_mem_met(self)
         _v_mem_rtd(self)
+        _v_mem_mmp(self)
 
 
 @dataclass

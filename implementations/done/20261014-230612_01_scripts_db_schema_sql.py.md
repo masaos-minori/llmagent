@@ -85,7 +85,7 @@ Add a `TestCreateSessionSchema` assertion that the generated `sessions` DDL cont
 
 ## Completion criteria
 
-`build_session_schema_sql()` / `create_session_schema()` emit a `sessions` table whose DDL contains `undo_floor_message_id INTEGER NOT NULL DEFAULT 0`, and `tests/db/test_create_schema.py` passes.
+`build_session_schema_sql()` / `create_session_schema()` emit a `sessions` table whose DDL contains `undo_floor_message_id INTEGER NOT NULL DEFAULT 0` (new), and `tests/db/test_create_schema.py` passes.
 
 ## Out of scope
 
