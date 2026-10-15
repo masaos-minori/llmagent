@@ -23,6 +23,8 @@ related:
 **Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/mdq_mcp_server.toml`
 
+**Authentication:** every endpoint requires the Bearer token (`auth_token` in `config/mdq_mcp_server.toml`, the `MCP_MDQ_AUTH_TOKEN` variable); the server refuses to start with an empty value. `allowed_dirs` path authorization applies after authentication (see `mcp_05_05_mdq-enforcement-and-lockdown.md`).
+
 **Tools:** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
 **Tool Status:** All tools are in `production` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`). **Operational Scope:** Supports only FTS5 (BM25) based structural Markdown search. Hybrid/semantic search configuration and code have been removed (see below).
 

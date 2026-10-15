@@ -33,7 +33,7 @@ curl -s -H "Authorization: Bearer ${MCP_GIT_AUTH_TOKEN}" http://127.0.0.1:<git_p
 # Base response shape: {"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}
 ```
 
-`/health` is authenticated like every other route: a server that verifies the Bearer token answers `401` to a probe without the header, which is an authentication failure, not an unhealthy server. One case needs no valid token: mdq-mcp does not verify Bearer tokens at the HTTP layer. Supplying the header on that probe is harmless. Real tokens must never be pasted into shell history or documents; export them from the environment.
+`/health` is authenticated like every other route: a server answers `401` to a probe without a matching Bearer header, which is an authentication failure, not an unhealthy server. This applies to every HTTP MCP server, including mdq-mcp. Real tokens must never be pasted into shell history or documents; export them from the environment.
 
 ### HTTP Status Code Behavior
 

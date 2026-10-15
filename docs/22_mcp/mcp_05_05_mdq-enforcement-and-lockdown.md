@@ -49,17 +49,17 @@ Separately from the DB boundaries with other servers, mdq-mcp has a fail-closed 
 - For `search_docs`, `get_chunk`, and `grep_docs`, the `source_path` of indexed chunks is re-checked against current `allowed_dirs` using `authorize_path()` before returning results. `search_docs` and `grep_docs` (when `paths` is not specified) silently exclude unauthorized lines and do not count them in totals (fail-closed, ensuring existence of unauthorized results is not leaked). `get_chunk` and `grep_docs` (when `paths` is explicitly specified) reject the entire call with `MdqAuthorizationError` if unauthorized targets are included (Explicit in code).
 - Since `stats` only returns counts and does not include path-level content, it continues to bypass `authorize_path()` (Explicit in code).
 
-#### HTTP Level Authentication (`auth_token`) is Intentionally Disabled
+#### HTTP Bearer Authentication Precedes `allowed_dirs` Authorization
 
-mdq-mcp starts with an empty Bearer token via `attach_auth_middleware(app, "")`, so authentication is not performed at the HTTP layer (per `scripts/mcp_servers/server.py` `attach_auth_middleware()` docstring: "When token is empty, auth is skipped..." (Explicit in code)).
+mdq-mcp verifies the Bearer token on every endpoint (`/health`, `/v1/tools`, `/v1/call_tool`) through the common `attach_auth_middleware()`. The token is read from `auth_token` in `config/mdq_mcp_server.toml` (the `MCP_MDQ_AUTH_TOKEN` environment variable, the same value as the Agent's `[mcp_servers.mdq].auth_token`); an empty or unset value makes the server refuse to start. The Agent and mdq-mcp each read their own configuration file and never read the other's (ADR-002).
 
-This is not an oversight. The `MdqMCPServer` class docstring in `scripts/mcp_servers/mdq/mdq_server.py` explicitly states: `"auth_token: empty string (no auth required — mdq has its own authorization via allowed_dirs)"` (Explicit in code). The actual call is a module-level call in `scripts/mcp_servers/mdq/mdq_server.py`: `attach_auth_middleware(cast(_FastAPIApp, app), "")` (immediately after the `# Attach auth middleware` comment).
+Request order: loopback-only network boundary, then Bearer authentication, then `allowed_dirs` path authorization, then input and resource-limit validation, then the MDQ operation.
 
-Instead, the path authorization based on `allowed_dirs` (default `[]`) serves as the actual security boundary. Setting `allowed_dirs = []` is fail-closed (denies all path access) (Explicit in code — see section above).
+- A missing, malformed, or non-matching `Authorization` header is rejected with HTTP 401 before any path decision is made, so an unauthenticated caller learns nothing about path existence, authorization state, or MDQ data.
+- After authentication, a path outside `allowed_dirs` (or an empty `allowed_dirs`) is denied fail-closed as `MdqAuthorizationError`. On `/v1/call_tool` this is a tool-level error result (HTTP 200 with `is_error`, per the MCP tool-error contract).
+- Authentication does not replace path authorization, and path authorization does not replace authentication. An authentication or authorization failure is a Safety/Integrity failure; it never triggers a fallback, an unauthenticated retry, or partial operation (ADR-004, ADR-007).
+- The token is never written to logs, error responses, or health responses.
 
-> **Important:** The empty token passed to `attach_auth_middleware()` is enforced and intended: it skips HTTP auth for mdq-mcp and is part of the **current specification**.
->
-> Any change to the MDQ HTTP authentication model (e.g., adding actual Bearer tokens) is an independent security design task and not part of a compatibility cleanup.
 
 ---
 

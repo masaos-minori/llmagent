@@ -38,7 +38,7 @@ Accepted
 
 ## Summary
 
-This ADR makes HTTP the only Transport between the Agent and MCP servers and rejects stdio, with loopback-only binding and Bearer authentication. It distinguishes subprocess startup from the Tool Transport and assigns Timeout, Retry, and Health Check responsibilities. See Decision, Exceptions, and Failure Policy for the normative text.
+This ADR makes HTTP the only Transport between the Agent and MCP servers and rejects stdio, with loopback-only binding and Bearer authentication on every MCP server, including mdq-mcp, whose `allowed_dirs` path authorization is a separate boundary applied after authentication. It distinguishes subprocess startup from the Tool Transport and assigns Timeout, Retry, and Health Check responsibilities. See Decision, Exceptions, and Failure Policy for the normative text.
 
 ## Context
 
@@ -74,8 +74,9 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 6. stdio is not a valid transport value: the configuration schema accepts only `http`. (Explicit in code — `scripts/shared/mcp_config.py` `TransportType`)
 7. Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
 8. MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
-9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Every MCP server verifies the Bearer token on every endpoint, except as listed in Exceptions. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`)
-10. Fault isolation, operational monitoring, independent deployment take priority over the cost of HTTP Serialization and Socket communication.
+9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Every MCP server, including mdq-mcp, rejects a request without a matching Bearer token on every endpoint. mdq-mcp's `allowed_dirs` is a separate, fail-closed resource-authorization boundary applied only after successful authentication; it neither replaces authentication nor is replaced by it. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`, `scripts/mcp_servers/mdq/mdq_server.py`)
+10. The Agent and each MCP server read their own token from their own configuration file (the Agent from `agent.toml`, mdq-mcp from `mdq_mcp_server.toml`); the two values must match, but neither process reads the other's file (ADR-002).
+11. Fault isolation, operational monitoring, independent deployment take priority over the cost of HTTP Serialization and Socket communication.
 
 ### Scope
 
@@ -101,6 +102,8 @@ With HTTP, MCP servers can be started, stopped, Health Checked, and monitored in
 ### 2. Second Reason for Adoption — Security
 
 With HTTP, each server can authenticate every caller with a Bearer token and reject requests that do not carry it. A stdio channel offers no comparable per-request authentication point.
+
+Bearer authentication decides whether a caller may use the MCP API; `allowed_dirs` decides whether an authenticated caller may operate on a given path. Keeping both avoids a token that is configured but never verified, keeps one authentication contract for every HTTP MCP server, blocks unauthenticated access inside the allowed directories, gives defense in depth against a path-authorization defect, and avoids an exception that would become dangerous in a multi-process or multi-user deployment.
 
 ### 3. Third Reason for Adoption — Deployment Independence
 
@@ -135,6 +138,27 @@ Do not implement authentication; prevent external exposure with Firewall restric
 - **Reason for Rejection:** Rejected to prioritize Security and prevent unauthenticated access.
 - **Reconsideration Conditions:** Firewall restrictions are sufficiently robust; unauthenticated access is acceptable
 
+### Alternative D: Keep an authentication exception for mdq-mcp
+
+- **Advantages:** No server-side token provisioning for mdq-mcp
+- **Disadvantages:** `allowed_dirs` is resource authorization, not caller authentication; the Agent-side token would be a requirement with no effect; unauthenticated local processes could call mdq-mcp
+- **Reason for Rejection:** Rejected to keep one Bearer authentication contract for every HTTP MCP server.
+- **Reconsideration Conditions:** Not applicable
+
+### Alternative E: OAuth 2.1 or mTLS
+
+- **Advantages:** Suited to external clients, other hosts, and several resource owners
+- **Disadvantages:** Large change to the loopback HTTP and shared-secret model; not needed for a single-host, single-user deployment
+- **Reason for Rejection:** Not adopted for the current single-host scope.
+- **Reconsideration Conditions:** External clients, other hosts, or several resource owners are introduced
+
+### Alternative F: Unix domain socket or OS peer credential
+
+- **Advantages:** Authenticates the caller without a shared secret
+- **Disadvantages:** Conflicts with the unified HTTP loopback transport; large impact on the operating platform
+- **Reason for Rejection:** Not adopted for the current scope.
+- **Reconsideration Conditions:** The HTTP loopback transport policy changes
+
 ## Consequences
 
 ### Positive Consequences
@@ -142,14 +166,16 @@ Do not implement authentication; prevent external exposure with Firewall restric
 - Independent lifecycle management of MCP servers becomes possible
 - Fault isolation is ensured
 - Operational monitoring becomes easier
-- Per-request authentication with a Bearer token becomes possible
+- Per-request authentication with a Bearer token becomes possible, with one contract for every HTTP MCP server
+- The Agent-side mdq token is an effective credential, and authentication and path authorization form two defense layers
 - Independent deployment becomes possible
 
 ### Negative Consequences
 
 - HTTP Serialization overhead
 - Socket communication cost
-- Authentication tokens must be provisioned for every server
+- Authentication tokens must be provisioned for every server, including mdq-mcp, and a token change needs the Agent and the server to be updated and restarted together
+- A token mismatch fails startup or connection, and authentication regression tests and an operating procedure are required
 - Placement on a separate host is not possible without designing TLS/mTLS (see Review Triggers)
 
 ### Operational Consequences
@@ -173,20 +199,24 @@ Do not implement authentication; prevent external exposure with Firewall restric
 - INV-06: stdio is not a valid transport value in the configuration schema.
 - INV-07: Connection Timeout, response Timeout, Retry, Semaphore, Circuit Breaker, structured errors, and logging are handled in the common Transport layer.
 - INV-08: MCP servers can be started, stopped, Health Checked, and monitored independently of the Agent.
-- INV-09: MCP servers bind only to a loopback address. Every enabled server entry carries a non-empty authentication token, and every MCP server rejects requests without a matching Bearer token, except as listed in Exceptions.
+- INV-09: MCP servers bind only to a loopback address. Every enabled server entry carries a non-empty authentication token, and every MCP server, including mdq-mcp, rejects requests without a matching Bearer token.
 - INV-10: Fault isolation, operational monitoring, and independent deployment take priority over the cost of HTTP Serialization and Socket communication.
 - INV-11: The names of the MCP server liveness states managed by McpServerHealthRegistry (HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN) are not changed implicitly, because multiple callers outside the Transport layer compare them directly.
+- INV-12: mdq-mcp applies fail-closed `allowed_dirs` authorization only after successful Bearer authentication; authentication does not replace path authorization, and path authorization does not replace authentication.
 
 ## Exceptions
 
-- mdq-mcp attaches the authentication middleware with an empty token and does not verify Bearer tokens at the HTTP layer. Its security boundary is the fail-closed `allowed_dirs` path authorization (see `mcp_05_05_mdq-enforcement-and-lockdown.md`). The Agent-side `auth_token` for mdq must still be non-empty. Changing this exception requires a decision recorded in this ADR.
+Not applicable
 
 ## Failure Policy
 
 ### Fail-Fast Conditions
 
 - When a required (mandatory) MCP server Health Check fails at startup
-- When an MCP server configuration has an empty authentication token (startup validation)
+- When an MCP server configuration has an empty authentication token (Agent startup validation)
+- When an MCP server process, including mdq-mcp, starts with an empty or unset authentication token (the server refuses to start)
+- When an MCP server request has a missing, malformed, or non-matching `Authorization` header (HTTP 401); this is a Safety/Integrity failure, not an availability failure
+- When mdq-mcp's `allowed_dirs` is empty or a requested path is not inside it, or cannot be canonicalized (the request is denied, fail-closed, after authentication)
 - When an MCP server is configured to bind to a non-loopback address (`run_http()` raises)
 - When the configuration names an unsupported transport (such as stdio)
 
@@ -203,7 +233,7 @@ Do not implement authentication; prevent external exposure with Firewall restric
 
 ### Fallback Policy
 
-Not applicable (no Fallback exists; in particular, falling back to stdio is prohibited, see INV-05)
+Not applicable (no Fallback exists; in particular, falling back to stdio is prohibited, see INV-05). An authentication or authorization failure never triggers a fallback to another transport, an in-process path, or an unauthenticated retry.
 
 ## Data Ownership and Persistence
 
@@ -226,6 +256,9 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 | Health Checks are also usable from outside the Agent | INV-08 | Integration | Yes | `tests/agent/test_http_lifecycle_health_check.py` |
 | No path references stdio as a runtime Transport | INV-04 | Regression | Yes | `tests/shared/test_mcp_config.py::TestMcpServerConfigValidation::test_stdio_transport_rejected`, `tests/shared/test_mcp_config.py` (`test_unsupported_transport_raises_from_toml`) |
 | Circuit Breaker state transitions (reaching the DEGRADED/UNAVAILABLE thresholds, the HALF_OPEN cooldown, returning to UNAVAILABLE on a HALF_OPEN failure) behave as specified | INV-11 | Unit | Yes | `tests/shared/test_mcp_health.py` |
+| mdq-mcp rejects a missing, malformed, or non-matching Bearer token (401) on `/v1/tools`, `/v1/call_tool`, and `/health`, and refuses to start with an empty or unset token | INV-09 | Unit | Yes | `tests/mcp_servers/mdq/test_mdq_authentication.py::TestAuthentication`, `tests/mcp_servers/mdq/test_mdq_authentication.py::TestStartupRequiresToken` |
+| mdq-mcp rejects an unauthenticated request before any path decision is disclosed, and denies an authenticated request for a path outside `allowed_dirs` (including `..` traversal and symlink escape) | INV-12 | Unit | Yes | `tests/mcp_servers/mdq/test_mdq_authentication.py::TestAuthenticationBeforeAuthorization`, `tests/mcp_servers/mdq/test_mdq_path_jail.py` |
+| Agent startup is fatal when any MCP server lacks an authentication token | INV-09 | Unit | Yes | `tests/agent/test_startup_severity_classification.py::TestCheckServicesSeverityClassification::test_mcp_auth_fatal_when_any_server_missing_token` |
 | A non-loopback bind address is rejected by `run_http()` | INV-09 (loopback bind) | Unit | Yes | `tests/mcp_servers/test_mcp_server_base.py::TestBindAddressValidation::test_private_lan_rejected` |
 | Each of the shell, github, and file-read/write/delete servers rejects a request without a matching Bearer token (401) and refuses to start with an empty token | INV-09 | Unit | Yes | `tests/mcp_servers/shell/test_shell_server_auth.py`, `tests/mcp_servers/github/test_github_server_auth.py`, `tests/mcp_servers/file/test_file_server_auth.py` |
 
@@ -249,7 +282,7 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 
 ## Implementation Notes
 
-- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Every server module except mdq-mcp attaches the Bearer-token authentication middleware through `attach_auth_middleware()`; mdq-mcp attaches it with an empty token (see Exceptions) and rag-pipeline-mcp attaches it with its own `auth_token` (`MCP_RAG_PIPELINE_AUTH_TOKEN`).
+- Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Every server module attaches the Bearer-token authentication middleware through `attach_auth_middleware()` with its own `auth_token`: rag-pipeline-mcp uses `MCP_RAG_PIPELINE_AUTH_TOKEN` and mdq-mcp uses `MCP_MDQ_AUTH_TOKEN`, read from `mdq_mcp_server.toml` and refused when empty. The mdq-mcp middleware protects `/health`, `/v1/tools`, and `/v1/call_tool`; a tool call for a path denied by `allowed_dirs` is returned as a tool-level error result (HTTP 200 with `is_error`), per the MCP tool-error contract.
 - `HttpTransport.call()` posts to `/v1/call_tool` with a bounded retry for 429/502/503/504 and for transport request errors other than timeouts; timeouts and other HTTP status errors surface as `TransportError`.
 - `ToolTransportInvoker.invoke()` applies the per-server Semaphore and records success or failure in `McpServerHealthRegistry`.
 
@@ -273,6 +306,8 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - The MCP standard officially supports Transports other than stdio
 - Exposure of an MCP server beyond localhost becomes necessary (authentication and TLS/mTLS would then have to be designed)
 - Fault isolation is no longer needed
+- Multiple Agents or OS users share an MCP server, or a tool that writes or deletes is added to mdq-mcp
+- OAuth 2.1, mTLS, or a Unix socket is considered as an authentication method, or token rotation without downtime is required
 
 ## Approval
 
@@ -289,7 +324,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-08; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-15; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -300,7 +335,9 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Implementation References
 
-- `scripts/mcp_servers/server.py` — `MCPServer.run_http()`
+- `scripts/mcp_servers/server.py` — `MCPServer.run_http()`, `attach_auth_middleware()`
+- `scripts/mcp_servers/mdq/mdq_server.py` — mdq-mcp authentication setup
+- `scripts/mcp_servers/mdq/auth.py` — `authorize_path()`
 - `scripts/shared/http_transport.py` — `HttpTransport.call()`
 - `scripts/shared/tool_transport_invoker.py` — `ToolTransportInvoker.invoke()`
 - `scripts/shared/mcp_health.py` — `McpServerHealthRegistry.record_failure()`
