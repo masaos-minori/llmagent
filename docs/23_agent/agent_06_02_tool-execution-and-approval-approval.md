@@ -67,8 +67,6 @@ Documents design decisions for approval flows, risk classification, and plan mod
 | `medium` | Preview + `y/N` prompt |
 | `high` | Preview + full `yes` input required |
 
-**Design judgment**: If base risk is `none`, subsequent override/escalation checks are skipped and `none` is returned immediately.
-
 ### Special Risk Overrides
 
 If base risk is anything other than `none`, the following are evaluated before escalation conditions and directly replace the resulting risk if they match:
@@ -121,7 +119,7 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 
 - Fail-closed: GitHub repository allowlist, `gitops_push_blocked`
 - Fail-safe: tools missing from `tool_safety_tiers` are rejected at startup; at classification time a tool absent from the registry is `high`
-- Base risk `none` skips escalation
+- Base risk `none` skips the override and escalation checks and returns `none` immediately
 
 ## Known Limitations
 

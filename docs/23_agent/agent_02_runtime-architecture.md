@@ -27,19 +27,17 @@ Describes the primary runtime components, their dependencies, and responsibility
 - **Component Responsibilities**: AgentREPL (UI loop, command dispatching, output display), StartupOrchestrator (startup sequence orchestration), Orchestrator (turn-level facade), AgentContext (per-session DI hub), LLMClient (SSE streaming, retry), ToolExecutor (MCP routing), HistoryManager (char counting, LLM compression), CLIView (readline, progress display), CommandRegistry (built-in command dispatch), LifecycleState (transport state enum), AgentSession (CRUD for sessions/messages), Memory Services (injection, ingestion, store, retriever).
 - **Owned State**: AgentREPL owns the input loop and UI state; AgentContext owns shared mutable state and component references; each service owns its own runtime state.
 - **Allowed Dependency Direction**: AgentREPL depends on StartupOrchestrator, AgentContext, CLIView, Orchestrator; Orchestrator depends on LlmTurnExecutor; AgentContext depends on LLMClient, ToolExecutor, HistoryManager, ServerLifecycleRouter; no circular dependencies among services.
-- **Reason for Process Separation**: Decoupling StartupOrchestrator from AgentREPL allows complexity during startup to be separated from REPL's responsibility; decoupling Orchestrator from LlmTurnExecutor separates turn-level coordination from LLM streaming and tool loop execution.
+- **Reason for Process Separation**: Decoupling StartupOrchestrator from AgentREPL allows complexity during startup (service checks, MCP server startup) to be separated from REPL's responsibility, so the REPL focuses solely on UI concerns; decoupling Orchestrator from LlmTurnExecutor separates turn-level coordination from LLM streaming and tool loop execution.
 - **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
 
 ### Responsibility Boundary Supplement
 
-- `AgentContext` is the hub for shared mutable state and component references. `factory.build_agent_context()` injects all services.
-- `Orchestrator` handles end-to-end processing of a single user turn, delegating LLM streaming and the tool loop to `LlmTurnExecutor`.
+- `AgentContext` and `Orchestrator` details → see the AgentContext and Orchestrator entries under Runtime Extension Points, Lifecycle and Shutdown below.
 - The runtime implementation of `AppServices.lifecycle` is defined in `agent/factory.py`; starting and stopping HTTP subprocesses is delegated to `agent/http_lifecycle.py`.
 
 ## Key Constraints
 
 - `Orchestrator.__init__()` loads workflow definitions via `WorkflowLoader().load()`, raising a `RuntimeError` on failure (which stops startup).
-- If an exception occurs after starting an MCP subprocess, the started MCP subprocesses are rolled back.
 - Parallel/serial determination of tool calls is made by `build_execution_groups()` from `ToolSpec.requires_serial` (in-place serial barrier), overlapping `resource_scopes` where at least one side `is_write` (serial group; a write without scopes uses a synthetic global write scope), and `force_serial` from `serial_tool_calls` (every call in its own serial phase). Each serialization is logged as `ROUND_SERIALIZATION` with a reason (Explicit in code — `scripts/agent/tool_scheduler.py`).
 
 ## Operational Notes
@@ -98,8 +96,6 @@ Describes runtime extension points, lifecycle phases, and shutdown policies, cla
 ### Design Intent
 
 `AgentREPL` is responsible only for the UI loop, command dispatching, and output display, containing no business logic. By delegating all startup sequences to `StartupOrchestrator`, the REPL functions purely as an I/O layer.
-
-Decoupling `StartupOrchestrator` from `AgentREPL` allows complexity during startup (service checks, MCP server startup) to be separated from the REPL's responsibility, ensuring the REPL focuses solely on UI concerns.
 
 ### Responsibility Boundary
 

@@ -58,7 +58,7 @@ If `HistoryManager.compress()` fails to call the summarization LLM, a `HistoryCo
 - **If character limit is still exceeded** → Falls through to fallback truncation, performing mechanical deletion of low-importance messages without summarization.
 - **If character limit is no longer exceeded** → Returns as a no-op without modifying history (`CompressResult(compressed_count=0, ...)`).
 
-Fallback truncation sorts messages by `HistorySelectionPolicy.classify_importance()` in ascending order (lowest importance first) and deletes them one by one from candidates that exclude the `system` role and the most recent `protect_turns` pairs until the character limit is met. If the limit cannot be reached even after deleting all unprotected candidates, it continues processing while issuing a WARNING log. This path sets `CompressResult.is_fallback=True` and increments `HistoryManager.stat_fallback_truncate_count`.
+Fallback truncation sorts messages by `HistorySelectionPolicy.classify_importance()` in ascending order (lowest importance first) and deletes them one by one from candidates that exclude the `system` role and the most recent `protect_turns` pairs until the character limit is met (soft-limit behavior: see Key Constraints, Character Limit Behavior). This path sets `CompressResult.is_fallback=True` and increments `HistoryManager.stat_fallback_truncate_count`.
 
 ### Compression Persistence Model
 

@@ -63,7 +63,6 @@ If a workflow fails after some steps are completed, the workflow engine records 
 
 ## Operational Notes
 
-- Automatic execution (planning phase, verification phase, low-risk tool calls) does not require human approval
 - Tool-level approval configures risk classification via `ApprovalConfig.approval_risk_rules`
 
 ## Known Limitations

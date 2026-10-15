@@ -41,8 +41,6 @@ Dispatch path of `ToolExecutor.execute(tool_name, args)` (single path, no fallba
 | `serial_tool_calls=False` | DAG Scheduling (Phase construction + conflict graph) |
 | `serial_tool_calls=True` | `force_serial=True` — Bypasses phase/conflict graph construction entirely and generates individual serial phases in calling order |
 
-**Design judgment**: `_execute_with_dag()` is the only execution path; `serial_tool_calls=True` executes all calls sequentially through input to the single scheduler rather than by branching to a different function.
-
 ### DAG Tool Scheduler Design Decisions
 
 #### Rules (Traverse calls in input order to construct phases)
@@ -87,7 +85,7 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 
 ## Key Constraints
 
-- `_execute_with_dag()` is the only execution path. `serial_tool_calls=True` does not switch to a different engine but acts as the `force_serial` input to `build_execution_groups()`.
+- `_execute_with_dag()` is the only execution path. `serial_tool_calls=True` does not switch to a different engine or branch to a different function; it acts as the `force_serial` input to `build_execution_groups()` and executes all calls sequentially through the single scheduler.
 - Multiple calls to write tools with overlapping `resource_scopes` are serialized within the same group.
 - Preparation phase is fail-closed: if any issue exists (missing id, invalid JSON, unregistered tool, registry disconnected, schema violation, metadata construction failure), it is rejected before reaching approval, execution, or scheduling.
 

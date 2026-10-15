@@ -109,9 +109,7 @@ Messages constructed by the LLM client's streaming aggregation logic consist onl
 
 ## Operational Notes
 
-- The final answer fallback after a guard trigger uses a temporary system message to prompt the LLM to respond without tools.
-- Incomplete outputs can be checked via the `/stats` command but cannot be accessed via normal conversation history.
-- Empty result repeat detection requires `tool_empty_result_max_repeats > 0` to be enabled.
+- The final answer fallback, incomplete-output inspection via `/stats`, and the `tool_empty_result_max_repeats > 0` requirement are described in Final Answer Fallback on Guard Trigger, Isolation of Incomplete Outputs, and Known Limitations above and below.
 
 ## Known Limitations
 

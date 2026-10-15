@@ -82,23 +82,23 @@ Verified Boundaries:
 
 ### StateStore Responsibility Scope
 
-`StateStore` manages tasks/attempts/artifacts in `workflow.sqlite`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for detailed method lists.
+`StateStore` manages tasks/attempts/artifacts in `workflow.sqlite`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for detailed method lists; it also covers the operation modules below (`task_ops.py`, `attempt_ops.py`, `artifact_ops.py`, `idempotency_ops.py`).
 
 ### Task CRUD Operations
 
-`task_ops.py` provides CRUD operations for workflow states. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
+`task_ops.py` provides CRUD operations for workflow states.
 
 ### Attempt Operations
 
-`attempt_ops.py` provides management for attempt records. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
+`attempt_ops.py` provides management for attempt records.
 
 ### Artifact Operations
 
-`artifact_ops.py` provides recording of artifact references. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
+`artifact_ops.py` provides recording of artifact references.
 
 ### Idempotency Operations
 
-`idempotency_ops.py` provides duplicate detection and atomic attempt initiation. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
+`idempotency_ops.py` provides duplicate detection and atomic attempt initiation.
 
 ## Key Constraints
 

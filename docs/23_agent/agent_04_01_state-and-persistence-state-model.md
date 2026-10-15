@@ -70,7 +70,7 @@ All failure cases are non-blocking, and the session continues normally. When a f
 
 ### Session Persistence
 
-`AgentSession` manages the `sessions` and `messages` tables in `session.sqlite`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for details.
+`AgentSession` owns the `sessions` and `messages` tables (see Design Intent). Schema details: [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md).
 
 ### Relationship Between Conversation History and Database
 

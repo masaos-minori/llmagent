@@ -64,7 +64,7 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 ### Mandatory Workflow Execution
 
-`Orchestrator.handle_turn()` is always executed via `WorkflowEngine`. See [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md) for rationale and invariants.
+`Orchestrator.handle_turn()` is always executed via `WorkflowEngine` (rationale and invariants: ADR-001, linked under Design Intent).
 
 ### Workflow Status
 

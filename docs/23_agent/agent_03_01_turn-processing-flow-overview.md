@@ -80,7 +80,7 @@ User input (line)
 
 ### Implementation note: Always goes through the workflow engine
 
-`Orchestrator.__init__` calls `WorkflowLoader().load()`; if it fails, it raises a `RuntimeError` and orchestration construction itself fails. Therefore, when `handle_turn()` is called, the workflow definition is non-None and mandatory, with no fallback path for direct execution. The steps ①–⑥ above are executed as callbacks in the `plan`/`execute`/`verify` stages of `WorkflowEngine.run()`. The `plan_fn` is intentionally a no-op because turn start processing is already completed before this stage. For details on stage composition, see [agent_03_03_turn-processing-flow-workflow-engine.md](agent_03_03_turn-processing-flow-workflow-engine.md).
+`Orchestrator.__init__` calls `WorkflowLoader().load()`; if it fails, it raises a `RuntimeError` and orchestration construction itself fails. Therefore, when `handle_turn()` is called, the workflow definition is non-None and mandatory. The steps ①–⑥ above are executed as callbacks in the `plan`/`execute`/`verify` stages of `WorkflowEngine.run()`; `plan_fn` is intentionally a no-op. For details on stage composition, see [agent_03_03_turn-processing-flow-workflow-engine.md](agent_03_03_turn-processing-flow-workflow-engine.md).
 
 ### Background Task Failure Threshold Notification and Pausing
 
@@ -124,7 +124,6 @@ The session title generation task scheduled on the first turn manages consecutiv
 
 ## Operational Notes
 
-- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default).
 - Partial content is separated from regular conversation history so as not to pollute subsequent LLM context.
 
 ## Known Limitations
