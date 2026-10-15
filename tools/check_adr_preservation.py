@@ -20,6 +20,16 @@ WARNING (exit 0, requires a sentence-level mapping in the change report):
   - the count of an uppercase normative keyword (MUST NOT, MUST, SHOULD, MAY)
     decreased
 
+Non-ADR documents (for example `docs/24_eventbus/*.md`) are compared with a
+generic rule set instead:
+
+ERROR: front matter differs, an `AUTO-GENERATED` block was edited or removed, or a
+fenced code block is unbalanced.
+WARNING: the H2 heading sequence differs; an HTTP `METHOD /path` pair, an HTTP
+status code, or a backtick-quoted path/symbol that appeared before no longer
+appears anywhere in the compared set of files (so content moved between the
+compared files is not reported); a normative keyword count decreased.
+
 It always prints the before/after byte and character counts. Token counts are not
 computed (no tokenizer is bundled); report them as unmeasured.
 
@@ -27,6 +37,7 @@ Usage:
     python tools/check_adr_preservation.py                 # changed ADRs vs HEAD
     python tools/check_adr_preservation.py --base <ref>    # compare against another ref
     python tools/check_adr_preservation.py docs/10_adr/adr_02_008_sqlite-4db-separation.md
+    python tools/check_adr_preservation.py --dir docs/24_eventbus
 """
 
 from __future__ import annotations
@@ -50,6 +61,7 @@ _H2_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
 _INV_RE = re.compile(r"^- (INV-\d+): (.+)$", re.MULTILINE)
 _TEST_REF_RE = re.compile(r"`([^`\s]+\.py::[^`\s]+)`")
 _BACKTICK_RE = re.compile(r"`([^`]+)`")
+_INLINE_CODE_RE = re.compile(r"`([^`\n]+)`")
 _NORMATIVE_RES = {
     "MUST NOT": re.compile(r"\bMUST NOT\b"),
     "MUST": re.compile(r"\bMUST\b(?! NOT)"),
@@ -174,6 +186,57 @@ def compare(name: str, old: str, new: str) -> list[Issue]:
     return issues
 
 
+_ENDPOINT_RE = re.compile(r"\b(GET|POST|PUT|PATCH|DELETE)\s+(/[\w/{}.:-]*)")
+_STATUS_RE = re.compile(
+    r"\b(200|201|202|204|400|401|403|404|409|412|422|429|500|503)\b"
+)
+_AUTOGEN_RE = re.compile(
+    r"(<!--\s*AUTO-GENERATED[^>]*-->)(.*?)(<!--\s*END[^>]*-->)", re.DOTALL
+)
+
+
+def _is_code_token(token: str) -> bool:
+    return "/" in token or "::" in token or "(" in token or "_" in token
+
+
+def tokens(text: str) -> set[str]:
+    """Collect endpoint pairs, status codes, and backtick-quoted path/symbol tokens."""
+    found = {f"{m} {p}" for m, p in _ENDPOINT_RE.findall(text)}
+    found |= {f"status {c}" for c in _STATUS_RE.findall(text)}
+    prose = re.sub(r"```.*?```", "", text, flags=re.DOTALL)
+    found |= {t for t in _INLINE_CODE_RE.findall(prose) if _is_code_token(t)}
+    return found
+
+
+def compare_generic(name: str, old: str, new: str) -> list[Issue]:
+    """Return the per-file preservation issues for a non-ADR document."""
+    issues: list[Issue] = []
+
+    def add(sev: str, msg: str) -> None:
+        issues.append(Issue(file=name, line_no=0, severity=sev, message=msg))
+
+    old_fm, old_body = split_front_matter(old)
+    new_fm, new_body = split_front_matter(new)
+    if old_fm != new_fm:
+        add("ERROR", "front matter changed")
+    if new_body.count("```") % 2:
+        add("ERROR", "unbalanced fenced code block")
+    if h2_sequence(old_body) != h2_sequence(new_body):
+        add("WARNING", "H2 heading sequence changed")
+    if _AUTOGEN_RE.findall(old) != _AUTOGEN_RE.findall(new) or old.count(
+        "AUTO-GENERATED"
+    ) != new.count("AUTO-GENERATED"):
+        add("ERROR", "AUTO-GENERATED block changed")
+    for keyword, pattern in _NORMATIVE_RES.items():
+        before_n, after_n = (
+            len(pattern.findall(old_body)),
+            len(pattern.findall(new_body)),
+        )
+        if after_n < before_n:
+            add("WARNING", f"{keyword} count decreased: {before_n} -> {after_n}")
+    return issues
+
+
 def _git(*args: str) -> str:
     result = subprocess.run(  # nosec B603 B607 — fixed git argv, no shell, no user-built command
         ["git", *args], cwd=REPO_ROOT, capture_output=True, text=True, check=False
@@ -183,9 +246,9 @@ def _git(*args: str) -> str:
     return result.stdout
 
 
-def changed_adrs(base: str) -> list[Path]:
-    """Return ADR files whose working-tree content differs from `base`."""
-    out = _git("diff", "--name-only", base, "--", "docs/10_adr")
+def changed_docs(base: str, directory: str = "docs/10_adr") -> list[Path]:
+    """Return Markdown files under `directory` whose content differs from `base`."""
+    out = _git("diff", "--name-only", base, "--", directory)
     return [REPO_ROOT / line for line in out.splitlines() if line.endswith(".md")]
 
 
@@ -197,15 +260,22 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("files", nargs="*", type=Path)
     parser.add_argument("--base", default="HEAD", help="Git ref to compare against")
+    parser.add_argument(
+        "--dir",
+        default="docs/10_adr",
+        help="Directory of changed files to compare (default: docs/10_adr)",
+    )
     args = parser.parse_args(argv)
 
-    paths = [p.resolve() for p in args.files] or changed_adrs(args.base)
+    paths = [p.resolve() for p in args.files] or changed_docs(args.base, args.dir)
     if not paths:
         print("No changed ADR files.")
         return 0
 
     all_issues: list[Issue] = []
     total_before = total_after = 0
+    old_tokens: set[str] = set()
+    new_tokens: set[str] = set()
     print(f"{'File':<58} {'Before':>8} {'After':>8} {'Reduction':>10}")
     for path in sorted(paths):
         rel = path.relative_to(REPO_ROOT).as_posix()
@@ -216,7 +286,21 @@ def main(argv: list[str] | None = None) -> int:
         total_after += after.bytes_
         pct = (before.bytes_ - after.bytes_) * 100 / before.bytes_
         print(f"{path.name[:58]:<58} {before.bytes_:>8} {after.bytes_:>8} {pct:>9.1f}%")
-        all_issues.extend(compare(path.name, old, new))
+        if path.parent == ADR_DIR:
+            all_issues.extend(compare(path.name, old, new))
+        else:
+            all_issues.extend(compare_generic(path.name, old, new))
+            old_tokens |= tokens(old)
+            new_tokens |= tokens(new)
+    for token in sorted(old_tokens - new_tokens):
+        all_issues.append(
+            Issue(
+                file="(compared set)",
+                line_no=0,
+                severity="WARNING",
+                message=f"no longer appears in any compared file: {token}",
+            )
+        )
     if total_before:
         pct = (total_before - total_after) * 100 / total_before
         print(f"{'TOTAL':<58} {total_before:>8} {total_after:>8} {pct:>9.1f}%")
