@@ -33,6 +33,15 @@ Documents the purpose and side effects of slash commands in the Session, MCP, an
 
 A group of commands for session management and history operations. `/clear new` starts a new DB session. `/undo` pops the most recent user+assistant turn from both the history and the DB. Messages that existed when the history was last compressed (automatic, `/compact`, or fallback truncation) cannot be undone; `/undo` then reports that nothing can be undone and changes nothing. The boundary is stored in `sessions.undo_floor_message_id` and survives `/session load`.
 
+#### History and export
+
+| Command | Form | Effect |
+|---|---|---|
+| `/history` | `/history [n]` | Shows the last `n` user and assistant messages of the in-memory history (default 5), one line each with a truncated preview; tool messages are not shown |
+| `/session export` | `/session export [markdown\|json] [file]` | Exports the current in-memory conversation history |
+
+`/history` with a non-integer `n` prints the usage line, and an empty history is reported as no data. For `/session export`, the format defaults to Markdown (`md` is accepted as an alias for `markdown`); `json` writes the message list as indented JSON. The arguments may appear in either order, and any argument that is not a format is taken as the output file. Without a file the export is written to the terminal; with a file it is written there as UTF-8 and the message count is reported, and a write failure is reported as an export error. The export covers only the history currently held in memory, not a stored session that has not been loaded, and it neither modifies nor deletes any session or memory data.
+
 #### Session DB operation subcommands
 
 Session subcommands are invoked as `/session <subcmd>`. The data subcommands manage session rows directly: `list` shows recent sessions with their message count, `load` resumes a session by id, `rename` sets a session title, and `delete` removes a session by id. This includes the maintenance subcommands (`stats`, `health`, `checkpoint`, `vacuum`, `purge`, `recover`, `rag-consistency`, `rag-rebuild-fts`, `rag-rebuild-vec`); see agent_04_03 for the services they call.
@@ -52,7 +61,15 @@ The output of `/mcp status` includes a list of servers, a list of servers in DEG
 
 ### Config / Stats Category
 
-A group of commands for displaying and monitoring configuration files. `/reload` reloads all configuration files and updates `ctx.cfg` to synchronize with services.
+A group of commands for displaying and monitoring configuration files.
+
+| Command | Form | Effect |
+|---|---|---|
+| `/config` | `/config` | Shows the current configuration and the configuration file paths; changes nothing |
+| `/stats` | `/stats` | Shows session statistics (turns, tool calls, RAG hits, error counts) and the current debug mode; changes nothing |
+| `/reload` | `/reload` | Reloads all configuration files, applies the runtime-configurable parameters, and updates `ctx.cfg` to synchronize with services |
+
+None of these commands takes a subcommand or argument.
 
 ## Responsibility Boundary
 
