@@ -46,6 +46,7 @@ from tools._docs_consistency_lib import (
     check_function_references,
     check_removed_file_references,
     discover_md_files,
+    extract_registered_command_names,
     is_historical_line,
     report_and_exit,
 )
@@ -86,6 +87,7 @@ ALL_SKIP_OPTIONS: frozenset[str] = frozenset(
         "links",
         "removedfiles",
         "commanddrift",
+        "commandcoverage",
         "filerefs",
         "funcrefs",
         "schemadrift",
@@ -191,6 +193,89 @@ def check_schema_drift(docs_dir: Path, repo_root: Path) -> list[Issue]:
                             ),
                         )
                     )
+    return issues
+
+
+# ---------------------------------------------------------------------------
+# Check: slash-command coverage vs command_defs_list.py's _COMMANDS (Agent domain, ERROR)
+# ---------------------------------------------------------------------------
+
+_COMMAND_INDEX_DOC = "agent_07_03_"
+_COMMAND_CHAPTER_DOCS = ("agent_07_07_", "agent_07_08_", "agent_07_09_", "agent_07_10_")
+_INDEX_ROW_RE = re.compile(r"^\|\s*`(/[a-z][a-z0-9_]*)`\s*\|")
+# REPL-reserved: handled by the REPL itself, so absent from _COMMANDS by design.
+_REPL_RESERVED_COMMANDS = frozenset({"/exit"})
+
+
+def check_command_coverage(docs_dir: Path, repo_root: Path) -> list[Issue]:
+    """Flag command-name mismatches between _COMMANDS and the Agent command docs.
+
+    Covers command names only (not subcommands or arguments): every registered
+    command must appear in the Built-in Command Index of agent_07_03 and be
+    mentioned in at least one per-command chapter (agent_07_07 to agent_07_10),
+    and every index row must name a registered or REPL-reserved command.
+    """
+    registered = extract_registered_command_names(repo_root)
+    if registered is None:
+        return []
+
+    agent_dir = docs_dir / DOMAIN_SUBFOLDERS["agent"]
+    index_docs = discover_md_files(agent_dir, prefix=_COMMAND_INDEX_DOC)
+    chapters = [
+        doc
+        for prefix in _COMMAND_CHAPTER_DOCS
+        for doc in discover_md_files(agent_dir, prefix=prefix)
+    ]
+    issues: list[Issue] = []
+
+    indexed: set[str] = set()
+    for doc in index_docs:
+        for line_no, line in enumerate(doc.lines, start=1):
+            match = _INDEX_ROW_RE.match(line)
+            if not match:
+                continue
+            name = match.group(1)
+            indexed.add(name)
+            if name not in registered and name not in _REPL_RESERVED_COMMANDS:
+                issues.append(
+                    Issue(
+                        file=doc.rel_path,
+                        line_no=line_no,
+                        severity="ERROR",
+                        message=(
+                            f"command index lists {name!r}, which is not "
+                            f"registered in _COMMANDS (command_defs_list.py)"
+                        ),
+                    )
+                )
+
+    index_file = index_docs[0].rel_path if index_docs else _COMMAND_INDEX_DOC
+    chapter_text = "\n".join(line for doc in chapters for line in doc.lines)
+    for name in sorted(registered):
+        if index_docs and name not in indexed:
+            issues.append(
+                Issue(
+                    file=index_file,
+                    line_no=0,
+                    severity="ERROR",
+                    message=(
+                        f"registered command {name!r} is missing from the "
+                        f"Built-in Command Index"
+                    ),
+                )
+            )
+        if not re.search(rf"(?<![\w/]){re.escape(name)}(?![\w-])", chapter_text):
+            issues.append(
+                Issue(
+                    file=index_file,
+                    line_no=0,
+                    severity="ERROR",
+                    message=(
+                        f"registered command {name!r} is not described in any "
+                        f"per-command chapter (agent_07_07 to agent_07_10)"
+                    ),
+                )
+            )
     return issues
 
 
@@ -757,6 +842,8 @@ def main(argv: list[str] | None = None) -> int:
 
     # Domain-specific checks
     if args.domain == "agent":
+        if "commandcoverage" not in skip:
+            all_issues.extend(check_command_coverage(docs_dir, repo_root))
         if "schemadrift" not in skip:
             all_issues.extend(check_schema_drift(docs_dir, repo_root))
         if "diagnostics" not in skip:

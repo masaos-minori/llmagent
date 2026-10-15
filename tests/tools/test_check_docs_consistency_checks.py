@@ -80,3 +80,53 @@ def test_undefaulted_unset_db_path_key_is_reported(_repo_with_db_config: Path) -
     )
     assert len(issues) == 1
     assert "session_db_path" in issues[0].message
+
+
+def _command_repo(tmp_path: Path, commands: list[str]) -> Path:
+    cmd_dir = tmp_path / "scripts" / "agent" / "commands"
+    cmd_dir.mkdir(parents=True)
+    body = "".join(f'    CommandDef(name="{c}", prefix=False),\n' for c in commands)
+    (cmd_dir / "command_defs_list.py").write_text(f"_COMMANDS = [\n{body}]\n")
+    return tmp_path
+
+
+def _write_agent_docs(docs: Path, index_cmds: list[str], chapter_text: str) -> None:
+    agent = docs / "23_agent"
+    agent.mkdir(parents=True)
+    rows = "".join(f"| `{c}` | purpose |\n" for c in index_cmds)
+    (agent / "agent_07_03_registry.md").write_text(
+        f"| Command | Purpose |\n|---|---|\n{rows}"
+    )
+    (agent / "agent_07_07_chapter.md").write_text(chapter_text)
+
+
+def test_command_coverage_clean(tmp_path: Path) -> None:
+    repo = _command_repo(tmp_path, ["/help", "/debug"])
+    _write_agent_docs(
+        tmp_path / "docs", ["/help", "/debug", "/exit"], "`/help` `/debug`\n"
+    )
+    assert cdc.check_command_coverage(tmp_path / "docs", repo) == []
+
+
+def test_command_coverage_reports_missing_index_and_chapter(tmp_path: Path) -> None:
+    repo = _command_repo(tmp_path, ["/help", "/audit"])
+    _write_agent_docs(tmp_path / "docs", ["/help"], "`/help`\n")
+    messages = [i.message for i in cdc.check_command_coverage(tmp_path / "docs", repo)]
+    assert any("'/audit'" in m and "Built-in Command Index" in m for m in messages)
+    assert any("'/audit'" in m and "per-command chapter" in m for m in messages)
+    assert not any("'/help'" in m for m in messages)
+
+
+def test_command_coverage_reports_unregistered_index_row(tmp_path: Path) -> None:
+    repo = _command_repo(tmp_path, ["/help"])
+    _write_agent_docs(tmp_path / "docs", ["/help", "/skill"], "`/help`\n")
+    issues = cdc.check_command_coverage(tmp_path / "docs", repo)
+    assert [i.severity for i in issues] == ["ERROR"]
+    assert "'/skill'" in issues[0].message
+
+
+def test_command_coverage_does_not_match_a_longer_command_name(tmp_path: Path) -> None:
+    repo = _command_repo(tmp_path, ["/mem"])
+    _write_agent_docs(tmp_path / "docs", ["/mem"], "`/memory`\n")
+    messages = [i.message for i in cdc.check_command_coverage(tmp_path / "docs", repo)]
+    assert any("per-command chapter" in m for m in messages)
