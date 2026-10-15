@@ -8,6 +8,8 @@ from pathlib import Path
 import pytest
 from shared.tool_constants import MDQ_TOOLS
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class TestMdqNoUnmappedTools:
     """Verify no MDQ tool is accidentally unmapped across config, registry, and live sources."""
@@ -185,7 +187,7 @@ class TestMdqV1ToolsEndpoint:
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.mdq_server import app
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get("/v1/tools")
         assert response.status_code == 200
         body = response.json()
@@ -202,7 +204,7 @@ class TestMdqV1ToolsEndpoint:
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.mdq_server import app
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get("/v1/tools?include_disabled=true")
         assert response.status_code == 200
         tool_names = {t["name"] for t in response.json()["tools"]}
@@ -215,7 +217,7 @@ class TestMdqV1ToolsEndpoint:
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.mdq_server import app
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get("/v1/tools?include_disabled=true")
         assert response.status_code == 200
         for tool in response.json()["tools"]:
@@ -228,7 +230,7 @@ class TestMdqV1ToolsEndpoint:
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.mdq_server import app
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get("/v1/tools?include_disabled=true")
         assert response.status_code == 200
         for tool in response.json()["tools"]:
@@ -243,7 +245,7 @@ class TestMdqV1ToolsEndpoint:
         from mcp_servers.mdq import mdq_server
 
         monkeypatch.setattr(mdq_server._service, "_allowed_dirs", ["/opt/llm/docs"])
-        client = TestClient(mdq_server.app)
+        client = TestClient(mdq_server.app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get("/v1/tools")
         assert response.status_code == 200
         tools = response.json()["tools"]
@@ -257,7 +259,7 @@ class TestMdqV1ToolsEndpoint:
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.mdq_server import app
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get("/v1/tools?include_disabled=false")
         assert response.status_code == 200
         assert response.json()["tools"] == []
@@ -267,7 +269,7 @@ class TestMdqV1ToolsEndpoint:
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.mdq_server import app
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get(
             "/v1/tools?include_disabled=true&disabled_code=allowed_dirs+is+empty"
         )

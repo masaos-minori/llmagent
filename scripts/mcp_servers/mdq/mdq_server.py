@@ -20,6 +20,8 @@ from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.config_loader import ConfigLoader
+from shared.config_utils import get_str
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
 
@@ -63,6 +65,17 @@ app = FastAPI(
     description="Markdown Context Compression Engine MCP server (Markdown-only, structure-aware retrieval)",
 )
 
+
+def _load_auth_token() -> str:
+    """Return the server Bearer token from mdq_mcp_server.toml ("" when unset)."""
+    try:
+        cfg = ConfigLoader().load("mdq_mcp_server.toml")
+    except (FileNotFoundError, KeyError, TypeError):
+        cfg = {}
+    return get_str(cfg, "auth_token")
+
+
+_AUTH_TOKEN: str = _load_auth_token()
 _service: MdqService = MdqService()
 
 
@@ -409,7 +422,8 @@ class MdqMCPServer(MCPServer):
     Conforms to MCPServer base class contract:
     - server_key: "mdq" (used by list_tools_with_server_key() and routing)
     - http_host: explicit "127.0.0.1" (matches other HTTP servers)
-    - auth_token: empty string (no auth required — mdq has its own authorization via allowed_dirs)
+    - auth_token: non-empty Bearer token read from mdq_mcp_server.toml (the module refuses to load without it);
+      allowed_dirs is a separate path authorization applied after authentication
     """
 
     server_name = "mdq-mcp"
@@ -427,8 +441,14 @@ class MdqMCPServer(MCPServer):
         return DispatchResult(output=r.output, is_error=r.is_error)
 
 
-# Attach auth middleware — no-op when token is empty (mdq has its own authorization)
-attach_auth_middleware(cast(_FastAPIApp, app), "")
+# Attach the common Bearer authentication middleware. allowed_dirs path authorization
+# is applied afterwards, inside the service, and does not replace authentication.
+if not _AUTH_TOKEN:
+    raise RuntimeError(
+        "mdq-mcp: auth_token is empty; set MCP_MDQ_AUTH_TOKEN to a non-empty "
+        "value (the server does not start without Bearer authentication)"
+    )
+attach_auth_middleware(cast(_FastAPIApp, app), _AUTH_TOKEN)
 
 
 if __name__ == "__main__":

@@ -20,6 +20,8 @@ from mcp_servers.mdq.mdq_models import (
 )
 from mcp_servers.mdq.mdq_service import MdqService
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 @pytest.fixture()
 def service(tmp_path: Path) -> MdqService:
@@ -148,7 +150,7 @@ class TestCallToolDomainExceptionHandling:
         from fastapi.testclient import TestClient
         from mcp_servers.mdq.mdq_server import app
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         with patch(
             "mcp_servers.mdq.server._dispatch_mdq_tool",
             new=AsyncMock(side_effect=MdqValidationError("bad input")),
@@ -172,7 +174,7 @@ class TestCallToolDomainExceptionHandling:
         from mcp_servers.mdq.mdq_models import MdqNotFoundError
         from mcp_servers.mdq.mdq_server import app
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         with patch(
             "mcp_servers.mdq.server._dispatch_mdq_tool",
             new=AsyncMock(side_effect=MdqNotFoundError("chunk not found")),

@@ -12,6 +12,8 @@ from unittest.mock import patch
 from httpx import ASGITransport, AsyncClient
 from mcp_servers.mdq.mdq_server import app
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 def _create_test_db(tmp_path: Path) -> str:
     """Create a minimal schema-valid test DB (documents/chunks/chunks_fts + trigger stubs)."""
@@ -102,7 +104,9 @@ class TestHealthAllowedDirsVisibility:
                 db_path, []
             )
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -118,7 +122,9 @@ class TestHealthAllowedDirsVisibility:
                 db_path, ["/some/dir", "/other/dir"]
             )
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -132,7 +138,9 @@ class TestHealthAllowedDirsVisibility:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = {"db_path": db_path}
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -146,7 +154,9 @@ class TestHealthAllowedDirsVisibility:
                 db_path, ["/secret/path"]
             )
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert "/secret/path" not in resp.text

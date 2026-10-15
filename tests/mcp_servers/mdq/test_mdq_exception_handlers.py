@@ -33,12 +33,14 @@ from mcp_servers.mdq.mdq_models import (
 from mcp_servers.mdq.mdq_server import app
 from mcp_servers.mdq.mdq_service import MdqService
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class TestMdqDatabaseErrorHandler:
     """MdqDatabaseError raised from dispatch -> HTTP 503 via exception_handler."""
 
     def test_returns_503_with_detail_message(self) -> None:
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         with patch(
             "mcp_servers.mdq.server._dispatch_mdq_tool",
             new=AsyncMock(side_effect=MdqDatabaseError("db unavailable")),
@@ -51,7 +53,7 @@ class TestMdqDatabaseErrorHandler:
         assert response.json() == {"detail": "db unavailable"}
 
     def test_logs_audit_entry_with_error_type(self) -> None:
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         mock_audit = MagicMock()
         with (
             patch(
@@ -70,7 +72,7 @@ class TestMdqConsistencyErrorHandler:
     """MdqConsistencyError raised from dispatch -> HTTP 500 via exception_handler."""
 
     def test_returns_500_with_detail_message(self) -> None:
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         with patch(
             "mcp_servers.mdq.server._dispatch_mdq_tool",
             new=AsyncMock(side_effect=MdqConsistencyError("index corrupt")),
@@ -87,7 +89,7 @@ class TestMdqServiceErrorHandler:
     """MdqServiceError raised from dispatch -> HTTP 500 via exception_handler."""
 
     def test_returns_500_with_detail_message(self) -> None:
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         with patch(
             "mcp_servers.mdq.server._dispatch_mdq_tool",
             new=AsyncMock(side_effect=MdqServiceError("unexpected failure")),
@@ -106,7 +108,7 @@ class TestMdqServiceErrorHandler:
         before the handler runs, so the x-request-id header fallback in
         `getattr(request.state, "request_id", ...)` is never actually reached
         on this server. This test locks that (pre-existing) behavior as-is."""
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         mock_audit = MagicMock()
         with (
             patch(
@@ -130,7 +132,7 @@ class TestUnknownToolAuditDetail:
     True without a raised exception, e.g. an unknown tool name)."""
 
     def test_unknown_tool_name_reports_error_kind_tool_error(self) -> None:
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         mock_audit = MagicMock()
         with patch("mcp_servers.mdq.server._audit_log", new=mock_audit):
             response = client.post(
@@ -176,7 +178,7 @@ class TestGetChunkTruncationAuditDetail:
             conn.close()
         chunk_id = row["chunk_id"]
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         mock_audit = MagicMock()
         with (
             patch("mcp_servers.mdq.server._service", service),
@@ -207,7 +209,7 @@ class TestGetChunkTruncationAuditDetail:
             conn.close()
         chunk_id = row["chunk_id"]
 
-        client = TestClient(app)
+        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
         mock_audit = MagicMock()
         with (
             patch("mcp_servers.mdq.server._service", service),

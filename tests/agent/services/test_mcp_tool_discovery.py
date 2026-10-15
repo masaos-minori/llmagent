@@ -39,7 +39,11 @@ from shared.tool_registry import (
 
 def _server_auth_headers(module: ModuleType) -> dict[str, str]:
     """Bearer header for servers whose test config carries a non-empty inbound token."""
-    token = getattr(getattr(module, "_cfg", None), "auth_token", "") or ""
+    token = (
+        getattr(getattr(module, "_cfg", None), "auth_token", "")
+        or getattr(module, "_AUTH_TOKEN", "")
+        or ""
+    )
     return {"Authorization": f"Bearer {token}"} if token else {}
 
 

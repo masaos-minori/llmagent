@@ -15,6 +15,8 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 from mcp_servers.mdq.mdq_server import app
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 def _create_test_db(tmp_path: Path) -> str:
     """Create a test database with the current production schema (chunks/chunks_fts/documents).
@@ -282,7 +284,9 @@ class TestHealthEndpointReady:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 200
@@ -297,7 +301,9 @@ class TestHealthEndpointReady:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -309,7 +315,9 @@ class TestHealthEndpointReady:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -327,7 +335,9 @@ class TestHealthEndpointReady:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -345,7 +355,9 @@ class TestHealthEndpointMissingSchema:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
@@ -363,7 +375,9 @@ class TestHealthEndpointMissingSchema:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
@@ -381,7 +395,9 @@ class TestHealthEndpointMissingSchema:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
@@ -443,7 +459,9 @@ class TestHealthEndpointMissingSchema:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
@@ -509,7 +527,9 @@ class TestHealthEndpointMissingSchema:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
@@ -524,7 +544,9 @@ class TestHealthEndpointMissingSchema:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
@@ -538,7 +560,9 @@ class TestHealthEndpointMissingSchema:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
@@ -580,7 +604,9 @@ class TestHealthEndpointStats:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -610,7 +636,9 @@ class TestHealthEndpointStats:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -641,7 +669,9 @@ class TestHealthEndpointStats:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -653,7 +683,9 @@ class TestHealthEndpointStats:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()
@@ -665,7 +697,9 @@ class TestHealthEndpointStats:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 200
@@ -676,7 +710,9 @@ class TestHealthEndpointStats:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         assert resp.status_code == 503
@@ -689,7 +725,9 @@ class TestHealthEndpointStats:
         with patch("mcp_servers.mdq.health_check.ConfigLoader") as MockConfig:
             MockConfig.return_value.load.return_value = _mock_config(db_path)
             async with AsyncClient(
-                transport=ASGITransport(app=app), base_url="http://test"
+                transport=ASGITransport(app=app),
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as client:
                 resp = await client.get("/health")
         body = resp.json()

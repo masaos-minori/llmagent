@@ -21,6 +21,8 @@ from mcp_servers.mdq.indexer import index_paths
 from mcp_servers.mdq.mdq_models import IndexPathsRequest
 from mcp_servers.mdq.mdq_service import MdqService
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 # ── fixtures ──────────────────────────────────────────────────────────────────
 
 
@@ -58,7 +60,7 @@ def client() -> httpx.Client:
     """A sync TestClient-equivalent over the mdq FastAPI app."""
     from fastapi.testclient import TestClient
 
-    return TestClient(mdq_server_module.app)
+    return TestClient(mdq_server_module.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
 # ── search_docs ───────────────────────────────────────────────────────────────
@@ -309,7 +311,9 @@ class TestConcurrentAuditIsolation:
         async def _run_both() -> tuple[httpx.Response, httpx.Response]:
             transport = httpx.ASGITransport(app=mdq_server_module.app)
             async with httpx.AsyncClient(
-                transport=transport, base_url="http://test"
+                transport=transport,
+                base_url="http://test",
+                headers=MCP_TEST_AUTH_HEADERS,
             ) as ac:
                 return await asyncio.gather(
                     ac.post(

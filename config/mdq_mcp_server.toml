@@ -1,5 +1,12 @@
 # Markdown Context Compression Engine MCP Server Configuration
 
+# auth_token: Bearer token for MCP server call authentication, resolved from the
+# MCP_MDQ_AUTH_TOKEN environment variable. Must match config/agent.toml's
+# [mcp_servers.mdq].auth_token value. An empty or missing value makes the
+# server refuse to start (fail closed). allowed_dirs below is a separate path
+# authorization applied after authentication; it does not replace it.
+auth_token = "${ENV:MCP_MDQ_AUTH_TOKEN}"
+
 # Directories that mdq-mcp is allowed to read from.
 # Default: [] (deny-all — no paths are allowed until explicitly configured).
 # Production example: allowed_dirs = ["/opt/llm/docs"]
