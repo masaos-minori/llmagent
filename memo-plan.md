@@ -4,8 +4,8 @@
 
 - 総計画書: 2596
 - 表形式(`### Execution Status`)計画: 706
-  - 未対応ステップあり: 24
-  - 全完了: 682
+  - 未対応ステップあり: 23
+  - 全完了: 683
 - チェックボックス形式計画: 1887（うち未チェック項目あり: 1848）
 
 ## 判定方法
@@ -29,18 +29,18 @@
 
 ### B-1. 全ステップ Pending
 
-- **20260918-120636_plan.md** — 未対応 14 件 [Pending, Pending, Pending, Pending, Pending, Pending, Pending, Pending, Pending, Pending, Pending, Pending, Pending, Pending]
+- **20260918-120636_plan.md** — 未対応 11 件 [Pending, Pending, Pending, Pending, Pending, Pending, Completed, Completed, Pending, Pending, Completed, Pending, Pending, Pending]
   - `1` [Pending]: Update INV-003 row citation (`docs/adr-index.md`)
   - `2` [Pending]: Update INV-006 row citation (`docs/adr-index.md`)
   - `3` [Pending]: Update INV-007 row citation (`docs/adr-index.md`)
   - `4` [Pending]: Update INV-008 row citation (`docs/adr-index.md`)
   - `5` [Pending]: Update INV-014 row citation (`docs/adr-index.md`)
   - `6` [Pending]: Correct INV-015 row (`docs/adr-index.md`)
-  - `7` [Pending]: Create `tests/shared/test_tool_routing_validation.py` + cite INV-005
-  - `8` [Pending]: Add `rebuild_fts()` test to `tests/rag/test_fts_sync.py` + cite INV-009
+  - `7` [Completed]: Create `tests/shared/test_tool_routing_validation.py` + cite INV-005 — INV-005 引用あり
+  - `8` [Completed]: Add `rebuild_fts()` test to `tests/rag/test_fts_sync.py` + cite INV-009 — INV-009 引用あり
   - `9` [Pending]: Create `tests/agent/test_failure_handling_policy_cross_cutting.py` (INV-010) + cite
   - `10` [Pending]: Add INV-011 test to same new file + cite
-  - `11` [Pending]: Add monotonicity test to `tests/eventbus/test_eventbus_offsets.py` + cite INV-012
+  - `11` [Completed]: Add monotonicity test to `tests/eventbus/test_eventbus_offsets.py` + cite INV-012 — INV-012 引用あり
   - `12` [Pending]: Add ordering test to `tests/eventbus/test_eventbus_publish.py` + cite INV-013
   - `13` [Pending]: Confirm no `scripts/`/`config/` change; no deploy step needed
   - `14` [Pending]: Run full test suite for the 5 new/edited test files
@@ -146,8 +146,8 @@
 
 ### B-3. 一部 Pending（完了済みステップあり）
 
-- **20261006-093924_plan.md** — 未対応 1 件 [Pending]
-  - `7` [Pending]: `start_agent.sh` integration check (完了日 REQ-001, REQ-002 Production integration smoke (/opt/llm/start_agent.sh) outside unit-validation scope; unit suites (validator+lifecycle+TestAppServicesValidation) pass, change is single-frozenset-literal add)
+- **20261006-093924_plan.md** — 全完了（全ステップ完了）
+  - `7` [Completed]: `start_agent.sh` integration check — `uv` が両 allowlist に追加済み（`http_lifecycle_command_validator.py:27`, `http_lifecycle.py:69`）
 
 - **20261006-095454_plan.md** — 未対応 3 件 [Pending, Pending, Pending]
   - `1` [Pending]: Resolve UNK-01..03 with a maintainer (confirm allowed paths/repos/workflows)
