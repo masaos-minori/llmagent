@@ -4,8 +4,8 @@
 
 - 総計画書: 2596
 - 表形式(`### Execution Status`)計画: 706
-  - 未対応ステップあり: 25
-  - 全完了: 681
+  - 未対応ステップあり: 24
+  - 全完了: 682
 - チェックボックス形式計画: 1887（うち未チェック項目あり: 1848）
 
 ## 判定方法
@@ -113,23 +113,24 @@
   - `5` [In Progress]: Phase 3a: Add regression tests
   - `6` [In Progress]: Phase 3b: Run existing tests
 
-- **20261004-194533_plan.md** — 未対応 4 件 [In Progress, In Progress, In Progress, In Progress]
+- **20261004-194533_plan.md** — 未対応 3 件 [In Progress, Completed, In Progress, In Progress]
   - `1` [In Progress]: Phase 1: Preparation — confirm `retry_helper` delegation
-  - `2` [In Progress]: Phase 2: Core logic — fix masking in `secrets_masker.py`
+  - `2` [Completed]: Phase 2: Core logic — value-leak fix 実装済み（`m.group(1) + "***MASKED***"` に変更、値の長さ非依存の完全マスク）
   - `3` [In Progress]: Phase 3: Tests & verification — new module + validation sequence
   - `4` [In Progress]: Phase 4: Documentation — update startup-and-health doc
 
-- **20261006-100352_plan.md** — 未対応 6 件 [Pending, In Progress, In Progress, In Progress, In Progress, Pending]
-  - `1` [Pending]: No preparation required — single-token substitution
-  - `2` [In Progress]: Replace in `deploy/start_agent.sh` (lines 65, 76)
-  - `3` [In Progress]: Replace in `deploy/setup_services.sh` (lines 28, 56, 112-114)
-  - `4` [In Progress]: Replace in `deploy/init_db.sh` (line 28)
-  - `5` [In Progress]: Replace in `deploy/deploy.sh` (lines 24, 33)
-  - `6` [Pending]: Static grep + `start_agent.sh` runtime verification
+- **20261006-100352_plan.md** — 全完了（全ステップ完了）
+  - `1` [Completed]: No preparation required — single-token substitution
+  - `2` [Completed]: Replace in `deploy/start_agent.sh` (UV_SYSTEM_CERTS=true に置換済み)
+  - `3` [Completed]: Replace in `deploy/setup_services.sh` (UV_SYSTEM_CERTS=true に置換済み)
+  - `4` [Completed]: Replace in `deploy/init_db.sh` (UV_SYSTEM_CERTS=true に置換済み)
+  - `5` [Completed]: Replace in `deploy/deploy.sh` (UV_SYSTEM_CERTS=true に置換済み)
+  - `6` [Completed]: Static grep + `start_agent.sh` runtime verification（UV_NATIVE_TLS 消滅確認済み）
 
-- **20261006-113432_plan.md** — 未対応 2 件 [Pending, In Progress]
+- **20261006-113432_plan.md** — 未対応 1 件 [Pending, Completed, Pending]
   - `1` [Pending]: Phase 1: Preparation / Refactoring (if needed)
-  - `2` [In Progress]: Phase 2: Core Logic Implementation
+  - `2` [Completed]: Phase 2: Core Logic Implementation — same-state STOPPED→STOPPED transition 追加済み（`_VALID_TRANSITIONS[LifecycleState.STOPPED] |= frozenset({LifecycleState.STOPPED})`）
+  - `3` [Pending]: Phase 3: Deployment & Verification
 
 - **20261006-114718_plan.md** — 未対応 2 件 [Pending, In Progress]
   - `1` [Pending]: Phase 1: Preparation / Investigation
