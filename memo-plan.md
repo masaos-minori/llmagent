@@ -4,7 +4,7 @@
 
 - 総計画書: 2596
 - 表形式(`### Execution Status`)計画: 706
-  - 未対応ステップあり: 24
+  - 未対応ステップあり: 25
   - 全完了: 681
 - チェックボックス形式計画: 1887（うち未チェック項目あり: 1848）
 
@@ -21,6 +21,7 @@
 |---|---|---|
 | B. 未着手と推定 | 24 | 自身の手続文档参照なし＝信頼できる実行証拠なし。 |
 | C. 全完了（完了済み） | 4 | 全ステップがCompleted。memo-plan.mdから除外済み。 |
+| D. Obsolete ステップあり | 1 | 一部ステップがObsolete（対象ファイル消滅・統合済み）。 |
 
 ## B. 未着手と推定（未対応ステップあり）
 
@@ -151,6 +152,15 @@
   - `1` [Pending]: Resolve UNK-01..03 with a maintainer (confirm allowed paths/repos/workflows)
   - `5` [Pending]: Deploy via `deploy/deploy.sh`
   - `6` [Pending]: Startup + per-server operation verification
+
+## D. Obsolete ステップあり
+
+合計 1 本。一部ステップが Obsolete（対象ファイル消滅・統合済み）。
+
+- **20260903-090104_plan.md** — 未対応 1 件 [Obsolete]
+  - `3` [Obsolete]: `docs/04_mcp_90_inconsistencies_and_known_issues.md` — ファイル統合済み（`docs/00_governance_03_issue-and-uncertainty-management.md` に移行）
+  - `1` [Completed]: `docs/agent_13_reference-api.md` — `server_configs` 主張削除済み
+  - `2` [Completed]: `docs/04_mcp_03_01_dispatch-and-routing.md` — 追加分加筆済み（ただし当該ファイルも後に削除）
 
 ## 付記：チェックボックス形式
 
