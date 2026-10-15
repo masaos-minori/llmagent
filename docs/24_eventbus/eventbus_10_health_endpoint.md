@@ -90,14 +90,9 @@ healthy — see `scripts/eventbus/health_route.py` for the full response schema.
 
 ### Degraded Health Check
 
-```bash
-curl -H "Authorization: Bearer ${MONITORING_TOKEN}" \
-  http://<eventbus-host>:<port>/health
-```
-
-Returns `status: "degraded"` with a non-empty `degraded_reasons` array listing which
-conditions triggered the degraded state (see "Possible Degraded Reasons" above) — see
-`scripts/eventbus/health_route.py` for the full response schema.
+The same request returns HTTP 503 with `status: "degraded"` and a non-empty
+`degraded_reasons` array listing which conditions triggered the degraded state (see
+"Possible Degraded Reasons" above).
 
 ## Keywords
 

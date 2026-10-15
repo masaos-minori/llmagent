@@ -43,7 +43,7 @@ The Event Bus API uses Bearer-token authentication with role-based access (publi
 - **Design Assumption**: Intended for single-node operation on internal networks/trusted hosts.
 - **Access Control**: In addition to token authentication, access should be restricted at the network boundary (firewall, Docker network).
 - **Exposure Warning**: The Event Bus must NOT be directly accessible from the internet.
-- **Startup Guard**: Binding to any non-loopback address (anything other than loopback, including wildcard addresses) is rejected unconditionally at config-load time (`EventBusConfig.__post_init__()`, `scripts/eventbus/config.py`) — `ValueError` is raised, and startup does not proceed. No configuration value can permit a public bind.
+- **Startup Guard**: Binding to any non-loopback address (including wildcard addresses) is rejected unconditionally at config-load time (`EventBusConfig.__post_init__()`, `scripts/eventbus/config.py`) — `ValueError` is raised, and startup does not proceed. No configuration value can permit a public bind.
 
 ## Agent Integration Status
 

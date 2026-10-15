@@ -151,7 +151,7 @@ Returned when the event does not exist in the database.
 
 ### Empty-result behavior
 
-Not applicable — this endpoint operates on a single event identified by `event_id`. If the event does not exist, HTTP 404 is returned.
+Not applicable — single event; a missing event returns HTTP 404.
 
 ### Invalid-parameter behavior
 
@@ -169,7 +169,7 @@ Concurrent requeue attempts on the same event produce exactly one successful red
 
 ### Idempotency Note
 
-Requeue uses a lineage model: each requeue creates a new event row with `redelivered_from` pointing to the original event ID. The original row's `dlq_at` timestamp is intentionally preserved so only one successful redelivery occurs per original event. Attempting to requeue the same event twice will return HTTP 409 on the second attempt.
+Requeue uses a lineage model (new row with `redelivered_from`, original `dlq_at` preserved; see the Requeue DLQ Entry endpoint description). Attempting to requeue the same event twice will return HTTP 409 on the second attempt.
 
 ## Keywords
 

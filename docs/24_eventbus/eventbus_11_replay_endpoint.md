@@ -96,7 +96,7 @@ When no events exist after `since_seq`, the JSON response has `total: 0` and an 
 
 ## Invalid Parameters
 
-- Missing `since_seq`, `format`, `limit`, or `offset`: the default value (or the route's default for `limit`) applies.
+- Missing parameters use the defaults in the Parameters table.
 - `since_seq` below 0, `limit` below 1 or above the maximum bound, `offset` below 0, or an unknown `format` value: HTTP 422 (FastAPI validation).
 
 ## Ordering and Consistency
@@ -119,19 +119,7 @@ curl -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
   "http://<eventbus-host>:<port>/replay?since_seq=42&format=json&limit=50&offset=0"
 ```
 
-Response:
-
-```json
-{
-  "total": 1000,
-  "limit": 50,
-  "offset": 0,
-  "items": [
-    {"event_id": "evt-abc", "topic": "orders", "payload": {"order_id": "123"}, "seq": 42},
-    {"event_id": "evt-def", "topic": "users", "payload": {"user_id": "456"}, "seq": 43}
-  ]
-}
-```
+The response follows the JSON Response Schema above.
 
 ## Keywords
 

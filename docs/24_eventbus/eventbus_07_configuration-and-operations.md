@@ -78,7 +78,7 @@ model the token fields below implement.
 - `subscriber_queue_maxsize` — Per-subscriber queue capacity
 - `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high`
 
-Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Startup fails unless `auth_token` is configured; the per-role tokens above are optional additions — see `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md` for the authorization model these tokens implement.
+Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Invalid combinations fail startup with actionable error messages naming both conflicting values. Startup fails unless `auth_token` is configured; the per-role tokens above are optional additions.
 
 ### Token Distribution
 
@@ -168,7 +168,7 @@ The following Prometheus metrics track slow consumer detection:
 
 - `eventbus_slow_consumer_total` — Counter of slow consumer events
 
-Slow consumer events are detected when a subscriber's queue depth exceeds `slow_consumer_threshold`. The health endpoint reports `slow_consumers_detected` when this condition occurs.
+The health endpoint reports `slow_consumers_detected` when a subscriber's queue depth exceeds `slow_consumer_threshold`.
 
 ---
 
@@ -195,11 +195,7 @@ A subscriber queue holding more than `slow_consumer_threshold` events is conside
 
 If a subscriber queue becomes full (`subscriber_queue_maxsize`), the broker disconnects that subscriber. The consumer must reconnect and replay from SQLite.
 
-**Threshold validation rules:**
-- `slow_consumer_threshold` must be strictly less than `subscriber_queue_maxsize`
-- `backlog_health_threshold` must be less than or equal to `subscriber_queue_maxsize`
-
-Invalid combinations fail startup with actionable error messages naming both conflicting values.
+Threshold validation rules are defined in Configuration Fields above.
 
 ### Recovery on Reconnection
 

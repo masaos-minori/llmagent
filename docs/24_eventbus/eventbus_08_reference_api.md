@@ -40,11 +40,11 @@ implementing modules, not the HTTP-level behavior.
 
 ### scripts/eventbus/app.py
 
-Application state and CLI entry point. See code for details.
+Application state and CLI entry point.
 
 ### scripts/eventbus/config.py
 
-`EventBusConfig` class and configuration loading functions. See code for details.
+`EventBusConfig` class and configuration loading functions.
 
 **SSE heartbeat field:** `sse_heartbeat_interval` (float) — interval in seconds between SSE comment heartbeats during live delivery phase. Optional TOML key; absent from TOML uses default. Validated as float type when present.
 
@@ -52,15 +52,15 @@ Application state and CLI entry point. See code for details.
 
 ### scripts/eventbus/db.py
 
-DB connection and schema initialization. See code for details.
+DB connection and schema initialization.
 
 ### scripts/eventbus/dlq.py
 
-DLQ operation functions. See code for details.
+DLQ operation functions.
 
 ### scripts/eventbus/route_helpers.py
 
-Common route helpers. See code for details.
+Common route helpers.
 
 ---
 
@@ -92,15 +92,13 @@ Common route helpers. See code for details.
 
 ### scripts/eventbus/subscribe_route.py
 
-`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for delivery semantics, offset semantics, and backpressure behavior.
+`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for delivery semantics (ordering guarantees, ACK/NACK rules), offset semantics, and backpressure behavior.
 
 **SSE-standard features:**
 - Heartbeat: During live delivery phase, emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals to keep idle connections alive through proxies/LBs.
 - Event IDs: Each event frame includes `id:<seq>` field where `seq` is the monotonic sequence number, enabling `EventSource`-based clients to auto-reconnect.
 - Last-Event-ID: Client can send `Last-Event-ID` HTTP header with a sequence number to resume from that point. Precedence: `since_seq` query param > persisted consumer offset > `Last-Event-ID` header.
 - Stale reconnect rejection: If `Last-Event-ID` exceeds current max seq in SQLite, returns HTTP 412 Precondition Failed.
-
-For detailed delivery semantics (ordering guarantees, ACK/NACK rules, offset semantics, backpressure), see `eventbus_05_dlq_offsets_and_delivery_semantics.md`.
 
 ### scripts/eventbus/health_route.py
 

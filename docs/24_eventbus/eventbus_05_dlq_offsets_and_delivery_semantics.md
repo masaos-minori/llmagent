@@ -50,7 +50,6 @@ Events within a single topic are delivered in ascending order of `seq`. This is 
 
 The `seq` field is globally monotonic across all topics. Each event is assigned a unique, incrementing `seq` value at publish time. This ensures:
 
-- Events are always delivered in the correct order within a topic.
 - Consumers can use `seq` to determine if they have received all events up to a given point.
 - Replay operations can resume from any `seq` value without missing events.
 
@@ -81,7 +80,7 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 ### NACK Postconditions
 
 - The nacking consumer's `consumer_delivery_failure_count` is incremented. The events-level `delivery_failure_count` is a legacy value that NACK does not modify.
-- Promotion to the DLQ is gated on the **per-consumer** failure count (`consumer_delivery_failure_count`), not the shared `delivery_failure_count`. The event is promoted only when the nacking consumer's own `consumer_delivery_failure_count` reaches `>= max_retry` AND every consumer that attempted delivery has given up (none has ACKed). One consumer's repeated NACKs never promote an Event shared by other consumers.
+- Promotion to the DLQ is gated on the **per-consumer** failure count (`consumer_delivery_failure_count`), not the shared `delivery_failure_count`, under the conditions in [Inline Promotion Path](#inline-promotion-path). One consumer's repeated NACKs never promote an Event shared by other consumers.
 - The response body includes `{event_id, delivery_failure_count}`, where `delivery_failure_count` is the nacking consumer's per-consumer failure count after this NACK (`dlq_promoted: true` is added when the event was promoted).
 
 ### NACK Error Responses

@@ -53,7 +53,7 @@ Publishes an event. Idempotent: a duplicate `event_id` with identical content is
 
 **Request Body**: Validated against the `event_envelope.json` JSON Schema. Required fields are `event_id` (UUID v4), `topic` (1–255 characters), `payload` (object), `producer` (1–255 characters), and `published_at` (ISO-8601). `schema_version` is optional and defaults to `"1.0"`. Additional properties are not allowed.
 
-**Response**: On success, returns `{event_id, seq}`. A duplicate `event_id` with identical content returns the existing `seq`. A 422 error indicates a JSON Schema validation error, and a 409 error indicates that the `event_id` already exists with conflicting content.
+**Response**: On success, returns `{event_id, seq}` (the existing `seq` for an identical duplicate). A 422 error indicates a JSON Schema validation error, and a 409 error indicates that the `event_id` already exists with conflicting content.
 
 **JSONL Append Failure**: If writing to the JSONL archive fails, the event is still committed to SQLite and a 200 status is returned. A WARNING will be recorded in the logs.
 
@@ -121,7 +121,7 @@ Both paths call the same shared promotion routine (atomic write to JSON file + s
 
 The background sweep selects events by the per-consumer failure count reaching the retry limit while `dlq_at IS NULL`. The exact rule is in [Background Loop Promotion](eventbus_05_dlq_offsets_and_delivery_semantics.md#background-loop-promotion).
 
-Using optimistic locking, it only targets events where `dlq_at IS NULL` to prevent duplicate promotion. If orphaned events are found, they are recorded in the logs. Any non-zero count may indicate an issue with the inline promotion process (e.g. a crash before its promotion write completed) rather than a normal condition.
+Optimistic locking on `dlq_at IS NULL` prevents duplicate promotion. If orphaned events are found, they are recorded in the logs. Any non-zero count may indicate an issue with the inline promotion process (e.g. a crash before its promotion write completed) rather than a normal condition.
 
 ---
 

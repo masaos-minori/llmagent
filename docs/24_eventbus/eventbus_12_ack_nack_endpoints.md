@@ -11,7 +11,7 @@ related:
 
 ## Overview
 
-Consumer-scoped endpoints for acknowledging successful processing (`POST /events/{event_id}/ack`) and negatively acknowledging failures (`POST /nack`). Both require Consumer role authentication.
+Consumer-scoped endpoints for acknowledging successful processing (`POST /events/{event_id}/ack`) and negatively acknowledging failures (`POST /nack`).
 
 ## Authentication
 
