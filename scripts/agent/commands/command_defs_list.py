@@ -189,25 +189,22 @@ _COMMANDS: list[CommandDef] = [
                     ArgSpec("limit", default="10"),
                 ),
             ),
-            SubcommandSpec(
-                "search",
-                "FTS5 search",
-                (ArgSpec("query", required=True), ArgSpec("--branch <branch>")),
-            ),
-            SubcommandSpec("show", "Show one entry", (ArgSpec("id", required=True),)),
             SubcommandSpec("pin", "Pin an entry", (ArgSpec("id", required=True),)),
             SubcommandSpec("unpin", "Unpin an entry", (ArgSpec("id", required=True),)),
             SubcommandSpec(
                 "delete", "Delete one entry", (ArgSpec("id", required=True),)
             ),
             SubcommandSpec("prune", "Delete old entries", (ArgSpec("days"),)),
-            SubcommandSpec("check-consistency", "Compare JSONL, SQLite, FTS5, vec"),
             SubcommandSpec(
-                "rebuild", "Import from the JSONL archive", (ArgSpec("--dry-run"),)
+                "reindex",
+                "Rebuild FTS/vec indexes only",
+                (ArgSpec("--fts|--vec"),),
             ),
-            SubcommandSpec("rebuild-fts", "Rebuild memories_fts"),
-            SubcommandSpec("rebuild-vec", "Rebuild memories_vec"),
-            SubcommandSpec("import-jsonl", "Alias of rebuild", (ArgSpec("--dry-run"),)),
+            SubcommandSpec(
+                "rebuild",
+                "Rebuild from the JSONL archive",
+                (ArgSpec("--confirm"), ArgSpec("--allow-loss")),
+            ),
         ],
     ),
     CommandDef(

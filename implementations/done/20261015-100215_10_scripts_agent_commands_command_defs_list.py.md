@@ -88,8 +88,8 @@ rows.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `/memory` help to spec subcommand set | Completed | 2026-10-15 | 2026-10-15 | REQ-010 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-15 | 2026-10-15 | ruff/mypy/lint-imports/bandit/stale all clean; 26 registry tests pass |
+| 1 | Update `/memory` help to spec subcommand set | Completed | 2026-10-15 | 20261016-064317 | REQ-010; archive was premature: adversarial validation on 2026-10-16 found the help string unchanged in source; change applied then; `subcommands` list also migrated to the spec 8-set (GV-023 contract tests required it; procedure Scope under-specified this) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-15 | 20261016-064317 | ruff/mypy/lint-imports/bandit/stale all clean; 76 command tests pass; pre-existing unrelated failure in test_session_message_repo (undo boundary bug) noted |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
