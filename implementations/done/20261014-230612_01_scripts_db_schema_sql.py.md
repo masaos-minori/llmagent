@@ -30,7 +30,7 @@ N/A: adding one DDL column with a default has no public-contract, persistence-mi
 
 ### Procedure
 
-Add `undo_floor_message_id INTEGER NOT NULL DEFAULT 0` to the `sessions` table DDL inside `_SESSION_SCHEMA_TEMPLATE`.
+Add `undo_floor_message_id` (new) `INTEGER NOT NULL DEFAULT 0` to the `sessions` table DDL inside `_SESSION_SCHEMA_TEMPLATE`.
 
 ### Method
 
@@ -81,7 +81,7 @@ Run the schema test with the sandbox config:
 uv run pytest tests/db/test_create_schema.py -p no.cacheprovider
 ```
 
-`TestCreateSessionSchema` asserts the generated `sessions` DDL contains `undo_floor_message_id` with `NOT NULL DEFAULT 0`. Also confirm `create_session_schema()` emits the column.
+Add a `TestCreateSessionSchema` assertion that the generated `sessions` DDL contains `undo_floor_message_id` (new) with `NOT NULL DEFAULT 0`. Also confirm `create_session_schema()` emits the column.
 
 ## Completion criteria
 
@@ -96,10 +96,10 @@ Migration mechanism, production recreation, data-preservation strategy (deferred
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | test_create_schema.py already asserts the column |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261015-125706 | 20261015-125706 | Procedure corrected before start: marked undo_floor_message_id (new) per template convention so stale_detector accepts it |
+| 2 | Add or update tests per Validation plan | Completed | 20261015-125706 | 20261015-125706 | test_create_schema.py did not assert it; add an assertion for the new column Added test_build_session_schema_emits_undo_floor_column; prior note 'already asserts' was inaccurate |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261015-125706 | 20261015-125706 | ruff format+check, mypy (416 files), bandit, lint-imports, pytest (50 passed) all clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

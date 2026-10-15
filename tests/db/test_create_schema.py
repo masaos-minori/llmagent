@@ -298,6 +298,13 @@ class TestCreateSessionSchema:
         cols = {row[1] for row in session_tmp_db.execute("PRAGMA table_info(messages)")}
         assert "tool_call_id" in cols
 
+    def test_build_session_schema_emits_undo_floor_column(self) -> None:
+        """build_session_schema_sql() emits sessions.undo_floor_message_id column."""
+        import db.schema_sql as schema_sql_mod
+
+        ddl = schema_sql_mod.build_session_schema_sql(384)
+        assert "undo_floor_message_id" in ddl
+
     def test_idempotent(self, tmp_path: Path) -> None:
         db_file = tmp_path / "session2.sqlite"
         cfg = _make_db_config(db_file, "session")

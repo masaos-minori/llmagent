@@ -93,9 +93,10 @@ _RAG_SCHEMA_TEMPLATE: str = """
 # preservation rather than silently defaulting to a lossy recreate.
 _SESSION_SCHEMA_TEMPLATE: str = """
     CREATE TABLE IF NOT EXISTS sessions (
-        session_id INTEGER PRIMARY KEY AUTOINCREMENT,
-        created_at TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-        title      TEXT
+        session_id              INTEGER PRIMARY KEY AUTOINCREMENT,
+        created_at              TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
+        title                   TEXT,
+        undo_floor_message_id   INTEGER NOT NULL DEFAULT 0
     );
     CREATE TABLE IF NOT EXISTS messages (
         message_id  INTEGER PRIMARY KEY AUTOINCREMENT,
