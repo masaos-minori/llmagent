@@ -30,13 +30,13 @@ The server detects a collision only on live subscriptions:
 
 - A second concurrent `/subscribe` connection using the same non-empty `consumer_id` as an already-active connection is rejected with HTTP 409. Only one active connection per non-empty `consumer_id` is permitted at a time. The check is an in-process registry of active subscriptions in the broker (Explicit in code — `scripts/eventbus/broker.py`, `scripts/eventbus/subscribe_route.py`). Separately, the legacy offset-file migration (`migrate_legacy_offsets()`) refuses to proceed when two legacy files map to the same sanitized consumer ID.
 
-The ACK endpoint is not bound to a connection, so it does not detect a collision. It restricts `consumer_id` only through the caller token's `consumer_id` allowlist (ADR-013 INV-02):
+The ACK endpoint is not bound to a connection, so it does not detect a collision. It restricts `consumer_id` only through the caller's Consumer-principal `consumer_id` authorization (ADR-013 INV-02):
 
-- A caller whose token carries an allowlist may ACK only the `consumer_id` values bound to that token; any other value is rejected with HTTP 403.
-- ACKs that carry the same `consumer_id` from callers without an allowlist (the shared and admin tokens) are all accepted, and share a single offset row.
+- A caller may ACK only the `consumer_id` values bound to its Consumer principal; any other value, and any token without a CONSUMER role, is rejected with HTTP 403.
+- ACKs that carry the same `consumer_id` from callers whose Consumer principal authorizes it are all accepted, and share a single offset row.
 - That offset only moves forward: the highest acknowledged `seq` wins, regardless of the order of the ACKs.
 - Consumers that share an ID through ACK can therefore overwrite each other's progress, so one of them may skip events on resume.
-- ADR-006 INV-10 has two parts: at most one active `GET /subscribe` connection per non-empty Consumer ID, and ACK/NACK limited to the `consumer_id` values bound to the caller's token. The first part is enforced on the `/subscribe` path only. The second part is not enforced for the shared `auth_token` and `admin_token` (superuser tokens), which carry no `consumer_id` allowlist; this is retained as an accepted residual deviation. (Explicit in code — `scripts/eventbus/ack_route.py`, `scripts/eventbus/delivery_repo.py::ack_event_for_consumer`).
+- ADR-006 INV-10 has two parts: at most one active `GET /subscribe` connection per non-empty Consumer ID, and Subscribe/ACK/NACK limited to the `consumer_id` and topic values bound to the caller's Consumer principal. The first part is enforced on the `/subscribe` path only. The second part has no exception: the shared `auth_token` and `admin_token` hold no CONSUMER role and are rejected with HTTP 403. (Explicit in code — `scripts/eventbus/ack_route.py`, `scripts/eventbus/delivery_repo.py::ack_event_for_consumer`).
 
 To avoid collisions, use unique, stable consumer IDs per instance. Do not use volatile IDs such as PIDs.
 

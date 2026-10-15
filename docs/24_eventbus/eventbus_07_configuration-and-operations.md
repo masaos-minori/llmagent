@@ -64,12 +64,12 @@ model the token fields below implement.
 
 - `publish_rate` — Maximum publish rate in events/sec before backpressure applies
 - `host` — Listening address (must be a loopback address — see Bind Address below)
-- `auth_token` — Required for all requests (startup fails if empty)
-- `publisher_token` — Grants publish-role access when set (per-role alternative to the shared `auth_token`)
+- `auth_token` — Required (startup fails if empty); a control-plane credential holding only the operator, monitoring, and admin roles
+- `publisher_token` — Grants publish-role access when set
 - `consumer_token` — Grants consume-role access when set
 - `operator_token` — Grants operator-role access when set
 - `monitoring_token` — Grants monitoring-role (health check) access when set
-- `admin_token` — Grants admin-role access (`/admin/*`) when set
+- `admin_token` — Grants the operator, monitoring, and admin roles (`/admin/*`, DLQ, replay, health) when set; it has no publisher or consumer role
 - `sse_heartbeat_interval` — SSE heartbeat interval in seconds
 - `sse_idle_timeout` — Idle timeout in seconds after which a `/subscribe` connection that received no events is closed
 - `consumer_authorization` — Optional `consumer_id` -> topics allowlist applied to the consumer-role token
@@ -82,7 +82,7 @@ Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_ini
 
 ### Token Distribution
 
-`auth_token` and `admin_token` grant every role (`docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`). They are operator credentials:
+`auth_token` and `admin_token` hold only the control-plane roles and no PUBLISHER or CONSUMER role (`docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`), so they cannot publish, subscribe, ACK, or NACK even if a caller receives one. Give each caller only its own token:
 
 | Caller | Token to give it | Never give it |
 |---|---|---|
@@ -92,7 +92,7 @@ Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_ini
 | Operator (DLQ, replay) | `operator_token` | — |
 | Administrator | `admin_token` | — |
 
-Before deploying a publisher or consumer process, confirm that the token it is configured with (its environment or configuration file; the variable names are operator choices) is its own per-role token and differs from the `auth_token` and `admin_token` values in the Event Bus configuration file. This check is the deployment-time verification of ADR-013 INV-07.
+Before deploying a publisher or consumer process, confirm that the token it is configured with (its environment or configuration file; the variable names are operator choices) is its own per-role token and differs from the `auth_token` and `admin_token` values in the Event Bus configuration file. A Consumer process needs its own `consumer_token` with explicit `consumer_authorization` (and optionally `topic_authorization`) mappings; an administrator who operates on Consumer state also needs a separate Consumer-scoped credential.
 
 ### Unsupported Keys
 

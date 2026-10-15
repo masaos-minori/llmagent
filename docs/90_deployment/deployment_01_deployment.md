@@ -302,7 +302,7 @@ Sessions, messages, and diagnostics are not recovered; past sessions can no long
 - [ ] `deploy.sh` finished successfully (no [FATAL] errors)
 - [ ] `init_db.sh` reported all mandatory tables and correct schema version
 - [ ] `setup_services.sh` passed pre-flight checks
-- [ ] No publisher or consumer process holds the Event Bus `auth_token` or `admin_token` (`eventbus_07_configuration-and-operations.md`, Token Distribution)
+- [ ] Each Event Bus publisher and consumer process is configured with its own per-role token, and every consumer token has explicit `consumer_authorization` (`eventbus_07_configuration-and-operations.md`, Token Distribution)
 
 ### 3.3 Failure Modes
 

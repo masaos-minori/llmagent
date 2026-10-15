@@ -259,7 +259,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 - Investigation of DLQ promotions
 - DB Schema verification before deployment
-- INV-10 connection exclusivity is verified for `GET /subscribe`; its consumer binding is governed by ADR-013 INV-02 and is not fully automated-verified (see ADR-013 Verification)
+- INV-10 connection exclusivity is verified for `GET /subscribe`; its consumer binding is governed by ADR-013 INV-02 and verified by the ADR-013 Verification tests
 - INV-01 and INV-06 have no dedicated automated test (INV-01 is exercised indirectly by every persistence test; INV-06 is bounded by the envelope schema's `event_id` format check in `tests/eventbus/test_eventbus_publish_contract.py::TestPublishEnvelopeSchemaContract`)
 
 ## Implementation Notes
@@ -269,7 +269,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Known Deviations
 
-- See ADR-013 Known Deviations for the current implementation gap in Consumer route identity enforcement.
+Not applicable
 
 ## Review Triggers
 
@@ -344,7 +344,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, INV-06, and INV-10 lack a complete automated test; INV-10's consumer binding verification is planned in ADR-013 Verification and not yet implemented)
+- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, and INV-06 lack a complete automated test; INV-10's consumer binding is verified through ADR-013 Verification)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications

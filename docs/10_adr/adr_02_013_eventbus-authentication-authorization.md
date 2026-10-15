@@ -39,7 +39,7 @@ EventBus API establishes a fail-closed security boundary by adding Bearer-token 
 
 ### Problem
 
-EventBus routes in `scripts/eventbus/` are intended to authenticate callers by Bearer token and authorize them by role. Roles are resolved by per-route dependencies and the HTTP middleware only assigns a request ID. Startup rejects a `consumer_token` configured without `consumer_authorization`. The accepted design admits to Consumer routes only a principal that holds the Consumer role and explicit `consumer_id` and topic authorizations; the shared `auth_token` and `admin_token` hold no Consumer role. The current implementation still lets those two tokens skip consumer identity validation (see Known Deviations); an empty `consumer_authorization` mapping already resolves to deny-all. `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
+EventBus routes in `scripts/eventbus/` are intended to authenticate callers by Bearer token and authorize them by role. Roles are resolved by per-route dependencies and the HTTP middleware only assigns a request ID. Startup rejects a `consumer_token` configured without `consumer_authorization`. The accepted design admits to Consumer routes only a principal that holds the Consumer role and explicit `consumer_id` and topic authorizations; the shared `auth_token` and `admin_token` hold no Consumer role. `require_consumer_identity` rejects any principal without the Consumer role or without explicit bindings, and an empty `consumer_authorization` mapping resolves to deny-all. `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
 
 ### Current State
 
@@ -83,7 +83,7 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 ### Scope
 
 - **Components**: `scripts/eventbus/auth.py`, `scripts/eventbus/app.py`, `scripts/eventbus/subscribe_route.py`, `scripts/eventbus/ack_route.py`, `scripts/eventbus/dlq_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/config.py`, `scripts/eventbus/audit.py`
-- **Tests**: `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`
+- **Tests**: `tests/eventbus/test_eventbus_auth.py`, `tests/eventbus/test_eventbus_config.py`, `tests/eventbus/test_eventbus_consumer_authorization.py`
 - **Documentation**: `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`, `docs/91_security/security_01_architecture-and-trust-boundaries.md`
 
 ### Out of Scope
@@ -140,7 +140,7 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 - Audit trail for security events without recording secrets.
 - Configuration typos and unknown keys are rejected rather than silently accepted.
 - Consumer identity binding is an exception-free contract, so a token distribution mistake does not lead directly to Consumer state changes.
-- ACK, NACK, offset, and DLQ delivery integrity is strengthened, and the manual-review-only ban on distributing superuser tokens is no longer needed.
+- ACK, NACK, offset, and DLQ delivery integrity is strengthened, and no manual-review ban on distributing superuser tokens is needed.
 
 ### Negative Consequences
 
@@ -148,7 +148,6 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 - Requires `auth_token` to be populated in `config/eventbus.toml` before deployment.
 - Added complexity in route handlers for identity binding checks.
 - A deployment that uses a shared token alone on Consumer routes is no longer compatible; every Consumer process needs a dedicated Consumer credential with an explicit mapping, and an administrator who operates on Consumer state also needs a separate Consumer-scoped credential.
-- Implementation, configuration, tests, and deployment guidance must be aligned afterwards (see Known Deviations).
 
 ### Ongoing Risks
 
@@ -219,9 +218,9 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 | `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) | INV-04 | Unit | Yes |
 | `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) | INV-06 | Regression | Yes |
 | audit records do not include token values (`test_no_credential_leakage_in_audit_records`) | INV-05 | Unit | Yes |
-| Planned, not verified (no test exists yet): `auth_token` and `admin_token` receive 403 on Subscribe, ACK, and NACK | INV-02, INV-07 | Integration | Yes |
-| Planned, not verified: a Consumer token with an authorized `consumer_id` and topic succeeds; an unauthorized `consumer_id` or topic returns 403; an empty `topic_authorization` mapping denies all | INV-02 | Integration | Yes |
-| Planned, not verified: a rejected ACK leaves delivery state and offset unchanged, and a rejected NACK leaves the failure count and DLQ state unchanged | INV-02, INV-07 | Integration | Yes |
+| `auth_token` and `admin_token` receive 403 on Subscribe, ACK, and NACK, and hold no Consumer or Publisher role (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_subscribe_ack_and_nack_return_403`, `test_shared_and_admin_tokens_have_no_consumer_bypass`) | INV-02, INV-07 | Integration | Yes |
+| a Consumer token with an authorized `consumer_id` succeeds; an unauthorized `consumer_id` or topic returns 403; an empty `consumer_authorization` mapping denies every `consumer_id`; a principal without a topic binding is rejected (`TestConsumerPrincipalBinding`, `test_principal_without_topic_binding_is_rejected`) | INV-02, INV-07 | Integration | Yes |
+| a rejected ACK or NACK leaves delivery state, offset, failure count, and DLQ state unchanged (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_rejected_ack_and_nack_change_no_delivery_state`) | INV-02, INV-07 | Integration | Yes |
 
 ## Implementation Notes
 
@@ -229,7 +228,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Implementation deviation**: The accepted decision removes the superuser bypass from Consumer routes, but the current implementation and tests still permit `auth_token`/`admin_token` principals to skip consumer identity validation. Implementation, configuration, tests, and deployment guidance must be aligned before this deviation can be removed. No central Known Issue is registered yet.
+Not applicable
 
 ## Review Triggers
 
@@ -285,9 +284,9 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (the Consumer-route checks for INV-02 and INV-07 are planned and not verified)
+- [x] Each Invariant has a corresponding Verification
 - [x] Automatable verification does not rely only on Manual Review
-- [ ] Discrepancies with the current implementation are registered as Known Issues (the superuser-bypass deviation is recorded in Known Deviations; central registration is pending)
+- [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
 - [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)
