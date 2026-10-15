@@ -176,7 +176,7 @@ _COMMANDS: list[CommandDef] = [
         prefix=True,
         is_async=False,
         handler="_cmd_memory",
-        help="status|list|search|show|pin|unpin|delete|prune|check-consistency|rebuild|rebuild-fts|rebuild-vec|import-jsonl  Manage long-term memory entries",
+        help="status|list|delete|pin|unpin|prune|reindex|rebuild  Manage long-term memory entries",
         subcommands=[
             SubcommandSpec("status", "Embedding, circuit state, retrieval mode"),
             SubcommandSpec(

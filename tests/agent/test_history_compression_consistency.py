@@ -379,7 +379,7 @@ async def test_undo_blocked_when_last_user_at_boundary(
     session, conn = session_and_conn
     history = _make_history(2)  # [q0,a0,q1,a1], ids 1..4
     for m in history:
-        session.save(m["role"], m["content"])  # type: ignore[arg-type]  # test messages always carry string content
+        session.save(m["role"], m["content"])  # type: ignore[arg-type]  — test messages always carry string content
     # In-memory floor lets the search reach q1 (idx 2); DB floor at id 3 blocks it.
     ctx = cast(AgentContext, _gate_ctx(session, history, undo_floor=2, db_floor=3))
     conn.execute("UPDATE sessions SET undo_floor_message_id = 3 WHERE session_id = 1")
@@ -399,7 +399,7 @@ async def test_undo_after_boundary_removes_turn_from_history_and_db(
     session, conn = session_and_conn
     history = _make_history(2)  # [q0,a0,q1,a1], ids 1..4
     for m in history:
-        session.save(m["role"], m["content"])  # type: ignore[arg-type]  # test messages always carry string content
+        session.save(m["role"], m["content"])  # type: ignore[arg-type]  — test messages always carry string content
     ctx = cast(AgentContext, _gate_ctx(session, history, undo_floor=2, db_floor=2))
     conn.execute("UPDATE sessions SET undo_floor_message_id = 2 WHERE session_id = 1")
     result = undo_last_turn(ctx)
