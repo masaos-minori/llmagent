@@ -76,7 +76,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 10. The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 11. The following delivery rules apply:
     - 11a. An ACK with `new_offset <= current_offset` is accepted, offset unchanged (Monotonicity Invariant); enforced atomically in SQL on the per-consumer offset table.
-    - 11b. A non-empty Consumer ID may have only one active `GET /subscribe` connection at a time; a second concurrent connection is rejected (Conflict Detection Required). Exclusivity on `POST /events/{event_id}/ack` and `POST /nack` is provided by binding the caller's token to its permitted `consumer_id` values (ADR-013), not by binding the call to a live connection.
+    - 11b. A non-empty Consumer ID may have only one active `GET /subscribe` connection at a time; a second concurrent connection is rejected (Conflict Detection Required). Exclusivity on `POST /events/{event_id}/ack` and `POST /nack` is enforced by admitting only an authenticated Consumer principal whose explicit `consumer_id` and topic authorizations cover the request; admin and shared credentials have no Consumer-route bypass (ADR-013). It is not provided by binding the call to a live connection.
     - 11c. When ACK persistence fails, an error response is returned and neither the delivery state nor the offset advances; the event therefore remains eligible for redelivery (At-Least-Once).
     - 11d. DLQ promotion paths are unified: inline promotion is prioritized and the background loop supplements it.
     - 11e. On the Replay-to-Live switch, Consumers must process idempotently by `event_id`.
@@ -178,7 +178,7 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 - INV-07: At-Least-Once Delivery is the baseline: duplicates are tolerated but losses are not.
 - INV-08: The state, count, and history of NAK, Retry, DLQ, and Requeue are persisted.
 - INV-09: An ACK with `new_offset <= current_offset` never updates the offset.
-- INV-10: A non-empty Consumer ID has at most one active `GET /subscribe` connection. On ACK and NACK, a caller may use only the `consumer_id` values bound to its token (ADR-013 INV-02).
+- INV-10: A non-empty Consumer ID has at most one active `GET /subscribe` connection. On Subscribe, ACK, and NACK, a caller may use only the `consumer_id` and topic values explicitly bound to its authenticated Consumer principal; no superuser bypass exists (ADR-013 INV-02).
 - INV-11: A second concurrent `GET /subscribe` with an active Consumer ID is detected and rejected with HTTP 409.
 - INV-12: When ACK persistence fails, an error response is returned, the delivery state and offset are not advanced, and the Event stays eligible for redelivery.
 - INV-13: DLQ promotion prefers inline promotion; the background loop only supplements it. An Event promotes only when every attempting consumer has exceeded max_retry (`consumer_delivery_failure_count`) and none has ACKed, so one consumer's NACKs never promote an Event shared by others; `events.dlq_at` stays event-level.
@@ -259,7 +259,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 - Investigation of DLQ promotions
 - DB Schema verification before deployment
-- INV-10 connection exclusivity is verified for `GET /subscribe`; its ACK/NACK binding is governed by ADR-013 INV-02. The empty-mapping gap is closed — an empty `consumer_authorization` now resolves to deny-all; only superuser `auth_token`/`admin_token` keep no `consumer_id` allowlist
+- INV-10 connection exclusivity is verified for `GET /subscribe`; its consumer binding is governed by ADR-013 INV-02 and is not fully automated-verified (see ADR-013 Verification)
 - INV-01 and INV-06 have no dedicated automated test (INV-01 is exercised indirectly by every persistence test; INV-06 is bounded by the envelope schema's `event_id` format check in `tests/eventbus/test_eventbus_publish_contract.py::TestPublishEnvelopeSchemaContract`)
 
 ## Implementation Notes
@@ -269,7 +269,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Known Deviations
 
-- **Residual deviation**: The shared `auth_token`/`admin_token` (superuser tokens) carry no `consumer_id` allowlist, so INV-10's ACK/NACK binding is not enforced for them; retained as an accepted residual deviation. An empty `consumer_authorization` now resolves to deny-all.
+- See ADR-013 Known Deviations for the current implementation gap in Consumer route identity enforcement.
 
 ## Review Triggers
 
@@ -344,7 +344,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, INV-06, and INV-10 lack a complete automated test; INV-10's ACK/NACK binding is not enforced for superuser `auth_token`/`admin_token`, which carry no `consumer_id` allowlist — the empty-mapping case is now covered by the deny-all test)
+- [ ] Each Invariant has a corresponding Verification (INV-01, INV-02, INV-06, and INV-10 lack a complete automated test; INV-10's consumer binding verification is planned in ADR-013 Verification and not yet implemented)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications

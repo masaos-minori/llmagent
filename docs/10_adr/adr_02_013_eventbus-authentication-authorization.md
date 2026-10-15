@@ -33,13 +33,13 @@ Accepted
 
 ## Summary
 
-EventBus API establishes a fail-closed security boundary by adding Bearer-token authentication resolved by per-route dependencies, a five-role authorization model (publisher/consumer/operator/monitoring/admin) bound to caller identity, structured audit logging of authorization failures and privileged actions, and fail-closed configuration-key validation — while leaving the already-strict loopback-only bind enforcement untouched.
+EventBus API establishes a fail-closed security boundary by adding Bearer-token authentication resolved by per-route dependencies, a five-role authorization model (publisher/consumer/operator/monitoring/admin) bound to caller identity, Consumer routes limited to Consumer-scoped principals bound to explicit `consumer_id` and topic authorizations (the shared `auth_token` and `admin_token` hold no Consumer role and have no Consumer bypass), structured audit logging of authorization failures and privileged actions, and fail-closed configuration-key validation — while leaving the already-strict loopback-only bind enforcement untouched.
 
 ## Context
 
 ### Problem
 
-EventBus routes in `scripts/eventbus/` are intended to authenticate callers by Bearer token and authorize them by role. Roles are resolved by per-route dependencies and the HTTP middleware only assigns a request ID. Startup rejects a `consumer_token` configured without `consumer_authorization`. Consumer identity validation is skipped only for the shared `auth_token` and `admin_token` (superuser tokens carrying no `consumer_id`). An empty `consumer_authorization` mapping now resolves to deny-all (see Known Deviations). `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
+EventBus routes in `scripts/eventbus/` are intended to authenticate callers by Bearer token and authorize them by role. Roles are resolved by per-route dependencies and the HTTP middleware only assigns a request ID. Startup rejects a `consumer_token` configured without `consumer_authorization`. The accepted design admits to Consumer routes only a principal that holds the Consumer role and explicit `consumer_id` and topic authorizations; the shared `auth_token` and `admin_token` hold no Consumer role. The current implementation still lets those two tokens skip consumer identity validation (see Known Deviations); an empty `consumer_authorization` mapping already resolves to deny-all. `load_config()` enforces fail-closed validation for unknown keys, missing required keys, and wrong-type keys, implemented locally, not via `ConfigLoader`.
 
 ### Current State
 
@@ -62,14 +62,18 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 
 ### Decision Details
 
-1. **Authentication mechanism**: Bearer token, resolved per route by FastAPI dependencies (`resolve_principal`, `require_role(...)`, `require_consumer_identity`): a missing or unknown token is rejected with 401 and a token whose roles do not include the route's role with 403. The HTTP middleware attached by `attach_auth_middleware()` only assigns `X-Request-Id`. Two kinds of token are accepted: the single shared `auth_token` (grants every role, suited to single-token deployments) and an optional per-role token (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role; `admin_token` grants every role, same as `auth_token`). A caller's actual role(s) are resolved from *which* configured token they presented (`scripts/eventbus/auth.py`'s `_TOKEN_PRINCIPAL_MAP`), not merely from having presented *a* valid token — `require_role(...)`'s `_check_role` rejects (403) a token whose resolved role(s) do not include the endpoint's required role, even when that token is otherwise valid. `auth_token` and `admin_token` are operator credentials and MUST NOT be distributed to publishers or consumers; role separation holds only for callers that hold a per-role token.
+1. **Authentication mechanism**: Bearer token, resolved per route by FastAPI dependencies (`resolve_principal`, `require_role(...)`, `require_consumer_identity`): a missing or unknown token is rejected with 401, and a valid token that lacks the route's role or binding is rejected with 403. The HTTP middleware attached by `attach_auth_middleware()` only assigns `X-Request-Id`. Two kinds of token are accepted: the shared `auth_token` and `admin_token`, which hold only the control-plane roles Operator, Monitoring, and Admin (no Publisher role and no Consumer role), and per-role tokens (`publisher_token`/`consumer_token`/`operator_token`/`monitoring_token`, each granting exactly one role). A caller's roles are resolved from *which* configured token it presented (`scripts/eventbus/auth.py`'s `_TOKEN_PRINCIPAL_MAP`), not merely from having presented *a* valid token. Server-side authorization does not depend on how tokens are distributed.
 2. **Authorization model**: Five roles — publisher, consumer, operator, monitoring, admin — each granted a fixed subset of routes:
    - Publisher: POST `/publish`
    - Consumer: GET `/subscribe`, POST `/events/{event_id}/ack`, POST `/nack`
    - Operator: GET `/dlq`, POST `/dlq/{event_id}/requeue`, GET `/replay`
    - Monitoring: GET `/health`
    - Admin: POST `/admin/topics/authorization`
-3. A consumer's authenticated identity is bound to allowed `consumer_id`s and topics — a caller cannot act as another consumer or access unauthorized topics.
+
+   Admin Role is not a superset of the Consumer Role: each role grants only its own routes. A principal that holds several roles can reach Consumer routes only if it also has explicit `consumer_id` and topic bindings.
+3. Only a Consumer principal bound to explicit `consumer_id` and topic authorizations may access Consumer routes (`GET /subscribe`, `POST /events/{event_id}/ack`, `POST /nack`, and any route that operates on consumer delivery state). The shared `auth_token` and the `admin_token` do not grant the Consumer role and cannot be used for Subscribe, ACK, or NACK. No principal bypasses consumer identity or topic authorization. A request is admitted only when the principal has the Consumer role, a consumer authorization, and a topic authorization (a non-empty list, or an empty mapping that denies all), and the requested `consumer_id` and topics are authorized.
+   - 401: the token is missing or unknown.
+   - 403: the token is valid but lacks the Consumer role, lacks a consumer or topic authorization, or the requested `consumer_id` or topic is not authorized.
 4. DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay (`/replay`) require operator permission.
 5. Audit logging of authorization failures and privileged actions, with no secret/token values recorded.
 6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`.
@@ -135,16 +139,16 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 - Clear separation of concerns between roles (publisher/consumer/operator/monitoring/admin).
 - Audit trail for security events without recording secrets.
 - Configuration typos and unknown keys are rejected rather than silently accepted.
-- Per-role tokens restrict a caller that holds only that token: a caller holding
-  only a `consumer_token` cannot reach a `Role.PUBLISHER`/`Role.OPERATOR`-gated
-  route. Because `auth_token` is mandatory and grants every role, role separation
-  depends on keeping it operator-only (INV-07).
+- Consumer identity binding is an exception-free contract, so a token distribution mistake does not lead directly to Consumer state changes.
+- ACK, NACK, offset, and DLQ delivery integrity is strengthened, and the manual-review-only ban on distributing superuser tokens is no longer needed.
 
 ### Negative Consequences
 
 - Reimplementation of Bearer-token and audit patterns locally (cannot import from `mcp_servers` per isolation contract); risk of silent behavioral drift between implementations over time.
 - Requires `auth_token` to be populated in `config/eventbus.toml` before deployment.
 - Added complexity in route handlers for identity binding checks.
+- A deployment that uses a shared token alone on Consumer routes is no longer compatible; every Consumer process needs a dedicated Consumer credential with an explicit mapping, and an administrator who operates on Consumer state also needs a separate Consumer-scoped credential.
+- Implementation, configuration, tests, and deployment guidance must be aligned afterwards (see Known Deviations).
 
 ### Ongoing Risks
 
@@ -155,7 +159,7 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 ### Operational Consequences
 
 - Operators must populate `auth_token` in `config/eventbus.toml` before starting; an empty/missing token causes startup failure (see Failure Policy).
-- Operators may additionally configure per-role tokens (see Decision Details #1); those who want strict role separation should distribute only the specific per-role token each caller needs, not `auth_token` or `admin_token`.
+- Operators configure a per-role token for each caller (see Decision Details #1); a Consumer process uses a `consumer_token` with explicit `consumer_authorization` and `topic_authorization` mappings, and a Publisher process uses a `publisher_token`.
 
 ### Security Consequences
 
@@ -166,12 +170,12 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 ## Invariants
 
 - INV-01: All EventBus routes MUST reject unauthenticated requests with HTTP 401.
-- INV-02: A caller holding a per-role token MUST NOT be able to act as another `consumer_id` or access an unauthorized topic. The superuser tokens (`auth_token`, `admin_token`) are the sole exception: they carry no `consumer_id` or topic restriction (see Known Deviations and INV-07).
+- INV-02: A caller MUST NOT act as another `consumer_id` or access an unauthorized topic. Every principal admitted to a Consumer route is bound to explicit `consumer_id` and topic authorizations; no superuser bypass exists.
 - INV-03: DLQ administration and privileged replay MUST require operator authorization.
 - INV-04: Unknown, missing, or incorrectly-typed configuration keys MUST be rejected by `load_config()`.
 - INV-05: Audit records MUST never include secret/token values.
 - INV-06: Loopback-only binding enforcement MUST remain unchanged.
-- INV-07: A token that grants every role (`auth_token`, `admin_token`) is never distributed to a publisher or consumer process.
+- INV-07: A token without explicit `consumer_id` and topic authorizations MUST NOT access Consumer routes, even when it has Admin, Operator, or other privileged roles.
 
 ## Failure Policy
 
@@ -180,6 +184,8 @@ The Bearer-token scheme follows the convention of `scripts/mcp_servers/server.py
 - Missing or empty `auth_token` in `config/eventbus.toml` causes startup failure.
 - Unauthenticated request to any protected route returns 401.
 - Unauthorized role attempting a restricted route returns 403.
+- A Consumer route called without the Consumer role, without a consumer or topic authorization, or with an unauthorized `consumer_id` or topic returns 403, for the shared `auth_token` and `admin_token` as well.
+- A rejected Subscribe, ACK, or NACK changes no delivery state, offset, failure count, DLQ state, replay position, or active Consumer connection.
 - Unknown or wrong-type configuration key raises `ValueError`.
 
 ### Fail-Open or Degraded Conditions
@@ -192,7 +198,7 @@ Not applicable for authentication failures.
 
 ### Fallback Policy
 
-Not applicable — a rejected request MUST be reported as rejected, not silently downgraded to a no-op.
+Not applicable — a rejected request MUST be reported as rejected, not silently downgraded to a no-op, a fallback, or a warning-and-continue. An authorization failure is a runtime fail-closed Authorization failure, not an availability failure.
 
 ## Data Ownership and Persistence
 
@@ -207,14 +213,15 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 | Unauthenticated requests to protected routes return 401 (`test_publish_without_token`, `test_subscribe_without_token`, etc.) | INV-01 | Integration | Yes (the fixture-app tests are complemented by `TestProductionRouteWiring`, which checks the production app's route dependencies and the 401/403/200 behavior of `/health` and `/publish`) |
 | Wrong-role caller rejected on restricted routes (`test_subscribe_as_wrong_role`, `test_nack_with_publisher_token_is_rejected`, `test_dlq_list_with_publisher_token_is_rejected`, `test_dlq_requeue_with_publisher_token_is_rejected`, `test_replay_with_publisher_token_is_rejected`) | INV-03 (operator-gated routes) | Integration | Yes |
 | consumer topic restriction is enforced and returned by `require_consumer_identity` (`test_non_empty_topic_restriction_is_enforced_and_returned`) | INV-02 (topic access) | Unit | Yes |
-| the superuser tokens carry no consumer_id or topic restriction (`test_superuser_tokens_skip_consumer_identity_validation`) | INV-02 exception | Unit | Yes |
 | empty `consumer_authorization`/`topic_authorization` mappings resolve to deny-all and reject every `consumer_id` (`test_empty_mappings_deny_all_consumers`) | INV-02 empty-mapping case | Unit | Yes |
 | `load_config()` rejects an empty `auth_token` (`test_load_config_rejects_empty_auth_token`) | Decision Details #7 | Unit | Yes |
 | `load_config()` rejects unknown TOML keys (`test_load_config_rejects_unknown_key`) | INV-04 | Unit | Yes |
 | `load_config()` rejects wrong-type keys (`test_load_config_rejects_wrong_type`) | INV-04 | Unit | Yes |
 | `EventBusConfig(host="0.0.0.0", ...)` raises ValueError (`test_non_loopback_host_raises_value_error`) | INV-06 | Regression | Yes |
 | audit records do not include token values (`test_no_credential_leakage_in_audit_records`) | INV-05 | Unit | Yes |
-| none | INV-07 | Manual Review (deployment checklist in `deployment_01_deployment.md` section 3.2 and the Token Distribution check in `eventbus_07_configuration-and-operations.md`) | Yes |
+| Planned, not verified (no test exists yet): `auth_token` and `admin_token` receive 403 on Subscribe, ACK, and NACK | INV-02, INV-07 | Integration | Yes |
+| Planned, not verified: a Consumer token with an authorized `consumer_id` and topic succeeds; an unauthorized `consumer_id` or topic returns 403; an empty `topic_authorization` mapping denies all | INV-02 | Integration | Yes |
+| Planned, not verified: a rejected ACK leaves delivery state and offset unchanged, and a rejected NACK leaves the failure count and DLQ state unchanged | INV-02, INV-07 | Integration | Yes |
 
 ## Implementation Notes
 
@@ -222,13 +229,15 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Residual deviation**: The shared `auth_token`/`admin_token` (superuser tokens granting every role) carry no `consumer_id` and skip consumer identity validation. Retained as an accepted residual deviation; an empty `consumer_authorization` mapping now resolves to deny-all, so a `consumer_token` with empty mappings rejects every `consumer_id`.
+- **Implementation deviation**: The accepted decision removes the superuser bypass from Consumer routes, but the current implementation and tests still permit `auth_token`/`admin_token` principals to skip consumer identity validation. Implementation, configuration, tests, and deployment guidance must be aligned before this deviation can be removed. No central Known Issue is registered yet.
 
 ## Review Triggers
 
 - EventBus is exposed to callers other than the single trusted Agent process.
 - A legitimate operational need for token rotation is identified (triggers revisiting the static bearer-token mechanism in Decision Details #1).
 - The `.importlinter` `eventbus-is-isolated` contract is relaxed to allow importing from `mcp_servers`.
+- The Consumer token model, or the consumer or topic authorization model, changes.
+- An administrator needs to repair Consumer state, short-lived credentials, delegation, or OAuth scopes are introduced, or several Consumers must share one credential.
 
 ## Approval
 
@@ -242,7 +251,7 @@ See Implementation References for the current file/symbol list.
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-15; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-15, including the Consumer-route admission rule and the removal of the superuser bypass; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 
@@ -276,9 +285,9 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [x] Each Invariant has a corresponding Verification
+- [ ] Each Invariant has a corresponding Verification (the Consumer-route checks for INV-02 and INV-07 are planned and not verified)
 - [x] Automatable verification does not rely only on Manual Review
-- [x] Discrepancies with the current implementation are registered as Known Issues
+- [ ] Discrepancies with the current implementation are registered as Known Issues (the superuser-bypass deviation is recorded in Known Deviations; central registration is pending)
 - [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
 - [x] Review Triggers are recorded
 - [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)
