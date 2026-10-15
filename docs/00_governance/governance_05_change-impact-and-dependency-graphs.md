@@ -149,8 +149,9 @@ EventBus, Shared/DB, Governance.
 
 Not cycle-checked: mutual cross-references between areas (for example, Overview ↔
 Governance) are expected and are not a violation of any rule in this graph.
-Checked only for broken links, self-reference, and duplicate reference — see
-`tools/check_docs_structure.py`.
+Governed only by the link and Related Rules in
+[Documentation Metadata](governance_02_documentation-metadata.md#related-rules) (broken links,
+self-reference, duplicate reference); verified by `tools/check_docs_structure.py`.
 
 ## Governance Applicability Matrix
 
