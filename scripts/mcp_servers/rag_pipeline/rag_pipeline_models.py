@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py
 
-Pydantic request/response models and config adapter for rag-pipeline-mcp.
+Pydantic request/response models and config adapter for rag-pipeline-mcp — the config DTO also owns
+the non-secret view the Security Posture fingerprint is computed from.
 
 Dependency direction: mcp_servers.rag_pipeline.models → mcp_servers.rag_pipeline.service → mcp_servers.rag_pipeline.server
 """
@@ -109,6 +110,45 @@ class RagPipelineConfig:
                 f"RAG pipeline MCP config validation failed: {validation_result.errors}"
             )
         return cls.from_dict(raw_cfg)
+
+    def non_secret_view(self) -> dict[str, object]:
+        """The config view the posture fingerprint is computed from, with no Secret and no value
+        that a fingerprint may not hash.
+
+        Scalar settings appear as values. URLs, paths, prompt templates, and both auth tokens appear
+        only as presence booleans: compute_config_fingerprint() rejects an absolute path, a
+        credential-shaped value, and a config section header, so a view carrying rag_db_path or
+        sqlite_vec_so by value would make common.own_config_only FAILED and stop this server from
+        starting. rag_auth_token and auth_token are Secrets under REQ-002 and never appear at all.
+
+        A new dict is built on every call because RagPipelineConfig is a mutable dataclass and the
+        view must not track later mutations of the config object.
+        """
+        return {
+            "own_config_file": "rag_pipeline_mcp_server.toml",
+            "llm_url_present": bool(self.llm_url),
+            "embed_url_present": bool(self.embed_url),
+            "rag_db_path_present": bool(self.rag_db_path),
+            "sqlite_vec_so_present": bool(self.sqlite_vec_so),
+            "auth_token_present": bool(self.auth_token),
+            "rag_auth_token_present": bool(self.rag_auth_token),
+            "sqlite_timeout": self.sqlite_timeout,
+            "sqlite_busy_timeout_ms": self.sqlite_busy_timeout_ms,
+            "mqe_n_queries": self.mqe_n_queries,
+            "use_mqe": self.use_mqe,
+            "use_rrf": self.use_rrf,
+            "rrf_k": self.rrf_k,
+            "use_rerank": self.use_rerank,
+            "use_refiner": self.use_refiner,
+            "top_k_search": self.top_k_search,
+            "top_k_rerank": self.top_k_rerank,
+            "rag_top_k": self.rag_top_k,
+            "rag_min_score": self.rag_min_score,
+            "max_chunks_per_doc": self.max_chunks_per_doc,
+            "refiner_max_tokens": self.refiner_max_tokens,
+            "refiner_max_chars_per_chunk": self.refiner_max_chars_per_chunk,
+            "refiner_timeout": self.refiner_timeout,
+        }
 
 
 def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> RagConfig:

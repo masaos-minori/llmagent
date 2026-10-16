@@ -44,9 +44,9 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
     failure and continues (`:70-71`), so deletions would proceed with no audit trail.
 - `server.audit_log_writable` is `FAILED` and not `WARNING`: the issue's requirement is that each
   server validates its own security-relevant dependencies before Ready, and a delete server that
-  cannot record what it deleted has lost the control it depends on. **Needs confirmation**: whether
-  the project prefers `WARNING` here to keep the current non-fatal behavior; the difference is
-  whether such a server may start.
+  cannot record what it deleted has lost the control it depends on. **Resolved (user decision)**:
+  `FAILED`, matching the same dependency that row `09` already reports `FAILED` for github-mcp, so
+  the two audit-log dependencies are graded the same way.
 - The validator does not change `_write_audit_log()`'s swallow-and-log behavior. Making that failure
   fatal at call time is a separate decision, recorded as out of scope.
 
@@ -153,10 +153,10 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `validate_file_delete_security()` | Pending | — | — | check ids are Needs-confirmation |
-| 2 | Confirm `FAILED` vs `WARNING` for `server.audit_log_writable` | Pending | — | — | decides whether such a server may start |
-| 3 | Add `tests/mcp_servers/file/test_file_security_validation.py` | Pending | — | — | shared with rows `11`, `12`, `13` |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `validate_file_delete_security()` | Completed | 20261016-221106 | 20261016-221106 | check ids are Needs-confirmation validate_file_delete_security() plus the AUDIT_LOG_PATH constant, build_service now uses the constant |
+| 2 | Confirm `FAILED` vs `WARNING` for `server.audit_log_writable` | Completed | 20261016-221106 | 20261016-221106 | decides whether such a server may start user chose FAILED, matching the same dependency row 09 reports FAILED for github-mcp |
+| 3 | Add `tests/mcp_servers/file/test_file_security_validation.py` | Completed | 20261016-221106 | 20261016-221106 | shared with rows `11`, `12`, `13` 16 delete tests appended, shared file now 52 tests |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-221106 | 20261016-221106 | ruff clean, mypy 422 files, lint-imports 6 kept 0 broken, bandit Low 1 pre-existing outside the changed files, mock targets clean, docstring clean after adding the em dash separator, no bare except, full suite 8753 passed 19 skipped 9 pre-existing failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/file/read_security.py
 
-ReadSecurityGuards mixin for read-only filesystem operations.
+ReadSecurityGuards mixin for read-only filesystem operations — path validation and size limits.
 
 Extracted from read_business.py to reduce file size.
+
+validate_file_read_security() is the startup-time entry point: it reports this server's own
+configuration as a Security Posture, so file-read-mcp validates itself before HTTP bind instead of
+being audited by the Agent.
 
 Dependency direction: read_security → common
 Import from here:  from mcp_servers.file.read_security import ReadSecurityGuards
@@ -14,10 +18,19 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Literal
 
+from shared.security.result_dto import (
+    REASON_CONFIG_INVALID,
+    REASON_OK,
+    SecurityCheckResult,
+    SecurityCheckStatus,
+)
+
 from mcp_servers.file.common import (
     FileSecurityMixin,
     check_size_limit,
+    validate_file_security_base,
 )
+from mcp_servers.file.read_models import FileReadConfig
 
 
 class ReadSecurityGuards(FileSecurityMixin):
@@ -66,3 +79,36 @@ class ReadSecurityGuards(FileSecurityMixin):
             self._require_dir(target, raw_path)
             size = 0
         return target, size
+
+
+def validate_file_read_security(cfg: FileReadConfig) -> list[SecurityCheckResult]:
+    """File-read's own configuration checks: the shared allowed-dirs base plus the byte limit.
+
+    The shared part is delegated to validate_file_security_base() so one definition of the
+    allowed-dirs rules serves all three file servers. The function is pure: it stats configured
+    directories but never creates, writes, or deletes anything, and it never raises for a policy
+    violation.
+
+    A non-positive max_read_bytes is a configuration error rather than a policy choice:
+    check_size_limit() would then reject every read while the server still advertises itself.
+
+    Messages report counts and setting names only: allowed directory paths are sensitive paths.
+    """
+    checks = validate_file_security_base(cfg.allowed_dirs)
+    if cfg.max_read_bytes > 0:
+        limit_status = SecurityCheckStatus.OK
+        limit_reason = REASON_OK
+        limit_message = "configured max_read_bytes is positive"
+    else:
+        limit_status = SecurityCheckStatus.FAILED
+        limit_reason = REASON_CONFIG_INVALID
+        limit_message = "max_read_bytes is not positive so every read is rejected"
+    checks.append(
+        SecurityCheckResult(
+            check_id="server.max_read_bytes",
+            status=limit_status,
+            reason_code=limit_reason,
+            message=limit_message,
+        )
+    )
+    return checks

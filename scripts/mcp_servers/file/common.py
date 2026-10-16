@@ -1,18 +1,32 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/file/common.py
 
-Shared security helpers for file-read-mcp, file-write-mcp, and file-delete-mcp.
-All functions raise domain exceptions on policy violations.
+Shared security helpers for file-read-mcp, file-write-mcp, and file-delete-mcp — all functions
+raise domain exceptions on policy violations.
+
+validate_file_security_base() is the startup-time entry point: it reports the allowed-directory
+rules the three file servers share as Security Posture checks, so each file server validates its
+own configuration before HTTP bind instead of being audited by the Agent.
 """
 
 from __future__ import annotations
 
 import os
 import stat as _stat
+from collections.abc import Sequence
 from pathlib import Path
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import (
+    REASON_ALLOWED_DIR_INVALID,
+    REASON_ALLOWLIST_EMPTY,
+    REASON_NOT_APPLICABLE,
+    REASON_OK,
+    SecurityCheckResult,
+    SecurityCheckStatus,
+)
 
 from mcp_servers.health_response import make_health_response
 
@@ -105,6 +119,78 @@ def availability_flags(allowed_dirs: list[str]) -> tuple[bool, str]:
     return False, "allowed_dirs is empty"
 
 
+def _check(
+    check_id: str,
+    status: SecurityCheckStatus,
+    reason_code: str,
+    message: str,
+) -> SecurityCheckResult:
+    """One posture check result carrying the shared default versions."""
+    return SecurityCheckResult(
+        check_id=check_id,
+        status=status,
+        reason_code=reason_code,
+        message=message,
+    )
+
+
+def validate_file_security_base(
+    allowed_dirs: Sequence[str],
+) -> list[SecurityCheckResult]:
+    """The allowed-directories checks every file server shares, in the fixed order.
+
+    Startup-time view of the same facts availability_flags() and _build_health_deps() report at
+    request time: an empty allowlist means the server is disabled, and a configured entry that is
+    not a directory means the server cannot operate on it. It never raises for a policy violation,
+    and the two check ids are always present, with not_applicable used instead of omitting a check.
+
+    Existence is tested on the configured string with Path.is_dir(); symlink resolution stays a
+    request-time concern already handled by resolve_safe(). An empty entry counts as invalid
+    because it resolves to the current working directory, which is not a configured boundary.
+
+    Messages report counts and state only: allowed directory paths are sensitive paths.
+    """
+    if allowed_dirs:
+        configured_check = _check(
+            "server.allowed_dirs_configured",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            "configured allowed_dirs is non-empty",
+        )
+    else:
+        configured_check = _check(
+            "server.allowed_dirs_configured",
+            SecurityCheckStatus.FAILED,
+            REASON_ALLOWLIST_EMPTY,
+            "allowed_dirs is empty so the server is disabled",
+        )
+
+    invalid = [entry for entry in allowed_dirs if not entry or not Path(entry).is_dir()]
+    if not allowed_dirs:
+        exist_check = _check(
+            "server.allowed_dirs_exist",
+            SecurityCheckStatus.NOT_APPLICABLE,
+            REASON_NOT_APPLICABLE,
+            "no allowed_dirs entry is configured to check",
+        )
+    elif invalid:
+        exist_check = _check(
+            "server.allowed_dirs_exist",
+            SecurityCheckStatus.FAILED,
+            REASON_ALLOWED_DIR_INVALID,
+            f"{len(invalid)} of {len(allowed_dirs)} allowed_dirs entries are not directories",
+        )
+    else:
+        exist_check = _check(
+            "server.allowed_dirs_exist",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            "every allowed_dirs entry is an existing directory",
+        )
+
+    return [configured_check, exist_check]
+
+
 def _build_health_deps(allowed_dirs: list[str]) -> dict[str, str]:
     """Build health check dependency status dict.
 
@@ -140,7 +226,16 @@ _on_not_found = _make_error_handler(404)
 _on_validation_error = _make_error_handler(422)
 
 
-async def _health(allowed_dirs: list[str]) -> JSONResponse:
-    """Build and return a health check response based on filesystem availability."""
+async def _health(
+    allowed_dirs: list[str],
+    posture: SecurityPosture | None = None,
+) -> JSONResponse:
+    """Build and return a health check response, publishing this server's posture when given.
+
+    deps stays the availability view and details stays empty: posture data is not folded into
+    details. ready is derived by make_health_response() so the three file servers cannot each
+    invent their own rule. The posture parameter is optional so a file server that has not been
+    wired yet keeps publishing today's payload unchanged.
+    """
     deps = _build_health_deps(allowed_dirs)
-    return make_health_response(deps, {})
+    return make_health_response(deps, {}, security=posture)

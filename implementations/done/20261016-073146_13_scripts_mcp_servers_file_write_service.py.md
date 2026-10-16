@@ -5,9 +5,10 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
 
 ## Scope
 
-- One modified module `scripts/mcp_servers/file/write_service.py`: add a file-write self-validation
+- One new module `scripts/mcp_servers/file/write_security_validation.py`: a file-write self-validation
   function that combines the shared base (row `12`) with the write-specific checks.
-- Existing write behavior, including atomic write and its exception mapping, is unchanged.
+- Existing write behavior in `scripts/mcp_servers/file/write_service.py`, including atomic write and
+  its exception mapping, is unchanged and the module is not edited.
 - `/health` publication is row `12` (`_health()` in `scripts/mcp_servers/file/common.py`); the
   one-line call-site change is row `48` (`scripts/mcp_servers/file/write_server.py:151`).
 
@@ -45,8 +46,9 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
     the setting is parsed but not enforced anywhere in this module. Reporting it as enforced would be
     a false claim in the posture.
 - `server.supported_extensions` is reported rather than omitted so the gap stays visible in every
-  posture and in row `05`'s check-set comparison. **Needs confirmation**: whether to open a follow-up
-  issue that enforces or removes the setting; this row does not change enforcement behavior.
+  posture and in row `05`'s check-set comparison. **Open item (user decision pending)**: whether to
+  open a follow-up issue that enforces or removes the setting; this row does not change enforcement
+  behavior, and no issue was opened while executing this row.
 - Writability is tested with `os.access(dir, os.W_OK)` on the configured directory, not by creating
   a probe file, so validation performs no filesystem mutation.
 
@@ -63,15 +65,15 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
 ## Implementation
 ### Target file
 
-`scripts/mcp_servers/file/write_service.py` (modify)
+`scripts/mcp_servers/file/write_security_validation.py` (new)
 
 ### Procedure
 
 1. Import `SecurityCheckResult`, `SecurityCheckStatus`, and the reason-code constants from
    `shared.security.result_dto` (row `02`), and `validate_file_security_base` from
    `mcp_servers.file.common` (row `12`).
-2. Add `validate_file_write_security()` (new) after `build_service()`-style module helpers, keeping
-   the class body untouched.
+2. Add `validate_file_write_security()` (new) as the module's only function; `write_service.py` is
+   not edited, so its class body and helpers stay byte-identical.
 3. Keep `write_file()`, `_atomic_write()`, `_cleanup_tmp()`, `_apply_text_edits()`,
    `_write_if_changed()`, and the dry-run paths unchanged.
 
@@ -88,11 +90,11 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
 
 ### Details
 
-- The module is about 260 lines already, so this addition (roughly 35 lines) is the largest of the
-  three file-server rows. If the file would exceed its current size convention, the validator moves
-  to a new sibling module `scripts/mcp_servers/file/write_security_validation.py`. **Needs
-  confirmation**: the Plan's frozen table names only `write_service.py`, so a sibling module requires
-  a Plan amendment.
+- Resolved (user decision): the validator lives in the new sibling module
+  `scripts/mcp_servers/file/write_security_validation.py`. `write_service.py` is already 343 lines,
+  so adding the validator there would put it past the 400-line split trigger in `skills/DESIGN.md`.
+  The Plan's frozen table was amended so this row's file is the sibling module, which keeps the
+  table and the procedure document in agreement.
 - `_atomic_write()` is a `@staticmethod` (`:137`), so the validator does not need a service instance.
 - `auth_token` (`write_models.py:32`) is a Secret and is never inspected or reported by this
   validator; token presence is enforced by the server's auth middleware and by the Agent's
@@ -142,8 +144,8 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
 
 ## Out of scope
 
-- Editing `common.py` (row `12`), `read_security.py` (row `11`), `delete_service.py` (row `14`), or
-  `write_server.py` (row `48`).
+- Editing `common.py` (row `12`), `read_security.py` (row `11`), `delete_service.py` (row `14`),
+  `write_service.py`, or `write_server.py` (row `48`).
 - Enforcing or removing `supported_extensions`.
 - Changing atomic-write behavior or raised exception types.
 
@@ -152,10 +154,10 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `validate_file_write_security()` | Pending | — | — | check ids are Needs-confirmation |
-| 2 | Decide single-file vs sibling module (Details) | Pending | — | — | sibling module needs a Plan amendment |
-| 3 | Add `tests/mcp_servers/file/test_file_security_validation.py` | Pending | — | — | shared with rows `11`, `12`, `14` |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `validate_file_write_security()` | Completed | 20261016-221106 | 20261016-221106 | check ids are Needs-confirmation validate_file_write_security() in the sibling module, check ids match the frozen posture contract |
+| 2 | Decide single-file vs sibling module (Details) | Completed | 20261016-221106 | 20261016-221106 | sibling module needs a Plan amendment user chose the sibling split, Plan row 13 amended from write_service.py Modify to write_security_validation.py New |
+| 3 | Add `tests/mcp_servers/file/test_file_security_validation.py` | Completed | 20261016-221106 | 20261016-221106 | shared with rows `11`, `12`, `14` 14 write tests appended, shared file now 36 tests |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-221106 | 20261016-221106 | ruff clean, mypy 422 files, lint-imports 6 kept 0 broken, bandit no findings in the changed files, mock targets clean, docstring clean, no bare except |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -175,4 +177,4 @@ validates its own configuration instead of being audited by the Agent (`REQ-009`
 - **Source plan**: `plans/20261015-112526_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261016-073146
-- **Related target files**: `scripts/mcp_servers/file/write_service.py`
+- **Related target files**: `scripts/mcp_servers/file/write_security_validation.py`

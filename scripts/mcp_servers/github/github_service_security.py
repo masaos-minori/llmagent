@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/github/github_service_security.py
 
-GitHubSecurityGuards: security policy enforcement mixin for GitHubService.
+GitHubSecurityGuards — security policy enforcement mixin for GitHubService.
+
+validate_github_security() is the startup-time entry point: it reports this server's own policy
+as a Security Posture from its config object alone, so github-mcp validates itself before HTTP
+bind instead of being audited by the Agent.
 
 Methods: _clamp_per_page, _assert_allowed_*, _write_github_audit_log,
          _resolve_and_check_branch, _get_repo, _handle_github_error, _run_github
@@ -14,12 +18,24 @@ from __future__ import annotations
 import asyncio
 import fnmatch
 import logging
+import os
 from collections.abc import Callable
 from http import HTTPStatus
 from typing import Any, NoReturn, TypeVar
 
 from github import GithubException
 from shared.json_utils import now_iso_raw
+from shared.security.result_dto import (
+    REASON_ALLOWLIST_EMPTY,
+    REASON_CONFIG_INVALID,
+    REASON_DEPENDENCY_UNREACHABLE,
+    REASON_DESTRUCTIVE_GUARD_MISSING,
+    REASON_FORCE_PUSH_ENABLED,
+    REASON_NOT_APPLICABLE,
+    REASON_OK,
+    SecurityCheckResult,
+    SecurityCheckStatus,
+)
 
 from mcp_servers.github.github_models_config import GitHubConfig
 
@@ -195,3 +211,184 @@ class GitHubSecurityGuards:
             return await asyncio.to_thread(func)
         except GithubException as e:
             GitHubSecurityGuards._handle_github_error(e)
+
+
+def _check(
+    check_id: str,
+    status: SecurityCheckStatus,
+    reason_code: str,
+    message: str,
+) -> SecurityCheckResult:
+    """One posture check result carrying the shared default versions."""
+    return SecurityCheckResult(
+        check_id=check_id,
+        status=status,
+        reason_code=reason_code,
+        message=message,
+    )
+
+
+def _audit_log_reason(cfg: GitHubConfig) -> str:
+    """Return the reason code for the configured audit log path without writing to it.
+
+    An empty path means auditing is disabled, which is the skip _write_github_audit_log()
+    already performs; the posture makes that skip visible instead of changing it. A configured
+    path is checked by its parent directory so validation stays side-effect free.
+    """
+    path = cfg.audit_log_path
+    if not path:
+        return REASON_NOT_APPLICABLE
+    parent = os.path.dirname(path) or "."
+    if not os.path.isdir(parent) or not os.access(parent, os.W_OK):
+        return REASON_DEPENDENCY_UNREACHABLE
+    if os.path.isdir(path):
+        return REASON_DEPENDENCY_UNREACHABLE
+    return REASON_OK
+
+
+def validate_github_security(cfg: GitHubConfig) -> list[SecurityCheckResult]:
+    """GitHub's own policy checks, in the fixed order the posture contract expects.
+
+    Pure function of the server's own config object: no network call, no filesystem write, and
+    no raise for a policy violation. Warning-only policy settings stay WARNING so a currently
+    working configuration can still start, exactly as the removed Agent audit left them.
+
+    Messages name the setting and its state. Repository identifiers and denylist patterns are
+    raw allowlist values, so only their counts may appear.
+    """
+    if cfg.allowed_repos:
+        repo_check = _check(
+            "server.repo_allowlist",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            "configured repository allowlist is non-empty",
+        )
+    else:
+        repo_check = _check(
+            "server.repo_allowlist",
+            SecurityCheckStatus.FAILED,
+            REASON_ALLOWLIST_EMPTY,
+            "allowed_repos is empty so every repository operation is denied",
+        )
+
+    if cfg.allow_force_push:
+        force_push_check = _check(
+            "server.force_push_policy",
+            SecurityCheckStatus.WARNING,
+            REASON_FORCE_PUSH_ENABLED,
+            "allow_force_push=true so destructive pushes are permitted",
+        )
+    else:
+        force_push_check = _check(
+            "server.force_push_policy",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            "allow_force_push=false so force pushes are refused",
+        )
+
+    if cfg.require_pr_review:
+        pr_review_check = _check(
+            "server.pr_review_required",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            "require_pr_review=true so the review guard is enforced",
+        )
+    else:
+        pr_review_check = _check(
+            "server.pr_review_required",
+            SecurityCheckStatus.WARNING,
+            REASON_DESTRUCTIVE_GUARD_MISSING,
+            "require_pr_review=false so no review guard is configured",
+        )
+
+    if cfg.protected_branches:
+        branch_check = _check(
+            "server.protected_branches",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            f"protected_branches is configured with {len(cfg.protected_branches)} patterns",
+        )
+    else:
+        branch_check = _check(
+            "server.protected_branches",
+            SecurityCheckStatus.NOT_APPLICABLE,
+            REASON_NOT_APPLICABLE,
+            "protected_branches is empty so no branch restriction applies",
+        )
+
+    if cfg.path_denylist:
+        path_check = _check(
+            "server.path_denylist",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            f"path_denylist is configured with {len(cfg.path_denylist)} patterns",
+        )
+    else:
+        path_check = _check(
+            "server.path_denylist",
+            SecurityCheckStatus.NOT_APPLICABLE,
+            REASON_NOT_APPLICABLE,
+            "path_denylist is empty so no path is denied by pattern",
+        )
+
+    if cfg.max_file_size_kb > 0:
+        size_check = _check(
+            "server.max_file_size",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            "max_file_size_kb is positive so oversized writes are refused",
+        )
+    else:
+        size_check = _check(
+            "server.max_file_size",
+            SecurityCheckStatus.NOT_APPLICABLE,
+            REASON_NOT_APPLICABLE,
+            "max_file_size_kb is zero or negative so the size limit is disabled",
+        )
+
+    audit_reason = _audit_log_reason(cfg)
+    audit_status = (
+        SecurityCheckStatus.FAILED
+        if audit_reason == REASON_DEPENDENCY_UNREACHABLE
+        else SecurityCheckStatus.OK
+        if audit_reason == REASON_OK
+        else SecurityCheckStatus.NOT_APPLICABLE
+    )
+    audit_check = _check(
+        "server.audit_log_writable",
+        audit_status,
+        audit_reason,
+        {
+            REASON_OK: "configured audit log path has a writable parent directory",
+            REASON_DEPENDENCY_UNREACHABLE: (
+                "the audit log path parent directory is missing or not writable"
+            ),
+            REASON_NOT_APPLICABLE: "audit_log_path is empty so audit records are not written",
+        }[audit_reason],
+    )
+
+    if cfg.max_per_page <= 0 or cfg.default_per_page > cfg.max_per_page:
+        per_page_check = _check(
+            "server.per_page_bounds",
+            SecurityCheckStatus.FAILED,
+            REASON_CONFIG_INVALID,
+            "max_per_page must be positive and default_per_page must not exceed it",
+        )
+    else:
+        per_page_check = _check(
+            "server.per_page_bounds",
+            SecurityCheckStatus.OK,
+            REASON_OK,
+            "default_per_page is within max_per_page so clamping never hides a reversed bound",
+        )
+
+    return [
+        repo_check,
+        force_push_check,
+        pr_review_check,
+        branch_check,
+        path_check,
+        size_check,
+        audit_check,
+        per_page_check,
+    ]
