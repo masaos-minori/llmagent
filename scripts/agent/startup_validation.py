@@ -9,6 +9,7 @@ Extracted from scripts/agent/startup.py (REQ-003).
 from __future__ import annotations
 
 import asyncio
+import sqlite3
 from typing import TYPE_CHECKING
 
 from agent.context import AgentContext
@@ -21,6 +22,24 @@ from agent.shared.health_models import StartupCheckStatus, StartupValidationResu
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
+
+
+def _classify_rag_failure(exc: Exception) -> str:
+    """Classify a RAG consistency failure by root cause.
+
+    Mirrors ``PromptSetup._classify_memory_failure()`` in startup_prompt_setup.py;
+    re-declared here so this module does not depend on that module's private
+    exception tuple. ``ConnectionError`` is an ``OSError``, so it is tested first.
+    """
+    if isinstance(exc, (ConnectionError, TimeoutError)):
+        return "NETWORK_TRANSIENT"
+    if isinstance(exc, (sqlite3.Error, OSError)):
+        return "DATABASE_OR_IO"
+    if isinstance(
+        exc, (AttributeError, NameError, TypeError, LookupError, AssertionError)
+    ):
+        return "PROGRAMMING_ERROR"
+    return "UNKNOWN"
 
 
 def _record_drift_check_failure(
@@ -164,9 +183,11 @@ class StartupValidationPipeline:
                 "rag_consistency", "RAG consistency check skipped: timeout after 30s"
             )
         except Exception as exc:  # noqa: BLE001 — non-critical maintenance check must not abort startup
+            category = _classify_rag_failure(exc)
             logger.warning("RAG consistency check failed: %s", exc)
             pipeline.add_skipped(
-                "rag_consistency", f"RAG consistency check skipped: {exc}"
+                "rag_consistency",
+                f"RAG consistency check skipped: {category} ({type(exc).__name__}): {exc}",
             )
 
         return pipeline

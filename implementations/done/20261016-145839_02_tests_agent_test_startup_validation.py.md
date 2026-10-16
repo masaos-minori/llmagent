@@ -74,7 +74,7 @@ The assertion set pins both requirements: `SKIPPED` status (`REQ-003`), the `PRO
 
 ## Completion criteria
 
-- `test_rag_check_programming_error_classified` passes and asserts `rag_consistency` is `SKIPPED` with `PROGRAMMING_ERROR` and `KeyError` in its message and no `FATAL`.
+- `test_rag_check_programming_error_classified` (new) passes and asserts `rag_consistency` is `SKIPPED` with `PROGRAMMING_ERROR` and `KeyError` in its message and no `FATAL`.
 - The pre-existing `TimeoutError` and success tests still pass unchanged.
 - `ruff format` / `ruff check` / `mypy` are clean on the test file.
 
@@ -87,10 +87,10 @@ Any change to `scripts/agent/startup_validation.py` (that change is covered by t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261016-171028 | 20261016-171028 | changed: tests/agent/test_startup_validation.py. Added the procedure's programming-error test plus a parametrized test for the NETWORK_TRANSIENT, DATABASE_OR_IO (sqlite3 and OSError) and UNKNOWN categories (4 cases) to reach the diff-coverage gate. Red check on HEAD: the programming-error test failed; the other 2 existing tests passed. After the change 7 passed. mypy clean for the file |
+| 2 | Add or update tests per Validation plan | Completed | 20261016-171028 | 20261016-171028 | changed: tests/agent/test_startup_validation.py. Added the procedure's programming-error test plus a parametrized test for the NETWORK_TRANSIENT, DATABASE_OR_IO (sqlite3 and OSError) and UNKNOWN categories (4 cases) to reach the diff-coverage gate. Red check on HEAD: the programming-error test failed; the other 2 existing tests passed. After the change 7 passed. mypy clean for the file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-171028 | 20261016-171028 | changed: tests/agent/test_startup_validation.py. Added the procedure's programming-error test plus a parametrized test for the NETWORK_TRANSIENT, DATABASE_OR_IO (sqlite3 and OSError) and UNKNOWN categories (4 cases) to reach the diff-coverage gate. Red check on HEAD: the programming-error test failed; the other 2 existing tests passed. After the change 7 passed. mypy clean for the file |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261016-171028 | 20261016-171028 | changed: tests/agent/test_startup_validation.py. Added the procedure's programming-error test plus a parametrized test for the NETWORK_TRANSIENT, DATABASE_OR_IO (sqlite3 and OSError) and UNKNOWN categories (4 cases) to reach the diff-coverage gate. Red check on HEAD: the programming-error test failed; the other 2 existing tests passed. After the change 7 passed. mypy clean for the file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

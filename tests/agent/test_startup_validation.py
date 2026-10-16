@@ -7,6 +7,7 @@ normal pass, by driving the real check_services() body.
 
 from __future__ import annotations
 
+import sqlite3
 from contextlib import ExitStack
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -102,3 +103,42 @@ class TestRagConsistencyTimeout:
 
         assert _rag_outcomes(result) == [StartupCheckStatus.OK]
         rag_service.consistency.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_rag_check_programming_error_classified(self) -> None:
+        """REQ-004: a programming-error exception is recorded as a classified SKIPPED."""
+        rag_service = MagicMock()
+        rag_service.consistency.side_effect = KeyError("missing key")
+
+        result = await _run_check_services(rag_service)
+
+        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
+        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert "PROGRAMMING_ERROR" in skipped[0].message
+        assert "KeyError" in skipped[0].message
+        assert not result.has_fatal
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        ("exc", "category"),
+        [
+            (ConnectionRefusedError("refused"), "NETWORK_TRANSIENT"),
+            (sqlite3.OperationalError("disk I/O error"), "DATABASE_OR_IO"),
+            (PermissionError("denied"), "DATABASE_OR_IO"),
+            (ValueError("bad data"), "UNKNOWN"),
+        ],
+    )
+    async def test_rag_check_failure_category(
+        self, exc: Exception, category: str
+    ) -> None:
+        """REQ-002: each root-cause category is carried in the SKIPPED message."""
+        rag_service = MagicMock()
+        rag_service.consistency.side_effect = exc
+
+        result = await _run_check_services(rag_service)
+
+        assert _rag_outcomes(result) == [StartupCheckStatus.SKIPPED]
+        skipped = [o for o in result.outcomes if o.source == "rag_consistency"]
+        assert category in skipped[0].message
+        assert type(exc).__name__ in skipped[0].message
+        assert not result.has_fatal
