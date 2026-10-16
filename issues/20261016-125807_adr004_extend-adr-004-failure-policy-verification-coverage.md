@@ -12,6 +12,8 @@ Source: finding V24-05 in `memo1.md`, the design document review of 2026-10-16. 
 - `docs/10_adr/adr_01_index.md`, ADR Invariant Verification Matrix: the row for ADR-004 INV-07 and INV-10 is `Partial`, with the safety-tier, strict-key, and `allowed_tools` checks covered in `tests/agent/test_production_config_validator.py` and no test for authentication, secrets, Config Isolation, approval-control establishment, or duplicate tool ownership as one cross-cutting guarantee; the row for INV-15 and INV-16 is `Not verified` with only ADR-010 marker uniqueness automated in `tests/rag/test_rag_pipeline_service.py::TestFallbackMarkerLockGuard`.
 - The ADR's Manual Review section also records that no test directly verifies INV-01, and INV-02 and INV-13 have no dedicated entry.
 
+Plan-phase findings on 2026-10-16: (1) The active Frozen plan `plans/20261015-112526_plan.md` (issue audit001, moving MCP security validation to per-server self-validation) lists `docs/10_adr/adr_02_004_environment-failure-handling-policy.md` (REQ-020) and `docs/10_adr/adr_01_index.md` (REQ-018) as modification targets, and plans targeting the same files cannot be frozen together; it also rewrites ADR-004's posture-failure classification, which this issue's matrix depends on. A plan for this issue is therefore deferred until audit001 is implemented, and the failure-class mapping must be re-verified against the ADR-004 text at that time. (2) Existing tests already cover more failure classes than the `Partial` status suggests, for example `tests/agent/test_startup_severity_classification.py` (security audit fatal, MCP authentication fatal when a server has no token, readiness fatal in production mode, tool discovery fatal in strict mode, routing drift fatal), `tests/agent/test_production_config_validator.py`, `tests/shared/test_config_loader.py` (Config Isolation), and `tests/shared/test_tool_registry.py` (duplicate ownership); the matrix work starts from these, and the decisions already taken with the requester are: a new cross-cutting test module plus the ADR and ADR Index updates, and the manual fallback audit is kept with its rationale recorded.
+
 ## Problem
 - The central guarantees of ADR-004 (safety and integrity failures are Fail-Fast at startup or Fail-Closed at runtime and are never downgraded to partial availability; Fallback exists only where an Accepted ADR defines it) are not proved for every listed failure class.
 - The Fallback audit is a manual release-review procedure, so a new, undeclared fallback would not be caught by CI.
@@ -64,6 +66,7 @@ Yes: the Automated Tests and Manual Review parts of ADR-004 and the ADR-004 rows
 ## Dependencies
 - No open issue under `issues/` covers this (only `20261014-155503_mem001_implement-memory-command-spec.md` is open and it does not touch ADR-004).
 - Related to the ADR-010 fallback marker guard test, which is the one automated fallback check that exists.
+- Blocked by the implementation of `plans/20261015-112526_plan.md` (audit001): both change `docs/10_adr/adr_02_004_environment-failure-handling-policy.md` and `docs/10_adr/adr_01_index.md`; create this issue's plan after that plan lands.
 
 ## Unresolved Questions
 - Which startup code paths and tests correspond to each failure class (for example authentication and secrets); not mapped in this review.
