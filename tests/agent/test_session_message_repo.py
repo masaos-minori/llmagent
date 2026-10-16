@@ -73,6 +73,22 @@ class _FakeSQLiteHelper:
         pass
 
 
+class _ClosingFakeSQLiteHelper(_FakeSQLiteHelper):
+    """Mirror scripts/db/helper.py: the connection is closed on context exit."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        super().__init__(conn)
+        self._closed = False
+
+    def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
+        if self._closed:
+            raise RuntimeError("DB not open — call open() first")
+        return super().fetchall(sql, params)
+
+    def __exit__(self, *_: object) -> None:
+        self._closed = True
+
+
 @pytest.fixture
 def repo() -> Generator[SessionMessageRepository]:
     conn = sqlite3.connect(":memory:")
@@ -591,6 +607,44 @@ class TestReplaceMessages:
             assert found is True
             assert floor == 0
             assert messages == []
+
+
+class TestFetchMessagesConnectionLifecycle:
+    @staticmethod
+    def _repo_conn() -> sqlite3.Connection:
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+        conn.commit()
+        return conn
+
+    def test_existing_session_messages_read_before_close(self) -> None:
+        conn = self._repo_conn()
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, 'user', 'hi')"
+        )
+        conn.commit()
+
+        def _make(target: str = "session") -> _ClosingFakeSQLiteHelper:
+            return _ClosingFakeSQLiteHelper(conn)
+
+        with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+            messages, found, floor = SessionMessageRepository(
+                session_id=1
+            ).fetch_messages(1)
+        assert found is True
+        assert floor == 0
+        assert [m["content"] for m in messages] == ["hi"]
+
+    def test_missing_session_returns_not_found_with_closing_helper(self) -> None:
+        conn = self._repo_conn()
+
+        def _make(target: str = "session") -> _ClosingFakeSQLiteHelper:
+            return _ClosingFakeSQLiteHelper(conn)
+
+        with patch("agent.session_message_repo.SQLiteHelper", side_effect=_make):
+            result = SessionMessageRepository(session_id=1).fetch_messages(999)
+        assert result == ([], False, 0)
 
 
 class TestCustomRoles:

@@ -212,14 +212,18 @@ class SessionMessageRepository:
             )
             undo_floor = session_rows[0][0] if session_rows else 0
             session_found = len(session_rows) > 0
-            undo_floor_message_id = session_rows[0][1] if session_found else 0
+            # Query inside the block: the connection is closed on exit.
+            rows = (
+                db.fetchall(
+                    "SELECT message_id, role, content, tool_calls, tool_call_id"
+                    " FROM messages WHERE session_id = ? ORDER BY message_id",
+                    (session_id,),
+                )
+                if session_found
+                else []
+            )
         if not session_found:
             return ([], False, 0)
-        rows = db.fetchall(
-            "SELECT message_id, role, content, tool_calls, tool_call_id"
-            " FROM messages WHERE session_id = ? ORDER BY message_id",
-            (session_id,),
-        )
         if not rows:
             return ([], True, 0)
         messages: list[LLMMessage] = []
