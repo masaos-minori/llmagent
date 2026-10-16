@@ -252,12 +252,12 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 | Missing/invalid Workflow → abort | INV-03 | Integration | Yes | Confirmed |
 | Inconsistent DB Schema → abort | INV-05 | Integration | Yes | Confirmed |
 | Duplicate Tool ownership → abort | INV-04 | Integration | Yes | Confirmed |
-| Initialization failure of RuntimeToolRegistry, failure of a required DB connection, and failures of authentication/authorization/Allowlist/Safety Tier/Config Isolation/establishing approval control abort startup | INV-06, INV-07 | Integration | Yes | Partial (see `adr_01_index.md`) |
+| Initialization failure of RuntimeToolRegistry, failure of a required DB connection, and failures of authentication/authorization/Allowlist/Safety Tier/Config Isolation/establishing approval control abort startup | INV-06, INV-07 | Integration | Yes | Partial by phase — Fail-Fast confirmed at startup for Allowlist, Safety Tier, Config Isolation (strict keys), required DB connection, RuntimeToolRegistry init via the startup validation pipeline and `ProductionConfigValidator.validate()`; Fail-Closed confirmed at runtime for unknown/disabled Tool, ambiguous ownership, invalid args, missing approval, auth/authz, resource-scope, allowlist. Full authentication flow, Secrets, approval-control establishment, duplicate Tool ownership lack a single crosscutting startup test; manual-reason fallback |
 | Unavailability of a mandatory component (such as a required MCP server) aborts startup | INV-08 | Integration | Yes | Confirmed |
 | An availability failure of a non-mandatory component permits startup to continue and disables that component | INV-09 | Integration | Yes | Confirmed (spawn path: see Exceptions) |
-| Safety/integrity failures not converted to partial availability | INV-10 | Regression | Yes | Partial (see `adr_01_index.md`) |
+| Safety/integrity failures not converted to partial availability | INV-10 | Regression | Yes | Partial by phase — each class yields a startup abort (Fail-Fast) or runtime reject (Fail-Closed); none permits continued partial availability. The non-mandatory availability-failure path (disable + exclude from executable exposure) is tested via `McpToolDiscoveryService.discover_all()` and the unified `required` field; the safety/integrity guarantee has no single crosscutting test |
 | Calls to Tools of disabled component → rejected | INV-11, INV-12 | Unit | No | Confirmed |
-| Fallback only per ADR-010 | INV-15, INV-16 | Integration | Yes | Not verified (manual audit only; see Manual Review) |
+| Fallback only per ADR-010 | INV-15, INV-16 | Integration | Yes | Manual-release-review decision: automated fallback-path detector rejected because "fallback" appears as defensive default-value/best-effort patterns across production sources, so a pattern-based check yields unmanageable false positives; only ADR-010 marker uniqueness is automated. Manual fallback-audit retained as the controlling gate |
 | A server posture `FAILED` result aborts startup even when the server is `required = false` | INV-07, INV-09, INV-10 | Integration | Yes | Confirmed (`tests/agent/test_mcp_health_posture.py`, `tests/agent/test_failure_handling_policy_cross_cutting.py`) |
 
 ### Startup Validation
@@ -294,6 +294,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
     - **Vector-to-FTS degradation** (`retriever.py`): accepted current behavior. Rationale: vector→FTS is a within-database mode switch (both modes read the same `memories` table), not a Destination substitution; therefore outside ADR-004 scope.
     - **augment() HTTP-to-in-process path**: ADR-010 fallback, class (a).
     - **MQE, Rerank, and Refiner degradation**: outside ADR-004 scope; each degrades within the same in-process pipeline (original query, RRF order, raw chunks), not a Destination.
+  - **Automated fallback registry: not adopted.** Scope is unbounded (fallback patterns pervade defensive code), so a registry cannot be kept complete or trustworthy; the manual audit above remains the controlling gate.
   - **Cadence**: at each release review, and when a change introduces fallback or Destination substitution.
   - **Owner**: Repository owner.
 

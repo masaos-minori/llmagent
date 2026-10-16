@@ -75,9 +75,9 @@ Any production code change; any Decision/Invariant/Rationale/Exceptions text cha
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the by-phase matrix in the Automated Tests table (status/evidence only) | Pending | — | — | REQ-005 |
-| 2 | Update the Manual Review fallback-audit subsection with the REQ-004 decision | Pending | — | — | REQ-004 |
-| 3 | Run check_adr_preservation, check_docs_quality, check_docs_structure | Pending | — | — | AC-004 |
+| 1 | Record the by-phase matrix in the Automated Tests table (status/evidence only) | Completed | 20261017-080348 | 20261017-080348 | REQ-005 |
+| 2 | Update the Manual Review fallback-audit subsection with the REQ-004 decision | Completed | 20261017-080348 | 20261017-080348 | REQ-004 |
+| 3 | Run check_adr_preservation, check_docs_quality, check_docs_structure | Completed | 20261017-080348 | 20261017-080348 | AC-004 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
