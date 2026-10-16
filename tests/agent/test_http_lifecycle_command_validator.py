@@ -374,3 +374,119 @@ class TestCommandValidatorAllowedBinaryDir:
         monkeypatch.setenv("LLMAGENT_BINARY_DIR", str((tmp_path / "bin").resolve()))
         result = CommandValidator().validate(_TEST_SERVER_KEY, "python3")
         assert os.path.isabs(result)
+
+
+class TestCommandValidatorStrictConfinement:
+    """Strict mode (LLMAGENT_STRICT_COMMAND): only the trusted directory counts."""
+
+    def _trusted_dir(self, tmp_path: Path) -> Path:
+        d = tmp_path / "bin"
+        d.mkdir()
+        os.chmod(d, 0o755)
+        return d
+
+    def _outside_file(self, tmp_path: Path, name: str) -> Path:
+        other = tmp_path / "other"
+        other.mkdir()
+        target = other / name
+        target.write_text("#!/bin/sh\n")
+        return target
+
+    def _patch_which(self, target: Path):
+        return patch.object(shutil, "which", return_value=str(target))
+
+    def test_strict_rejects_allowlisted_name_outside_trusted_dir(
+        self, tmp_path, monkeypatch
+    ):
+        trusted = self._trusted_dir(tmp_path)
+        target = self._outside_file(tmp_path, "node")
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(trusted.resolve()))
+        monkeypatch.setenv("LLMAGENT_STRICT_COMMAND", "1")
+        with self._patch_which(target):
+            with pytest.raises(HttpStartupError) as exc_info:
+                CommandValidator().validate(_TEST_SERVER_KEY, "node")
+        assert "outside the trusted binary directory" in str(exc_info.value)
+
+    def test_strict_accepts_non_allowlisted_name_inside_trusted_dir(
+        self, tmp_path, monkeypatch
+    ):
+        trusted = self._trusted_dir(tmp_path)
+        target = trusted / "mcp_shell"
+        target.write_text("#!/bin/sh\n")
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(trusted.resolve()))
+        monkeypatch.setenv("LLMAGENT_STRICT_COMMAND", "1")
+        with self._patch_which(target):
+            result = CommandValidator().validate(_TEST_SERVER_KEY, "mcp_shell")
+        assert os.path.realpath(result) == os.path.realpath(str(target))
+
+    def test_strict_rejects_symlink_escape(self, tmp_path, monkeypatch):
+        trusted = self._trusted_dir(tmp_path)
+        outside = self._outside_file(tmp_path, "real_node")
+        link = trusted / "node"
+        try:
+            link.symlink_to(outside)
+        except OSError:
+            pytest.skip("Cannot create symlinks")
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(trusted.resolve()))
+        monkeypatch.setenv("LLMAGENT_STRICT_COMMAND", "1")
+        with self._patch_which(link):
+            with pytest.raises(HttpStartupError) as exc_info:
+                CommandValidator().validate(_TEST_SERVER_KEY, "node")
+        assert "outside the trusted binary directory" in str(exc_info.value)
+
+    def test_strict_trusted_dir_falls_back_to_default_when_unset(
+        self, tmp_path, monkeypatch
+    ):
+        target = self._outside_file(tmp_path, "node")
+        monkeypatch.delenv("LLMAGENT_BINARY_DIR", raising=False)
+        monkeypatch.setenv("LLMAGENT_STRICT_COMMAND", "1")
+        with self._patch_which(target):
+            with pytest.raises(HttpStartupError) as exc_info:
+                CommandValidator().validate(_TEST_SERVER_KEY, "node")
+        assert "/opt/llm/bin" in str(exc_info.value)
+
+    def test_permissive_default_allows_allowlisted_name_outside_trusted_dir(
+        self, tmp_path, monkeypatch
+    ):
+        trusted = self._trusted_dir(tmp_path)
+        target = self._outside_file(tmp_path, "node")
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(trusted.resolve()))
+        monkeypatch.delenv("LLMAGENT_STRICT_COMMAND", raising=False)
+        with self._patch_which(target):
+            result = CommandValidator().validate(_TEST_SERVER_KEY, "node")
+        assert os.path.realpath(result) == os.path.realpath(str(target))
+
+    @pytest.mark.parametrize(
+        ("value", "strict"),
+        [
+            (None, False),
+            ("", False),
+            ("0", False),
+            ("false", False),
+            ("FALSE", False),
+            ("off", False),
+            ("no", False),
+            (" No ", False),
+            ("1", True),
+            ("yes", True),
+            ("true", True),
+            ("enabled", True),
+        ],
+    )
+    def test_flag_value_controls_strict_mode(
+        self, tmp_path, monkeypatch, value, strict
+    ):
+        trusted = self._trusted_dir(tmp_path)
+        target = self._outside_file(tmp_path, "node")
+        monkeypatch.setenv("LLMAGENT_BINARY_DIR", str(trusted.resolve()))
+        if value is None:
+            monkeypatch.delenv("LLMAGENT_STRICT_COMMAND", raising=False)
+        else:
+            monkeypatch.setenv("LLMAGENT_STRICT_COMMAND", value)
+        with self._patch_which(target):
+            if strict:
+                with pytest.raises(HttpStartupError):
+                    CommandValidator().validate(_TEST_SERVER_KEY, "node")
+            else:
+                result = CommandValidator().validate(_TEST_SERVER_KEY, "node")
+                assert os.path.realpath(result) == os.path.realpath(str(target))

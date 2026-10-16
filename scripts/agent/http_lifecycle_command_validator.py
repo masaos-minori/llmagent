@@ -31,9 +31,37 @@ _DEFAULT_PROTECTED_ENV_VARS: frozenset[str] = frozenset(
 )
 _INTERPRETER_BASENAME_RE = re.compile(r"python3(?:\.\d+)?")
 
+# Opt-in switch for strict command confinement (see CommandValidator). Any value
+# other than the falsy ones below turns strict mode on, so an unexpected value
+# fails closed.
+_STRICT_ENV_VAR = "LLMAGENT_STRICT_COMMAND"
+_STRICT_FALSY_VALUES: frozenset[str] = frozenset({"", "0", "false", "off", "no"})
+
 
 class CommandValidator:
-    """Validates commands and filters environment variables for HTTP subprocess MCP servers."""
+    """Validates commands and filters environment variables for HTTP subprocess MCP servers.
+
+    Two command-validation modes exist:
+
+    - Permissive (default): a command is accepted when its resolved basename is
+      on the allowlist, matches ``python3[.N]``, or the resolved path is inside
+      the trusted binary directory.
+    - Strict: a command is accepted only when its resolved path is inside the
+      trusted binary directory; the basename allowlist does not apply. This
+      closes PATH injection, because a binary found elsewhere on ``PATH`` is
+      rejected whatever its name.
+
+    The trusted binary directory is ``LLMAGENT_BINARY_DIR`` when set, else
+    ``/opt/llm/bin``. A command is inside it only when it is a regular file
+    directly in that directory and the directory is neither group- nor
+    world-writable. Symlinks are resolved before the check, so the directory
+    must hold real files: a symlink in it that points elsewhere is rejected.
+
+    Strict mode is enabled by setting the environment variable
+    ``LLMAGENT_STRICT_COMMAND`` when the validator is constructed. It is off
+    when unset, empty, or ``0``/``false``/``off``/``no`` (any case); any other
+    value turns it on.
+    """
 
     PROTECTED_ENV_VARS: frozenset[str] = frozenset(
         {"PATH", "PYTHONPATH", "LD_LIBRARY_PATH", "HOME", "USER"}
@@ -49,17 +77,22 @@ class CommandValidator:
     ) -> None:
         self._allowed_commands = allowed_commands or _DEFAULT_ALLOWED_COMMANDS
         self._protected_env_vars = protected_env_vars or _DEFAULT_PROTECTED_ENV_VARS
+        self._strict_confinement = (
+            os.environ.get(_STRICT_ENV_VAR, "").strip().lower()
+            not in _STRICT_FALSY_VALUES
+        )
 
     def validate(self, server_key: str, cmd_name: str) -> str:
         """Validate and resolve a command name to an absolute executable path.
 
-        Performs five security checks in order:
+        Performs four security checks in order:
         1. Resolve via shutil.which (PATH lookup)
         2. Resolve symlinks via os.path.realpath
         3. Verify resolved path exists and is a regular file
-        4. Check basename against allowlist OR resolved path inside the allowed
-           binary directory (regular file, exact real-path parent, not
-           group/world-writable)
+        4. Permissive mode: check basename against allowlist OR resolved path
+           inside the allowed binary directory (regular file, exact real-path
+           parent, not group/world-writable). Strict mode: require the resolved
+           path inside the allowed binary directory; the allowlist is ignored.
 
         Raises HttpStartupError with a descriptive StartupFailure on any failure.
         Returns the resolved absolute path on success.
@@ -87,6 +120,23 @@ class CommandValidator:
                     stderr_full="",
                 )
             )
+
+        # Check 4 (strict): only the allowed binary directory is trusted.
+        if self._strict_confinement:
+            if not self._inside_allowed_binary_dir(cmd_path):
+                raise HttpStartupError(
+                    StartupFailure(
+                        server_key=server_key,
+                        reason=(
+                            f"Command '{cmd_name}' (resolved to '{cmd_path}') "
+                            "is outside the trusted binary directory "
+                            f"'{self._allowed_binary_dir()}' "
+                            "(strict command confinement)."
+                        ),
+                        stderr_full="",
+                    )
+                )
+            return cmd_path
 
         # Check 4: Allowlist OR allowed-binary-directory rule. Reject only when
         # the command is outside BOTH controls; the directory branch is additive
