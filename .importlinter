@@ -66,7 +66,7 @@ forbidden_modules =
     db
 
 [importlinter:contract:agent-mcp-config-models]
-name = Only the security audit loader imports MCP config models
+name = No agent module imports MCP server config models
 type = forbidden
 source_modules =
     agent
@@ -75,8 +75,3 @@ forbidden_modules =
     mcp_servers.git.git_models
     mcp_servers.github.github_models_config
     mcp_servers.cicd.cicd_models
-ignore_imports =
-    agent.security_audit_config -> mcp_servers.shell.shell_models
-    agent.security_audit_config -> mcp_servers.git.git_models
-    agent.security_audit_config -> mcp_servers.github.github_models_config
-    agent.security_audit_config -> mcp_servers.cicd.cicd_models

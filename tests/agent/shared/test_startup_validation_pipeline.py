@@ -129,7 +129,6 @@ async def test_skipped_live_routing_no_raise(startup_instance) -> None:
         startup_instance._ctx, startup_instance._view
     )
     with (
-        patch(f"{MODULE}.audit_security_defaults", return_value=[]),
         patch(
             f"{MODULE}.check_readiness",
             new_callable=AsyncMock,
@@ -174,13 +173,9 @@ async def test_validation_pipeline_reports_fatal_when_config_missing() -> None:
     # Act & Assert: when a check fails, pipeline should report FATAL
     with (
         patch(
-            f"{MODULE}.audit_security_defaults",
-            side_effect=RuntimeError("security audit failed"),
-        ),
-        patch(
             f"{MODULE}.check_readiness",
             new_callable=AsyncMock,
-            return_value=HealthCheckResult(),
+            side_effect=RuntimeError("readiness check failed"),
         ),
         patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
         patch(f"{MODULE}.check_routing_drift", return_value=[]),
@@ -292,14 +287,14 @@ class TestFaltyOwnConfigFileScenario:
             mock_ctx_with_strict_profile, instance._view
         )
 
-        # Simulate a FATAL error from security_audit
+        # Simulate a FATAL error from the readiness step (Security Posture validation)
         with (
             patch(
-                f"{MODULE}.audit_security_defaults",
-                side_effect=RuntimeError("security audit failed"),
-            ),
-            patch(
-                f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
+                f"{MODULE}.check_readiness",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError(
+                    "config isolation violation in security posture"
+                ),
             ),
             patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
             patch(f"{MODULE}.check_routing_drift", return_value=[]),
@@ -329,7 +324,6 @@ class TestFaltyOwnConfigFileScenario:
 
         # All checks pass cleanly
         with (
-            patch(f"{MODULE}.audit_security_defaults", return_value=[]),
             patch(
                 f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
             ),
@@ -370,7 +364,6 @@ class TestUnknownTopLevelKeyScenario:
 
         # Simulate routing_drift warning (not FATAL)
         with (
-            patch(f"{MODULE}.audit_security_defaults", return_value=[]),
             patch(
                 f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
             ),
@@ -419,11 +412,9 @@ class TestInv07EnvironmentFailureHandling:
         # Simulate Allowlist verification failure (FATAL)
         with (
             patch(
-                f"{MODULE}.audit_security_defaults",
+                f"{MODULE}.check_readiness",
+                new_callable=AsyncMock,
                 side_effect=RuntimeError("Allowlist verification failed"),
-            ),
-            patch(
-                f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
             ),
             patch(f"{MODULE}.McpToolDiscoveryService") as mock_svc,
             patch(f"{MODULE}.check_routing_drift", return_value=[]),
@@ -453,7 +444,6 @@ class TestInv07EnvironmentFailureHandling:
 
         # Simulate Safety Tier verification failure (FATAL)
         with (
-            patch(f"{MODULE}.audit_security_defaults", return_value=[]),
             patch(
                 f"{MODULE}.check_readiness", AsyncMock(return_value=HealthCheckResult())
             ),

@@ -51,8 +51,11 @@ posture is missing, rejected, or failed can never be discovered or called (`REQ-
   servers today.
 - The gate is a `frozenset[str]` of server keys, not posture objects: `shared` must not import
   `shared.security` DTOs here just to filter a key, and row `18` already reduces the posture to a
-  gate decision. **Needs confirmation**: whether the project wants the reason codes to reach
-  diagnostics too, which would require passing a mapping instead of a set.
+  gate decision. Resolved 2026-10-16: reason codes do not reach the registry's diagnostics. They already
+  reach the Agent in the `ServiceWarning` message row `18` builds, which names the server key, the
+  failure class, and the reason code, and passing a mapping here would make `shared` interpret posture
+  semantics it cannot import. `posture_excluded_servers` reports which keys were dropped, which is the
+  registry's own observability surface.
 - Log one warning line at construction naming the excluded keys (`RuntimeToolRegistry: posture-excluded
   servers: git, cicd`). Server keys are not secrets and are already logged elsewhere
   (`startup_reporter.py:112-114`); no posture field or fingerprint is logged.
@@ -93,12 +96,23 @@ posture is missing, rejected, or failed can never be discovered or called (`REQ-
 - `diagnostics()` (`:185-218`) is left alone: it describes registered tools, and a posture-excluded
   tool is not registered, so it cannot appear there. The new property is the observability surface.
 - The gate is read once at construction. A posture that changes after startup does not retroactively
-  remove tools; re-running discovery is the documented way to re-evaluate. **Needs confirmation**:
-  whether a runtime re-gate is required, which is a separate design question outside this Plan.
+  remove tools; re-running discovery is the documented way to re-evaluate. Resolved 2026-10-16: no
+  runtime re-gate is added here. It is a separate design question with no row in the Plan's frozen
+  table, so it is recorded as an open item for the user rather than implemented.
 
 ### Details
 
-- The module is 218 lines; the addition is roughly 20 lines.
+- The module is now 251 lines: one class, one responsibility, well under the `skills/DESIGN.md` split
+  trigger.
+- Resolved 2026-10-16: `tests/shared/test_runtime_tool_registry.py` is not a row of the Plan's frozen
+  table and this row adds cases to it, so row `58` was appended to that table while executing this
+  procedure. `tests/shared/test_route_resolver.py` and `tests/shared/test_tool_executor_routing.py`
+  needed no change: they already assert `ValueError` for a tool with no registry entry
+  (`test_route_resolver.py:112-140`, `test_tool_executor_routing.py:93-103`), which is exactly what a
+  posture-excluded tool becomes.
+- Row `50` passes `allowed_servers=frozenset(allowed_server_keys(gates))`: row `18` returns a `set` of
+  keys and this constructor takes a `frozenset`, so the conversion happens at the call site and the gate
+  the registry holds cannot be mutated afterwards.
 - `server_configs` (`:44`, `:62-64`) stays as the `is_disabled` source; the posture gate does not
   replace a deliberately disabled server, and a disabled server is excluded before the gate is
   consulted.
@@ -163,10 +177,10 @@ posture is missing, rejected, or failed can never be discovered or called (`REQ-
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `allowed_servers` and extend `_is_excluded_server()` | Pending | — | — | depends on row `18` gate |
-| 2 | Add `posture_excluded_servers` property | Pending | — | — | |
-| 3 | Extend `tests/shared/test_runtime_tool_registry.py` | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `allowed_servers` and extend `_is_excluded_server()` | Completed | 2026-10-16 | 2026-10-16 | row `18` landed first; the exclusion is recorded inside the predicate, which the constructor loop is the only caller of |
+| 2 | Add `posture_excluded_servers` property | Completed | 2026-10-16 | 2026-10-16 | returns a frozenset and never overlaps `unavailable_servers`; one warning line names the excluded keys at construction |
+| 3 | Extend `tests/shared/test_runtime_tool_registry.py` | Completed | 2026-10-16 | 2026-10-16 | new `TestPostureGate` class with 9 cases; Plan row `58` appended for this test file |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-16 | 2026-10-16 | ruff clean; mypy 425 files clean; lint-imports 6 kept 0 broken; bandit 0 findings; 0 bare except; tests/shared 1040 passed; tests/agent shows only the 9 pre-existing `test_startup_rollback.py` failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

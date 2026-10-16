@@ -135,10 +135,10 @@ invariant covered elsewhere (`REQ-017`, `AC-008`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Amend the Plan row action from `Modify` to `Delete` | Pending | — | — | required before execution |
-| 2 | Confirm row `29` replacement coverage passes | Pending | — | — | gate for deletion |
-| 3 | Delete `tests/agent/test_audit_security_failures.py` | Pending | — | — | land with rows `20`-`21` |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Amend the Plan row action from `Modify` to `Delete` | Completed | 2026-10-17 | 2026-10-17 | Plan row amended Modify to Delete during plan amendment |
+| 2 | Confirm row `29` replacement coverage passes | Completed | 2026-10-17 | 2026-10-17 | row 29 replacement coverage passes, 8 tests |
+| 3 | Delete `tests/agent/test_audit_security_failures.py` | Completed | 2026-10-17 | 2026-10-17 | file deleted, landed with rows 20 and 21 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -172,10 +172,10 @@ them on the surviving fail-closed paths: published posture and Agent startup cla
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace imports and fixtures with posture DTOs | Pending | — | — | depends on rows `02`, `03` |
-| 2 | Rewrite the eight test bodies | Pending | — | — | depends on rows `17`, `18` |
-| 3 | Delete the `_patch_cicd` fixture | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace imports and fixtures with posture DTOs | Completed | 2026-10-17 | 2026-10-17 | fixtures build the published security block directly from the posture contract |
+| 2 | Rewrite the eight test bodies | Completed | 2026-10-17 | 2026-10-17 | the eight original test names and the ADR-004 INV docstrings kept, assertions match the failure class because an accepted posture reports reason ok |
+| 3 | Delete the `_patch_cicd` fixture | Completed | 2026-10-17 | 2026-10-17 | fixture deleted |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

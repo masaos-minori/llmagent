@@ -112,9 +112,9 @@ Keep the memory-failure severity tests running after the audit step is removed f
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the audit entry from the mock set | Pending | — | — | land with row `22` |
-| 2 | Correct the check count in the helper docstring | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the audit entry from the mock set | Completed | 2026-10-17 | 2026-10-17 | landed with row 22 |
+| 2 | Correct the check count in the helper docstring | Completed | 2026-10-17 | 2026-10-17 | count restated to the 5 patched mocks |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

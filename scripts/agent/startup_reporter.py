@@ -4,7 +4,7 @@ Readiness reporter: pipeline result display and aggregated readiness status.
 
 Extracted from scripts/agent/startup.py (REQ-004).
 
-Replaces five repeated per-source/per-status counting blocks with
+Replaces the repeated per-source/per-status counting blocks with
 one shared _count_by_status() helper.
 """
 
@@ -72,16 +72,12 @@ class ReadinessReporter:
         """Report aggregated readiness status after startup checks complete."""
         from shared.mcp_config import McpServerHealthState
 
-        security_counts = _count_by_status(pipeline, "security_audit")
         mcp_counts = _count_by_status(pipeline, "readiness")
         tool_disc_counts = _count_by_status(pipeline, "mcp_tool_discovery")
         rag_counts = _count_by_status(pipeline, "rag_consistency")
 
         lines: list[str] = []
         lines.append("Readiness Summary:")
-        lines.append(
-            f"  Security audit: {'OK' if security_counts['OK'] else 'FAIL'} ({security_counts['FATAL']} fatal, {security_counts['WARNING']} warnings)"
-        )
         lines.append(
             f"  Service readiness: {'OK' if mcp_counts['OK'] else 'FAIL'} ({mcp_counts['FATAL']} fatal, {mcp_counts['WARNING']} warnings, {mcp_counts['SKIPPED']} skipped)"
         )

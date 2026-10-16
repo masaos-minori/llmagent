@@ -118,14 +118,6 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 | `scripts/agent/repl_input_loop.py` | `ReplInputLoop` | `class ReplInputLoop` | Manages REPL input reading, dispatch, and exit conditions. |
 | `scripts/agent/repository_gateway.py` | `RepositoryGateway` | `class RepositoryGateway` | Single write enforcement boundary for all repository mutation operations. |
 | `scripts/agent/resource_shutdown_coordinator.py` | `ResourceShutdownCoordinator` | `class ResourceShutdownCoordinator` | Coordinates resource shutdown across all subsystems. |
-| `scripts/agent/security_audit_config.py` | `ShellAuditConfig` | `class ShellAuditConfig` | Security audit configuration for shell command execution. |
-|  | `GitAuditConfig` | `class GitAuditConfig` | Security audit configuration for git operations. |
-|  | `GitHubAuditConfig` | `class GitHubAuditConfig` | Security audit configuration for GitHub API operations. |
-|  | `CicdAuditConfig` | `class CicdAuditConfig` | Security audit configuration for CI/CD pipeline operations. |
-|  | `load_shell_audit_config` | `def load_shell_audit_config() -> ShellAuditConfig \| None` | Load shell config for audit. Returns None if not installed. |
-|  | `load_git_audit_config` | `def load_git_audit_config() -> GitAuditConfig \| None` | Load git config for audit. Returns None if not installed. |
-|  | `load_github_audit_config` | `def load_github_audit_config() -> GitHubAuditConfig \| None` | Load GitHub config for audit. Returns None if not installed. |
-|  | `load_cicd_audit_config` | `def load_cicd_audit_config() -> CicdAuditConfig \| None` | Load CI/CD config for audit. Returns None if not installed. |
 | `scripts/agent/session.py` | `SchemaMissingError` | `class SchemaMissingError` | Raised when required SQLite schema tables are missing. |
 |  | `AgentSession` | `class AgentSession` | Manages REPL session and message persistence in SQLite. |
 | `scripts/agent/session_message_repo.py` | `SessionMessageRepository` | `class SessionMessageRepository` | Repository for session message operations. |

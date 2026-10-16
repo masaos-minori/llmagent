@@ -44,7 +44,6 @@ async def _run_check_services(
         )
     )
     mocks: dict[str, object] = {
-        "audit_security_defaults": MagicMock(return_value=[]),
         "check_readiness": AsyncMock(return_value=HealthCheckResult()),
         "McpToolDiscoveryService": discovery,
         "check_routing_drift": MagicMock(return_value=[]),

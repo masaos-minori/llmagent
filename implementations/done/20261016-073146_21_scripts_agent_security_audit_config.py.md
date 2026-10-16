@@ -151,10 +151,10 @@ the mechanism `REQ-017` eliminates (`REQ-017`, `AC-008`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Amend the Plan row action from `Modify` to `Delete` | Pending | — | — | required before execution |
-| 2 | Confirm no remaining importer | Pending | — | — | gate for deletion |
-| 3 | Delete `scripts/agent/security_audit_config.py` | Pending | — | — | land after rows `20`, `24` |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Amend the Plan row action from `Modify` to `Delete` | Completed | 2026-10-17 | 2026-10-17 | Plan row amended Modify to Delete during plan amendment |
+| 2 | Confirm no remaining importer | Completed | 2026-10-17 | 2026-10-17 | only importers left were the deleted row 20 module and rows 27 and 28 test files |
+| 3 | Delete `scripts/agent/security_audit_config.py` | Completed | 2026-10-17 | 2026-10-17 | file deleted, landed after rows 20 and 24 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, mypy 423 files, lint-imports 6 kept 0 broken, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

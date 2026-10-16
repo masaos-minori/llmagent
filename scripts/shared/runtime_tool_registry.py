@@ -14,6 +14,10 @@ Import-layer design decisions (do not "fix" these by adding the imports back):
     `ApprovalConfig`, for the same `shared-is-leaf` reason. Whichever later
     requirement wires this to real config is responsible for extracting these
     primitives from `ToolConfig`/`agent.toml` and passing them in.
+  - The Security Posture gate arrives as `allowed_servers`, a plain set of server
+    keys, for the same `shared-is-leaf` reason: `shared` cannot read the Agent's
+    posture DTOs, and `agent.services.mcp_health` already reduces a posture to a
+    gate decision before handing the keys here.
 """
 
 from __future__ import annotations
@@ -42,25 +46,45 @@ class RuntimeToolRegistry:
         tools: dict[str, RuntimeTool] | None = None,
         unavailable_servers: frozenset[str] | None = None,
         server_configs: dict[str, Any] | None = None,
+        allowed_servers: frozenset[str] | None = None,
     ) -> None:
+        """Register `tools`, dropping every tool whose server is excluded.
+
+        `allowed_servers` is the Security Posture gate: `None` means no gate was supplied and today's
+        behavior is kept, a provided set is authoritative and a `server_key` absent from it is excluded,
+        and an empty set registers nothing. It arrives as plain keys because `shared` is a leaf and
+        cannot read the Agent's posture DTOs.
+        """
         self._unavailable_servers = unavailable_servers or frozenset()
         self._server_configs = server_configs or {}
+        self._allowed_servers = allowed_servers
+        self._posture_excluded: set[str] = set()
         self._tools: dict[str, RuntimeTool] = {}
         if tools:
             for name, tool in tools.items():
                 if self._is_excluded_server(tool.server_key):
                     continue
                 self._tools[name] = tool
+        if self._posture_excluded:
+            logger.warning(
+                "RuntimeToolRegistry: posture-excluded servers: %s",
+                ", ".join(sorted(self._posture_excluded)),
+            )
 
     def _is_excluded_server(self, server_key: str) -> bool:
         """Return whether tools from `server_key` should be excluded.
 
-        A server is excluded if it is unavailable or disabled (startup_mode=none).
+        A server is excluded if it is unavailable, disabled (startup_mode=none), or not in the posture
+        gate. A posture exclusion is recorded here, during construction, so the reported set is exactly
+        the set that was dropped.
         """
         if server_key in self._unavailable_servers:
             return True
         cfg = self._server_configs.get(server_key)
         if cfg is not None and getattr(cfg, "is_disabled", False):
+            return True
+        if self._allowed_servers is not None and server_key not in self._allowed_servers:
+            self._posture_excluded.add(server_key)
             return True
         return False
 
@@ -68,6 +92,15 @@ class RuntimeToolRegistry:
     def unavailable_servers(self) -> frozenset[str]:
         """Return the set of server keys excluded due to being unavailable."""
         return self._unavailable_servers
+
+    @property
+    def posture_excluded_servers(self) -> frozenset[str]:
+        """Return the server keys excluded by the posture gate, kept separate from availability.
+
+        `REQ-013` classifies the two causes differently, so a posture exclusion never appears in
+        `unavailable_servers` and the "Unreachable servers" report stays truthful.
+        """
+        return frozenset(self._posture_excluded)
 
     def resolve(self, tool_name: str) -> str | None:
         """Return the `server_key` that owns `tool_name`, or `None` if unknown.

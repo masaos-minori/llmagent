@@ -157,11 +157,11 @@ the postures published by the servers rather than an Agent-side audit of their c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the import and the audit step | Pending | — | — | land with rows `20`, `23`, `24` |
-| 2 | Update the two docstrings | Pending | — | — | |
-| 3 | Confirm step-comment renumbering decision | Pending | — | — | Needs-confirmation |
-| 4 | Pass posture gates into `McpToolDiscoveryService` at `:100` | Pending | — | — | depends on rows `18`, `19`, `50` |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the import and the audit step | Completed | 2026-10-17 | 2026-10-17 | audit import and the security audit step removed, mcp_auth step kept |
+| 2 | Update the two docstrings | Completed | 2026-10-17 | 2026-10-17 | — |
+| 3 | Confirm step-comment renumbering decision | Completed | 2026-10-17 | 2026-10-17 | user decision: keep the existing step-comment numbering gaps |
+| 4 | Pass posture gates into `McpToolDiscoveryService` at `:100` | Completed | 2026-10-17 | 2026-10-17 | posture_gates = await collect_server_postures(ctx) inside the existing discovery try |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, mypy 423 files, lint-imports 6 kept 0 broken, tests/agent 3332 passed with only the 9 known test_startup_rollback failures, validated only after rows 30 to 35 landed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

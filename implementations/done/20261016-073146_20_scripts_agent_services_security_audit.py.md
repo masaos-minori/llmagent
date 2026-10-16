@@ -161,10 +161,10 @@ configuration and the Agent only consumes the published posture (`REQ-017`, `AC-
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Amend the Plan row action from `Modify` to `Delete` | Pending | — | — | required before execution |
-| 2 | Confirm no remaining importer | Pending | — | — | gate for deletion |
-| 3 | Delete `scripts/agent/services/security_audit.py` | Pending | — | — | land with rows `22`, `24` |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Amend the Plan row action from `Modify` to `Delete` | Completed | 2026-10-17 | 2026-10-17 | Plan row amended Modify to Delete during plan amendment |
+| 2 | Confirm no remaining importer | Completed | 2026-10-17 | 2026-10-17 | grep confirms no remaining importer in scripts/ or tests/ after rows 22 and 24 |
+| 3 | Delete `scripts/agent/services/security_audit.py` | Completed | 2026-10-17 | 2026-10-17 | file deleted, landed after rows 22 and 24 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, mypy 423 files, lint-imports 6 kept 0 broken, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

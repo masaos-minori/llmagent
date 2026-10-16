@@ -125,9 +125,9 @@ deleted audit API (`REQ-017`, `AC-008`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the audit import block and the two `__all__` entries | Pending | — | — | land with rows `20`-`22` |
-| 2 | Confirm the whole-shim deletion question with the user | Pending | — | — | Needs-confirmation |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the audit import block and the two `__all__` entries | Completed | 2026-10-17 | 2026-10-17 | land with rows `20`-`22` |
+| 2 | Confirm the whole-shim deletion question with the user | Completed | 2026-10-17 | 2026-10-17 | user decision: shim kept, only the two audit names removed, shim deletion recorded as a follow-up |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, mypy 423 files, lint-imports 6 kept 0 broken, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

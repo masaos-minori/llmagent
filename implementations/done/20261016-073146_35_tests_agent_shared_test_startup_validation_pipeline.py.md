@@ -159,10 +159,10 @@ FATAL injection point from the audit to the surviving `readiness` path (`REQ-017
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the four clean-pass audit patches | Pending | — | — | land with row `22` |
-| 2 | Re-base the three FATAL injections onto `check_readiness` | Pending | — | — | depends on rows `18`, `22` |
-| 3 | Confirm both ADR references to this file remain intact | Pending | — | — | ERROR-level constraint |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the four clean-pass audit patches | Completed | 2026-10-17 | 2026-10-17 | four clean-pass patches deleted, landed with row 22 |
+| 2 | Re-base the three FATAL injections onto `check_readiness` | Completed | 2026-10-17 | 2026-10-17 | three FATAL injections re-based onto check_readiness, the readiness step now carries posture validation |
+| 3 | Confirm both ADR references to this file remain intact | Completed | 2026-10-17 | 2026-10-17 | ADR-004:358 and ADR-003:254 citations to this file intact |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

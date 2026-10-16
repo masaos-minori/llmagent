@@ -138,11 +138,11 @@ Keep the startup severity matrix accurate after the audit step is removed, and p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the audit entry from the mock set | Pending | — | — | land with row `22` |
-| 2 | Delete the two `security_audit` cases and their separator | Pending | — | — | |
-| 3 | Re-base the docstring check list and the comment example | Pending | — | — | |
-| 4 | Confirm the ADR-007 citation still resolves | Pending | — | — | ERROR-level constraint |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the audit entry from the mock set | Completed | 2026-10-17 | 2026-10-17 | landed with row 22 |
+| 2 | Delete the two `security_audit` cases and their separator | Completed | 2026-10-17 | 2026-10-17 | — |
+| 3 | Re-base the docstring check list and the comment example | Completed | 2026-10-17 | 2026-10-17 | docstring list restated to the 6 pipeline sources, comment example now names agent.services.mcp_health |
+| 4 | Confirm the ADR-007 citation still resolves | Completed | 2026-10-17 | 2026-10-17 | this file cites no ADR test name, the docs path in its docstring exists |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

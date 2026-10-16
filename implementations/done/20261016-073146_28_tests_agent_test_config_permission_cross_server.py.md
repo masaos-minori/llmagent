@@ -135,9 +135,9 @@ removed, and replace the one audit-specific case with a guard that stops the loa
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the audit case with the loader-absence guard | Pending | — | — | land after row `21` |
-| 2 | Confirm the four unchanged tests are untouched | Pending | — | — | ADR citation |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace the audit case with the loader-absence guard | Completed | 2026-10-17 | 2026-10-17 | loader-absence guard added, landed after row 21 |
+| 2 | Confirm the four unchanged tests are untouched | Completed | 2026-10-17 | 2026-10-17 | four tests untouched, ADR-002:232 citation intact |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

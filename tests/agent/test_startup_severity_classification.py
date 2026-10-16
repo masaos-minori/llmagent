@@ -2,9 +2,9 @@
 
 Cross-reference for docs/23_agent/agent_10_01_operations-and-observability-startup-and-health.md's
 severity-mapping table. Proves each documented severity is actually produced under its
-documented condition, for all 8 checks run by _check_services():
-security_audit, embedding_dimensions, readiness, tool_definitions, routing_drift,
-routing_safety_tiers, routing_drift_live, rag_consistency.
+documented condition, for the 6 pipeline sources _check_services() records:
+mcp_auth, readiness, mcp_tool_discovery, routing_drift, routing_safety_tiers,
+rag_consistency.
 """
 
 from __future__ import annotations
@@ -43,14 +43,13 @@ async def _run_check_services(
     embedding_dims: int | None = None,
     **overrides: object,
 ) -> tuple[StartupValidationResult, Exception | None]:
-    """Run StartupOrchestrator._check_services() with clean-pass mocks for all 8 checks,
+    """Run StartupOrchestrator._check_services() with clean-pass mocks for all 5 patched checks,
     overridden per-test via kwargs (named after the agent.startup import site), and return
     (captured pipeline outcomes, exception raised by _check_services() or None).
     """
     consistent_rag = MagicMock()
     consistent_rag.consistency.return_value = MagicMock(is_consistent=True, issues=[])
     mocks: dict[str, object] = {
-        "audit_security_defaults": MagicMock(return_value=[]),
         "check_readiness": AsyncMock(return_value=HealthCheckResult()),
         "McpToolDiscoveryService": MagicMock(
             return_value=MagicMock(
@@ -89,7 +88,7 @@ async def _run_check_services(
     with ExitStack() as stack:
         # Patch at agent.startup_validation's own namespace: it imports each of
         # these via `from X import Y`, binding its own name, so patching the
-        # defining module (e.g. agent.services.security_audit) would not
+        # defining module (e.g. agent.services.mcp_health) would not
         # affect the reference check_services() actually calls.
         for name, mock_obj in mocks.items():
             stack.enter_context(patch(f"agent.startup_validation.{name}", mock_obj))
@@ -116,42 +115,6 @@ class TestCheckServicesSeverityClassification:
     """Regression tests proving each check's documented severity is actually produced
     under its documented condition — see docs/23_agent/agent_10_01_...startup-and-health.md's
     severity-mapping table for the full narrative this cross-references."""
-
-    # ── security_audit ───────────────────────────────────────────────────────
-
-    @pytest.mark.asyncio
-    async def test_security_audit_fatal_when_audit_raises(self) -> None:
-        """FATAL when audit_security_defaults() raises RuntimeError (e.g. production_mode
-        with a missing auth_token)."""
-        ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_services(
-            ctx,
-            audit_security_defaults=MagicMock(
-                side_effect=RuntimeError("no auth_token configured on server 'web'")
-            ),
-        )
-        assert exc is not None
-        outcomes = [o for o in pipeline.outcomes if o.source == "security_audit"]
-        assert any(o.status == StartupCheckStatus.FATAL for o in outcomes)
-
-    @pytest.mark.asyncio
-    async def test_security_audit_warning_and_ok_both_recorded_when_non_fatal(
-        self,
-    ) -> None:
-        """WARNING per issue AND an unconditional OK are both recorded when
-        audit_security_defaults() returns warnings without raising — OK here does not
-        mean 'no issues', only 'the audit function completed without raising'."""
-        ctx = _make_startup_ctx()
-        pipeline, exc = await _run_check_services(
-            ctx,
-            audit_security_defaults=MagicMock(
-                return_value=["Security: no auth_token configured (auth disabled)"]
-            ),
-        )
-        assert exc is None
-        outcomes = [o for o in pipeline.outcomes if o.source == "security_audit"]
-        assert any(o.status == StartupCheckStatus.WARNING for o in outcomes)
-        assert any(o.status == StartupCheckStatus.OK for o in outcomes)
 
     # ── mcp_auth ─────────────────────────────────────────────────────────────
     # Servers below use MagicMock rather than a real McpServerConfig: row 1's

@@ -157,11 +157,11 @@ so it asserts that **no** Agent module imports MCP server config models (`REQ-01
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the `_AUDIT_MODULE` exemption | Pending | — | — | land after rows `20`-`21`, `25` |
-| 2 | Delete the twelve loader tests | Pending | — | — | |
-| 3 | Retarget `test_audit_dtos_hold_no_secret_fields` to the posture DTOs | Pending | — | — | depends on rows `02`, `03` |
-| 4 | Confirm the stale-name decision with the user | Pending | — | — | Needs-confirmation |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the `_AUDIT_MODULE` exemption | Completed | 2026-10-17 | 2026-10-17 | exemption removed, landed after rows 20 and 21, the scan is now clean |
+| 2 | Delete the twelve loader tests | Completed | 2026-10-17 | 2026-10-17 | — |
+| 3 | Retarget `test_audit_dtos_hold_no_secret_fields` to the posture DTOs | Completed | 2026-10-17 | 2026-10-17 | retargeted to the dataclasses of shared.security.result_dto and posture_contract |
+| 4 | Confirm the stale-name decision with the user | Completed | 2026-10-17 | 2026-10-17 | user decision: stale test names kept as ADR citation anchors, check_adr_preservation.py unchanged |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

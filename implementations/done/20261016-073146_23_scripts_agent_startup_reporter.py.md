@@ -122,9 +122,9 @@ startup check that no longer runs (`REQ-017`, `AC-008`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the counter and the summary line | Pending | — | — | land with row `22` |
-| 2 | Re-check the test file docstring | Pending | — | — | docstring-only change if needed |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the counter and the summary line | Completed | 2026-10-17 | 2026-10-17 | land with row `22` |
+| 2 | Re-check the test file docstring | Completed | 2026-10-17 | 2026-10-17 | module docstring count wording restated without a number, the file now counts three sources |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, mypy 423 files, lint-imports 6 kept 0 broken, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

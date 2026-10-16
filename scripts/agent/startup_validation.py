@@ -1,7 +1,12 @@
 """scripts/agent/startup_validation.py
 
-Startup validation pipeline: LLM/Embed health, tool definitions, security audit,
-routing drift/safety tiers, and RAG consistency.
+Startup validation pipeline: LLM/Embed health, MCP readiness and Security
+Posture validation, tool definitions, routing drift/safety tiers, and RAG
+consistency.
+
+Security input is the posture each MCP server publishes, validated in
+``agent.services.mcp_health.check_readiness()`` (REQ-017). This module assembles
+the pipeline; it validates no configuration of another module.
 
 Extracted from scripts/agent/startup.py (REQ-003).
 """
@@ -13,11 +18,10 @@ import sqlite3
 from typing import TYPE_CHECKING
 
 from agent.context import AgentContext
-from agent.services.mcp_health import check_readiness
+from agent.services.mcp_health import check_readiness, collect_server_postures
 from agent.services.mcp_tool_discovery import McpToolDiscoveryService
 from agent.services.rag_maintenance_service import RagMaintenanceService
 from agent.services.routing_drift import check_routing_drift, check_routing_safety_tiers
-from agent.services.security_audit import audit_security_defaults
 from agent.shared.health_models import StartupCheckStatus, StartupValidationResult
 
 if TYPE_CHECKING:
@@ -65,26 +69,13 @@ class StartupValidationPipeline:
         self._view = view
 
     async def check_services(self) -> StartupValidationResult:
-        """Probe LLM/Embed health, validate tool definitions, and audit security defaults."""
+        """Probe LLM/Embed health, validate MCP readiness and Security Posture, validate tool definitions."""
         from shared.logger import Logger
 
         logger = Logger(__name__, "/opt/llm/logs/agent.log")
 
         ctx = self._ctx
         pipeline = StartupValidationResult()
-
-        # 1. Security audit
-        try:
-            warnings = audit_security_defaults(ctx)
-            for msg in warnings:
-                pipeline.add_warning("security_audit", msg)
-            pipeline.add_ok("security_audit")
-        except RuntimeError as exc:
-            pipeline.add_fatal(
-                "security_audit",
-                str(exc),
-                remediation="Fix MCP server auth_token or sandbox config.",
-            )
 
         # 1b. MCP authentication check
         missing_auth = [
@@ -115,8 +106,15 @@ class StartupValidationPipeline:
         # ADR-004 Decision #14: a FATAL discovery finding always routes through
         # pipeline.add_fatal() unconditionally — this safety/integrity Fail-Fast
         # path is not weakened by any environment/profile distinction.
+        # The Security Posture gate is collected here rather than read from the
+        # readiness step: check_readiness() raises when a posture error exists, and
+        # this step still runs after that except, so the gate must be available on
+        # exactly that failure path (REQ-014).
         try:
-            discovery = await McpToolDiscoveryService(ctx).discover_all()
+            posture_gates = await collect_server_postures(ctx)
+            discovery = await McpToolDiscoveryService(
+                ctx, posture_gates=posture_gates
+            ).discover_all()
             ctx.services_required.runtime_tools = discovery.registry
             # Wire RuntimeToolRegistry into ToolExecutor routing resolver.
             if discovery.registry is not None:

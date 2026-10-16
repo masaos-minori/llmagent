@@ -150,11 +150,11 @@ removed, without weakening any severity or remediation guarantee (`REQ-017`, `AC
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the audit entry from the mock set | Pending | — | — | land with row `22` |
-| 2 | Delete the two `security_audit` severity cases | Pending | — | — | |
-| 3 | Re-base the remediation test onto `mcp_auth` | Pending | — | — | |
-| 4 | Update the two audit-naming comments and the check count | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the audit entry from the mock set | Completed | 2026-10-17 | 2026-10-17 | landed with row 22 |
+| 2 | Delete the two `security_audit` severity cases | Completed | 2026-10-17 | 2026-10-17 | — |
+| 3 | Re-base the remediation test onto `mcp_auth` | Completed | 2026-10-17 | 2026-10-17 | re-based onto mcp_auth, the remediation string read from scripts/agent/startup_validation.py |
+| 4 | Update the two audit-naming comments and the check count | Completed | 2026-10-17 | 2026-10-17 | comment list restated to the 6 pipeline sources the file actually asserts, embedding_dimensions and routing_drift_live are stale names that no longer exist |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

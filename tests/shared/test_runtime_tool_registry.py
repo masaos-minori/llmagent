@@ -419,3 +419,106 @@ class TestApplyPolicyReversibility:
         assert old_id != new_id
         assert len(reg._tools) == 1
         assert reg.get("shell_run").enabled_for_llm is True
+
+
+class TestPostureGate:
+    """`allowed_servers` is the Security Posture gate: a key absent from it is excluded."""
+
+    def test_a_server_absent_from_the_gate_is_excluded(self) -> None:
+        gated = build_runtime_tool(name="git_push", server_key="git")
+        green = build_runtime_tool(name="mdq_query", server_key="mdq")
+        reg = RuntimeToolRegistry(
+            {"git_push": gated, "mdq_query": green},
+            allowed_servers=frozenset(["mdq"]),
+        )
+        assert reg.resolve("git_push") is None
+        assert reg.resolve("mdq_query") == "mdq"
+        assert reg.posture_excluded_servers == frozenset(["git"])
+
+    def test_an_empty_gate_registers_nothing(self) -> None:
+        """The fail-closed reading: no validated posture means no MCP tool at all."""
+        tools = {
+            "a": build_runtime_tool(name="a", server_key="git"),
+            "b": build_runtime_tool(name="b", server_key="mdq"),
+        }
+        reg = RuntimeToolRegistry(tools, allowed_servers=frozenset())
+        assert reg.all_tools() == []
+        assert reg.llm_tool_definitions() == []
+        assert reg.resolve("a") is None
+        with pytest.raises(KeyError):
+            reg.get("a")
+        assert reg.posture_excluded_servers == frozenset(["git", "mdq"])
+
+    def test_no_gate_supplied_keeps_today_behavior(self) -> None:
+        tools = {
+            "a": build_runtime_tool(name="a", server_key="git"),
+            "b": build_runtime_tool(name="b", server_key="mdq"),
+        }
+        reg = RuntimeToolRegistry(tools, allowed_servers=None)
+        assert {tool.name for tool in reg.all_tools()} == {"a", "b"}
+        assert reg.posture_excluded_servers == frozenset()
+
+    def test_a_green_gate_excludes_nothing(self) -> None:
+        tool = build_runtime_tool(name="mdq_query", server_key="mdq")
+        reg = RuntimeToolRegistry(
+            {"mdq_query": tool}, allowed_servers=frozenset(["mdq"])
+        )
+        assert reg.resolve("mdq_query") == "mdq"
+        assert reg.posture_excluded_servers == frozenset()
+
+    def test_a_gated_tool_is_not_offered_to_the_llm(self) -> None:
+        gated = build_runtime_tool(
+            name="git_push", server_key="git", enabled_for_llm=True
+        )
+        green = build_runtime_tool(
+            name="mdq_query", server_key="mdq", enabled_for_llm=True
+        )
+        reg = RuntimeToolRegistry(
+            {"git_push": gated, "mdq_query": green},
+            allowed_servers=frozenset(["mdq"]),
+        )
+        assert [entry["name"] for entry in reg.llm_tool_definitions()] == ["mdq_query"]
+
+    def test_posture_exclusion_stays_separate_from_unavailability(self) -> None:
+        """REQ-013 classifies the two causes differently, so the reports must not merge."""
+        down = build_runtime_tool(name="git_push", server_key="git")
+        unsafe = build_runtime_tool(name="mdq_query", server_key="mdq")
+        reg = RuntimeToolRegistry(
+            {"git_push": down, "mdq_query": unsafe},
+            unavailable_servers=frozenset(["git"]),
+            allowed_servers=frozenset(),
+        )
+        assert reg.unavailable_servers == frozenset(["git"])
+        assert reg.posture_excluded_servers == frozenset(["mdq"])
+
+    def test_a_disabled_server_is_excluded_before_the_gate_is_consulted(self) -> None:
+        from unittest.mock import MagicMock
+
+        cfg = MagicMock()
+        cfg.is_disabled = True
+        tool = build_runtime_tool(name="write_file", server_key="disabled_srv")
+        reg = RuntimeToolRegistry(
+            {"write_file": tool},
+            server_configs={"disabled_srv": cfg},
+            allowed_servers=frozenset(["disabled_srv"]),
+        )
+        assert reg.all_tools() == []
+        assert reg.posture_excluded_servers == frozenset()
+
+    def test_construction_logs_one_line_naming_the_excluded_keys(
+        self, caplog: Any
+    ) -> None:
+        gated = build_runtime_tool(name="git_push", server_key="git")
+        green = build_runtime_tool(name="mdq_query", server_key="mdq")
+        with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
+            RuntimeToolRegistry(
+                {"git_push": gated, "mdq_query": green},
+                allowed_servers=frozenset(["mdq"]),
+            )
+        assert "posture-excluded servers: git" in caplog.text
+
+    def test_a_green_registry_logs_no_warning(self, caplog: Any) -> None:
+        tool = build_runtime_tool(name="mdq_query", server_key="mdq")
+        with caplog.at_level(logging.WARNING, logger="shared.runtime_tool_registry"):
+            RuntimeToolRegistry({"mdq_query": tool}, allowed_servers=frozenset(["mdq"]))
+        assert "posture-excluded" not in caplog.text

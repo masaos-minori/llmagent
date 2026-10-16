@@ -36,10 +36,19 @@ duplicated tool is unusable, so there is no WARNING-only case.
 Unified severity scheme (drift, tool-definitions, malformed-capabilities):
 `is_fatal = strict`. Duplicate-tool findings are the one exception to this
 scheme — they are always FATAL.
+
+Security Posture gating: when the caller supplies `posture_gates`, this service
+reduces them to a server-key allowlist with
+`agent.services.mcp_health.allowed_server_keys()` and hands that allowlist to
+`RuntimeToolRegistry`, so a server whose posture the Agent rejected contributes no
+tool. `posture_gates=None` means no gate was supplied and every reachable server's
+tools are registered as before. This module never probes `/health` and never
+decides a gate itself.
 """
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from http import HTTPStatus
 from logging import getLogger
@@ -57,6 +66,7 @@ from shared.runtime_tool import RuntimeTool, build_runtime_tool
 from shared.runtime_tool_registry import RuntimeToolRegistry
 from shared.tool_routing_validation import validate_routing_against_live
 
+from agent.services.mcp_health import PostureGate, allowed_server_keys
 from agent.services.tool_validation import _check_tool_definitions
 from agent.shared.health_models import StartupCheckOutcome, StartupCheckStatus
 from agent.tool_policy import check_write_classification
@@ -293,8 +303,19 @@ def _warning_entry(msg: str) -> tuple[None, StartupCheckOutcome]:
 class McpToolDiscoveryService:
     """Discover live MCP tools and build a `RuntimeToolRegistry`."""
 
-    def __init__(self, ctx: AgentContext) -> None:
+    def __init__(
+        self,
+        ctx: AgentContext,
+        posture_gates: Mapping[str, PostureGate] | None = None,
+    ) -> None:
+        """Build the discovery service, optionally carrying the Security Posture gate.
+
+        `posture_gates` is the gate row `18` (`agent.services.mcp_health`) produced at readiness. `None`
+        means no gate was supplied and today's behavior is kept; it is the migration-window value, and the
+        only production caller passes real gates.
+        """
         self._ctx = ctx
+        self._posture_gates = posture_gates
 
     async def discover_all(self) -> DiscoveryResult:
         """Fetch tools from every HTTP-transport MCP server and build a registry."""
@@ -327,7 +348,14 @@ class McpToolDiscoveryService:
                         findings.append(finding)
             entries.extend(fetched)
         unavailable_keys = frozenset(unreachable)
-        registry, dedup_findings = self._dedupe_and_build(entries, unavailable_keys)
+        allowed_servers = (
+            None
+            if self._posture_gates is None
+            else frozenset(allowed_server_keys(self._posture_gates))
+        )
+        registry, dedup_findings = self._dedupe_and_build(
+            entries, unavailable_keys, allowed_servers=allowed_servers
+        )
         findings.extend(dedup_findings)
         findings = self._check_required_tools(findings, registry)
         findings.extend(self._build_drift_findings(entries))
@@ -378,8 +406,14 @@ class McpToolDiscoveryService:
         self,
         unique_entries: list[tuple[str, str, dict[str, object]]],
         unavailable_servers: frozenset[str],
+        allowed_servers: frozenset[str] | None = None,
     ) -> RuntimeToolRegistry:
-        """Build RuntimeToolRegistry from unique entries with unavailable server filtering."""
+        """Build RuntimeToolRegistry from unique entries with unavailable and posture filtering.
+
+        `allowed_servers` is the posture-derived allowlist (row `19`): `None` registers every tool that
+        survived the unavailable filter, a `frozenset` lets only its members through, and an empty
+        `frozenset` registers nothing.
+        """
         built: dict[str, RuntimeTool] = {}
         for server_key, server_url, entry in unique_entries:
             if server_key in unavailable_servers:
@@ -399,12 +433,13 @@ class McpToolDiscoveryService:
                 enabled_for_llm=bool(entry.get("enabled", True)),
                 capabilities=tuple(entry.get("capabilities", []) or []),  # type: ignore[arg-type]
             )
-        return RuntimeToolRegistry(tools=built)
+        return RuntimeToolRegistry(tools=built, allowed_servers=allowed_servers)
 
     def _dedupe_and_build(
         self,
         entries: list[_RawEntry],
         unavailable_servers: frozenset[str],
+        allowed_servers: frozenset[str] | None = None,
     ) -> tuple[RuntimeToolRegistry, list[StartupCheckOutcome]]:
         """Group entries by tool name, build RuntimeTools, and exclude duplicates.
 
@@ -418,9 +453,14 @@ class McpToolDiscoveryService:
         `is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys`
         are guaranteed present — they are indexed directly (`entry[...]`), not
         defaulted via `.get()`.
+
+        `allowed_servers` travels exactly like `unavailable_servers` and reaches the registry unchanged:
+        this module transports the gate, it does not decide it.
         """
         unique_entries, dedup_findings = self._detect_duplicates(entries)
-        registry = self._build_runtime_tools(unique_entries, unavailable_servers)
+        registry = self._build_runtime_tools(
+            unique_entries, unavailable_servers, allowed_servers=allowed_servers
+        )
         return registry, dedup_findings
 
     def _is_strict(self) -> bool:

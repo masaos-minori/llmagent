@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import importlib.util
+
 import pytest
 from shared.config_errors import ConfigPermissionError
 from shared.config_loader import ConfigLoader
@@ -41,13 +43,14 @@ def test_unrestricted_allows_any_file(tmp_path) -> None:
         pytest.fail("Unrestricted ConfigLoader raised ConfigPermissionError")
 
 
-def test_security_audit_config_blocked_in_restricted_agent_process() -> None:
-    """Calling load_shell_audit_config() under restrict_to('agent.toml') raises RuntimeError."""
-    ConfigLoader.restrict_to("agent.toml")
-    from agent.security_audit_config import load_shell_audit_config
+def test_agent_has_no_cross_config_audit_loader() -> None:
+    """ADR-002 INV-02: the Agent-side loader that read server config files no longer exists.
 
-    with pytest.raises(RuntimeError, match="not permitted"):
-        load_shell_audit_config()
+    The test this replaces asserted that an Agent-restricted process could not reach a server config
+    file through that loader. The stronger statement now checkable directly is that the code path is
+    absent, which also fails if a future change reintroduces a cross-config loader.
+    """
+    assert importlib.util.find_spec("agent.security_audit_config") is None
 
 
 def test_falsy_own_config_file_blocks_cross_server_access(tmp_path) -> None:

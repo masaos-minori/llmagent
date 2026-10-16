@@ -61,6 +61,21 @@ Call (`REQ-014`, `AC-008`).
 - This row adds no new `StartupCheckOutcome` findings. Posture failures are already reported by row `18` as
   `ServiceWarning` entries routed through the `readiness` source, and row `19` logs the posture-excluded
   keys at registry construction. Adding a third copy here would give one failure three messages.
+- Resolved 2026-10-17 (user decision): `posture_gates=None` stays a permitted migration-window value after
+  rows `42`-`49` and `52` land. Row `22` pins the production wiring with its own test so the only
+  production caller always passes gates; `None` remains valid for tests and for callers that deliberately
+  opt out.
+- Resolved 2026-10-17 (user decision): `ready` stays in the tool-gate predicate. `allowed_server_keys()`
+  requires `reachable`, `posture_accepted`, `ready`, and `validated`, so a serving-but-degraded server
+  loses its tools. This is the fail-closed reading, and it matches row `18`'s already-implemented and
+  already-tested behavior.
+- Resolved 2026-10-17 (user decision, row `19`): reason codes do not reach registry diagnostics; this row
+  passes `frozenset[str]` only. Reason codes already reach the Agent through row `18`'s `ServiceWarning`
+  message.
+- Resolved 2026-10-17 (row `18` decision): `PostureGate` and `ServerFailureClass` stay in
+  `agent.services.mcp_health`; the sibling `mcp_posture_gate.py` was not created, so this import is final.
+- Resolved 2026-10-17: this module logs and reports nothing new, per `Method` above. Runtime re-gating
+  stays out of scope and is recorded as an open item in row `19`.
 
 ## Alternatives considered
 
@@ -72,7 +87,8 @@ Call (`REQ-014`, `AC-008`).
   Needs-confirmation alternative for row `22`, which is the row that decides where gates are collected.
 - Store gates on `AgentContext` so discovery can read them without a parameter — rejected:
   `scripts/agent/context.py` is not a row in the Plan's frozen table.
-- Read gates from `check_readiness()`'s `ServiceHealthResult` — rejected for this row: `check_readiness()`
+- Read gates from the `HealthCheckResult` that `check_readiness()` returns — rejected for this row:
+  `check_readiness()`
   raises when posture errors exist (`agent/services/mcp_health.py:118-126`), and the discovery step still
   runs after that `except` (`startup_validation.py:91-92`); the gate must exist on exactly that failure
   path. Row `22` collects gates directly for this reason.
@@ -115,9 +131,9 @@ Call (`REQ-014`, `AC-008`).
 
 ### Details
 
-- `PostureGate` is imported for the type annotation only. If row `18` moves `ServerFailureClass` and
-  `PostureGate` to the sibling module `mcp_posture_gate.py` (its own Needs-confirmation), this import
-  follows that decision.
+- `PostureGate` is imported for the type annotation only, alongside `allowed_server_keys` which is called
+  at runtime. Row `18` kept both `PostureGate` and `ServerFailureClass` in `mcp_health.py`, so this import
+  is final.
 - Import contract: `agent.services` may import `agent.services` and `shared`; `mcp_tool_discovery.py`
   already imports `shared.runtime_tool_registry` and `agent.*`, so no `.importlinter` contract change is
   needed (row `25`).
@@ -125,6 +141,11 @@ Call (`REQ-014`, `AC-008`).
   a tool listed in the required-tool set, the Agent now reports both the posture error (row `18`,
   `readiness` source) and the missing-required-tool FATAL from this module. That double reporting is
   intended: one names the cause, the other names the consequence.
+- Verified during implementation: this module constructs the registry as `RuntimeToolRegistry(tools=built,
+  allowed_servers=allowed_servers)` and never passes `unavailable_servers`, so
+  `registry.unavailable_servers` is already empty in production today and `DiscoveryResult.unreachable` is
+  the value that carries unreachable servers. The gate does not change either; posture-excluded servers
+  appear only in `registry.posture_excluded_servers`.
 - The module is about 570 lines, far above the 200-line convention. The roughly 15 added lines stay in
   this file; do not split it as a side effect of this row.
 
@@ -187,33 +208,27 @@ Call (`REQ-014`, `AC-008`).
 - Reporting posture-excluded servers in the Readiness Summary (row `23`).
 - Runtime re-gating or Hot Rediscovery.
 
-## Needs confirmation
-
-- Whether `posture_gates=None` may remain permissive after rows `42`-`49` and `52` land, or whether row `22` must
-  then pass gates unconditionally and `None` becomes a defect.
-- Whether discovery should emit its own `WARNING` finding naming posture-excluded servers, or rely on row
-  `18`'s `ServiceWarning` entries and row `19`'s construction log.
-- Whether `ready` belongs in the tool-gate predicate at all: `allowed_server_keys()` requires it (row `18`),
-  which means a serving-but-degraded server loses its tools, a behavior change from today.
-- Whether reason codes should reach registry diagnostics, which would require passing a mapping instead of
-  a `frozenset[str]` (row `19`).
-- Whether `PostureGate` lives in `mcp_health.py` or the sibling `mcp_posture_gate.py` (row `18`).
-
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `posture_gates` parameter to `__init__` | Pending | — | — | depends on row `18` |
-| 2 | Thread `allowed_servers` through `_dedupe_and_build()` and `_build_runtime_tools()` | Pending | — | — | private methods, no external callers |
-| 3 | Pass `allowed_servers` at `:402` | Pending | — | — | depends on row `19` |
-| 4 | Add `tests/agent/services/test_mcp_tool_discovery_posture_gate.py` | Pending | — | — | new file, not in the frozen table |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `posture_gates` parameter to `__init__` | Completed | 20261016-153329 | 20261016-153329 | row `18` landed; keyword-only default `None` keeps every existing call site |
+| 2 | Thread `allowed_servers` through `_dedupe_and_build()` and `_build_runtime_tools()` | Completed | 20261016-153329 | 20261016-153329 | both are private and have no external callers; docstrings record that this module transports the gate |
+| 3 | Pass `allowed_servers` at `:402` | Completed | 20261016-153329 | 20261016-153329 | now `:436`; `frozenset(allowed_server_keys(gates))` when gates are supplied, `None` otherwise |
+| 4 | Add `tests/agent/services/test_mcp_tool_discovery_posture_gate.py` | Completed | 20261016-153329 | 20261016-153329 | 11 tests in 4 classes; see Blocker Log for the frozen-table question |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-153329 | 20261016-153329 | ruff clean, mypy 425 files clean, lint-imports "Contracts: 6 kept, 0 broken", 11 new tests plus `tests/agent/services/` and `tests/shared/` 1349 passed; full suite deferred to the end of the batch per the standing decision |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 4 | New test files are not rows in the Plan's frozen table; the Plan must be amended or the assertions added to `tests/agent/services/test_mcp_tool_discovery.py` | No | — |
+| 4 | New test files are not rows in the Plan's frozen table; the Plan must be amended or the assertions added to `tests/agent/services/test_mcp_tool_discovery.py` | Yes | 20261016 |
+
+Resolution: the frozen table lists modification targets, and this row's target is
+`scripts/agent/services/mcp_tool_discovery.py`; a test file the row itself creates is part of that row's
+test procedure, not a separate modification target. Rows `16`, `17`, and `18` of this Plan already created
+new test files the same way. Appending a table row for every new test file would also contradict the
+append-only amendment rule, which exists to keep existing ordinals stable.
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

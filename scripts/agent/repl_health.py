@@ -13,10 +13,6 @@ from agent.services.routing_drift import (
     check_routing_drift,
     check_routing_safety_tiers,
 )
-from agent.services.security_audit import (
-    _load_audit_config_or_raise,
-    audit_security_defaults,
-)
 from agent.services.tool_validation import (
     _check_tool_definitions,
     _collect_server_tool_names,
@@ -42,6 +38,4 @@ __all__ = [
     "check_workflow_schema",
     "check_routing_drift",
     "check_routing_safety_tiers",
-    "_load_audit_config_or_raise",
-    "audit_security_defaults",
 ]

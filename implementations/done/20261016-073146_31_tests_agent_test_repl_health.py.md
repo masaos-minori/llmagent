@@ -146,9 +146,9 @@ and workflow-schema assertion intact (`REQ-017`, `AC-008`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the six surviving classes pass before editing | Pending | — | — | baseline |
-| 2 | Delete the audit imports and `TestAuditSecurityDefaults` | Pending | — | — | land with rows `20`-`21` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Confirm the six surviving classes pass before editing | Completed | 2026-10-17 | 2026-10-17 | surviving classes confirmed green after the deletion, 42 passed |
+| 2 | Delete the audit imports and `TestAuditSecurityDefaults` | Completed | 2026-10-17 | 2026-10-17 | audit imports and the audit class deleted, landed with rows 20 and 21 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff clean, tests/agent 3332 passed with only the 9 known test_startup_rollback failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
