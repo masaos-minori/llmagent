@@ -55,8 +55,8 @@ N/A: revert the commit (restores the exemption).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Empty the exemption table and update its comment | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Empty the exemption table and update its comment | Completed | 20261016-222840 | 20261016-222840 | Emptied _CONTRACT_EXEMPT_COMMANDS to {} with reworded comment; type annotation preserved |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-222840 | 20261016-222840 | ruff/mypy/bandit clean; check_tool_descriptions_sync clean; 40 tool tests pass; full-suite failures are pre-existing eventbus schema (verified on HEAD) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

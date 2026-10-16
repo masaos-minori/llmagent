@@ -58,9 +58,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the `/memory` arguments in the registry | Pending | — | — | |
-| 2 | Print the rendered usages and compare with the documented forms | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the `/memory` arguments in the registry | Completed | 20261016-213747 | 20261016-213747 |  |
+| 2 | Print the rendered usages and compare with the documented forms | Completed | 20261016-213747 | 20261016-213747 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-213747 | 20261016-213747 | ruff/mypy/lint-imports/command-registry tests pass; usage matches documented forms. 3 test_memory_data_ops failures are pre-existing (row 01 impl) and owned by row 03. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

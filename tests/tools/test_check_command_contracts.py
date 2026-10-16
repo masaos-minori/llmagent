@@ -106,3 +106,7 @@ def test_exempt_command_is_not_checked(
 def test_live_agent_docs_match_the_registry() -> None:
     issues = mod.check_command_contracts(REPO_ROOT / "docs", REPO_ROOT)
     assert [i.message for i in issues] == []
+
+
+def test_memory_command_is_not_exempt() -> None:
+    assert "/memory" not in mod._CONTRACT_EXEMPT_COMMANDS

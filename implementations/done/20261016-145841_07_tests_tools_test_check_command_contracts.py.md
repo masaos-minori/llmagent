@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the exemption guard test | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) after the tool change | Pending | — | — | |
+| 1 | Add the exemption guard test | Completed | 20261016-223121 | 20261016-223121 | Added test_memory_command_is_not_exempt asserting /memory absent from the exemption table |
+| 2 | Run the validation sequence (`rules/toolchain.md`) after the tool change | Completed | 20261016-223121 | 20261016-223121 | Proved sensitivity via temporary reintroduce (fails), restored {}; ruff/mypy clean; 41 tool tests pass; consistency check clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

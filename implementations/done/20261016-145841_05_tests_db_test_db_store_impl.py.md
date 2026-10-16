@@ -58,9 +58,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the two SQL assertion tests and the real SQLite test class | Pending | — | — | |
-| 2 | Run the new tests against the unmodified source and record the result | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) after the source change | Pending | — | — | |
+| 1 | Add the two SQL assertion tests and the real SQLite test class | Completed | 20261016-220525 | 20261016-220525 |  |
+| 2 | Run the new tests against the unmodified source and record the result | Completed | 20261016-220525 | 20261016-220525 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) after the source change | Completed | 20261016-220525 | 20261016-220525 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

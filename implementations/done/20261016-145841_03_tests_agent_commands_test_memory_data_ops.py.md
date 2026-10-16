@@ -62,10 +62,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the tests that assert the removed forms | Pending | — | — | |
-| 2 | Add the list, delete, and prune test classes | Pending | — | — | |
-| 3 | Run the new tests against the unmodified handlers and record the result | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) after the code change | Pending | — | — | |
+| 1 | Update the tests that assert the removed forms | Completed | 20261016-215412 | 20261016-215412 |  |
+| 2 | Add the list, delete, and prune test classes | Completed | 20261016-215412 | 20261016-215412 |  |
+| 3 | Run the new tests against the unmodified handlers and record the result | Completed | 20261016-215412 | 20261016-215412 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) after the code change | Completed | 20261016-215412 | 20261016-215412 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

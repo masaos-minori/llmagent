@@ -287,7 +287,9 @@ def check_command_coverage(docs_dir: Path, repo_root: Path) -> list[Issue]:
 
 # Commands whose documented contract is known to differ from the registry; each is
 # tracked as a Known Issue and excluded until it is resolved (remove the entry then).
-_CONTRACT_EXEMPT_COMMANDS: dict[str, str] = {"/memory": "AGENT-013"}
+# The table is currently empty: every command, including /memory, is checked like any
+# other once its registry, handler, and chapter agree.
+_CONTRACT_EXEMPT_COMMANDS: dict[str, str] = {}
 _CODE_SPAN_RE = re.compile(r"`([^`\n]+)`")
 
 

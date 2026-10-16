@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Change the two prune queries and docstrings to `updated_at` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Change the two prune queries and docstrings to `updated_at` | Completed | 20261016-220121 | 20261016-220121 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-220121 | 20261016-220121 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

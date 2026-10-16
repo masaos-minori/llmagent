@@ -6,6 +6,8 @@ SQLiteDocumentStore, SQLiteVectorStore, SQLiteMemoryDeleteStore.
 from __future__ import annotations
 
 import sqlite3
+from contextlib import contextmanager
+from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -446,3 +448,102 @@ class TestSQLiteMemoryDeleteStore:
         mock_db.fetchall.return_value = []
         store = SQLiteMemoryDeleteStore(mock_db)
         assert store.collect_prunable_ids(30) == []
+
+    def test_collect_prunable_ids_uses_updated_at(self) -> None:
+        mock_db = MagicMock()
+        mock_db.fetchall.return_value = []
+        store = SQLiteMemoryDeleteStore(mock_db)
+        store.collect_prunable_ids(30)
+        sql, args = mock_db.fetchall.call_args[0]
+        assert "updated_at < datetime('now', ?)" in sql
+        assert "pinned = 0" in sql
+        assert "created_at" not in sql
+        assert args == ("-30 days",)
+
+    def test_delete_memories_before_selects_by_updated_at(self) -> None:
+        mock_db = MagicMock()
+        mock_db.fetchall.return_value = []
+        store = SQLiteMemoryDeleteStore(mock_db)
+        store.delete_memories_before(30)
+        sql, args = mock_db.fetchall.call_args[0]
+        assert "updated_at < datetime('now', ?)" in sql
+        assert "pinned = 0" in sql
+        assert "created_at" not in sql
+        assert args == ("-30 days",)
+
+
+class _RealDeleteDB(_FakeDB):
+    """_FakeDB plus the ``begin_immediate`` context manager the delete store uses."""
+
+    @contextmanager
+    def begin_immediate(self):
+        self.conn.execute("BEGIN IMMEDIATE")
+        try:
+            yield self.conn
+        except BaseException:
+            self.conn.rollback()
+            raise
+        else:
+            self.conn.commit()
+
+
+class TestMemoryDeleteStoreRealSqlite:
+    def test_prunes_only_old_unpinned_by_updated_at(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(
+            """
+            CREATE TABLE memories (
+                memory_id  TEXT PRIMARY KEY,
+                created_at TEXT,
+                updated_at TEXT,
+                pinned     INTEGER DEFAULT 0
+            );
+            CREATE TABLE memories_fts (memory_id TEXT);
+            CREATE TABLE memories_vec (memory_id TEXT);
+            CREATE TABLE memory_links (src_id TEXT, dst_id TEXT);
+            """
+        )
+
+        def _iso(days_ago: int) -> str:
+            return (datetime.now() - timedelta(days=days_ago)).strftime(
+                "%Y-%m-%d %H:%M:%S"
+            )
+
+        conn.executemany(
+            "INSERT INTO memories VALUES (?, ?, ?, ?)",
+            [
+                ("m1", _iso(90), _iso(90), 0),  # old update + old create -> prune
+                ("m2", _iso(90), _iso(1), 0),  # old create, recent update -> keep
+                ("m3", _iso(90), _iso(90), 1),  # old but pinned -> keep
+                ("m4", _iso(1), _iso(1), 0),  # recent -> keep
+            ],
+        )
+        conn.commit()
+        conn.executemany("INSERT INTO memories_fts VALUES (?)", [("m1",), ("m2",)])
+        conn.executemany("INSERT INTO memories_vec VALUES (?)", [("m1",), ("m2",)])
+        conn.executemany(
+            "INSERT INTO memory_links VALUES (?, ?)", [("m1", "x"), ("y", "m1")]
+        )
+        conn.commit()
+
+        store = SQLiteMemoryDeleteStore(_RealDeleteDB(conn))  # type: ignore[arg-type]
+        ids = store.collect_prunable_ids(30)
+        result = store.delete_memories_before(30)
+
+        assert ids == ["m1"]
+        assert result.deleted == 1
+
+        remaining = {row[0] for row in conn.execute("SELECT memory_id FROM memories")}
+        assert remaining == {"m2", "m3", "m4"}
+
+        assert conn.execute("SELECT memory_id FROM memories_fts").fetchall() == [
+            ("m2",)
+        ]
+        assert conn.execute("SELECT memory_id FROM memories_vec").fetchall() == [
+            ("m2",)
+        ]
+        link_rows = conn.execute(
+            "SELECT * FROM memory_links WHERE src_id = ? OR dst_id = ?",
+            ("m1", "m1"),
+        ).fetchall()
+        assert link_rows == []

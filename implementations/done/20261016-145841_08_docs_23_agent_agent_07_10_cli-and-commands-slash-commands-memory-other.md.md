@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the table rows and the `rebuild` paragraph | Pending | — | — | |
-| 2 | Run the docs checkers and the consistency check after the registry change | Pending | — | — | |
+| 1 | Edit the table rows and the `rebuild` paragraph | Completed | 20261016-221527 | 20261016-221527 | Chapter split pin/unpin rows, fixed rebuild form to flat, stated --allow-loss requires --confirm |
+| 2 | Run the docs checkers and the consistency check after the registry change | Completed | 20261016-221527 | 20261016-221527 | consistency check + docs quality/structure/content-policy/japanese + reference table all clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

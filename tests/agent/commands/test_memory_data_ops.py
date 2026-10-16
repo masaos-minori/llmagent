@@ -193,9 +193,12 @@ class TestMemoryDeleteShortId:
         mem = MagicMock()
         mem.store.get_by_id.return_value = None
         mem.store.list_entries.return_value = [_make_entry(memory_id="abcdef1234")]
-        with patch(
-            "agent.commands.memory_data_ops.write_delete", return_value=True
-        ) as wd:
+        with (
+            patch("builtins.input", return_value="y"),
+            patch(
+                "agent.commands.memory_data_ops.write_delete", return_value=True
+            ) as wd,
+        ):
             ops.memory_delete(mem, ["abcdef12"])
         wd.assert_called_once_with("abcdef1234")
         # no M-code emitted on success path
@@ -341,10 +344,15 @@ class TestMemoryPruneEvents:
             data={"deleted": 2, "pruned_ids": ["id-aaa", "id-bbb"]},
         )
         with (
-            patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 278); prune_old_memories is fully mocked in this test
+            patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 360); prune_old_memories is fully mocked in this test
                 "db.helper.SQLiteHelper"
             ) as mock_helper_cls,
+            patch(  # mock-patch-ok: collect_prunable_ids is bound via a local import in memory_prune (line 362)
+                "db.store_impl.SQLiteMemoryDeleteStore.collect_prunable_ids",
+                return_value=["id-aaa", "id-bbb"],
+            ),
             patch("db.maintenance.prune_old_memories", return_value=prune_result),
+            patch("builtins.input", return_value="y"),
             patch("agent.commands.memory_data_ops._emit_prune_event") as emit,
         ):
             mock_h = MagicMock()
@@ -352,7 +360,7 @@ class TestMemoryPruneEvents:
             mock_h.__exit__ = MagicMock(return_value=False)
             mock_h.open.return_value = mock_h
             mock_helper_cls.return_value = mock_h
-            ops.memory_prune(MagicMock(), ctx, ["14"])
+            ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
         emit.assert_has_calls([call("id-aaa"), call("id-bbb")])
 
     def test_prune_no_pruned_ids_emits_no_events(self) -> None:
@@ -368,9 +376,13 @@ class TestMemoryPruneEvents:
             data={"deleted": 0, "pruned_ids": []},
         )
         with (
-            patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 278); prune_old_memories is fully mocked in this test
+            patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 360); prune_old_memories is fully mocked in this test
                 "db.helper.SQLiteHelper"
             ) as mock_helper_cls,
+            patch(  # mock-patch-ok: collect_prunable_ids is bound via a local import in memory_prune (line 362)
+                "db.store_impl.SQLiteMemoryDeleteStore.collect_prunable_ids",
+                return_value=[],
+            ),
             patch("db.maintenance.prune_old_memories", return_value=prune_result),
             patch("agent.commands.memory_data_ops._emit_prune_event") as emit,
         ):
@@ -379,9 +391,12 @@ class TestMemoryPruneEvents:
             mock_h.__exit__ = MagicMock(return_value=False)
             mock_h.open.return_value = mock_h
             mock_helper_cls.return_value = mock_h
-            ops.memory_prune(MagicMock(), ctx, ["14"])
+            ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
         emit.assert_not_called()
-        out.write_success.assert_called_once()
+        # count==0 path writes a plain message and returns before write_success
+        lines = [c.args[0] for c in out.write.call_args_list]
+        assert any("Nothing is prunable" in line for line in lines)
+        assert not out.write_success.called
 
 
 class TestEmitPruneEvent:

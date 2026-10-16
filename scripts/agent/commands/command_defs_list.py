@@ -183,18 +183,26 @@ _COMMANDS: list[CommandDef] = [
                 "list",
                 "List entries",
                 (
-                    ArgSpec("semantic|episodic"),
-                    ArgSpec("--source RULE|DECISION|FAILURE|CONVERSATION"),
-                    ArgSpec("--branch <branch>"),
-                    ArgSpec("limit", default="10"),
+                    ArgSpec("n", default="20"),
+                    ArgSpec("--type semantic|episodic"),
+                    ArgSpec("--pinned"),
+                    ArgSpec("--query <text>"),
                 ),
             ),
-            SubcommandSpec("pin", "Pin an entry", (ArgSpec("id", required=True),)),
-            SubcommandSpec("unpin", "Unpin an entry", (ArgSpec("id", required=True),)),
             SubcommandSpec(
-                "delete", "Delete one entry", (ArgSpec("id", required=True),)
+                "pin", "Pin an entry", (ArgSpec("memory_id", required=True),)
             ),
-            SubcommandSpec("prune", "Delete old entries", (ArgSpec("days"),)),
+            SubcommandSpec(
+                "unpin", "Unpin an entry", (ArgSpec("memory_id", required=True),)
+            ),
+            SubcommandSpec(
+                "delete", "Delete one entry", (ArgSpec("memory_id", required=True),)
+            ),
+            SubcommandSpec(
+                "prune",
+                "Delete old entries after confirmation",
+                (ArgSpec("--days <n>"),),
+            ),
             SubcommandSpec(
                 "reindex",
                 "Rebuild FTS/vec indexes only",
