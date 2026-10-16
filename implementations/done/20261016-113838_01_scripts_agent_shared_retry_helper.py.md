@@ -1,6 +1,6 @@
 ## Goal
 
-Fix `retry_once_with_delay` (`scripts/agent/shared/retry_helper.py`) so that a second failed attempt to start an HTTP subprocess MCP server re-raises a clean, catchable error instead of an `AttributeError` caused by misusing `HttpStartupError`'s constructor, so a persistently misconfigured server is routed through the required/non-required decision matrix instead of aborting startup for every remaining MCP server. (`REQ-001`, `REQ-004`)
+Fix `retry_once_with_delay` (`scripts/agent/shared/retry_helper.py`) so that a second failed attempt to start an HTTP subprocess MCP server re-raises a clean, catchable error instead of an `AttributeError` caused by misusing `HttpStartupError`'s constructor, so a persistently failing server surfaces as a clean `HttpStartupError` with its type and chaining preserved. Startup still aborts, as the ADR-004 Exception requires for an Agent-launched subprocess server that fails after its single retry. (`REQ-001`, `REQ-004`)
 
 ## Scope
 
@@ -57,7 +57,7 @@ Prefer payload reconstruction and standard `type(err)(message)` over generic wra
   ```
 - Substitute the helper into line 60, keeping `from retry_err`.
 ### Details
-- Root cause: `HttpStartupError.__init__` requires a `StartupFailure` and reads `failure.reason`; the old `type(retry_err)(masked_msg)` passed a `str`, producing `"<str>".reason` → `AttributeError`, which is outside the caught tuple and escapes `start_servers` before the post-retry decision matrix in `scripts/agent/startup_mcp_starter.py` (lines 110-122) runs.
+- Root cause: `HttpStartupError.__init__` requires a `StartupFailure` and reads `failure.reason`; the old `type(retry_err)(masked_msg)` passed a `str`, producing `"<str>".reason` → `AttributeError`, which is outside the caught tuple and escapes `start_servers` as an uncaught `AttributeError`; after the fix the error surfaces as `HttpStartupError` (a `RuntimeError`), which still aborts startup through the startup rollback, as ADR-004 requires.
 - Payload reconstruction uses a guarded `getattr(err, "failure", None)` (non-coupling when the attribute is absent) rather than `isinstance`, per the plan's Design trade-off; for `HttpStartupError` the payload is a `StartupFailure`, so `type(err)(payload)` reconstructs the original type correctly.
 - Standard fallback `type(err)(message)` covers `TimeoutError`/`ConnectionRefusedError`/`RuntimeError` (constructors accept a message), preserving the existing `test_*_preserved` tests.
 - Exotic fallback preserves the type and `.args` without invoking the constructor (`cls.__new__(cls)` + assign `.args`); reached only when `type(err)(message)` itself raises. Documented here; the regression test (sibling document `tests/agent/test_retry_helper.py`) pins the primary custom-constructor case.
