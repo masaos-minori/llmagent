@@ -71,9 +71,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_confirm` (new) and the argument parsers (new) and rework `memory_list` | Pending | — | — | |
-| 2 | Add the confirmation to `memory_delete` and rework `memory_prune` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `_confirm` (new) and the argument parsers (new) and rework `memory_list` | Completed | 20261016-212411 | 20261016-212411 |  |
+| 2 | Add the confirmation to `memory_delete` and rework `memory_prune` | Completed | 20261016-212411 | 20261016-212411 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-212411 | 20261016-212411 | Code validation passed: ruff, mypy, lint-imports, bandit, vulture, radon, check_suppression_justification, generate_reference_table --check. test_cmd_memory.py passes (7/7). 3 tests in test_memory_data_ops.py (test_short_id_resolves_before_delete, test_prune_appends_delete_event_per_id, test_prune_no_pruned_ids_emits_no_events) fail due to the new _confirm/collect_prunable_ids behavior; those tests are updated by the test row 03, not this row. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

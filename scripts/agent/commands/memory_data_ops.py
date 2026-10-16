@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 from agent.commands.output_port import OutputPort
@@ -44,6 +45,114 @@ def _emit_prune_event(memory_id: str) -> None:
 _MIN_SHORT_ID = 8
 
 
+def _confirm(prompt: str) -> bool:
+    """Return True only for a y/yes answer; EOFError or any other answer returns False."""
+    try:
+        answer = input(prompt)
+    except EOFError:
+        return False
+    return answer.strip().lower() in {"y", "yes"}
+
+
+@dataclass(frozen=True)
+class _ListOptions:
+    """Parsed arguments for ``memory_list``."""
+
+    limit: int
+    memory_type: str
+    pinned_only: bool
+    query: str
+
+
+def _parse_list_options(self, tokens: list[str]) -> _ListOptions | None:
+    """Parse ``memory_list`` tokens into ``_ListOptions`` or write an error and return None.
+
+    A bare all-digit token sets the limit (1-200); ``--type`` requires ``semantic`` or
+    ``episodic``; ``--pinned`` sets the flag; ``--query`` consumes following tokens up to
+    the next ``--`` token. Any other ``--`` option or bare token is a validation error.
+    """
+    limit = 20
+    memory_type = ""
+    pinned_only = False
+    query_parts: list[str] = []
+    i = 0
+    n = len(tokens)
+    while i < n:
+        tok = tokens[i]
+        if tok == "--query":
+            i += 1
+            while i < n and not tokens[i].startswith("--"):
+                query_parts.append(tokens[i])
+                i += 1
+            continue
+        if tok.isdigit():
+            value = int(tok)
+            if value < 1 or value > 200:
+                self._out.write_validation_error("/memory list [n]")
+                return None
+            limit = value
+            i += 1
+            continue
+        if tok == "--type":
+            if i + 1 >= n:
+                self._out.write_validation_error(
+                    "/memory list [--type semantic|episodic]"
+                )
+                return None
+            memory_type = tokens[i + 1]
+            if memory_type not in ("semantic", "episodic"):
+                self._out.write_validation_error(
+                    "/memory list [--type semantic|episodic]"
+                )
+                return None
+            i += 2
+            continue
+        if tok == "--pinned":
+            pinned_only = True
+            i += 1
+            continue
+        if tok.startswith("--"):
+            self._out.write_validation_error(
+                "/memory list [n] [--type semantic|episodic] [--pinned] [--query <text>]"
+            )
+            return None
+        self._out.write_validation_error(
+            "/memory list [n] [--type semantic|episodic] [--pinned] [--query <text>]"
+        )
+        return None
+    return _ListOptions(
+        limit=limit,
+        memory_type=memory_type,
+        pinned_only=pinned_only,
+        query=" ".join(query_parts),
+    )
+
+
+def _parse_prune_days(self, tokens: list[str], default_days: int) -> int | None:
+    """Parse ``--days`` for ``memory_prune`` or write an error and return None.
+
+    ``--days`` must be an integer of at least 1. With no argument (and no positional
+    token) the provided retention default is used. ``--dry-run`` is ignored.
+    """
+    clean = [t for t in tokens if t != "--dry-run"]
+    if "--days" in clean:
+        idx = clean.index("--days")
+        raw = clean[idx + 1] if idx + 1 < len(clean) else ""
+        try:
+            days = int(raw)
+        except (ValueError, TypeError):
+            self._out.write_validation_error("/memory prune [--days <n>]")
+            return None
+        if days < 1:
+            self._out.write_validation_error("/memory prune [--days <n>]")
+            return None
+        return days
+    if not clean:
+        return int(default_days)
+    self._out.write_validation_error("/memory prune [--days <n>]")
+    return None
+
+
 class MemoryDataOps:
     """Handles memory data operations: list, search, show, pin, delete, prune."""
 
@@ -81,69 +190,39 @@ class MemoryDataOps:
 
     def memory_list(self, mem: MemoryServices, args: list[str]) -> None:
         """List entries by type with optional filtering."""
-        _VALID_SOURCES = {"RULE", "DECISION", "FAILURE", "CONVERSATION"}
+        options = _parse_list_options(self, args)
+        if options is None:
+            return
 
-        source_type: str | None = None
-        branch: str | None = None
-        pinned_only = False
-        remaining: list[str] = []
-        i = 0
-        while i < len(args):
-            if args[i] == "--source" and i + 1 < len(args):
-                source_type = args[i + 1].upper()
-                if source_type not in _VALID_SOURCES:
-                    self._out.write_validation_error(
-                        f"--source must be one of: {', '.join(sorted(_VALID_SOURCES))}"
-                    )
-                    return
-                i += 2
-            elif args[i] == "--branch" and i + 1 < len(args):
-                branch = args[i + 1]
-                i += 2
-            elif args[i] == "--pinned":
-                pinned_only = True
-                i += 1
-            else:
-                remaining.append(args[i])
-                i += 1
-
-        mem_type = next((a for a in remaining if a in ("semantic", "episodic")), "")
-        limit_str = next(
-            (a for a in remaining if a not in ("semantic", "episodic")), None
-        )
-        try:
-            limit = int(limit_str) if limit_str else 10
-        except (ValueError, TypeError):
-            limit = 10
-
-        if source_type or branch is not None:
-            entries = mem.store.list_entries(
-                source_type=source_type, branch=branch, limit=limit
+        if options.query:
+            hits = mem.retriever.search(
+                MemoryQuery(query=options.query, limit=200), branch=""
             )
-            if mem_type:
-                entries = [e for e in entries if e.memory_type == mem_type]
-        elif mem_type:
-            entries = mem.store.search_by_type(memory_type=mem_type, limit=limit)
+            entries = [hit.entry for hit in hits]
+        elif options.memory_type:
+            entries = mem.store.search_by_type(
+                memory_type=options.memory_type, limit=200
+            )
         else:
-            sem = mem.store.search_by_type("semantic", limit=limit)
-            epi = mem.store.search_by_type("episodic", limit=limit)
-            entries = sorted(sem + epi, key=lambda e: (not e.pinned, -e.importance))[
-                :limit
-            ]
+            sem = mem.store.search_by_type(memory_type="semantic", limit=200)
+            epi = mem.store.search_by_type(memory_type="episodic", limit=200)
+            entries = sem + epi
 
-        if pinned_only:
+        entries = sorted(entries, key=lambda e: (not e.pinned, -e.importance))
+        if options.pinned_only:
             entries = [e for e in entries if e.pinned]
+        entries = entries[: options.limit]
 
         if not entries:
             self._out.write("  [memory] No entries found")
             return
-        self._out.write(f"  {'ID':36}  {'Type':8}  {'Imp':4}  {'Pin':3}  Summary")
-        self._out.write(f"  {'-' * 36}  {'-' * 8}  {'-' * 4}  {'-' * 3}  {'-' * 40}")
+        self._out.write(f"  {'ID':10}  {'Type':8}  {'Imp':4}  {'Pin':3}  Summary")
+        self._out.write(f"  {'-' * 10}  {'-' * 8}  {'-' * 4}  {'-' * 3}  {'-' * 40}")
         for e in entries:
             pin_mark = "Y" if e.pinned else "-"
             summary = _summary_preview(e)
             self._out.write(
-                f"  {e.memory_id:36}  {e.memory_type:8}  {e.importance:.2f}  {pin_mark:3}  {summary}",
+                f"  {e.memory_id[:8]:10}  {e.memory_type:8}  {e.importance:.2f}  {pin_mark:3}  {summary}",
             )
 
     def memory_search(self, mem: MemoryServices, args: list[str]) -> None:
@@ -262,6 +341,9 @@ class MemoryDataOps:
                 ),
             )
             return
+        if not _confirm(f"Delete memory {mid}? [y/N]: "):
+            self._out.write("  [memory] Cancelled: nothing was deleted")
+            return
         ok = write_delete(mid)
         if ok:
             self._out.write(f"  [memory] Deleted: {mid}")
@@ -277,17 +359,19 @@ class MemoryDataOps:
         """Delete entries older than N days."""
         from db.helper import SQLiteHelper
         from db.maintenance import prune_old_memories
+        from db.store_impl import SQLiteMemoryDeleteStore
 
-        from agent.memory.count_ops import count_prunable
+        days = _parse_prune_days(self, args, ctx.cfg.memory.memory_retention_days)
+        if days is None:
+            return
 
         dry_run = "--dry-run" in args
-        day_str = next((a for a in args if a != "--dry-run"), None)
-        try:
-            days = int(day_str) if day_str else ctx.cfg.memory.memory_retention_days
-        except (ValueError, TypeError):
-            days = ctx.cfg.memory.memory_retention_days
+        with SQLiteHelper("session").open() as db:
+            store = SQLiteMemoryDeleteStore(db)
+            prunable_ids = store.collect_prunable_ids(days)
+        count = len(prunable_ids)
+
         if dry_run:
-            count = count_prunable(days)
             self._out.write(
                 f"  [memory] (dry-run) would prune {count} entries older than {days} days"
             )
@@ -298,6 +382,17 @@ class MemoryDataOps:
                 ),
             )
             return
+
+        if count == 0:
+            self._out.write("  [memory] Nothing is prunable")
+            return
+
+        if not _confirm(
+            f"Delete {count} memories not updated for {days} days? [y/N]: "
+        ):
+            self._out.write("  [memory] Cancelled: nothing was deleted")
+            return
+
         with SQLiteHelper("session").open(write_mode=True) as db:
             prune_result = prune_old_memories(db, days)
         deleted = (prune_result.data or {}).get("deleted", 0)
