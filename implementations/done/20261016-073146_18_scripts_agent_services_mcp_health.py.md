@@ -43,9 +43,22 @@ stops treating a security-validation failure as an ordinary health warning (`REQ
   frozen table.
 - `collect_server_postures(ctx: AgentContext) -> dict[str, PostureGate]` (new): for every HTTP
   transport server in `ctx.cfg.mcp.mcp_servers`, probe `/health` with `_probe_mcp_health_detail()`
-  (`:24-67`) and validate the body with `parse_posture()` / `validate_posture()` (row `17`).
-  `PostureGate` (new frozen dataclass) holds `server_key`, `required`, `reachable`,
-  `posture_accepted`, `ready`, `validated`, `reason_code`.
+  (`:24-67`) and validate the body with `parse_posture()` (row `17`), which runs `validate_posture()`
+  internally. `PostureGate` (new frozen dataclass) holds `server_key`, `required`, `reachable`,
+  `posture_accepted`, `ready`, `validated`, `reason_code`, plus `parse_failed` and `failure_class`.
+  `parse_failed` is needed so a body the Agent could not read stays an Availability failure even though
+  its reason code is `config_invalid`; `failure_class` is attached once by `_decide()` so the three
+  consumers cannot disagree about which class a gate is.
+- A server is skipped when its transport is not HTTP, it has no url, or it is disabled
+  (`startup_mode=none`, documented as "server is unusable"). A disabled server spawns nothing and
+  registers no tools, so probing it would turn an intentional config choice into a startup FATAL; it is
+  absent from `allowed_server_keys()`, which is the fail-closed result for its tools.
+- Required-versus-optional mapping reuses the existing shape: `required` servers contribute to
+  `HealthCheckResult.errors`, optional ones to `warnings` (`:100-106`). Resolved 2026-10-16: the config
+  model already carries the flag, `McpServerConfig.required` (`scripts/shared/mcp_config.py:104`,
+  default `True`), so every configured server is required unless its config says otherwise, which is the
+  fail-closed reading. Discovery already escalates an unreachable required server to FATAL
+  (`mcp_tool_discovery.py:319-322`), so this row matches the severity scheme already in force.
 - Classification rule (fixed order, first match wins):
   1. probe unreachable or body parse failure -> `AVAILABILITY`;
   2. posture rejected with `posture_missing` -> `INTEGRITY` (a server that answers without stating its
@@ -55,11 +68,10 @@ stops treating a security-validation failure as an ordinary health warning (`REQ
   4. posture accepted but `validated=false` -> `SAFETY`;
   5. posture accepted, `validated=true`, but `ready=false` -> `AVAILABILITY`;
   6. otherwise no failure.
-- Required-versus-optional mapping reuses the existing shape: `required` servers contribute to
-  `HealthCheckResult.errors`, optional ones to `warnings` (`:100-106`). A server is `required` when
-  `ctx.cfg.mcp.mcp_servers[key]` is configured for Tool Call; **Needs confirmation**: whether the
-  config model already carries a per-server `required` flag, otherwise every configured HTTP MCP
-  server is treated as required, which is the fail-closed reading.
+- The rule is encoded once, in `classify_server_failure(gate) -> ServerFailureClass | None` (new), so
+  `check_service_health()`, `check_readiness()`, and `allowed_server_keys()` all read one verdict. A
+  rejected posture whose reason code is not one of the contract-violation codes is still a failure:
+  Availability, never a pass.
 - `check_service_health()` appends the MCP posture results after the existing LLM/embed checks, so the
   existing `("llm", ..., True)` / `("embed-llm", ..., False)` behavior is untouched.
 - `check_readiness()` keeps its single rule — raise when `result.errors` is non-empty (`:118-126`) —
@@ -74,9 +86,9 @@ stops treating a security-validation failure as an ordinary health warning (`REQ
 
 ## Alternatives considered
 
-- Add a new `mcp_posture` source to `startup_validation.py` — rejected for this row: that file is row
-  `22`'s target, and routing posture failures through the existing `readiness` source needs no edit
-  there. Recorded as a follow-up if a separate severity row is wanted in the Readiness Summary.
+- Add a new posture-specific pipeline source to `startup_validation.py` — rejected for this row: that
+  file is row `22`'s target, and routing posture failures through the existing `readiness` source needs
+  no edit there. Recorded as a follow-up if a separate severity row is wanted in the Readiness Summary.
 - Classify a missing posture as `AVAILABILITY` because the server is clearly up — rejected: `REQ-013`
   treats an absent security statement as an Integrity failure, and treating it as Availability would
   let an un-migrated server keep serving tools.
@@ -117,10 +129,16 @@ stops treating a security-validation failure as an ordinary health warning (`REQ
 
 ### Details
 
-- The module is 126 lines; the addition is roughly 90 lines. If the file would exceed the 200-line
-  convention, `ServerFailureClass` and `PostureGate` move to a new sibling module
-  `scripts/agent/services/mcp_posture_gate.py`. **Needs confirmation**: the Plan's frozen table names
-  only `mcp_health.py`, so a sibling module requires a Plan amendment.
+- Resolved 2026-10-16: the module is now 335 lines, above the 200-line convention, and stays one file.
+  Moving `ServerFailureClass` and `PostureGate` into a sibling gate module would leave this file above
+  200 lines anyway, and `skills/DESIGN.md` "File Split Rule" splits at over 400 lines with multiple
+  independent responsibilities; this module holds one pipeline. No Plan amendment was needed, the same
+  reading rows `04`, `08`, `09`, and `10` recorded.
+- Startup now probes every usable MCP server once through `check_readiness()`, sequentially, with the
+  existing 5.0 s per-probe timeout. `McpStatusService` and Tool Discovery probe again later; merging
+  those probes is not in this row's scope.
+- `compare_fingerprint()` from row `17` is not consumed here: this row decides a gate from the posture a
+  server publishes now, and fingerprint drift is the shadow-comparison signal the shadow rows use.
 - `check_service_health()` raises `RuntimeError("http service not initialized")` when
   `ctx.services_required.http is None` (`:78-79`); posture collection must run after that guard so it
   cannot hit a `None` client.
@@ -189,11 +207,11 @@ stops treating a security-validation failure as an ordinary health warning (`REQ
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `ServerFailureClass` and `PostureGate` | Pending | — | — | depends on row `17` |
-| 2 | Implement `collect_server_postures()` and `allowed_server_keys()` | Pending | — | — | per-server `required` flag is Needs-confirmation |
-| 3 | Extend `check_service_health()` and `check_readiness()` | Pending | — | — | highest blast radius change |
-| 4 | Add `tests/agent/test_mcp_health_posture.py` | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `ServerFailureClass` and `PostureGate` | Completed | 2026-10-16 | 2026-10-16 | row `17` landed first; gate also carries parse_failed and failure_class |
+| 2 | Implement `collect_server_postures()` and `allowed_server_keys()` | Completed | 2026-10-16 | 2026-10-16 | per-server required flag resolved: `McpServerConfig.required` exists, default True |
+| 3 | Extend `check_service_health()` and `check_readiness()` | Completed | 2026-10-16 | 2026-10-16 | names, signatures, return types unchanged; readiness message keeps its prefix and gains a remediation line |
+| 4 | Add `tests/agent/test_mcp_health_posture.py` | Completed | 2026-10-16 | 2026-10-16 | 477 lines, 39 tests, all passing |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-16 | 2026-10-16 | ruff clean; mypy 425 files clean; lint-imports 6 kept 0 broken; bandit 0 findings; 0 bare except; check_mock_patch_targets no findings; tests/agent/ shows only the 9 pre-existing `test_startup_rollback.py` schema-version failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -34,9 +34,18 @@ publish the resulting Security Posture from mdq-mcp's own `/health` implementati
 
 ## Design decisions
 
-- Add `validate_mdq_security(cfg: Mapping[str, object]) -> list[SecurityCheckResult]` (new module-level
-  function) that takes the config dict `check_health()` already loads at `:106`, so no second config
-  read and no new import of another server's model is introduced.
+- Add `validate_mdq_security(mdq_cfg, *, db_file_present, schema_error, schema_checked, index_stats)`
+  (new module-level function) that takes the config dict `check_health()` already loads at `:106` plus
+  the verdicts it already computed, so no second config read, no second database probe, and no new
+  import of another server's model is introduced. The verdicts are required keyword arguments rather
+  than defaults: a default would let a caller report `OK` for a check that never ran.
+- Add `build_mdq_posture()` (new) that runs `run_startup_validation()` (row `04`) with the common stage
+  plus these checks. Row `17`'s `validate_posture()` requires every id in `REQUIRED_CHECK_IDS`, which
+  includes the three `COMMON_CHECK_IDS`, so a posture built from the `posture_contract` helper alone
+  would be rejected as `check_set_mismatch`.
+- Add `_mdq_config_view()` (new private) that builds the fingerprint input. It carries presence
+  booleans, counts, and scalar limits, never a path or token value, because
+  `compute_config_fingerprint()` rejects an absolute path (the same rule row `15` records).
 - Check ids (finalized here, Needs confirmation):
   - `server.auth_token_configured` — a missing or empty `auth_token` value is `FAILED` with reason
     `auth_token_missing`. Only presence is tested; the value is never read into a result. This is
@@ -79,18 +88,25 @@ publish the resulting Security Posture from mdq-mcp's own `/health` implementati
 ## Implementation
 ### Target file
 
-`scripts/mcp_servers/mdq/health_check.py` (modify)
+`scripts/mcp_servers/mdq/health_check.py` (modify) and
+`scripts/mcp_servers/mdq/mdq_security_validation.py` (new sibling, Plan row `56` appended by
+amendment)
 
 ### Procedure
 
-1. Import `SecurityCheckResult`, `SecurityCheckStatus`, and the reason-code constants from
-   `shared.security.result_dto` (row `02`), and `SecurityPosture` plus the posture-building helper
-   from `shared.security.posture_contract` (row `03`).
-2. Add `validate_mdq_security()` (new) before `check_health()` (`:100`).
-3. Inside `check_health()`, call `validate_mdq_security(mdq_cfg)` and pass the resulting posture to
-   `make_health_response()` at `:135-136` and to `_degraded_response()` at `:24-28`.
+1. Create `scripts/mcp_servers/mdq/mdq_security_validation.py` (Plan row `56`) holding the check ids,
+   `_mdq_config_view()`, `configured_allowed_dirs()`, `validate_mdq_security()`, the six private check
+   helpers, and `build_mdq_posture()`. The split is the `skills/DESIGN.md` File Split Rule: adding the
+   validator in place made `health_check.py` 405 lines with two independent responsibilities.
+2. In `health_check.py`, import `MDQ_OWN_CONFIG_FILE`, `configured_allowed_dirs`, and
+   `build_mdq_posture` from the sibling, and give `_degraded_response()` a `posture` parameter.
+3. Inside `check_health()`, collect the db-file, schema, and index verdicts into local variables
+   instead of returning early, call `build_mdq_posture()` after the existing `try` / `except`, and pass
+   the posture to `_degraded_response()` and to `make_health_response()`.
 4. Keep `_check_stale_documents()`, `_check_schema_health()`, `_collect_index_stats()`, and the
    existing `deps` / `details` keys unchanged.
+5. Extend `_mock_config()` in `tests/mcp_servers/mdq/test_mdq_health_endpoint.py` (Plan row `57`) with
+   `allowed_dirs` and `auth_token`, because a deny-all or token-less config is now a readiness failure.
 
 ### Method
 
@@ -99,15 +115,18 @@ publish the resulting Security Posture from mdq-mcp's own `/health` implementati
   `server.index_available`.
 - The validator reuses the verdicts `check_health()` already computes (schema check, db-file check)
   instead of re-deriving them, so one fact has one source and the two channels cannot disagree.
-- `check_health()`'s early return at `:116-117` and `:126-127` must still attach the posture, so the
-  posture is built before those returns.
+- `check_health()`'s early returns at `:116-117` and `:126-127` are replaced by local verdict variables
+  and one response choice at the end, so every path, including the config-failure path, publishes a
+  posture. The `deps` keys and their messages are unchanged.
 - Messages report counts and state only (`allowed_dirs is empty`, `db file not found`,
   `schema check failed: <schema key>`). The database path and allowed-directory paths are sensitive
   paths under `REQ-002` and are not copied into posture messages.
 
 ### Details
 
-- The module is about 137 lines; the addition is roughly 50 lines.
+- `health_check.py` is 160 lines and `mdq_security_validation.py` is 287 lines. The new test module is
+  435 lines: it exceeds 400 but holds one responsibility (MDQ self-validation), so the File Split Rule
+  trigger is not met.
 - `check_health()` catches `FileNotFoundError, PermissionError, KeyError, TypeError` around the config
   and database work (`:131-132`) and records `deps["config"] = "check failed: {e}"`. The validator
   must be called outside that `try` or its own failures must not be swallowed, otherwise a validation
@@ -122,6 +141,10 @@ publish the resulting Security Posture from mdq-mcp's own `/health` implementati
 - `check_health()`'s signature and response shape stay compatible: the `security` key is additive, and
   `tests/mcp_servers/mdq/test_mdq_health*.py` assertions on `allowed_dirs_count`, `deny_all`, and
   `database` keep passing.
+- Two tests in `tests/mcp_servers/mdq/test_mdq_health_endpoint.py` asserted a ready response from a
+  config with no `allowed_dirs` and no `auth_token`, which is now a readiness failure. Plan row `57` was
+  appended by amendment to make that test file a target, and `_mock_config()` now supplies both keys with
+  the allowed directory taken from the test tmp directory, so no test depends on a host path.
 - Behavior change: mdq-mcp with an empty `allowed_dirs`, an invalid `db_path`, or a failing schema
   check now reports `ready=false` (HTTP 503 through the existing contract). Today those states degrade
   `deps` but can still report `ready=true` when no dependency key is set.
@@ -174,10 +197,10 @@ publish the resulting Security Posture from mdq-mcp's own `/health` implementati
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `validate_mdq_security()` | Pending | — | — | check ids are Needs-confirmation (Plan `UNK-03`) |
-| 2 | Wire the posture into `check_health()` and `_degraded_response()` | Pending | — | — | depends on row `06` signature |
-| 3 | Add `tests/mcp_servers/mdq/test_mdq_security_validation.py` | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create `mdq_security_validation.py` with the validator, config view, and posture builder | Completed | 2026-10-16 | 2026-10-16 | Plan row `56` appended: `health_check.py` reached 405 lines, so the File Split Rule applies |
+| 2 | Wire the posture into `check_health()` and `_degraded_response()` | Completed | 2026-10-16 | 2026-10-16 | posture built after the existing `try` / `except`; the early returns became local verdict variables |
+| 3 | Add `tests/mcp_servers/mdq/test_mdq_security_validation.py` | Completed | 2026-10-16 | 2026-10-16 | 34 tests; `_mock_config()` in `test_mdq_health_endpoint.py` also updated (Plan row `57`) |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-16 | 2026-10-16 | ruff clean, mypy clean (424 files), lint-imports 6 kept, 387 mdq tests passed, bandit clean, 0 bare except |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

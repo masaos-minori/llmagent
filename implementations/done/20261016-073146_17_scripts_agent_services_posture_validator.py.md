@@ -53,11 +53,20 @@ the Agent validates the contract instead of reading each server's configuration 
      `config_invalid`.
   5. `posture.ready` and `posture.validated` are consistent: `ready=true` with `validated=false` is
      `config_invalid`, because row `06` makes `ready` AND `validated` into the payload rule.
-- `compare_fingerprint(server_key: str, posture: SecurityPosture) -> bool` (new) keeps a
-  process-local last-seen fingerprint per server key so a config change between two Agent startups is
-  detectable as `fingerprint_mismatch`. The Agent never recomputes a fingerprint from server config:
-  that would require reading `*_mcp_server.toml`, which `REQ-017` removes. The fingerprint is
-  therefore a drift and shadow-comparison signal, not an Agent-verifiable proof.
+- A server key with no entry in `REQUIRED_CHECK_IDS` is rejected with `check_set_mismatch`: the Agent
+  cannot validate a posture against a contract it does not hold, and accepting it would let an
+  unregistered server reach the registry.
+- `parse_posture()` reports a parse failure as `config_invalid` with a message it wrote itself. The
+  `ValueError` text from `SecurityPosture.from_dict()` quotes the server-supplied key or status
+  string, so it is not carried into the result.
+- `compare_fingerprint(server_key: str, posture: SecurityPosture) -> PostureValidationResult` (new)
+  keeps a process-local last-seen fingerprint per server key so a config change between two Agent
+  startups is detectable as `fingerprint_mismatch`. The Agent never recomputes a fingerprint from
+  server config: that would require reading `*_mcp_server.toml`, which `REQ-017` removes. The
+  fingerprint is therefore a drift and shadow-comparison signal, not an Agent-verifiable proof. The
+  return type is the same verdict object as the other two functions rather than `bool`: the first
+  posture seen for a key is accepted, and a drift has to carry `fingerprint_mismatch` for row `18` to
+  classify it, which is the same reason rejecting a `bool` return is recorded above.
 - No `REQUIRED_SERVER_KEYS` constant is introduced here: the set of servers to validate comes from
   `ctx.cfg.mcp.mcp_servers` in row `18`, so a server added to `agent.toml` is validated without a code
   change in this module. `web_search` is covered: rows `51` and `52` were added 2026-10-16 resolving
@@ -109,7 +118,10 @@ the Agent validates the contract instead of reading each server's configuration 
 
 ### Details
 
-- Target size is under 150 lines; the module has no configuration and no environment reads.
+- The module is 213 lines, above the 150-line target this document set: the fixed check order needs
+  one rejection per violation, and the messages are written here rather than carried from the server.
+  It is still one responsibility and well under the 400-line split trigger. The module has no
+  configuration and no environment reads.
 - The last-seen fingerprint map is process-local by design: it detects drift within one Agent
   process's lifetime and across restarts only if the Agent persists it, which is out of scope.
 - `SecurityCheckStatus` values are compared by enum identity after parsing, so a server sending an
@@ -118,6 +130,9 @@ the Agent validates the contract instead of reading each server's configuration 
 ## Compatibility considerations
 
 - New module; nothing imports it until rows `18` and `26`-`35` land, so no existing behavior changes.
+- `tools/stale_detector.py` reports `new_target_exists` for this document once the module exists. That
+  is the expected state of a row that creates its own target file, the same finding rows `03` and `04`
+  carry in `implementations/done/`.
 - `scripts/agent/repl_health.py` is excluded from coverage (`pyproject.toml:153`) but this module is
   not, so the new tests must reach the repository's diff-coverage threshold.
 - No `docs/*.md` change is in scope for this row; `docs/23_agent/agent_13_reference-api-generated.md`
@@ -172,9 +187,9 @@ the Agent validates the contract instead of reading each server's configuration 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `posture_validator.py` per Procedure/Method/Details | Pending | — | — | depends on rows `02`, `03` |
-| 2 | Add `tests/agent/services/test_posture_validator.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create `posture_validator.py` per Procedure/Method/Details | Completed | 2026-10-16 | 2026-10-16 | 213 lines, imports only `shared.security` and the standard library |
+| 2 | Add `tests/agent/services/test_posture_validator.py` | Completed | 2026-10-16 | 2026-10-16 | 30 tests, all passing |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-16 | 2026-10-16 | ruff clean, mypy clean (425 files), lint-imports 6 kept, bandit clean, 0 bare except, no mock-patch findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

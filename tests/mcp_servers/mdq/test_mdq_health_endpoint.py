@@ -269,8 +269,18 @@ def _create_test_db_corrupt_fts(tmp_path: Path) -> str:
 
 
 def _mock_config(db_path: str) -> dict:
-    """Create a mock config that points to the test DB."""
-    return {"db_path": db_path}
+    """Create a mock config that points to the test DB.
+
+    allowed_dirs and auth_token are present because mdq-mcp now validates its own config: a
+    deny-all allowlist or an empty token is a readiness failure, so a test that expects a ready
+    response has to supply both. The allowed directory is the directory holding the test DB, which
+    always exists, so no test depends on a host path.
+    """
+    return {
+        "db_path": db_path,
+        "allowed_dirs": [str(Path(db_path).parent)],
+        "auth_token": "test-token",
+    }
 
 
 class TestHealthEndpointReady:

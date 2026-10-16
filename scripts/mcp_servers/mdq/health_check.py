@@ -1,30 +1,42 @@
 #!/usr/bin/env python3
 """scripts/mcp_servers/mdq/health_check.py
 
-Health check logic for mdq-mcp server.
+Health check logic for mdq-mcp server — check_health() also publishes the Security Posture
+mdq_security_validation builds.
 
-Dependency direction: health_check → models
+Dependency direction: health_check → models, security_validation
 Import from here:  from mcp_servers.mdq.health_check import check_health
 """
 
 from __future__ import annotations
 
 import sqlite3
+from collections.abc import Mapping
 from pathlib import Path
 
 from db.helper import apply_connection_pragmas
 from fastapi.responses import JSONResponse
 from shared.config_loader import ConfigLoader
+from shared.security.posture_contract import SecurityPosture
 
 from mcp_servers.health_response import make_health_response
 from mcp_servers.mdq.mdq_models import STALE_SQL_CONDITION
+from mcp_servers.mdq.mdq_security_validation import (
+    MDQ_OWN_CONFIG_FILE,
+    build_mdq_posture,
+    configured_allowed_dirs,
+)
+
+DEFAULT_DB_PATH = "/opt/llm/db/mdq.sqlite"
 
 
 def _degraded_response(
-    deps: dict[str, str], details: dict[str, object]
+    deps: dict[str, str],
+    details: dict[str, object],
+    posture: SecurityPosture,
 ) -> JSONResponse:
     """Build and return a degraded health response when checks fail."""
-    result: JSONResponse = make_health_response(deps, details)
+    result: JSONResponse = make_health_response(deps, details, security=posture)
     return result
 
 
@@ -102,36 +114,47 @@ def check_health() -> JSONResponse:
     """Check mdq-mcp health and return appropriate response."""
     deps: dict[str, str] = {}
     details: dict[str, object] = {"service": "mdq-mcp"}
+    mdq_cfg: dict[str, object] = {}
+    db_file_present = False
+    schema_error: tuple[str, str] | None = None
+    schema_checked = False
+    index_stats: Mapping[str, object] | None = None
 
     try:
-        mdq_cfg = ConfigLoader().load("mdq_mcp_server.toml")
-        db_path = mdq_cfg.get("db_path") or "/opt/llm/db/mdq.sqlite"
+        mdq_cfg = ConfigLoader().load(MDQ_OWN_CONFIG_FILE)
+        db_path = str(mdq_cfg.get("db_path") or DEFAULT_DB_PATH)
         details["database"] = db_path
-        allowed_dirs = mdq_cfg.get("allowed_dirs") or []
+        allowed_dirs = configured_allowed_dirs(mdq_cfg)
         details["allowed_dirs_count"] = len(allowed_dirs)
         details["deny_all"] = len(allowed_dirs) == 0
 
-        if not Path(db_path).is_file():
+        db_file_present = Path(db_path).is_file()
+        if not db_file_present:
             deps["db_file"] = f"not found: {db_path}"
-            return _degraded_response(deps, details)
-
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        apply_connection_pragmas(conn, write_mode=False)
-        try:
-            schema_error = _check_schema_health(conn)
-            if schema_error is not None:
-                error_key, error_message = schema_error
-                deps[error_key] = error_message
-                return _degraded_response(deps, details)
-
-            details.update(_collect_index_stats(conn))
-
-        finally:
-            conn.close()
+        else:
+            conn = sqlite3.connect(db_path)
+            conn.row_factory = sqlite3.Row
+            apply_connection_pragmas(conn, write_mode=False)
+            try:
+                schema_error = _check_schema_health(conn)
+                schema_checked = True
+                if schema_error is not None:
+                    error_key, error_message = schema_error
+                    deps[error_key] = error_message
+                else:
+                    index_stats = _collect_index_stats(conn)
+                    details.update(index_stats)
+            finally:
+                conn.close()
 
     except (FileNotFoundError, PermissionError, KeyError, TypeError) as e:
         deps["config"] = f"check failed: {e}"
 
-    result: JSONResponse = make_health_response(deps, details)
+    posture = build_mdq_posture(
+        mdq_cfg, db_file_present, schema_error, schema_checked, index_stats
+    )
+    if deps:
+        return _degraded_response(deps, details, posture)
+
+    result: JSONResponse = make_health_response(deps, details, security=posture)
     return result
