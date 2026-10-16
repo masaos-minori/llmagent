@@ -217,33 +217,37 @@ HTTP bind when the posture is not validated (`REQ-002`, `REQ-003`, `REQ-009`).
 - Making `audit_log_path` configurable again.
 - Splitting `delete_server.py` into smaller modules.
 
-## Needs confirmation
+## Confirmation outcomes
 
-- The normalized fingerprint view for File Delete is defined here because rows `07`-`16` define no view;
-  confirm the field list before row `05` compares fingerprints.
-- Whether `server.audit_log_writable` stays `FAILED` (row `14`); if it becomes `WARNING` this row no
-  longer blocks bind for an unwritable audit log.
-- The status of the flow's built-in `check_auth_token_present()` when `auth_token` is empty: RESOLVED
-  2026-10-16 (Plan `UNK-06`) as `WARNING` with reason `auth_token_missing`, identical in rows `04`,
-  `42`-`49`, and `52`.
-- Whether `SecurityPosture.ready` is the bind-gate outcome or a duplicate of the payload `ready` (rows
-  `03`/`04`/`06`/`17`).
-- Whether the ~30 added lines should move to a sibling posture module for the 200-line convention, which
-  requires a Plan amendment.
-- Whether the Agent classifies a server that exits before publishing any posture through the existing
-  `StartupFailure`/stderr path or expects a posture reason code (rows `18`/`22`/`39`).
+- Resolved 2026-10-17: the File Delete fingerprint view defined in `Design decisions` is retained as
+  written. It hashes the audit log path as a presence flag only, so a relocated audit log path is not
+  detectable through the digest; row `05` compares check ids and statuses, and row `17`'s
+  `compare_fingerprint()` is not consumed by the row `18` gate.
+- Resolved 2026-10-17 (row `14` decision): `server.audit_log_writable` stays `FAILED` with reason
+  `dependency_unreachable`, so an unwritable audit log blocks bind here.
+- Resolved 2026-10-16 (Plan `UNK-06`): the flow's built-in `check_auth_token_present()` reports an empty
+  `auth_token` as `WARNING` with reason `auth_token_missing`, identical in rows `04`, `42`-`49`, and `52`.
+- Resolved 2026-10-17: the bind gate reads `SecurityPosture.validated` only. The payload `ready` is
+  derived in `make_health_response()` from `deps` plus `validated`, and `SecurityPosture.ready` is never
+  read, so no second Ready rule exists.
+- Resolved 2026-10-17: the added statements stay in this file. The split trigger in `skills/DESIGN.md` is
+  more than 400 lines plus multiple independent responsibilities, and this module stays a single
+  FastAPI server module with one responsibility after the addition.
+- Resolved 2026-10-17: a server that exits before publishing a posture is classified as an unreachable
+  server. Row `18`'s `classify_server_failure()` reports an unreachable or unparseable posture as
+  `AVAILABILITY`, so the `SystemExit` path needs no posture reason code.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the shared flow, contract, and row `14` validator plus `AUDIT_LOG_PATH` | Pending | — | — | rows `03`/`04`/`12`/`14` must land first |
-| 2 | Add `_delete_security_view()` and `_build_security_posture()` | Pending | — | — | view field list is Needs-confirmation |
-| 3 | Pass the posture to `_health()` at `:111` | Pending | — | — | depends on row `12`'s new parameter |
-| 4 | Add the `__main__` bind gate at `:192-194` | Pending | — | — | `raise SystemExit(1)` |
-| 5 | Add `tests/mcp_servers/file/test_file_delete_health_posture.py` | Pending | — | — | new file, not in the frozen table |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import the shared flow, contract, and row `14` validator plus `AUDIT_LOG_PATH` | Completed | 2026-10-17 | 2026-10-17 | StartupStage import not needed |
+| 2 | Add `_delete_security_view()` and `_build_security_posture()` | Completed | 2026-10-17 | 2026-10-17 | view carries own_config_file, allowed_dirs_count, and audit log presence, the audit path is a parameter so a test can relocate it |
+| 3 | Pass the posture to `_health()` at `:111` | Completed | 2026-10-17 | 2026-10-17 | posture forwarded through the row 12 _health parameter instead of calling make_health_response directly |
+| 4 | Add the `__main__` bind gate at `:192-194` | Completed | 2026-10-17 | 2026-10-17 | gate extracted into _enforce_posture_gate |
+| 5 | Add `tests/mcp_servers/file/test_file_delete_health_posture.py` | Completed | 2026-10-17 | 2026-10-17 | FileDeleteConfig is frozen so a failing posture is built with dataclasses.replace, caplog needs propagate re-enabled because shared.logger disables it |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff and mypy clean, 395 passed in tests/mcp_servers/file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -14,6 +14,14 @@ from typing import Any
 from pydantic import BaseModel, Field, field_validator
 from shared.config_loader import ConfigLoader
 from shared.config_utils import get_str, get_typed
+from shared.security.result_dto import (
+    REASON_ALLOWLIST_INVALID,
+    REASON_CONFIG_INVALID,
+    REASON_NOT_APPLICABLE,
+    REASON_OK,
+    SecurityCheckResult,
+    SecurityCheckStatus,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +69,11 @@ MAX_RESULTS_LIMIT: int = 20
 HARD_MAX_RESULTS_LIMIT: int = 100
 # Safety ceiling on search_timeout_sec, independent of any configured value.
 HARD_SEARCH_TIMEOUT_SEC_LIMIT: float = 60.0
+# Safety ceilings on the browser_fetch settings, mirroring the two ceilings above.
+HARD_BROWSER_TIMEOUT_SEC_LIMIT: int = 120
+HARD_BROWSER_MAX_RESPONSE_KB: int = 4096
+# The one config file this server reads; the posture fingerprint names it (REQ-017).
+WEB_SEARCH_OWN_CONFIG_FILE: str = "web_search_mcp_server.toml"
 
 
 def _validate_config_bounds(
@@ -103,6 +116,24 @@ class WebSearchConfig:
     browser_max_response_kb: int = 256
     browser_timeout_sec: int = 15
     auth_token: str = ""
+
+    def non_secret_view(self) -> dict[str, object]:
+        """Return the config fields safe to hash into the posture fingerprint.
+
+        Scalars, one list count, and one presence boolean: `auth_token` is a Secret and
+        every `browser_allowed_domains` entry is an allowlist value, so neither is carried
+        by value (REQ-002, REQ-009). A new dict is built instead of exposing the list.
+        """
+        return {
+            "own_config_file": WEB_SEARCH_OWN_CONFIG_FILE,
+            "default_max_results": self.default_max_results,
+            "max_results_limit": self.max_results_limit,
+            "search_timeout_sec": self.search_timeout_sec,
+            "browser_max_response_kb": self.browser_max_response_kb,
+            "browser_timeout_sec": self.browser_timeout_sec,
+            "browser_allowlist_count": len(self.browser_allowed_domains),
+            "auth_token_present": bool(self.auth_token),
+        }
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> WebSearchConfig:
@@ -156,7 +187,7 @@ class WebSearchConfig:
     @classmethod
     def load(cls) -> WebSearchConfig:
         """Load from web_search_mcp_server.toml; raises on failure (fail-fast)."""
-        return cls.from_dict(ConfigLoader().load("web_search_mcp_server.toml"))
+        return cls.from_dict(ConfigLoader().load(WEB_SEARCH_OWN_CONFIG_FILE))
 
 
 @dataclasses.dataclass
@@ -175,6 +206,148 @@ class BrowserConfig:
             cfg.browser_max_response_kb,
             cfg.browser_timeout_sec,
         )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Security posture validation (REQ-015)
+# ──────────────────────────────────────────────────────────────────────────────
+
+
+def _result(
+    check_id: str,
+    status: SecurityCheckStatus,
+    reason_code: str,
+    message: str,
+) -> SecurityCheckResult:
+    """One posture check result carrying the shared default versions."""
+    return SecurityCheckResult(
+        check_id=check_id,
+        status=status,
+        reason_code=reason_code,
+        message=message,
+    )
+
+
+def _is_hostname_shape(value: str) -> bool:
+    """Return True when *value* can match the hostname _check_domain() compares against.
+
+    _check_domain() lowercases the URL hostname and compares it verbatim to the allowlist
+    set, so an entry that keeps a scheme, a path, a port, whitespace, or an uppercase
+    character can never match. This is a posture-time shape test only: _check_domain()
+    stays the runtime authority.
+    """
+    if not value:
+        return False
+    if value != value.lower():
+        return False
+    return not any(char in value for char in " \t:/")
+
+
+def validate_web_search_security(cfg: WebSearchConfig) -> list[SecurityCheckResult]:
+    """Web Search's own configuration checks, in the order the posture contract expects.
+
+    Pure function of the passed config: no network call is issued, so validation cannot
+    reach the search provider or fetch a page. The five check ids are always present, with
+    not_applicable used instead of omitting a check.
+
+    server.browser_allowlist is the one id that is not FAILED on an empty list: an empty
+    browser_allowed_domains removes the browser_fetch capability rather than widening a
+    boundary, so the shipped deny-all configuration stays startable. A malformed entry is
+    WARNING because the runtime already denies everything it cannot match.
+
+    Messages name the setting and its state: allowlist entries are reported by count only.
+    """
+    checks: list[SecurityCheckResult] = []
+
+    bounds_ok = (
+        cfg.default_max_results >= 1
+        and cfg.max_results_limit >= 1
+        and cfg.default_max_results <= cfg.max_results_limit
+        and cfg.max_results_limit <= HARD_MAX_RESULTS_LIMIT
+    )
+    checks.append(
+        _result(
+            "server.results_bounds",
+            SecurityCheckStatus.OK if bounds_ok else SecurityCheckStatus.FAILED,
+            REASON_OK if bounds_ok else REASON_CONFIG_INVALID,
+            "default_max_results is within max_results_limit and the module ceiling"
+            if bounds_ok
+            else "result-count bounds are violated so the advertised inputSchema is not enforced",
+        )
+    )
+
+    search_ok = 0 < cfg.search_timeout_sec <= HARD_SEARCH_TIMEOUT_SEC_LIMIT
+    checks.append(
+        _result(
+            "server.search_timeout_valid",
+            SecurityCheckStatus.OK if search_ok else SecurityCheckStatus.FAILED,
+            REASON_OK if search_ok else REASON_CONFIG_INVALID,
+            "search_timeout_sec is in (0, HARD_SEARCH_TIMEOUT_SEC_LIMIT]"
+            if search_ok
+            else "search_timeout_sec is outside (0, HARD_SEARCH_TIMEOUT_SEC_LIMIT]",
+        )
+    )
+
+    browser_timeout_ok = 0 < cfg.browser_timeout_sec <= HARD_BROWSER_TIMEOUT_SEC_LIMIT
+    checks.append(
+        _result(
+            "server.browser_timeout_valid",
+            SecurityCheckStatus.OK
+            if browser_timeout_ok
+            else SecurityCheckStatus.FAILED,
+            REASON_OK if browser_timeout_ok else REASON_CONFIG_INVALID,
+            "browser_timeout_sec is in (0, HARD_BROWSER_TIMEOUT_SEC_LIMIT]"
+            if browser_timeout_ok
+            else "browser_timeout_sec must be positive and within "
+            "HARD_BROWSER_TIMEOUT_SEC_LIMIT",
+        )
+    )
+
+    response_ok = 0 < cfg.browser_max_response_kb <= HARD_BROWSER_MAX_RESPONSE_KB
+    checks.append(
+        _result(
+            "server.browser_response_limit",
+            SecurityCheckStatus.OK if response_ok else SecurityCheckStatus.FAILED,
+            REASON_OK if response_ok else REASON_CONFIG_INVALID,
+            "browser_max_response_kb is positive and within "
+            "HARD_BROWSER_MAX_RESPONSE_KB"
+            if response_ok
+            else "browser_max_response_kb must be positive and within "
+            "HARD_BROWSER_MAX_RESPONSE_KB",
+        )
+    )
+
+    if not cfg.browser_allowed_domains:
+        allowlist_status = SecurityCheckStatus.NOT_APPLICABLE
+        allowlist_reason = REASON_NOT_APPLICABLE
+        allowlist_message = "browser_allowed_domains is empty so browser_fetch is disabled for every domain"
+    elif any(not _is_hostname_shape(entry) for entry in cfg.browser_allowed_domains):
+        invalid = sum(
+            1 for entry in cfg.browser_allowed_domains if not _is_hostname_shape(entry)
+        )
+        allowlist_status = SecurityCheckStatus.WARNING
+        allowlist_reason = REASON_ALLOWLIST_INVALID
+        allowlist_message = (
+            f"browser_allowed_domains contains {invalid} of "
+            f"{len(cfg.browser_allowed_domains)} entries that cannot match a hostname"
+        )
+    else:
+        allowlist_status = SecurityCheckStatus.OK
+        allowlist_reason = REASON_OK
+        allowlist_message = (
+            f"browser_allowed_domains holds {len(cfg.browser_allowed_domains)} "
+            "hostname-shaped entries"
+        )
+    checks.append(
+        _result(
+            "server.browser_allowlist",
+            allowlist_status,
+            allowlist_reason,
+            allowlist_message,
+        )
+    )
+
+    return checks
 
 
 # ──────────────────────────────────────────────────────────────────────────────

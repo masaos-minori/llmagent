@@ -16,6 +16,9 @@ from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import SecurityCheckStatus
+from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response
@@ -31,6 +34,7 @@ from mcp_servers.server import (
 from mcp_servers.web_search import health, metrics
 from mcp_servers.web_search.formatters import dispatch_web_tool
 from mcp_servers.web_search.web_search_models import (
+    WEB_SEARCH_OWN_CONFIG_FILE,
     BrowserAuthorizationError,
     BrowserValidationError,
     WebSearchConfig,
@@ -38,6 +42,7 @@ from mcp_servers.web_search.web_search_models import (
     WebSearchParseError,
     WebSearchTimeoutError,
     WebSearchUpstreamError,
+    validate_web_search_security,
 )
 from mcp_servers.web_search.web_search_tools import TOOL_LIST
 
@@ -47,6 +52,32 @@ logger = logging.getLogger(__name__)
 # Typed config object (module-level singleton)
 # ──────────────────────────────────────────────────────────────────────────────
 _cfg: WebSearchConfig = WebSearchConfig.load()
+
+WEB_SEARCH_SERVER_KEY = "web_search"
+
+
+def _build_security_posture(cfg: WebSearchConfig) -> SecurityPosture:
+    """Run the shared ordering against the already loaded config and return the posture.
+
+    The flow never raises, so a policy violation still produces a posture the Agent can
+    read. Only the server-security stage is supplied: the flow's built-in common stage
+    covers own-config, auth-token, and published-tool checks, and this module does not
+    re-read web_search_mcp_server.toml. The fingerprint view is the one row 51 defines on
+    the config, so no second view definition exists here. Unlike Shell, this module has no
+    import-time refusal for an empty token, so the posture is where an empty auth_token
+    first becomes visible, as a warning rather than a failure.
+    """
+    return run_startup_validation(
+        WEB_SEARCH_SERVER_KEY,
+        own_config_file=WEB_SEARCH_OWN_CONFIG_FILE,
+        config_view=cfg.non_secret_view(),
+        auth_token=cfg.auth_token,
+        declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
+        server_checks=lambda: validate_web_search_security(cfg),
+    )
+
+
+_security_posture: SecurityPosture = _build_security_posture(_cfg)
 
 
 def _web_search_tool_availability(
@@ -113,7 +144,9 @@ async def health_endpoint() -> JSONResponse:
         deps["web_search_provider"] = "degraded: repeated provider failures"
     if health.is_browser_degraded():
         deps["browser_fetch_provider"] = "degraded: repeated fetch failures"
-    result: JSONResponse = make_health_response(deps, details)
+    result: JSONResponse = make_health_response(
+        deps, details, security=_security_posture
+    )
     return result
 
 
@@ -292,6 +325,28 @@ class WebSearchMCPServer(MCPServer):
         return await _dispatch_web_tool(name, args)
 
 
+def _enforce_posture_gate() -> None:
+    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+
+    The gate reads only `validated`: the payload `ready` is derived in
+    `make_health_response()` from dependencies plus `validated`, so this module never
+    invents its own Ready rule. The log line carries check ids and reason codes only;
+    auth tokens and browser_allowed_domains entries are excluded (REQ-002, REQ-004).
+    """
+    if _security_posture.validated:
+        return
+    failed = ", ".join(
+        f"{check.check_id}:{check.reason_code}"
+        for check in _security_posture.checks
+        if check.status is SecurityCheckStatus.FAILED
+    )
+    logger.error(
+        "web-search-mcp: security posture FAILED (%s) — refusing to bind", failed
+    )
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
+    _enforce_posture_gate()
     server = WebSearchMCPServer()
     server.run_http()

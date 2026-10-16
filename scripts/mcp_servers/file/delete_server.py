@@ -20,6 +20,9 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import SecurityCheckStatus
+from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.file.common import (
@@ -38,7 +41,12 @@ from mcp_servers.file.delete_models import (
     DeleteFileResponse,
     FileDeleteConfig,
 )
-from mcp_servers.file.delete_service import DeleteFileService, build_service
+from mcp_servers.file.delete_service import (
+    AUDIT_LOG_PATH,
+    DeleteFileService,
+    build_service,
+    validate_file_delete_security,
+)
 from mcp_servers.file.delete_tools import TOOL_LIST
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
 from mcp_servers.server import (
@@ -54,6 +62,50 @@ logger = Logger(__name__, "/opt/llm/logs/file-delete-mcp.log")
 
 _cfg = FileDeleteConfig.load()
 _service: DeleteFileService = build_service(_cfg)
+
+FILE_DELETE_SERVER_KEY = "file_delete"
+FILE_DELETE_OWN_CONFIG_FILE = "file_delete_mcp_server.toml"
+
+
+def _delete_security_view(
+    cfg: FileDeleteConfig, audit_log_path: str
+) -> dict[str, object]:
+    """Build the non-secret view the posture fingerprint is computed from.
+
+    Only counts and presence flags are carried: `auth_token` is a Secret, every
+    `allowed_dirs` value is a path, and the audit log path is a deployment path
+    (REQ-002, REQ-004, REQ-009).
+    """
+    return {
+        "own_config_file": FILE_DELETE_OWN_CONFIG_FILE,
+        "allowed_dirs_count": len(cfg.allowed_dirs),
+        "audit_log_path_configured": bool(audit_log_path),
+    }
+
+
+def _build_security_posture(
+    cfg: FileDeleteConfig, audit_log_path: str = AUDIT_LOG_PATH
+) -> SecurityPosture:
+    """Run the shared ordering against the already loaded config and return the posture.
+
+    The flow never raises, so a policy violation still produces a posture the Agent can
+    read. Only the server-security stage is supplied: the flow's built-in common stage
+    covers own-config, auth-token, and published-tool checks, and this module does not
+    re-read file_delete_mcp_server.toml. The config is a parameter because FileDeleteConfig
+    is frozen, so a test rebuilds a posture with `dataclasses.replace()` instead of mutating
+    the loaded singleton.
+    """
+    return run_startup_validation(
+        FILE_DELETE_SERVER_KEY,
+        own_config_file=FILE_DELETE_OWN_CONFIG_FILE,
+        config_view=_delete_security_view(cfg, audit_log_path),
+        auth_token=cfg.auth_token,
+        declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
+        server_checks=lambda: validate_file_delete_security(cfg, audit_log_path),
+    )
+
+
+_security_posture: SecurityPosture = _build_security_posture(_cfg)
 
 app = FastAPI(
     title="file-delete-mcp",
@@ -108,7 +160,7 @@ async def delete_directory(req: DeleteDirectoryRequest) -> DeleteDirectoryRespon
 @app.get("/health")
 async def health() -> JSONResponse:
     """Health check endpoint returning allowed directories status."""
-    result: JSONResponse = await _health(_cfg.allowed_dirs)
+    result: JSONResponse = await _health(_cfg.allowed_dirs, posture=_security_posture)
     return result
 
 
@@ -189,6 +241,28 @@ class FileDeleteMCPServer(MCPServer):
         return await _dispatch_delete_tool(name, args)
 
 
+def _enforce_posture_gate() -> None:
+    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+
+    The gate reads only `validated`: the payload `ready` is derived in
+    `make_health_response()` from dependencies plus `validated`, so this module never
+    invents its own Ready rule. The log line carries check ids and reason codes only;
+    allowed directory paths and the audit log path are excluded (REQ-002, REQ-004).
+    """
+    if _security_posture.validated:
+        return
+    failed = ", ".join(
+        f"{check.check_id}:{check.reason_code}"
+        for check in _security_posture.checks
+        if check.status is SecurityCheckStatus.FAILED
+    )
+    logger.error(
+        "file-delete-mcp: security posture FAILED (%s) — refusing to bind", failed
+    )
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
+    _enforce_posture_gate()
     server = FileDeleteMCPServer()
     server.run_http()

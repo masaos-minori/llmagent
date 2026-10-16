@@ -158,8 +158,9 @@ instead of relying on the Agent's audit (`REQ-015`, `AC-005`).
 - The module is 268 lines; the addition is roughly 55 lines. If the file would exceed its size
   convention, the validator moves to a new sibling module
   `scripts/mcp_servers/web_search/web_search_security.py` while `non_secret_view()` stays here.
-  **Needs confirmation**: the Plan's frozen table names only `web_search_models.py`, so a sibling
-  module requires a Plan amendment.
+  Resolved 2026-10-17: the validator stays in this module. The split trigger in `skills/DESIGN.md` is
+  more than 400 lines plus multiple independent responsibilities, and the module is about 330 lines with
+  one responsibility, so no Plan amendment is needed.
 - `WebSearchConfig` is a plain dataclass (not frozen) and `browser_allowed_domains` is a mutable
   list, so `non_secret_view()` must build a new dict and a count rather than expose the list itself.
 - The lowercase-hostname shape test for `server.browser_allowlist` is a local helper
@@ -237,11 +238,11 @@ instead of relying on the Agent's audit (`REQ-015`, `AC-005`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `non_secret_view()` | Pending | — | — | required by row `03` fingerprint input |
-| 2 | Implement `validate_web_search_security()` | Pending | — | — | check ids are Needs-confirmation (Plan `UNK-01` / `UNK-03`) |
-| 3 | Decide single-file vs sibling module (Details) | Pending | — | — | sibling module needs a Plan amendment |
-| 4 | Add `tests/mcp_servers/web_search/test_web_search_security_validation.py` | Pending | — | — | |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `non_secret_view()` | Completed | 2026-10-17 | 2026-10-17 | non_secret_view carries scalars, the allowlist count, and auth token presence, WEB_SEARCH_OWN_CONFIG_FILE added and load now reads through it |
+| 2 | Implement `validate_web_search_security()` | Completed | 2026-10-17 | 2026-10-17 | five fixed check ids, an empty allowlist is not_applicable, a malformed entry is warning allowlist_invalid |
+| 3 | Decide single-file vs sibling module (Details) | Completed | 2026-10-17 | 2026-10-17 | validator kept in this module at about 330 lines per the DESIGN.md split rule |
+| 4 | Add `tests/mcp_servers/web_search/test_web_search_security_validation.py` | Completed | 2026-10-17 | 2026-10-17 | new test file, posture-level assertions live in the row 52 test file |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff and mypy clean, 215 passed in tests/mcp_servers/web_search |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

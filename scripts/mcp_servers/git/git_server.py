@@ -27,6 +27,9 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import SecurityCheckStatus
+from shared.security.startup_flow import run_startup_validation
 from shared.tool_constants import GIT_WRITE_TOOLS
 
 from mcp_servers.audit import _audit_log
@@ -35,7 +38,11 @@ from mcp_servers.git.errors import GitPolicyError, GitServiceError
 from mcp_servers.git.git_models import (
     GitConfig,
 )
-from mcp_servers.git.git_security import _resolve_repo_path, is_within_allowed_paths
+from mcp_servers.git.git_security import (
+    _resolve_repo_path,
+    is_within_allowed_paths,
+    validate_git_security,
+)
 from mcp_servers.git.git_service import build_service
 from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.git.repository_state import RepositoryState
@@ -53,6 +60,50 @@ logger = logging.getLogger(__name__)
 
 _cfg = GitConfig.load()
 _service = build_service(_cfg)
+
+GIT_SERVER_KEY = "git"
+GIT_OWN_CONFIG_FILE = "git_mcp_server.toml"
+
+
+def _git_security_view(cfg: GitConfig) -> dict[str, object]:
+    """Build the non-secret view the posture fingerprint is computed from.
+
+    Only scalars and counts are carried: `auth_token`, `audit_log_path`, and every
+    `allowed_repo_paths` / `allowed_remote_urls` value are never hashed by value
+    (REQ-002, REQ-009).
+    """
+    return {
+        "own_config_file": GIT_OWN_CONFIG_FILE,
+        "allowed_repo_paths_count": len(cfg.allowed_repo_paths),
+        "read_only": cfg.read_only,
+        "protected_branches_count": len(cfg.protected_branches),
+        "allowed_remote_urls_count": len(cfg.allowed_remote_urls),
+        "allow_detached_head": cfg.allow_detached_head,
+        "max_log_entries": cfg.max_log_entries,
+    }
+
+
+def _build_security_posture() -> SecurityPosture:
+    """Run the shared ordering against the already loaded config and return the posture.
+
+    The flow never raises, so a policy violation still produces a posture the Agent can
+    read. Only the server-security stage is supplied: the flow's built-in common stage
+    covers own-config, auth-token, and published-tool checks, and this module does not
+    re-read git_mcp_server.toml.
+    """
+    return run_startup_validation(
+        GIT_SERVER_KEY,
+        own_config_file=GIT_OWN_CONFIG_FILE,
+        config_view=_git_security_view(_cfg),
+        auth_token=_cfg.auth_token,
+        declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
+        server_checks=lambda: validate_git_security(
+            list(_cfg.allowed_repo_paths), _cfg.read_only
+        ),
+    )
+
+
+_security_posture: SecurityPosture = _build_security_posture()
 
 
 def _validate_pre_snapshot(path: str) -> tuple[bool, str]:
@@ -306,7 +357,9 @@ async def health() -> JSONResponse:
         "service": "git-mcp",
         "audit_failure_count": _audit_failure_count,
     }
-    result: JSONResponse = make_health_response(deps, details)
+    result: JSONResponse = make_health_response(
+        deps, details, security=_security_posture
+    )
     return result
 
 
@@ -326,6 +379,26 @@ class GitMCPServer(MCPServer):
     mcp_tools = TOOL_LIST
 
 
+def _enforce_posture_gate() -> None:
+    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+
+    The gate reads only `validated`: the payload `ready` is derived in
+    `make_health_response()` from dependencies plus `validated`, so this module never
+    invents its own Ready rule. The log line carries check ids and reason codes only;
+    configured repository roots are sensitive paths (REQ-002).
+    """
+    if _security_posture.validated:
+        return
+    failed = ", ".join(
+        f"{check.check_id}:{check.reason_code}"
+        for check in _security_posture.checks
+        if check.status is SecurityCheckStatus.FAILED
+    )
+    logger.error("git-mcp: security posture FAILED (%s) — refusing to bind", failed)
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
+    _enforce_posture_gate()
     server = GitMCPServer()
     server.run_http()

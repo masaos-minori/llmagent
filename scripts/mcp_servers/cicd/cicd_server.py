@@ -27,12 +27,16 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import SecurityCheckStatus
+from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.cicd.cicd_models import (
     CicdConfig,
 )
 from mcp_servers.cicd.cicd_service import CiCdService, build_service
+from mcp_servers.cicd.cicd_service_guards import validate_cicd_security
 from mcp_servers.cicd.cicd_tools import TOOL_LIST
 from mcp_servers.cicd.exception_handlers import setup_exception_handlers
 from mcp_servers.dispatch import (
@@ -55,6 +59,48 @@ logger = logging.getLogger(__name__)
 
 _cfg = CicdConfig.load()
 _service: CiCdService = build_service(_cfg)
+
+CICD_SERVER_KEY = "cicd"
+CICD_OWN_CONFIG_FILE = "cicd_mcp_server.toml"
+
+
+def _cicd_security_view(cfg: CicdConfig) -> dict[str, object]:
+    """Build the non-secret view the posture fingerprint is computed from.
+
+    Only scalars and counts are carried: `auth_token` and `github_token` are Secrets and
+    every `repo_allowlist` / `workflow_allowlist` value is an allowlist entry, so none of
+    them is hashed by value (REQ-002, REQ-009).
+    """
+    return {
+        "own_config_file": CICD_OWN_CONFIG_FILE,
+        "repo_allowlist_count": len(cfg.repo_allowlist),
+        "workflow_allowlist_count": len(cfg.workflow_allowlist),
+        "max_log_size_kb": cfg.max_log_size_kb,
+    }
+
+
+def _build_security_posture() -> SecurityPosture:
+    """Run the shared ordering against the already loaded config and return the posture.
+
+    The flow never raises, so a policy violation still produces a posture the Agent can
+    read. Only the server-security stage is supplied: the flow's built-in common stage
+    covers own-config, auth-token, and published-tool checks, and this module does not
+    re-read cicd_mcp_server.toml or rebuild the service. The backend is the one the guard
+    mixin already owns.
+    """
+    return run_startup_validation(
+        CICD_SERVER_KEY,
+        own_config_file=CICD_OWN_CONFIG_FILE,
+        config_view=_cicd_security_view(_cfg),
+        auth_token=_cfg.auth_token,
+        declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
+        server_checks=lambda: validate_cicd_security(
+            _service._backend, _cfg.repo_allowlist, _cfg.workflow_allowlist
+        ),
+    )
+
+
+_security_posture: SecurityPosture = _build_security_posture()
 
 
 def _cicd_tool_availability(cfg: CicdConfig, tool_name: str) -> tuple[bool, str]:
@@ -147,7 +193,9 @@ async def health() -> JSONResponse:
     except (RuntimeError, OSError):
         deps["config"] = "check failed"
     details: dict[str, object] = {"service": "cicd-mcp"}
-    result: JSONResponse = make_health_response(deps, details)
+    result: JSONResponse = make_health_response(
+        deps, details, security=_security_posture
+    )
     return result
 
 
@@ -171,6 +219,26 @@ class CiCdMCPServer(MCPServer):
         return await _dispatch_cicd_tool(name, args)
 
 
+def _enforce_posture_gate() -> None:
+    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+
+    The gate reads only `validated`: the payload `ready` is derived in
+    `make_health_response()` from dependencies plus `validated`, so this module never
+    invents its own Ready rule. The log line carries check ids and reason codes only;
+    repository and workflow names are allowlist entries (REQ-002).
+    """
+    if _security_posture.validated:
+        return
+    failed = ", ".join(
+        f"{check.check_id}:{check.reason_code}"
+        for check in _security_posture.checks
+        if check.status is SecurityCheckStatus.FAILED
+    )
+    logger.error("cicd-mcp: security posture FAILED (%s) — refusing to bind", failed)
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
+    _enforce_posture_gate()
     server = CiCdMCPServer()
     server.run_http()

@@ -233,31 +233,34 @@ is not validated (`REQ-002`, `REQ-003`, `REQ-010`).
   `rag_pipeline_service.py`.
 - Splitting `rag_pipeline_server.py` into smaller modules.
 
-## Needs confirmation
+## Confirmation outcomes
 
-- The normalized fingerprint view for RAG Pipeline is defined here because rows `07`-`16` define no
-  view; confirm the field list before row `05` compares fingerprints.
-- Whether `RagConfigValidator`'s existing warnings (`rag_pipeline_models.py:103-104`) should become
-  posture `WARNING` results, or stay log-only to avoid two sources for one finding.
-- The status of the flow's built-in `check_auth_token_present()` when `auth_token` is empty: RESOLVED
-  2026-10-16 (Plan `UNK-06`) as `WARNING` with reason `auth_token_missing`, identical in rows `04`,
-  `42`-`49`, and `52`.
-- Whether `SecurityPosture.ready` is the bind-gate outcome or a duplicate of the payload `ready`
-  (rows `03`/`04`/`06`/`17`).
-- Whether the Agent classifies a server that exits before publishing any posture through the existing
-  `StartupFailure`/stderr path or expects a posture reason code (rows `18`/`22`/`39`).
+- Resolved 2026-10-17: the RAG Pipeline fingerprint view defined in `Design decisions` is retained as
+  written. It carries scalars, counts, and presence flags, so a changed URL or path value with an
+  unchanged count is not detectable through the digest; row `05` compares check ids and statuses, and
+  row `17`'s `compare_fingerprint()` is not consumed by the row `18` gate.
+- Resolved 2026-10-17: `RagConfigValidator`'s existing warnings stay log-only. The posture reports its
+  own checks, so one finding keeps one source instead of appearing as both a log line and a check.
+- Resolved 2026-10-16 (Plan `UNK-06`): the flow's built-in `check_auth_token_present()` reports an empty
+  `auth_token` as `WARNING` with reason `auth_token_missing`, identical in rows `04`, `42`-`49`, and `52`.
+- Resolved 2026-10-17: the bind gate reads `SecurityPosture.validated` only. The payload `ready` is
+  derived in `make_health_response()` from `deps` plus `validated`, and `SecurityPosture.ready` is never
+  read, so no second Ready rule exists.
+- Resolved 2026-10-17: a server that exits before publishing a posture is classified as an unreachable
+  server. Row `18`'s `classify_server_failure()` reports an unreachable or unparseable posture as
+  `AVAILABILITY`, so the `SystemExit` path needs no posture reason code.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the shared flow, contract, and row `15` validator | Pending | — | — | rows `03`/`04`/`15` must land first |
-| 2 | Add `_rag_security_view()` and `_build_security_posture()` | Pending | — | — | view field list is Needs-confirmation |
-| 3 | Pass the posture to `make_health_response()` at `:167` | Pending | — | — | depends on row `06` signature |
-| 4 | Add the `__main__` bind gate at `:234-236` | Pending | — | — | `raise SystemExit(1)` |
-| 5 | Add `tests/mcp_servers/rag_pipeline/test_rag_pipeline_health_posture.py` | Pending | — | — | new file, not in the frozen table |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import the shared flow, contract, and row `15` validator | Completed | 2026-10-17 | 2026-10-17 | validator imported from the row 55 sibling module rag_pipeline_security, not rag_pipeline_models as the doc states |
+| 2 | Add `_rag_security_view()` and `_build_security_posture()` | Completed | 2026-10-17 | 2026-10-17 | view carries url presence flags, counts, and numeric bounds, server.refiner_limits is published as not_applicable |
+| 3 | Pass the posture to `make_health_response()` at `:167` | Completed | 2026-10-17 | 2026-10-17 | posture passed to make_health_response |
+| 4 | Add the `__main__` bind gate at `:234-236` | Completed | 2026-10-17 | 2026-10-17 | gate extracted into _enforce_posture_gate |
+| 5 | Add `tests/mcp_servers/rag_pipeline/test_rag_pipeline_health_posture.py` | Completed | 2026-10-17 | 2026-10-17 | new test file, not a frozen-table row |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff and mypy clean, 132 passed in tests/mcp_servers/rag_pipeline |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

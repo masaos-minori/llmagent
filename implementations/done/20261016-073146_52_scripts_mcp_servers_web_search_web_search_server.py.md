@@ -230,26 +230,25 @@ gate, so the server publishes a Security Posture and refuses to bind when its ow
 - Populating `browser_allowed_domains` in any config file, or changing `MCP_WEB_SEARCH_AUTH_TOKEN`.
 - Agent-side posture validation, classification, and Tool Discovery gating (rows `17`-`19`, `50`).
 
-## Needs confirmation
+## Confirmation outcomes
 
-- Whether row `04`'s built-in `check_published_tools_declared()` treats a declared tool that the
-  server reports as disabled with a reason (`browser_fetch` under the shipped empty allowlist,
-  reported through `/v1/tools` at `:191-199`) as `OK` or `WARNING`. Row `04` names the built-in but
-  does not define this case, and web-search-mcp is the only server in this Plan whose shipped
-  configuration ships a declared-but-disabled tool.
-- Whether `common.auth_token`'s `WARNING` should be surfaced in this server's `/health` `details` for
-  operators. It is not added here, because `details` shape is asserted by existing tests.
+- Resolved 2026-10-17: row `04`'s built-in `check_published_tools_declared()` reports a declared tool the
+  server marks disabled as `OK`. It checks only that the declared names are non-empty strings, so
+  `browser_fetch` under the shipped empty allowlist keeps `common.published_tools` at `ok`, and the
+  `enabled` and `disabled_reason` annotation on `/v1/tools` remains the place that gap is reported.
+- Resolved 2026-10-17: `common.auth_token`'s `WARNING` is not surfaced in `details`. The published
+  `checks` list already carries it, and the `details` shape is asserted by existing tests.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `_web_search_security_view()` and `_build_security_posture()` | Pending | — | — | fingerprint view is defined here, as in rows `42`-`49` |
-| 2 | Pass the posture to `make_health_response()` at `:116` | Pending | — | — | depends on row `06` |
-| 3 | Add the `__main__` bind gate at `:295-297` | Pending | — | — | `logger.error(...)` then `raise SystemExit(1)` |
-| 4 | Add `tests/mcp_servers/web_search/test_web_search_health_posture.py` | Pending | — | — | new file, not a frozen-table row |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `_web_search_security_view()` and `_build_security_posture()` | Completed | 2026-10-17 | 2026-10-17 | no _web_search_security_view wrapper added, the posture consumes WebSearchConfig.non_secret_view from row 51 because row 51 owns the view definition |
+| 2 | Pass the posture to `make_health_response()` at `:116` | Completed | 2026-10-17 | 2026-10-17 | posture passed to make_health_response |
+| 3 | Add the `__main__` bind gate at `:295-297` | Completed | 2026-10-17 | 2026-10-17 | gate extracted into _enforce_posture_gate and called first in the main block |
+| 4 | Add `tests/mcp_servers/web_search/test_web_search_health_posture.py` | Completed | 2026-10-17 | 2026-10-17 | new test file, not a frozen-table row |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | shipped posture is validated with common.auth_token warning and browser_allowlist not_applicable, 215 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

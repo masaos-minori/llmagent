@@ -42,6 +42,9 @@ from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import SecurityCheckStatus
+from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
@@ -51,6 +54,7 @@ from mcp_servers.github.github_models import (
 )
 from mcp_servers.github.github_service_dispatch import GitHubService
 from mcp_servers.github.github_service_init import _GITHUB_TOKEN, build_service
+from mcp_servers.github.github_service_security import validate_github_security
 from mcp_servers.github.github_tools import TOOL_LIST
 from mcp_servers.health_response import make_health_response
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
@@ -68,6 +72,52 @@ logger = logging.getLogger(__name__)
 
 _cfg = GitHubConfig.load()  # noqa: F821
 _service: GitHubService = build_service(_cfg)
+
+GITHUB_SERVER_KEY = "github"
+GITHUB_OWN_CONFIG_FILE = "github_mcp_server.toml"
+
+
+def _github_security_view(cfg: GitHubConfig) -> dict[str, object]:
+    """Build the non-secret view the posture fingerprint is computed from.
+
+    Only scalars and counts are carried: `auth_token`, `audit_log_path`, `llm_url`, and
+    every `allowed_repos` / `path_denylist` / `protected_branches` value are never hashed
+    by value (REQ-002, REQ-009).
+    """
+    return {
+        "own_config_file": GITHUB_OWN_CONFIG_FILE,
+        "allowed_repos_count": len(cfg.allowed_repos),
+        "protected_branches_count": len(cfg.protected_branches),
+        "path_denylist_count": len(cfg.path_denylist),
+        "allow_force_push": cfg.allow_force_push,
+        "require_pr_review": cfg.require_pr_review,
+        "max_file_size_kb": cfg.max_file_size_kb,
+        "default_per_page": cfg.default_per_page,
+        "max_per_page": cfg.max_per_page,
+        "llm_url_configured": bool(cfg.llm_url),
+    }
+
+
+def _build_security_posture() -> SecurityPosture:
+    """Run the shared ordering against the already loaded config and return the posture.
+
+    The flow never raises, so a policy violation still produces a posture the Agent can
+    read. Only the server-security stage is supplied: the flow's built-in common stage
+    covers own-config, auth-token, and published-tool checks, and this module does not
+    re-read github_mcp_server.toml. The GitHub API token is an availability signal in
+    `dependencies`, not a posture input.
+    """
+    return run_startup_validation(
+        GITHUB_SERVER_KEY,
+        own_config_file=GITHUB_OWN_CONFIG_FILE,
+        config_view=_github_security_view(_cfg),
+        auth_token=_cfg.auth_token,
+        declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
+        server_checks=lambda: validate_github_security(_cfg),
+    )
+
+
+_security_posture: SecurityPosture = _build_security_posture()
 
 
 def _github_tool_availability(tool_name: str) -> tuple[bool, str]:
@@ -130,7 +180,9 @@ async def health() -> JSONResponse:
     if not _GITHUB_TOKEN:
         deps["github_token"] = "not_set"
     details: dict[str, object] = {"service": "github-mcp"}
-    result: JSONResponse = make_health_response(deps, details)
+    result: JSONResponse = make_health_response(
+        deps, details, security=_security_posture
+    )
     return result
 
 
@@ -218,6 +270,26 @@ class GithubMCPServer(MCPServer):
         return await _dispatch_github_tool(name, args)
 
 
+def _enforce_posture_gate() -> None:
+    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+
+    The gate reads only `validated`: the payload `ready` is derived in
+    `make_health_response()` from dependencies plus `validated`, so this module never
+    invents its own Ready rule. The log line carries check ids and reason codes only;
+    repository names are allowlist entries (REQ-002).
+    """
+    if _security_posture.validated:
+        return
+    failed = ", ".join(
+        f"{check.check_id}:{check.reason_code}"
+        for check in _security_posture.checks
+        if check.status is SecurityCheckStatus.FAILED
+    )
+    logger.error("github-mcp: security posture FAILED (%s) — refusing to bind", failed)
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
+    _enforce_posture_gate()
     server = GithubMCPServer()
     server.run_http()

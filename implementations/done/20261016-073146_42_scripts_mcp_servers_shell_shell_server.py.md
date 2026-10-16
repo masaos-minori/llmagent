@@ -213,28 +213,32 @@ validated (`REQ-002`, `REQ-003`, `REQ-005`).
 - Adding a `DEPENDENCY_VALIDATION` posture check for `sh` presence.
 - `web_search` self-validation and wiring (rows `51`-`52`, added 2026-10-16 resolving Plan `UNK-04`).
 
-## Needs confirmation
+## Confirmation outcomes
 
-- The normalized fingerprint view for Shell is defined here because rows `07`-`16` define check ids
-  but no view; confirm the field list before row `05`'s Shadow Validation compares fingerprints.
-- Whether `SecurityPosture.ready` is the bind-gate outcome or a duplicate of the payload `ready`
-  (rows `03`/`04`/`06`/`17`). This row assumes the gate reads `validated` only.
-- Whether the Agent classifies a server that exits before publishing any posture through the
-  existing `StartupFailure`/stderr path or expects a posture reason code. This row produces the
-  former; rows `18`/`22`/`39` must state which classification applies.
-- Whether the gate's log line needs a fixed marker string for stderr-based classification.
+- Resolved 2026-10-17: the Shell fingerprint view defined in `Design decisions` is retained as written.
+  It carries one `sandbox_backend` scalar, counts, and presence flags, so a changed allowlist entry with
+  an unchanged count is not detectable through the digest; row `05` compares check ids and statuses, and
+  row `17`'s `compare_fingerprint()` is not consumed by the row `18` gate.
+- Resolved 2026-10-17: the bind gate reads `SecurityPosture.validated` only. The payload `ready` is
+  derived in `make_health_response()` from `deps` plus `validated`, and `SecurityPosture.ready` is never
+  read, so no second Ready rule exists.
+- Resolved 2026-10-17: a server that exits before publishing a posture is classified as an unreachable
+  server. Row `18`'s `classify_server_failure()` reports an unreachable or unparseable posture as
+  `AVAILABILITY`, so the `SystemExit` path needs no posture reason code.
+- Resolved 2026-10-17: no fixed marker string is added to the gate log line. The Agent classifies from
+  the published posture and from probe availability, not from stderr text; the line exists for operators.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the shared flow, contract, and row `07` validator | Pending | — | — | rows `03`/`04`/`07` must land first |
-| 2 | Add `_shell_security_view()` and `_build_security_posture()` | Pending | — | — | view field list is Needs-confirmation |
-| 3 | Pass the posture to `make_health_response()` at `:126` | Pending | — | — | depends on row `06` signature |
-| 4 | Add the `__main__` bind gate at `:202-204` | Pending | — | — | `raise SystemExit(1)` |
-| 5 | Add `tests/mcp_servers/shell/test_shell_health_posture.py` | Pending | — | — | new file, not in the frozen table |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import the shared flow, contract, and row `07` validator | Completed | 2026-10-17 | 2026-10-17 | StartupStage import not needed because the flow takes server_checks as a callable |
+| 2 | Add `_shell_security_view()` and `_build_security_posture()` | Completed | 2026-10-17 | 2026-10-17 | shell view carries sandbox_backend once instead of the duplicated pair the doc lists, plus counts and presence flags |
+| 3 | Pass the posture to `make_health_response()` at `:126` | Completed | 2026-10-17 | 2026-10-17 | posture passed to make_health_response as a keyword argument |
+| 4 | Add the `__main__` bind gate at `:202-204` | Completed | 2026-10-17 | 2026-10-17 | gate extracted into _enforce_posture_gate so a test can exercise it without starting uvicorn |
+| 5 | Add `tests/mcp_servers/shell/test_shell_health_posture.py` | Completed | 2026-10-17 | 2026-10-17 | new test file with 11 tests, not a frozen-table row |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff and mypy clean, tests/mcp_servers/shell green, full suite green except the 9 known baseline failures |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

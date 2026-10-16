@@ -28,6 +28,9 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import SecurityCheckStatus
+from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.health_response import make_health_response
@@ -38,6 +41,9 @@ from mcp_servers.rag_pipeline.rag_pipeline_models import (
     RagPipelineServiceError,
     RagRunRequest,
     RagRunResponse,
+)
+from mcp_servers.rag_pipeline.rag_pipeline_security import (
+    validate_rag_pipeline_security,
 )
 from mcp_servers.rag_pipeline.rag_pipeline_service import (
     RagPipelineMCPService,
@@ -59,6 +65,61 @@ logger = logging.getLogger(__name__)
 # Typed config object (module-level singleton)
 # ──────────────────────────────────────────────────────────────────────────────
 _cfg: RagPipelineConfig = RagPipelineConfig.load()
+
+RAG_PIPELINE_SERVER_KEY = "rag_pipeline"
+RAG_PIPELINE_OWN_CONFIG_FILE = "rag_pipeline_mcp_server.toml"
+
+
+def _rag_security_view(cfg: RagPipelineConfig) -> dict[str, object]:
+    """Build the non-secret view the posture fingerprint is computed from.
+
+    Path- and host-valued fields are carried as presence booleans only, and
+    `auth_token` / `mqe_prompt_template` are excluded (REQ-002, REQ-009).
+    """
+    return {
+        "own_config_file": RAG_PIPELINE_OWN_CONFIG_FILE,
+        "embed_url_configured": bool(cfg.embed_url),
+        "llm_url_configured": bool(cfg.llm_url),
+        "rag_db_path_configured": bool(cfg.rag_db_path),
+        "sqlite_vec_so_configured": bool(cfg.sqlite_vec_so),
+        "sqlite_timeout": cfg.sqlite_timeout,
+        "sqlite_busy_timeout_ms": cfg.sqlite_busy_timeout_ms,
+        "use_mqe": cfg.use_mqe,
+        "use_rrf": cfg.use_rrf,
+        "use_rerank": cfg.use_rerank,
+        "use_refiner": cfg.use_refiner,
+        "rrf_k": cfg.rrf_k,
+        "top_k_search": cfg.top_k_search,
+        "top_k_rerank": cfg.top_k_rerank,
+        "rag_top_k": cfg.rag_top_k,
+        "rag_min_score": cfg.rag_min_score,
+        "max_chunks_per_doc": cfg.max_chunks_per_doc,
+        "refiner_max_tokens": cfg.refiner_max_tokens,
+        "refiner_max_chars_per_chunk": cfg.refiner_max_chars_per_chunk,
+        "refiner_timeout": cfg.refiner_timeout,
+        "mqe_n_queries": cfg.mqe_n_queries,
+    }
+
+
+def _build_security_posture() -> SecurityPosture:
+    """Run the shared ordering against the already loaded config and return the posture.
+
+    The flow never raises, so a policy violation still produces a posture the Agent can
+    read. Only the server-security stage is supplied: `RagPipelineConfig.load()` already
+    ran `RagConfigValidator` as the schema stage, and the flow's built-in common stage
+    covers own-config, auth-token, and published-tool checks.
+    """
+    return run_startup_validation(
+        RAG_PIPELINE_SERVER_KEY,
+        own_config_file=RAG_PIPELINE_OWN_CONFIG_FILE,
+        config_view=_rag_security_view(_cfg),
+        auth_token=_cfg.auth_token,
+        declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
+        server_checks=lambda: validate_rag_pipeline_security(_cfg),
+    )
+
+
+_security_posture: SecurityPosture = _build_security_posture()
 
 
 def _rag_pipeline_tool_availability(
@@ -164,7 +225,9 @@ async def health() -> JSONResponse:
     """Health check endpoint. Returns degraded when embed_url is not configured."""
     deps = _check_health_deps()
     details: dict[str, object] = {"service": "rag-pipeline-mcp"}
-    result: JSONResponse = make_health_response(deps, details)
+    result: JSONResponse = make_health_response(
+        deps, details, security=_security_posture
+    )
     return result
 
 
@@ -231,6 +294,29 @@ class RagPipelineMCPServer(MCPServer):
         return await _dispatch_rag_tool(name, args)
 
 
+def _enforce_posture_gate() -> None:
+    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+
+    The gate reads only `validated`: the payload `ready` is derived in
+    `make_health_response()` from dependencies plus `validated`, so this module never
+    invents its own Ready rule. The log line carries check ids and reason codes only;
+    database paths, the extension path, and the internal service hosts are excluded
+    (REQ-002, REQ-004).
+    """
+    if _security_posture.validated:
+        return
+    failed = ", ".join(
+        f"{check.check_id}:{check.reason_code}"
+        for check in _security_posture.checks
+        if check.status is SecurityCheckStatus.FAILED
+    )
+    logger.error(
+        "rag-pipeline-mcp: security posture FAILED (%s) — refusing to bind", failed
+    )
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
+    _enforce_posture_gate()
     server = RagPipelineMCPServer()
     server.run_http()

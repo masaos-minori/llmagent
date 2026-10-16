@@ -204,28 +204,33 @@ posture is not validated (`REQ-002`, `REQ-003`, `REQ-007`).
 - Changing `_github_tool_availability()`, the included domain routers, or the audit logging path.
 - Splitting `github_server.py` into smaller modules.
 
-## Needs confirmation
+## Confirmation outcomes
 
-- The normalized fingerprint view for GitHub is defined here because rows `07`-`16` define no view;
-  confirm the field list before row `05` compares fingerprints.
-- Whether `SecurityPosture.ready` is the bind-gate outcome or a duplicate of the payload `ready`
-  (rows `03`/`04`/`06`/`17`).
-- Whether the Agent classifies a server that exits before publishing any posture through the
-  existing `StartupFailure`/stderr path or expects a posture reason code (rows `18`/`22`/`39`).
-- Whether `WARNING`-level findings must appear in the Agent's Readiness Summary as their own line
-  (row `23` carries the same question).
+- Resolved 2026-10-17: the GitHub fingerprint view defined in `Design decisions` is retained as written.
+  It carries scalars, counts, and presence flags, so a changed allowlist entry with an unchanged count is
+  not detectable through the digest; row `05` compares check ids and statuses, and row `17`'s
+  `compare_fingerprint()` is not consumed by the row `18` gate.
+- Resolved 2026-10-17: the bind gate reads `SecurityPosture.validated` only. The payload `ready` is
+  derived in `make_health_response()` from `deps` plus `validated`, and `SecurityPosture.ready` is never
+  read, so no second Ready rule exists.
+- Resolved 2026-10-17: a server that exits before publishing a posture is classified as an unreachable
+  server. Row `18`'s `classify_server_failure()` reports an unreachable or unparseable posture as
+  `AVAILABILITY`, so the `SystemExit` path needs no posture reason code.
+- Resolved 2026-10-17 (row `23` decision): audit-only warnings stay non-fatal with `validated` true, and
+  no posture line is added to the Agent's Readiness Summary. A warning reaches an operator through this
+  server's published `checks` list only.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the shared flow, contract, and row `09` validator | Pending | — | — | rows `03`/`04`/`09` must land first |
-| 2 | Add `_github_security_view()` and `_build_security_posture()` | Pending | — | — | view field list is Needs-confirmation |
-| 3 | Pass the posture to `make_health_response()` at `:133` | Pending | — | — | depends on row `06` signature |
-| 4 | Add the `__main__` bind gate at `:221-223` | Pending | — | — | `raise SystemExit(1)` |
-| 5 | Add `tests/mcp_servers/github/test_github_health_posture.py` | Pending | — | — | new file, not in the frozen table |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import the shared flow, contract, and row `09` validator | Completed | 2026-10-17 | 2026-10-17 | validator imported from the row 09 sibling module github_service_security |
+| 2 | Add `_github_security_view()` and `_build_security_posture()` | Completed | 2026-10-17 | 2026-10-17 | view carries counts and presence flags, an empty path_denylist is published as not_applicable |
+| 3 | Pass the posture to `make_health_response()` at `:133` | Completed | 2026-10-17 | 2026-10-17 | posture passed to make_health_response |
+| 4 | Add the `__main__` bind gate at `:221-223` | Completed | 2026-10-17 | 2026-10-17 | gate extracted into _enforce_posture_gate |
+| 5 | Add `tests/mcp_servers/github/test_github_health_posture.py` | Completed | 2026-10-17 | 2026-10-17 | new test file, tests patch the module global _GITHUB_TOKEN so no token value can leak |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff and mypy clean, 302 passed in tests/mcp_servers/github |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

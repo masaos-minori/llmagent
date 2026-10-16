@@ -24,6 +24,9 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import SecurityCheckStatus
+from shared.security.startup_flow import run_startup_validation
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
@@ -46,12 +49,59 @@ from mcp_servers.shell.shell_models import (
     load_shell_policy,
 )
 from mcp_servers.shell.shell_service import ShellService, build_service
+from mcp_servers.shell.shell_service_static_helpers import validate_shell_security
 from mcp_servers.shell.shell_tools import TOOL_LIST
 
 logger = logging.getLogger(__name__)
 
+SHELL_SERVER_KEY = "shell"
+SHELL_OWN_CONFIG_FILE = "shell_mcp_server.toml"
+
 _cfg: ShellConfig = ShellConfig.load()
 _service: ShellService = build_service(load_shell_policy())
+
+
+def _shell_security_view(cfg: ShellConfig) -> dict[str, object]:
+    """Build the non-secret view the posture fingerprint is computed from.
+
+    Only scalars and counts are carried: allowlist entries, cwd values, the audit log
+    path, the execution user, the shell path, and auth_token are never hashed by value
+    (REQ-002, REQ-009).
+    """
+    return {
+        "own_config_file": SHELL_OWN_CONFIG_FILE,
+        "sandbox_backend": cfg.shell_sandbox_backend,
+        "command_allowlist_count": len(cfg.command_allowlist),
+        "cwd_allowed_dirs_count": len(cfg.shell_cwd_allowed_dirs),
+        "env_allowlist_count": len(cfg.env_allowlist),
+        "max_timeout_sec": cfg.max_timeout_sec,
+        "max_output_kb": cfg.max_output_kb,
+        "max_memory_mb": cfg.max_memory_mb,
+        "kill_policy": cfg.kill_policy,
+    }
+
+
+def _build_security_posture() -> SecurityPosture:
+    """Run the shared ordering against the already loaded config and return the posture.
+
+    The flow never raises, so a policy violation still produces a posture the Agent can
+    read. Only the server-security stage is supplied: the flow's built-in common stage
+    covers own-config, auth-token, and published-tool checks, and this module does not
+    re-read shell_mcp_server.toml or the shell policy.
+    """
+    return run_startup_validation(
+        SHELL_SERVER_KEY,
+        own_config_file=SHELL_OWN_CONFIG_FILE,
+        config_view=_shell_security_view(_cfg),
+        auth_token=_cfg.auth_token,
+        declared_tools=tuple(tool["name"] for tool in TOOL_LIST),
+        server_checks=lambda: validate_shell_security(
+            _cfg.shell_sandbox_backend, _cfg.command_allowlist
+        ),
+    )
+
+
+_security_posture: SecurityPosture = _build_security_posture()
 
 
 def _shell_tool_availability(cfg: ShellConfig, tool_name: str) -> tuple[bool, str]:
@@ -123,7 +173,9 @@ async def health() -> JSONResponse:
         "service": "shell-mcp",
         "sandbox_backend": _service.sandbox_backend,
     }
-    result: JSONResponse = make_health_response(deps, details)
+    result: JSONResponse = make_health_response(
+        deps, details, security=_security_posture
+    )
     return result
 
 
@@ -199,6 +251,25 @@ class ShellMCPServer(MCPServer):
         return await _dispatch_shell_tool(name, args)
 
 
+def _enforce_posture_gate() -> None:
+    """Refuse HTTP bind when the posture is not validated (REQ-003, AC-003).
+
+    The gate reads only `validated`: the payload `ready` is derived in
+    `make_health_response()` from dependencies plus `validated`, so this module never
+    invents its own Ready rule. The log line carries check ids and reason codes only.
+    """
+    if _security_posture.validated:
+        return
+    failed = ", ".join(
+        f"{check.check_id}:{check.reason_code}"
+        for check in _security_posture.checks
+        if check.status is SecurityCheckStatus.FAILED
+    )
+    logger.error("shell-mcp: security posture FAILED (%s) — refusing to bind", failed)
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
+    _enforce_posture_gate()
     server = ShellMCPServer()
     server.run_http()

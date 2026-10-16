@@ -201,38 +201,41 @@ validated (`REQ-002`, `REQ-003`, `REQ-006`).
 - Changing `attach_auth_middleware()` or the accept-all fallback in `scripts/mcp_servers/server.py`.
 - Splitting `git_server.py` into smaller modules.
 
-## Needs confirmation
+## Confirmation outcomes
 
-- Empty `auth_token` for git-mcp: RESOLVED 2026-10-16 (Plan `UNK-06`) as option A. Row `04`'s
-  `check_auth_token_present()` reports `WARNING` with reason `auth_token_missing` and `validated` stays
-  `true`, so `tests/conftest.py:28` (`MCP_GIT_AUTH_TOKEN=""`, "preserving these servers' pre-existing
-  empty-token accept-all behavior that many tests rely on") keeps
-  `tests/mcp_servers/git/test_git_security_compliance.py:2342-2346` passing, and the Agent's `mcp_auth`
-  FATAL check at `scripts/agent/startup_validation.py:71-81` remains the production control. Option B
-  (keep `FAILED` and amend the Plan to add `tests/conftest.py` plus the git HTTP tests that call
-  endpoints without an `Authorization` header) was not chosen. Option C (exempt `/health` from the auth
-  middleware) remains rejected because it changes `scripts/mcp_servers/server.py`, which is not a Plan
-  row.
-- Whether `server.protected_branch_config` can report `dependency_unreachable` in the pure-function
-  variant used by this row (row `08` documents it for the instance variant only).
-- The normalized fingerprint view for Git is defined here because rows `07`-`16` define no view;
-  confirm the field list before row `05` compares fingerprints.
-- Whether `SecurityPosture.ready` is the bind-gate outcome or a duplicate of the payload `ready`
-  (rows `03`/`04`/`06`/`17`).
-- Whether the Agent classifies a server that exits before publishing any posture through the
-  existing `StartupFailure`/stderr path or expects a posture reason code (rows `18`/`22`/`39`).
+- Resolved 2026-10-16 (Plan `UNK-06`): an empty `auth_token` for git-mcp is reported by row `04`'s
+  `check_auth_token_present()` as `WARNING` with reason `auth_token_missing` and `validated` stays
+  `true`, so `tests/conftest.py:28` (`MCP_GIT_AUTH_TOKEN=""`) keeps
+  `tests/mcp_servers/git/test_git_security_compliance.py:2342-2346` passing and the Agent's `mcp_auth`
+  FATAL check at
+  `scripts/agent/startup_validation.py:71-81` remains the production control. Option B (keep `FAILED`
+  and amend the Plan for `tests/conftest.py` plus the git HTTP tests) was not chosen, and option C
+  (exempt `/health` from the auth middleware) stays rejected because it edits `scripts/mcp_servers/server.py`.
+- Resolved 2026-10-17 (row `08` decision): the pure-function variant used by this row reports `OK` for a
+  configured protected-branch setting, and only the instance variant reports `FAILED` when it is `None`,
+  so `dependency_unreachable` is not produced here.
+- Resolved 2026-10-17: the Git fingerprint view defined in `Design decisions` is retained as written. It
+  carries scalars, counts, and presence flags, so a changed allowlist entry with an unchanged count is
+  not detectable through the digest; row `05` compares check ids and statuses, and row `17`'s
+  `compare_fingerprint()` is not consumed by the row `18` gate.
+- Resolved 2026-10-17: the bind gate reads `SecurityPosture.validated` only. The payload `ready` is
+  derived in `make_health_response()` from `deps` plus `validated`, and `SecurityPosture.ready` is never
+  read, so no second Ready rule exists.
+- Resolved 2026-10-17: a server that exits before publishing a posture is classified as an unreachable
+  server. Row `18`'s `classify_server_failure()` reports an unreachable or unparseable posture as
+  `AVAILABILITY`, so the `SystemExit` path needs no posture reason code.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the shared flow, contract, and row `08` validator | Pending | — | — | rows `03`/`04`/`08` must land first |
-| 2 | Add `_git_security_view()` and `_build_security_posture()` | Pending | — | — | view field list is Needs-confirmation |
-| 3 | Pass the posture to `make_health_response()` at `:309` | Pending | — | — | depends on row `06` signature |
-| 4 | Add the `__main__` bind gate at `:329-331` | Pending | — | — | blocked on the empty-`auth_token` decision |
-| 5 | Add `tests/mcp_servers/git/test_git_health_posture.py` | Pending | — | — | new file, not in the frozen table |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import the shared flow, contract, and row `08` validator | Completed | 2026-10-17 | 2026-10-17 | StartupStage import not needed |
+| 2 | Add `_git_security_view()` and `_build_security_posture()` | Completed | 2026-10-17 | 2026-10-17 | view carries repo allowlist count, read_only, and protected branch presence |
+| 3 | Pass the posture to `make_health_response()` at `:309` | Completed | 2026-10-17 | 2026-10-17 | posture passed to make_health_response |
+| 4 | Add the `__main__` bind gate at `:329-331` | Completed | 2026-10-17 | 2026-10-17 | gate extracted into _enforce_posture_gate, shipped test posture keeps common.auth_token as a warning so validated stays true |
+| 5 | Add `tests/mcp_servers/git/test_git_health_posture.py` | Completed | 2026-10-17 | 2026-10-17 | new test file, not a frozen-table row |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff and mypy clean, shell and git suites green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

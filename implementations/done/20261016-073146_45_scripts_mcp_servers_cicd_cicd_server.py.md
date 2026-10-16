@@ -209,39 +209,43 @@ validated (`REQ-002`, `REQ-003`, `REQ-008`).
   `cicd_service_init.py:26`.
 - Adding a public backend accessor to `CiCdService`.
 
-## Needs confirmation
+## Confirmation outcomes
 
-- Empty `auth_token` for cicd-mcp: RESOLVED 2026-10-16 (Plan `UNK-06`) as option A. Row `04`'s
-  `check_auth_token_present()` reports `WARNING` with reason `auth_token_missing` and `validated` stays
-  `true`, so `tests/conftest.py:29` (`MCP_CICD_AUTH_TOKEN=""`, "preserving these servers' pre-existing
-  empty-token accept-all behavior that many tests rely on") keeps
-  `tests/mcp_servers/cicd/test_mcp_server_health_status.py:25-33` passing, and the Agent's `mcp_auth`
+- Resolved 2026-10-16 (Plan `UNK-06`): an empty `auth_token` for cicd-mcp is reported by row `04`'s
+  `check_auth_token_present()` as `WARNING` with reason `auth_token_missing` and `validated` stays
+  `true`, so `tests/conftest.py:29` (`MCP_CICD_AUTH_TOKEN=""`) keeps
+  `tests/mcp_servers/cicd/test_mcp_server_health_status.py:25-33` passing and the Agent's `mcp_auth`
   FATAL check at `scripts/agent/startup_validation.py:71-81` remains the production control. Option B
   (keep `FAILED` and amend the Plan to add `tests/conftest.py` plus the cicd HTTP tests that call
   endpoints without an `Authorization` header so they send `MCP_TEST_AUTH_HEADERS`
   (`tests/mcp_servers/_auth_headers.py`)) was not chosen. Option C (exempt `/health` from the auth
   middleware) remains rejected because it changes `scripts/mcp_servers/server.py`, which is not a Plan
   row.
-- Whether row `10` should expose the backend publicly (or accept `None`) instead of this row reading
-  `_service._backend`.
-- The normalized fingerprint view for CI/CD is defined here because rows `07`-`16` define no view;
-  confirm the field list before row `05` compares fingerprints.
-- Whether `SecurityPosture.ready` is the bind-gate outcome or a duplicate of the payload `ready`
-  (rows `03`/`04`/`06`/`17`).
-- Whether the Agent classifies a server that exits before publishing any posture through the
-  existing `StartupFailure`/stderr path or expects a posture reason code (rows `18`/`22`/`39`).
+- Resolved 2026-10-17: this row keeps reading `_service._backend`. Row `10` gained no public accessor and
+  no `None`-accepting path, because the backend label is consumed once at module import and adding a
+  public seam would widen row `10`'s API for one reader.
+- Resolved 2026-10-17: the CI/CD fingerprint view defined in `Design decisions` is retained as written.
+  It carries scalars, counts, and presence flags, so a changed allowlist entry with an unchanged count is
+  not detectable through the digest; row `05` compares check ids and statuses, and row `17`'s
+  `compare_fingerprint()` is not consumed by the row `18` gate.
+- Resolved 2026-10-17: the bind gate reads `SecurityPosture.validated` only. The payload `ready` is
+  derived in `make_health_response()` from `deps` plus `validated`, and `SecurityPosture.ready` is never
+  read, so no second Ready rule exists.
+- Resolved 2026-10-17: a server that exits before publishing a posture is classified as an unreachable
+  server. Row `18`'s `classify_server_failure()` reports an unreachable or unparseable posture as
+  `AVAILABILITY`, so the `SystemExit` path needs no posture reason code.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the shared flow, contract, and row `10` validator | Pending | — | — | rows `03`/`04`/`10` must land first |
-| 2 | Add `_cicd_security_view()` and `_build_security_posture()` | Pending | — | — | `_service._backend` access is Needs-confirmation |
-| 3 | Pass the posture to `make_health_response()` at `:150` | Pending | — | — | depends on row `06` signature |
-| 4 | Add the `__main__` bind gate at `:174-176` | Pending | — | — | blocked on the empty-`auth_token` decision |
-| 5 | Add `tests/mcp_servers/cicd/test_cicd_health_posture.py` | Pending | — | — | new file, not in the frozen table |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import the shared flow, contract, and row `10` validator | Completed | 2026-10-17 | 2026-10-17 | validator imported from the row 10 validator module |
+| 2 | Add `_cicd_security_view()` and `_build_security_posture()` | Completed | 2026-10-17 | 2026-10-17 | view reads the backend label from _service._backend, the doc default is retained |
+| 3 | Pass the posture to `make_health_response()` at `:150` | Completed | 2026-10-17 | 2026-10-17 | posture passed to make_health_response |
+| 4 | Add the `__main__` bind gate at `:174-176` | Completed | 2026-10-17 | 2026-10-17 | gate extracted into _enforce_posture_gate |
+| 5 | Add `tests/mcp_servers/cicd/test_cicd_health_posture.py` | Completed | 2026-10-17 | 2026-10-17 | new test file, server.backend_available is published as not_applicable because the injected backend exposes no availability probe |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff and mypy clean, 210 passed in tests/mcp_servers/cicd |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

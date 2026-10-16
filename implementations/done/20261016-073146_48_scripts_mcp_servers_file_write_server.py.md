@@ -200,30 +200,32 @@ HTTP bind when the posture is not validated (`REQ-002`, `REQ-003`, `REQ-009`).
 - Changing `_build_health_deps()`, `FileSecurityMixin`, or `WriteFileService`.
 - Splitting `write_server.py` into smaller modules.
 
-## Needs confirmation
+## Confirmation outcomes
 
-- The normalized fingerprint view for File Write is defined here because rows `07`-`16` define no view;
-  confirm the field list before row `05` compares fingerprints. Counts only detect a changed number of
-  allowed directories or extensions, not changed values.
-- The status of the flow's built-in `check_auth_token_present()` when `auth_token` is empty: RESOLVED
-  2026-10-16 (Plan `UNK-06`) as `WARNING` with reason `auth_token_missing`, identical in rows `04`,
-  `42`-`49`, and `52`.
-- Whether `SecurityPosture.ready` is the bind-gate outcome or a duplicate of the payload `ready` (rows
-  `03`/`04`/`06`/`17`).
-- Whether the Agent classifies a server that exits before publishing any posture through the existing
-  `StartupFailure`/stderr path or expects a posture reason code (rows `18`/`22`/`39`).
+- Resolved 2026-10-17: the File Write fingerprint view defined in `Design decisions` is retained as
+  written. Counts only detect a changed number of allowed directories or extensions, not changed values;
+  row `05` compares check ids and statuses, and row `17`'s `compare_fingerprint()` is not consumed by the
+  row `18` gate.
+- Resolved 2026-10-16 (Plan `UNK-06`): the flow's built-in `check_auth_token_present()` reports an empty
+  `auth_token` as `WARNING` with reason `auth_token_missing`, identical in rows `04`, `42`-`49`, and `52`.
+- Resolved 2026-10-17: the bind gate reads `SecurityPosture.validated` only. The payload `ready` is
+  derived in `make_health_response()` from `deps` plus `validated`, and `SecurityPosture.ready` is never
+  read, so no second Ready rule exists.
+- Resolved 2026-10-17: a server that exits before publishing a posture is classified as an unreachable
+  server. Row `18`'s `classify_server_failure()` reports an unreachable or unparseable posture as
+  `AVAILABILITY`, so the `SystemExit` path needs no posture reason code.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import the shared flow, contract, and row `13` validator | Pending | — | — | rows `03`/`04`/`12`/`13` must land first |
-| 2 | Add `_write_security_view()` and `_build_security_posture()` | Pending | — | — | view field list is Needs-confirmation |
-| 3 | Pass the posture to `_health()` at `:151` | Pending | — | — | depends on row `12`'s new parameter |
-| 4 | Add the `__main__` bind gate at `:232-234` | Pending | — | — | `raise SystemExit(1)` |
-| 5 | Add `tests/mcp_servers/file/test_file_write_health_posture.py` | Pending | — | — | new file, not in the frozen table |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import the shared flow, contract, and row `13` validator | Completed | 2026-10-17 | 2026-10-17 | StartupStage import not needed |
+| 2 | Add `_write_security_view()` and `_build_security_posture()` | Completed | 2026-10-17 | 2026-10-17 | view carries own_config_file, allowed_dirs_count, supported_extensions_count, and max_write_bytes |
+| 3 | Pass the posture to `_health()` at `:151` | Completed | 2026-10-17 | 2026-10-17 | posture forwarded through the row 12 _health parameter instead of calling make_health_response directly |
+| 4 | Add the `__main__` bind gate at `:232-234` | Completed | 2026-10-17 | 2026-10-17 | gate extracted into _enforce_posture_gate |
+| 5 | Add `tests/mcp_servers/file/test_file_write_health_posture.py` | Completed | 2026-10-17 | 2026-10-17 | FileWriteConfig is frozen so a failing posture is built with dataclasses.replace, caplog needs propagate re-enabled because shared.logger disables it |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | ruff and mypy clean, 395 passed in tests/mcp_servers/file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
