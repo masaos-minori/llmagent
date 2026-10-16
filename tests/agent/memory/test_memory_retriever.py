@@ -11,10 +11,12 @@ import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import pytest
+from agent.memory.embedding_client import EmbeddingClient
 from agent.memory.fts_query import build_fts_query
+from agent.memory.injection import InjectionPolicy, MemoryInjectionService
 from agent.memory.retriever import HybridRetriever
 from agent.memory.rrf import rrf_merge
 from agent.memory.scoring import recency_boost as _recency_boost
@@ -398,6 +400,75 @@ class TestTopSemantic:
         )
         entries = retriever.top_semantic()
         assert entries[0].memory_id == "pinned"
+
+    def test_pinned_below_threshold_is_returned(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(
+            db_conn,
+            memory_id="pinned-low",
+            memory_type="semantic",
+            importance=0.2,
+            pinned=1,
+        )
+        entries = retriever.top_semantic(min_importance=0.5)
+        assert [e.memory_id for e in entries] == ["pinned-low"]
+
+    def test_unpinned_below_threshold_is_excluded(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(
+            db_conn,
+            memory_id="unpinned-low",
+            memory_type="semantic",
+            importance=0.2,
+            pinned=0,
+        )
+        assert retriever.top_semantic(min_importance=0.5) == []
+
+    def test_pinned_returned_first_under_limit(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        for i in range(3):
+            _insert(
+                db_conn,
+                memory_id=f"unpinned-{i}",
+                memory_type="semantic",
+                importance=0.9,
+                pinned=0,
+            )
+        _insert(
+            db_conn,
+            memory_id="pinned-low",
+            memory_type="semantic",
+            importance=0.2,
+            pinned=1,
+        )
+        entries = retriever.top_semantic(limit=2, min_importance=0.5)
+        assert len(entries) == 2
+        assert entries[0].memory_id == "pinned-low"
+
+
+class TestSessionStartPinnedInjection:
+    def test_pinned_low_importance_memory_is_injected(
+        self, retriever: MemoryRetriever, db_conn: sqlite3.Connection
+    ) -> None:
+        _insert(
+            db_conn,
+            memory_id="pinned-low",
+            memory_type="semantic",
+            summary="always remember this rule",
+            importance=0.2,
+            pinned=1,
+        )
+        svc = MemoryInjectionService(
+            policy=InjectionPolicy(min_importance=0.5),
+            retriever=retriever,
+            embed_client=MagicMock(spec=EmbeddingClient),
+        )
+        snippets = svc.on_session_start()
+        assert len(snippets) == 1
+        assert "always remember this rule" in snippets[0].text
 
 
 # ── rrf_merge() ──────────────────────────────────────────────────────────────

@@ -270,14 +270,18 @@ class HybridRetriever:
         repo: str = "",
         branch: str = "",
     ) -> list[MemoryEntry]:
-        """Return top semantic entries by importance + pin, no FTS needed."""
+        """Return top semantic entries by importance + pin, no FTS needed.
+
+        Pinned entries bypass ``min_importance`` so they reach every session.
+        """
         with SQLiteHelper("session").open(row_factory=True) as db:
             rows = db.fetchall(
                 """SELECT memory_id, memory_type, source_type, session_id, turn_id,
                           project, repo, branch, content, summary, tags,
                           importance, pinned, created_at, updated_at
                    FROM memories
-                   WHERE memory_type = 'semantic' AND importance >= ?
+                   WHERE memory_type = 'semantic'
+                   AND (importance >= ? OR pinned = 1)
                    AND (? = '' OR branch = '' OR branch = ?)
                    ORDER BY pinned DESC, importance DESC, created_at DESC
                    LIMIT ?""",
