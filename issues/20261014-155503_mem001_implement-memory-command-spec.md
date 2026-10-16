@@ -9,6 +9,8 @@ Bring the `/memory` command and the JSONL archive in line with specification v1.
 ## Background
 The specification (MEM-00 to MEM-09, messages M-01 to M-10, acceptance tests 1 to 16) was approved and reflected in docs on 2026-10-14: `agent_07_03`, `agent_07_10`, `agent_11_01`, `agent_11_02`, `agent_11_03`, `agent_09_01`, `agent_08_03`, `agent_10_06`, `agent_04_02`, `deployment_01`. The code does not implement it yet, so the docs describe the target behavior. `agent_11_04` is generated from code and must be regenerated after the code change. The session/memory boundary is covered by the separate responsibility-separation change (`clear_by_session()` was already removed).
 
+The design document review of 2026-10-16 (finding V24-01 in `memo1.md`, Known Issue `AGENT-013`) raises the same `/memory` mismatch and adds two closing steps that this issue must cover: removing the `/memory` entry from `_CONTRACT_EXEMPT_COMMANDS` so that `GV-023` checks `/memory` without an exemption, and removing `AGENT-013` from the Active Items once the contract is aligned.
+
 ## Problem
 Verified against the code on 2026-10-14 (specification premises P-1 to P-8 differ from reality in several places):
 - `scripts/agent/commands/cmd_memory.py` dispatches `list`, `search`, `show`, `pin`, `unpin`, `delete`, `prune`, `check-consistency`, `rebuild`, `import-jsonl`, `rebuild-fts`, `rebuild-vec`, and `status`; the docstring and `command_defs_list.py` help text list different sets. The spec's P-1 (only status/delete/prune/rebuild) is false.
@@ -36,6 +38,8 @@ Today a rebuild resurrects deleted memories and drops pins, and deletion paths l
 - `scripts/db/maintenance.py`, `scripts/db/store_impl.py` (`prune_old_memories`: pinned exclusion, `memory_links` removal, atomicity)
 - `scripts/agent/config_dataclasses.py`, `config_builders.py`, `services/config_validators.py`, `services/config_field_registry.py`, `config/agent.toml`
 - `tests/` for each area; `docs/23_agent/agent_11_04_memory-module-reference-generated.md` (regenerate)
+- `tools/check_docs_consistency.py` (`_CONTRACT_EXEMPT_COMMANDS`, remove the `/memory` entry) and `tests/tools/test_check_command_contracts.py`
+- `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (remove `AGENT-013` from the Active Items once resolved) and `docs/00_governance/governance_04_documentation-checks.md` (`GV-023` text, if it mentions the exemption)
 
 ## Required Changes
 - Implement MEM-00 to MEM-09 and messages M-01 to M-10 as written in the specification; the normative text is the specification (`memo3.md`, v1.0) and the docs listed in Background.
@@ -44,6 +48,8 @@ Today a rebuild resurrects deleted memories and drops pins, and deletion paths l
 - Back up `memories` as JSONL before a confirmed rebuild and abort if that fails; refuse a confirmed rebuild that would lose SQLite-only memories unless `--allow-loss`.
 - Exclude pinned memories from `prune`; make `prune` all-or-nothing (`MaintenanceMode.STRICT`).
 - Update `command_defs_list.py` help and the registry consistency tests.
+- Remove the `/memory` entry from `_CONTRACT_EXEMPT_COMMANDS` in `tools/check_docs_consistency.py` and confirm `GV-023` passes for `/memory` against the aligned `agent_07_10` chapter, registry, handlers, and help.
+- Remove `AGENT-013` from the Active Items in `governance_03` (and any dangling citation, which `check_docs_consistency` rejects) once its Resolution Target is met.
 
 ## Constraints
 - JSONL stays append-only; existing lines are never rewritten.
@@ -54,6 +60,7 @@ Today a rebuild resurrects deleted memories and drops pins, and deletion paths l
 
 ## Acceptance Criteria
 All 16 acceptance tests of the specification pass, in particular:
+- `GV-023` verifies `/memory` with no entry in `_CONTRACT_EXEMPT_COMMANDS`, and `AGENT-013` is no longer an Active Item.
 - `/memory` without arguments shows `status`; with the memory layer disabled only `status` runs and others print M-02 without changing data.
 - Short IDs from `list` work for `delete`, `pin`, `unpin`; ambiguous and unknown IDs print M-04 and M-03.
 - `delete` and `prune` ask for confirmation; `N` changes nothing; `delete` leaves no row in the four tables and appends a `delete` event.
@@ -69,7 +76,7 @@ All 16 acceptance tests of the specification pass, in particular:
 - Docs checkers and `generate_reference_table.py --type memory`.
 
 ## Documentation Impact
-The docs in Background already describe the target behavior. After implementation: regenerate `agent_11_04`; check that `agent_07_10` matches the final subcommand set and that the `/memory` help text, `agent_07_03`, and `command_defs_list.py` agree; update the slash-command task list so M-1 is complete (the task list file was not found in this repository).
+The docs in Background already describe the target behavior. After implementation: regenerate `agent_11_04`; check that `agent_07_10` matches the final subcommand set and that the `/memory` help text, `agent_07_03`, and `command_defs_list.py` agree; update the slash-command task list so M-1 is complete (the task list file was not found in this repository); remove `AGENT-013` from `governance_03` and drop the `/memory` exemption, then run `tools/check_docs_consistency.py` and the governance checks named in `routing.md`.
 
 ## Out of Scope
 - Manual writing or editing of memories; automatic pruning by retention (MEM-09-2).
