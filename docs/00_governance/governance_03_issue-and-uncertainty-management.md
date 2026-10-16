@@ -91,26 +91,6 @@ Part 1 entries, Part 2 items, and "Proposed" ADRs are reviewed quarterly (`gover
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
-#### AGENT-013
-
-- **ID**: AGENT-013
-- **Title**: The documented `/memory` subcommands and arguments differ from the implemented command
-- **Status**: open
-- **Severity**: Medium
-- **Area**: Agent
-- **Type**: document-code-mismatch
-- **Source**: `scripts/agent/commands/cmd_memory.py`, `scripts/agent/commands/memory_data_ops.py`, `scripts/agent/commands/memory_rebuild_ops.py`, `scripts/agent/commands/command_defs_list.py`
-- **Owner**: Repository owner
-- **First Found**: Documentation review (memo1 review, V22-07)
-- **Target**: `docs/23_agent/agent_07_10_cli-and-commands-slash-commands-memory-other.md`
-- **Related**: `docs/00_governance/governance_04_documentation-checks.md`
-- **Summary**: The `/memory` chapter specifies `reindex`, `list --type --pinned --query`, `prune --days`, and `rebuild --confirm --allow-loss`, which the command does not implement.
-- **Current Description**: The chapter describes a subcommand set and argument contract for `/memory`, and `GV-023` cannot check it because it differs from the registry.
-- **Observed Implementation**: The registry and handlers provide `status`, `list [semantic|episodic] [--source <type>] [--branch <branch>] [limit]`, `search`, `show`, `pin`, `unpin`, `delete`, `prune [days]`, `check-consistency`, `rebuild [--dry-run]`, `rebuild-fts`, `rebuild-vec`, and `import-jsonl`. `reindex`, `--pinned`, `--query`, `--days`, `--confirm`, and `--allow-loss` do not exist.
-- **Impact**: A reader following the chapter issues commands that are rejected or behave differently, and the `/memory` contract is the one command excluded from the `GV-023` argument check.
-- **Recommended Action**: Decide whether the chapter or the command is authoritative, align the other, then remove the `/memory` exemption (`_CONTRACT_EXEMPT_COMMANDS` in `tools/check_docs_consistency.py`).
-- **Resolution Target**: The `/memory` chapter and the registry state the same subcommands and arguments, and `GV-023` verifies `/memory` without an exemption.
-
 #### MCP-006
 
 - **ID**: MCP-006

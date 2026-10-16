@@ -336,7 +336,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
 | GV-021 | Canonical source registry schema wrapping (missing/invalid source, unknown claim type, Draft/Proposed normative source) | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-022 | ADR Known Deviations stay in sync with the Known Issue inventory: no resolved-item bullets (Error), no Known Issue ID cited outside the ledger that lacks a ledger entry (Error; dangling ID in an ADR's Known Deviations: Warning), every Known Issue targeting an ADR is cited in that ADR's Known Deviations (Warning) | Iss | Auto | `check_known_deviation_sync.py` | PR | Blocking (Error) / Warning | Existing | None |
-| GV-023 | Agent command docs match `_COMMANDS` by name, subcommand, and argument | Chk | Auto | `check_docs_consistency.py --domain agent` | PR | Blocking | Existing | `/memory` is exempt until AGENT-013 is resolved |
+| GV-023 | Agent command docs match `_COMMANDS` by name, subcommand, and argument | Chk | Auto | `check_docs_consistency.py --domain agent` | PR | Blocking | Existing | None |
 
 ### Follow-up Work Needed
 

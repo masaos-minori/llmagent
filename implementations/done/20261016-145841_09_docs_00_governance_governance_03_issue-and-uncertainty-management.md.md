@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the AGENT-013 entry | Pending | — | — | |
-| 2 | Run the docs checkers and search for remaining citations | Pending | — | — | |
+| 1 | Remove the AGENT-013 entry | Completed | — | 20261016-200847 | Removed from ledger; GV-023 exemption cleared by the governance_04 doc first |
+| 2 | Run the docs checkers and search for remaining citations | Completed | — | 20261016-200847 | `rg AGENT-013 docs` empty; `check_docs_consistency.py --domain {overview,agent}` report no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
