@@ -23,6 +23,36 @@ logger = logging.getLogger(__name__)
 _DEFAULT_TERMINATE_POLL_INTERVAL_SEC: float = 0.1
 
 
+def _resolve_pgid(proc: object) -> int | None:
+    """Return the real process-group id of *proc*, or ``None`` if unavailable.
+
+    ``os.killpg`` needs a group id, not a pid. The two are equal only when the
+    child is a group leader, which the launch site guarantees by starting it
+    with ``start_new_session=True``; an admin ``fields`` override can disable
+    that. Resolving through ``os.getpgid`` targets the true group either way.
+    A missing or non-integer pid, or a pid that no longer exists, yields
+    ``None`` so the caller keeps its ``proc.terminate()`` fallback.
+    """
+    pid = getattr(proc, "pid", None)
+    if not isinstance(pid, int):
+        return None
+    try:
+        return os.getpgid(pid)
+    except OSError:
+        return None
+
+
+def _already_exited(proc: object) -> bool:
+    """Return True when ``proc.poll()`` reports an exit code."""
+    poll = getattr(proc, "poll", None)
+    if poll is None:
+        return False
+    try:
+        return poll() is not None
+    except (OSError, AttributeError, TypeError):
+        return False
+
+
 class ProcessTerminator:
     """Manages process termination with SIGTERM → SIGKILL escalation."""
 
@@ -55,7 +85,7 @@ class ProcessTerminator:
         Returns:
             True if process has exited, False if `timeout` elapsed first.
         """
-        pgid = getattr(proc, "pid", None)
+        pgid = _resolve_pgid(proc)
         if pgid is None:
             return False
 
@@ -81,8 +111,11 @@ class ProcessTerminator:
         Raises:
             HttpStartupError: If process termination fails.
         """
-        pgid = getattr(proc, "pid", None)
+        pgid = _resolve_pgid(proc)
         if pgid is None or not isinstance(pgid, int):
+            if _already_exited(proc):
+                logger.info("Process %s already exited", server_key)
+                return True
             # Fallback to proc-level termination when pgid is unavailable
             logger.warning(
                 "Lifecycle: %r terminated, but children may remain (no pgid available)",
@@ -97,14 +130,9 @@ class ProcessTerminator:
             return True
 
         # Early-exit if process already exited
-        poll_result = getattr(proc, "poll", None)
-        if poll_result is not None:
-            try:
-                if poll_result() is not None:
-                    logger.info("Process %s already exited", server_key)
-                    return True
-            except (OSError, AttributeError, TypeError):
-                pass
+        if _already_exited(proc):
+            logger.info("Process %s already exited", server_key)
+            return True
 
         # Track whether we actually used pgid for termination
         used_pgid = False

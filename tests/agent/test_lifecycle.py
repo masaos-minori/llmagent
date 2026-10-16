@@ -990,6 +990,7 @@ class TestProcessGroupShutdown:
         monkeypatch.setattr(
             mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
         )
+        monkeypatch.setattr(mod.os, "getpgid", lambda pid: pid)
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
@@ -1014,6 +1015,7 @@ class TestProcessGroupShutdown:
             raise ProcessLookupError("no such process")
 
         monkeypatch.setattr(mod.os, "killpg", raise_lookup)
+        monkeypatch.setattr(mod.os, "getpgid", lambda pid: pid)
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
@@ -1038,6 +1040,7 @@ class TestProcessGroupShutdown:
         monkeypatch.setattr(
             mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
         )
+        monkeypatch.setattr(mod.os, "getpgid", lambda pid: pid)
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=55)
@@ -1072,6 +1075,7 @@ class TestProcessGroupShutdown:
         monkeypatch.setattr(
             mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
         )
+        monkeypatch.setattr(mod.os, "getpgid", lambda pid: pid)
         monkeypatch.setattr(
             mod.asyncio,
             "to_thread",
