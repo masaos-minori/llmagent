@@ -2,6 +2,7 @@
 memo*.md
 .*.swp
 .tmp*
+MagicMock/
 
 # Emacs
 *~
