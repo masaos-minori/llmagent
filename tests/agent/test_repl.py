@@ -14,6 +14,7 @@ import os
 import sqlite3
 import threading
 import time
+from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -757,6 +758,72 @@ class TestRunSqliteErrorMessage:
                     match="Database unavailable \\(DatabaseError\\): database locked",
                 ):
                     await repl.run()
+
+
+class TestRunStartupInterrupted:
+    """AgentREPL.run() must not label an interrupted startup as a failure."""
+
+    @staticmethod
+    def _valid_db_cfg(tmp_path):
+        from db.config import DbConfig
+
+        return DbConfig(
+            rag_db_path=str(tmp_path / "rag.sqlite"),
+            session_db_path=str(tmp_path / "session.db"),
+            workflow_db_path=str(tmp_path / "workflow.sqlite"),
+            eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
+        )
+
+    @pytest.mark.asyncio
+    async def test_startup_interrupted_warns_and_reraises(self, tmp_path) -> None:
+        """REQ-002: StartupInterrupted gives a non-fatal message and re-raises."""
+        from agent.startup import StartupInterrupted
+
+        repl = _make_bare_repl()
+        view = cast(MagicMock, repl._view)
+        close_resources = AsyncMock()
+        with (
+            patch.object(repl._shutdown, "close_resources", new=close_resources),
+            patch(
+                "db.helper.build_db_config", return_value=self._valid_db_cfg(tmp_path)
+            ),
+            patch("agent.repl.StartupOrchestrator") as MockStartup,
+        ):
+            MockStartup.return_value.run = AsyncMock(
+                side_effect=StartupInterrupted("shutdown requested")
+            )
+            with pytest.raises(StartupInterrupted):
+                await repl.run()
+
+        fatal_messages = [str(c[0][0]) for c in view.write_fatal.call_args_list]
+        assert not any("Startup failed:" in m for m in fatal_messages)
+        warning_messages = [str(c[0][0]) for c in view.write_warning.call_args_list]
+        assert any("interrupted" in m.lower() for m in warning_messages)
+        close_resources.assert_awaited()
+
+    @pytest.mark.asyncio
+    async def test_genuine_startup_failure_still_reports_startup_failed(
+        self, tmp_path
+    ) -> None:
+        """REQ-002: a real startup failure keeps the 'Startup failed:' message."""
+        repl = _make_bare_repl()
+        view = cast(MagicMock, repl._view)
+        close_resources = AsyncMock()
+        with (
+            patch.object(repl._shutdown, "close_resources", new=close_resources),
+            patch(
+                "db.helper.build_db_config", return_value=self._valid_db_cfg(tmp_path)
+            ),
+            patch("agent.repl.StartupOrchestrator") as MockStartup,
+        ):
+            MockStartup.return_value.run = AsyncMock(
+                side_effect=RuntimeError("config invalid")
+            )
+            with pytest.raises(RuntimeError, match="config invalid"):
+                await repl.run()
+
+        fatal_messages = [str(c[0][0]) for c in view.write_fatal.call_args_list]
+        assert any("Startup failed: config invalid" in m for m in fatal_messages)
 
 
 # ── _close_resources() WAL checkpoint ─────────────────────────────────────────

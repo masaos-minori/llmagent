@@ -61,10 +61,10 @@ Changing startup control flow, rollback, or signal-handling semantics; treating 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261016-164911 | 20261016-164911 | changed: tests/agent/test_repl.py (class with 2 tests). red check on HEAD: interrupted test failed (Startup failed was reported), genuine-failure test passed; mypy errors at baseline 46 after switching to patch.object and cast |
+| 2 | Add or update tests per Validation plan | Completed | 20261016-164911 | 20261016-164911 | changed: tests/agent/test_repl.py (class with 2 tests). red check on HEAD: interrupted test failed (Startup failed was reported), genuine-failure test passed; mypy errors at baseline 46 after switching to patch.object and cast |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-164911 | 20261016-164911 | changed: tests/agent/test_repl.py (class with 2 tests). red check on HEAD: interrupted test failed (Startup failed was reported), genuine-failure test passed; mypy errors at baseline 46 after switching to patch.object and cast |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261016-164911 | 20261016-164911 | changed: tests/agent/test_repl.py (class with 2 tests). red check on HEAD: interrupted test failed (Startup failed was reported), genuine-failure test passed; mypy errors at baseline 46 after switching to patch.object and cast |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

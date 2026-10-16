@@ -35,7 +35,7 @@ from agent.repl_input_loop import ReplInputLoop
 from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
 from agent.session_persister import SessionPersister
 from agent.signal_handler import SignalHandler
-from agent.startup import StartupOrchestrator
+from agent.startup import StartupInterrupted, StartupOrchestrator
 from agent.startup_banner import StartupBanner
 from agent.wal_checkpoint_manager import WalCheckpointManager
 
@@ -131,6 +131,12 @@ class AgentREPL:
                     self._orchestrator,
                     _spawned_subprocesses,
                 ) = await startup.run()
+            except StartupInterrupted as e:
+                # A requested shutdown during startup is not a startup failure.
+                self._view.write_warning(
+                    f"{OutputTag.NON_FATAL} Startup interrupted by shutdown request: {e}"
+                )
+                raise
             except Exception as e:
                 self._view.write_fatal(f"Startup failed: {e}")
                 raise

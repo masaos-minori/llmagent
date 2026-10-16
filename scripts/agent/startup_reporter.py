@@ -89,7 +89,7 @@ class ReadinessReporter:
             f"  Tool discovery: {'OK' if tool_disc_counts['OK'] else 'FAIL'} ({tool_disc_counts['FATAL']} fatal, {tool_disc_counts['WARNING']} warnings, {tool_disc_counts['SKIPPED']} skipped)"
         )
         lines.append(
-            f"  RAG consistency: {'OK' if rag_counts['OK'] else 'WARN'} ({rag_counts['FATAL']} fatal, {rag_counts['WARNING']} warnings)"
+            f"  RAG consistency: {'OK' if rag_counts['OK'] else 'WARN'} ({rag_counts['FATAL']} fatal, {rag_counts['WARNING']} warnings, {rag_counts['SKIPPED']} skipped)"
         )
         # Compute unavailable_servers early; used for both the unreachable count
         # and the detailed excluded-tools list below.
