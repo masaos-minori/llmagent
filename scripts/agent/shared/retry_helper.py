@@ -26,7 +26,9 @@ async def retry_once_with_delay[T](
     """Execute *fn* once; if it raises, wait *delay* seconds and retry once.
 
     On second failure, re-raises an instance of the original exception type
-    (preserving its type) carrying the fatal-prefixed, secret-masked message.
+    (preserving its type) via constructor-safe reconstruction: a stored payload
+    when available, else the fatal-prefixed, secret-masked message, else the
+    original type with its args preserved without invoking the constructor.
 
     Always races against *shutdown_event*; raises StartupInterrupted if shutdown
     fires during the retry delay.
@@ -57,7 +59,22 @@ async def retry_once_with_delay[T](
         msg = f"{fatal_prefix} {_mask_secrets(str(retry_err))}"
         masked_msg = _mask_secrets(msg)
         logger.error(masked_msg)
-        raise type(retry_err)(masked_msg) from retry_err
+        raise _rebuild_after_retry(retry_err, masked_msg) from retry_err
+
+
+def _rebuild_after_retry(err: Exception, message: str) -> BaseException:
+    payload = getattr(err, "failure", None)
+    if payload is not None:
+        try:
+            return type(err)(payload)
+        except Exception:  # noqa: BLE001 — fall through to standard handling
+            pass
+    try:
+        return type(err)(message)
+    except Exception:  # noqa: BLE001 — exotic constructor; preserve type without invoking it
+        rebuilt = type(err).__new__(type(err))
+        rebuilt.args = err.args
+        return rebuilt
 
 
 async def _interruptible_sleep(

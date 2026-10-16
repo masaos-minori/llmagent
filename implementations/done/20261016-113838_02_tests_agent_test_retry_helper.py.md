@@ -5,7 +5,7 @@ Add a regression test to `tests/agent/test_retry_helper.py` covering a custom `R
 ## Scope
 
 - **In-Scope**:
-  - Add `test_custom_runtime_error_non_string_constructor_preserved` to `TestRetryHelperExceptionPreservation` in `tests/agent/test_retry_helper.py`.
+  - Add `test_custom_runtime_error_non_string_constructor_preserved`(new) to `TestRetryHelperExceptionPreservation` in `tests/agent/test_retry_helper.py`.
   - The test exercises a `RuntimeError` subclass whose `__init__` rejects a plain message string, raised on both attempts, asserting the propagated exception keeps its type, chains the original error, and never surfaces an `AttributeError`.
 - **Out-of-Scope**:
   - Any change to `scripts/agent/shared/retry_helper.py` (owned by sibling document `implementations/20261016-113838_01_scripts_agent_shared_retry_helper.py.md`).
@@ -20,7 +20,7 @@ Add a regression test to `tests/agent/test_retry_helper.py` covering a custom `R
 ## Design decisions
 
 - Define a local `class _CustomRuntimeError(RuntimeError)` whose `__init__(self, code: int)` raises `TypeError` for a non-int argument, so `type(err)(masked_msg)` fails and forces the fix's exotic-constructor fallback path.
-- Assert on double failure that the caught exception is a `_CustomRuntimeError` instance, that its `__cause__` is a `_CustomRuntimeError` (confirming `from retry_err` chaining), and that no `AttributeError`/`TypeError` escapes.
+- Assert on double failure that the caught exception is a `_CustomRuntimeError`(new) instance, that its `__cause__` is a `_CustomRuntimeError`(new) (confirming `from retry_err` chaining), and that no `AttributeError`/`TypeError` escapes.
 
 ## Alternatives considered
 
@@ -30,7 +30,7 @@ Could reuse `HttpStartupError` for the custom case, but a minimal custom `Runtim
 ### Target file
 `tests/agent/test_retry_helper.py`
 ### Procedure
-1. Add `test_custom_runtime_error_non_string_constructor_preserved` to `TestRetryHelperExceptionPreservation`.
+1. Add `test_custom_runtime_error_non_string_constructor_preserved`(new) to `TestRetryHelperExceptionPreservation`.
 2. Run the validation sequence.
 ### Method
 - Inside the test, define the custom exception and a two-call `failing_func`:
@@ -54,9 +54,9 @@ Could reuse `HttpStartupError` for the custom case, but a minimal custom `Runtim
 - After the call, assert `isinstance(exc_info.value, _CustomRuntimeError)` and `isinstance(exc_info.value.__cause__, _CustomRuntimeError)`.
 ### Details
 - The constructor's `isinstance(code, int)` guard makes `_CustomRuntimeError(masked_msg)` raise `TypeError`, so the fix's standard fallback (`type(err)(message)`) fails and the exotic `cls.__new__(cls)` + `.args` path is exercised — the exact scenario that previously produced an uncaught `AttributeError` for `HttpStartupError`.
-- Chaining assertion (`__cause__` is a `_CustomRuntimeError`) confirms `from retry_err` is preserved through the exotic fallback.
+- Chaining assertion (`__cause__` is a `_CustomRuntimeError`(new)) confirms `from retry_err` is preserved through the exotic fallback.
 - Do not assert on `exc.code`: the `__new__`-based fallback preserves type + `.args` but not custom attributes, so `self.code` is unset on the rebuilt instance.
-- Keep `_CustomRuntimeError` scoped inside the test function to avoid polluting the module namespace or clashing with other test modules.
+- Keep `_CustomRuntimeError`(new) scoped inside the test function to avoid polluting the module namespace or clashing with other test modules.
 
 ## Compatibility considerations
 N/A: adds a new test method only; existing test methods and the module import surface are unchanged.
@@ -70,12 +70,12 @@ N/A: revert the commit (single test-method addition).
 ## Validation plan
 | Target File/Module | Testing Strategy | Tool / Command | Expected Outcome |
 |---|---|---|---|
-| `tests/agent/test_retry_helper.py` | Regression: custom non-string-constructor `RuntimeError` propagates as its own type, chains, no `AttributeError` | `uv run pytest tests/agent/test_retry_helper.py -v` | New `test_custom_runtime_error_non_string_constructor_preserved` passes; existing `test_*_preserved` still pass |
+| `tests/agent/test_retry_helper.py` | Regression: custom non-string-constructor `RuntimeError` propagates as its own type, chains, no `AttributeError` | `uv run pytest tests/agent/test_retry_helper.py -v` | New `test_custom_runtime_error_non_string_constructor_preserved`(new) passes; existing `test_*_preserved` still pass |
 
 ## Completion criteria
 
-- `test_custom_runtime_error_non_string_constructor_preserved` exists in `TestRetryHelperExceptionPreservation` and passes.
-- The test asserts type preservation, `__cause`_ chaining, and the absence of an `AttributeError`/`TypeError` on double failure.
+- `test_custom_runtime_error_non_string_constructor_preserved`(new) exists in `TestRetryHelperExceptionPreservation` and passes.
+- The test asserts type preservation, `__cause__` chaining, and the absence of an `AttributeError`/`TypeError` on double failure.
 - Existing standard-type tests still pass; `ruff`, `mypy`, `bandit`, and full `pytest` are clean.
 
 ## Out of scope
@@ -86,8 +86,8 @@ Any change to `scripts/agent/shared/retry_helper.py`, modification of existing `
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the custom-constructor regression test to `tests/agent/test_retry_helper.py` | In Progress | 20261016-113838 | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 1 | Add the custom-constructor regression test to `tests/agent/test_retry_helper.py` | Completed | 20261016-113838 | 20261016-131337 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261016-131337 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

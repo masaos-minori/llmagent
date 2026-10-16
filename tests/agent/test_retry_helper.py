@@ -70,3 +70,36 @@ class TestRetryHelperExceptionPreservation:
                 interrupt_msg="interrupted",
                 fatal_prefix="FATAL",
             )
+
+    @pytest.mark.asyncio
+    async def test_custom_runtime_error_non_string_constructor_preserved(self):
+        """REQ-006: A RuntimeError subclass whose __init__ rejects a plain message
+        propagates as its own type (chaining the original) instead of raising
+        AttributeError after a second failed attempt."""
+
+        class _CustomRuntimeError(RuntimeError):
+            def __init__(self, code: int) -> None:
+                if not isinstance(code, int):
+                    raise TypeError("code must be an int, not a str")
+                self.code = code
+
+        call_count = 0
+
+        async def failing_func():
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                raise _CustomRuntimeError(1)
+            raise _CustomRuntimeError(2)
+
+        with pytest.raises(_CustomRuntimeError) as exc_info:
+            await retry_once_with_delay(
+                failing_func,
+                delay=0.01,
+                shutdown_event=None,
+                interrupt_msg="interrupted",
+                fatal_prefix="FATAL",
+            )
+
+        assert isinstance(exc_info.value, _CustomRuntimeError)
+        assert isinstance(exc_info.value.__cause__, _CustomRuntimeError)

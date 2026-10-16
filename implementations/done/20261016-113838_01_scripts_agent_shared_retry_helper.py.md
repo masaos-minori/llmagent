@@ -39,7 +39,7 @@ Prefer payload reconstruction and standard `type(err)(message)` over generic wra
 3. If the module docstring implies `type(err)(message)` always works, narrow it to state the constructor-safe reconstruction contract.
 ### Method
 - Locate the second-attempt block (lines 54-60): `except Exception as retry_err:` builds `msg`/`masked_msg` then executes the line-60 re-raise.
-- Insert `_rebuild_after_retry` after `retry_once_with_delay`:
+- Insert `_rebuild_after_retry`(new) after `retry_once_with_delay`:
   ```python
   def _rebuild_after_retry(err: Exception, message: str) -> BaseException:
       payload = getattr(err, "failure", None)
@@ -57,7 +57,7 @@ Prefer payload reconstruction and standard `type(err)(message)` over generic wra
   ```
 - Substitute the helper into line 60, keeping `from retry_err`.
 ### Details
-- Root cause: `HttpStartupError.__init__` requires a `StartupFailure` and reads `failure.reason`; the old `type(retry_err)(masked_msg)` passed a `str`, producing `"<str>".reason` → `AttributeError`, which is outside the caught tuple and escapes `start_servers` before the post-retry decision matrix (lines 110-122) runs.
+- Root cause: `HttpStartupError.__init__` requires a `StartupFailure` and reads `failure.reason`; the old `type(retry_err)(masked_msg)` passed a `str`, producing `"<str>".reason` → `AttributeError`, which is outside the caught tuple and escapes `start_servers` before the post-retry decision matrix in `scripts/agent/startup_mcp_starter.py` (lines 110-122) runs.
 - Payload reconstruction uses a guarded `getattr(err, "failure", None)` (non-coupling when the attribute is absent) rather than `isinstance`, per the plan's Design trade-off; for `HttpStartupError` the payload is a `StartupFailure`, so `type(err)(payload)` reconstructs the original type correctly.
 - Standard fallback `type(err)(message)` covers `TimeoutError`/`ConnectionRefusedError`/`RuntimeError` (constructors accept a message), preserving the existing `test_*_preserved` tests.
 - Exotic fallback preserves the type and `.args` without invoking the constructor (`cls.__new__(cls)` + assign `.args`); reached only when `type(err)(message)` itself raises. Documented here; the regression test (sibling document `tests/agent/test_retry_helper.py`) pins the primary custom-constructor case.
@@ -92,9 +92,9 @@ N/A: revert the commit (single logical change confined to one function).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details (add `_rebuild_after_retry`, replace line-60 re-raise) | In Progress | 20261016-113838 | — |  |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Regression test authored in sibling document `tests/agent/test_retry_helper.py` |
-| 3 | Update documentation (module docstring) if in scope per Compatibility/Out of scope | Pending | — | — |  |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details (add `_rebuild_after_retry`(new), replace line-60 re-raise) | Completed | 20261016-113838 | 20261016-125720 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261016-125720 | Regression test authored in sibling document `tests/agent/test_retry_helper.py` |
+| 3 | Update documentation (module docstring) if in scope per Compatibility/Out of scope | Completed | — | 20261016-125720 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
