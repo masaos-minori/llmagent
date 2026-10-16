@@ -42,7 +42,8 @@ posture contract, `REQ-003` common startup flow).
 
 1. Create the directory `scripts/shared/security/`.
 2. Create `__init__.py` containing only a module docstring that names the platform and its
-   three members (`result_dto`, `posture_contract`, `startup_flow`, plus `shadow_validation`).
+   three members (`result_dto` (new), `posture_contract` (new), `startup_flow` (new), plus
+   `shadow_validation` (new)) — each is created by rows `02`-`05`.
 
 ### Method
 
@@ -91,9 +92,9 @@ posture contract, `REQ-003` common startup flow).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `scripts/shared/security/` and its `__init__.py` | Pending | — | — | |
-| 2 | Add the import smoke test named in Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create `scripts/shared/security/` and its `__init__.py` | Completed | 20261016-163649 | 20261016-164740 | stale_detector reported new_target_dir_missing (this row creates the package directory); directory created before re-running the check per user approval. submodule names marked (new) in Procedure step 2 |
+| 2 | Add the import smoke test named in Validation plan | Completed | 20261016-164740 | 20261016-164740 | executed as the Validation plan import smoke checks (PYTHONPATH=scripts python -c 'import shared.security'); no new test file created: no frozen Plan row names one for this target |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-164740 | 20261016-164740 | ruff/bandit/mypy(417 files, clean)/lint-imports(6 kept)/compileall pass; full suite: 8443 passed, 19 skipped, 9 pre-existing failures in tests/agent/test_startup_rollback.py (workflow schema 1.1.0 vs 1.0.0), confirmed unrelated by re-running with the new package removed N/A: no docs/00_index.md task-scope mapping for scripts/shared/security/__init__.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

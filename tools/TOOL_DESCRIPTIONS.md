@@ -56,6 +56,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `check_db_separation.py` | Consistency checker | Verify the ADR-008 SQLite 4DB separation: table ownership per database, cross-DB `REFERENCES`, distinct DB file paths, sqlite-vec scope, and `ATTACH`/schema-qualified access in `scripts/` SQL strings (exit code 1 on violation) |
 | `check_skills_references.py` | Consistency checker | Verify that backticked file references in `AGENTS.md`, `routing.md`, `skills/DESIGN.md`, `rules/*.md`, `skills/**/*.md`, and `prompts/*.md` exist. Only references under `rules/`, `skills/`, `templates/`, or to `AGENTS.md` / `routing.md` themselves are checked |
 | `stale_detector.py` | Consistency checker | Verify that line numbers, symbol names, imports, and `# Before:` blocks cited by an implementation procedure still exist in the current source, using regular expressions. A single mismatch marks the procedure stale and blocks execution. The CLI reports the result by exit code (1 if stale). Details are in the "Stale detector rules" section below |
+| `mark_procedure_new_symbols.py` | Work item | `list` reports the symbol names `stale_detector.py` reports as missing in one procedure document with the lines of their unmarked backticked occurrences; `mark` inserts the `(new)` marker for the names the operator supplies, and refuses any name `stale_detector.py` does not report as missing |
 
 ## Domain Documentation Consistency Checkers
 

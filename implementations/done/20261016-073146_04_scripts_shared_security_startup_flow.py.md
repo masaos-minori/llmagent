@@ -20,19 +20,19 @@ server which fails validation never binds HTTP and never reports Ready (`REQ-003
 
 ## Design decisions
 
-- `StartupStage` (new) is a `StrEnum` of the `REQ-003` stages in order: `CONFIG_LOAD`,
-  `SCHEMA_VALIDATION`, `COMMON_SECURITY_VALIDATION`, `SERVER_SECURITY_VALIDATION`,
-  `DEPENDENCY_VALIDATION`, `TOOL_CAPABILITY_VALIDATION`, `RUNTIME_STATE_INSTALLATION`,
-  `HTTP_BIND`, `READY`.
+- `StartupStage` (new) is a `StrEnum` of the `REQ-003` stages in order: `CONFIG_LOAD` (new),
+  `SCHEMA_VALIDATION` (new), `COMMON_SECURITY_VALIDATION` (new), `SERVER_SECURITY_VALIDATION` (new),
+  `DEPENDENCY_VALIDATION` (new), `TOOL_CAPABILITY_VALIDATION` (new), `RUNTIME_STATE_INSTALLATION` (new),
+  `HTTP_BIND` (new), `READY` (new).
 - `run_startup_validation()` (new) takes the server key plus one callable per stage the server
   owns, runs them in the enum order, and returns a `SecurityPosture` (row `03`). It never binds
-  HTTP: `HTTP_BIND` and `READY` are recorded as stages the caller must reach only when the
+  HTTP: `HTTP_BIND` (new) and `READY` (new) are recorded as stages the caller must reach only when the
   returned posture has `ready=True`.
 - A stage that raises is converted into a `SecurityCheckResult` with status `FAILED` and reason
   code `config_invalid` (schema stage) or `dependency_unreachable` (dependency stage); the flow
   stops at the first failed security stage and returns a posture with `validated=False`,
   `ready=False`. Stopping rather than continuing keeps a partially-validated server from ever
-  reaching `RUNTIME_STATE_INSTALLATION`.
+  reaching `RUNTIME_STATE_INSTALLATION` (new).
 - Common security checks (own-config-only, auth token present, published-tool sanity) live here
   so every server runs the same ones; server-specific checks are supplied by the server callable.
 
@@ -106,7 +106,7 @@ server which fails validation never binds HTTP and never reports Ready (`REQ-003
 
 | Check | Command | Expected |
 |---|---|---|
-| Stage ordering | `uv run pytest tests/shared/test_security_startup_flow.py -v` (new test file) | checks appear in `StartupStage` order |
+| Stage ordering | `uv run pytest tests/shared/test_security_startup_flow.py -v` (new test file) | checks appear in `StartupStage` (new) order |
 | Fail-closed posture | same test file | a failing security stage yields `validated=False`, `ready=False` |
 | Common checks present | same test file | every posture contains the three built-in common check ids |
 | Static gates | `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/`, `PYTHONPATH=scripts uv run lint-imports` | clean; `shared-is-leaf` keeps |
@@ -129,9 +129,9 @@ server which fails validation never binds HTTP and never reports Ready (`REQ-003
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `startup_flow.py` per Procedure/Method/Details | Pending | — | — | |
-| 2 | Add `tests/shared/test_security_startup_flow.py` per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `startup_flow.py` per Procedure/Method/Details | Completed | — | 20261016-182342 | stale gate clean after marking 10 unmarked (new) names. Flow contract finalized: run_startup_validation(server_key, *, own_config_file, config_view, auth_token=None, declared_tools=(), schema_checks=None, server_checks=None, dependency_checks=None, tool_capability_checks=None, policy_version='1') -> SecurityPosture; never raises; stops at the first stage with a FAILED check; posture ready == posture validated. The flow computes the posture fingerprint from config_view, so rows 42-49/52 must NOT import compute_config_fingerprint (their Procedure step 1 lists it; drop it there to avoid an unused import). The flow emits exactly the three common ids named in row 03. A raising stage yields <namespace>.stage_error with config_invalid (schema/server/tool) or dependency_unreachable (dependency) and never echoes the exception text. An unhashable config view yields a FAILED common.own_config_only plus the deterministic fallback fingerprint sha256('<server_key>:config_view_rejected'). check_published_tools_declared() treats a declared-but-disabled tool as OK, which resolves row 52's open question. Module is 258 lines against the 200-line guideline: user decision 2026-10-16 accepts it, no sibling module and no added Plan row (DESIGN.md split trigger is 400 lines plus multiple responsibilities) |
+| 2 | Add `tests/shared/test_security_startup_flow.py` per Validation plan | Completed | 20261016-182342 | 20261016-182342 | tests/shared/test_security_startup_flow.py: 28 tests, all pass; covers stage order, stop-at-first-failure, never-raises, reason-code mapping per stage, non-echoed exception text, the three common checks, and the fallback fingerprint |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-182342 | 20261016-182342 | ruff clean; mypy 420 files clean; lint-imports 6 kept (shared-is-leaf holds); bandit 0 issues in the new module; bare-except constraint 0 hits via ast-grep-py (3 except clauses, none bare); check_docstrings.py reports no finding in scripts/shared/security/; full suite 8576 passed, 19 skipped, 9 pre-existing failures in tests/agent/test_startup_rollback.py; N/A: no docs/00_index.md task-scope mapping for scripts/shared/security/startup_flow.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -11,12 +11,13 @@ Usage:
     async def health() -> JSONResponse:
         deps = _check_my_deps()
         details = {"service": "my-mcp"}
-        return make_health_response(deps, details)
+        return make_health_response(deps, details, security=_security_posture)
 """
 
 from __future__ import annotations
 
 from fastapi.responses import JSONResponse
+from shared.security.posture_contract import SecurityPosture
 
 HEALTH_STATUS_OK = "ok"
 HEALTH_STATUS_DEGRADED = "degraded"
@@ -25,28 +26,32 @@ HEALTH_STATUS_DEGRADED = "degraded"
 def make_health_response(
     deps: dict[str, str],
     details: dict[str, object] | None = None,
+    security: SecurityPosture | None = None,
 ) -> JSONResponse:
     """Build a standard MCP /health JSONResponse.
 
     Args:
         deps: Dependency status dict; empty means healthy, non-empty means degraded.
         details: Optional extra detail fields included in the response body.
+        security: Optional Security Posture the server produced at startup. When supplied, ready
+            requires its validated flag and the body carries a security block; when omitted the
+            security key is absent, which is how an un-migrated server stays unchanged.
 
     Returns:
         A JSONResponse with status 200 (healthy) or 503 (degraded).
     """
-    ready = len(deps) == 0
+    ready = len(deps) == 0 and (security is None or security.validated)
     status = HEALTH_STATUS_OK if ready else HEALTH_STATUS_DEGRADED
     status_code = 200 if ready else 503
-    return JSONResponse(
-        {
-            "status": status,
-            "ready": ready,
-            "liveness": True,
-            "restart_recommended": False,
-            "operator_action_required": not ready,
-            "dependencies": deps,
-            "details": details or {},
-        },
-        status_code=status_code,
-    )
+    payload: dict[str, object] = {
+        "status": status,
+        "ready": ready,
+        "liveness": True,
+        "restart_recommended": False,
+        "operator_action_required": not ready,
+        "dependencies": deps,
+        "details": details or {},
+    }
+    if security is not None:
+        payload["security"] = security.to_dict()
+    return JSONResponse(payload, status_code=status_code)

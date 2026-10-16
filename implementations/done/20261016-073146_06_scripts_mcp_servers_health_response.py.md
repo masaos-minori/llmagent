@@ -94,13 +94,14 @@ contract on `/health` alongside the existing readiness fields (`REQ-002`, `AC-00
   whose `/health` handler lives in their own `*_server.py`. Row `18` must not treat a missing
   `security` key as an Integrity failure until every server row has landed; the ordering is
   recorded in the Execution Status of rows `17`-`18`.
-- `scripts/mcp_servers/web_search/web_search_server.py:104-116` is the one `make_health_response`
-  consumer with no self-validation row in the Plan, so it publishes no `security` block. Plan
-  `UNK-04` records that decision; this row does not add a web_search validator.
+- `scripts/mcp_servers/web_search/web_search_server.py:104-116` calls `make_health_response` in its
+  own `/health` handler like the other servers. Plan `UNK-04` is resolved: rows `51`-`52` give
+  web_search a validator and wire its posture, so web_search does publish a `security` block. This
+  row adds no web_search validation of its own.
 
 ## Compatibility considerations
 
-- Additive payload change (Plan `Risks`: "Extending `/health` changes the payload consumed by
+- Additive payload change (Plan Risks section: "Extending `/health` changes the payload consumed by
   existing monitoring"). Existing keys and their values are unchanged for every server that does
   not pass a posture, so monitoring and the existing `/health` tests are unaffected.
 - `scripts/agent/services/mcp_health.py:59-67` reads only `restart_recommended`,
@@ -160,9 +161,9 @@ contract on `/health` alongside the existing readiness fields (`REQ-002`, `AC-00
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `health_response.py` change per Procedure/Method/Details | Pending | — | — | depends on row `03` field names |
-| 2 | Add `tests/mcp_servers/test_health_response.py` per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `health_response.py` change per Procedure/Method/Details | Completed | 20261016-190507 | 20261016-190507 | depends on row 03 field names. stale gate: the only finding was symbol_missing for Risks, which is a Plan section name and not a symbol, so the backticks around it were removed from the doc instead of adding a (new) marker; the detector then exits 0. Amended the Details bullet that called web_search a make_health_response consumer with no self-validation row: Plan UNK-04 is resolved and rows 51-52 give web_search a validator and posture wiring, so it does publish a security block. Contract finalized: make_health_response(deps, details=None, security typed as SecurityPosture or None); ready = len(deps) == 0 and (security is None or security.validated); the security key is set to security.to_dict() only when a posture is passed; no new status constant, a posture failure is reported through ready=false. Module is 57 lines |
+| 2 | Add `tests/mcp_servers/test_health_response.py` per Validation plan | Completed | 20261016-190507 | 20261016-190507 | tests/mcp_servers/test_health_response.py: 10 tests, all pass; covers the unchanged 7-key payload without a posture, the unchanged two-argument call form, the security block carrying the row 03 field names and equal to posture.to_dict(), a validated=False posture yielding ready=false / degraded / 503 with restart_recommended still false, a validated posture not hiding a dependency failure, and no path or token in the serialized block; the existing mdq /health tests pass unchanged (32 passed, 1 skipped) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-190507 | 20261016-190507 | ruff clean; mypy 421 files clean; lint-imports 6 kept (shared-is-leaf and mcp_servers-no-agent hold with the new mcp_servers to shared import); bandit reports no issue in health_response.py; bare-except constraint 0 hits; check_docstrings.py reports no finding in health_response.py; all 8 existing make_health_response call sites are unchanged; full suite 8605 passed, 19 skipped, 9 pre-existing failures in tests/agent/test_startup_rollback.py; N/A: the doc states no docs/00_index.md task-scope mapping applies to this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

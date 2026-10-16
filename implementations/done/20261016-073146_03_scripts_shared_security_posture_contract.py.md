@@ -16,7 +16,7 @@ non-secret config fingerprint; never Secret, raw allowlist, sensitive path, or c
   `Assumptions`, `UNK-01`). The shape below is derived from `REQ-001`/`REQ-002` and from the
   existing `/health` payload (`scripts/mcp_servers/health_response.py:41-51`).
 - **Needs confirmation**: the `security` block field names and the initial
-  `SECURITY_CONTRACT_VERSION` value are finalized here and must be confirmed before row `06`
+  `SECURITY_CONTRACT_VERSION` (new) value are finalized here and must be confirmed before row `06`
   publishes them to monitoring.
 
 ## Design decisions
@@ -112,7 +112,7 @@ non-secret config fingerprint; never Secret, raw allowlist, sensitive path, or c
 |---|---|---|
 | Envelope round-trip | `uv run pytest tests/shared/test_security_posture_contract.py -v` (new test file) | `from_dict(to_dict(p)) == p` |
 | Secret non-exposure | same test file | a posture built from a mapping containing a token, an absolute path, or a long string raises `ValueError` |
-| Required-check closure | same test file | every id in `REQUIRED_CHECK_IDS` is a check id some server row can emit |
+| Required-check closure | same test file | every id in `REQUIRED_CHECK_IDS` (new) is a check id some server row can emit |
 | Static gates | `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/`, `PYTHONPATH=scripts uv run lint-imports` | clean; `shared-is-leaf` keeps |
 
 ## Completion criteria
@@ -133,9 +133,9 @@ non-secret config fingerprint; never Secret, raw allowlist, sensitive path, or c
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `posture_contract.py` per Procedure/Method/Details | Pending | — | — | JSON field names Needs-confirmation |
-| 2 | Add `tests/shared/test_security_posture_contract.py` per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `posture_contract.py` per Procedure/Method/Details | Completed | — | 20261016-175140 | JSON field names Needs-confirmation stale gate clean after marking 2 unmarked (new) names. Shape finalized: security block = 7 keys (contract_version, server_key, policy_version, validated, ready, fingerprint, checks); SECURITY_CONTRACT_VERSION aliases result_dto.DEFAULT_CONTRACT_VERSION = '1' so check and posture cannot drift. REQUIRED_CHECK_IDS encodes the check ids finalized by rows 07-16/51-52 plus three common ids named here: common.own_config_only, common.auth_token, common.published_tools (row 04 must emit exactly these). Module is 246 lines, over the 160-line guideline, because 51 check ids across 10 servers are enumerated; DESIGN.md split trigger (400 lines) not met. POSTURE_STATUS_OK has no consumer yet (procedure step 1 requires it); validated is the authority |
+| 2 | Add `tests/shared/test_security_posture_contract.py` per Validation plan | Completed | 20261016-175140 | 20261016-175140 | tests/shared/test_security_posture_contract.py: 60 tests, all pass; required-check table mirrored in the test so a change to it is an explicit decision |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-175140 | 20261016-175140 | ruff clean; mypy 419 files clean; lint-imports 6 kept (shared-is-leaf holds); bandit delta +1 Low B105 on CHECK_ID_AUTH_TOKEN (pre-existing pattern), no new medium/high; bare-except constraint 0 hits via ast-grep-py (ast-grep CLI not installed); check_docstrings.py reports 294 pre-existing findings, none in scripts/shared/security/; full suite 8548 passed, 19 skipped, 9 pre-existing failures in tests/agent/test_startup_rollback.py; N/A: no docs/00_index.md task-scope mapping for scripts/shared/security/posture_contract.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

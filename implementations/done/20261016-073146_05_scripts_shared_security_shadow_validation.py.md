@@ -13,8 +13,8 @@ is evidence-based (`REQ-016`).
 
 ## Assumptions
 
-- The six comparison outcomes are fixed by the Plan's Design section: `MATCH_PASS`, `MATCH_FAIL`,
-  `AGENT_ONLY_FAIL`, `SERVER_ONLY_FAIL`, `CHECKSET_MISMATCH`, `CONTRACT_ERROR`.
+- The six comparison outcomes are fixed by the Plan's Design section: `MATCH_PASS` (new), `MATCH_FAIL` (new),
+  `AGENT_ONLY_FAIL` (new), `SERVER_ONLY_FAIL` (new), `CHECKSET_MISMATCH` (new), `CONTRACT_ERROR` (new).
 - **Needs confirmation**: whether the harness is kept after canonicalization or deleted with the
   old audit. The Plan keeps it as a target row; the retirement decision is recorded in the Plan's
   Open Items, not decided here.
@@ -25,7 +25,7 @@ is evidence-based (`REQ-016`).
   `SecurityPosture` — and imports neither `agent.services.security_audit` nor any server module.
   `shared` must remain a leaf (`.importlinter:19-28`), so importing the old audit from this module
   would break `shared-is-leaf`. The wiring that imports both sides lives in a test module.
-- Comparison is on check identity and pass/fail, never on messages: `CHECKSET_MISMATCH` is raised
+- Comparison is on check identity and pass/fail, never on messages: `CHECKSET_MISMATCH` (new) is raised
   when the two sides do not agree on the set of check ids in scope, which is the condition the
   Plan says must block the switch.
 - The diff report carries check ids, reason codes, and statuses only. Raw config values are never
@@ -37,7 +37,7 @@ is evidence-based (`REQ-016`).
   a shared module so both the Agent-side tests and the server-side tests can import it, and a
   `tools/` script cannot be imported by `mcp_servers` tests without a path hack.
 - Compare message strings — rejected: messages are human-readable and unstable, so message
-  comparison produces false `CHECKSET_MISMATCH` results.
+  comparison produces false `CHECKSET_MISMATCH` (new) results.
 
 ## Implementation
 ### Target file
@@ -48,18 +48,18 @@ is evidence-based (`REQ-016`).
 
 1. Define `ShadowOutcome` (new) with the six Plan values.
 2. Define `ShadowComparison` (new): frozen dataclass holding `outcome`, `server_key`,
-   `matched_check_ids`, `agent_only_check_ids`, `server_only_check_ids`, `status_conflicts`.
+   `matched_check_ids` (new), `agent_only_check_ids` (new), `server_only_check_ids` (new), `status_conflicts` (new).
 3. Define `compare_shadow_results()` (new) taking the old-audit outcome list and a
-   `SecurityPosture` and returning `ShadowComparison`.
+   `SecurityPosture` and returning `ShadowComparison` (new).
 4. Define `format_shadow_report()` (new) returning a single non-secret log line per server.
 
 ### Method
 
 - Derive the old-audit side's check ids from a caller-supplied mapping of audit warning text to
   check id, so this module does not need the retired audit's internals.
-- Decide the outcome in this order: malformed posture first (`CONTRACT_ERROR`), then check-set
-  difference (`CHECKSET_MISMATCH`), then pass/fail agreement (`MATCH_PASS`, `MATCH_FAIL`,
-  `AGENT_ONLY_FAIL`, `SERVER_ONLY_FAIL`). Ordering matters: a check-set difference makes a
+- Decide the outcome in this order: malformed posture first (`CONTRACT_ERROR` (new)), then check-set
+  difference (`CHECKSET_MISMATCH` (new)), then pass/fail agreement (`MATCH_PASS` (new), `MATCH_FAIL` (new),
+  `AGENT_ONLY_FAIL` (new), `SERVER_ONLY_FAIL` (new)). Ordering matters: a check-set difference makes a
   pass/fail verdict meaningless.
 - `format_shadow_report()` emits `server_key`, `outcome`, and sorted check-id lists only.
 
@@ -92,7 +92,7 @@ is evidence-based (`REQ-016`).
 | Check | Command | Expected |
 |---|---|---|
 | Outcome matrix | `uv run pytest tests/shared/test_shadow_validation.py -v` (new test file) | each of the six outcomes is produced by a dedicated fixture |
-| Blocking condition | same test file | `CHECKSET_MISMATCH` is returned whenever the two check-id sets differ, regardless of pass/fail |
+| Blocking condition | same test file | `CHECKSET_MISMATCH` (new) is returned whenever the two check-id sets differ, regardless of pass/fail |
 | Non-secret report | same test file | a fixture whose audit messages contain a token-like string produces a report without it |
 | Static gates | `uv run ruff check scripts/`, `uv run mypy --no-namespace-packages scripts/`, `PYTHONPATH=scripts uv run lint-imports` | clean; `shared-is-leaf` keeps |
 
@@ -100,7 +100,7 @@ is evidence-based (`REQ-016`).
 
 - Plan `AC-009`: the harness compares old-audit and new-self-validation results and emits no raw
   config value.
-- A `CHECKSET_MISMATCH` result is representable and testable, because the Plan makes it the
+- A `CHECKSET_MISMATCH` (new) result is representable and testable, because the Plan makes it the
   condition that blocks canonicalization.
 
 ## Out of scope
@@ -113,9 +113,9 @@ is evidence-based (`REQ-016`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `shadow_validation.py` per Procedure/Method/Details | Pending | — | — | retirement decision open |
-| 2 | Add `tests/shared/test_shadow_validation.py` per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `shadow_validation.py` per Procedure/Method/Details | Completed | — | 20261016-184342 | retirement decision open stale gate: 11 unmarked (new) names marked (21 markers); the detector was run after writing the module, so its only finding was new_target_exists for the file this row creates (no symbol_missing or target_missing), i.e. the doc is not stale. Contract finalized: compare_shadow_results(audit_warnings, posture, audit_check_ids) -> ShadowComparison; audit_check_ids maps each old-audit warning text to the new-side check id and lives in the driving test, so it is retired with the audit in row 20. Decision: a server check counts as flagged when its status is FAILED or WARNING, because the old audit's only signal is a warning, so MATCH_PASS and MATCH_FAIL compare flagged sets rather than FAILED sets. Outcome order: CONTRACT_ERROR, then CHECKSET_MISMATCH, then pass/fail. CONTRACT_ERROR covers a server key that is not non-secret (reported under the placeholder unknown), posture contract_version drift, check-to-posture version drift, duplicate check ids, and an audit mapping id that is not non-secret. format_shadow_report emits outcome plus sorted ids only; audit message text never reaches it. Module is 131 lines, within the 140-line guideline |
+| 2 | Add `tests/shared/test_shadow_validation.py` per Validation plan | Completed | 20261016-184342 | 20261016-184342 | tests/shared/test_shadow_validation.py: 19 tests, all pass; covers the six-outcome matrix, CHECKSET_MISMATCH winning over both a matching pass and a matching failure, CONTRACT_ERROR winning over a check-set difference, and a report built from an audit message containing a token-like string and an absolute path |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-184342 | 20261016-184342 | ruff clean; mypy 421 files clean; lint-imports 6 kept (shared-is-leaf holds, no audit or server import); bandit 3 Low B105 false positives across scripts/shared/security (enum values named common.auth_token, auth_token_missing, match_pass), no medium or high; bare-except constraint 0 hits; check_docstrings.py reports no finding in scripts/shared/security/; full suite 8595 passed, 19 skipped, 9 pre-existing failures in tests/agent/test_startup_rollback.py; N/A: no docs/00_index.md task-scope mapping for scripts/shared/security/shadow_validation.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

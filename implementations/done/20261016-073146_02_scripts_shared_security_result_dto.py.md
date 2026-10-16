@@ -15,37 +15,37 @@ security policy version, posture-contract version, ready state, non-secret confi
 - The exact reason-code enumeration was defined in `memo2.md`, which is no longer recoverable
   (see the Plan's `Assumptions`). The vocabulary below is derived from the Plan's `REQ-001` and
   `REQ-005`..`REQ-011` check descriptions.
-- **Needs confirmation**: the reason-code strings and the `policy_version` / `contract_version`
+- **Needs confirmation**: the reason-code strings and the `policy_version` (new) / `contract_version` (new)
   literal values are finalized at implementation; confirm them against the Plan's `REQ-001`
   wording before the first server row (rows `07`-`16`) consumes them.
 
 ## Design decisions
 
-- `SecurityCheckStatus` (new) is a four-value enum: `OK`, `WARNING`, `FAILED`, `NOT_APPLICABLE`.
-  `NOT_APPLICABLE` is required by the Plan's Design section ("a common check is expressed as
-  `not_applicable` or a dedicated check ID rather than silently skipped") so an ADR-carried
+- `SecurityCheckStatus` (new) is a four-value enum: `OK`, `WARNING`, `FAILED`, `NOT_APPLICABLE` (new).
+  `NOT_APPLICABLE` (new) is required by the Plan's Design section ("a common check is expressed as
+  `not_applicable` (new) or a dedicated check ID rather than silently skipped") so an ADR-carried
   exception stays visible in the posture. `WARNING` (new) carries a finding the retired Agent
   audit reported as a warning — for example `github.allow_force_push=true`
   (`scripts/agent/services/security_audit.py:205-212`) — without flipping the posture's
   `validated` flag, so a server that starts today with a warning still starts after migration.
   Only `FAILED` blocks Ready.
-- `SecurityCheckResult` (new) is a frozen dataclass with fields `check_id`, `status`,
-  `reason_code`, `message`, `policy_version`, `contract_version`, `ready`, `fingerprint`.
+- `SecurityCheckResult` (new) is a frozen dataclass with fields `check_id` (new), `status`,
+  `reason_code` (new), `message`, `policy_version` (new), `contract_version` (new), `ready`, `fingerprint`.
   Frozen because the posture is produced once at startup and then read by the Agent; mutability
   would let a server mutate a published posture after the fact.
 - `message` is a human-readable, non-secret summary; the machine-readable decision is carried by
-  `reason_code`, so consumers must not parse `message`.
+  `reason_code` (new), so consumers must not parse `message`.
 - Reason codes are a module-level `frozenset[str]` named `SECURITY_REASON_CODES` (new) plus one
   module-level constant per code, so a typo fails at import rather than at comparison time.
-  Initial set: `ok`, `config_missing`, `config_invalid`, `allowlist_empty`, `allowlist_invalid`,
-  `path_out_of_boundary`, `symlink_escape`, `sandbox_backend_missing`,
-  `sandbox_backend_unsupported`, `auth_token_missing`, `protected_branch_violation`,
-  `force_push_enabled`, `wildcard_range_invalid`, `destructive_guard_missing`,
-  `delete_limit_invalid`, `atomic_write_disabled`, `db_path_invalid`, `index_path_invalid`,
-  `allowed_dir_invalid`, `dependency_unreachable`, `not_applicable`.
+  Initial set: `ok`, `config_missing` (new), `config_invalid` (new), `allowlist_empty` (new), `allowlist_invalid` (new),
+  `path_out_of_boundary` (new), `symlink_escape` (new), `sandbox_backend_missing` (new),
+  `sandbox_backend_unsupported` (new), `auth_token_missing` (new), `protected_branch_violation` (new),
+  `force_push_enabled` (new), `wildcard_range_invalid` (new), `destructive_guard_missing` (new),
+  `delete_limit_invalid` (new), `atomic_write_disabled` (new), `db_path_invalid` (new), `index_path_invalid` (new),
+  `allowed_dir_invalid` (new), `dependency_unreachable` (new), `not_applicable` (new).
   The set also carries the five codes the Agent-side posture validator (row `17`) emits when a
-  published posture is unusable: `posture_missing`, `contract_version_mismatch`,
-  `check_set_mismatch`, `fingerprint_mismatch`, `server_key_mismatch`. They live in the same
+  published posture is unusable: `posture_missing` (new), `contract_version_mismatch` (new),
+  `check_set_mismatch` (new), `fingerprint_mismatch` (new), `server_key_mismatch` (new). They live in the same
   vocabulary so the Agent and the servers share one machine-readable namespace.
 
 ## Alternatives considered
@@ -75,11 +75,11 @@ security policy version, posture-contract version, ready state, non-secret confi
 
 ### Method
 
-- `__post_init__` validation raises `ValueError` on: an unknown `reason_code`, an empty
-  `check_id`, `status == OK` combined with a reason code other than `ok`, `status == WARNING`
+- `__post_init__` validation raises `ValueError` on: an unknown `reason_code` (new), an empty
+  `check_id` (new), `status == OK` combined with a reason code other than `ok`, `status == WARNING`
   combined with reason code `ok` (a warning must name why it warns), or a `message` that fails
   `assert_non_secret()`. Fail-closed at construction, not at consumption.
-- `to_dict()` emits keys `id`, `status`, `reason_code`, `message`; the version/ready/fingerprint
+- `to_dict()` emits keys `id`, `status`, `reason_code` (new), `message`; the version/ready/fingerprint
   fields are emitted once at the posture level (row `03`), not repeated per check.
 
 ### Details
@@ -87,7 +87,7 @@ security policy version, posture-contract version, ready state, non-secret confi
 - `fingerprint` is a 64-character lowercase hex sha256 string; this module only stores and
   validates its shape (`_FINGERPRINT_RE` (new)), it does not compute it. Computation belongs to
   `scripts/shared/security/posture_contract.py` (row `03`).
-- `policy_version` and `contract_version` are short dotted strings (for example `"1"`); the
+- `policy_version` (new) and `contract_version` (new) are short dotted strings (for example `"1"`); the
   literal starting value is Needs-confirmation above.
 - Keep the module under 120 lines and free of any `agent` or `mcp_servers` import.
 
@@ -140,9 +140,9 @@ security policy version, posture-contract version, ready state, non-secret confi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `result_dto.py` per Procedure/Method/Details | Pending | — | — | reason-code vocabulary Needs-confirmation |
-| 2 | Add `tests/shared/test_security_result_dto.py` per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `result_dto.py` per Procedure/Method/Details | Completed | — | 20261016-173050 | reason-code vocabulary Needs-confirmation stale_detector reported 41 symbol_missing: names this row creates were unmarked; tools/mark_procedure_new_symbols.py added 40 (new) markers, gate then clean. Vocabulary finalized with user approval: 26 listed codes plus dirty_worktree, detached_head, ref_guard_invalid, own_config_violation; policy_version/contract_version start at 1. Module is 174 lines, over the 120-line guideline, because 30 codes each need a module-level constant |
+| 2 | Add `tests/shared/test_security_result_dto.py` per Validation plan | Completed | 20261016-173050 | 20261016-173050 | tests/shared/test_security_result_dto.py: 33 tests, all pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-173050 | 20261016-173050 | ruff clean; mypy 418 files clean; lint-imports 6 kept; bandit delta +1 Low B105 on REASON_AUTH_TOKEN_MISSING (5 pre-existing B105 in scripts/), no new medium/high; bare-except constraint 0 hits via ast-grep-py (ast-grep CLI not installed); full suite 8488 passed, 19 skipped, 9 pre-existing failures in tests/agent/test_startup_rollback.py; N/A: no docs/00_index.md task-scope mapping for scripts/shared/security/result_dto.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
