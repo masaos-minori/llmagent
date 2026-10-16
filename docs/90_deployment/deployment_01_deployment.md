@@ -252,9 +252,10 @@ A missing config directory or dictionary fails startup with an explicit error na
 
 ### 3.0 Platform DB Overview
 
-The agent uses the SQLite databases listed below. Each has a path key in
-`agent.toml` or falls back to `DbConfig`'s Python-level default
+The agent uses the SQLite databases listed below. Each platform database has a path
+key in `agent.toml` or falls back to `DbConfig`'s Python-level default
 (`scripts/db/config.py`); see the auto-generated DB Path Reference below for which.
+`mdq.sqlite` is the exception: its path is set in the MDQ server's own configuration.
 
 | DB | Config key | Purpose |
 |---|---|---|
@@ -262,8 +263,11 @@ The agent uses the SQLite databases listed below. Each has a path key in
 | `session.sqlite` | `session_db_path` | Agent sessions, messages |
 | `workflow.sqlite` | `workflow_db_path` | Task tracking, event processing |
 | `eventbus.sqlite` | `eventbus_db_path` | Event Bus records |
+| `mdq.sqlite` | `db_path` in `config/mdq_mcp_server.toml` | Markdown index of the MDQ server (derived store, not a platform database) |
 
 Default paths are not stated here: the DB Path Reference below shows which keys are set in `agent.toml` and which fall back to a Python-level default.
+
+`mdq.sqlite` is a derived index owned by the MDQ server, outside the four platform databases ([ADR-008](../10_adr/adr_02_008_sqlite-4db-separation.md), Derived Stores Outside the Four Domains; [active databases](../41_db/db_08_active_databases.md)). `init_db.sh` does not create it: `deploy.sh` provisions the DB directory, and the MDQ service creates the file and its tables when it starts, recreating a legacy chunk schema as described in [DB migration and scaling](../41_db/db_03_architecture_and_schema-migration-and-scaling.md) (section 8d). Recovery is by re-indexing the Markdown files; the backup and rotation helpers do not cover it. The MDQ health check reports a missing database file or an unhealthy schema as degraded.
 
 Schema details: `db_01_architecture_and_schema-overview-and-config.md`
 
@@ -330,6 +334,8 @@ Generated from `scripts/db/config.py` and `config/agent.toml`. Do not hand-edit 
 | `session.sqlite` | `session_db_path` | Yes |
 | `workflow.sqlite` | `workflow_db_path` | No (Python-level default in `scripts/db/config.py`) |
 <!-- END AUTO-GENERATED -->
+
+`mdq.sqlite` is not in the table above because the table is generated only from `scripts/db/config.py` and `config/agent.toml`; its path is the `db_path` key of `config/mdq_mcp_server.toml`.
 
 ## Keywords
 

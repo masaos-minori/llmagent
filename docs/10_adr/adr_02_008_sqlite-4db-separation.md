@@ -130,7 +130,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 
 ### Derived Stores Outside the Four Domains
 
-- mdq.sqlite is owned by mdq-mcp and holds only documents, chunks, an FTS5 index and indexing state derived from Markdown files under `allowed_dirs`. It is rebuilt from those files by `index_paths` and `refresh_index`, and it is not backed up or restored by `recover_corruption()` or `rotate_all_dbs()` (Explicit in code — `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/indexer.py`, `scripts/db/recovery.py`, `scripts/db/rotation.py`).
+- mdq.sqlite is owned by mdq-mcp and holds only documents, chunks, an FTS5 index and indexing state derived from Markdown files under `allowed_dirs`. It is rebuilt from those files by `index_paths` and `refresh_index`, and it is not backed up or restored by `recover_corruption()` or `rotate_all_dbs()` (Explicit in code — `scripts/mcp_servers/mdq/db_schema.py`, `scripts/mcp_servers/mdq/indexer.py`, `scripts/db/recovery.py`, `scripts/db/rotation.py`). Its schema migration is the MDQ service's own responsibility, run every time the service starts (see section 8d of `db_03_architecture_and_schema-migration-and-scaling.md`).
 - Adding a store that is a system of record for any data requires extending the Recovery Policy Matrix of this ADR before deployment.
 
 ### Scope
