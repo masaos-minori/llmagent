@@ -1,4 +1,5 @@
 import pytest
+from agent.http_lifecycle_errors import HttpStartupError, StartupFailure
 from agent.shared.retry_helper import retry_once_with_delay
 
 
@@ -103,3 +104,30 @@ class TestRetryHelperExceptionPreservation:
 
         assert isinstance(exc_info.value, _CustomRuntimeError)
         assert isinstance(exc_info.value.__cause__, _CustomRuntimeError)
+
+    @pytest.mark.asyncio
+    async def test_http_startup_error_reraised_without_attribute_error(self):
+        """HttpStartupError needs a StartupFailure; a message must not be passed."""
+        call_count = 0
+
+        async def failing_func():
+            nonlocal call_count
+            call_count += 1
+            raise HttpStartupError(
+                StartupFailure(
+                    server_key="srv", reason=f"attempt {call_count}", stderr_full=""
+                )
+            )
+
+        with pytest.raises(HttpStartupError) as exc_info:
+            await retry_once_with_delay(
+                failing_func,
+                delay=0.01,
+                shutdown_event=None,
+                interrupt_msg="interrupted",
+                fatal_prefix="FATAL",
+            )
+
+        assert exc_info.value.failure.server_key == "srv"
+        assert exc_info.value.failure.reason == "attempt 2"
+        assert isinstance(exc_info.value.__cause__, HttpStartupError)
