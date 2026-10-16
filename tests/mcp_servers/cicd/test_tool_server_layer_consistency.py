@@ -30,7 +30,7 @@ from __future__ import annotations
 from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Any, cast
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.tool_enums import OperationType
@@ -104,11 +104,17 @@ def _shell_dispatch(tmp_path: Path) -> set[str]:
         execution_user="",
         shell_path="/usr/bin:/bin",
         audit_log_path=str(tmp_path / "audit.log"),
-        sandbox_backend="none",
+        sandbox_backend="firejail",
         env_allowlist=(),
         env_denylist=(),
     )
-    svc = ShellService(policy)
+    # init_sandbox() refuses any backend it cannot prove safe, so the dispatch table is built
+    # with the firejail binary patched present rather than depending on the host.
+    with patch(
+        "mcp_servers.shell.shell_service_static_helpers.shutil.which",
+        return_value="/usr/bin/firejail",
+    ):
+        svc = ShellService(policy)
     return _dispatch_keys(svc.get_dispatch_table())
 
 

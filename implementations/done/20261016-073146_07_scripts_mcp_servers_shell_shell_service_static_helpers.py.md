@@ -10,7 +10,7 @@ validation results as the common posture (`REQ-005`, `AC-005`).
   point for Shell's self-validation is added here.
 - Wiring the produced posture into Shell's `/health` uses `make_health_response(..., security=...)`
   from row `06`; the Shell `/health` handler itself (`scripts/mcp_servers/shell/shell_server.py`) is
-  not a target row of this Plan.
+  row `42`, not this row.
 
 ## Assumptions
 
@@ -133,7 +133,7 @@ validation results as the common posture (`REQ-005`, `AC-005`).
 
 - Revert this commit. `shell_service.py:67` keeps working against the pre-change `init_sandbox()`.
 - Rolling back restores the unsandboxed pass-through, so a rollback must be recorded as a known-good
-  version rollback (Plan `Risks`: no implicit runtime fallback), not as a config toggle.
+  version rollback (Plan Risks: no implicit runtime fallback), not as a config toggle.
 
 ## Validation plan
 
@@ -156,8 +156,8 @@ validation results as the common posture (`REQ-005`, `AC-005`).
 ## Out of scope
 
 - Editing `scripts/mcp_servers/shell/shell_service.py` or `shell_server.py` (not Plan rows).
-- Publishing the posture on `/health` (row `06` supplies the builder; Shell's handler wiring is not a
-  row in this Plan's frozen table).
+- Publishing the posture on `/health` (row `06` supplies the builder; row `42` wires Shell's
+  handler).
 - Agent-side classification (rows `17`-`18`).
 
 ## Execution Status
@@ -165,14 +165,14 @@ validation results as the common posture (`REQ-005`, `AC-005`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `init_sandbox` fail-closed change + `validate_shell_security()` | Pending | — | — | check ids are Needs-confirmation |
-| 2 | Add `tests/mcp_servers/shell/test_shell_security_validation.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Implement `init_sandbox` fail-closed change + `validate_shell_security()` | Completed | 20261016-201939 | 20261016-201939 | check ids are Needs-confirmation check ids finalized as the four frozen server ids in REQUIRED_CHECK_IDS for shell: server.sandbox_backend, server.sandbox_binary, server.command_allowlist, server.resource_limits. init_sandbox now refuses none, empty, and unrecognized backends with reason code sandbox_backend_unsupported and reports a missing firejail binary with sandbox_backend_missing. _sandbox_backend_error returns the reason code so no caller parses text. The missing-binary message keeps the pre-change wording so the existing test regex still matches. server.sandbox_binary is NOT_APPLICABLE when the backend is unsupported. An empty command allowlist is FAILED with allowlist_empty and its message reports only the entry count. server.resource_limits reads the module constants at call time and uses config_invalid. Module is 229 lines. Stale gate: the only finding was symbol_missing for Risks, a Plan section name, so its backticks were removed from the doc. |
+| 2 | Add `tests/mcp_servers/shell/test_shell_security_validation.py` | Completed | 20261016-201939 | 20261016-201939 | tests/mcp_servers/shell/test_shell_security_validation.py: 19 tests, all pass. An autouse fixture patches shutil.which so no test depends on a host firejail binary. Covers refusal for none, empty, and unrecognized backends, the firejail present and missing cases, the four check ids in fixed order equal to REQUIRED_CHECK_IDS minus COMMON_CHECK_IDS, never raising for a policy violation, NOT_APPLICABLE for the binary check when the backend is unsupported, allowlist_empty for an empty allowlist, allowlist entries never appearing in messages, and a monkeypatched non-positive constant failing server.resource_limits. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261016-201939 | 20261016-201939 | Full validation sequence: ruff clean, mypy clean on 421 source files, lint-imports 6 kept 0 broken, bandit reports no finding in shell_service_static_helpers.py (the shell package keeps 1 pre-existing Low B404 subprocess import in shell_service.py and no High severity), check_mock_patch_targets no findings, check_docstrings reports no finding in the changed file, no bare except. Full suite: 8635 passed, 19 skipped, 9 failed, and all 9 are the pre-existing tests/agent/test_startup_rollback.py schema-version failures. The existing Shell suite is green only because row 53 landed in this same cycle. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | 40 tests in `tests/mcp_servers/shell/test_shell_mcp_service.py` and 2 cases in `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py` construct `ShellService` with a `none` sandbox backend, which the fail-closed rule now refuses; both files were outside the frozen table and became rows `53` and `54` by Plan amendment | Yes | 20261016-201939 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

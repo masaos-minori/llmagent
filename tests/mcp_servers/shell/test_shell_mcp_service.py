@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import resource
 import signal
+from collections.abc import Iterator
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
@@ -32,6 +33,16 @@ from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
+@pytest.fixture(autouse=True)
+def _firejail_present() -> Iterator[None]:
+    """Make the firejail binary present for every test here, so no test depends on the host."""
+    with patch(
+        "mcp_servers.shell.shell_service_static_helpers.shutil.which",
+        return_value="/usr/bin/firejail",
+    ):
+        yield
+
+
 def _make_policy(
     tmp_path: Path,
     *,
@@ -52,7 +63,7 @@ def _make_policy(
         execution_user="",
         shell_path="/usr/bin:/bin",
         audit_log_path=str(tmp_path / "audit.log"),
-        sandbox_backend="none",
+        sandbox_backend="firejail",
         env_allowlist=tuple(env_allowlist) if env_allowlist is not None else (),
         env_denylist=tuple(env_denylist) if env_denylist is not None else (),
     )
@@ -196,15 +207,20 @@ class TestResolveCwd:
 
 
 class TestInitSandbox:
-    def test_none_backend_returns_none(self) -> None:
-        assert _init_sandbox("none") == "none"
+    def test_none_backend_raises(self) -> None:
+        with pytest.raises(RuntimeError, match="not a sandboxing backend"):
+            _init_sandbox("none")
+
+    def test_empty_backend_raises(self) -> None:
+        with pytest.raises(RuntimeError, match="not a sandboxing backend"):
+            _init_sandbox("")
+
+    def test_unrecognized_backend_raises(self) -> None:
+        with pytest.raises(RuntimeError, match="not a sandboxing backend"):
+            _init_sandbox("firejail-lite")
 
     def test_firejail_found_returns_firejail(self) -> None:
-        with patch(
-            "mcp_servers.shell.shell_service_static_helpers.shutil.which",
-            return_value="/usr/bin/firejail",
-        ):
-            assert _init_sandbox("firejail") == "firejail"
+        assert _init_sandbox("firejail") == "firejail"
 
     def test_firejail_not_found_raises_runtime_error(self) -> None:
         with patch(
@@ -220,9 +236,12 @@ class TestInitSandbox:
 
 class TestBuildArgv:
     def test_none_sandbox_returns_argv_unchanged(self, tmp_path: Path) -> None:
+        # ShellService can no longer be constructed with a "none" backend (row 07), so the
+        # runner's non-firejail branch is reached by injecting the backend directly.
         svc = _make_service(
             tmp_path,
         )
+        svc._subprocess_runner._sandbox_backend = "none"
         assert svc._subprocess_runner.build_argv(["ls", "-la"]) == ["ls", "-la"]
 
     def test_firejail_sandbox_prepends_wrapper(self, tmp_path: Path) -> None:
@@ -533,7 +552,7 @@ class TestKillPolicy:
             execution_user="",
             shell_path="/usr/bin:/bin",
             audit_log_path=str(tmp_path / "audit.log"),
-            sandbox_backend="none",
+            sandbox_backend="firejail",
             env_allowlist=(),
             env_denylist=(),
         )
@@ -600,7 +619,7 @@ class TestLazyShellService:
             execution_user="",
             shell_path="/usr/bin:/bin",
             audit_log_path=str(tmp_path / "audit.log"),
-            sandbox_backend="none",
+            sandbox_backend="firejail",
             env_allowlist=(),
             env_denylist=(),
         )
@@ -627,7 +646,7 @@ class TestLazyShellService:
             execution_user="",
             shell_path="/usr/bin:/bin",
             audit_log_path=str(tmp_path / "audit.log"),
-            sandbox_backend="none",
+            sandbox_backend="firejail",
             env_allowlist=(),
             env_denylist=(),
         )
