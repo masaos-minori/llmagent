@@ -6,6 +6,7 @@ Tests that lifecycle.shutdown_all() is called when _start_servers() succeeds bef
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -32,7 +33,7 @@ def _http_subprocess_cfg() -> McpServerConfig:
 
 
 def _make_rollback_startup() -> tuple[StartupOrchestrator, AsyncMock]:
-    """Return (orchestrator, mock_lifecycle) with _initialize patched to a no-op."""
+    """Return (orchestrator, mock_lifecycle) for a rollback-window failure."""
     ctx = MagicMock()
     ctx.cfg.obs.audit_log_file = "/opt/llm/logs/audit.log"
     ctx.cfg.rag.embed_url = "http://localhost:6000/embedding"
@@ -40,12 +41,26 @@ def _make_rollback_startup() -> tuple[StartupOrchestrator, AsyncMock]:
     ctx.services_required.lifecycle = mock_lifecycle
     view = MagicMock()
     orch = StartupOrchestrator(ctx, view)
-    orch._initialize = MagicMock()
     return orch, mock_lifecycle
 
 
 class TestStartupRollback:
     """run() calls lifecycle.shutdown_all() iff _start_servers() succeeded before failure."""
+
+    @pytest.fixture(autouse=True)
+    def _stub_component_init(self) -> Iterator[None]:
+        """Stub the component-wiring step that runs before the rollback window.
+
+        run() delegates wiring to ComponentInitializer.initialize(), whose workflow
+        preflight reads the real workflow DB. These tests only exercise the steps
+        after wiring, so the seam is stubbed instead of relying on host DB state.
+        """
+        with patch.object(
+            ComponentInitializer,
+            "initialize",
+            new=AsyncMock(return_value=(MagicMock(), MagicMock())),
+        ):
+            yield
 
     @pytest.mark.asyncio
     async def test_rollback_on_check_services_failure(self) -> None:
@@ -140,7 +155,6 @@ class TestStartupRollback:
         )
         view = MagicMock()
         orch = StartupOrchestrator(ctx, view)
-        orch._initialize = MagicMock()
         orch._check_services = AsyncMock(side_effect=RuntimeError("downstream failure"))
         orch._setup_prompt = AsyncMock()
 
