@@ -158,7 +158,7 @@ MCP-006 in the known-issue ledger.
 | 1 | Add the live-identity helper and sentinel | Completed | 20261017-183000 | 20261017-184500 | REQ-008 |
 | 2 | Replace the Stage 5b self-comparison and rewrite its comment | Completed | 20261017-183000 | 20261017-184500 | REQ-008 |
 | 3 | Add or update tests per Validation plan | Completed | 20261017-183000 | 20261017-185200 | Owned by Plan row 10 row 10 landed |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-190500 | 20261017-192200 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
