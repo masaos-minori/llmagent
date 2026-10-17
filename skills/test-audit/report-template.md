@@ -8,7 +8,7 @@ structure, the rules for populating it, and the optional GitHub Issue Drafts out
 ## Report Template (fixed structure — Step 8 output)
 
 Use exactly these sections, in this order. This is a structural skeleton only — see
-Report Content Rules below for how to populate each section; do not add instructional
+Report Content Rules below for how to populate each section; MUST NOT add instructional
 prose inside the generated report itself.
 
 ```markdown
@@ -57,8 +57,8 @@ prose inside the generated report itself.
 
 ## Report Content Rules (Step 8)
 
-Populate every section above using IDs and content already established in Steps 1-7 —
-do not re-derive or re-analyze here.
+Populate every section above using IDs and content already established in Steps 1-7;
+MUST NOT re-derive or re-analyze.
 
 - **# 1**: summarize overall test-suite health; mention the strongest and weakest
   areas.
@@ -75,23 +75,22 @@ do not re-derive or re-analyze here.
 - **# 6**: one entry per Step 7 test case; every entry cites its Task ID.
 - **# 7**: build directly from the Finding ID → Task ID → Test Case ID links recorded
   in Steps 6-7 (`evidence.md` Finding, Task, and Test Case IDs). A Finding with no
-  Task, or a Task with no Test Case where one is expected, must still appear with the
-  gap visible (e.g. `Task ID(s): —`) — do not omit it.
+  Task, or a Task with no Test Case where one is expected, MUST still appear with the
+  gap visible (e.g. `Task ID(s): —`) — MUST NOT omit it.
 - **# 8**: order Task IDs and explain why (dependency chain, risk, effort).
 - **# 9**: list every unresolved `Needs confirmation` item carried from Steps 4/5.
 
 Determine the report destination from existing repository rules: if the repository
 defines a report directory, save the Markdown report there; if no destination is
-defined, return the report only in the final response; do not create a new report
+defined, return the report only in the final response; MUST NOT create a new report
 directory without an existing rule.
 
 ---
 
 ## Optional Extra Output
 
-Generate `## 10. GitHub Issue Drafts` only when the user explicitly requests it.
-
-After the main report, also generate:
+Generate section `# 10. GitHub Issue Drafts` only when the user explicitly requests it, after
+the main report:
 
 ```markdown
 # 10. GitHub Issue Drafts (English, AI-oriented)
@@ -99,7 +98,7 @@ After the main report, also generate:
 - `P1` items only by default
 ```
 
-Each issue must contain:
+Each issue MUST contain:
 - Title
 - Summary
 - Background

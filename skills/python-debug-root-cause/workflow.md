@@ -30,10 +30,9 @@
 | `git bisect run` | Regression Localization | Automated regression commit search |
 | `rg` | — | Fast text search |
 
-Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: do not
+Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: MUST NOT
 re-run a log/trace command against the same file at the same offset without new evidence
-motivating it (e.g. do not re-run the same `tail`/`jq` filter twice expecting a different
-result).
+(e.g. the same `tail`/`jq` filter twice).
 
 ---
 
@@ -59,13 +58,11 @@ Phase 2 proceeds to gather evidence for it.
 
 ## Phase 2: Initial Observability
 
-Use `structlog`+`jq` first — it answers "what happened" from structured fields without an
-interactive session. Reach for `lnav` only when `jq` filtering alone cannot narrow the
-window (e.g. correlating across log files by time). Reach for `multitail` only when
-several services must be watched live as the failure reproduces (not for a
-already-occurred, historical failure). Use `sentry-sdk` only if `SENTRY_DSN` is already
-configured — it is a capture mechanism for future occurrences, not a tool for analyzing
-a failure that already produced a log.
+Use `structlog`+`jq` first. Use `lnav` only when `jq` filtering alone cannot narrow the
+window (e.g. correlating across log files by time). Use `multitail` only when several
+services must be watched live as the failure reproduces (not for a historical failure).
+Use `sentry-sdk` only if `SENTRY_DSN` is already configured — it captures future
+occurrences; it does not analyze a failure that already produced a log.
 
 #### structlog + jq
 
@@ -173,21 +170,18 @@ curl -s http://127.0.0.1:<PORT>/health
 
 #### MCP server health check (from agent REPL)
 
-If the agent REPL is running, use the built-in probe command:
+If the agent REPL is running, use the built-in probe (probes `/health` and `/v1/tools` of all configured HTTP-transport servers):
 
 ```
 /mcp
 ```
-
-This probes `/health` and `/v1/tools` for all configured HTTP-transport servers
-and displays connectivity status, tool count, and any error responses.
 
 ---
 
 ## Phase 5: Runtime / Trace Inspection
 
 Select the tool(s) using Phase 3's classification table (Execution model / Failure
-domain columns) — do not try tools in the order listed below without that basis.
+domain columns) — MUST NOT try tools in the order listed below without that basis.
 
 #### viztracer
 
@@ -273,8 +267,7 @@ absence of signal from that tool.
 
 ## Phase 6: Hypothesis Validation
 
-Two sub-steps: build the hypothesis table (6a), then falsify each entry with its matching
-tool (6b).
+Build the hypothesis table (6a), then falsify each entry (6b).
 
 ### Phase 6a: Build the hypothesis table
 
@@ -337,7 +330,7 @@ pytest --timeout=10 tests/
 **Completed when**: every row in 6a's table is marked Validated or Invalidated with an
 observed result (per `SKILL.md`'s Mandatory Output Template) — not left blank.
 **If every row is Invalidated**: return to Phase 6a and add new hypotheses informed by
-what was ruled out — do not re-test an already-Invalidated row. Per `AGENTS.md` Attempt
+what was ruled out — MUST NOT re-test an already-Invalidated row. Per `AGENTS.md` Attempt
 Limit, at most 3 Phase 6a/6b round-trips; if no hypothesis validates within that bound,
 stop and report `Blocked: no hypothesis validated after 3 rounds — {all ruled-out
 hypotheses}` rather than continuing to add rows indefinitely.
@@ -388,8 +381,7 @@ Delegate to composed skills when appropriate:
 
 ## Phase 9: Validation + Cleanup
 
-Three sub-steps, applied in order: run tests (9a), restart services if needed (9b), then
-remove debug artifacts (9c).
+Apply 9a, 9b, 9c in order.
 
 ### Phase 9a: Run tests
 
@@ -402,7 +394,7 @@ ruff check scripts/
 **Completed when**: both pytest runs collected at least one test and passed (a 0-collected,
 exit-0 run is not a pass — per `rules/ai-execution.md` Repository Tool Usage #8), and
 `ruff check` passes.
-**On a failure**: return to Phase 8 and revise the fix — do not re-run this Phase 9a
+**On a failure**: return to Phase 8 and revise the fix — MUST NOT re-run this Phase 9a
 against an unchanged fix hoping for a different result. Per `AGENTS.md` Attempt Limit,
 at most 3 Phase 8/9a cycles for the same failure; if a clean pass is not reached within
 that bound, stop and report `Blocked: fix requires more than 3 attempts — {summary}`.
@@ -449,8 +441,7 @@ cycle ended in a `Blocked` state per Phase 6b or Phase 9a's own stop condition.
 
 ## Output format
 
-Populate every item below from what earlier Phases already recorded — do not re-derive or
-re-run a check merely to produce this report.
+Populate every item from what earlier Phases recorded — MUST NOT re-run a check merely to produce this report.
 
 1. symptom (exact error or behavior)
 2. failure classification (reproducibility / sync-async / domain)
@@ -465,8 +456,8 @@ re-run a check merely to produce this report.
 
 ## Prohibited behavior
 
-- do not claim certainty without evidence
-- do not skip reproduction analysis when feasible
-- do not apply multiple speculative fixes at once
-- do not mix observations and assumptions without labeling them
-- do not hide uncertainty
+- MUST NOT claim certainty without evidence
+- MUST NOT skip reproduction analysis when feasible
+- MUST NOT apply multiple speculative fixes at once
+- MUST NOT mix observations and assumptions without labeling them
+- MUST NOT hide uncertainty

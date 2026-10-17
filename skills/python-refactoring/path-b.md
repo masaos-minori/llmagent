@@ -1,7 +1,7 @@
 # Python Refactoring — Path B (Higher-Impact Change)
 
-Load this file only after `workflow.md` Step 2 classifies the current change as Path B
-(see `SKILL.md` Routing for the full classification criteria).
+Load this file only after `workflow.md` Step 2 classifies the change as Path B (criteria:
+`SKILL.md` Routing).
 
 ---
 
@@ -15,7 +15,7 @@ Load this file only after `workflow.md` Step 2 classifies the current change as 
   use an alternative if one exists; a skipped check MUST NOT be reported as passed).
 
 `discovery.md`'s Technical Debt Discovery, Responsibility Analysis, and Documentation
-Drift Detection all still apply — they are not Path-gated (see `workflow.md` Step 3).
+Drift Detection still apply — not Path-gated (`workflow.md` Step 3).
 
 ---
 

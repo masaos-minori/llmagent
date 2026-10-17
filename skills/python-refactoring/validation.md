@@ -22,9 +22,9 @@ Before transformation, list current side effects in the target file:
 - Time-dependent behavior
 - Randomness
 
-This inventory is the baseline that the Required Validation section below MUST reconfirm
-as unchanged after transformation (`workflow.md` Step 7). If any side effect changes,
-stop and record it as a proposal unless explicitly approved.
+This inventory is the baseline that Required Validation below MUST reconfirm as
+unchanged after transformation (`workflow.md` Step 7). If any side effect changes, stop
+and record it as a proposal unless explicitly approved.
 
 ---
 
@@ -65,11 +65,11 @@ In addition, perform and record the following checks:
   - Tool or server route names
   - Configuration keys
 
-  If any public API change is required, stop and record it as a proposal unless explicitly
-  approved.
+  If any public API change is required, stop and record it as a proposal unless
+  explicitly approved.
 
-- **Exception behavior freeze** — do not change exception behavior unless explicitly approved.
-  Preserve:
+- **Exception behavior freeze** — MUST NOT change exception behavior unless explicitly
+  approved. Preserve:
   - Exception types
   - Exception messages where visible or tested
   - Retry behavior
@@ -78,7 +78,7 @@ In addition, perform and record the following checks:
   - Error return values
   - Failure ordering
 
-  If exception handling appears incorrect, do not fix it during refactoring. Record it as a
+  If exception handling appears incorrect, MUST NOT fix it during refactoring. Record it as a
   proposal.
 
 - **Side-effect inventory recheck** — confirm the Step 5 inventory above is unchanged.
@@ -92,7 +92,7 @@ In addition, perform and record the following checks:
   - Circular import risk
   - Runtime import side-effect risk
 
-  Do not introduce a new import from a lower layer to a higher layer unless explicitly
+  MUST NOT introduce a new import from a lower layer to a higher layer unless explicitly
   approved.
 
 Path C additionally requires `path-c.md`'s Architecture Comparison Validation section —
@@ -117,11 +117,11 @@ availability guard".
 - Report `Blocked` only if the missing check is required to prove behavior preservation.
 - Otherwise, continue and record the check as `Not run`.
 
-Do not require interactive Git commands. Use non-interactive `git diff` commands. See
+MUST NOT require interactive Git commands. Use non-interactive `git diff` commands. See
 `workflow.md` Step 8 for the staging/commit policy (opt-in only; report suggested commit
 boundaries there).
 
-If mutation testing is not configured, report `Not run`. Do not invent mutation results.
+If mutation testing is not configured, report `Not run`. MUST NOT invent mutation results.
 Per `rules/ai-execution.md` Repository Tool Usage #8, 0 surviving mutants out of 0 total
 mutants generated means the target paths were not mutated (e.g. an empty
 `--paths-to-mutate` match), not that the refactored code is behavior-locked — confirm a

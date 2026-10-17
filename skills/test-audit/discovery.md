@@ -1,8 +1,8 @@
 # Test Audit — Discovery (Test Entry Points and Gap Analysis)
 
 Load this file at Step 0 (unconditionally). It covers Step 1's test-entry-point
-discovery and Step 5's gap analysis — both Discovery/Analysis phase types (see
-`SKILL.md` Phase Boundaries): no command with real side effects runs here.
+discovery and Step 5's gap analysis (see `SKILL.md` Phase Boundaries): no command with
+real side effects runs here.
 
 ---
 
@@ -26,14 +26,14 @@ Inspection commands:
   not execute test bodies)
 
 If multiple test entrypoints exist, identify all of them. Output: the full candidate
-command list `safety.md`'s Step 2 will evaluate — do not execute any of them here.
+command list `safety.md`'s Step 2 will evaluate — MUST NOT execute any of them here.
 
 ---
 
 ## Gap Analysis (Step 5)
 
 After `workflow.md` Steps 3-4, inspect source code and docs to find coverage gaps and
-inconsistencies. Do not execute any new command in this step (see `SKILL.md` Phase
+inconsistencies. MUST NOT execute any new command in this step (see `SKILL.md` Phase
 Boundaries).
 
 ### Missing or weak tests
@@ -65,8 +65,7 @@ Find tests that are:
 
 Perform this analysis sequentially by layer (agent, shared, mcp, rag, db — per the
 module grouping in `rules/env.md`, section "Architecture"). Return only each layer's
-findings list, not the source read, so one layer's investigation does not accumulate
-into the next.
+findings list, not the source read.
 
 Output: the raw missing/weak and inconsistent/outdated findings, ready for
 `evidence.md`'s Step 6 (Consolidate findings) to assign Finding IDs and categories.

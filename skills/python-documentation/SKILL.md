@@ -19,7 +19,7 @@ Use it when the task is to:
 
 ## When not to use
 
-Do not use this skill for:
+MUST NOT use this skill for:
 - speculative or design-first documentation,
 - non-Python targets,
 - new code or architecture design,
@@ -57,12 +57,12 @@ See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, bound
 ## Core Documentation Rules
 
 - **Source of truth**: code, configuration, tests, and CI/CD are factual evidence; documentation describes intent, boundaries, constraints, and known issues, not a copy of implementation detail.
-- **Evidence first**: use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary (Evidence labels).
+- **Evidence first**: use `skills/DESIGN.md` Shared Vocabulary (Evidence labels).
 - **No hallucination**: missing behavior or framework patterns MUST NOT be invented without evidence — see `skills/DESIGN.md` Evidence labels for how to mark unclear behavior.
 - **Remove or compress implementation-derived details**: see `skills/DESIGN.md` Avoid implementation-reference duplication.
 - **No line numbers, no config values, no counts**: see `skills/DESIGN.md` No source-code line numbers, No concrete configuration values, No implementation counts.
 - **Docs content policy**: remove implementation-detail content and retain design-intent content per `skills/DESIGN.md` Docs content policy — remove, Docs content policy — retain.
-- **Minimal diff**: fix errors, fill gaps, reduce duplication — see `AGENTS.md`, section "Global Rule 5", for the no-unrelated-rewrite constraint this implies for documents.
+- **Minimal diff**: fix errors, fill gaps, reduce duplication — see `AGENTS.md`, section "Global Rule 5" (no unrelated rewrite).
 - **Respect boundaries**: MUST NOT expand scope, expose secrets (see `skills/DESIGN.md` No secrets in output), paste long code blocks, infer behavior from `requirements.txt` alone, trust README claims unverified (verify against the actual code or config the README describes instead), or document private members as public API.
 
 See `workflow.md` for the full rule set and evidence-tracking fields.
@@ -86,16 +86,14 @@ encountered, the skill MUST:
 
 ### Example: uv-managed repositories
 
-Treat the following as repository-specific evidence to verify, not as a package-manager rule to
-assume for other repositories:
+Repository-specific evidence to verify, not a rule for other repositories:
 
 - `pyproject.toml` is the likely direct dependency declaration source
 - `uv.lock` is the likely resolved dependency record
 - verify this relationship from the repository before documenting it
-- do not conclude that CI/CD or production uses uv only because `uv.lock` exists
+- MUST NOT conclude that CI/CD or production uses uv only because `uv.lock` exists
 
-See `workflow.md` Evidence and Source of Truth, and Boundaries, for the full dependency-evidence
-rule set.
+See `workflow.md` Evidence and Source of Truth, and Boundaries.
 
 ---
 
@@ -107,7 +105,7 @@ rule set.
 ## Called by
 
 - `issue-to-plan` — when a plan needs documentation analysis of an existing codebase
-- `python-implementation` — when Phase 12 requires documentation updates
+- `python-implementation` — when its Phase 12 (Knowledge Compression) requires documentation updates
 - `code-implementation` — Step 5, only when a changed file has a matching
   `docs/00_index.md` task-scope row
 
@@ -115,7 +113,7 @@ rule set.
 
 ## Final Rule
 
-You are not writing plausible documentation — you are producing traceable, maintainable
-documentation from real Python code, configuration, tests, and CI/CD evidence.
+Produce traceable, maintainable documentation from real Python code, configuration, tests,
+and CI/CD evidence, not plausible documentation.
 
 When in doubt, prioritize: correctness, evidence, traceability, maintainability, readability.

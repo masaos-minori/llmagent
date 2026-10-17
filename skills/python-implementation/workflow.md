@@ -26,33 +26,31 @@
 
 ## Phase 1: Task Classification
 
-Before reading any code, classify the task:
+Before reading code, classify the task:
 
 - **Task type**: new feature / bug fix / refactor / integration / cleanup
 - **Target scope**: identify target files and likely call paths
-- **Blast radius**: shared utility or leaf module? (see Phase 2 pydeps for how to assess this)
+- **Blast radius**: shared utility or leaf module? (assess per Phase 2 pydeps)
 - **Interface impact**: does this change a public function signature, a config key, or a DB schema?
 
 If requirements are ambiguous, state what is unknown and proceed conservatively.
 
 **Completed when**: task type, target scope, blast radius, and interface impact are all
-recorded — each either as a determined value or as an explicit unknown.
+recorded, each as a determined value or an explicit unknown.
 **Stop and ask the user before Phase 2 when**: the target scope cannot be determined even
-provisionally (no candidate files or call path can be identified from the task description
-and a first-pass `rg`/`grep` of the repository) — proceeding without any scope would mean
-guessing which files to change. Any other ambiguity is recorded as unknown and Phase 2
-proceeds to resolve it with repository evidence.
+provisionally (no candidate files or call path from the task description and a first-pass
+`rg`/`grep`). Any other ambiguity is recorded as unknown; Phase 2 resolves it with
+repository evidence.
 
 ---
 
 ## Phase 2: Repository Intelligence
 
-Run in this order: `rg` first (always — locates the symbols and call sites in scope),
-`ast-grep` next only if a structurally-valid match is needed (a pattern `rg` cannot express,
-e.g. matching a class body or an async signature), `pydeps` only when the target is a shared
-utility (`llm_client`, `rag_utils`, `formatters`, or anything with more than one importer per
-`rg "import <module>"`), and `git` last, only when the current behavior's origin or recent
-change history is relevant to the task.
+Run in this order: `rg` first (always), `ast-grep` next only if a structurally-valid match
+is needed (a pattern `rg` cannot express, e.g. a class body or async signature), `pydeps`
+only when the target is a shared utility (`llm_client`, `rag_utils`, `formatters`, or anything
+with more than one importer per `rg "import <module>"`), and `git` last, only when the current
+behavior's origin or recent change history is relevant.
 
 #### rg — text search
 
@@ -65,7 +63,7 @@ rg "import <module>" scripts/      # find all importers of a module
 
 #### ast-grep — structural search
 
-`ast-grep` (binary at `~/.local/bin/ast-grep`) matches by code shape, not just text:
+`ast-grep` (binary at `~/.local/bin/ast-grep`) matches by code shape:
 
 ```bash
 ast-grep --pattern 'ConfigLoader().load($ARG)' --lang python scripts/
@@ -75,7 +73,7 @@ ast-grep --pattern 'json.load($$$)' --lang python scripts/
 ast-grep --pattern 'async def $NAME($$$): $$$' --lang python scripts/agent/repl.py
 ```
 
-Prefer `ast-grep` over plain `rg` for patterns that must be structurally valid.
+Prefer `ast-grep` over `rg` for patterns that must be structurally valid.
 
 #### pydeps — dependency impact analysis
 
@@ -94,20 +92,19 @@ git diff HEAD
 git diff HEAD~1 -- scripts/
 ```
 
-**Completed when**: every symbol/module identified in Phase 1's target scope has a confirmed
-set of usages (`rg`/`ast-grep`), and blast radius is assessed for any shared utility touched.
+**Completed when**: every symbol/module in Phase 1's target scope has a confirmed set of
+usages (`rg`/`ast-grep`), and blast radius is assessed for any shared utility touched.
 
 ---
 
 ## Phase 3: Architecture Boundary Analysis
 
 See `rules/toolchain.md` section 3 for the `lint-imports` command, and `skills/DESIGN.md`
-Import layer contract for the canonical layer diagram (do not re-derive it here).
+Import layer contract for the canonical layer diagram (MUST NOT re-derive it here).
 
-To add a new forbidden-import contract, add an `[importlinter:contract:<name>]` section to
-the repository's `.importlinter` file, following the existing contracts there as a template.
-Read the current `root_packages` list from `.importlinter` itself rather than assuming it —
-it changes if a top-level package is added or removed.
+To add a forbidden-import contract, add an `[importlinter:contract:<name>]` section to
+`.importlinter`, using the existing contracts as a template. Read the current `root_packages`
+list from `.importlinter` rather than assuming it.
 
 Run `lint-imports` after every change that touches import statements.
 
@@ -127,13 +124,13 @@ rg '\.info\("|\.warning\("|\.error\("|\.debug\("' scripts/ | grep -oP '(?<=")[^"
 ```
 
 Implement the task using the pattern the commands above surface. Introduce a new pattern
-only when applying the existing one would violate a concrete requirement from Phase 1/2
-(e.g. the existing exception-handling pattern swallows an error the task requires to
-propagate) — cite that requirement when deviating.
+only when the existing one would violate a concrete requirement from Phase 1/2 (e.g. the
+existing exception-handling pattern swallows an error the task requires to propagate) — cite
+that requirement when deviating.
 
 **Completed when**: the conventions above (exception handling, config-key access, typed
-signatures, log message format) have each been confirmed present in nearby code, or the
-requirement that justifies deviating from them has been cited.
+signatures, log message format) are each confirmed in nearby code, or the requirement
+justifying deviation is cited.
 
 ---
 
@@ -142,10 +139,10 @@ requirement that justifies deviating from them has been cited.
 This phase has four sub-steps, applied in order: write the code (5a), handle its errors
 (5b), scope the diff (5c), then run any required CST transform (5d).
 
-#### Step 5a: Implementation rules
+### Step 5a: Implementation rules
 
 - prefer explicit, readable code over compact clever code
-- add type annotations where the project already uses them; do not omit return types
+- add type annotations where the project already uses them; MUST NOT omit return types
 - keep functions focused on a single responsibility
 - avoid excessive nesting; extract helpers when it improves clarity
 - keep side effects visible and localized
@@ -153,31 +150,31 @@ This phase has four sub-steps, applied in order: write the code (5a), handle its
 - prefer dependency injection over implicit coupling
 - preserve backward compatibility unless the task explicitly allows interface changes
 
-#### Step 5b: Error handling rules
+### Step 5b: Error handling rules
 
 Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no bare
 `except Exception` without re-raising, fail-fast) to this phase:
 
-- add context to an error when the raw exception does not already identify which value or
-  call site failed — name the function and the invalid value, as below:
+- add context to an error when the raw exception does not identify which value or call site
+  failed — name the function and the invalid value:
   ```python
   raise ValueError(f"floats_to_blob: expected list[float], got {type(v).__name__}")
   ```
 - trust internal invariants; validate only at public boundaries
-- log errors with sufficient context before re-raising — "sufficient" means the
-  function name and invalid value/call site, per the raised-exception example above
+- log errors with sufficient context before re-raising — the function name and invalid
+  value/call site, per the example above
 
-#### Step 5c: File editing rules
+### Step 5c: File editing rules
 
 - Scope discipline: see `AGENTS.md` Global Rule 5.
 - keep diffs small and intentional
-- when adding/removing a module: `deploy/deploy.sh` does not need a change for this — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line added there
+- when adding/removing a module: `deploy/deploy.sh` needs no change — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line there
 - when renaming a symbol: update all call sites confirmed by `rg` or `ast-grep`
 
-#### Step 5d: LibCST — CST-based refactor transforms
+### Step 5d: LibCST — CST-based refactor transforms
 
 Run this step only when the task includes a rename or structural edit that must preserve
-comments, formatting, or docstrings; otherwise skip directly to Phase 6.
+comments, formatting, or docstrings; otherwise skip to Phase 6.
 
 If required, use the LibCST transform recipe in `skills/python-refactoring/workflow.md`
 Step 6 (Transformation), then run `ruff format scripts/` and `ruff check scripts/ --fix`.
@@ -215,10 +212,9 @@ schemathesis run http://localhost:8005/openapi.json --endpoint /v1/call_tool --m
 
 Run before each MCP server change is considered complete.
 
-**Completed when**: new module-boundary data is validated at a Pydantic boundary
-where the codebase convention calls for one, and Schemathesis has been run for any
-changed MCP endpoint (or this Phase does not apply, since no boundary/endpoint
-changed).
+**Completed when**: new module-boundary data is validated at a Pydantic boundary where the
+codebase convention calls for one, and Schemathesis has been run for any changed MCP endpoint
+(or this Phase does not apply, since no boundary/endpoint changed).
 
 ---
 
@@ -228,9 +224,8 @@ This project uses `logging.getLogger(__name__)` in library modules.
 structlog and OpenTelemetry are not currently adopted project-wide — skip this phase
 unless the task explicitly requests OTel instrumentation.
 
-For new I/O-bound or cross-service code paths, make log output filterable: use
-`key=value` pairs in the message (not free-form prose) so `grep`/log-aggregator queries can
-match on a specific field, as in the examples below:
+For new I/O-bound or cross-service code paths, make log output filterable: use `key=value`
+pairs in the message (not free-form prose), as below:
 
 ```python
 logger = logging.getLogger(__name__)
@@ -240,11 +235,11 @@ logger.error("mcp_call_failed tool=%s error=%s", name, exc)
 ```
 
 Log at `INFO` for normal operations, `WARNING` for degraded-but-continuing, `ERROR` for failures.
-Do not log at `DEBUG` without a corresponding `if logger.isEnabledFor(logging.DEBUG)` guard.
+MUST NOT log at `DEBUG` without a corresponding `if logger.isEnabledFor(logging.DEBUG)` guard.
 
 **Completed when**: new I/O-bound or cross-service code paths use the `key=value` log
-format, or this Phase was correctly skipped (no OTel request, no new I/O-bound/
-cross-service path).
+format, or this Phase was correctly skipped (no OTel request, no new I/O-bound/cross-service
+path).
 
 ---
 
@@ -255,9 +250,9 @@ See `rules/toolchain.md` section 5 for bandit commands.
 Priority findings: see `rules/coding.md` Bandit priority findings.
 
 **Completed when**: `bandit` has been run and every high/medium-severity finding (per
-`rules/coding.md` Bandit priority findings) is either resolved or suppressed with an
-inline justification (per `rules/coding.md` Suppression governance) — do not proceed
-to Phase 9 with an unresolved, unjustified high/medium finding.
+`rules/coding.md` Bandit priority findings) is resolved or suppressed with an inline
+justification (per `rules/coding.md` Suppression governance) — MUST NOT proceed to Phase 9
+with an unresolved, unjustified high/medium finding.
 
 ---
 
@@ -270,7 +265,7 @@ the `ast-grep` commands.
 `tools/check_compat_shims.py` reports no new backward-compatibility leftovers.
 Apply `rules/ai-execution.md` Step-Level Failure Triage (Base): on a task-caused
 failure, delegate to `python-test-and-fix` (test failures) or `python-lint-typecheck`
-(lint/type failures) per `SKILL.md` Composition rules — do not proceed to Phase 10 with
+(lint/type failures) per `SKILL.md` Composition rules — MUST NOT proceed to Phase 10 with
 a known failure. On a pre-existing failure, record it in Output expectations'
 "unresolved questions or known limitations" and proceed.
 
@@ -297,9 +292,9 @@ pytest tests/ --benchmark-save=baseline
 pytest tests/ --benchmark-compare=baseline --benchmark-compare-fail=mean:10%
 ```
 
-**Completed when**: `diff-cover`'s reported coverage meets the threshold in
-`rules/toolchain.md` Completion checklist, and a `pytest-benchmark` regression check
-has been run for any performance-sensitive change (or this Phase does not apply).
+**Completed when**: `diff-cover` coverage meets the threshold in `rules/toolchain.md`
+Completion checklist, and a `pytest-benchmark` regression check has been run for any
+performance-sensitive change (or this Phase does not apply).
 
 ---
 
@@ -310,24 +305,23 @@ rg "<old_module_name>" scripts/
 ```
 
 Checklist (in addition to `rules/toolchain.md`):
-- If a new MCP server was added, its `config/<key>_mcp_server.toml` setup follows `skills/mcp-server-add/workflow.md` — do not re-derive that checklist here.
+- If a new MCP server was added, its `config/<key>_mcp_server.toml` setup follows `skills/mcp-server-add/workflow.md` — MUST NOT re-derive it here.
 
-**Completed when**: the `rg` search for the old module/symbol name (when renaming/
-removing) returns no remaining reference, and the MCP-server checklist in
+**Completed when**: the `rg` search for the old module/symbol name (when renaming/removing)
+returns no remaining reference, and the MCP-server checklist in
 `skills/mcp-server-add/workflow.md` is satisfied when a new server was added.
 
 ---
 
 ## Phase 12: Knowledge Compression
 
-- **`routing.md`**: add a task-type → doc mapping entry for new modules if none of the existing "Docs → task mapping" entries already cover the area
-- **Affected docs**: look up the correct target document via `routing.md` "Docs → task mapping" (which delegates to `docs/00_index.md`) — do not guess a filename; the doc set has been restructured and old single-file names no longer exist
-- **`deploy/deploy.sh`**: add a `cp` line only if a new `config/*.toml` file was introduced (see Phase 5 File editing rules — module add/remove alone does not require a `deploy.sh` change)
+- **`routing.md`**: add a task-type → doc mapping entry for new modules if no existing "Docs → task mapping" entry covers the area
+- **Affected docs**: look up the target document via `routing.md` "Docs → task mapping" (which delegates to `docs/00_index.md`) — MUST NOT guess a filename; old single-file names no longer exist
+- **`deploy/deploy.sh`**: add a `cp` line only if a new `config/*.toml` file was introduced (see Phase 5 Step 5c File editing rules — module add/remove alone does not require a `deploy.sh` change)
 
 When removing a module: remove its entry from the above, delete the file, run `rg` for dangling imports.
 
-**Completed when**: `routing.md` and the affected doc (per `docs/00_index.md`'s task
-mapping) are updated, or the task is confirmed to need no documentation update.
+**Completed when**: `routing.md` and the affected doc (per `docs/00_index.md`) are updated, or the task is confirmed to need no documentation update.
 
 ---
 
@@ -349,10 +343,8 @@ mapping) are updated, or the task is confirmed to need no documentation update.
 ## Required behavior
 
 (Unrelated-change prohibition: see `AGENTS.md` Global Rule 5 — not repeated here.)
-- Build architecture only for the requirements recorded in Phase 1/2 — if a broader need is
-  suspected, record it as an open question in Output expectations rather than building for it.
-- Implement only requirements stated in the task or confirmed in Phase 1/2 — record anything
-  else as an open question instead of adding it.
+- Build architecture only for the requirements recorded in Phase 1/2 — record a suspected broader need as an open question in Output expectations instead.
+- Implement only requirements stated in the task or confirmed in Phase 1/2 — record anything else as an open question instead of adding it.
 - If a public API must change, state the change and its impact explicitly in the
   implementation summary (Output expectations) — never leave it undocumented.
 - Fix the cause of a validation/test/type-check failure per Phase 9 — never disable the

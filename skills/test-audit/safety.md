@@ -8,7 +8,7 @@ the scope/abort rules `workflow.md` Steps 2-3 apply.
 ## Safety Evaluation (Step 2)
 
 For every command `discovery.md` Step 1 discovered, classify it before anything is
-executed. Do not run any command in this step (see `SKILL.md` Phase Boundaries — this
+executed. MUST NOT run any command in this step (see `SKILL.md` Phase Boundaries — this
 is an Analysis step).
 
 ### When starting local test infrastructure is allowed
@@ -17,7 +17,7 @@ You may start local, ephemeral test infrastructure (a container, a local SQLite/
 instance, a cloud-service emulator) only when all of the following hold:
 - it is already defined by repository configuration or tooling (e.g. a
   `docker-compose.test.yml`, an existing `testcontainers`/emulator fixture, a
-  documented local setup command) — do not invent new infrastructure the repository
+  documented local setup command) — MUST NOT invent new infrastructure the repository
   does not already define;
 - it is isolated from production (no production hostnames, credentials, or shared
   state);
@@ -29,14 +29,14 @@ with isolated infrastructure`; record the exact setup/teardown commands alongsid
 
 ### No test-only configuration changes
 
-Do not change configuration, environment variables, feature flags, or other runtime
+MUST NOT change configuration, environment variables, feature flags, or other runtime
 settings solely to make a test runnable. If a test cannot run without such a change,
-do not make the change — classify it `Blocked` or `Not runnable` (see `evidence.md`
+MUST NOT make the change — classify it `Blocked` or `Not runnable` (see `evidence.md`
 Result Classification) and record the specific missing environment requirement.
 
 ### Prohibited test execution
 
-Classify a command `Prohibited` (do not run it in `workflow.md` Step 3/4) per the
+Classify a command `Prohibited` (MUST NOT run it in `workflow.md` Step 3/4) per the
 conditions in `rules/ai-execution.md` Repository Tool Usage rule 7.
 
 If a safe isolated test environment is unavailable, or starting one would require a
@@ -44,7 +44,7 @@ change forbidden above:
 - Mark the command `Blocked` or `Not runnable` (see `evidence.md` Result
   Classification).
 - Record the missing environment, service, or credential.
-- Do not report it as passed.
+- MUST NOT report it as passed.
 
 Output: every Step 1 command classified as one of `Safe` / `Safe with isolated
 infrastructure` / `Blocked` / `Not runnable` / `Prohibited`, plus the Full-Suite
@@ -55,12 +55,11 @@ Execution Scope this defines for Step 3 below.
 ## Full-Suite Execution Scope and Abort Conditions (Step 2-3)
 
 **Scope**: "all existing tests" means every command Step 1 discovered that Safety
-Evaluation classifies `Safe` or `Safe with isolated infrastructure` above. It does not
-mean literally every test in the abstract — a command classified
-`Blocked`/`Not runnable`/`Prohibited` is out of this cycle's execution scope by
-definition, not a shortfall to apologize for.
+Evaluation classifies `Safe` or `Safe with isolated infrastructure` above. A command
+classified `Blocked`/`Not runnable`/`Prohibited` is out of this cycle's execution
+scope by definition, not a shortfall.
 
-**Do not stop after the first failure** within that scope — this remains the default
+**MUST NOT stop after the first failure** within that scope — this remains the default
 for a command that is running normally.
 
 **Abort conditions — stop the current command** (not the whole Step 3 run) and record
@@ -74,7 +73,7 @@ happens mid-execution:
 - 3 or more consecutive environment-level errors occur (e.g. "connection refused",
   import errors unrelated to the code under test) — this indicates a broken harness,
   not real test failures; stop that command, classify the whole command `Blocked`, and
-  do not continue interpreting its remaining output as individual test failures.
+  MUST NOT continue interpreting its remaining output as individual test failures.
 
 **Stop the entire Step 3 run** (not just one command) only when: the isolated test
 environment itself becomes unusable (e.g. an ephemeral DB/container Safety Evaluation

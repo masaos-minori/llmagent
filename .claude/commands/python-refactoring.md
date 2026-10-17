@@ -1,5 +1,5 @@
 ---
-description: Refactor Python code without changing external behavior (10-step, Path A/B/C gated)
+description: Refactor Python code without changing external behavior (staged, Path A/B/C gated)
 ---
 
 Read the following files before starting:

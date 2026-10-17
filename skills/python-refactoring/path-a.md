@@ -1,8 +1,7 @@
 # Python Refactoring — Path A (Minor Change)
 
-Load this file only after `workflow.md` Step 2 classifies the current change as Path A
-(see `SKILL.md` Routing for classification criteria; see `workflow.md` Step 2 for what
-Path gating does and does not skip).
+Load this file only after `workflow.md` Step 2 classifies the change as Path A (criteria:
+`SKILL.md` Routing; what Path gating does and does not skip: `workflow.md` Step 2).
 
 ---
 
@@ -14,7 +13,7 @@ Path gating does and does not skip).
   impact scope table.
 
 `discovery.md`'s Technical Debt Discovery, Responsibility Analysis, and Documentation
-Drift Detection still apply (not Path-gated; see `workflow.md` Step 3).
+Drift Detection still apply (not Path-gated; `workflow.md` Step 3).
 
 ---
 

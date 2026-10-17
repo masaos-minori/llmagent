@@ -3,14 +3,14 @@ name: python-code-review
 description: |
   Review existing Python code for correctness, architecture, type safety,
   error handling, resource lifecycle, configuration, tests, CI, and maintainability.
-  Do not implement or refactor unless explicitly requested.
+  MUST NOT implement or refactor unless explicitly requested.
 ---
 
 # Python Code Review Skill
 
 ## Purpose
 
-Review first — do not change code unless the user explicitly asks for implementation (see `skills/DESIGN.md` Analysis-only phase constraint).
+Review first; MUST NOT change code unless the user explicitly asks for implementation (see `skills/DESIGN.md` Analysis-only phase constraint).
 
 Output language: see `skills/DESIGN.md` Output language.
 
@@ -28,7 +28,7 @@ Use this skill for:
 
 ## When not to use
 
-Do not use this skill for:
+MUST NOT use this skill for:
 
 - direct implementation-only requests
 - greenfield design without code to review
@@ -59,14 +59,12 @@ See `workflow.md` for detailed phase content and tooling.
 
 ## Core Review Rules (Strictly Enforced for AI)
 
-- Classify findings using the Evidence labels and Confidence levels in `skills/DESIGN.md` Shared Vocabulary; do not introduce a separate fact/interpretation/issue/question system.
-- Verify a README or doc claim against the current implementation (Phase 7) before citing it
-  as evidence for a finding.
-- Report a style-only issue (naming, formatting, import order) as Low or Informational only —
+- Classify findings using the Evidence labels and Confidence levels in `skills/DESIGN.md` Shared Vocabulary; MUST NOT introduce a separate fact/interpretation/issue/question system.
+- Verify a README or doc claim against the current implementation (Phase 7) before citing it as evidence.
+- Report a style-only issue (naming, formatting, import order) as Low or Informational only,
   never as Medium or above, and never in a count that exceeds the number of Medium+ findings
   in the same review.
-- Respect project conventions (see `rules/coding.md` for the canonical list) and
-  explain trade-offs.
+- Respect project conventions (see `rules/coding.md`) and explain trade-offs.
 - Follow `skills/DESIGN.md` No secrets in output.
 - Keep recommendations actionable; for tests, specify the behavior or failure mode to verify.
 
@@ -74,10 +72,8 @@ See `workflow.md` for detailed phase content and tooling.
 
 ## Evidence Rules
 
-Every significant finding must include concrete evidence such as file path; class, function,
+Every significant finding MUST include concrete evidence such as file path; class, function,
 method, route, command, or config key; test name or CI workflow; and observed current behavior.
-
-Use the evidence labels and confidence levels defined in `skills/DESIGN.md` Shared Vocabulary.
 
 ## Severity
 
@@ -156,8 +152,7 @@ After running this skill:
 
 ## Final Rule
 
-Produce evidence-based Python code review from real code, configuration, tests, CI, and
-documentation context.
+Produce evidence-based Python code review from real code, configuration, tests, CI, and documentation context.
 
 Prioritize: correctness, safety, evidence, operational reliability, type safety, testability,
 maintainability, readability.

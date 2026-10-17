@@ -13,13 +13,12 @@
 | `pytest` | 6 | Confirm claimed test coverage or failure actually reproduces |
 
 Apply `skills/DESIGN.md` Agent (Explore) threshold.
-Run a tool to confirm a finding before reporting it; do not present a suspected issue as
-confirmed without evidence.
+Run a tool to confirm a finding before reporting it; MUST NOT present a suspected issue as confirmed without evidence.
 
 Within a Phase, run its listed tools in the order they appear in the Phase's own `Do` list
 (each tool confirms the check immediately above it). If a tool is unavailable in the current
 environment, record the affected checks as `Needs Confirmation` (per `skills/DESIGN.md`
-Shared Vocabulary) and continue with the remaining checks — do not stop the review.
+Shared Vocabulary) and continue with the remaining checks — MUST NOT stop the review.
 
 ---
 
@@ -34,8 +33,8 @@ Do:
 
 **Completed when**: the diff boundary and stated intent are both recorded.
 **Stop and ask the user before Phase 2 when**: no diff boundary can be determined (no PR,
-diff, or file list is identifiable) — there is nothing to review. Every later Phase's
-"tool unavailable" case (see Toolchain above) is handled by recording `Needs Confirmation`
+diff, or file list is identifiable); there is nothing to review. Every later Phase's
+"tool unavailable" case (see Toolchain) is handled by recording `Needs Confirmation`
 and continuing, not by stopping here.
 
 ---
@@ -123,7 +122,7 @@ against the current implementation, not against a prior-version recollection.
 ## Phase 8: Evidence, Confidence, and Severity Assignment
 
 For every finding, attach:
-- concrete evidence: file path, class/function/method/route/command/config key, test name, or CI workflow, and the observed current behavior
+- concrete evidence per `SKILL.md` Evidence Rules
 - an evidence label and confidence level per `skills/DESIGN.md` Shared Vocabulary
 - a severity per `skills/DESIGN.md` Severity levels
 
@@ -134,7 +133,7 @@ evidence, an evidence label/confidence level, and a severity assigned.
 
 ## Phase 9: Report Writing
 
-Use the Output Format defined in `SKILL.md`. Group findings by severity. Do not over-report
+Use the Output Format defined in `SKILL.md`. Group findings by severity. MUST NOT over-report
 style-only issues. Keep recommendations actionable; for suggested tests, specify the exact
 behavior or failure mode to verify.
 
@@ -146,10 +145,10 @@ grouped by severity, and no style-only issue is over-reported.
 ## Phase 10: GitHub Issue Conversion
 
 Run this phase only when the user requests issue conversion; otherwise Phase 9's report is
-the final output. Three sub-steps, applied in order: group findings (10a), draft each issue
-(10b), then check for sensitive content (10c). Delegate the actual issue authoring to
-`skills/issue-creator/SKILL.md`, which owns the grouping/splitting criteria and the field
-list — this phase only decides which findings feed it.
+the final output. Apply in order: group findings (10a), draft each issue (10b), check for
+sensitive content (10c). Delegate issue authoring to `skills/issue-creator/SKILL.md`, which
+owns the grouping/splitting criteria and the field list; this phase only decides which
+findings feed it.
 
 ### Step 10a: Group findings into issues
 

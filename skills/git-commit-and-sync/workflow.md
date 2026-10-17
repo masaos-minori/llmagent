@@ -8,7 +8,7 @@
 | `git branch --show-current` | Check Status | confirm current branch |
 | `git diff --stat` | Check Status | summarize unstaged changes |
 | `git add <files>` | Stage Files | stage explicit paths |
-| `git add -A` | Stage Files | stage all changes (user approval required) |
+| `git add -A` | Stage Files | stage all changes — See `skills/git-commit-and-sync/SKILL.md`, section "Core rules". |
 | `git diff --cached --stat` | Check Staged | verify staged set before commit |
 | `git diff --cached --name-only` | Check Staged | list staged file paths |
 | `git commit -m` | Commit | create conventional commit |
@@ -63,7 +63,7 @@ has said "all changes".
 
 Archival renames already staged by `tools/manage_workitem_stage.py ... --stage-only`
 (`issues/done/`, `plans/done/`, `implementations/done/`) are part of the work cycle that
-produced them: do not unstage them, and include them in the commit for that cycle's
+produced them: MUST NOT unstage them, and include them in the commit for that cycle's
 change. `git commit` records the whole index, so check them in Phase 1's status output
 before committing.
 
@@ -88,7 +88,7 @@ git diff --cached --name-only
 **Completed when**: `git diff --cached --name-only`'s output exactly matches the file set
 chosen in Phase 2.
 **Stop and report when**: it does not match (a Phase 2 file is missing from the staged
-list, or an extra file appears) — do not proceed to Phase 4 with an unexplained mismatch.
+list, or an extra file appears) — MUST NOT proceed to Phase 4 with an unexplained mismatch.
 
 ---
 
@@ -103,8 +103,7 @@ Report:
 
 ## Phase 5: Make Commit Message
 
-Three sub-steps, applied in order: classify the staged diff (5a), flag mixed concerns if
-any (5b), then write the message (5c).
+Sub-steps in order: classify (5a), flag mixed concerns if any (5b), write the message (5c).
 
 ### Step 5a: Classify the staged diff by type
 
@@ -113,19 +112,17 @@ does against the Allowed types below:
 
 `feat`, `fix`, `refactor`, `docs`, `test`, `chore`, `build`, `ci`, `perf`, `style`
 
-Project-specific addition for this repository: `plan` — generating or archiving
+Project-specific addition: `plan` — generating or archiving
 `issues/` → `plans/` → `implementations/` workflow artifacts (`issue-to-plan`,
-`plan-to-implementation-procedure`, `code-implementation`), e.g. `plan: archive plan
-after implementation procedure generation` or `plan: generate implementation
-procedures for <topic>`. Use this instead of `docs`/`chore` only for a commit whose
-staged diff is entirely such workflow-artifact output — a commit mixing this with an
-unrelated `feat`/`fix` change still follows Step 5b (flag the mixed concern, do not
-silently fold it into `plan`).
+`plan-to-implementation-procedure`, `code-implementation`), e.g. `plan: generate implementation
+procedures for <topic>`. Use it instead of `docs`/`chore` only when the staged diff is
+entirely such output — a commit mixing it with an unrelated `feat`/`fix` change still
+follows Step 5b (MUST NOT silently fold it into `plan`).
 
 ### Step 5b: Flag mixed concerns
 
 If the staged diff matches more than one type above (e.g. a `feat` change and an unrelated
-`docs` fix staged together), report this to the user before committing — do not silently
+`docs` fix staged together), report this to the user before committing — MUST NOT silently
 pick one type and omit the other's intent from the summary. Proceed to 5c with the user's
 choice (one combined message, or split into separate commits) once acknowledged.
 
@@ -137,13 +134,10 @@ Format:
 <type>: <summary>
 ```
 
-Examples:
-- `docs: update Git workflow skill`
-- `fix: handle missing upstream branch`
-- `refactor: simplify conflict resolution logic`
+Example: `fix: handle missing upstream branch`
 
-Do not reference filenames in the summary unless unavoidable.
-Do not fabricate content from unstaged changes.
+MUST NOT reference filenames in the summary unless unavoidable.
+MUST NOT fabricate content from unstaged changes.
 
 **Completed when**: the message's `<type>` matches 5a's classification (or the user's 5b
 choice) and its summary describes only what is actually staged.
@@ -169,9 +163,7 @@ Stop if commit fails (see `rules/coding.md` Prohibited behavior (all tasks) for 
 
 ## Phase 7: Sync (Fetch, Fast-Forward, or Rebase)
 
-This phase replaces `git pull --ff-only` with `git fetch` followed by an explicit
-fast-forward-or-rebase decision, so histories that have diverged from the upstream
-branch can be synced automatically instead of stopping outright.
+Replaces `git pull --ff-only`: `git fetch`, then an explicit fast-forward-or-rebase decision.
 
 Always run first:
 
@@ -179,8 +171,7 @@ Always run first:
 git fetch
 ```
 
-`git fetch` only updates remote-tracking refs — it never touches the working tree or
-the current branch, so it is always safe to run regardless of repository state.
+`git fetch` only updates remote-tracking refs, so it is always safe to run.
 
 Confirm an upstream branch exists:
 
@@ -188,9 +179,8 @@ Confirm an upstream branch exists:
 git rev-parse --abbrev-ref --symbolic-full-name @{u}
 ```
 
-If this fails (no upstream configured for the current branch), skip the rest of this
-phase — there is nothing to compare against — and continue directly to Phase 8
-(Push), which already handles the missing-upstream case for the push itself.
+If this fails (no upstream configured), skip the rest of this phase and continue to Phase 8
+(Push), which handles the missing-upstream case.
 
 ### Classify the sync case
 
@@ -214,21 +204,19 @@ git merge-base HEAD @{u}
 git merge --ff-only @{u}
 ```
 
-This can only fast-forward or fail cleanly — it never creates a merge commit and
-never produces a conflict. If it fails unexpectedly, stop and report the error; do
-not fall back to a non-fast-forward merge or a rebase for this case.
+If it fails unexpectedly, stop and report the error; MUST NOT fall back to a
+non-fast-forward merge or a rebase for this case.
 
 ### Rebase (only when histories have diverged)
 
 Before rebasing, confirm both preconditions hold:
 
 - **Working tree is clean**: `git status --porcelain` returns no output for tracked
-  changes (Phase 6's commit should already have made this true; re-check rather than
-  assume).
+  changes (re-check; MUST NOT assume Phase 6 made it true).
 - **Upstream branch exists**: already confirmed above.
 
-If either precondition fails, stop and report why the rebase cannot proceed — do not
-rebase against a dirty tree and do not rebase without a resolvable upstream.
+If either precondition fails, stop and report why the rebase cannot proceed — MUST NOT
+rebase against a dirty tree and MUST NOT rebase without a resolvable upstream.
 
 ```bash
 git rebase @{u}
@@ -239,8 +227,7 @@ only — never `rebase -i`, never `rebase --onto` with a different target.
 
 If the rebase completes with no conflicts, continue to Post-Sync Validation below.
 
-If the rebase reports a conflict, capture the conflicted files **before** aborting —
-this information disappears once the rebase is abandoned:
+If the rebase reports a conflict, capture the conflicted files before aborting:
 
 ```bash
 git diff --name-only --diff-filter=U
@@ -252,13 +239,11 @@ Then abort immediately:
 git rebase --abort
 ```
 
-Stop. Do not push. Report:
+Stop. MUST NOT push. Report:
 - `Rebase onto @{u} failed with conflicts. Rebase aborted; branch restored to its pre-rebase state.`
 - the conflicted file paths captured above
 
-Do not run `git rebase --continue`, `git rebase --skip`, or attempt to resolve the
-conflict manually in any way — this skill never resolves rebase conflicts
-automatically, regardless of how small or textual the conflict looks.
+Never continue, skip, or manually resolve the rebase. See `skills/git-commit-and-sync/SKILL.md`, section "Core rules".
 
 ### Post-Sync Validation (after a successful fast-forward or rebase)
 
@@ -280,11 +265,11 @@ Stop if:
 - `git fetch` fails.
 - The fast-forward merge fails for a reason other than needing a rebase (e.g.
   uncommitted local changes blocking it).
-- The rebase reports a conflict (handled above — always abort and report; never
-  continue, skip, or resolve manually).
+- The rebase reports a conflict (handled above — always abort and report; see
+  `skills/git-commit-and-sync/SKILL.md`, section "Core rules").
 - Post-sync validation (status/diff review, or tests) fails.
 
-Do not run the commands `SKILL.md` Core rules forbids.
+MUST NOT run the commands `SKILL.md` Core rules forbids.
 
 ---
 
@@ -302,46 +287,30 @@ If upstream is missing, stop. Report:
 > Current branch has no upstream branch.
 > Suggested command: `git push --set-upstream origin <branch>`
 
-Do not run the suggestion without user approval.
+MUST NOT run the suggestion without user approval.
 
 If `git push` is rejected for any other reason — most commonly a non-fast-forward
 rejection because the remote advanced again after Phase 7's sync completed — apply
 `SKILL.md` Core rules' push-rejection handling and report the exact rejection message.
 
-### Transient non-fast-forward rejection (bounded retry)
+### Transient non-fast-forward rejection (no retry)
 
-A non-fast-forward rejection immediately after a successful rebase almost always means the
-remote advanced by a small amount during the rebase-to-push window (an active concurrent
-writer on the remote), not that the local branch is unsafe to push. Phase 7's rebase is
-always safe and reversible (`git rebase --abort`); only the push races against the remote.
+A non-fast-forward rejection right after a successful rebase usually means the remote
+advanced during the rebase-to-push window (a concurrent writer).
 
-Absorb a transient race with a **bounded** retry, capped at 3 total attempts to match the
-repository's general attempt limit (`AGENTS.md`, Loop Prevention — "Maximum 3 attempts"):
+MUST NOT retry the push and MUST NOT re-run Sync automatically (`SKILL.md` Core rules). Stop,
+report the exact rejection message, and never escalate to `force push`. Flag in the report
+that the remote appears to be under active concurrent writes; re-invoking this skill after
+the remote settles is then the likely remedy.
 
-```bash
-git fetch
-git rebase @{u}          # replays local commits onto the freshly-fetched upstream
-git push
-```
-
-`git fetch` refreshes `@{u}`, so each iteration replays onto the current upstream instead of
-a stale one. Count every `git push` (initial plus retries) toward the limit of 3.
-
-If the 3rd attempt is still rejected, stop and report exactly as above — do not retry
-further, and never escalate to `force push`. Flag in the report that the remote appears to
-be under active concurrent writes (the rejection recurs across multiple fetch/rebase
-cycles); waiting for the remote to settle is then the likely remedy.
-
-Do not proceed to `git push` at all if:
-- Phase 7 aborted a rebase due to a conflict — Phase 7 already stops before this
-  phase is reached in that case; this is a defense-in-depth reminder, not a separate
-  check to perform here.
+MUST NOT proceed to `git push` at all if:
+- Phase 7 aborted a rebase due to a conflict (defense-in-depth reminder; Phase 7 already
+  stops before this phase).
 - Post-sync validation (Phase 7) failed.
 - The user's current instructions say not to push, or ask for confirmation before
   pushing — follow that instruction instead of this phase's default (see `SKILL.md`
   Core rules). When the user has specifically asked for confirmation this way, ask:
-  `Commit complete. Sync succeeded. Approve git push?` — this is no longer the
-  default for every run, only for when the user requests it.
+  `Commit complete. Sync succeeded. Approve git push?` — only when the user requests it.
 
 ---
 

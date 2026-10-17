@@ -4,7 +4,7 @@ See `skills/DESIGN.md`, section "Safety-over-speed priority".
 
 ## Workflow position
 
-This is a standalone, reactive workflow — it is not a phase of the
+This is a standalone, reactive workflow, not a phase of the
 issue → plan → implementation-procedure → code pipeline. It is invoked directly on
 named source files (`prompts/04_refactor.md`), or composed into another skill's
 follow-up work (see `SKILL.md` Composes with / Called by).
@@ -18,16 +18,16 @@ follow-up work (see `SKILL.md` Composes with / Called by).
 
 - Modify only the target file(s) — see `AGENTS.md` Global Rule 5, the canonical
   statement of this scope-discipline restriction.
-- Do not change external behavior, public APIs, or visible output.
-- Do not edit documentation unless explicitly instructed (see `path-c.md` ADR
-  Requirement for the one scoped exception: Step 10 MUST draft ADR content inline in
-  the report; only writing it under `docs/10_adr/` requires explicit instruction).
+- MUST NOT change external behavior, public APIs, or visible output.
+- MUST NOT edit documentation unless explicitly instructed (one scoped exception: see
+  `path-c.md` ADR Requirement — Step 10 MUST draft ADR content inline in the report;
+  only writing it under `docs/10_adr/` requires explicit instruction).
 
 ## Out of Scope
 
 Apply `rules/ai-execution.md` Global Safety Restrictions (Base) — this already covers
 not moving existing documentation files and not changing the workflow directory
-structure. Additionally for this workflow, do not perform any of the following:
+structure. Additionally for this workflow, MUST NOT perform any of the following:
 - refactoring code without explicit instruction — see `SKILL.md`, section "Core rules"
 - implementing a behavior change discovered mid-refactor (record it as a proposal
   instead — see Step 2)
@@ -38,10 +38,9 @@ Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle co
 Steps 1-10 for one target file before starting Step 1 for the next file.
 
 The one-file-at-a-time rule is the default for Path A and Path B, and for ordering
-independent Path C target files that do not belong to the same atomic migration group.
-An approved Path C atomic migration group is the one exception — see `path-c.md`
-Architectural Refactoring Requirements for how a group is processed as a single logical
-unit instead.
+independent Path C target files outside the same atomic migration group. An approved
+Path C atomic migration group is the one exception — see `path-c.md` Architectural
+Refactoring Requirements for how a group is processed as a single logical unit.
 
 Apply `rules/ai-execution.md` Progress Reporting (Base) for the per-step report
 cadence.
@@ -62,7 +61,7 @@ If not already loaded, read the following before starting:
 - `validation.md`
 - `report-template.md`
 
-Do not eagerly load `path-a.md` / `path-b.md` / `path-c.md` — Step 2 loads only the
+MUST NOT eagerly load `path-a.md` / `path-b.md` / `path-c.md` — Step 2 loads only the
 one matching the Path classification decided there.
 
 ---
@@ -73,7 +72,7 @@ one matching the Path classification decided there.
   specify one file or a list of multiple files.
 - If no arguments are given, stop and ask which files to refactor.
 - If any specified file does not exist, stop immediately and report which file(s) are
-  missing. Do not start processing any file until all specified paths are confirmed to
+  missing. MUST NOT start processing any file until all specified paths are confirmed to
   exist.
 - Files MUST be refactored one at a time, in the order given (see Multi-file
   processing above for the atomic-migration-group exception).
@@ -94,9 +93,9 @@ Before making any edit to the target file, report the following in Markdown:
 - Expected validation commands
 - Path classification (A, B, or C) — see `SKILL.md` Routing
 
-If `Expected behavior change` is anything other than `none`, stop. Do not implement it.
+If `Expected behavior change` is anything other than `none`, stop. MUST NOT implement it.
 Record it under `report-template.md`'s `Proposals not implemented` format instead, and
-do not proceed to Step 3 for this idea. Only continue transforming the parts of the
+MUST NOT proceed to Step 3 for this idea. Only continue transforming the parts of the
 file that involve no behavior change.
 
 Classify the refactoring as Path A, Path B, or Path C now, per `SKILL.md` Routing, then
@@ -146,7 +145,7 @@ file.
   - Existing tests used
   - Characterization tests added
   - Known uncovered behavior
-- Do not proceed to Step 6 (Transformation) if important behavior is uncovered and no
+- MUST NOT proceed to Step 6 (Transformation) if important behavior is uncovered and no
   characterization test or explicit exception is recorded for it in `Known uncovered
   behavior`.
 
@@ -172,14 +171,12 @@ adapter, facade, manager, service, or registry — not for every Step 6 transfor
 pure rename, an extraction into an existing module, or a type-annotation change does not
 require this evaluation. This evaluation and its justification requirement apply
 identically to Path A, Path B, and Path C — unlike Steps 3/4's Path-gated tooling-depth
-rules (`path-a.md`/`path-b.md`/`path-c.md`), this is not Path-gated, because the
-underlying design question (does this change need a new abstraction) is independent of
-blast radius.
+rules, this is not Path-gated, because the design question (does this change need a new
+abstraction) is independent of blast radius.
 
-Before introducing a new class, protocol, adapter, facade, manager, service, or
-registry, evaluate the following seven steps in order and stop at the first step that
-resolves the change — the first step that applies settles the question; do not
-separately justify skipping the later steps once an earlier one applies:
+Before introducing such an abstraction, evaluate the following seven steps in order and
+stop at the first step that resolves the change; MUST NOT separately justify skipping the
+later steps once an earlier one applies:
 
 1. Can the responsibility be removed?
 2. Can the state or side effect be removed?
@@ -190,8 +187,8 @@ separately justify skipping the later steps once an earlier one applies:
 7. Is a new abstraction required?
 
 If step 7 is reached, the new abstraction requires a justification with exactly these
-seven fields, recorded in the Step 10 report (see `path-c.md` ADR Requirement for when
-the new abstraction also requires an ADR):
+seven fields, recorded in the Step 10 report (see `path-c.md` ADR Requirement for when an
+ADR is also required):
 - The problem being solved
 - Why removal or simplification is insufficient
 - Ownership
@@ -201,15 +198,14 @@ the new abstraction also requires an ADR):
 - Test boundary
 
 A new abstraction with an incomplete justification MUST NOT be transformed in this
-Step — record it as a Proposal (`discovery.md` Discovery Vocabulary) instead,
-consistent with Step 2's existing "if behavior change is anything other than none,
-stop, record as proposal" pattern.
+Step — record it as a Proposal (`discovery.md` Discovery Vocabulary) instead, as in
+Step 2's behavior-change stop rule.
 
 ### Transforming
 
 - Use `libcst` for symbol-level refactoring when needed. When a change MUST preserve
   comments, formatting, or docstrings during a rename/structural edit, use a
-  CST-preserving transform rather than regex-based text replacement, e.g.:
+  CST-preserving transform, not regex-based text replacement, e.g.:
 
   ```python
   import libcst as cst
@@ -235,11 +231,10 @@ stop, record as proposal" pattern.
 - Ensure no legacy symbol names remain — verify with `rg "OldName" <scope>`.
 - If `ruff check --fix` leaves unfixed violations, or `rg` still finds a legacy symbol
   name, fix the specific remaining item and re-run only that check (not the whole
-  Transformation step) before proceeding. Per `AGENTS.md` Loop Prevention > Attempt
-  Limit, at most 3 fix-and-recheck attempts per file in this step; if violations or
-  legacy references remain after 3 attempts, stop and report `Blocked: {file} still
-  has {violation/legacy reference} after 3 attempts` rather than continuing to patch —
-  do not proceed to Step 7 with a known-unresolved item.
+  Transformation step). Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3
+  fix-and-recheck attempts per file in this step; if violations or legacy references
+  remain after 3 attempts, stop and report `Blocked: {file} still has {violation/legacy
+  reference} after 3 attempts` — MUST NOT proceed to Step 7 with a known-unresolved item.
 
 ---
 
@@ -253,7 +248,7 @@ pass.
 
 ## Step 8: Incremental Migration
 
-- By default, do not stage or commit anything. Classify changes directly from
+- By default, MUST NOT stage or commit anything. Classify changes directly from
   non-interactive `git diff` output, hunk by hunk, without invoking `git add`.
 - Classify every hunk as one of:
   - rename only
@@ -269,7 +264,7 @@ pass.
 
   Any hunk that does not fit these categories MUST be explained explicitly.
 - Run tests, `ruff`, and `mypy` once per logical group identified via `git diff` (see
-  Refactoring-Specific Guidance for scoping) — do not require staging hunks
+  Refactoring-Specific Guidance for scoping) — MUST NOT require staging hunks
   individually to run these checks.
 - Ensure every logical group identified via `git diff` is rollback-safe on its own (it
   could be committed or reverted independently without breaking the others).
@@ -297,13 +292,12 @@ Refer to `rules/toolchain.md` for the full validation sequence. At minimum:
 - Ensure no legacy symbol names remain.
 
 **On a failure**: return to Step 6 (Transformation) to fix the specific violation
-reported — do not re-derive the Step 2 intent or Step 4 behavior lock again — then
-re-run only this Step 9 CI gate, not Steps 1-8. Per `AGENTS.md` Loop Prevention >
-Attempt Limit, at most 3 Step 6/Step 9 round-trips for the same file (or atomic
-migration group); if the gate still fails after 3 attempts, stop and apply Rollback
-(see `AGENTS.md` Loop Prevention > Rollback Directive) and report `Blocked: {file}
-still fails the CI gate after 3 attempts — {summary of each attempt}` rather than
-starting a fourth attempt.
+reported — MUST NOT re-derive the Step 2 intent or Step 4 behavior lock — then re-run
+only this Step 9 CI gate, not Steps 1-8. Per `AGENTS.md` Loop Prevention > Attempt
+Limit, at most 3 Step 6/Step 9 round-trips for the same file (or atomic migration
+group); if the gate still fails after 3 attempts, stop, apply Rollback (see `AGENTS.md`
+Loop Prevention > Rollback Directive), and report `Blocked: {file} still fails the CI
+gate after 3 attempts — {summary of each attempt}` — MUST NOT start a fourth attempt.
 
 ---
 
@@ -318,10 +312,10 @@ C Completion Requirements.
 
 ## Refactoring-Specific Guidance
 
-- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: do not
+- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: MUST NOT
   re-run `mypy`/`pyright`/`ruff`/`pydeps`/`import-linter`/`mutmut`/`rg` against an
   unchanged target expecting a different result — only re-run a check after the
-  specific fix it depends on (see Step 6/Step 9's fix-and-recheck rules above).
+  specific fix it depends on (see Step 6/Step 9 fix-and-recheck rules).
 - Perform Step 3 (preparation/investigation) sequentially; `rg` and the `deploy.sh`
   reference check MUST run every time regardless of Path, and `pydeps`/`import-linter`/
   `ast-grep` only when Path B or C applies (see `path-a.md`/`path-b.md`), retaining only
@@ -337,9 +331,9 @@ C Completion Requirements.
 - In Step 9, `pre-commit` SHOULD be scoped to the changed files over `--all-files` when
   the CI gate does not require a full-repo run.
 - When multiple target files are specified, run each Steps 1-10 cycle sequentially so
-  that tool output and investigation results from one file's cycle do not accumulate in
-  the context used for the next file's cycle.
-- Keep progress reports and Step 10 results concise; do not restate full diffs or raw
+  one file's tool output and investigation results do not accumulate in the next file's
+  context.
+- Keep progress reports and Step 10 results concise; MUST NOT restate full diffs or raw
   tool output. Evidence tables (manifest, inventory, mutation report) MUST still list
   every required field even when kept concise.
 
@@ -360,5 +354,5 @@ C Completion Requirements.
 
 ## Output format
 
-See `report-template.md` for the exact final-report structure — output is code
-changes plus the Step 10 report, not a single generated document.
+See `report-template.md` for the exact final-report structure; output is code changes
+plus the Step 10 report.

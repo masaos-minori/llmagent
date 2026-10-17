@@ -50,10 +50,8 @@ tests/
   docs/                             # doc-consistency checks with no single scripts/ mirror
 ```
 
-When looking for or adding a test, mirror the target module's path under `scripts/`
-(or `tools/`) rather than assuming a flat `tests/test_<module>.py` layout.
-
----
+When finding or adding a test, mirror the target module's path under `scripts/`
+(or `tools/`), not a flat `tests/test_<module>.py` layout.
 
 ## Step 1: Classify the Testing Task
 
@@ -65,7 +63,7 @@ Before reading any test file, classify:
 - **regression**: behavior changed; find the breaking commit
 - **flaky**: intermittent failure; confirm before diagnosing
 
-Classification determines which steps to run. Do not run the full sequence for every task.
+Classification determines which steps to run. MUST NOT run the full sequence for every task.
 
 **Completed when**: the task is classified as bug / new test / fix broken / regression /
 flaky, and the matching Path (A/B/C/D, see `SKILL.md` Task Routing) is selected.
@@ -74,10 +72,8 @@ classifications above (e.g. no failing test, no code change, and no coverage gap
 identified) — there is nothing for this skill to act on.
 
 Apply `rules/ai-execution.md` Step-Level Failure Triage (Base) to every later Step —
-when the unavailable tool has a documented fallback in that Step, use it (or skip the
+when an unavailable tool has a documented fallback in that Step, use it (or skip the
 Step if none applies) instead of stopping the whole task.
-
----
 
 ## Step 2: Inspect Before Changing
 
@@ -88,18 +84,15 @@ cat tests/conftest.py                     # read shared fixtures
 fd --glob "test_*" tests/                 # list all test files
 ```
 
-Read the existing tests before writing any new ones. Understand:
+Read the existing tests before writing new ones. Understand:
 
-- what fixtures are already available
-- what mock boundaries are established
-- what the module's interface looks like from the test perspective
-
----
+- available fixtures
+- established mock boundaries
+- the module's interface from the test perspective
 
 ## Step 3: Flaky Detection
 
-If the failure is intermittent, run the three commands below in order — each narrows the
-cause further, so stop as soon as one produces a clear answer:
+If the failure is intermittent, run these in order; stop as soon as one gives a clear answer:
 
 ```bash
 pytest tests/test_<module>.py --randomly-seed=1234 -v
@@ -124,8 +117,6 @@ only on certain seeds) or as true non-determinism independent of seed (fails und
 `--reruns` regardless of seed), with the dependency (if any) identified via the
 replay commands above.
 
----
-
 ## Step 4: Mutation Testing
 
 Before trusting an existing test suite for regression protection:
@@ -138,13 +129,13 @@ mutmut show <id>                           # inspect surviving mutant
 
 If `mutmut run` itself exits non-zero (distinct from completing and reporting
 results): treat as a tool failure per `rules/ai-execution.md` Step-Level Failure
-Triage — do not report mutation testing as passed.
+Triage — MUST NOT report mutation testing as passed.
 
-A surviving mutant means the test suite does not catch a one-line code change. Before
-treating "0 surviving mutants" as evidence the suite is reliable, confirm `mutmut
-results` reports a non-zero total mutant count for the target — per `rules/ai-execution.md`
-Repository Tool Usage #8, 0 surviving mutants out of 0 total mutants means the target
-was not mutated, not that the suite is strong.
+A surviving mutant means the suite does not catch a one-line code change. Before
+treating "0 surviving mutants" as evidence of reliability, confirm `mutmut results`
+reports a non-zero total mutant count for the target — per `rules/ai-execution.md`
+Repository Tool Usage #8, 0 surviving out of 0 total means the target was not mutated,
+not that the suite is strong.
 Add targeted tests to kill surviving mutants before declaring the suite reliable.
 
 For a bug fix path: run mutmut specifically on the changed lines after the fix.
@@ -152,8 +143,6 @@ For a bug fix path: run mutmut specifically on the changed lines after the fix.
 ```bash
 mutmut run --paths-to-mutate scripts/<module>.py --use-coverage
 ```
-
----
 
 ## Step 5: Deterministic Runtime
 
@@ -184,11 +173,9 @@ def fixed_seed():
     random.seed(42)
 ```
 
----
-
 ## Step 6: Boundary Virtualization
 
-Mock only at true I/O boundaries. Do not mock internal helpers.
+Mock only at true I/O boundaries. MUST NOT mock internal helpers.
 
 #### respx — mock httpx at the transport level (preferred for httpx calls)
 
@@ -215,8 +202,6 @@ def test_subprocess_start(fake_process):
 ```
 
 Prefer `fake_process` over `mocker.patch("subprocess.run")` for subprocess calls.
-
----
 
 ## Step 7: Contract Validation
 
@@ -254,8 +239,6 @@ def test_floats_to_blob_roundtrip(f):
 meeting both listed conditions, or the Step is confirmed not applicable (no function
 in scope meets both conditions).
 
----
-
 ## Step 8: Observability Validation
 
 This project uses `logging.getLogger(__name__)`. Skip OTel span validation — not adopted project-wide.
@@ -272,8 +255,6 @@ def test_tool_executor_logs_cache_hit(caplog):
         executor.call("search_web", {"query": "test"})
     assert any("cache_hit" in r.message for r in caplog.records)
 ```
-
----
 
 ## Step 9: Resource Leak Detection
 
@@ -300,17 +281,15 @@ pytest --timeout=10 tests/test_agent_repl.py
 
 Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or network I/O.
 
----
-
 ## Step 10: Impact-Based Execution
 
-Use `pytest --testmon` while iterating on a fix within this same session (running the
-full suite after every small edit is slow); run the repository's full, non-testmon `pytest`
-suite once before considering the task complete (Step 11) regardless of testmon results —
-testmon narrows what to re-run during iteration, it does not replace the final full run.
-Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, do not re-run `pytest
---testmon` again with no source change since the last run — its result is unchanged.
-Do not commit `.testmondata`:
+Use `pytest --testmon` while iterating on a fix within this same session; run the
+repository's full, non-testmon `pytest` suite once before considering the task complete
+(Step 11) regardless of testmon results — testmon narrows re-runs during iteration, it
+does not replace the final full run.
+Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, MUST NOT re-run `pytest
+--testmon` with no source change since the last run — its result is unchanged.
+MUST NOT commit `.testmondata`:
 
 ```bash
 pytest --testmon tests/                   # only tests affected by changed files
@@ -319,14 +298,10 @@ pytest --testmon --testmon-forceselect    # force full run, update DB
 
 Add `.testmondata` to `.gitignore`.
 
----
-
 ## Step 11: Regression Quality Analysis
 
 See `rules/toolchain.md` section 7 for the diff-cover sequence, and Step 4 above for the mutmut
 commands. Target: 0 surviving mutants on the bug-fix code path.
-
----
 
 ## Step 12: Fix Strategy
 
@@ -337,20 +312,20 @@ When a test fails:
 
 1. determine if the test reflects the correct contract
 2. if the test is correct: fix the implementation (smallest change), then re-run only
-   this test to confirm — do not re-derive the contract judgment from step 1 again
+   this test to confirm — MUST NOT re-derive the contract judgment from list item 1 again
 3. if the test is wrong: fix the test to match the intended contract, then verify the
-   impl is correct by re-running the corrected test — do not re-open the contract
+   impl is correct by re-running the corrected test — MUST NOT re-open the contract
    judgment unless the re-run surfaces new evidence
 
-Do not change both the test and the implementation in the same commit.
+MUST NOT change both the test and the implementation in the same commit.
 
-If the re-run after a fix still fails, return to step 1 and re-derive the contract
-judgment from that new failure (it may indicate step 1's original classification was
-wrong) — do not simply try the other branch of step 2/3 on the same judgment. Per
-`AGENTS.md` Attempt Limit, at most 3 iterations of this step 1→2/3→re-run cycle for the
+If the re-run after a fix still fails, return to list item 1 and re-derive the contract
+judgment from that new failure (list item 1's original judgment may have been wrong) — MUST NOT
+simply try the other branch of list item 2/3 on the same judgment. Per
+`AGENTS.md` Attempt Limit, at most 3 iterations of this list item 1→2/3→re-run cycle for the
 same failing test; if it still fails after 3 attempts, stop and apply Rollback (see
 `AGENTS.md` Loop Prevention > Rollback Directive) and report `Blocked: {test} still
-failing after 3 fix attempts — {summary of each attempt}` — do not start a fourth
+failing after 3 fix attempts — {summary of each attempt}` — MUST NOT start a fourth
 attempt as if it were a fresh judgment.
 
 Smallest effective change rules:
@@ -358,8 +333,6 @@ Smallest effective change rules:
 - see `AGENTS.md` Global Rule 5 for the broader unrelated-refactoring prohibition
 - add or adjust exactly one test per bug
 - if the fix requires a larger structural change, use the python-refactoring skill
-
----
 
 ## Step 13: Repository Test Policy Compression
 
@@ -383,23 +356,19 @@ def client():  # ambiguous — which client?
     ...
 ```
 
----
-
 ## Completion checklist
 
 **This task is complete when, and only when**: every item below is confirmed true, or the
 task ended in a `Blocked` state per Step 12's own stop condition.
 
-Cross-check against each Step's stated criteria above — do not re-derive them, just confirm:
+Confirm against each Step's stated criteria above; MUST NOT re-derive them:
 
 - Step 1: failure classified before any code change; reproducing test written for bug-class failures
-- Step 6: mock only at true I/O boundaries, no `mocker.patch` on internal helpers
 - Step 3: no flakiness introduced (`pytest --reruns 5` passes)
-- Step 11 target met: 0 surviving mutants on bug-fix path
-- Per `rules/toolchain.md` §7 (Diff-scoped coverage).
+- Step 6: mock only at true I/O boundaries, no `mocker.patch` on internal helpers
 - Step 10 / 13: `.testmondata` not committed
-
----
+- Step 11 target met: 0 surviving mutants on bug-fix path
+- Step 11 diff-scoped coverage: per `rules/toolchain.md` §7 (Diff-scoped coverage)
 
 ## Required behavior
 
@@ -407,7 +376,7 @@ Cross-check against each Step's stated criteria above — do not re-derive them,
   internal helpers directly).
 - Write each test so it passes under any execution order — verify with
   `pytest -p no:randomly` vs. the default randomized order (Step 3).
-- Do not commit `.testmondata`, per Step 10.
+- MUST NOT commit `.testmondata`, per Step 10.
 - Use `freezegun` or `asyncio.timeout()` for timing-dependent tests, per Step 5 — never
   `time.sleep()`.
 - Assert on the function's public contract (return value, raised exception, observable

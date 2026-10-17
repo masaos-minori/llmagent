@@ -8,13 +8,12 @@
 python3 -m compileall -q scripts/
 ```
 
-If any file reports `SyntaxError`: fix the error before proceeding (see `SKILL.md` Required behavior).
+If any file reports `SyntaxError`: fix it before proceeding (see `SKILL.md` Required behavior).
 
 **Completed when**: `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, and the copy-list diff below is empty.
 **On a repeat `SyntaxError` after a fix**: per `AGENTS.md` Loop Prevention > Attempt Limit,
 at most 3 fix-and-recheck attempts for the same file; if it still fails after 3 attempts,
-stop and report `Blocked: {file} still has a syntax error after 3 attempts` rather than
-continuing to patch.
+stop and report `Blocked: {file} still has a syntax error after 3 attempts`.
 
 Verify the SQLite 4DB separation (ADR-008); a non-zero exit blocks the deploy:
 
@@ -22,7 +21,7 @@ Verify the SQLite 4DB separation (ADR-008); a non-zero exit blocks the deploy:
 uv run python tools/check_db_separation.py
 ```
 
-Confirm `deploy/deploy.sh` copy list is up to date if any script or config file was added or removed:
+If any script or config file was added or removed, confirm the `deploy/deploy.sh` copy list is up to date:
 
 ```bash
 diff <(find scripts/ -name '*.py' | sort) \
@@ -52,8 +51,7 @@ If `deploy/deploy.sh` fails:
 
 **Completed when**: `bash deploy/deploy.sh` exits 0.
 **Stop and report to the user when**: the re-run at step 4 fails with the same error as the
-first attempt — a repeat failure means steps 1–3 did not address the actual cause. Per
-`AGENTS.md` Loop Prevention > Attempt Limit, do not repeat this recovery loop a third time.
+first attempt. Per `AGENTS.md` Loop Prevention > Attempt Limit, MUST NOT repeat this recovery loop a third time.
 
 ---
 
@@ -61,8 +59,7 @@ first attempt — a repeat failure means steps 1–3 did not address the actual 
 
 **Gate: port health check returns OK**
 
-Restart **only** the services whose code or config changed. This phase runs in four
-sub-steps: identify (3a) → restart (3b) → verify (3c) → recover on failure (3d).
+Restart **only** the services whose code or config changed. Sub-steps: identify (3a) → restart (3b) → verify (3c) → recover on failure (3d).
 
 ### Step 3a: Identify affected services (decision criteria)
 
@@ -83,7 +80,7 @@ restart an LLM inference server, or `/reload` only.
 
 ### Step 3b: Restart
 
-For service names and ports, see `rules/env.md`.
+Service names and ports: see `rules/env.md`.
 
 ```bash
 # MCP servers (startup_mode="subprocess"; safe to restart, tool calls will retry) —
@@ -133,8 +130,8 @@ If a service fails to start:
 
 **Completed when**: the service's `/health` endpoint returns OK after recovery.
 **Stop and report to the user when**: none of the three common causes above explain the
-failure, or the same failure recurs after applying the matching fix. Per `AGENTS.md`
-Loop Prevention > Attempt Limit, do not retry the same restart command a third time.
+failure, or the same failure recurs after applying the matching fix. Per
+`AGENTS.md` Loop Prevention > Attempt Limit, MUST NOT retry the same restart command a third time.
 
 ---
 

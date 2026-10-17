@@ -13,14 +13,14 @@
 | `diff-cover` | diff scope enforcement | Coverage gate scoped to changed lines |
 | `tox` | CI consistency validation | Runs full check suite in isolated envs |
 | `libcst` | semantic refactor safety | CST-based transforms preserving comments |
-| `pre-commit` | — | Aggregated hook runner; final gate |
+| `pre-commit` | CI consistency validation | Aggregated hook runner; final gate |
 
 ## Step failure handling
 
 Apply `rules/ai-execution.md` Step-Level Failure Triage (Base) to every Step below. On a
 task-caused failure, stop and report `Blocked: {step} — {error}` once Attempt Limit (3
 attempts) is reached. Apply `rules/ai-execution.md` Tool Usage's idempotent-command
-rule: do not re-run a Step's validation command against a file whose content has not
+rule: MUST NOT re-run a Step's validation command against a file whose content has not
 changed since that command last ran in this cycle.
 
 ---
@@ -37,7 +37,7 @@ of the above is evidence only after confirming `scripts/` exists and is non-empt
 proof by itself, since a mistyped path or an empty target produces the same output.
 
 Classify the failure type: lint / type error / import boundary / security finding / suppression violation.
-Do not fix any issue until you know which tool found it and why.
+MUST NOT fix any issue until you know which tool found it and why.
 
 ---
 
@@ -56,9 +56,8 @@ to the same result as the original for every input the surrounding code handles 
 it only then. A hunk touching a lambda, a chained comprehension, or an expression with
 more than one boolean operator needs this check most; a simple import-sort or
 whitespace-only hunk needs no such re-derivation. If a hunk fails this check, revert only
-that hunk (`git diff` shows it in isolation) and fix the line by hand instead — do not
-accept a semantically-changed auto-fix and do not re-run `ruff check --fix` hoping for a
-different result on the same input.
+that hunk (`git diff` shows it in isolation) and fix the line by hand — MUST NOT accept a
+semantically-changed auto-fix and MUST NOT re-run `ruff check --fix` on the same input.
 
 #### ast-grep — structural pattern enforcement
 
@@ -109,7 +108,7 @@ Mandatory Audit Log Template instead.
 
 After adding a new suppression comment, run `tools/check_suppression_justification.py`
 (see `rules/coding.md` Suppression governance) against the changed file to confirm the
-justification format itself is accepted — do not assume the format is correct because it
+justification format itself is accepted — MUST NOT assume the format is correct because it
 matches the template by eye.
 
 ---
@@ -134,15 +133,15 @@ mypy --no-namespace-packages scripts/ --show-error-codes   # always include erro
 
 Always pass `--no-namespace-packages` (the CI and pre-commit invocation; see `rules/toolchain.md`
 section 2). Without it, mypy can abort with `Source file found twice` and judges
-`# type: ignore` comments differently, so its result does not predict CI.
+`# type: ignore` differently, so its result does not predict CI.
 
 A 0-error result is evidence of a clean type-check only after confirming the target file
-exists and mypy actually visited it (e.g. its path appears in a run with `--verbose`, or
-the file is confirmed non-empty) — per `rules/ai-execution.md` Repository Tool Usage #8.
+exists and mypy visited it (e.g. its path appears in a `--verbose` run, or the file is
+confirmed non-empty) — per `rules/ai-execution.md` Repository Tool Usage #8.
 
 For each mypy error:
 
-1. Trace the type to its origin — do not add `# type: ignore` at the call site
+1. Trace the type to its origin — MUST NOT add `# type: ignore` at the call site
 2. Add the correct annotation at the definition site
 3. Propagate the type through all affected functions
 
@@ -197,12 +196,11 @@ pyre               # incremental server
 pyre stop
 ```
 
-For standard application code: mypy + pyright are sufficient. Do not run pyre by default.
+For standard application code: mypy + pyright are sufficient. MUST NOT run pyre by default.
 
-If a type fix here changed a function signature, an import, or introduced a new
-annotation import (e.g. `from typing import ...`), re-run Step 2's `ruff check` on the
-changed file before proceeding to Step 7 — a type-driven edit can introduce an unused
-import or formatting violation Step 2 would otherwise miss.
+If a type fix changed a function signature or an import, or added an annotation import
+(e.g. `from typing import ...`), re-run Step 2's `ruff check` on the changed file before
+Step 7 — a type-driven edit can introduce an unused import or formatting violation.
 
 ---
 
@@ -210,7 +208,7 @@ import or formatting violation Step 2 would otherwise miss.
 
 See `rules/toolchain.md` section 5 for bandit commands.
 
-Priority findings — must resolve before merge: see `rules/coding.md` Bandit priority findings.
+Priority findings — MUST resolve before merge: see `rules/coding.md` Bandit priority findings.
 
 **Completed when**: `bandit` has been run and every priority finding (per
 `rules/coding.md` Bandit priority findings) is resolved or suppressed with the
@@ -228,7 +226,7 @@ If coverage on changed lines is below the threshold defined there:
 2. Add targeted tests for those lines
 3. Re-run `diff-cover` to confirm
 
-Do not add tests for unrelated lines to inflate coverage — scope tests to the change.
+MUST NOT add tests for unrelated lines to inflate coverage.
 
 **Completed when**: `diff-cover` reports the changed-lines coverage at or above the
 threshold in `rules/toolchain.md` §7, using only tests scoped to the actual change.
@@ -247,8 +245,8 @@ tox -e lint && tox -e typecheck && tox -e tests
 ```
 
 An exit-0 result is proof of a passing environment only after confirming each `tox -e
-<env>` actually ran its configured commands (check the printed summary line for the
-environment name and a non-zero test/check count) — per `rules/ai-execution.md`
+<env>` ran its configured commands (check the printed summary line for the environment
+name and a non-zero test/check count) — per `rules/ai-execution.md`
 Repository Tool Usage #8.
 
 ---
@@ -257,7 +255,7 @@ Repository Tool Usage #8.
 
 Enforces `SKILL.md` Strict Diff Isolation. In addition:
 
-- do not rename symbols while fixing a type error — do them in separate commits
+- MUST NOT rename symbols while fixing a type error — do them in separate commits
 
 Review the diff before staging:
 
@@ -286,8 +284,6 @@ After resolving issues, update project knowledge files if anything changed:
 **This task is complete when, and only when**: `rules/toolchain.md` "Completion checklist
 (common to all tasks)" is satisfied in full, the item below also holds, and no Step above
 ended in an unresolved `Blocked` state.
-
-Satisfy `rules/toolchain.md` "Completion checklist (common to all tasks)" in full. In addition:
 
 - all suppressions have inline justification
 

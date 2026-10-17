@@ -18,8 +18,7 @@ description: |
 Turn an approved file-level implementation procedure document into real code changes,
 tests, and (where the routing table calls for it) documentation updates. Final phase
 of the issue → plan → implementation-procedure → code pipeline. Unlike the two
-upstream phases, this phase legitimately modifies source code and `docs/*.md` — it is
-not document-only.
+upstream phases, this phase legitimately modifies source code and `docs/*.md`.
 
 ## Phase overview
 
@@ -27,13 +26,12 @@ not document-only.
 |---|---|---|
 | 0 | Load required instructions | Read routing, rules, templates, and the implementation/lint/test skills before starting. |
 | 1 | Identify the target implementation procedure file(s) | Confirm every specified `implementations/{filename}.md` path exists before processing. |
-| 2 | Read the current implementation procedure file | Read in full; extract its Traceability values for reuse in the Final Report. |
-| 3 | Pre-execution stale detection | Verify the procedure's referenced code constructs still exist in current source; abort if stale. |
-| 4 | Implement the feature | Apply `python-implementation` + `python-lint-typecheck` guidance; fix all validation errors. |
-| 5 | Test the feature | Determine targeted test scope, run it, then run the full suite once (retry on failure within Attempt Limit). |
-| 6 | Update documentation | Update only `docs/*.md` sections matched by `docs/00_index.md`'s Document References by Task table. |
-| 7 | Validate documentation | Check the sections edited in Step 5, or skip if none were edited. |
-| 8 | Move the completed implementation procedure file | `git mv` only, once Steps 3/4/6 pass; no human approval required. |
+| 2 | Read the current implementation procedure file | Read in full; extract its Traceability values for reuse in the Final Report. Then run pre-execution stale detection: verify the procedure's referenced code constructs still exist in current source; abort if stale. |
+| 3 | Implement the feature | Apply `python-implementation` + `python-lint-typecheck` guidance; fix all validation errors. |
+| 4 | Test the feature | Determine targeted test scope, run it, then run the full suite once (retry on failure within Attempt Limit). |
+| 5 | Update documentation | Update only `docs/*.md` sections matched by `docs/00_index.md`'s Document References by Task table. |
+| 6 | Validate documentation | Check the sections edited in Step 5, or skip if none were edited. |
+| 7 | Move the completed implementation procedure file | `git mv` only, once Steps 3/4/6 pass; no human approval required. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file processing
 rules, and `templates/implementation-procedure.md` for the input document's
@@ -41,36 +39,33 @@ structure.
 
 ## Core Execution Rules
 
-- **Code and docs are in scope**: unlike `issue-to-plan` and
-  `plan-to-implementation-procedure` (see Purpose) — see `workflow.md` Allowed file
-  operations for the exact boundary.
-- **No approval gate on the archival move**: the move to `implementations/done/`
-  needs no human approval — gated on Steps 3/4/6 passing instead.
-  `rules/workflow-lifecycle.md` (scoped to `issue-to-plan`/`plan-to-impl-procedure`)
-  does not apply here. See `workflow.md` Step 7.
-- **Documentation is routed, not guessed**: only update a `docs/*.md` section that
-  `docs/00_index.md`'s "Document References by Task" table maps a changed file to — a
+- Code and docs are in scope, unlike `issue-to-plan` and
+  `plan-to-implementation-procedure`. See `workflow.md` Allowed file operations for
+  the exact boundary.
+- The move to `implementations/done/` needs no human approval; it is gated on Steps
+  3/4/6 passing. `rules/workflow-lifecycle.md` (scoped to
+  `issue-to-plan`/`plan-to-impl-procedure`) does not apply here. See `workflow.md`
+  Step 7.
+- Documentation is routed, not guessed: only update a `docs/*.md` section that
+  `docs/00_index.md`'s "Document References by Task" table maps a changed file to. A
   changed file with no matching row is a normal, non-blocking outcome.
-- **One test suite run per attempt**: run the repository-defined full test suite once
-  per cycle after targeted tests pass; a failure may be fixed and the suite re-run
-  within Attempt Limit (3 attempts) — see `workflow.md` Step 4.
-- **One procedure file at a time**: see `workflow.md` Multi-file processing.
-- **Move is required**: see `workflow.md` Step 7. The move MUST NOT be skipped.
-- **Pre-execution stale detection**: see `workflow.md` Step 3 — abort execution if
-  any referenced construct is missing from current source. This prevents wasted effort
-  on procedures whose targets have been modified by another process or prior
-  execution; any single mismatch constitutes "stale," and all failures are reported in
-  a single pass.
-- **Auto-archive with collision handling**: see `workflow.md` Step 7 — if the archive
+- Run the repository-defined full test suite once per cycle after targeted tests
+  pass. A failure may be fixed and the suite re-run within Attempt Limit (3
+  attempts). See `workflow.md` Step 4.
+- Process one procedure file at a time. See `workflow.md` Multi-file processing.
+- The move MUST NOT be skipped. See `workflow.md` Step 7.
+- Pre-execution stale detection: see `workflow.md` Step 2. Abort execution if any
+  referenced construct is missing from current source. Any single mismatch
+  constitutes "stale"; report all failures in a single pass.
+- Auto-archive with collision handling: see `workflow.md` Step 7. If the archive
   destination already exists, generate a disambiguated path per
-  `rules/filename-collision.md` (zero-padded sequence suffix, max 3 retries). As with
-  the ordinary archival move (see the no-approval-gate bullet above), this move
-  requires no human approval.
+  `rules/filename-collision.md` (zero-padded sequence suffix, max 3 retries). This
+  move also requires no human approval.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ## Output format
 
-Output is code changes, test changes, and (conditionally) `docs/*.md` edits — not a
+Output is code changes, test changes, and (conditionally) `docs/*.md` edits, not a
 single generated document. See `workflow.md` Final Report for the chat-reporting
 structure (one-line traceability summary, Execution Status, Blocker Log, Work Items
 Created).
@@ -88,15 +83,14 @@ Created).
 ## Improvement feedback
 
 After running, if a Step needed clarification or a documentation-mapping edge case was
-missed, update `workflow.md` accordingly. If the Final Report structure was missing a
-field the user consistently requested, add it to `workflow.md` Final Report (not
-here).
+missed, update `workflow.md`. If the Final Report structure was missing a field the
+user consistently requested, add it to `workflow.md` Final Report (not here).
 
 ## Final Rule
 
 You are executing an already-approved implementation procedure into real code, tests,
-and (where mapped) documentation — not writing a design document or a plan — one
-procedure document per cycle, validated before it is archived.
+and (where mapped) documentation, one procedure document per cycle, validated before
+it is archived.
 
 When in doubt, this SHOULD be prioritized: correctness over speed, minimal scope (see
 `AGENTS.md` Global Rule 5), complete validation before the archival move, and

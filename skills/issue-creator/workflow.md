@@ -4,11 +4,10 @@
 
 When Phase 2 decides to split the work into multiple issues, apply `rules/ai-execution.md`
 Sequential Target Processing (Base): draft, verify (Phase 9), and generate the filename
-(Phase 10) for one issue completely before starting Phase 3 for the next — do not batch-draft
+(Phase 10) for one issue completely before starting Phase 3 for the next — MUST NOT batch-draft
 several issues' Phase 3-8 content before running Phase 9/10 on any of them. This also
-prevents two issues drafted in the same batch from colliding on the same generated filename,
-since Phase 10's uniqueness check (below) sees each prior issue's file already written before
-checking the next.
+prevents filename collisions, since Phase 10's uniqueness check sees each prior issue's file
+already written.
 
 ## Phase 1: Classify and Frame
 
@@ -54,7 +53,7 @@ Decide whether to split work into multiple issues or group it into one.
 
 **Completed when**: every task from Phase 1's scope has been assigned to exactly one issue
 group, using the criteria above (grouping and splitting are mutually exclusive per pair of
-tasks — a pair matching a "Group" criterion is not also split, and vice versa).
+tasks).
 
 ---
 
@@ -70,12 +69,11 @@ Use `N/A: covered by Summary` when `Summary` already says everything relevant.
 problem, maintenance risk, operational risk, correctness risk, documentation/code mismatch,
 user or developer impact.
 
-**Implementation Intent** — explain how the work should be approached at a high level.
-Focus on responsibility boundaries, minimal change, expected design direction, what should be
-preserved, and what should not be changed. Name a specific file, function, or line number
-only when the boundary itself is the design decision (see `skills/DESIGN.md` Avoid
-implementation-reference duplication) — otherwise describe the responsibility, not the
-location.
+**Implementation Intent** — explain the high-level approach. Focus on responsibility
+boundaries, minimal change, expected design direction, what should be preserved, and what
+should not be changed. Name a specific file, function, or line number only when the boundary
+itself is the design decision (see `skills/DESIGN.md` Avoid implementation-reference
+duplication) — otherwise describe the responsibility, not the location.
 
 **Completed when**: Background, Problem, Reason for Change, and Implementation Intent
 are each filled or explicitly marked `N/A` with a stated reason.
@@ -84,14 +82,13 @@ are each filled or explicitly marked `N/A` with a stated reason.
 
 ## Phase 4: Scope and Boundaries
 
-**Target Files or Areas** — list only likely relevant files or areas. Do not list the entire
+**Target Files or Areas** — list only likely relevant files or areas. MUST NOT list the entire
 repository. Use `Unknown` if the exact file is not confirmed.
 
 **Required Changes** — list concrete changes as small, actionable bullets.
 
-**Constraints** — technical or domain constraints and limitations that bound the
-solution space (compatibility, performance, security, operational). Use
-`N/A: {short reason}` if none apply.
+**Constraints** — technical or domain constraints that bound the solution space
+(compatibility, performance, security, operational). Use `N/A: {short reason}` if none apply.
 
 **Out of Scope** — list what must not be changed in this issue.
 
@@ -102,13 +99,13 @@ that depend on it. Use `N/A: none` if there are none.
 (not `issues/done/`) that touch the same files, tests, or failure group (e.g. several
 issues split from one red test run). Record each as a Dependency with the fix order. When a
 sibling's fix may remove this issue's cause, state in `Background` that this issue must be
-re-verified against current source after the sibling is resolved. Do not file an issue whose
+re-verified against current source after the sibling is resolved. MUST NOT file an issue whose
 problem a sibling already fully covers.
 
 **Completed when**: Target Files or Areas, Required Changes, Constraints, Out of
 Scope, and Dependencies are each filled or explicitly marked `N/A`/`Unknown` per the
 template's convention, and the sibling-issue check is recorded in Dependencies (or
-Dependencies is `N/A: none` because no open issue overlaps).
+`N/A: none` because no open issue overlaps).
 
 ---
 
@@ -121,9 +118,8 @@ by review, test execution, or documentation inspection.
 tests, type checks, lint checks, documentation consistency checks, manual verification. Use
 `Not required` only when the task is documentation-only or clearly does not affect behavior.
 
-**Completed when**: every Acceptance Criteria item is independently testable by
-review, test execution, or documentation inspection, and Testing Expectations is
-filled or marked `Not required` only for a documentation-only/no-behavior-change task.
+**Completed when**: every Acceptance Criteria item is independently testable, and Testing
+Expectations is filled or marked `Not required` only for a documentation-only/no-behavior-change task.
 
 ---
 
@@ -181,8 +177,8 @@ rewrite unrelated files, keep changes minimal, preserve public behavior unless e
 required, stop and report open questions if requirements are unclear, do not implement
 out-of-scope items.
 
-**Completed when**: the AI Implementation Instruction states concrete constraints
-(not a generic restatement of Phase 4's Out of Scope) an implementer must follow.
+**Completed when**: the AI Implementation Instruction states concrete constraints an
+implementer must follow (not a generic restatement of Phase 4's Out of Scope).
 
 ---
 
@@ -194,12 +190,12 @@ safety (9b), then run the final checklist (9c).
 ### Step 9a: Evidence and assumptions
 
 When the issue is based on code review or investigation, apply `skills/DESIGN.md` Evidence
-labels and Confidence levels — do not invent a parallel confirmed/assumption/unknown scheme.
+labels and Confidence levels — MUST NOT invent a parallel confirmed/assumption/unknown scheme.
 
 When the issue is based on a user request only:
 - state assumptions clearly
 - include open questions if requirements are incomplete
-- do not invent missing requirements
+- MUST NOT invent missing requirements
 
 **Completed when**: every claim in the issue is either backed by cited evidence (code
 review/investigation) or explicitly marked as an assumption/open question.
@@ -209,7 +205,7 @@ review/investigation) or explicitly marked as an assumption/open question.
 - Emit each issue as a separate Markdown block when requested.
 - Avoid nested triple-backtick blocks inside issue bodies.
 - If code examples are unavoidable, prefer indented examples or short inline snippets.
-- Do not put large code blocks inside Markdown tables.
+- MUST NOT put large code blocks inside Markdown tables.
 - Use bullet lists instead of complex tables when copy-paste safety matters.
 - Keep headings consistent.
 - Ensure every opened list, quote, or block is closed.
@@ -227,16 +223,16 @@ Before finalizing issues, verify:
 - [ ] Unresolved Questions reflects every open assumption from Phase 1 (or is `N/A: none`)
 - [ ] grouping follows Phase 2 criteria
 - [ ] Markdown safety follows Step 9b
-- [ ] no secrets or sensitive data are included (see `SKILL.md` Core Principles)
+- [ ] no secrets or sensitive data are included (See `skills/DESIGN.md`, section "No secrets in output")
 - [ ] the issue follows `templates/issue.md`'s field order and names exactly
 
 **Completed when**: every checked item above is true.
 **On an unchecked item**: return to the phase that owns it (Phase 1–8, or Step 9a/9b above)
-and fix only the gap the item identifies — do not redo the whole phase's output. Then
+and fix only the gap the item identifies — MUST NOT redo the whole phase's output. Then
 re-check only that item, not the full checklist, before proceeding to Phase 10.
-Per `AGENTS.md` Loop Prevention > Attempt Limit, this fix-and-recheck loop tolerates at most
-3 attempts per distinct unchecked item; if it still fails to clear after 3 attempts, stop and
-report `Blocked: {item} still unresolved after 3 attempts` rather than continuing to patch.
+Per `AGENTS.md` Loop Prevention > Attempt Limit, this loop tolerates at most 3 attempts per
+distinct unchecked item; if it still fails, stop and report
+`Blocked: {item} still unresolved after 3 attempts` rather than continuing to patch.
 
 ---
 
@@ -248,10 +244,10 @@ After the issue body is finalized, generate the filename using the convention de
 Prefer `uv run python tools/generate_workitem.py --kind issue --id {id} --title
 {title}` to scaffold the file — it generates the `{timestamp}_{id}_{slug}.md`
 filename and refuses (non-zero exit, no write) on a path collision rather than
-auto-incrementing; treat that refusal as the trigger for the retry-with-
-disambiguator step already described, not as a workflow failure.
+auto-incrementing; treat that refusal as the trigger for the retry-with-disambiguator
+step (step 6 below), not as a workflow failure.
 After a `0` exit, independently verify the reported output path exists and contains
-the expected `## ` section headings before proceeding to fill in its content — per
+the expected `## ` section headings before filling in its content — per
 `rules/ai-execution.md` Repository Tool Usage item 8, a `0` exit alone MUST NOT be
 treated as proof the file was written correctly.
 If the tool is unavailable, use the manual procedure below:
@@ -264,8 +260,7 @@ If the tool is unavailable, use the manual procedure below:
 4. Assemble: `{timestamp}_{id}_{slug}.md`
 5. Verify uniqueness against existing files in `issues/` before writing — check via `ls
    issues/{timestamp}_*` or equivalent; an empty result means no collision only if the
-   command actually targeted the `issues/` directory (confirm it exists first), not proof
-   by itself.
+   command actually targeted the `issues/` directory (confirm it exists first).
 6. If a collision is found, regenerate with the next available disambiguator (e.g. a
    numeric suffix on `{id}` or `{slug}`) and re-check uniqueness, applying
    `rules/filename-collision.md` Collision Retry Bound.

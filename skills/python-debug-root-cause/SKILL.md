@@ -14,14 +14,14 @@ description: |
 
 ## Purpose
 
-Investigate Python failures systematically; reproduce with evidence; separate observations from hypotheses; find root cause before touching code. No code changes during investigation (Phases 1-7) — see `skills/DESIGN.md` Analysis-only phase constraint. This skill's write phase is Phase 8 (Minimal Fix), not before.
+Investigate Python failures systematically; reproduce with evidence; separate observations from hypotheses; find root cause before touching code. No code changes during Phases 1-7 — see `skills/DESIGN.md` Analysis-only phase constraint. The write phase is Phase 8 (Minimal Fix).
 
 ---
 
 ## Core Debugging Rules (Strictly Enforced for AI)
 
 - **No Tool Hallucination**: applies to `viztracer`, `py-spy`, `mitmproxy` — see `skills/DESIGN.md` Tool availability guard (fallback: `pdb`, `traceback`, `logging`).
-- **Evidence-Driven**: Every bug report must be backed by an actual log snippet, stack trace, or test failure output. Do not assume the cause without copying the exact error message.
+- **Evidence-Driven**: Every bug report MUST be backed by an actual log snippet, stack trace, or test failure output. MUST NOT assume the cause without copying the exact error message.
 
 ---
 
@@ -30,7 +30,7 @@ Investigate Python failures systematically; reproduce with evidence; separate ob
 | Phase | Name | Goal / AI Action |
 |---|---|---|
 | 1 | Problem Framing | State the exact symptom, expected behavior, environment info, and whether it is deterministic or intermittent. |
-| 2 | Initial Observability | Filter and analyze logs using `jq`, `lnav`, or `multitail`. Project logs are in `logs/`; see `rules/env.md` for log paths and format. |
+| 2 | Initial Observability | Filter and analyze logs using `structlog`+`jq` first; `lnav` / `multitail` only as `workflow.md` Phase 2 directs. Project logs are in `logs/`; see `rules/env.md` for log paths and format. |
 | 3 | Failure Classification | Classify the bug into the matrix: (Deterministic/Intermittent) × (Sync/Async) × (Logic/IO/Network/Perf). |
 | 4 | Focused Reproduction | Create a minimal isolation environment using `tox`, `httpie`, `/mcp`, `sqlite3`, etc. |
 | 5 | Runtime / Trace Inspection | Run profiling/tracing tools (`viztracer`, `py-spy`, `strace`, `tracemalloc`, `aiomonitor`, `ipdb`) to capture state. |
@@ -43,24 +43,24 @@ Investigate Python failures systematically; reproduce with evidence; separate ob
 
 ## Phase routing (Based on Phase 3 Classification)
 
-AI Must dynamically adjust its execution path based on Phase 3 classification:
+AI MUST dynamically adjust its execution path based on Phase 3 classification:
 
 - **Deterministic × Logic**: 1 → 2 → 3 → 4 → 6 (hypothesis/ipdb) → 8 → 9
   - *Skip*: 5 (viztracer/strace), 7 (bisect)
 - **Deterministic × I/O**: 1 → 2 → 3 → 4 (sqlite3/httpie) → 5 (strace) → 8 → 9
-  - *Skip*: 7 (bisect)
+  - *Skip*: 6 (hypothesis), 7 (bisect)
 - **Deterministic × Network**: 1 → 2 → 3 → 4 (mitmproxy/httpie//mcp) → 6 → 8 → 9
   - *Skip*: 5 (strace), 7 (bisect)
 - **Intermittent**: 1 → 2 → 3 → 4 → 6 (reruns/freezegun) → 7 (bisect) → 8 → 9
   - *Skip*: 5 (strace/tracemalloc)
 - **Performance**: 1 → 2 → 3 → 5 (py-spy/viztracer) → 8 → 9
-  - *Skip*: 6 (hypothesis/freezegun)
+  - *Skip*: 4 (focused reproduction), 6 (hypothesis/freezegun), 7 (bisect)
 
 ---
 
 ## Mandatory Output Template for Phase 6 (Hypothesis Validation)
 
-When executing Phase 6, the AI must format its findings using the following structured table to prevent logical leaps:
+When executing Phase 6, the AI MUST format its findings using this table:
 
 ### Hypothesis Analysis Matrix
 | ID | Hypothesis Description | Verification Method / Command | Results Observed | Status (Validated / Invalidated) |
@@ -71,8 +71,7 @@ When executing Phase 6, the AI must format its findings using the following stru
 ---
 
 ## See Also
-See `workflow.md` for detailed phase content.
-See `rules/env.md` for service ports and status commands.
+See `workflow.md` for phase details; `rules/env.md` for service ports and status commands.
 
 ## Composes with
 
@@ -81,5 +80,4 @@ See `rules/env.md` for service ports and status commands.
 
 ## Improvement feedback
 
-After running this skill, if a hypothesis in Phase 6 was missing for a common failure mode:
-add it to the hypothesis table in `workflow.md` Phase 6.
+If a common failure mode lacked a Phase 6 hypothesis, add it to the hypothesis table in `workflow.md` Phase 6.

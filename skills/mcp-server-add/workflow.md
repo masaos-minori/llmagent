@@ -17,9 +17,9 @@ See `SKILL.md` Prerequisites.
 | `Bash` (`rg`) | Step 3 verification, Step 7, Step 8b | confirm config sections/secrets pattern exist |
 | `Bash` (`tail`) | Step 8c | log inspection |
 
-Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: do not
-re-run the same `rg`/`curl`/`tail` check against an unchanged target expecting a
-different result — only re-run a check after the specific fix it depends on.
+Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: MUST NOT
+re-run the same `rg`/`curl`/`tail` check against an unchanged target; re-run only after the
+specific fix it depends on.
 
 ## Idempotency note
 
@@ -58,13 +58,17 @@ If `/mcp install` fails partway through:
    ```bash
    ls scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
    ```
-2. Remove partially created files before retrying:
+2. List the partially created paths found in step 1 to the user and obtain explicit user
+   confirmation (`AGENTS.md` Policy: recursive deletion requires confirmation). If the user
+   does not confirm, MUST NOT delete; stop and report `Blocked: partial files of <name>
+   remain — awaiting deletion confirmation`. After confirmation, remove them before
+   retrying:
    ```bash
    rm -rf scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name>
    ```
 3. Retry the wizard or switch to Option B. Per `AGENTS.md` Loop Prevention > Attempt Limit,
    at most 3 wizard retries for the same server name; if it still fails after 3 attempts,
-   switch to Option B (do not retry the wizard a 4th time) and report
+   switch to Option B (MUST NOT retry the wizard a 4th time) and report
    `Blocked: /mcp install <name> failed 3 times — {last error}`.
 
 ---
@@ -82,10 +86,9 @@ if the server needs subprocess management, an init script under `init.d/` follow
 ## Step 1: Verify generated files
 
 Confirm each item below. On failure, apply the fix in the same row, then re-check only that
-row (not the earlier rows already passed) before moving to the next. Per `AGENTS.md` Loop
-Prevention > Attempt Limit, at most 3 fix-and-recheck attempts per row; if a row still
-fails after 3 attempts, stop and report `Blocked: {row} still failing after 3 attempts —
-{last error}` rather than continuing to patch it.
+row before moving to the next. Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3
+fix-and-recheck attempts per row; if a row still fails after 3 attempts, stop and report
+`Blocked: {row} still failing after 3 attempts — {last error}`.
 
 | Check | On failure |
 |---|---|
@@ -95,11 +98,11 @@ fails after 3 attempts, stop and report `Blocked: {row} still failing after 3 at
 | Uses `logger = logging.getLogger(__name__)` (standard library logging) | Add the standard logger declaration |
 | Comments and log messages are in English | Translate non-English comments/log messages |
 | `config/<name>_mcp_server.toml` is valid TOML | Run `python3 -c "import tomllib; tomllib.load(open('config/<name>_mcp_server.toml','rb'))"`; fix the reported syntax error |
-| `init.d/<name>` includes the correct `--port` argument | Add or correct the `--port` argument to match Prerequisites' assigned port |
+| `init.d/<name>` includes the correct `--port` argument | Add or correct the `--port` argument to match the assigned port (`SKILL.md` Prerequisites, Next free port) |
 | Syntax check passes | Run `python3 -m compileall -q scripts/mcp_servers/<name>/`; fix the reported file |
 
 Per `rules/ai-execution.md` Repository Tool Usage #8, `compileall -q`'s empty stdout is
-evidence of success only together with an exit code of 0 — check both, not stdout alone.
+evidence of success only together with exit code 0 — check both.
 
 **Completed when**: every row above passes.
 
@@ -135,9 +138,8 @@ url = "http://127.0.0.1:<PORT>"
 
 Also add tool definitions to the `tool_definitions` array so the agent knows about the new tools.
 
-**Completed when**: `config/agent.toml` has both the new `[mcp_servers.<name>]` entry
-and a corresponding `tool_definitions` array entry for each of the new server's
-tools.
+**Completed when**: `config/agent.toml` has the new `[mcp_servers.<name>]` entry
+and a `tool_definitions` array entry for each of the new server's tools.
 
 ---
 
@@ -146,22 +148,21 @@ tools.
 `ToolRouteResolver` (`shared/route_resolver.py`) resolves: `tool_names` config-map → static prefix fallback.
 If the new server's tools do not use a unique prefix, add them to `tool_names` in `config/agent.toml`.
 
-**Completed when**: either the new server's tools already resolve via the existing
-static prefix fallback (no change needed), or `tool_names` in `config/agent.toml`
-explicitly lists them.
+**Completed when**: the new server's tools resolve via the existing static prefix
+fallback (no change needed), or `tool_names` in `config/agent.toml` explicitly lists them.
 
 ---
 
 ## Step 5: Deploy
 
-Delegate to the `deploy` skill (Phase 2 only — code change deploy):
+Delegate to the `deploy` skill (the deploy skill's own Phase 2 (Deploy) only — distinct from this skill's Phase 1-3):
 
 ```bash
 bash deploy/deploy.sh
 ```
 
 **Completed when**: the `deploy` skill's Phase 2 Gate is met (`bash deploy/deploy.sh`
-exits 0) — this Step's completion is that Gate's completion, not a separate check.
+exits 0) — not a separate check.
 
 ---
 
@@ -185,25 +186,22 @@ Run this step only when the new server calls an external API that requires authe
 otherwise skip directly to Step 8.
 
 Check whether an existing MCP server config uses a `[secrets]` section
-(`rg '\[secrets\]' config/*.toml`). If one does, follow that same pattern for consistency.
-If none does, read the key from an environment variable via `ConfigLoader().load(...)`,
+(`rg '\[secrets\]' config/*.toml`). If one does, follow that pattern. If none does, read the key from an environment variable via `ConfigLoader().load(...)`,
 named `<NAME>_API_KEY` (uppercase server name).
 
 **Completed when**: the new server can read its API key through `ConfigLoader().load(...)` —
 confirmed by `rg` showing no `os.environ[...]` or `json.load()` access to the key. Per
 `rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result is evidence
-only after confirming `rg` actually searched the new server's file (e.g. the path exists
-and `rg` exited 0, not 1-for-"no file") — a zero match caused by a wrong/missing path is
-not evidence of absence.
+only after confirming `rg` searched the new server's file (path exists, `rg` exited 0 not
+1-for-"no file") — a zero match from a wrong/missing path is not evidence of absence.
 
 ---
 
 ## Step 8: Verify end-to-end
 
 Three checks, in order — stop at the first that fails and fix it before continuing. Each
-fix routes back to only the specific earlier step named below, not to Step 1 or a full
-restart of the whole sequence; re-run only Step 8a/8b/8c itself after the fix, not the
-other two checks that already passed.
+fix routes back only to the earlier step named below, not to Step 1 or a full restart;
+after the fix, re-run only the failed Step 8a/8b/8c.
 
 ### Step 8a: Health endpoint
 
@@ -229,9 +227,9 @@ On any new error mentioning `<name>`: diagnose from the error message before pro
 Step 9.
 
 Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3 fix-and-recheck round-trips
-across 8a-8c combined for the same server; if end-to-end verification still fails after 3
-rounds, stop and report `Blocked: <name> failed end-to-end verification after 3 rounds —
-{last failing check and error}` rather than continuing to cycle through 8a-8c.
+across 8a-8c combined for the same server; if verification still fails after 3 rounds, stop
+and report `Blocked: <name> failed end-to-end verification after 3 rounds —
+{last failing check and error}`.
 
 **Completed when, and only when**: 8a, 8b, and 8c all pass with no unresolved error, or
 the cycle above ended in a `Blocked` report.

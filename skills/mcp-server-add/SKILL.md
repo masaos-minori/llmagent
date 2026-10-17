@@ -1,10 +1,10 @@
 ---
 name: mcp-server-add
 description: |
- Use this skill PROACTIVELY when adding a new MCP (Model Context Protocol) server
-   to this project. Use this when the task involves creating a new MCP server module,
-   wiring it into the agent, or running
-   /mcp install <name> from the agent REPL.
+  Use this skill PROACTIVELY when adding a new MCP (Model Context Protocol) server
+  to this project. Use this when the task involves creating a new MCP server module,
+  wiring it into the agent, or running
+  /mcp install <name> from the agent REPL.
 ---
 
 # MCP Server Add Skill
@@ -16,19 +16,18 @@ Add a new MCP server end-to-end: skeleton files, service registration, agent rou
 ## Existing MCP servers (reference)
 
 Port/role table (canonical): `docs/22_mcp/mcp_01_system_overview.md` Server Catalog.
-Module paths follow the pattern `scripts/mcp_servers/<name>/<name>_server.py` (plus
-`<name>_service.py`, `<name>_models.py`, `<name>_tools.py`), e.g.
-`scripts/mcp_servers/web_search/web_search_server.py`.
+Module paths: `scripts/mcp_servers/<name>/<name>_server.py` (plus `<name>_service.py`,
+`<name>_models.py`, `<name>_tools.py`), e.g. `scripts/mcp_servers/web_search/web_search_server.py`.
 
-New servers must use the next free port above every port currently assigned — derive it at
+New servers MUST use the next free port above every port currently assigned — derive it at
 task time (see Prerequisites), per `skills/DESIGN.md` No concrete configuration values.
-Do not state the assigned port number in `docs/*.md` once it is deployed — see
+MUST NOT state the assigned port number in `docs/*.md` once deployed — see
 `skills/DESIGN.md` Docs content policy — remove.
 
 ## Prerequisites
 
-- For Option A (wizard): agent REPL must be running (`ps aux | grep agent.py`)
-- Next free port: `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use the next integer above that result
+- For Option A (wizard): agent REPL MUST be running (`ps aux | grep agent.py`)
+- Next free port (the "assigned port" used in `workflow.md` Step 1): `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use the next integer above that result
 
 ## Phase overview
 
@@ -37,6 +36,7 @@ Do not state the assigned port number in `docs/*.md` once it is deployed — see
 | 1 Generate | Option A or B → Step 1 verify | Skeleton files exist and are valid | Step 1's structure checklist fully passes |
 | 2 Wire | Steps 2–4 | deploy.sh, service map, tool routing updated | `rg` confirms the new `cp` line, `[mcp_servers.<name>]` section, and (if needed) `tool_names` entry all exist |
 | 3 Run | Steps 5–8 | Service deployed, started, and reachable | `/mcp` in agent REPL shows the new server healthy |
+| (final) | Step 9 | Completion checklist (below) confirmed | Every Completion checklist item is true, or execution stopped in a `Blocked` state |
 
 See `workflow.md` for detailed step content, failure recovery, and idempotency notes.
 
@@ -55,7 +55,7 @@ execution stopped in a `Blocked` state per `workflow.md` Step 1/Step 8's own bou
 
 ## Composes with
 
-- `deploy` — Step 5 delegates to deploy skill (Phase 2: code change deploy)
+- `deploy` — Step 5 delegates to the deploy skill's own Phase 2 (Deploy) only; this is distinct from this skill's Phase 1-3
 
 ## Called by
 
@@ -63,17 +63,17 @@ execution stopped in a `Blocked` state per `workflow.md` Step 1/Step 8's own bou
 
 ## Required behavior
 
-- Use the port computed in Prerequisites, and re-run its `grep` command immediately before
-  assigning it — a server added by another change since this task started may have taken it.
+- Use the port computed in Prerequisites; re-run its `grep` immediately before assigning it,
+  because another change may have taken it.
 - Use `ConfigLoader().load(...)` to read the new server's config module, per `workflow.md`
-  Step 1's structure check (a specific instance of `rules/coding.md`'s general
-  `config_loader.py`-only `json.load()` rule — see Constraint checks).
+  Step 1 (an instance of `rules/coding.md`'s `config_loader.py`-only `json.load()` rule — see
+  Constraint checks).
 
 See `rules/coding.md` Mandatory conventions ("Module addition", "MCP server addition"
 rows) for the `deploy/deploy.sh` `cp` line and `config/agent.toml
-[mcp_servers.<name>]` section requirements — not repeated here.
+[mcp_servers.<name>]` requirements.
 
 ## Improvement feedback
 
-After running this skill, if the wizard generated invalid skeleton code or a step was missing:
-update `workflow.md` with the recovery procedure and note which pattern changed.
+If the wizard generated invalid skeleton code or a step was missing: update `workflow.md`
+with the recovery procedure and note which pattern changed.

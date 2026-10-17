@@ -3,8 +3,7 @@
 ## Project lint tools
 
 See `routing.md` Tools → "When to run which tool" for the checkers to run when modifying
-`docs/` — do not hardcode tool names or invocations here; that table is the single source of
-truth and is kept in sync with `tools/`.
+`docs/`. MUST NOT hardcode tool names or invocations here.
 
 ---
 
@@ -24,12 +23,11 @@ truth and is kept in sync with `tools/`.
 - Apply `skills/DESIGN.md` Agent (Explore) threshold.
 - Use `Edit` over `Write` whenever the doc file already exists — preserve existing content.
 - `WebFetch` is a last resort; most behavior SHOULD be confirmable from the local codebase.
-- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: do not re-run the
+- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run the
   same `grep`/`find` query against unchanged files expecting a different result.
-- Per `rules/ai-execution.md` Repository Tool Usage #8, a `grep`/`find` command returning
-  no matches is not proof that something doesn't exist — record it as `Needs Confirmation`
-  (see Boundaries' static-import-search rule below) rather than asserting absence from
-  empty output alone.
+- Per `rules/ai-execution.md` Repository Tool Usage #8, a `grep`/`find` with no matches is
+  not proof of absence — record `Needs Confirmation` (see Boundaries' static-import-search
+  rule below).
 
 ---
 
@@ -38,11 +36,10 @@ truth and is kept in sync with `tools/`.
 When the current task names more than one target document (directly, or via a caller
 such as `prompts/08_document-sync.md` Step 1), apply `rules/ai-execution.md` Sequential
 Target Processing (Base): process one document's Phases 1-10 completely (through Phase
-10's Final Report) before starting Phase 1 for the next — do not batch-inventory
+10's Final Report) before starting Phase 1 for the next — MUST NOT batch-inventory
 (Phase 2) or batch-write (Phase 8) several documents before finishing any one of them.
-This also prevents two documents processed in the same batch from producing
-conflicting Known Issues/Needs Confirmation entries for the same underlying code, since
-each document's Phase 9 Consistency Review sees the prior document's completed edits.
+This keeps Known Issues/Needs Confirmation entries consistent across documents, since
+each Phase 9 Consistency Review sees the prior document's completed edits.
 
 ## Core Principles
 - Observe before writing
@@ -54,14 +51,13 @@ each document's Phase 9 Consistency Review sees the prior document's completed e
 
 ## Gate failure handling
 
-Every Phase below ends with a `### Gate` checklist. This rule applies to all of them and is
-not repeated per Phase: if any Gate item is unchecked, redo the `### Do` action that item
-depends on and re-check only that item (not the full Gate) before starting the next
-Phase — do not proceed with a known-unmet Gate item. Per `AGENTS.md` Loop Prevention >
-Attempt Limit, at most 3 redo-and-recheck attempts per Gate item; if it still cannot be
-checked after 3 attempts, or the missing evidence cannot be obtained (the repository
-genuinely does not expose it), record it as an Open Question (Phase 10) instead of
-leaving the Gate item silently unchecked or retrying indefinitely.
+Every Phase below ends with a `### Gate` checklist. This rule applies to all of them: if any
+Gate item is unchecked, redo the `### Do` action that item depends on and re-check only that
+item before starting the next Phase — MUST NOT proceed with a known-unmet Gate item. Per
+`AGENTS.md` Loop Prevention > Attempt Limit, at most 3 redo-and-recheck attempts per Gate
+item; if it still cannot be checked after 3 attempts, or the missing evidence cannot be
+obtained (the repository does not expose it), record it as an Open Question (Phase 10)
+instead of leaving the item silently unchecked or retrying indefinitely.
 
 ---
 
@@ -112,9 +108,8 @@ Build a repository map before writing anything.
 
 ### Read in order
 
-Read in this order, unless the existing documentation's own table of contents groups
-topics in a different order than below — in that case, follow the existing document's
-order instead, so review proceeds section-by-section against the doc being updated:
+Read in this order, unless the existing documentation's table of contents groups topics
+differently — then follow the existing document's order:
 
 1. existing target documentation
 2. `README` or project overview
@@ -127,7 +122,7 @@ order instead, so review proceeds section-by-section against the doc being updat
 9. tests
 10. CI/CD, Docker, deployment, and migrations
 
-Do not write documentation before reading the existing target document.
+MUST NOT write documentation before reading the existing target document.
 
 ### Gate
 - [ ] package structure is understood
@@ -152,7 +147,7 @@ Find how the system is installed, started, and tested.
 - inspect Docker and CI for actual run/test commands
 - verify the actual dependency installation or synchronization path used by development, CI/CD,
   containers, and production; for uv-managed repositories this means inspecting actual uses of
-  commands such as `uv sync`, `uv run`, `uv lock`, and lockfile validation options — do not add
+  commands such as `uv sync`, `uv run`, `uv lock`, and lockfile validation options — MUST NOT add
   these commands to project documentation unless they are verified in the repository
 
 ### Gate
@@ -239,7 +234,7 @@ Document how the code is verified and delivered.
 - verify CI/CD dependency installation commands
 - verify vulnerability and license scanning support for the repository's actual dependency format
 - if any of the above cannot be confirmed, record the gap as an open question or `Known Issue`;
-  do not invent a workflow
+  MUST NOT invent a workflow
 
 ### Gate
 - [ ] test strategy is documented
@@ -254,14 +249,14 @@ Document how the code is verified and delivered.
 ### Goal
 Convert analysis into maintainable documentation.
 
-This phase has three sub-steps: writing policy (8a), removing implementation-derived
-detail (8b), then separating uncertainty (8c).
+Sub-steps: writing policy (8a), removing implementation-derived detail (8b), separating
+uncertainty (8c).
 
 ### Step 8a: Writing policy
 
-- use evidence-based wording; state a claim once and reference it elsewhere rather than
-  restating it (see Step 8b for what to drop); avoid duplication
-- do not hide uncertainty; keep changes minimal if docs already exist
+- use evidence-based wording; state a claim once and reference it elsewhere (see Step 8b
+  for what to drop); avoid duplication
+- MUST NOT hide uncertainty; keep changes minimal if docs already exist
 - preserve useful existing context
 - Output language: see `skills/DESIGN.md` §Output language.
 - keep changes small and reviewable
@@ -307,7 +302,6 @@ conflicts, and unresolved differences between environments.
 Replace removed content with a concise source reference, e.g.:
 
 - Full configuration keys and default values are documented in the implementation's config definitions and actual config files.
-- This design document covers only config ownership, change impact, restart requirements, failure behavior, and operational notes.
 
 **Completed when**: none of the "Normally remove" categories above appear in the draft
 outside of a "Keep" category or a source reference.
@@ -335,7 +329,7 @@ Remove contradictions across docs and code.
 - file names, module names, and commands match implementation
 - run/test instructions match config and CI
 - inferred content is labeled
-- no secrets are included
+- no secrets are included (See `skills/DESIGN.md`, section "No secrets in output")
 - no unsupported claims remain
 - direct dependency declarations and lockfiles are consistent with each other
 - documented installation commands match CI/CD and container definitions
@@ -358,6 +352,43 @@ When dependency files and operational commands conflict:
 
 ---
 
+## Phase 10. Final Report
+### Goal
+Return results in a strict final format.
+
+**This documentation task is complete when, and only when**: the Final Gate below is
+fully checked (or its unmet items are recorded as Open Questions per Gate failure
+handling's Attempt Limit), and every section of the Final Report Format is populated
+from what Phases 1-9 already recorded — MUST NOT re-run a check merely to produce this report.
+
+### Final Report Format
+#### Updated / Created Files
+- files created
+- files updated
+
+#### Confirmed Findings
+- implementation facts verified from code
+
+#### Inferred Findings
+- high-confidence conclusions
+
+#### Open Questions
+- unresolved items still needing evidence
+
+#### Next Recommended Deep-Dive
+- next modules / packages / paths to inspect
+
+### Final Gate
+
+Confirm against the key Phase gates below; MUST NOT re-derive:
+
+- [ ] Phase 3 gate met: setup-to-start path is traceable
+- [ ] Phase 4 gate met: entrypoints and dependencies are traceable
+- [ ] Phase 8 gate met: unknowns remain visible
+- [ ] Phase 9 gate met: docs do not conflict with implementation
+
+---
+
 ## Evidence and Source of Truth
 
 Code, configuration, tests, and CI/CD are factual evidence for implemented behavior.
@@ -369,17 +400,17 @@ When code and documentation conflict:
 - update documentation if the implemented behavior is clearly correct and current
 - register or update a Known Issue if the conflict cannot be resolved immediately
 - mark the item `Needs confirmation` if the implementation may be incomplete, buggy, provisional, or ambiguous
-- do not silently replace documented design intent with possibly buggy behavior
+- MUST NOT silently replace documented design intent with possibly buggy behavior
 
 Important behavioral claims MUST be traceable to evidence: public behavior, configuration
 ownership, runtime entrypoints, failure behavior, operational constraints, security-sensitive
-behavior, persistence/migration behavior, and documentation/code mismatch corrections. Do not
+behavior, persistence/migration behavior, and documentation/code mismatch corrections. MUST NOT
 add evidence labels to every sentence.
 
 Use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary. When using
 `Needs confirmation`, include the required fields defined by the governance documentation.
 
-Do not invent missing behavior or assume framework patterns without evidence.
+MUST NOT invent missing behavior or assume framework patterns without evidence.
 
 ### Dependency evidence categories
 
@@ -423,44 +454,6 @@ inference, README trust, and private-API documentation boundaries.
 
 ---
 
-## Phase 10. Final Report
-### Goal
-Return results in a strict final format.
-
-**This documentation task is complete when, and only when**: the Final Gate below is
-fully checked (or its unmet items are recorded as Open Questions per Gate failure
-handling's Attempt Limit), and every section of the Final Report Format is populated
-from what Phases 1-9 already recorded — do not re-derive or re-run a check merely to
-produce this report.
-
-### Final Report Format
-#### Updated / Created Files
-- files created
-- files updated
-
-#### Confirmed Findings
-- implementation facts verified from code
-
-#### Inferred Findings
-- high-confidence conclusions
-
-#### Open Questions
-- unresolved items still needing evidence
-
-#### Next Recommended Deep-Dive
-- next modules / packages / paths to inspect
-
-### Final Gate
-
-Cross-check against each Phase's gate stated above — do not re-derive them, just confirm:
-
-- [ ] Phase 3 gate met: setup-to-start path is traceable
-- [ ] Phase 4 gate met: entrypoints and dependencies are traceable
-- [ ] Phase 8 gate met: unknowns remain visible
-- [ ] Phase 9 gate met: docs do not conflict with implementation
-
----
-
 ## Final Rule
-Do not try to sound complete.
+MUST NOT try to sound complete.
 Try to be correct, traceable, and maintainable.

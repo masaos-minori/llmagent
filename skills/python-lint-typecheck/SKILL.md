@@ -21,7 +21,7 @@ Quality Rules below for the root-cause-first requirement).
 
 ## Core Quality Rules (Strictly Enforced for AI)
 
-- **Fix the Root Cause, Do Not Ignore**: Resolving a type/lint error by blindly adding `# type: ignore` or `# noqa` is considered a failure. You must attempt to fix the underlying type signature or code structure first.
+- **Fix the Root Cause, Do Not Ignore**: Blindly adding `# type: ignore` or `# noqa` to resolve a type/lint error is a failure. You MUST first attempt to fix the underlying type signature or code structure.
 - **No Tool Hallucination**: applies to `ast-grep`, `LibCST`, `lint-imports` — see `skills/DESIGN.md` Tool availability guard.
 - **Strict Diff Isolation**: When running automated formatters or fixers (`ruff check --fix`), keep changes scoped to the target issue — see `AGENTS.md` Global Rule 5.
 
@@ -29,7 +29,7 @@ Quality Rules below for the root-cause-first requirement).
 
 ## Routing (Fast Path Assessment)
 
-Before running the full sequence, look at the error log and check if the failure source is already known. If known, you may fast-track the execution:
+Before running the full sequence, check the error log for a known failure source. If known, you may fast-track:
 
 - [ ] **Ruff Error / Formatting Issue** → Start directly at **Step 2**
 - [ ] **Import / Layering Violation (`lint-imports`)** → Start directly at **Step 3**
@@ -37,7 +37,7 @@ Before running the full sequence, look at the error log and check if the failure
 - [ ] **Security Finding (`bandit`)** → Start directly at **Step 7**
 - [ ] **Suppression without justification (`# noqa`/`# type: ignore`/`# nosec`)** → Start directly at **Step 4**
 
-*If multiple tools are failing or the source is ambiguous, you must run the full sequence from Step 1.*
+*If multiple tools are failing or the source is ambiguous, you MUST run the full sequence from Step 1.*
 
 ---
 
@@ -45,12 +45,12 @@ Before running the full sequence, look at the error log and check if the failure
 
 | Step | Name | Goal / AI Action |
 |---|---|---|
-| 1 | Identify failure source | Run validation tools or inspect logs to pinpoint which check is failing. |
+| 1 | Identify failure source | Run validation tools or inspect logs to pinpoint the failing check. |
 | 2 | Repository convention enforcement | Run `ruff format` first (formatting), then `ruff check` (lint). Use `ast-grep` for structural pattern checks if available. |
-| 3 | Architecture integrity | Validate layering with `uv run lint-imports` (config: `.importlinter`) against the layer contract in `skills/DESIGN.md` Import layer contract; violations must be fixed structurally, not suppressed. Also run `python tools/check_compat_shims.py` to detect backward compatibility leftovers in source and docs. |
-| 4 | Suppression governance | **Audit step**: If any `# noqa`, `# type: ignore`, or `# nosec` is absolutely necessary, you must provide a rigorous, comments-based justification directly above the line. |
-| 5 | Semantic refactor safety | Use `LibCST` or structural modifiers when performing comment/formatting-preserving transformations. |
-| 6 | Type flow analysis | Run `mypy` and `pyright` to ensure zero type errors. Ensure strict type flow in public interfaces. |
+| 3 | Architecture integrity | Validate layering with `uv run lint-imports` (config: `.importlinter`) against the layer contract in `skills/DESIGN.md` Import layer contract; violations MUST be fixed structurally, not suppressed. Also run `python tools/check_compat_shims.py` to detect backward compatibility leftovers in source and docs. |
+| 4 | Suppression governance | **Audit step**: If any `# noqa`, `# type: ignore`, or `# nosec` is absolutely necessary, you MUST provide a rigorous, comments-based justification directly above the line. |
+| 5 | Semantic refactor safety | Use `LibCST` or structural modifiers for comment/formatting-preserving transformations. |
+| 6 | Type flow analysis | Run `mypy` and `pyright` to ensure zero type errors. Ensure strict type flow in public interfaces. `pyre` is optional (see `workflow.md` Step 6). |
 | 7 | Static security validation | Run `bandit`. Address high/medium severity issues (see `rules/coding.md` Bandit priority findings) before proceeding. |
 | 8 | Diff scope enforcement | Check your changes against git diff. Per `rules/toolchain.md` §7 (Diff-scoped coverage). |
 | 9 | CI consistency validation | Run `tox` or execution environment tests across all target Python environments. |
@@ -61,7 +61,7 @@ Before running the full sequence, look at the error log and check if the failure
 
 ## Mandatory Audit Log Template for Step 4 (Suppression Governance)
 
-If you must suppress a lint, type, or security warning because a proper fix is technically impossible or introduces a breaking change, you must document it in your final response using the required audit record format defined in `rules/coding.md` Suppression governance.
+If you must suppress a lint, type, or security warning because a proper fix is technically impossible or introduces a breaking change, you MUST document it in your final response using the audit record format in `rules/coding.md` Suppression governance.
 
 ---
 

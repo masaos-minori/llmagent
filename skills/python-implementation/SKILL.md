@@ -34,7 +34,7 @@ Use this skill by default for production Python work.
 | 2 | Repository Intelligence | modules, entry points, tests, downstream dependencies |
 | 3 | Architecture Boundary Analysis | layer boundaries, dependency direction violations |
 | 4 | Convention Extraction | naming, typing (PEP 484/526), error handling, test style |
-| 5 | Semantic Safe Modification | smallest change (see `workflow.md` Step 5c "keep diffs small and intentional"); preserve unrelated behavior; apply modern Python features |
+| 5 | Semantic Safe Modification | smallest change (see `workflow.md` Phase 5 Step 5c "keep diffs small and intentional"); preserve unrelated behavior; apply modern Python features |
 | 6 | Runtime Contract Validation | request/response contracts, MCP endpoint compatibility (MCP changes only) |
 | 7 | Observability Injection | structured logging (using `logging` framework) / tracing (skip unless project pattern exists) |
 | 8 | Security Validation | Apply `skills/DESIGN.md` Pythonic safety constraints (dynamic execution); also check SQL injection, unvalidated serialization |
@@ -43,7 +43,7 @@ Use this skill by default for production Python work.
 | 11 | Production Readiness | Apply `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug artifacts); strict typing; docstrings updated for non-obvious or public-facing APIs only (PEP 257) |
 | 12 | Knowledge Compression | routing.md, docs/, deploy.sh updated |
 
-See `workflow.md` for detailed phase content including commands and tools.
+See `workflow.md` for phase details, commands, and tools.
 
 ---
 
@@ -57,7 +57,7 @@ Use only for small, self-contained bug fixes satisfying ALL of:
 - no performance benchmarking needed
 
 Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benchmark.
-*Note: Even in Fast Path, passing `ruff` and `mypy/pyright` checks in Phase 9 is mandatory.*
+Even in Fast path, passing `ruff` and `mypy/pyright` in Phase 9 is mandatory.
 
 ---
 
@@ -69,9 +69,9 @@ Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benc
 - Prefer small, reviewable diffs
 - Scope discipline: see `AGENTS.md` Global Rule 5.
 - When a requirement is uncertain, inspect the repository (Phase 2) before writing code —
-  uncertainty is a signal to investigate, not a signal that any interpretation is approved
-- Extract naming, typing, and error-handling conventions from nearby code (Phase 4) rather
-  than assuming a convention applies
+  uncertainty is a signal to investigate, not approval of any interpretation
+- Extract naming, typing, and error-handling conventions from nearby code (Phase 4); MUST NOT
+  assume a convention applies
 - Treat the task as complete only after Phase 9 validation (`pytest`, `ruff`, `mypy`) passes
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
@@ -80,10 +80,9 @@ See `skills/DESIGN.md` Pythonic safety constraints (mutable defaults, exception 
 typed data, resource management, dynamic execution, async safety) — apply in full.
 
 ### Code Comments
-Write a comment only for a non-obvious WHY: a hidden constraint, the reason for a
-workaround, or behavior that would surprise a reader — information that cannot be
-recovered by reading the code itself. Do not write:
-- WHAT the code does (already visible from the code, e.g. `# get the user ID`)
+Write a comment only for a non-obvious WHY (a hidden constraint, a workaround's reason, or
+surprising behavior) that cannot be recovered by reading the code. MUST NOT write:
+- WHAT the code does (e.g. `# get the user ID`)
 - change history (e.g. "added X", "previously implemented as Y")
 - task/ticket ID references (e.g. `(UZU-XXXX)`)
 
@@ -110,4 +109,4 @@ After using this skill:
 - if a needed step was missing, add it
 - if the fast path was too broad or too narrow, refine its conditions
 
-Update the phase definitions in this file and the detailed procedures in `workflow.md` as needed.
+Update phase definitions here and detailed procedures in `workflow.md` as needed.

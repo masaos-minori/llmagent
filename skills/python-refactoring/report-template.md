@@ -9,7 +9,7 @@ complete.
 ## Report Structure (Step 10)
 
 Keep diffs minimal. Populate every field below from what Steps 2-9 already recorded —
-do not re-run `mutmut` or any other check merely to produce this report. For each file
+MUST NOT re-run `mutmut` or any other check merely to produce this report. For each file
 (or approved atomic migration group, per `path-c.md`), report:
 
 - The Step 2 refactoring intent declaration.
@@ -105,7 +105,6 @@ The refactoring is complete only when all of the following are true:
 Path C requires additional items — see `path-c.md` Path C Completion Requirements; they
 are additive to, not a replacement for, the gate above.
 
-If any required item above cannot be satisfied: report `Blocked` (per this file's
-existing `Blocked` status vocabulary) rather than a partial pass — a Completion Gate
-item is not conditional/optional like the validation items covered by `Not run`/
-`Blocked` status elsewhere in this template.
+If any required item above cannot be satisfied: report `Blocked` rather than a partial
+pass — a Completion Gate item is not conditional/optional like the validation items
+covered by `Not run`/`Blocked` status elsewhere in this template.

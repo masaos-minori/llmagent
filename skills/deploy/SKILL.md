@@ -1,7 +1,7 @@
 ---
 name: deploy
 description: |
-Use this skill PROACTIVELY when deploying changes to the production environment,
+  Use this skill PROACTIVELY when deploying changes to the production environment,
    initializing the database, or syncing scripts and
    configs to /opt/llm/. Use this when the task involves deploy.sh, init_db.sh,
    setup_services.sh, service restarts, or verifying that deployed files are current.
@@ -13,7 +13,7 @@ Use this skill PROACTIVELY when deploying changes to the production environment,
 
 Deploy code and config changes safely to `/opt/llm/`; manage services without disrupting the running agent or MCP servers.
 
-For environment details (paths, service names, ports): see `rules/env.md`.
+Environment details (paths, service names, ports): see `rules/env.md`.
 
 ## Deploy scripts
 
@@ -26,13 +26,13 @@ For environment details (paths, service names, ports): see `rules/env.md`.
 
 ## Binary layout
 
-On the deployed host the compiled artifacts live under `/opt/llm/`:
+Compiled artifacts under `/opt/llm/`:
 
-- `/opt/llm/bin/` holds the 11 Nuitka `--onefile` binaries (`agent` plus one `mcp_<server>` per MCP server). It must not be group/world-writable; the CommandValidator rejects binaries under a writable directory.
-- `/opt/llm/dict/system.dic` is the external Sudachi dictionary (built by `deploy/build_binaries.sh`, placed by `deploy/deploy.sh`).
-- `config/` stays external (copied by `deploy/deploy.sh`).
+- `/opt/llm/bin/`: the 11 Nuitka `--onefile` binaries (`agent` plus one `mcp_<server>` per MCP server). It MUST NOT be group/world-writable; the CommandValidator rejects binaries under a writable directory.
+- `/opt/llm/dict/system.dic`: external Sudachi dictionary (built by `deploy/build_binaries.sh`, placed by `deploy/deploy.sh`).
+- `config/`: stays external (copied by `deploy/deploy.sh`).
 
-The agent binary resolves these via two environment variables:
+The agent binary resolves these via:
 
 - `LLMAGENT_CONFIG_DIR=/opt/llm/config`
 - `LLMAGENT_SUDACHI_DICT=/opt/llm/dict/system.dic`
@@ -43,12 +43,12 @@ The agent binary resolves these via two environment variables:
 
 | Phase | Goal | Gate |
 |---|---|---|
-| 1 Pre-deploy | Syntax check + deploy.sh copy list confirmation | `All scripts OK`; no missing files |
+| 1 Pre-deploy | Syntax check + deploy.sh copy list confirmation | `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, copy-list diff empty (`workflow.md` Phase 1 Completed when) |
 | 2 Deploy | Copy files to `/opt/llm/` | `bash deploy/deploy.sh` exits 0 |
 | 3 Restart | Restart only affected services | Port health check returns OK |
 | 4 Verify | Log check + basic operation | No new errors in logs |
 
-See `workflow.md` for detailed phase content including failure recovery procedures.
+See `workflow.md` for phase details and failure recovery.
 
 ## Completion checklist
 
@@ -70,26 +70,23 @@ See `workflow.md` for detailed phase content including failure recovery procedur
 - **Config-only change** (no `scripts/` change): Phase 3 (Restart) may be skipped only if the
   changed field appears in the affected service's `/reload`-eligible field list (see
   `docs/23_agent/agent_08_01_configuration-loading-agent-config.md`'s hot-reload table for the
-  agent; for an MCP server, check whether `ConfigLoader().load(...)` is called at module
-  import / `__init__` time — if so, it is startup-only and requires Phase 3; if it is called
-  inside a request handler, `/reload` suffices and Phase 3 may be skipped).
-- **Rollback**: `deploy/deploy.sh` only copies files; rollback by re-running the skill with the previous commit checked out (`git checkout <prev-sha>` then Phase 2 onward). Service state is not rolled back automatically. See `AGENTS.md` Loop Prevention > Rollback Directive — if the same failure recurs after rollback, stop and report it rather than deploying forward again on the assumption the rollback fixed it. Reverting `config/agent.toml` to its `uv run` `cmd` entries and redeploying restores the `uv run` launch path; `scripts/` stays deployed so the `uv run` path keeps working after the revert.
+  agent). For an MCP server: if `ConfigLoader().load(...)` is called at module
+  import / `__init__` time, the field is startup-only and requires Phase 3; if it is called
+  inside a request handler, `/reload` suffices and Phase 3 may be skipped.
+- **Rollback**: `deploy/deploy.sh` only copies files; roll back by re-running the skill with the previous commit checked out (`git checkout <prev-sha>` then Phase 2 onward). Service state is not rolled back automatically. See `AGENTS.md` Loop Prevention > Rollback Directive — if the same failure recurs after rollback, stop and report it rather than deploying forward again on the assumption the rollback fixed it. Reverting `config/agent.toml` to its `uv run` `cmd` entries and redeploying restores the `uv run` launch path; `scripts/` stays deployed so that path keeps working after the revert.
 
 ## Required behavior
 
-- Restart only the services identified by Phase 3's Agent restart decision criteria — never
-  restart a service the criteria did not select for the current change.
+- Restart only the services selected by Phase 3 Step 3a decision criteria; never restart a service the criteria did not select.
 - Before running `deploy/init_db.sh` on a production DB, confirm idempotency by checking
-  whether the target tables already exist (see Phase overview Gate for Phase 1 and
-  `deploy/init_db.sh`'s own `IF NOT EXISTS` guards).
-- Before running `deploy/setup_services.sh`, check whether the services it starts are
-  already registered (`curl` each health endpoint per `rules/env.md`) — run it only when at
+  whether the target tables already exist (see `deploy/init_db.sh`'s own `IF NOT EXISTS` guards).
+- Before running `deploy/setup_services.sh`, check whether its services are
+  already registered (`curl` each health endpoint per `rules/env.md`); run it only when at
   least one target service is not already running.
 - Run the Phase 1 pre-deploy syntax check before every deploy; if it reports a `SyntaxError`,
-  fix the error and re-run the check before proceeding to Phase 2.
-- Use `/reload` only for hot-reloadable config fields (see Phase 3 Agent restart decision
-  criteria); use a full deploy (Phase 2 onward) whenever `scripts/` files changed, since
-  `/reload` never copies code.
+  fix it and re-run the check before proceeding to Phase 2.
+- Use `/reload` only for hot-reloadable config fields (see Phase 3 Step 3a); use a full
+  deploy (Phase 2 onward) whenever `scripts/` files changed, since `/reload` never copies code.
 
 ## Improvement feedback
 

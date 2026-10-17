@@ -4,19 +4,19 @@ description: |
   Design Python programs before implementation. Define architecture, responsibility boundaries,
   public contracts, data ownership, error handling, configuration boundaries, tests,
   and phased implementation plans.
-  Do not implement unless explicitly requested.
+  MUST NOT implement unless explicitly requested.
 ---
 
 # Python Program Design Skill
 
 ## Purpose
 
-Design first: produce design output only, and implement only when the user explicitly
-requests implementation (see `skills/DESIGN.md` Analysis-only phase constraint).
+Design first: produce design output only; implement only when the user explicitly
+requests it (see `skills/DESIGN.md` Analysis-only phase constraint).
 
-Produce output that is clear and structured, minimal and YAGNI-compliant, type-safe,
-testable, and focused on design decisions, responsibility boundaries, constraints, and
-operational risks — not on exhaustive implementation-reference detail.
+Output is clear, structured, minimal (YAGNI), type-safe, testable, and focused on design
+decisions, responsibility boundaries, constraints, and operational risks — not
+exhaustive implementation-reference detail.
 
 ---
 
@@ -56,9 +56,9 @@ implementation starts.
 | 1 | Understand the task | Clarify goals, constraints, performance characteristics, and context |
 | 2 | Extract requirements | Functional/non-functional requirements, edge cases, assumptions, dependencies |
 | 3 | Define architecture | Components, responsibility boundaries, data flow, control flow, sync/async boundaries |
-| 4 | Design modules and packages | Package responsibilities, dependency direction, import constraints |
-| 5 | Design data and validation | Data ownership, domain entities, validation boundaries, immutability |
-| 6 | Define error and resource policy | Failure modes, exception/retry policy, logging context, resource lifecycle |
+| 4 | Design modules and interfaces | Package responsibilities, dependency direction, import constraints |
+| 5 | Design data and persistence | Data ownership, domain entities, validation boundaries, immutability |
+| 6 | Define error handling | Failure modes, exception/retry policy, logging context, resource lifecycle |
 | 7 | Define test strategy | Unit/integration tests, mocking strategy, fixtures, testability hooks |
 | 8 | Produce an implementation plan | Ordered phases, dependency-aware task order, migration path, milestones |
 | 9 | Review the design | Completeness, consistency, type-checking feasibility, testability, YAGNI compliance |
@@ -71,16 +71,15 @@ See `workflow.md` for detailed phase content and the required output template.
 
 - **Avoid implementation-reference duplication**: see `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove.
 - **Enforce one-way dependency direction**: apply `skills/DESIGN.md` Import layer contract at the design stage, not during implementation.
-- **Isolate async and sync code**: design so the eventual implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints (async safety) — this skill designs to that constraint, `python-implementation`/`python-refactoring` are the ones it binds directly.
+- **Isolate async and sync code**: design so the implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints (async safety); this skill designs to that constraint, which binds `python-implementation`/`python-refactoring` directly.
 - **Design for immutability by default**: prefer frozen dataclasses, tuples, and `Mapping` for core domain data unless mutation is justified.
 - **Validate only at system boundaries**: pass trusted, type-safe objects into internal services.
 - **Use abstractions only when justified**: no abstract factories, `Protocol`, or `abc.ABC` without a concrete requirement.
 - **Include failure paths and resource lifecycle explicitly**: a design is incomplete if it only describes the happy path.
-- **Do not write production code blocks**: use pseudocode or minimal typed signatures to illustrate interfaces.
-- **Keep proposed design separate from implemented behavior**: for existing-codebase review, apply `skills/DESIGN.md` Evidence labels; for new design, mark assumptions and open questions clearly.
+- **MUST NOT write production code blocks**: use pseudocode or minimal typed signatures to illustrate interfaces.
+- **Keep proposed design separate from implemented behavior**: for existing-codebase review, apply `skills/DESIGN.md` Evidence labels; for new design, mark assumptions and open questions.
 
-See `workflow.md` for the full rule set, evidence-label usage, and the Python-specific
-design checklist.
+See `workflow.md` for the full rule set, evidence-label usage, and the design checklist.
 
 ---
 
@@ -92,10 +91,7 @@ design checklist.
 ## Called by
 
 - `issue-to-plan` — during planning phase when design decisions or architecture analysis are required
-- `plan-to-implementation-procedure` — narrow usage only: draws a few relevant bullets
-  for its "Design decisions" / "Alternatives considered" / "Compatibility
-  considerations" / "Security considerations" / "Rollback considerations" fields, not
-  a full invocation of this skill's 12-section output
+- `plan-to-implementation-procedure` — narrow usage only: draws a few relevant bullets for its "Design decisions" / "Alternatives considered" / "Compatibility considerations" / "Security considerations" / "Rollback considerations" fields, not a full invocation of this skill's 12-section output
 
 ---
 
@@ -105,14 +101,13 @@ After running this skill:
 - if a required section was unnecessary for the task type, note the condition and refine the output template in `workflow.md`
 - if a design rule conflicted with a project-specific constraint, document the exception
 - if the When Not To Use conditions were too broad or too narrow, refine them
-- if the design produced too much implementation-reference detail, tighten the rule against exhaustive implementation-derived descriptions
+- if the design had too much implementation-reference detail, tighten the rule against exhaustive implementation-derived descriptions
 
 ---
 
 ## Final Rule
 
-You are producing a small, explicit, type-safe, testable, and maintainable Python design
-(see Purpose above for the analysis-only constraint this implies).
+You are producing a small, explicit, type-safe, testable, maintainable Python design (analysis-only per Purpose).
 
 When in doubt, prioritize: correctness, simplicity, explicit responsibility boundaries,
 type safety, testability, operational safety, maintainability.

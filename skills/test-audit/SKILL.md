@@ -21,11 +21,8 @@ description: |
 
 Audit the test suite as a whole and turn what is found into an execution-ready plan.
 See `skills/DESIGN.md`, section "Safety-over-speed priority".
-The output must be practical enough to use directly as:
-- a QA review memo,
-- a test debt report,
-- a refactoring / stabilization work plan,
-- a source for GitHub Issue creation.
+The output MUST be usable directly as a QA review memo, a test debt report, a
+refactoring / stabilization work plan, or a source for GitHub Issue creation.
 
 ---
 
@@ -33,7 +30,7 @@ The output must be practical enough to use directly as:
 
 | Step | Name | Phase type | Goal / AI Action |
 |---|---|---|---|
-| 0 | Load required instructions | Discovery | Read routing, rules, this skill, `workflow.md`, `discovery.md`, `safety.md`, `evidence.md`, `report-template.md` before starting. |
+| 0 | Load required instructions | Discovery | Read `routing.md`, `AGENTS.md`, `rules/toolchain.md`, `rules/env.md`, `rules/ai-execution.md`, `skills/DESIGN.md`, this skill, `workflow.md`, `discovery.md`, `safety.md`, `evidence.md`, `report-template.md` before starting (list: `workflow.md` Step 0). |
 | 1 | Discover test entry points | Discovery | Identify every test/validation command the repository defines; execute nothing. |
 | 2 | Safety evaluation | Analysis | Classify every discovered command `Safe` / `Safe with isolated infrastructure` / `Blocked` / `Not runnable` / `Prohibited`, before anything runs. |
 | 3 | Execute safe commands | Execution | Run every command Step 2 cleared, within the Full-Suite Execution Scope and Abort Conditions. |
@@ -49,8 +46,8 @@ See `workflow.md` for the detailed per-step procedure.
 
 ## Phase Boundaries (Discovery / Execution / Analysis)
 
-Every step above is exactly one of three phase types. Do not blur them — a step's
-phase type bounds what it may do, regardless of what seems convenient in the moment.
+Every step above is exactly one of three phase types. MUST NOT blur them — a step's
+phase type bounds what it may do.
 
 - **Discovery** — read-only inspection: reading files, `grep`/`find`, listing test
   entry points, dry-run/collect-only commands that do not execute test bodies (e.g.
@@ -60,26 +57,24 @@ phase type bounds what it may do, regardless of what seems convenient in the mom
   with real side effects even if isolated/ephemeral. Only Steps 3 and 4 may execute
   such a command, and only one Step 2 has already classified `Safe` (or `Safe with
   isolated infrastructure`).
-- **Analysis** — drawing conclusions from already-collected Discovery/Execution
-  output, or deciding safety, without executing any new test/validation command.
-  Applies to Step 2 (the safety decision itself is Analysis, not Execution), and to
-  Steps 5, 6, 7, and 8.
+- **Analysis** — drawing conclusions from already-collected output, or deciding
+  safety, without executing any new test/validation command. Applies to Steps 2
+  (the safety decision itself is Analysis), 5, 6, 7, and 8.
 
 If an Analysis step (2, 5-8) reveals a genuine need to run something that Step 3/4 did
-not already run, do not execute it inline — record it as a gap and route it back to a
+not already run, MUST NOT execute it inline — record it as a gap and route it back to a
 new Step 2-4 cycle, scoped to only the newly-identified command(s), not a full re-run
-of everything Step 3 already executed. This audit tolerates at most 3 such Step 2-4
-re-entry cycles in one run (per `AGENTS.md` Loop Prevention > Attempt Limit); if a 4th
-genuine need surfaces, stop routing back and instead record it as an unexecuted gap in
-the Step 8 report — do not continue re-entering Step 2-4 indefinitely. Do not modify
-production code in any step unless the user explicitly requested it.
+of Step 3. This audit tolerates at most 3 such Step 2-4 re-entry cycles in one run
+(per `AGENTS.md` Loop Prevention > Attempt Limit); if a 4th genuine need surfaces,
+stop routing back and record it as an unexecuted gap in the Step 8 report. MUST NOT
+modify production code in any step unless the user explicitly requested it.
 
 ---
 
 ## Priority and Effort — separate vocabularies, never interchanged
 
-Two independent axes describe every Task (Step 7). Do not use one vocabulary for the
-other, and do not introduce a third.
+Two independent axes describe every Task (Step 7). MUST NOT use one vocabulary for the
+other or introduce a third.
 
 - **Priority** — how urgently the task should be done: `P1 (Critical)` / `P2
   (Important)` / `P3 (Nice to have)`. Criteria:
@@ -114,9 +109,8 @@ Task List MUST show both fields separately; neither MAY stand in for the other.
 
 ## Output format
 
-This phase does not produce a fixed document ahead of time — its output is a
-Markdown report. See `report-template.md` for the exact structure and the Optional
-Extra Output (GitHub Issue Drafts).
+The output is a Markdown report. See `report-template.md` for the exact structure and
+the Optional Extra Output (GitHub Issue Drafts).
 
 ---
 

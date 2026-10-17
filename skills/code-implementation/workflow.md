@@ -30,12 +30,11 @@ below still requires the full inspection that rule describes):
 | `pytest` (targeted, then full suite), `pytest --testmon` | 4 | Test execution and impact-based selection |
 | See `routing.md` Tools → "When to run which tool" | 6 | Documentation validation |
 
-`tools/manage_workitem_stage.py close-implementation` (see `tools/TOOL_DESCRIPTIONS.md`
-for full usage) is a `git mv`-based archival move that refuses (non-zero exit, no move)
-if the target's `### Execution Status` table still has a `Pending` row, without
-`--force --reason`. Per `rules/ai-execution.md` Repository Tool Usage, prefer it over a
-direct `git mv` when it covers the need; Step 1 and Step 7 below state the fallback to
-use if the tool is unavailable.
+`tools/manage_workitem_stage.py close-implementation` (usage: `tools/TOOL_DESCRIPTIONS.md`)
+is a `git mv`-based archival move that refuses (non-zero exit, no move) if the target's
+`### Execution Status` table still has a `Pending` row, without `--force --reason`. Per
+`rules/ai-execution.md` Repository Tool Usage, prefer it over a direct `git mv` when it
+covers the need; Step 1 and Step 7 state the fallback if the tool is unavailable.
 
 ## Allowed file operations
 
@@ -49,20 +48,18 @@ use if the tool is unavailable.
   via Edit) when Step 3's adversarial verification finds an unconfirmed item or an
   inconsistency, in addition to its `## Execution Status` section.
 - Update the source Plan's own `### Execution Status` table (`plans/{filename}_plan.md`
-  or `plans/done/{filename}_plan.md` if already archived) — specifically, the row
-  matching this implementation procedure's Traceability `Related target files` value
-  — to `Completed`, once Step 7's move succeeds (see Step 7). This is the other half
-  of `plan-to-implementation-procedure` Step 4's own `In Progress` update for that
-  same row; without it, the Plan would never reflect that its implementation actually
-  landed.
-- Do not modify files outside the scope specified in the plan/procedure.
-- Do not edit documentation before Step 5.
+  or `plans/done/{filename}_plan.md` if already archived) — the row matching this
+  implementation procedure's Traceability `Related target files` value — to
+  `Completed`, once Step 7's move succeeds. This is the other half of
+  `plan-to-implementation-procedure` Step 4's own `In Progress` update for that row.
+- MUST NOT modify files outside the scope specified in the plan/procedure.
+- MUST NOT edit documentation before Step 5.
 
 ## Out of Scope
 
 Apply `rules/ai-execution.md` Global Safety Restrictions (Base) — this already covers
 not moving existing documentation files and not changing the workflow directory
-structure. Additionally for this workflow, do not perform any of the following:
+structure. Additionally for this workflow, MUST NOT perform any of the following:
 - making code/behavior changes while performing Steps 5-6 (documentation update/validation)
 
 ## Multi-file processing
@@ -79,25 +76,24 @@ cadence.
 
 ### Progress recording during Steps 3-6
 
-**Chat-report frequency** (when to tell the user something): "differs from expected"
-means one of these concrete conditions — a Step reports `Blocked`, an Attempt Limit
-retry occurred, a Rollback was applied, or a Step's outcome is `N/A`/skipped. Report
-status only on one of these, or when moving between artifact types (code → test →
-doc):
+**Chat-report frequency**: "differs from expected" means one of these concrete
+conditions — a Step reports `Blocked`, an Attempt Limit retry occurred, a Rollback was
+applied, or a Step's outcome is `N/A`/skipped. Report status only on one of these, or
+when moving between artifact types (code → test → doc):
 - Note the current artifact (code, test, or documentation)
 - Record status (In Progress / Blocked / Completed) per sub-task
 - If blocked, describe the blocker and whether it requires user intervention
 
-A chat report is informational only — reporting a status never itself restarts, retries,
-or re-verifies a Step; only the Step's own defined trigger conditions (Attempt Limit,
-Adversarial Verification finding, etc.) do that.
+A chat report is informational only — it never itself restarts, retries, or re-verifies
+a Step; only the Step's own defined trigger conditions (Attempt Limit, Adversarial
+Verification finding, etc.) do that.
 
 **Execution Status file write** (unconditional, independent of the chat-report
-frequency gate above): update the implementation procedure file's own
+frequency gate): update the implementation procedure file's own
 `### Execution Status` table with the current step's Status/Started/Completed at
-every Step transition or completion within Steps 3-6, regardless of whether a chat
-report is also made for that transition — this is the persisted record if the
-session is interrupted before Step 7's move. Use `uv run python
+every Step transition or completion within Steps 3-6, whether or not a chat report is
+also made — this is the persisted record if the session is interrupted before Step 7's
+move. Use `uv run python
 tools/manage_workitem_stage.py set-step-status implementation-procedure {path}
 --step {N} {status} --started {timestamp} --completed {timestamp}` (timestamps from
 `date +%Y%m%d-%H%M%S`, per `templates/execution-status.md` Notes) rather than editing
@@ -122,7 +118,7 @@ If not already loaded, read the following before starting:
 - `templates/execution-status.md`
 - `SKILL.md` (this skill), and this file.
 
-Do not load these two eagerly — load each only at the step that actually needs it:
+MUST NOT load these two eagerly — load each only at the step that actually needs it:
 - `skills/python-debug-root-cause/SKILL.md` — load at Step 4, only if a failure's
   cause is not immediately obvious.
 - `skills/python-documentation/SKILL.md` — load at Step 5, only if at least one
@@ -140,7 +136,7 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
 `implementations/done/`.
 - **All-steps-completed check**: after reading the file, inspect its `## Execution Status`
   table. If every step row shows `Completed` (no `Pending`, `Blocked`, or other status),
-  the procedure is fully executed — do not re-execute it. Move it to
+  the procedure is fully executed — MUST NOT re-execute it. Move it to
   `implementations/done/` (same rules as Step 7): prefer `uv run python
   tools/manage_workitem_stage.py close-implementation implementations/{filename}.md`;
   fall back to `git mv implementations/{filename}.md implementations/done/{filename}.md`
@@ -151,10 +147,10 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
   file only and continue to the next target file in the batch (see Step 7).
 - **Partial-completion resume**: if at least one row is `Completed` but not all
   (a resumed, previously-interrupted cycle), resume from the first Step whose row is
-  not `Completed` — do not re-run a Step already marked `Completed` in this table
-  unless a later Step's Adversarial Verification (Step 3a) specifically finds that
-  Step's output is now stale. Do not re-derive or re-verify a `Completed` Step's
-  conclusion merely because the cycle is resuming.
+  not `Completed`. MUST NOT re-run a Step already marked `Completed` unless a later
+  Step's Adversarial Verification (Step 3a) specifically finds that Step's output is
+  now stale. MUST NOT re-derive or re-verify a `Completed` Step's conclusion merely
+  because the cycle is resuming.
 
 ## Step 2: Read the Current Implementation Procedure File
 
@@ -163,15 +159,14 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
 - Identify the target feature and all source files to modify.
 - Extract this document's own Traceability section — `Source issue`, `Source plan`,
   and `Related target files` — for reuse in this cycle's Final Report. Carry these
-  values forward as-is; do not re-derive or re-guess them.
+  values forward as-is; MUST NOT re-derive or re-guess them.
 - If the implementation procedure is ambiguous or the scope is unclear, stop and ask
   for clarification before proceeding.
 
-## Step 3: Pre-execution Stale Detection
+### Pre-execution stale detection (part of Step 2)
 
 Before proceeding to implementation, verify that the procedure's referenced code
-constructs still exist in the current source. This prevents wasted effort on procedures
-whose targets have been modified by another process or prior execution.
+constructs still exist in the current source.
 
 Run `uv run python tools/stale_detector.py {proc_path}` where `{proc_path}` is
 the repository-relative path to the implementation procedure file (e.g.,
@@ -183,7 +178,7 @@ references are stale.
 **Completed when**: either the check passes (no stale references found) or the
 procedure is aborted (stale references detected).
 
-### Stale detection result handling
+#### Stale detection result handling
 
 A symbol or an import statement that the procedure marks with the word (new) after its
 backticked name is declared as created by the procedure and is not checked against the
@@ -197,17 +192,16 @@ blocks against an empty file, and skips line citations that resolve to it. An un
 target that does not exist is still a mismatch and aborts the procedure.
 
 If the stale detector reports any mismatch:
-- Abort execution immediately — do not proceed to Step 3.
+- Abort execution immediately — MUST NOT proceed to Step 3.
 - Report the findings to the user: list each stale reference type and detail
   (e.g., `"symbol_missing: Symbol '_llm_runner' not found in source"`).
-- Do not correct the procedure and continue — the procedure cannot be reliably
-  executed if even one referenced construct is missing. Per REQ-003, abort and report.
+- MUST NOT correct the procedure and continue. Per REQ-003, abort and report.
 
 If the stale detector reports no mismatches:
 - Proceed to Step 3 normally.
 - Record the clean check result in the Execution Status Notes for this step.
 
-### Design decisions applied
+#### Design decisions applied
 
 - Any single mismatch constitutes "stale" — the procedure cannot be reliably
   executed if even one referenced construct is missing (REQ-002 decision).
@@ -216,33 +210,33 @@ If the stale detector reports no mismatches:
 - Uses simple regex/string matching against the cited line ranges specified in
   the procedure document — avoids AST parsing (REQ-002 constraint).
 
-## Step 4: Implement the Feature
+## Step 3: Implement the Feature
 
 This step has five sub-steps, applied in order: verify the procedure's claims (3a),
 correct the procedure on a finding (3b), check for cross-file conflicts (3c), implement
 (3d), then validate (3e).
 
-### Step 4a: Verify the procedure's claims (adversarial verification)
+### Step 3a: Verify the procedure's claims (adversarial verification)
 
 Before implementing, apply `rules/ai-execution.md` Adversarial Verification (Base) to
-the procedure's claims about current source: do not assume its Procedure/Method/Details
+the procedure's claims about current source: MUST NOT assume its Procedure/Method/Details
 are still accurate — check via `rg`/Read whether the target file, symbol, line numbers,
 and call path it describes still match current source, and whether any stated
 assumption or scope boundary is stale or inconsistent with a sibling procedure document
 or the source Plan. Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule:
-do not re-run a `rg`/Read check already performed against this same file at its current
+MUST NOT re-run a `rg`/Read check already performed against this same file at its current
 content within this cycle.
 
 **Completed when**: the target file, its specific symbol/line/call-path claims, and its
 stated dependencies have each been checked once against current source.
 
-### Step 4b: Correct the procedure document on a finding
+### Step 3b: Correct the procedure document on a finding
 
 If verification finds an unconfirmed item or an inconsistency, correct the
 implementation procedure document itself (`implementations/{filename}.md`, via Edit)
-to reflect the corrected understanding before proceeding, and note the correction in
-the Execution Status table's Notes. Do not implement around a stale description —
-implement against the corrected, source-verified understanding.
+before proceeding, and note the correction in the Execution Status table's Notes. Do
+not implement around a stale description — implement against the corrected,
+source-verified understanding.
 
 Apply `rules/workflow-lifecycle.md` Correction-and-Recheck Cycle Bound (re-running
 Step 3a against the corrected document); the `{artifact}` in that bound's `Blocked`
@@ -251,13 +245,13 @@ message is "implementation procedure".
 **Completed when**: no unconfirmed item or inconsistency from Step 3a remains
 unaddressed in the procedure document (or Step 3a found none).
 
-### Step 4c: Check for cross-file conflicts
+### Step 3c: Check for cross-file conflicts
 
 If adversarial verification, or the implementation itself, reveals that the current
 file's required change conflicts with, or invalidates an assumption of, an
 already-processed file's change in the same Multi-file-processing batch, stop and
 report `Blocked: cross-file conflict with {earlier file} — {description}` rather than
-proceeding. Do not implement around the conflict silently. This is a per-file `Blocked`
+proceeding. MUST NOT implement around the conflict silently. This is a per-file `Blocked`
 outcome, not a batch-wide stop — the current file's cycle ends here, its Execution
 Status row for this Step is marked `Blocked`, and Multi-file processing continues with
 the next target file in the batch (same continuation policy as Step 7's move failure).
@@ -265,19 +259,18 @@ the next target file in the batch (same continuation policy as Step 7's move fai
 **Completed when**: no unresolved conflict with an already-processed file in this batch
 is outstanding.
 
-### Step 4d: Implement
+### Step 3d: Implement
 
 Implement the feature per the (possibly corrected) procedure, applying the guidance
 loaded in Step 0 from `skills/python-implementation/SKILL.md` and
 `skills/python-lint-typecheck/SKILL.md`. Record the changed file list in this Step's
-Execution Status Notes as it is produced — this is the list Final Report's `{files}`
-reads back (see Final Report below), not a list recomputed from `git diff` at report
-time.
+Execution Status Notes as it is produced — Final Report's `{files}` reads it back from
+there, not from `git diff` at report time.
 
 **Completed when**: the change described in the (possibly corrected) procedure is
 applied and its file list is recorded.
 
-### Step 4e: Validate
+### Step 3e: Validate
 
 Run repository-defined non-test validation: formatting, linting, type checking,
 architecture/import-boundary checks, security checks.
@@ -287,11 +280,11 @@ architecture/import-boundary checks, security checks.
 not merely that its exit code was 0 (per `rules/ai-execution.md` Repository Tool Usage #8).
 **On a failure**: fix the code and re-run this same Step 3e (not Step 3a-3d) until it
 passes. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
-most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be
+most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt MUST be
 recorded (approach, error, reason) before trying a different approach. If the Attempt
 Limit is reached, apply Rollback on Failure below.
 
-## Step 5: Test the Feature
+## Step 4: Test the Feature
 
 Apply the guidance from `skills/python-test-and-fix/SKILL.md` (loaded in Step 0). If a
 failure's cause is not immediately obvious, load and apply
@@ -305,12 +298,12 @@ failure's cause is not immediately obvious, load and apply
   one test (a 0-collected, exit-0 run is not a pass — per `rules/ai-execution.md`
   Repository Tool Usage #8) before treating it as evidence either way; fix all related
   failures. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
-  most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt must be
+  most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt MUST be
   recorded (approach, error, reason) before trying a different approach. If the Attempt
   Limit is reached without a passing fix, stop and apply Rollback on Failure (below) —
-  do not proceed to the full-suite run with a known-failing targeted test. If a fix here
+  MUST NOT proceed to the full-suite run with a known-failing targeted test. If a fix here
   touched formatting, typing, or imports, re-run Step 3e before returning to this Step's
-  targeted tests — do not treat Step 3e as satisfied by its earlier pass.
+  targeted tests — MUST NOT treat Step 3e as satisfied by its earlier pass.
 - Run the repository-defined full test suite exactly once per cycle, after targeted
   tests pass and confirmed to have collected at least one test — the only full-suite
   run for this cycle; Step 6 MUST NOT run tests again. If it fails, fixing and re-running
@@ -325,17 +318,17 @@ failure's cause is not immediately obvious, load and apply
 - Check the repository-defined coverage threshold if one exists.
 - Continue to documentation only after required tests pass.
 
-## Step 6: Update Documentation
+## Step 5: Update Documentation
 
 Update `docs/*.md` only for changed files under a Task scope row in
 `docs/00_index.md`'s "Document References by Task" table (see `routing.md` Docs → task
-mapping for the pointer) — not for a changed file under no such row. Match each
-changed file against the table's file/module list and edit only the matched row's
-Reference docs. If at least one changed file has a matching row, load
-`skills/python-documentation/SKILL.md` now (per Step 0) and apply its guidance.
+mapping for the pointer). Match each changed file against the table's file/module list
+and edit only the matched row's Reference docs. If at least one changed file has a
+matching row, load `skills/python-documentation/SKILL.md` now (per Step 0) and apply
+its guidance.
 
-If a changed file matches no row, this is a normal, non-blocking outcome — do not
-guess which doc to edit, and do not record it as a blocker. Record it in the Execution
+If a changed file matches no row, this is a normal, non-blocking outcome — MUST NOT
+guess which doc to edit, and MUST NOT record it as a blocker. Record it in the Execution
 Status table's Notes for Step 5 (e.g. `N/A: no docs/00_index.md task-scope mapping for
 {file}`) so it is visible in the persisted output, not only in the transient progress
 report.
@@ -349,16 +342,16 @@ Move the implementation procedure file only after:
 - documentation validation passes (or was skipped per Step 6, when no row matched),
 - every changed file without a matching row is recorded in the Execution Status Notes.
 
-## Step 7: Validate Documentation
+## Step 6: Validate Documentation
 
 If Step 5 made no edits (no changed file matched a Task scope row), skip this step's
 content checks entirely and mark Step 6 Completed with Notes = `N/A: no documentation
 changes to validate`.
 
 See `routing.md` Tools → "When to run which tool" for the checkers required on an edited
-`docs/*.md` file (per `AGENTS.md` Global Rule 9 — do not rely on manual review alone for
-what these already automate) — do not hardcode tool names or invocations here; that table
-is the single source of truth and is kept in sync with `tools/`.
+`docs/*.md` file (per `AGENTS.md` Global Rule 9 — MUST NOT rely on manual review alone for
+what these already automate) — MUST NOT hardcode tool names or invocations here; that table
+is the single source of truth.
 
 These tools cover most of the check below; still confirm manually whatever they do
 not automate for the edited sections:
@@ -375,13 +368,13 @@ local fix to that link) — unless the fix itself requires touching a different 
 scope row's content (e.g. a `check_docs_consistency.py --domain` drift finding that
 traces back to what Step 5 actually changed), in which case Step 5's matching
 procedure applies to that row as well. After fixing, re-run only the specific
-checker(s) that failed to confirm the fix — not the full Step 6 checklist — then
+checker(s) that failed — not the full Step 6 checklist — then
 proceed to Step 7. This fix-and-recheck loop is subject to AGENTS.md Attempt Limit (3
 attempts per distinct failing checker); if a checker still fails after 3 fix attempts,
 stop and report `Blocked: {checker} still failing after 3 attempts` rather than
 continuing to patch.
 
-## Step 8: Move the Completed Implementation Procedure File
+## Step 7: Move the Completed Implementation Procedure File
 
 This step MUST NOT be skipped.
 
@@ -395,7 +388,7 @@ only and does not apply to this workflow at all.
   All-steps-completed check already moved this file earlier in the same session), do
   not attempt a second move — verify the source no longer exists at
   `implementations/{filename}.md` and treat the cycle as already archived.
-- Do not perform this step before Step 5 (documentation update) and Step 6
+- MUST NOT perform this step before Step 5 (documentation update) and Step 6
   (documentation validation) are complete.
 - Before proceeding, verify that:
   - the implementation procedure file's own `## Execution Status` section shows
@@ -420,19 +413,19 @@ only and does not apply to this workflow at all.
   (`skills/git-commit-and-sync/workflow.md` Phase 2). A single-file cycle may keep the
   default auto-commit.
 - Direct command (fallback): `git mv implementations/{filename}.md
-  implementations/done/{filename}.md`. Do not use `mv`, `cp` + `rm`, or any other
+  implementations/done/{filename}.md`. MUST NOT use `mv`, `cp` + `rm`, or any other
   fallback beyond these two.
 - Verify both: the file exists in `implementations/done/`, and the source no longer
   exists at `implementations/{filename}.md` — a move that leaves the file in both
   locations (a partial `git mv` failure) is not a completed move; treat it the same as
   a failed move below.
 - **If the move fails, or leaves the file in both locations, stop and report
-  `Blocked: move failed — {reason}`. Do not fall back to another method beyond the two
+  `Blocked: move failed — {reason}`. MUST NOT fall back to another method beyond the two
   above.**
   Report `Blocked` for this specific file only — its code/test/doc changes remain
   applied and validated, and its implementation procedure document remains generated
   but unarchived — then continue Multi-file processing with the next target file in
-  the batch. Do not halt the entire batch because one file's Archival Move failed.
+  the batch. MUST NOT halt the entire batch because one file's Archival Move failed.
 
 ### Auto-archive collision handling (REQ-005)
 
@@ -453,7 +446,7 @@ zero-padded sequence suffix (e.g., `{filename}-001.md`). Retry up to 3 times
   file cannot be found at either location, report this as a non-blocking Note in the
   Final Report (`Plan Execution Status not updated: {reason}`) rather than treating
   it as a cycle failure — the implementation procedure's own move has already
-  succeeded and must not be reverted or blocked on this secondary update.
+  succeeded and MUST NOT be reverted or blocked on this secondary update.
 
 ## Rollback on Failure
 
@@ -462,11 +455,11 @@ report `Blocked: {description}`. Per AGENTS.md Failure Log, record the failure d
 (approach, error, reason) before considering a different approach. If reaching Attempt
 Limit (3 attempts for the same error), the revert-and-report action is required.
 
-After reverting, do not start a new implementation attempt for this same procedure
+After reverting, MUST NOT start a new implementation attempt for this same procedure
 document in this session (see `AGENTS.md` Loop Prevention > Rollback Directive). Stop
-this file's cycle here and wait for the
-user to provide new information, approve a different scope, or explicitly direct a
-retry — do not resume automatically once reverted.
+this file's cycle here and wait for the user to provide new information, approve a
+different scope, or explicitly direct a retry — MUST NOT resume automatically once
+reverted.
 
 ## Final Report
 
@@ -488,7 +481,7 @@ carried forward, not re-derived. `{files}` is the changed-file list recorded in 
 report time.
 
 This phase edits existing code and `docs/*.md` files rather than producing a
-standalone generated document, so do not insert a `## Traceability` section into
+standalone generated document, so MUST NOT insert a `## Traceability` section into
 those files — the one-line summary above is this cycle's traceability record.
 
 ### Execution Status
@@ -511,14 +504,14 @@ no-mapping outcome, a blocker reference):
 
 ### Blocker Log
 
-If no blocker was encountered, report `Blockers: None` as a single line — do not
+If no blocker was encountered, report `Blockers: None` as a single line — MUST NOT
 render an empty table. Otherwise, use the Blocker Log table structure from
 `templates/execution-status.md`.
 
 ### Work Items Created
 
 If no artifact beyond the planned code/test/doc changes was produced, report `Work
-items created: None` as a single line — do not render an empty table. Otherwise, use
+items created: None` as a single line — MUST NOT render an empty table. Otherwise, use
 the Work Items Created table structure from `templates/execution-status.md`.
 
 ## Output format

@@ -13,7 +13,7 @@ description: |
 Create issues only — see `skills/DESIGN.md` Analysis-only phase constraint. Proceed to
 implementation only when the user explicitly asks for it.
 
-Exception to `skills/DESIGN.md` Output language: write issue bodies in English (GitHub issues are consumed by AI coding agents and international tooling), unless the user requests another language. If the target design or documentation must be Japanese, state that requirement inside the issue.
+Exception to `skills/DESIGN.md` Output language: write issue bodies in English (GitHub issues are consumed by AI coding agents and international tooling), unless the user requests another language. If the target design or documentation must be Japanese, state that inside the issue.
 
 See `workflow.md` Phase 9 for markdown-safety rules.
 
@@ -32,7 +32,7 @@ Use this skill for:
 
 ## When not to use
 
-Do not use this skill for:
+MUST NOT use this skill for:
 
 - direct code implementation — instead, route it through `python-implementation`
   directly, or through `issue-to-plan` → `plan-to-implementation-procedure` →
@@ -53,17 +53,15 @@ assumptions and open questions instead of inventing missing requirements.
 
 ## Phase overview
 
-| Phase | Name | Goal |
-|---|---|---|
-| 1 | Classify and Frame | Identify the work's source, scope, and whether assumptions are needed |
-| 2 | Task Grouping | Decide whether to split into multiple issues or group into one |
-| 3 | Draft Reason and Intent | Write Background, Problem, Reason for Change, and Implementation Intent |
-| 4 | Scope and Boundaries | Define Target Files, Required Changes, Constraints, Out of Scope, and Dependencies |
-| 5 | Acceptance Criteria and Testing | Define verifiable criteria and testing expectations |
-| 6 | Documentation Impact | Assess doc impact and apply documentation cleanup rules |
-| 7 | Priority Assignment | Assign High / Medium / Low |
-| 8 | AI Implementation Instruction | Write concise constraints for an AI coding agent |
-| 9 | Evidence, Markdown Safety, Final Checklist | Verify evidence, copy-paste safety, and completeness |
+1. Classify and Frame: identify the work's source, scope, and whether assumptions are needed
+2. Task Grouping: split into multiple issues or group into one
+3. Draft Reason and Intent: write Background, Problem, Reason for Change, and Implementation Intent
+4. Scope and Boundaries: define Target Files, Required Changes, Constraints, Out of Scope, and Dependencies
+5. Acceptance Criteria and Testing: define verifiable criteria and testing expectations
+6. Documentation Impact: assess doc impact and apply documentation cleanup rules
+7. Priority Assignment: assign High / Medium / Low
+8. AI Implementation Instruction: write concise constraints for an AI coding agent
+9. Evidence, Markdown Safety, Final Checklist: verify evidence, copy-paste safety, and completeness
 
 See `workflow.md` for detailed phase content, task grouping rules, documentation cleanup
 rules, markdown safety rules, and the final checklist.
@@ -75,45 +73,41 @@ rules, markdown safety rules, and the final checklist.
 - One issue should represent one actionable task.
 - Group tasks only when they must be completed together or are safer to review together.
 - Prefer small, reviewable issues over broad, vague issues — use `workflow.md` Phase
-  2's Task Grouping criteria (group vs. split) to decide the right size, not a file
-  count: an Issue naming several tightly coupled files can still be one small,
-  reviewable issue.
-- Each issue must explain both the reason for change and the implementation intent.
-- Acceptance criteria must be concrete and verifiable.
-- Out-of-scope items must be explicit.
-- Testing expectations must be included when code behavior may change.
-- Documentation-related issues must follow `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove.
+  2's Task Grouping criteria (group vs. split) to decide the size, not a file count:
+  an Issue naming several tightly coupled files can still be one small, reviewable issue.
+- Each issue MUST explain both the reason for change and the implementation intent.
+- Acceptance criteria MUST be concrete and verifiable.
+- Out-of-scope items MUST be explicit.
+- Testing expectations MUST be included when code behavior may change.
+- Documentation-related issues MUST follow `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove.
 - Follow `skills/DESIGN.md` No secrets in output.
 
 ## Issue Filename Generation
 
-Every issue file must follow the naming convention below. This enables automatic duplicate
-detection in `skills/issue-to-plan` Step 2.
+Every issue file MUST follow this naming convention (enables duplicate detection in
+`skills/issue-to-plan` Step 2).
 
 ### Naming convention
 
 Format: `{timestamp}_{id}_{slug}.md`
 
-- **`{timestamp}`** — ISO-like timestamp in format `YYYYMMDD-HHmmss`, generated at issue
-  creation time (e.g., `20260828-155804`).
-- **`{id}`** — Short alphanumeric identifier derived from the issue's domain or component.
-  Examples: `nc019` (NC-019), `mcp003` (MCP-003), `doc005` (DOC-005), `refactor_001`.
-  Must be unique within the project.
+- **`{timestamp}`** — `YYYYMMDD-HHmmss`, generated at issue creation time (e.g., `20260828-155804`).
+- **`{id}`** — Short alphanumeric identifier derived from the issue's domain or component
+  (e.g., `nc019`, `mcp003`, `doc005`, `refactor_001`). MUST be unique within the project.
 - **`{slug}`** — Lowercase-with-dashes slug derived from the issue title, at most 6 words
   (drop articles and filler words first if the title exceeds that).
 
 Example: `20260828-155804_nc019_git_mcp_command_specific_guards.md`
 
-If no meaningful `{id}` exists for the issue, use a generic prefix such as `todo` or
-`misc` followed by a short sequence number (e.g., `todo_001`). Never omit the `{id}`
-portion — it is required for cross-skill deduplication.
+If no meaningful `{id}` exists, use a generic prefix such as `todo` or `misc` plus a short
+sequence number (e.g., `todo_001`). Never omit the `{id}` — it is required for cross-skill deduplication.
 
 ---
 
 ## Issue Structure
 
 Use the exact Markdown structure defined in `templates/issue.md`. It is the shared
-contract with `skills/issue-to-plan`'s Step 2 extraction — do not maintain a separate
+contract with `skills/issue-to-plan`'s Step 2 extraction — MUST NOT maintain a separate
 copy of the field list here.
 
 ---
@@ -148,9 +142,7 @@ After running this skill:
 
 ## Final Rule
 
-You are not writing vague task notes.
-
-You are creating actionable, reviewable, and implementation-ready GitHub Issues.
+You are creating actionable, reviewable, implementation-ready GitHub Issues, not vague task notes.
 
 When in doubt, prioritize: clarity, actionability, reviewability, minimal scope, testability,
 documentation safety.

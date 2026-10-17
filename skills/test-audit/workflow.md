@@ -2,7 +2,7 @@
 
 ## Workflow position
 
-This is a standalone, auxiliary workflow — it is not a phase of the
+This is a standalone, auxiliary workflow, not a phase of the
 issue → plan → implementation-procedure → code pipeline. It is invoked directly by
 filename (`prompts/07_test-audit.md`) to produce a QA review memo / test debt report /
 stabilization work plan, not staged through `issues/` -> `plans/` -> `implementations/`.
@@ -19,14 +19,14 @@ stabilization work plan, not staged through `issues/` -> `plans/` -> `implementa
   definitions, and docs.
 - Production code: see `SKILL.md` Phase Boundaries.
 - Writing is limited to the final Markdown report, saved per `report-template.md`
-  Report Content Rules' destination logic — do not create a new report directory
+  Report Content Rules' destination logic — MUST NOT create a new report directory
   without an existing repository rule.
 
 ## Out of Scope
 
 Apply `rules/ai-execution.md` Global Safety Restrictions (Base) and `AGENTS.md` Global
 Rule 5 (no unrelated refactoring, cleanup, or broad formatting-only rewrites).
-Additionally for this workflow, do not perform any of the following:
+Additionally for this workflow, MUST NOT perform any of the following:
 - changing configuration, environment variables, or feature flags solely to make a
   test runnable (see `safety.md` No test-only configuration changes)
 - running a command `safety.md` classifies `Blocked`/`Not runnable`/`Prohibited`
@@ -60,7 +60,7 @@ Report progress at the start and end of each step, including its Phase Boundarie
 ## Step 1: Discover Test Entry Points (Discovery)
 
 Follow `discovery.md` Test Entry Point Discovery in full. Output the full candidate
-command list — do not execute any of them here.
+command list — MUST NOT execute any of them here.
 
 ---
 
@@ -92,15 +92,13 @@ This includes, if present and cleared by Step 2:
 - formatting checks
 - config/schema consistency checks
 
-Important:
-- Do not run only one test command if the repository clearly has multiple validation layers.
-- If tests need to be run in a specific order, infer and follow that order.
+MUST NOT run only one test command if the repository clearly has multiple validation
+layers. If tests need to be run in a specific order, infer and follow that order.
 
 For each executed command, record: exact command, purpose, and its Result
 Classification (`evidence.md`), per `rules/ai-execution.md` Repository Tool Usage
-rule 10. For a `Fail` or `Partial` result, also record the
-failing test names — defer determinism/root-cause analysis to Step 4; do not classify
-flaky-vs-deterministic or root cause here.
+rule 10. For a `Fail` or `Partial` result, also record the failing test names. MUST NOT
+classify flaky-vs-deterministic or root cause here; defer to Step 4.
 
 ---
 
@@ -132,8 +130,8 @@ Finding list. Assign each a `F-{NNN}` ID (per `evidence.md` Finding, Task, and T
 Case IDs), a category (per `evidence.md` Finding Categories), and a severity (per
 `skills/DESIGN.md` Severity levels).
 
-Report the consolidated Finding list before proceeding to Step 7 — this is the single
-source Step 7's Tasks and Test Cases must cite by ID.
+Report the consolidated Finding list before proceeding to Step 7; Step 7's Tasks and
+Test Cases MUST cite it by ID.
 
 ---
 
@@ -144,14 +142,14 @@ For every Finding from Step 6, create one or more Tasks (`T-{NNN}`, citing
 Effort, and one or more Test Cases (`TC-{NNN}`, citing `Task:`/`Finding:`) per
 `evidence.md` Finding, Task, and Test Case IDs.
 
-Do not leave a Finding unaddressed without saying so explicitly.
+MUST NOT leave a Finding unaddressed without saying so explicitly.
 
 ---
 
 ## Step 8: Final Report (Analysis)
 
 Follow `report-template.md` in full: assemble the Report Template using Steps 1-7's
-already-derived IDs and content, per Report Content Rules. Do not re-derive or
+already-derived IDs and content, per Report Content Rules. MUST NOT re-derive or
 re-analyze anything here. Generate the optional GitHub Issue Drafts section only when
 the user explicitly requests it.
 
@@ -160,7 +158,7 @@ the user explicitly requests it.
 ## Important Rules
 
 These rules MUST be followed, in addition to `evidence.md`'s classification procedures:
-- Do not silently ignore skipped or blocked tests — instead, record each one
+- MUST NOT silently ignore skipped or blocked tests — instead, record each one
   explicitly in the audit findings using `evidence.md`'s classification procedures,
   with the reason it was skipped or blocked.
 - If CI and local commands differ, report that explicitly.
@@ -170,16 +168,16 @@ These rules MUST be followed, in addition to `evidence.md`'s classification proc
 - For missing tests, tie each proposal to concrete code paths or documented behavior,
   and to a Finding ID.
 - Regression tests SHOULD be preferred for bug-like mismatches.
-- Do not give vague advice such as "increase coverage".
+- MUST NOT give vague advice such as "increase coverage".
 - Every proposed test addition or update MUST be actionable and traceable to a Task ID.
 
 ## Test-Specific Guidance
 
 - In Step 3, use quiet/short-traceback modes (e.g. `pytest -q --tb=short`) and read
   coverage from a summary (`coverage.xml` or the summary line) rather than verbose
-  per-line reports. Do not read full output for passing runs.
+  per-line reports. MUST NOT read full output for passing runs.
 - In Step 4, keep stack trace summaries to the minimum lines needed to identify the
-  cause; do not paste full tracebacks.
+  cause; MUST NOT paste full tracebacks.
 - Redirect each validation command's output to a file and extract only
   `FAIL`/`ERROR` lines via `grep`, rather than reading the full raw stream.
 - Perform Step 1 discovery sequentially; return only the identified commands and
@@ -193,6 +191,5 @@ These rules MUST be followed, in addition to `evidence.md`'s classification proc
 
 ## Output format
 
-See `report-template.md` for the exact final-report structure — this phase does not
-generate a single Markdown document with a fixed structure ahead of time; the report
-is Step 8's output.
+See `report-template.md` for the exact final-report structure; the report is Step 8's
+output.

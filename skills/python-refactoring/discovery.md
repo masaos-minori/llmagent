@@ -28,16 +28,13 @@ observed without expanding the approved change scope:
   apply to the current target file or refactoring cycle.
 
 Discovery (Finding, Candidate, Proposal) does not authorize implementation — only an
-Approved Change may be transformed in `workflow.md` Step 6. This does not weaken or
-replace `workflow.md` Step 2's rule that any `Expected behavior change` other than `none`
-MUST stop work and be recorded under `Proposals not implemented`; that rule continues to
-apply unchanged.
+Approved Change may be transformed in `workflow.md` Step 6. `workflow.md` Step 2's rule
+that any `Expected behavior change` other than `none` MUST stop work and be recorded
+under `Proposals not implemented` continues to apply unchanged.
 
-An unapproved Path C idea is a Proposal only, per the Proposal state defined above (added
-per `implementations/20260826-155803_01_prompts_04_refactor.md.md` `REQ-001`); it MUST NOT
-be transformed in Step 6 until it becomes an Approved Change per this same section's rule
-that only an Approved Change may be transformed in Step 6 — see `path-c.md` for the full
-approval checklist a Path C idea MUST satisfy before it becomes an Approved Change.
+An unapproved Path C idea is a Proposal only, per the Proposal state above; it MUST NOT
+be transformed in Step 6 until it becomes an Approved Change — see `path-c.md` for the
+full approval checklist a Path C idea MUST satisfy before it becomes an Approved Change.
 
 ---
 
@@ -84,15 +81,13 @@ For each function/class in the target file, record:
 
 When this analysis identifies a split candidate (a function/class whose responsibilities
 should be divided), report it using the Proposal format (Discovery Vocabulary above) — do
-not implement the split automatically. This is the same "discovery does not authorize
-implementation" rule applied specifically to split candidates.
+not implement the split automatically.
 
 ---
 
 ## Documentation Drift Detection (Step 3)
 
-Applies regardless of Path A/B/C classification (uniform across all paths; does not
-reference Path classification).
+Applies regardless of Path A/B/C classification (uniform across all paths).
 
 While investigating the target file (Steps 2-10), compare relevant implementation
 details against these seven document sources: `routing.md`, `AGENTS.md`, README,
@@ -132,14 +127,14 @@ states are additions to, not replacements for, the five-category system:
 A Drift Finding classified `Ambiguous Source of Truth` MUST NOT be auto-resolved via
 `rules/coding.md`'s "ambiguous cases default to Implementation fix required" rule —
 that default is calibrated for authoring a single `docs/*.md` note about an
-already-known gap, not for a drift-detection process spanning a wider, more
-consequential document set (deployment definitions, toolchain rules, routing, etc.). An
-`Ambiguous Source of Truth` finding requires explicit maintainer confirmation — via the
-sign-off channel defined in `rules/coding.md` "Explicit sign-off gates," or the unified
-Proposal mechanism above — before it is routed into one of the five categories. This is
-a documented, deliberate divergence from `rules/coding.md`'s default-ambiguous
-behavior, scoped only to this Documentation Drift Detection section;
-`rules/coding.md`'s own default continues to apply unchanged everywhere else.
+already-known gap, not for drift detection across a wider, more consequential document
+set (deployment definitions, toolchain rules, routing, etc.). Such a finding requires
+explicit maintainer confirmation — via the sign-off channel defined in
+`rules/coding.md` "Explicit sign-off gates," or the unified Proposal mechanism above —
+before it is routed into one of the five categories. This is a deliberate divergence
+from `rules/coding.md`'s default-ambiguous behavior, scoped only to this Documentation
+Drift Detection section; `rules/coding.md`'s own default continues to apply unchanged
+everywhere else.
 
 Documentation Drift Detection does not modify any document: no automatic edit to
 `docs/*.md`, `routing.md`, `AGENTS.md`, README, design documents, coding/toolchain
@@ -151,7 +146,6 @@ for behavior-changing ideas. It MUST NOT be applied directly during Step 3.
 
 If a listed comparison target has no corresponding file in the repository (e.g. no
 repository-root `README.md` as of this writing), skip that target for the current
-cycle — do not fabricate a comparison, and do not record a Drift Finding for the
-target's mere absence. A missing document is a documentation-completeness question
-outside this section's scope (comparing an existing document's claims against the
-implementation), not a drift between the two.
+cycle — MUST NOT fabricate a comparison, and MUST NOT record a Drift Finding for the
+target's mere absence (a missing document is a documentation-completeness question
+outside this section's scope).

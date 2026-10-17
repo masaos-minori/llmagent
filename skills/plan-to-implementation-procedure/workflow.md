@@ -23,20 +23,19 @@ document — there is no separate design phase in this pipeline.
 This is a document-only phase. Allowed operations:
 - Create implementation procedure documents in `implementations/`.
 - Move the processed plan file to `plans/done/` once Step 3's validation passes —
-  no human approval is required for this move, per `rules/workflow-lifecycle.md`
-  Validation Reporting.
+  no human approval is required, per `rules/workflow-lifecycle.md` Validation
+  Reporting.
 - Correct the Plan file itself (`plans/{filename}_plan.md`, via Edit) when Step 3's
-  adversarial verification finds an unconfirmed item or an inconsistency — this
-  phase's document-only constraint applies to source code and `docs/*.md`, not to the
-  Plan document under active revision.
+  adversarial verification finds an unconfirmed item or an inconsistency — the
+  document-only constraint applies to source code and `docs/*.md`, not to the Plan
+  document under active revision.
 - If `tools/generate_workitem.py --kind implementation-procedure` is used (see Step 3),
   it appends a timestamp-marker HTML comment to the Plan file being processed (never
   rewriting existing content) so repeated invocations against the same Plan share one
-  timestamp — this is an expected side effect of that tool, not a violation of the
-  document-only constraint.
+  timestamp — an expected side effect, not a violation of the document-only constraint.
 - See `skills/plan-to-implementation-procedure/SKILL.md` Purpose and `skills/DESIGN.md`,
   section "Analysis-only phase constraint".
-- Do not modify files outside `implementations/` and the plan file being moved — the
+- MUST NOT modify files outside `implementations/` and the plan file being moved — the
   general prohibition is `AGENTS.md` Global Rule 5.
 
 ## Out of Scope
@@ -45,22 +44,22 @@ See `rules/workflow-lifecycle.md` Global Safety Restrictions for the full list.
 
 ## Toolchain
 
-Repository scaffolding/archival tools relevant to this workflow (see
-`tools/TOOL_DESCRIPTIONS.md` for full usage): `tools/generate_workitem.py --kind
-implementation-procedure` (Step 3, procedure-document skeleton generation — see
-Allowed file operations above for its Plan-file timestamp-marker side effect),
-`tools/manage_workitem_stage.py set-step-status` (Step 3d and Step 4, `### Execution
-Status` row updates without hand-editing the table), and `tools/manage_workitem_stage.py
-close-plan` (Step 4, `git mv`-based archival move). Per `rules/ai-execution.md`
-Repository Tool Usage, prefer these over the equivalent manual command when they cover
-the need; Step 3 and Step 4 above state the fallback to use if a tool is unavailable or
-refuses.
+Repository tools for this workflow (see `tools/TOOL_DESCRIPTIONS.md` for usage):
+- `tools/generate_workitem.py --kind implementation-procedure` (Step 3, skeleton
+  generation; see Allowed file operations for its Plan-file timestamp-marker side
+  effect).
+- `tools/manage_workitem_stage.py set-step-status` (Step 3d and Step 4, `### Execution
+  Status` row updates without hand-editing the table).
+- `tools/manage_workitem_stage.py close-plan` (Step 4, `git mv`-based archival move).
 
-Step 3's narrow delegation to `skills/python-design/SKILL.md` (for the
-Design-decisions-family fields only, per Step 3 above) inspects `skills/python-design/
-workflow.md` Toolchain for its own tool needs (`lint-imports`, `ast-grep`) — this
-workflow's own Repository Tool Usage inspection obligation (Step 0) does not extend to
-that skill's tools beyond the delegation itself.
+Per `rules/ai-execution.md` Repository Tool Usage, prefer these over the equivalent
+manual command when they cover the need; Step 3 and Step 4 state the fallback if a tool
+is unavailable or refuses.
+
+Step 3's narrow delegation to `skills/python-design/SKILL.md` (Design-decisions-family
+fields only) inspects `skills/python-design/workflow.md` Step 3 and Step 4 for its own tool needs
+(`lint-imports`, `ast-grep`) — this workflow's own Repository Tool Usage inspection
+obligation (Step 0) does not extend to that skill's tools beyond the delegation itself.
 
 ## Multi-file processing
 
@@ -68,12 +67,10 @@ Apply `rules/ai-execution.md` Sequential Target Processing (Base): each cycle co
 Steps 1-4, ending with the move to `plans/done/` in Step 4, before starting Step 1 for
 the next file.
 
-This workflow's idempotency guarantee for a resumed pass comes from two existing
-mechanisms, not from this section: Step 3's `Already implemented` classification
-(skips a row already covered by an existing document) and the Plan-file
-timestamp-marker mechanism described in `Allowed file operations` and Step 3 (keeps a
-resumed pass's generated-document timestamp consistent). See those sections for the
-mechanisms themselves — this note only points to them.
+Idempotency for a resumed pass comes from two existing mechanisms, not from this
+section: Step 3's `Already implemented` classification (skips a row already covered by
+an existing document) and the Plan-file timestamp-marker mechanism (see `Allowed file
+operations` and Step 3), which keeps the generated-document timestamp consistent.
 
 Apply `rules/ai-execution.md` Context Reading and Progress Reporting (Base) for the per-step report
 cadence, using this line format:
@@ -111,66 +108,64 @@ Only the current file MUST be read; multiple target files MUST NOT be read
 simultaneously.
 
 - Before reading, run `uv run python tools/check_workitem_structure.py --file
-  {plan_path}` to confirm the Plan contains every `## ` section
-  `templates/plan.md` requires. If this reports any `missing-section` finding, see
-  "Non-conforming Plan structure" below before proceeding — a Plan missing entire
-  sections (e.g. `Implementation Target Files`, `Traceability`) cannot be read as if
-  it followed `templates/plan.md`, and the checks below (Freeze status, Source issue
-  extraction) assume those sections exist.
+  {plan_path}` to confirm the Plan contains every `## ` section `templates/plan.md`
+  requires. If it reports any `missing-section` finding, see "Non-conforming Plan
+  structure" below before proceeding — a Plan missing entire sections (e.g.
+  `Implementation Target Files`, `Traceability`) cannot be read as if it followed
+  `templates/plan.md`, and the checks below (Freeze status, Source issue extraction)
+  assume those sections exist.
 - Read the target plan file in full. It follows `templates/plan.md`'s structure.
 - Identify the target feature. The files to modify are exactly the Plan's
-  `Implementation Target Files` rows — do not re-derive the file list independently
+  `Implementation Target Files` rows — MUST NOT re-derive the file list independently
   from `Implementation steps` or prose.
 - Confirm the `Implementation Target Files` section's `Freeze status` is `Frozen`. If
-  it is not `Frozen`, stop and report `Blocked` — freezing is `issue-to-plan` Step 8's
-  responsibility, not this workflow's; do not freeze it here.
+  it is not, stop and report `Blocked` — freezing is `issue-to-plan` Step 8's
+  responsibility; MUST NOT freeze it here.
 - **All-rows-already-implemented short-circuit**: check whether every
   `Implementation Target Files` row's `target_file_slug` already matches a document
   under `implementations/` or `implementations/done/` whose `Source plan` and
   `Related target files` confirm full coverage of that row — the identical criteria
-  Step 3's `Already implemented` classification uses per-row (see Step 3 below), not
-  a separate, looser check. If every row meets this criteria, skip Revalidation and
-  Step 3's per-row loop entirely and proceed directly to Step 4's move, reporting the
-  short-circuit explicitly: `All rows already implemented — proceeding to Step 4`.
+  Step 3's `Already implemented` classification uses per-row, not a separate, looser
+  check. If every row meets them, skip Revalidation and Step 3's per-row loop entirely
+  and proceed directly to Step 4's move, reporting explicitly:
+  `All rows already implemented — proceeding to Step 4`.
 - Revalidate the frozen inventory per `rules/workflow-lifecycle.md` Implementation
   Target Files Validation (Plan Freeze) — Revalidation, before proceeding to Step 3.
   If revalidation finds a discrepancy, correct the Plan per that section's rules, then
   re-run the Plan Freeze validation for the corrected row(s) specifically (not the whole
   table, and not skipped) before proceeding to Step 3.
-- Extract this plan's Traceability section's `Source issue` value for reuse in this
-  cycle's generated documents (Step 3) — the Plan already carries it forward from the
-  Issue that produced it; do not re-derive it from scratch.
+- Extract the Plan's Traceability section's `Source issue` value for reuse in this
+  cycle's generated documents (Step 3) — MUST NOT re-derive it from scratch.
 - If the plan is ambiguous or the scope is unclear, stop and ask for clarification
   before proceeding.
-- **After finishing all Steps 1-4 for this file, load the NEXT target file.** Do not
+- **After finishing all Steps 1-4 for this file, load the NEXT target file.** MUST NOT
   preload or batch-read other files.
 
 ### Non-conforming Plan structure
 
 Applies when `tools/check_workitem_structure.py --file {plan_path}` (above) reports
-one or more `missing-section` findings for this Plan — the Plan does not follow
-`templates/plan.md`'s required structure (e.g. it uses a non-standard section in
-place of `Implementation Target Files`, or has no `Traceability` section at all).
+one or more `missing-section` findings — the Plan does not follow `templates/plan.md`'s
+required structure (e.g. it uses a non-standard section in place of `Implementation
+Target Files`, or has no `Traceability` section).
 
-This workflow does not silently proceed on an incomplete Plan, and does not silently
-report `Blocked` without offering the user a choice — ask the user which of these two
-paths to take for this specific Plan:
+MUST NOT silently proceed on an incomplete Plan, and MUST NOT silently report `Blocked`
+without offering the user a choice — ask the user which path to take for this specific
+Plan:
 
 - **(a) Blocked, refer back to `issue-to-plan`**: stop this cycle and report `Blocked:
   Plan missing required section(s): {list}` — structural completeness is
-  `issue-to-plan`'s responsibility, not this workflow's; the Plan should be
-  regenerated or corrected there.
+  `issue-to-plan`'s responsibility; the Plan should be regenerated or corrected there.
 - **(b) Correct in place, with the user's explicit approval**: only when the user
-  explicitly approves doing so for this specific Plan, rewrite
-  `plans/{filename}_plan.md` (via Write/Edit) to add the missing section(s),
-  grounding every added claim (Requirements, Implementation Target Files rows,
-  Traceability values) in repository evidence per Step 3a's Adversarial Verification
-  procedure below — do not fabricate a Requirement, a Source issue path, or a Target
-  File row that cannot be traced to the Plan's own prose or its source issue. Re-run
-  `tools/check_workitem_structure.py --file {plan_path}` after the rewrite and confirm
-  zero findings before proceeding to Freeze validation (this Step's next bullet).
+  explicitly approves for this specific Plan, rewrite `plans/{filename}_plan.md` (via
+  Write/Edit) to add the missing section(s), grounding every added claim (Requirements,
+  Implementation Target Files rows, Traceability values) in repository evidence per
+  Step 3a's Adversarial Verification procedure below — MUST NOT fabricate a Requirement,
+  a Source issue path, or a Target File row that cannot be traced to the Plan's own
+  prose or its source issue. Re-run `tools/check_workitem_structure.py --file
+  {plan_path}` after the rewrite and confirm zero findings before proceeding to Freeze
+  validation (this Step's next bullet).
 
-Do not default to (b) without asking — a structurally incomplete Plan may reflect an
+MUST NOT default to (b) without asking — a structurally incomplete Plan may reflect an
 upstream `issue-to-plan` defect that repeated silent correction here would mask rather
 than surface.
 
@@ -185,7 +180,7 @@ Generate each document using the exact structure defined in
 `templates/implementation-procedure.md` (loaded in Step 0). See that template's Notes
 on filling sections for how to apply `skills/python-design/SKILL.md` +
 `skills/python-design/workflow.md` to the Design-decisions-family fields — draw only
-the few relevant bullets from that skill's broader 12-section template; do not produce
+the few relevant bullets from that skill's broader 12-section template; MUST NOT produce
 its full architecture output here.
 
 This step has four sub-steps, applied in order per target-file row: verify the Plan's
@@ -202,7 +197,7 @@ target file, symbol, call path, or test might be wrong — shifted line numbers,
 already renamed/removed symbol, a dependency the Plan did not account for, a
 Requirement duplicating/contradicting another Plan, or a code path the Plan's
 Background never checked — verifying each via `rg`/Read. Apply `rules/ai-execution.md`
-Tool Usage's idempotent-command rule: do not re-run a `rg`/Read check already performed
+Tool Usage's idempotent-command rule: MUST NOT re-run a `rg`/Read check already performed
 against this same file at its current content within this cycle.
 
 If adversarial verification finds an unconfirmed item or an inconsistency (a stale
@@ -212,11 +207,10 @@ via Edit) in the same cycle — update whichever sections apply (Background,
 Requirements, Acceptance criteria, Assumptions, Risks, Requirement Traceability,
 Execution Status) rather than silently working around the discrepancy — and reflect
 the corrected understanding in the generated document(s). Record what was found and
-corrected in the progress report; do not report a row `Completed` while a
+corrected in the progress report; MUST NOT report a row `Completed` while a
 Plan-level inconsistency it surfaced remains unresolved. After correcting, re-run this
-same Step 3a's verification against the corrected Plan text for this row before
-proceeding to Step 3c — do not proceed on the assumption that one correction resolved
-everything.
+Step 3a's verification against the corrected Plan text for this row before proceeding
+to Step 3c — MUST NOT assume one correction resolved everything.
 
 Apply `rules/workflow-lifecycle.md` Correction-and-Recheck Cycle Bound (re-running
 Step 3a against the corrected Plan); the `{artifact}` in that bound's `Blocked`
@@ -225,14 +219,14 @@ message is "Plan ... for {row}".
 If this correction requires reverting a prior edit to `plans/{filename}_plan.md`, see
 `rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether `AGENTS.md`
 Rollback Directive applies (it does not) — and, if a revert is nonetheless performed,
-see the timestamp-marker preservation requirement below.
+see the timestamp-marker preservation requirement in Step 3b.
 
 If this correction is made while processing row K (K > 1), check whether any
 already-generated document for rows 1..K-1 relied on the now-corrected claim. If one
 does: amend that earlier document in the same cycle when the fix is bounded and does
 not require re-investigating that row's dependencies or tests; otherwise, flag it in
 the progress report and the Plan's Execution Status as needing re-verification before
-Step 4's move — do not silently leave a stale earlier document unflagged. Scope this
+Step 4's move — MUST NOT silently leave a stale earlier document unflagged. Scope this
 check to the corrected claim only, not a full re-verification of every prior row.
 
 **Completed when**: for the current row, the target file, its direct dependencies, and its
@@ -248,23 +242,21 @@ sections for how a `Reference Files` entry is mentioned in the generated documen
 
 Before iterating, set one shared timestamp for this Step 3 pass: run
 `date +%Y%m%d-%H%M%S` once and reuse that exact value for every document created in
-this pass. Do not re-run `date` per row — creation order must be recoverable from
-`seq` below, not from timestamp drift between rows. If using
+this pass. MUST NOT re-run `date` per row — creation order MUST be recoverable from
+`seq`, not from timestamp drift between rows. If using
 `tools/generate_workitem.py --kind implementation-procedure` (see the `Not
-implemented` case below) instead of writing documents by hand, this manual
-timestamp step is unnecessary — the tool derives and shares the pass timestamp
-itself by reading/writing a marker in the Plan file (see this workflow's Allowed
-file operations), so every invocation against the same `--source-plan` reuses the
-same value regardless of invocation order or a resumed session.
+implemented` case below), this manual step is unnecessary — the tool derives and shares
+the pass timestamp itself via a marker in the Plan file (see Allowed file operations),
+so every invocation against the same `--source-plan` reuses the same value regardless
+of invocation order or a resumed session.
 
 If `plans/{filename}_plan.md` is reverted (in whole or in part) during an active Step 3
 pass for any reason, the existing `_PASS_TIMESTAMP_MARKER_RE` marker line (format:
 `<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: {timestamp}
--->`) MUST be preserved — re-add it if a full-file revert removed it. Do not let it
+-->`) MUST be preserved — re-add it if a full-file revert removed it. MUST NOT let it
 silently regenerate with a new value: a still-pending row's later
 `generate_workitem.py` call would then mint a different timestamp than earlier rows in
-the same pass, breaking the "one shared timestamp per pass" guarantee this Step
-otherwise depends on.
+the same pass, breaking the "one shared timestamp per pass" guarantee.
 
 **Completed when**: one timestamp value is set (manually or via the tool's marker
 mechanism) and will be reused for every document this pass creates.
@@ -286,8 +278,8 @@ Execution Rules):
   the same row every time.
 - `Implementation Target Files` disallows duplicate `File Path` rows once `Frozen`
   (see `rules/workflow-lifecycle.md`), so each row maps to exactly one document — no
-  merging is needed. If a duplicate `File Path` is found across rows, this means the
-  Plan was not correctly frozen; stop and report `Blocked`.
+  merging is needed. If a duplicate `File Path` is found across rows, the Plan was not
+  correctly frozen; stop and report `Blocked`.
 - Classify the row's implementation state:
   - `Already implemented`: an existing document under `implementations/` or
     `implementations/done/` has both `Source plan` equal to the current
@@ -304,9 +296,9 @@ Execution Rules):
 - If `Partially implemented`, create a document scoped to only the not-yet-implemented
   remainder — reference the matched existing document for the already-covered portion
   instead of repeating it, and note the discrepancy in the progress report.
-- If traceability is missing or ambiguous, do not skip the row. Report
+- If traceability is missing or ambiguous, MUST NOT skip the row. Report
   `Needs confirmation`.
-- If `Not implemented`, create the document only (do not implement anything):
+- If `Not implemented`, create the document only (MUST NOT implement anything):
   - Create a file-level implementation and test procedure document containing
     modification instructions for exactly this row's `File Path` — no other file.
   - Optionally scaffold the empty file first with `uv run python
@@ -314,8 +306,7 @@ Execution Rules):
     {plan_path} --target-file-path {target_file_path} --seq {seq}` — it reproduces
     `templates/implementation-procedure.md`'s current field order exactly, computes
     `target_file_slug` per the naming rule above, and shares this pass's timestamp
-    automatically across every row's invocation (see Allowed file operations) rather
-    than requiring the manual shared-timestamp step above.
+    automatically across every row's invocation (see Allowed file operations).
     After a `0` exit, independently verify the expected file exists at
     `implementations/{timestamp}_{seq}_{target_file_slug}.md` before proceeding — a `0`
     exit alone is not sufficient evidence per `rules/ai-execution.md` Repository Tool
@@ -328,8 +319,8 @@ Execution Rules):
     (e.g. stale or partial-scope content) — it MUST NOT be overwritten. Stop and
     report `Needs confirmation` for this row instead. The tool's own collision
     refusal is the same signal, not a separate failure mode.
-    This `Needs confirmation` report is terminal for this cycle, not retriable: do not
-    re-attempt the same row again within the same pass. Report it once; Step 4's "every
+    This `Needs confirmation` report is terminal for this cycle, not retriable: MUST NOT
+    re-attempt the same row within the same pass. Report it once; Step 4's "every
     row... accounted for" check is satisfied by this single stopped attempt. A human must
     resolve the underlying interrupted-cycle state (confirm whether the existing file is
     stale, partial, or already covers the row) before any future run revisits this row.
@@ -338,19 +329,19 @@ Execution Rules):
   - Blocking: a safe, concrete procedure cannot be written without this evidence. Stop
     and report `Blocked: {specific row}`.
   - Non-blocking: a procedure can still be written with a noted caveat. Report
-    `Needs confirmation` and proceed — do not skip the row.
+    `Needs confirmation` and proceed — MUST NOT skip the row.
 - If investigation reveals that implementing this row requires modifying a file not
   listed in `Implementation Target Files`, this is an **additional target file
   discovery** — stop immediately and report `Blocked: additional target file
-  discovered — {path}`. Do not generate a procedure document for this or any further
+  discovered — {path}`. MUST NOT generate a procedure document for this or any further
   row until the Plan has been amended (the new file added as its own `Implementation
   Target Files` row, with evidence and a Requirement link) and revalidated/re-frozen
   per `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
   Freeze). Once re-frozen, resume this same session's cycle from Step 3c at the row
-  that discovered the gap — do not restart from Step 2's Revalidation (already
-  satisfied by the re-freeze just performed) or from row 1.
+  that discovered the gap — MUST NOT restart from Step 2's Revalidation (already
+  satisfied by the re-freeze) or from row 1.
 - If investigation instead reveals that this row's approach needs to change but no
-  additional file is involved, do not add the change to the generated document.
+  additional file is involved, MUST NOT add the change to the generated document.
   Report it as `Plan Gap: {description}` — the scope decision belongs to a Plan
   revision, not this workflow.
 - Apply `rules/workflow-lifecycle.md` Requirement Reference Format in the generated
@@ -368,7 +359,7 @@ skipped (`Already implemented`), a scoped document created (`Partially implement
 
 **Chat-facing reporting** (frequency-gated): report an interim update only when a
 row's outcome is Blocked, Partially implemented, fails verification, produces a Plan
-Gap, or is an additional target file discovery — do not report for a row that
+Gap, or is an additional target file discovery — MUST NOT report for a row that
 completes as Already implemented or Not implemented→newly created without incident.
 When reporting, note which target file you are working on, record the current status
 (In Progress / Blocked / Completed), and if blocked, describe the blocker and whether
@@ -376,13 +367,13 @@ it requires user intervention.
 
 **Execution Status table write** (unconditional, per row): update the `### Execution
 Status` table in the output document every time a row's status changes, regardless of
-whether an interim chat report is also made for that row. This persisted record is
-the recovery mechanism if the session is interrupted mid-pass — it must not be
-skipped merely because the chat-report frequency gate above did not trigger for that
-row. Use `uv run python tools/manage_workitem_stage.py set-step-status
-implementation-procedure {generated_path} --step {N} {status}` (add `--started
-{timestamp}`/`--completed {timestamp}` from `date +%Y%m%d-%H%M%S` when applicable,
-per `templates/execution-status.md` Notes) rather than editing the table's Markdown
+whether an interim chat report is also made. This persisted record is the recovery
+mechanism if the session is interrupted mid-pass — it MUST NOT be skipped merely
+because the chat-report frequency gate did not trigger. Use `uv run python
+tools/manage_workitem_stage.py set-step-status implementation-procedure
+{generated_path} --step {N} {status}` (add `--started {timestamp}`/`--completed
+{timestamp}` from `date +%Y%m%d-%H%M%S` when applicable, per
+`templates/execution-status.md` Notes) rather than editing the table's Markdown
 directly. This update is never itself a claim about current source that a later
 cycle's Step 3a Adversarial Verification would need to re-check.
 
@@ -397,7 +388,7 @@ This workflow's move to `plans/done/` does not require human approval, per
 completes and the checks below pass, without stopping to ask the user for
 approval.
 
-Read these values back from each row's Step 3c/3d outcome as already recorded — do not
+Read these values back from each row's Step 3c/3d outcome as already recorded — MUST NOT
 recount by rescanning `implementations/`; the in-memory listing `Procedure-Specific
 Guidance` describes maintaining through Step 3 already reflects every document this
 cycle created. Verify that:
@@ -413,18 +404,18 @@ cycle created. Verify that:
 - no procedure document modifies more than one file (its `Implementation > Target
   file` names exactly one path);
 - no file outside `Implementation Target Files` was added as a modification target
-  during this cycle (an additional target file discovery must already have been
+  during this cycle (an additional target file discovery MUST already have been
   reported `Blocked` and resolved per Step 3, not silently included here);
 - the Execution Status section in each document created or confirmed this cycle
   accurately reflects the actual work performed (all completed rows show Completed
   status, any blocked rows have blocker descriptions filled in, Work Items Created
   includes all artifacts produced).
 
-If any of the above does not hold, do not proceed to the move — report `Blocked` and
+If any of the above does not hold, MUST NOT proceed to the move — report `Blocked` and
 resolve the discrepancy first.
 
 This workflow MUST update the Plan's own `### Execution Status` table (in
-`plans/{filename}_plan.md`) before the move — do not leave any row `Pending` once
+`plans/{filename}_plan.md`) before the move — MUST NOT leave any row `Pending` once
 its outcome is known: mark an `Implementation Target Files` row's corresponding
 Execution Status row `In Progress` once its procedure document is newly generated
 this cycle, or `Completed` if matched as `Already implemented`. Use `uv run python
@@ -433,10 +424,10 @@ tools/manage_workitem_stage.py set-step-status plan {plan_path} --description
 separate from each generated document's own Execution Status table, and separate
 from `code-implementation`'s later responsibility (see that skill's own workflow)
 to mark the same row `Completed` once the corresponding implementation procedure
-document is actually executed — this Step's own `In Progress`/`Completed` update
-reflects only what this cycle itself observed (procedure generated vs. already
-implemented), not the eventual outcome of a future `code-implementation` cycle.
-Do not proceed to the move below while any row remains `Pending` — if a row's
+document is actually executed — this Step's update reflects only what this cycle
+observed (procedure generated vs. already implemented), not the eventual outcome of a
+future `code-implementation` cycle.
+MUST NOT proceed to the move below while any row remains `Pending` — if a row's
 outcome genuinely cannot be determined this cycle, report `Blocked` instead of
 leaving it `Pending` silently.
 
@@ -452,19 +443,18 @@ target Plan, or end the batch if none remain.
 
 Prefer `uv run python tools/manage_workitem_stage.py close-plan
 plans/{filename}_plan.md` over a direct `git mv` — it auto-commits the Plan file
-first if it has uncommitted changes (commonly this same Step's own Execution Status
-update two paragraphs above, or an earlier Step 3a correction), then performs the
-move; it refuses (non-zero exit, no move) only if the source is missing or the
-destination already exists. The auto-commit stages only the Plan file itself —
-unrelated uncommitted changes elsewhere in the repository are left untouched and do
-not block the move. Fall back to the direct `git mv` command only if the tool is
-unavailable.
+first if it has uncommitted changes (commonly this Step's own Execution Status
+update above, or an earlier Step 3a correction), then performs the move; it refuses
+(non-zero exit, no move) only if the source is missing or the destination already
+exists. The auto-commit stages only the Plan file itself — unrelated uncommitted
+changes elsewhere in the repository are left untouched and do not block the move. Fall
+back to the direct `git mv` command only if the tool is unavailable.
 
 After a `0` exit, independently verify the same checklist `rules/workflow-lifecycle.md`
-Archival Move already requires for the manual `git mv` fallback: destination file
-exists, source file no longer exists, and the move is recorded as a Git rename — a `0`
-exit alone is not sufficient evidence per `rules/ai-execution.md` Repository Tool Usage
-#8, regardless of which path (tool call or manual fallback) performed the move.
+Archival Move requires for the manual `git mv` fallback: destination file exists,
+source file no longer exists, and the move is recorded as a Git rename — a `0` exit
+alone is not sufficient evidence per `rules/ai-execution.md` Repository Tool Usage #8,
+regardless of which path (tool call or manual fallback) performed the move.
 
 ---
 
@@ -478,7 +468,7 @@ exit alone is not sufficient evidence per `rules/ai-execution.md` Repository Too
   Capture the `implementations/` and `implementations/done/` directory listing once at
   the start of Step 3's row-processing loop, and reuse it for every row's filter check
   rather than re-scanning the filesystem per row. If this same pass writes a new file for
-  an earlier row, update the in-memory listing to include it (do not re-scan the
+  an earlier row, update the in-memory listing to include it (MUST NOT re-scan the
   filesystem) before checking any later row against it.
 - In Step 3, perform the per-row investigation (reading the related source file to
   write Method/Details) sequentially; read only the relevant sections of the target

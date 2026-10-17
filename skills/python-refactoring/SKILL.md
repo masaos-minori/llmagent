@@ -3,7 +3,7 @@ name: python-refactoring
 description: |
   Use this skill PROACTIVELY when refactoring existing Python source files without
   changing external behavior, public APIs, or visible output. Execute the refactor
-  through a mandatory 10-step process gated by a Path A/B/C impact classification that
+  through the mandatory staged process (Phase overview Step 0 through Step 10) gated by a Path A/B/C impact classification that
   scales tooling depth and architectural safeguards to blast radius. Covers:
   refactoring-intent declaration, behavior locking via characterization tests and
   mutation testing, Deletion-First evaluation before introducing new abstractions,
@@ -23,8 +23,8 @@ description: |
 Refactor existing Python source files without changing external behavior: lock current
 behavior with tests, classify the change's blast radius (Path A/B/C), transform with
 AST-safe tools, validate that behavior/API/side effects are unchanged, then report the
-evidence. See `workflow.md`'s opening for this workflow's safety-over-speed priority
-statement. This is a reactive workflow — see Core rules below.
+evidence. See `workflow.md`'s opening for the safety-over-speed priority statement.
+This is a reactive workflow — see Core rules below.
 
 ---
 
@@ -44,8 +44,8 @@ statement. This is a reactive workflow — see Core rules below.
 | 9 | CI gate | Run the full repository validation sequence. |
 | 10 | Report results | Report per `report-template.md`; the refactor is complete only once its Completion Gate passes. |
 
-See `workflow.md` for the detailed per-step procedure and multi-file/atomic-migration-
-group processing rules.
+See `workflow.md` for the detailed per-step procedure and multi-file/atomic-migration-group
+rules.
 
 ---
 
@@ -104,17 +104,16 @@ Completion Requirements (Step 10 addendum) it defines.
 - Keep every change small — as a concrete bound, keep every touched function at or
   below `rules/toolchain.md`'s `radon cc -n C` grade-C-or-worse threshold (a change
   that pushes a function past that grade is not small).
-- If a change may alter behavior, do not implement it — record it as a proposal
+- If a change may alter behavior, MUST NOT implement it — record it as a proposal
   instead (see `report-template.md` "Proposals not implemented").
 - Minimize changes to exception handling, state, side effects, I/O, and concurrency.
-- Do not refactor code unless explicitly instructed via a target file or issue — this
+- MUST NOT refactor code unless explicitly instructed via a target file or issue — this
   workflow is reactive, not proactive.
 
 ### Refactoring rules
 - Give each function one responsibility.
-- Do not mix fetching, transformation, decision logic, and persistence in one
-  function — instead, extract each concern into its own function so each has one
-  responsibility (see "Give each function one responsibility" above).
+- MUST NOT mix fetching, transformation, decision logic, and persistence in one
+  function — extract each concern into its own function.
 - Reduce nesting, branching, and long functions — "long" means at or above
   `rules/toolchain.md`'s `radon cc -n C` grade-C-or-worse threshold; reduce below it.
 - Prefer early returns and small helper functions when they improve clarity.
@@ -125,9 +124,8 @@ Completion Requirements (Step 10 addendum) it defines.
 ### Type safety rules
 - Add explicit type annotations where needed.
 - Add boundary checks where types are unclear.
-- Do not use `Any`, unnecessary casts, or unsafe assertions — instead, add an explicit
-  type annotation or a runtime boundary check that narrows the type safely (see the
-  boundary-check rule above).
+- MUST NOT use `Any`, unnecessary casts, or unsafe assertions — add an explicit type
+  annotation or a runtime boundary check that narrows the type safely.
 - Prevent invalid `None` flow.
 - Keep input validation separate from internal logic.
 
@@ -142,9 +140,8 @@ Completion Requirements (Step 10 addendum) it defines.
 
 ## Output format
 
-This phase does not produce a single generated document — its output is refactored
-source code plus a structured chat report (report structure and Completion Gate: see
-`report-template.md` under See Also below).
+Output is refactored source code plus a structured chat report (structure and
+Completion Gate: see `report-template.md`); no single generated document.
 
 ---
 
@@ -191,4 +188,4 @@ After running this skill:
 - if the report was missing a field the user consistently requested, add it to
   `report-template.md`
 
-Do not weaken safety requirements without explicit justification.
+MUST NOT weaken safety requirements without explicit justification.

@@ -8,15 +8,12 @@ Read the task description and extract:
 - **Input/output**: what data enters and leaves each boundary
 - **Constraints**: performance, security, compatibility, deployment
 
-If any of Goal/Actor/Input-output/Constraints cannot be determined from the task
-description and available code, list specific questions for it instead of guessing.
+If Goal/Actor/Input-output/Constraints cannot be determined from the task description and available code, list specific questions instead of guessing.
 
-**Completed when**: all four items are recorded, each either as a confirmed value or as
-an explicit question.
+**Completed when**: all four items are recorded, each as a confirmed value or an explicit question.
 **Stop and ask the user before Step 2 when**: Goal cannot be determined even provisionally
-— every later step depends on it, so continuing would design against an assumed goal.
-For the other three items, record the open question and continue to Step 2 with them
-marked `UNKNOWN`.
+(every later step depends on it). For the other three items, record the open question and
+continue to Step 2 with them marked `UNKNOWN`.
 
 ---
 
@@ -31,18 +28,16 @@ List:
 If any requirement is ambiguous, flag it as `UNKNOWN` with the information needed to resolve.
 
 **Completed when**: Functional requirements, Non-functional requirements, Assumptions, and
-Dependencies are each recorded — either as concrete items or as `UNKNOWN` entries.
+Dependencies are each recorded, as concrete items or `UNKNOWN` entries.
 **Stop and ask the user before Step 3 when**: zero functional requirements can be
-determined even provisionally — there is nothing left to design against. Any other
-ambiguity is recorded as `UNKNOWN` and design continues.
+determined even provisionally. Any other ambiguity is recorded as `UNKNOWN` and design continues.
 
 ---
 
 ## Step 3: Define Architecture
 
-Read existing code to understand the current architecture. Run both command groups below,
-always, in this order — layer contracts first, since module decomposition is read in light
-of the contract they must respect:
+Read existing code to understand the current architecture. Always run both command groups
+below, in this order (layer contracts first):
 
 ```bash
 # Layer contracts
@@ -62,19 +57,17 @@ Define:
 
 Keep the component count at or below the number of distinct use cases identified in Step 2:
 if a proposed component's responsibility can be merged into an existing one without
-violating one-way dependency direction (Core Design Rules), merge it instead of adding
-a new component.
+violating one-way dependency direction (Core Design Rules), merge it.
 
 Include a concurrency model when relevant: synchronous, asynchronous (`asyncio`), threaded,
-multi-processed, or hybrid. State the boundary between sync and async code explicitly.
+multi-processed, or hybrid. State the sync/async boundary explicitly.
 
 **Completed when**: Components, Boundaries, Control flow, and Data flow are all defined and
 the component count is justified against Step 2's use cases.
 
 If the component count cannot be justified against Step 2's use cases even after
-attempting to merge components per the rule above: stop and report the specific
-components that could not be justified or merged, rather than proceeding with an
-unjustified count.
+attempting to merge per the rule above: stop and report the specific components that could
+not be justified or merged, rather than proceeding.
 
 ---
 
@@ -92,21 +85,21 @@ Apply `skills/DESIGN.md` Avoid implementation-reference duplication — list a f
 or method only when the boundary itself is a design decision.
 
 Run this validation only when the module design introduces a new `Protocol`, `abc.ABC`, or
-a new base-class hierarchy — check the design against existing patterns before finalizing it.
+base-class hierarchy: check the design against existing patterns before finalizing it.
 Skip it when the design reuses an existing base class or introduces no new abstraction.
 ```bash
 ast-grep --pattern 'class $NAME(BaseModel): $$$' --lang python scripts/   # existing patterns
 ast-grep --pattern 'class $NAME(MCPServer): $$$' --lang python scripts/   # server patterns
 ```
 
-Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: do not re-run the
+Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run the
 same `ast-grep` pattern against an unchanged target expecting a different result. Per
-`rules/ai-execution.md` Repository Tool Usage #8, no matches from `ast-grep` is evidence
-of "no conflicting pattern" only after confirming the pattern actually searched
-`scripts/` (a typo'd pattern or path also yields no matches).
+`rules/ai-execution.md` Repository Tool Usage #8, no `ast-grep` matches is evidence of
+"no conflicting pattern" only after confirming the pattern actually searched `scripts/`
+(a typo'd pattern or path also yields no matches).
 
 **Completed when**: every module has a package path, one-sentence responsibility, public API,
-and dependency direction recorded, and (if applicable) the ast-grep check above found no
+and dependency direction recorded, and (if applicable) the ast-grep check found no
 conflicting existing pattern.
 
 ---
@@ -123,7 +116,7 @@ Use Pydantic `BaseModel` at module boundaries, plain dataclasses internally.
 
 Keep data model design at semantic level: ownership, lifecycle, validation boundaries,
 compatibility constraints, and invariants. Apply `skills/DESIGN.md` Avoid
-implementation-reference duplication — avoid exhaustive field listings unless required to
+implementation-reference duplication — avoid exhaustive field listings unless needed to
 explain a design decision.
 
 **Completed when**: every entity identified has Fields and types, Validation rules,
@@ -147,11 +140,11 @@ logger.error("descriptive_message key=value key2=%s", val)
 
 Design so the implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints
 (context managers for resource management): specify the `with`/`async with` boundary for each
-resource the design introduces, before implementation begins.
+resource the design introduces, before implementation.
 
 **Completed when**: every failure mode identified has Detection, Response, Logging,
-and User visibility all specified, and every resource requiring a `with`/`async
-with` boundary has it stated.
+and User visibility specified, and every resource requiring a `with`/`async with`
+boundary has it stated.
 
 ---
 
@@ -164,8 +157,7 @@ For each module:
 - **Failure-path tests**: what happens when a dependency fails
 
 **Completed when**: every module has at least one specified test category (unit,
-integration, edge case, or failure-path) matching its actual I/O/boundary
-characteristics from Step 4.
+integration, edge case, or failure-path) matching its I/O/boundary characteristics from Step 4.
 
 ---
 
@@ -177,8 +169,8 @@ characteristics from Step 4.
    - Files to create or modify
    - Key change
 
-A phase depends on another phase only when it imports, calls, or otherwise requires a
-symbol the other phase introduces. Order phases so no phase precedes one it depends on.
+A phase depends on another only when it imports, calls, or otherwise requires a symbol the
+other introduces. Order phases so none precedes one it depends on.
 
 ### Step 8b: Verify independent testability
 
@@ -189,9 +181,8 @@ being in place, merge the two phases — they are not actually independent.
 ### Step 8c: Define rollback strategy
 
 For each phase, state what reverting it requires (revert the commit, remove a feature
-flag, restore a config value). If a phase has no clean revert path (e.g. it runs a
-data migration), say so explicitly and name the phase as a rollback risk in Step 9's
-Risks and Open Questions.
+flag, restore a config value). If a phase has no clean revert path (e.g. a data
+migration), say so explicitly and name it as a rollback risk in Step 9's Risks and Open Questions.
 
 ### Step 8d: Note migration path and documentation update points
 
@@ -222,11 +213,10 @@ If a section is not relevant, omit it instead of filling it with generic text.
 
 **Completed when**: every checked item above is true.
 **On an unchecked item**: return to the step that owns it (see mapping below), fix the gap,
-then re-check only the item(s) that gap affects — not the full checklist from the top —
-before proceeding. Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3
-fix-and-recheck round-trips per item; if it still cannot be checked after 3 attempts,
-record it as an Open Question (Step 9's Risks and Open Questions) instead of leaving it
-silently unchecked or retrying indefinitely.
+then re-check only the item(s) that gap affects, not the full checklist, before proceeding.
+Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3 fix-and-recheck round-trips per
+item; if it still cannot be checked after 3 attempts, record it as an Open Question (Step 9's
+Risks and Open Questions) instead of leaving it unchecked or retrying indefinitely.
 
 | Unchecked item | Return to |
 |---|---|
@@ -259,7 +249,7 @@ When designing new behavior before implementation:
 - clearly distinguish proposed decisions from implemented behavior
 - clearly mark assumptions, constraints, and open questions
 - list implementation verification items
-- do not describe proposed behavior as if it already exists
+- MUST NOT describe proposed behavior as if it already exists
 
 Use these concepts when helpful: Proposed Decision, Assumption, Constraint, Open Question,
 Verification Item.
@@ -281,9 +271,8 @@ Verification Item.
 ## Final Output
 
 Produce these sections when relevant. Populate each from what Steps 1-9 already
-recorded — do not re-derive or re-run a check merely to produce this output. Omit
-sections that do not apply to the task; do not fill irrelevant sections just to satisfy
-the template.
+recorded; MUST NOT re-derive or re-run a check merely to produce this output. Omit sections
+that do not apply; MUST NOT fill irrelevant sections just to satisfy the template.
 
 1. **Goal** — what the program or change is intended to do, what problem it solves, what value it provides.
 2. **Scope** — in scope, out of scope, assumptions, explicit non-goals.

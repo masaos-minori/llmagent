@@ -2,7 +2,7 @@
 
 **Essential definition:** A SKILL is a formalized, re-executable encoding of a work procedure.
 
-**Design principles** — every SKILL must satisfy all of these:
+**Design principles** — every SKILL MUST satisfy all of these:
 
 | Principle | What it means |
 |---|---|
@@ -16,7 +16,7 @@
 | Design to prevent failure | Anticipate common error modes and encode the guard or recovery inline |
 
 **Execution model** — universal rules for running any skill:
-- Execute phases in order; do not skip mandatory phases
+- Execute phases in order; MUST NOT skip mandatory phases
 - Skip optional phases only when the defined skip condition applies
 - If a phase reveals missing information or blocking issues, stop, resolve, then continue
 
@@ -54,13 +54,13 @@ When a document or skill file grows too large, split it according to these rules
 
 ## Shared Vocabulary
 
-Canonical definitions referenced by multiple skills. Do not redefine these inline in a
+Canonical definitions referenced by multiple skills. MUST NOT redefine these inline in a
 `SKILL.md`/`workflow.md` — reference this section instead.
 
 ### Evidence labels
 
 Use when describing current (not proposed) behavior in a review, design doc, or documentation
-update. Do not introduce a parallel label system (e.g. `Confirmed`, `Inferred`, `Unknown`).
+update. MUST NOT introduce a parallel label system (e.g. `Confirmed`, `Inferred`, `Unknown`).
 
 | Label | Meaning |
 |---|---|
@@ -73,7 +73,7 @@ update. Do not introduce a parallel label system (e.g. `Confirmed`, `Inferred`, 
 | `Operationally observed` | Confirmed by runtime/log/production observation, not by reading source |
 
 If behavior is unclear, mark it `Needs confirmation` and state what must be checked instead of
-guessing. Do not treat dead code, unused code, stale migrations, or obsolete documentation as
+guessing. MUST NOT treat dead code, unused code, stale migrations, or obsolete documentation as
 active behavior.
 
 ### Confidence levels
@@ -85,7 +85,7 @@ active behavior.
 ### Severity levels
 
 Use when a skill classifies a finding by impact (a review finding, a discovered defect,
-a gap in test coverage). Do not introduce a parallel severity scheme.
+a gap in test coverage). MUST NOT introduce a parallel severity scheme.
 
 **Critical** (data loss, security exposure, destructive unintended action, production
 startup failure, silent corruption), **High** (normal-use runtime failure, incorrect
@@ -102,7 +102,7 @@ correctness over execution speed (currently `python-refactoring`, `test-audit`) 
 a mandatory, ordered step sequence where skipping or rushing a step risks an incorrect
 result.
 
-Do not skip a step because it seems slow, and do not stop at high-level commentary
+MUST NOT skip a step because it seems slow, and MUST NOT stop at high-level commentary
 where the skill's deliverable requires a concrete, evidence-backed result.
 
 ### Agent (Explore) threshold
@@ -115,7 +115,7 @@ needs 3 or more queries, or spans more than one directory/package.
 Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `LibCST`,
 `mutmut`, `viztracer`, `pydeps`, `semgrep`) that may not be installed in the current environment.
 
-- Do not invent or assume the tool's output or success message.
+- MUST NOT invent or assume the tool's output or success message.
 - Document `Tool [name] not available` in the findings.
 - Fall back to the nearest standard equivalent (e.g. `ruff`/`mypy` for static checks, `pdb`/
   `traceback`/manual `rg` search for advanced tracing) and note that the fallback was used.
@@ -124,13 +124,12 @@ Applies whenever a phase calls for an optional/advanced tool (e.g. `ast-grep`, `
 
 Applies to any skill whose core procedure is read-only by design (currently `python-design`,
 `python-code-review`, `python-debug-root-cause`, `issue-to-plan`,
-`plan-to-implementation-procedure`, `issue-creator`) — i.e.
-skills whose purpose is to produce an analysis, review, design, plan, or issue artifact
-rather than change code.
+`plan-to-implementation-procedure`, `issue-creator`) — i.e. skills whose purpose is to
+produce an analysis, review, design, plan, or issue artifact rather than change code.
 
-- Do not modify source code, tests, or other production files while executing the skill's
+- MUST NOT modify source code, tests, or other production files while executing the skill's
   analysis/review/design phases.
-- State this constraint once, in the skill's Purpose/description section. Do not repeat it in
+- State this constraint once, in the skill's Purpose/description section. MUST NOT repeat it in
   every phase, rule list, or workflow step within the same skill.
 - Proceed to writing/editing only when the user explicitly requests implementation, or the
   skill's own procedure reaches a phase specifically designated for writing output (e.g. writing
@@ -140,7 +139,7 @@ rather than change code.
 
 Layers may only import from themselves and layers below. The canonical layer diagram lives in
 `rules/env.md` Architecture (includes the current `eventbus` isolation rule and `agent`'s actual
-scope) — do not restate or re-derive the diagram here. Violations fail `lint-imports`. Never
+scope) — MUST NOT restate or re-derive the diagram here. Violations fail `lint-imports`. Never
 import a lower layer from a higher one.
 
 ### Output language
@@ -150,14 +149,14 @@ independent of the chat response language (see `AGENTS.md` Role) — a Japanese-
 conversation does not make this "the user requiring Japanese documents." All files under `docs/`
 are English, with no exception, regardless of chat language. Always preserve file names,
 module/symbol names, commands, configuration keys, type names, and evidence labels in their
-original form — do not translate identifiers.
+original form — MUST NOT translate identifiers.
 
 Write design-document prose so it is easy for an AI coding agent to parse and act on: short,
 explicit sentences; one claim per sentence; explicit subjects (avoid implicit pronouns spanning
-paragraphs); consistent terminology for the same concept throughout a document (do not vary
-wording for the same thing across sections); no rhetorical or figurative language that requires
-inference. Prefer normative terms (MUST / MUST NOT / SHOULD / MAY) for required, prohibited,
-recommended, and optional behavior over descriptive prose.
+paragraphs); consistent terminology for the same concept throughout a document; no rhetorical
+or figurative language that requires inference. Prefer normative terms (MUST / MUST NOT /
+SHOULD / MAY) for required, prohibited, recommended, and optional behavior over descriptive
+prose.
 
 Only write a document in another language when the user explicitly asks for that specific
 document (not the conversation) to be written in another language.
@@ -181,7 +180,7 @@ restate this schema inline — reference this section instead.
 
 ### Avoid implementation-reference duplication
 
-When writing a design document, review report, or documentation update, do not copy exhaustive
+When writing a design document, review report, or documentation update, MUST NOT copy exhaustive
 file lists, method catalogs, DTO/config-key field tables, TypedDict field lists, HTTP
 request/response examples, CLI argument tables, per-exception handling tables, or long
 command/JSON examples into the document — recommend or write a concise, evidence-grounded
@@ -189,15 +188,15 @@ summary instead, and point to the source for exhaustive detail.
 
 ### No source-code line numbers
 
-Do not cite source-code line numbers in design documents (e.g. `recovery.py:120-150`) — they go
-stale on the next edit and carry no meaning outside the current diff. Reference implementation by
-class name, function name, method name, or protocol name instead (e.g. `recover_corruption()`,
-`RuntimeToolRegistry.resolve()`). A file path may be included only when needed to disambiguate a
-symbol name that exists in more than one place.
+MUST NOT cite source-code line numbers in design documents (e.g. `recovery.py:120-150`) — they go
+stale on the next edit. Reference implementation by class name, function name, method name, or
+protocol name instead (e.g. `recover_corruption()`, `RuntimeToolRegistry.resolve()`). A file
+path may be included only when needed to disambiguate a symbol name that exists in more than
+one place.
 
 ### No concrete configuration values
 
-Do not copy concrete values from `config/*.toml` (or other configuration files) into design
+MUST NOT copy concrete values from `config/*.toml` (or other configuration files) into design
 documents — paths, hosts, ports, timeouts, retry limits, thresholds, allowlist entries, branch
 names, remote names, cache sizes, or any other current deployed/default value. Describe the
 policy and its consequences instead (what the setting controls, what happens when it is
@@ -207,14 +206,12 @@ labeled as illustrative, never as a claim about the current deployed configurati
 
 ### No implementation counts
 
-Do not state how many modules, tools, servers, states, fields, tests, or documents something
-comprises (e.g. "all three production DBs", "6 of 10 servers", "the following 17 fields"). Counts
-drift the moment an item is added or removed, and the design intent rarely depends on the exact
-number. Name the items instead (list them, or reference the enum/collection that defines them) so
-the statement stays correct regardless of how many there are. This does not apply to counts that
-are themselves part of the technical contract (e.g. a retry limit, a schema version number) — those
-are configuration values, not commentary, and are governed by the "No concrete configuration
-values" rule above.
+MUST NOT state how many modules, tools, servers, states, fields, tests, or documents something
+comprises (e.g. "all three production DBs", "6 of 10 servers", "the following 17 fields").
+Name the items instead (list them, or reference the enum/collection that defines them) so the
+statement stays correct regardless of how many there are. This does not apply to counts that
+are themselves part of the technical contract (e.g. a retry limit, a schema version number) —
+those are configuration values, governed by the "No concrete configuration values" rule above.
 
 ### Docs content policy — remove
 
@@ -241,7 +238,7 @@ changes, and duplicates what `grep`/code/git already answer authoritatively:
 
 ### Docs content policy — retain
 
-A `docs/*.md` document SHOULD contain the following five categories of
+A `docs/*.md` document SHOULD contain the following categories of
 design-intent content instead — this is what is genuinely hard to recover from
 code alone:
 
@@ -260,17 +257,17 @@ code alone:
   component.
 
 For the concrete allowed dependency directions and layer structure themselves,
-see `rules/env.md` Architecture — do not restate that content here.
+see `rules/env.md` Architecture — MUST NOT restate that content here.
 
 ### Out-of-scope paths
 
 `__pycache__/`, `.venv/`, vendored/generated code, and build outputs are always out of scope for
-reading, editing, or analysis — do not touch or count them toward any task unless the task
+reading, editing, or analysis — MUST NOT touch or count them toward any task unless the task
 explicitly targets them.
 
 ### No secrets in output
 
-Do not include secrets, credentials, private tokens, API keys, or other sensitive
+MUST NOT include secrets, credentials, private tokens, API keys, or other sensitive
 values in generated output (design docs, documentation, generated issues, quoted
 logs). When a log or config snippet is needed as evidence, quote only the relevant
 portion and redact the sensitive value rather than omitting the whole snippet.
@@ -286,8 +283,8 @@ Applies to any skill that writes or transforms production Python code
   safely terminating the process. Catch specific exception types. Use explicit exceptions
   instead of `assert` in business logic.
 - Avoid raw `dict[str, Any]` for core domain data — use `dataclasses`, `Pydantic` models, or
-  `TypedDict`. Do not perform unconditional `str()` conversion; validate types first. Treat
-  `None`, empty string, and unset as distinct — do not collapse them.
+  `TypedDict`. MUST NOT perform unconditional `str()` conversion; validate types first. Treat
+  `None`, empty string, and unset as distinct — MUST NOT collapse them.
 - Always use context managers (`with`/`async with`) for resource management (files, network
   connections, locks).
 - Forbid unsafe dynamic execution: no `eval()`, `exec()`, or `pickle` on untrusted input; when
@@ -296,7 +293,7 @@ Applies to any skill that writes or transforms production Python code
   calls) — use `await asyncio.sleep()` or run blocking paths in executors.
 - Use fail-fast for unknown tool names, tiers, or metadata — never fail-open.
 - No placeholders (`pass`, `...`, `# TODO`) in the final implementation — every logical path
-  must be fully implemented.
+  MUST be fully implemented.
 - No debug artifacts before closing the task: remove `print()` statements, commented-out code,
   and temporary debug variables — use the `logging` framework instead.
 

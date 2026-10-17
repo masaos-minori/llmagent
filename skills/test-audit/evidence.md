@@ -1,8 +1,7 @@
 # Test Audit — Result Classification, Evidence Criteria, and Traceability IDs
 
 Load this file at Step 0 (unconditionally). It covers the classification vocabulary
-used from Step 3 onward, the evidence procedure Step 4 applies, and the ID scheme
-Steps 6-7 use for traceability.
+from Step 3 onward, the Step 4 evidence procedure, and the Steps 6-7 ID scheme.
 
 ---
 
@@ -10,7 +9,7 @@ Steps 6-7 use for traceability.
 
 Classify every executed or attempted command using exactly one of these five results —
 the vocabulary defined in `rules/ai-execution.md` Repository Tool Usage rule 11, used
-consistently in Steps 2-4 and in `report-template.md`'s Report Template Section 2:
+consistently in Steps 2-4 and in `report-template.md`'s Report Template section `# 2`:
 
 - **Pass** — ran to completion with no failures, and collected at least one test case
   (per `rules/ai-execution.md` Repository Tool Usage #8, a 0-collected, exit-0 run is
@@ -27,14 +26,14 @@ consistently in Steps 2-4 and in `report-template.md`'s Report Template Section 
   missing.
 
 `Not available` or `Blocked` MUST NOT be reported as `Pass`. An unexecuted or partially
-executed check has no result other than one of the five above — do not infer `Pass`
+executed check has no result other than one of the five above — MUST NOT infer `Pass`
 from a similar command's success, from the absence of an error, or from partial output.
 
 ---
 
 ## Evidence Criteria for Root Cause and Flaky Classification (Step 4)
 
-Do not classify a failure's determinism or root cause from a single run or from
+MUST NOT classify a failure's determinism or root cause from a single run or from
 intuition. Apply this evidence procedure for every `Fail` result from `workflow.md`
 Step 3.
 
@@ -47,7 +46,7 @@ Step 3.
 - Results vary across runs → `Flaky`; record the observed ratio (e.g. "failed 2/3
   runs") as evidence.
 - If re-running is unsafe or not possible (the test is `Blocked`/`Not runnable` above)
-  → `Flaky determination: Needs confirmation` — do not guess.
+  → `Flaky determination: Needs confirmation` — MUST NOT guess.
 
 ### Root cause
 
@@ -59,11 +58,10 @@ Step 3.
   (`Explicit in code`, `Strongly implied by code`, `Needs confirmation`, etc.) to state
   confidence.
 - If the evidence does not clearly point to one category, classify as `needs
-  confirmation` rather than guessing — do not default to "production code bug" or any
+  confirmation` rather than guessing — MUST NOT default to "production code bug" or any
   other category by convention.
 
-Keep stack trace summaries to the minimum lines needed to identify the cause; do not
-paste full tracebacks.
+Keep stack trace summaries to the minimum lines needed; MUST NOT paste full tracebacks.
 
 ---
 
@@ -87,23 +85,23 @@ Tag each Step 6 Finding with one of the following categories, where applicable:
 
 ## Finding, Task, and Test Case IDs (Traceability)
 
-Every artifact this workflow produces from Step 6 onward is identified and
-cross-linked so a reader can trace root evidence → task → test case:
+Every artifact produced from Step 6 onward is identified and cross-linked
+(evidence → task → test case):
 
 - **Finding ID** (`F-{NNN}`, zero-padded 3 digits, assigned in Step 6, sequential
   across the whole cycle regardless of source step): one per consolidated finding — an
   execution failure (from Step 4), a coverage gap, or an inconsistency (both from
   `discovery.md` Step 5).
-- **Task ID** (`T-{NNN}`, assigned in Step 7): each Task's record must list
+- **Task ID** (`T-{NNN}`, assigned in Step 7): each Task's record MUST list
   `Addresses: F-{NNN}[, F-{NNN} ...]` — the Finding(s) it resolves. A Finding with no
   Task addressing it by the end of Step 7 is a gap in the plan — report it in Step 7,
-  do not silently drop it.
+  MUST NOT silently drop it.
 - **Test Case ID** (`TC-{NNN}`, assigned in Step 7): each proposed test case's record
-  must list `Task: T-{NNN}` and, when it targets a specific Finding directly,
+  MUST list `Task: T-{NNN}` and, when it targets a specific Finding directly,
   `Finding: F-{NNN}`.
 
 `report-template.md`'s Report Template includes a Traceability table (# 7) built from
-these links — do not re-derive the links there; carry them forward from Steps 6-7.
+these links — MUST NOT re-derive the links there; carry them forward from Steps 6-7.
 
 Reference findings by their Finding ID in Steps 6-7 and in the final report, rather
 than re-quoting full evidence or source excerpts already recorded in

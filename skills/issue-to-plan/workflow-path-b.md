@@ -1,9 +1,8 @@
 # Issue To Plan — Path B Analysis
 
-Load this file only after Step 3 classifies the current Issue as Path B (see
-`SKILL.md` Routing). Path A tasks never load this file — Path A's direct-verification
-inspection and the Validation quality analysis baseline (in `workflow.md` Step 5) are
-sufficient on their own.
+Load this file only after Step 3 classifies the current Issue as Path B (see `SKILL.md`
+Routing). Path A tasks never load this file; Path A's direct-verification inspection and
+the Validation quality analysis baseline (`workflow.md` Step 5) suffice.
 
 ## Toolchain
 
@@ -28,11 +27,10 @@ Step 3 and Step 5's Validation quality analysis baseline.
 Lightweight alternatives are always available; heavy tools only if installed — see
 `skills/DESIGN.md` Tool availability guard.
 
-Per `rules/ai-execution.md` Repository Tool Usage #8: for every command below, a
-zero-result/empty output is evidence of "nothing found" only after confirming the
-command actually targeted an existing file/path (e.g. the `<module>`/`<PID>`/`<PORT>`
-placeholder was resolved to a real value) — not proof by itself, since an empty result
-from a mistyped or non-existent target looks identical.
+Per `rules/ai-execution.md` Repository Tool Usage #8: for every command below, an
+empty output is evidence of "nothing found" only after confirming the command targeted
+an existing file/path (e.g. the `<module>`/`<PID>`/`<PORT>` placeholder was resolved to
+a real value); an empty result from a mistyped or non-existent target looks identical.
 
 ---
 
@@ -45,8 +43,7 @@ cat .importlinter
 ```
 
 `grimp` / `pyan3` / `networkx` for deeper import-graph, call-graph, and centrality
-analysis if installed — see the Toolchain table above for tool roles; invocation
-syntax is unchanged from prior usage of these tools.
+analysis if installed — see the Toolchain table for tool roles.
 
 ## Dependency graphing
 
@@ -81,5 +78,4 @@ Before planning a change to MCP servers or the DB: confirm no process holds lock
 
 ---
 
-Return to `workflow.md` Step 5 > Generate the Plan once all four analyses above are
-complete.
+Return to `workflow.md` Step 5 > Generate the Plan once all four analyses above are complete.

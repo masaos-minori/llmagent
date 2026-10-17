@@ -17,12 +17,12 @@ description: |
 ## Purpose
 
 Turn an approved work plan into file-level implementation procedure documents, one per
-target file listed in the plan's `Implementation Target Files` section
-(`templates/plan.md`), the canonical, frozen source of implementation scope.
-Document-only — see
-`skills/DESIGN.md` Analysis-only phase constraint; this skill's only writes are
-implementation procedure documents in `implementations/`, and moving the processed
-plan file to `plans/done/`. It must not modify source code files or `docs/*.md`.
+target file in the plan's `Implementation Target Files` section (`templates/plan.md`),
+the canonical, frozen source of implementation scope.
+Document-only — see `skills/DESIGN.md` Analysis-only phase constraint. The only writes
+are implementation procedure documents in `implementations/` and the move of the
+processed plan file to `plans/done/`. This skill MUST NOT modify source code files or
+`docs/*.md`.
 
 ---
 
@@ -42,29 +42,27 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 
 ## Core Execution Rules
 
-- **One target file = one procedure document**: exactly one implementation procedure
-  document per `Implementation Target Files` row; a document MUST NOT contain
-  modification instructions for more than one file — see `workflow.md` Step 3.
-- **No duplicate work**: a target file row may be skipped only when an existing
-  document under `implementations/` or `implementations/done/` has both a matching
-  `Source plan` and a matching `Related target files` (by `target_file_path`, not
-  `target_file_name`) — see `workflow.md` Step 3.
+- **One target file = one procedure document**: exactly one document per
+  `Implementation Target Files` row; a document MUST NOT contain modification
+  instructions for more than one file — see `workflow.md` Step 3.
+- **No duplicate work**: a row may be skipped only when an existing document under
+  `implementations/` or `implementations/done/` has both a matching `Source plan` and a
+  matching `Related target files` (by `target_file_path`, not `target_file_name`) — see
+  `workflow.md` Step 3.
 - **Sortable, collision-safe naming**: see `workflow.md`, section "Workflow position",
   for the `{timestamp}_{seq}_{target_file_slug}.md` naming algorithm.
-- **Frozen-inventory revalidation**: before generating any procedure document,
-  revalidate the Plan's `Implementation Target Files` section per
-  `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze) —
-  see `workflow.md` Step 2.
+- **Frozen-inventory revalidation**: before generating any document, revalidate the
+  Plan's `Implementation Target Files` section per `rules/workflow-lifecycle.md`
+  Implementation Target Files Validation (Plan Freeze) — see `workflow.md` Step 2.
 - **Blocked on new target discovery**: if implementing a target file requires
   modifying a file not listed in `Implementation Target Files`, stop and report
-  `Blocked` — do not generate further procedure documents until the Plan is amended
-  and revalidated — see `workflow.md` Step 3.
+  `Blocked` — MUST NOT generate further documents until the Plan is amended and
+  revalidated — see `workflow.md` Step 3.
 - **One plan at a time**: see `workflow.md` Multi-file processing.
 - **Move is required**: see `workflow.md` Step 4. The move MUST NOT be skipped.
-- **No approval gate on the archival move**: this skill's move to `plans/done/`
-  does not require human approval — it is gated on Step 3's validation and Step 4's
-  pre-move checklist passing instead, per `rules/workflow-lifecycle.md` Validation
-  Reporting.
+- **No approval gate on the archival move**: the move to `plans/done/` does not require
+  human approval — it is gated on Step 3's validation and Step 4's pre-move checklist
+  passing instead, per `rules/workflow-lifecycle.md` Validation Reporting.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Output language: see `skills/DESIGN.md` §Output language.
 
@@ -74,9 +72,8 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 
 Generate `implementations/{timestamp}_{seq}_{target_file_slug}.md` (naming per Core
 Execution Rules above) using the exact Markdown structure defined in
-`templates/implementation-procedure.md`. Do not omit any section. Sorting generated
-filenames by `seq` reproduces the plan's implementation order — see `workflow.md`
-Step 3.
+`templates/implementation-procedure.md`. MUST NOT omit any section. Sorting filenames by
+`seq` reproduces the plan's implementation order — see `workflow.md` Step 3.
 
 ---
 

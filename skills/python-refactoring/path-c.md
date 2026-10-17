@@ -21,9 +21,9 @@ A Path C change requires all of the following before implementation begins:
    requirement does not define the ADR template or process itself (see ADR Requirement
    below)
 
-See `discovery.md` Discovery Vocabulary for why an unapproved Path C idea is a Proposal
-only and MUST NOT be transformed in `workflow.md` Step 6; here, it becomes an Approved
-Change only with all seven items above satisfied and explicit approval given.
+Per `discovery.md` Discovery Vocabulary, an unapproved Path C idea is a Proposal only and
+MUST NOT be transformed in `workflow.md` Step 6; it becomes an Approved Change only with
+all seven items above satisfied and explicit approval given.
 
 **Atomic migration group**: the explicit, enumerated set of files whose changes MUST be
 applied and validated together, because no proper subset of them can independently pass
@@ -34,13 +34,13 @@ member of the group.
 
 See `workflow.md` Multi-file processing for the one-file-at-a-time default that continues
 to apply to Path A/B and to independent Path C target files outside this group. For an
-approved atomic migration group, the rule applies to the
-group as a single logical unit rather than to each member file individually — one Path
-classification, one Step 3-7 preparation/validation/gating pass, and one Completion gate
-(`report-template.md`) cover the whole group — while member files are still read and
-transformed one at a time in a fixed, declared order; they MUST NOT be transformed in
-parallel (`workflow.md` Step 6 Transformation and the Global Safety Restriction against parallel target-file
-processing still apply within the group).
+approved atomic migration group, the rule applies to the group as a single logical unit
+rather than to each member file — one Path classification, one Step 3-7
+preparation/validation/gating pass, and one Completion gate (`report-template.md`) cover
+the whole group — while member files are still read and transformed one at a time in a
+fixed, declared order; they MUST NOT be transformed in parallel (`workflow.md` Step 6
+Transformation and the Global Safety Restriction against parallel target-file processing
+still apply within the group).
 
 Silent expansion of an approved atomic migration group is prohibited. If executing the
 group reveals that an additional file must change for the group to remain valid, stop; the
@@ -77,7 +77,7 @@ following fields:
   `Lifecycle` and for `start`/`stop`/`shutdown` method definitions in the affected
   module.
 - **State ownership**: reuse `validation.md` Side-Effect Inventory's "Global mutable
-  state" item as the baseline record for this field; do not define a second, separate
+  state" item as the baseline record for this field; MUST NOT define a second, separate
   capture method.
 - **Configuration dependencies**: `rg` against `config/*.toml` and
   `shared/config_loader.py` usages, consistent with `rules/env.md`'s statement that
@@ -85,11 +85,11 @@ following fields:
 - **Routing or registration**: `rg "ToolRouteResolver\|tool_names" scripts/shared/` —
   the exact command already named in `workflow.md` Special Cases.
 - **Deployment references**: reuse `workflow.md` Step 3's existing "referenced in
-  `deploy.sh`" check verbatim; do not define a second deploy-reference check.
+  `deploy.sh`" check verbatim; MUST NOT define a second deploy-reference check.
 
 Module ownership, entry points, and lifecycle ownership are manual-capture fields with
-no established repository tooling — record them explicitly as such rather than
-applying an inconsistent ad hoc method across runs.
+no established repository tooling — record them explicitly as such rather than applying
+an inconsistent ad hoc method across runs.
 
 Per `rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result for any
 field above (entry points, lifecycle ownership, routing/registration, configuration
@@ -97,7 +97,7 @@ dependencies) is evidence of absence only after confirming `rg` actually searche
 intended scope — a wrong path or pattern producing zero matches is not the same as
 confirming the repository has none.
 
-Do not start a Path C transformation (`workflow.md` Step 6) if any required Architecture
+MUST NOT start a Path C transformation (`workflow.md` Step 6) if any required Architecture
 Baseline field is missing or its capture is incomplete.
 
 ---
@@ -157,14 +157,13 @@ purpose-built field list. This MUST NOT invent a new storage convention, locatio
 template; any suggested field with no direct equivalent in the existing convention is
 folded into its nearest existing section rather than added as a new top-level header.
 
-`workflow.md`'s existing Allowed file operations rule ("Do not edit documentation
-unless explicitly instructed") governs where this ADR content is written: Step 10
-MUST produce the ADR content, in the reconciled shape above, inline in the report as
-a draft. Creating the file under `docs/10_adr/adr_02_{next-number}_{slug}.md` and registering
-it in `docs/10_adr/adr_01_index.md`'s existing "ADR List" table and dependency graph happens only
-when the user explicitly instructs a documentation update — this Requirement does not
-relax or reinterpret that existing rule, it states how the new ADR obligation operates
-within it.
+`workflow.md`'s Allowed file operations rule ("Do not edit documentation unless
+explicitly instructed") governs where this ADR content is written: Step 10 MUST produce
+the ADR content, in the reconciled shape above, inline in the report as a draft.
+Creating the file under `docs/10_adr/adr_02_{next-number}_{slug}.md` and registering it
+in `docs/10_adr/adr_01_index.md`'s existing "ADR List" table and dependency graph happens
+only when the user explicitly instructs a documentation update — this Requirement does
+not relax or reinterpret that rule.
 
 Report the ADR's `Status` value and whether the file was actually created under
 `docs/10_adr/` this cycle or remains a draft pending explicit documentation-update
@@ -209,4 +208,4 @@ additive to, not a replacement for, that gate:
   Finding/Candidate/Proposal states do not authorize implementation; only an Approved
   Change may be transformed.
 
-If any item is not satisfied, do not report the task as complete.
+If any item is not satisfied, MUST NOT report the task as complete.
