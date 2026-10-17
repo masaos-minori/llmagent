@@ -136,6 +136,18 @@ Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotF
 
 ---
 
+## Layered protection coverage
+
+mdq-mcp is a high-risk category (path-authorized document access) and serves as the
+traversal- and symlink-containment reference implementation for the common guard. The five
+Layered protection layers stand as follows.
+
+- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; mdq enforces only its own technical constraints (Bearer token, `allowed_dirs`).
+- **Common guard** — Implemented. `allowed_dirs` fail-closed authorization with `..`-traversal and symbolic-link escape blocked by `Path.resolve()` inside `authorize_path()`; an empty `allowed_dirs` denies every path (see Path Control). (Explicit in code — `scripts/mcp_servers/mdq/auth.py`, `scripts/mcp_servers/mdq/mdq_security_validation.py`)
+- **Command-specific guard** — Implemented. Per-tool `authorize_path()` on every path-bearing tool, plus a stale-index check on the read path. (Explicit in code — `scripts/mcp_servers/mdq/auth.py`, `scripts/mcp_servers/mdq/mdq_service.py`)
+- **Postcondition verification** — Not applicable. `refresh_index()` reports operation counts (indexed/skipped/deleted/failed) but performs no before/after comparison of the resulting index state against an expected state; the `_index_check` posture entry surfaces a "documents exist while the FTS index holds no rows" warning rather than gating the refresh. No resulting-state verification exists to implement. (Code review — `scripts/mcp_servers/mdq/mdq_service.py::refresh_index`, `scripts/mcp_servers/mdq/mdq_security_validation.py::_index_check`)
+- **Audit** — Implemented. Every call is recorded through the shared `_audit_log()` with `server_key="mdq"`; the target is resolved via `extract_audit_target()`. (Explicit in code — `scripts/mcp_servers/mdq/audit_target.py`, `scripts/mcp_servers/audit.py`)
+
 ## Keywords
 
 - mcp
