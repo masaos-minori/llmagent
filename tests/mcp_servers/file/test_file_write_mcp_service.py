@@ -598,3 +598,141 @@ class TestBuildService:
             svc = build_service(cfg)
         assert svc._allowed_dirs == []
         assert any("ALLOWED_DIRS is empty" in r.message for r in caplog.records)
+
+
+# ── edit_file byte limit and atomic path (REQ-005) ────────────────────────────
+
+
+class TestEditFileByteLimitAndAtomicPath:
+    def test_edit_over_byte_limit_rejected_and_file_unchanged(
+        self, tmp_path: Path
+    ) -> None:
+        from mcp_servers.file.common import FileValidationError
+
+        svc = WriteFileService(allowed_dirs=[tmp_path], max_write_bytes=8)
+        target = tmp_path / "limited.txt"
+        target.write_text("abc", encoding="utf-8")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="abc", new_text="x" * 20)],
+            dry_run=False,
+        )
+
+        with pytest.raises(FileValidationError, match="write limit"):
+            svc.edit_file(req)
+        assert target.read_text(encoding="utf-8") == "abc"
+
+    def test_edit_routes_through_atomic_write_and_leaves_no_tmp_file(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """edit_file must use the same atomic path as write_file (REQ-005)."""
+        real = WriteFileService._atomic_write
+        calls: list[tuple[Path, str]] = []
+
+        def _recording_write(target: Path, content: str) -> int:
+            calls.append((target, content))
+            return real(target, content)
+
+        monkeypatch.setattr(
+            WriteFileService, "_atomic_write", staticmethod(_recording_write)
+        )
+        target = tmp_path / "atomic_edit.txt"
+        target.write_text("before", encoding="utf-8")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="before", new_text="after")],
+            dry_run=False,
+        )
+
+        result = service.edit_file(req)
+        assert result.applied is True
+        assert len(calls) == 1
+        assert target.read_text(encoding="utf-8") == "after"
+        leftovers = [p for p in tmp_path.iterdir() if p.name.startswith(".tmp_")]
+        assert leftovers == []
+
+
+# ── post-write verification (REQ-004) ─────────────────────────────────────────
+
+
+def _short_write(target: Path, content: str) -> int:
+    """Stand in for a write that silently produces one byte less than requested."""
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(content[:-1], encoding="utf-8")
+    return len(content) - 1
+
+
+class TestPostWriteVerification:
+    def test_write_file_short_write_rejected(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_servers.file.common import FileValidationError
+
+        monkeypatch.setattr(
+            WriteFileService, "_atomic_write", staticmethod(_short_write)
+        )
+        target = tmp_path / "short_write.txt"
+        req = WriteFileRequest(path=str(target), content="0123456789")
+
+        with pytest.raises(FileValidationError, match="post-write verification failed"):
+            service.write_file(req)
+        assert target.read_text(encoding="utf-8") == "012345678"
+
+    def test_edit_file_short_write_rejected(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_servers.file.common import FileValidationError
+
+        monkeypatch.setattr(
+            WriteFileService, "_atomic_write", staticmethod(_short_write)
+        )
+        target = tmp_path / "short_edit.txt"
+        target.write_text("abc", encoding="utf-8")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="abc", new_text="abcdef")],
+            dry_run=False,
+        )
+
+        with pytest.raises(FileValidationError, match="post-write verification failed"):
+            service.edit_file(req)
+        assert target.read_text(encoding="utf-8") == "abcde"
+
+
+# ── post-move verification (REQ-004) ──────────────────────────────────────────
+
+
+class TestPostMoveVerification:
+    def test_move_noop_rejected_by_missing_destination(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from mcp_servers.file import write_service
+        from mcp_servers.file.common import FileValidationError
+
+        src = tmp_path / "move_src.txt"
+        src.write_text("payload", encoding="utf-8")
+        dest = tmp_path / "moved" / "move_dest.txt"
+        monkeypatch.setattr(write_service.shutil, "move", lambda *args: None)
+
+        with pytest.raises(FileValidationError, match="post-move verification failed"):
+            service.move_file(MoveFileRequest(source=str(src), destination=str(dest)))
+        assert src.exists()
+        assert not dest.exists()
+
+    def test_move_that_copies_instead_of_moving_rejected_by_surviving_source(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import shutil
+
+        from mcp_servers.file import write_service
+        from mcp_servers.file.common import FileValidationError
+
+        src = tmp_path / "copy_src.txt"
+        src.write_text("payload", encoding="utf-8")
+        dest = tmp_path / "copied" / "copy_dest.txt"
+        monkeypatch.setattr(write_service.shutil, "move", shutil.copy2)
+
+        with pytest.raises(FileValidationError, match="post-move verification failed"):
+            service.move_file(MoveFileRequest(source=str(src), destination=str(dest)))
+        assert src.exists()
+        assert dest.exists()

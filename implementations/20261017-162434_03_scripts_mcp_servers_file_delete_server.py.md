@@ -128,9 +128,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the audit import, bind the request context, and emit records on all three return paths | Pending | — | — | REQ-002 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Owned by Plan row 7 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the audit import, bind the request context, and emit records on all three return paths | Completed | 20261017-190500 | 20261017-192200 | REQ-002 |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-190500 | 20261017-192200 | Owned by Plan row 7 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-190500 | 20261017-192200 |  |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Owned by Plan row 12 |
 
 ### Blocker Log

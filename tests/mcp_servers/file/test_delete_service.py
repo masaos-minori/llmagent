@@ -260,6 +260,25 @@ class TestDeleteDirectory:
             )
         assert tmp_path.exists()
 
+    def test_delete_directory_non_recursive_on_allowed_root_raises(
+        self, service: tuple
+    ):
+        """The allowed-root guard applies to non-recursive deletes too.
+
+        The root is empty here, so the guard is the only possible failure source:
+        rmdir() on an empty directory would otherwise succeed.
+        """
+        svc, tmp_path = service
+        with pytest.raises(FileAuthorizationError, match="allowed root"):
+            svc.delete_directory(
+                type(
+                    "Request",
+                    (),
+                    {"path": str(tmp_path), "recursive": False, "dry_run": False},
+                )()
+            )
+        assert tmp_path.exists()
+
     def test_delete_directory_dry_run_scan_error(self, service: tuple):
         svc, tmp_path = service
         dpath = tmp_path / "dry_scan_error_dir"
@@ -442,3 +461,62 @@ class TestBuildService:
         svc = build_service(cfg)
         assert svc._allowed_dirs == [Path(str(tmp_path))]
         assert svc._audit_log_path == "/opt/llm/logs/delete_audit.log"
+
+
+# ── Post-delete verification (REQ-006) ────────────────────────────────────────
+
+
+class TestPostDeleteVerification:
+    """A delete that silently does nothing must be rejected, not reported as deleted."""
+
+    def test_delete_file_silent_noop_rejected_by_verification(self, service: tuple):
+        svc, tmp_path = service
+        fpath = tmp_path / "silent_noop.txt"
+        fpath.write_text("x")
+
+        with patch("pathlib.Path.unlink", return_value=None):
+            with pytest.raises(
+                FileValidationError, match="post-delete verification failed"
+            ):
+                svc.delete_file(
+                    type("Request", (), {"path": str(fpath), "dry_run": False})()
+                )
+        assert fpath.exists()
+
+    def test_delete_directory_silent_noop_rejected_by_verification(
+        self, service: tuple
+    ):
+        svc, tmp_path = service
+        dpath = tmp_path / "silent_noop_dir"
+        dpath.mkdir()
+        (dpath / "inner.txt").write_text("x")
+
+        with patch("mcp_servers.file.delete_service.shutil.rmtree", return_value=None):
+            with pytest.raises(
+                FileValidationError, match="post-delete verification failed"
+            ):
+                svc.delete_directory(
+                    type(
+                        "Request",
+                        (),
+                        {"path": str(dpath), "recursive": True, "dry_run": False},
+                    )()
+                )
+        assert dpath.exists()
+
+    def test_verification_failure_writes_no_audit_record(self, service: tuple):
+        """Verification runs before the audit write, so a failed delete leaves no record."""
+        svc, tmp_path = service
+        fpath = tmp_path / "no_audit_record.txt"
+        fpath.write_text("x")
+        audit_path = tmp_path / "audit.log"
+
+        with patch("pathlib.Path.unlink", return_value=None):
+            with pytest.raises(
+                FileValidationError, match="post-delete verification failed"
+            ):
+                svc.delete_file(
+                    type("Request", (), {"path": str(fpath), "dry_run": False})()
+                )
+        assert fpath.exists()
+        assert not audit_path.exists()

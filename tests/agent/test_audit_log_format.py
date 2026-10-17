@@ -243,6 +243,61 @@ class TestMcpAuditLogFormat:
         parsed.pop("ts", None)
         assert orjson_parsed == parsed
 
+    def test_requested_target_and_canonical_target_present(self) -> None:
+        """Both correlation fields are carried verbatim when supplied (REQ-003)."""
+        record = _build_audit_record(
+            session_id="sess-corr",
+            request_id="req-corr",
+            action="write_file",
+            target="/repo/x",
+            outcome="ok",
+            requested_target="/repo/../private/x",
+            canonical_target="/repo/x",
+        )
+        assert record["requested_target"] == "/repo/../private/x"
+        assert record["canonical_target"] == "/repo/x"
+
+    def test_requested_target_omitted_when_not_supplied(self) -> None:
+        """The correlation keys are absent rather than empty when not supplied."""
+        record = _build_audit_record(
+            session_id="sess-nocorr",
+            request_id="req-nocorr",
+            action="write_file",
+            target="/repo/x",
+            outcome="ok",
+        )
+        assert "requested_target" not in record
+        assert "canonical_target" not in record
+        required = (
+            "event",
+            "source",
+            "ts",
+            "session_id",
+            "request_id",
+            "tool",
+            "target",
+            "outcome",
+            "server_key",
+            "error_type",
+        )
+        for key in required:
+            assert key in record
+
+    def test_requested_target_keeps_serialized_keys_sorted(self) -> None:
+        """OPT_SORT_KEYS ordering still holds while the optional key is present."""
+        parsed = self._get_parsed(
+            session_id="sess-sort",
+            request_id="req-sort",
+            action="write_file",
+            target="/repo/x",
+            outcome="ok",
+            requested_target="/repo/../private/x",
+            canonical_target="/repo/x",
+        )
+        keys = list(parsed)
+        assert keys == sorted(keys), f"Keys not sorted: {keys}"
+        assert parsed["requested_target"] == "/repo/../private/x"
+
 
 class TestAgentAuditLogFormat:
     """Tests for agent-side audit log (JSON-lines format)."""
