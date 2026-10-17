@@ -84,14 +84,6 @@ class WriteFileService(FileSecurityMixin):
         return "".join(diff_lines)
 
     @staticmethod
-    def _write_content(target: Path, content: str) -> None:
-        """Write content to target file. Raises FileAuthorizationError on permission error."""
-        try:
-            target.write_text(content, encoding="utf-8")
-        except PermissionError as e:
-            raise FileAuthorizationError(str(e))
-
-    @staticmethod
     def _cleanup_tmp(tmp: Path) -> None:
         """Remove tmp file if it exists."""
         try:
@@ -113,7 +105,7 @@ class WriteFileService(FileSecurityMixin):
         diff = WriteFileService._generate_diff(target, original, modified)
         applied = False
         if not dry_run and modified != original:
-            WriteFileService._write_content(target, modified)
+            WriteFileService._atomic_write(target, modified)
             applied = True
         return diff, applied
 
@@ -130,7 +122,8 @@ class WriteFileService(FileSecurityMixin):
             )
         if req.dry_run:
             return self._write_file_dry_run(target, req.content, size)
-        size = self._atomic_write(target, req.content)
+        self._atomic_write(target, req.content)
+        self._verify_written_size(target, size)
         return WriteFileResponse(path=str(target), size=size, applied=True, diff="")
 
     @staticmethod
@@ -155,6 +148,33 @@ class WriteFileService(FileSecurityMixin):
             raise FileValidationError(str(e))
 
         return target.stat().st_size
+
+    @staticmethod
+    def _verify_written_size(target: Path, expected_bytes: int) -> None:
+        """Raise FileValidationError if the written file is missing or the wrong size."""
+        try:
+            actual = target.stat().st_size
+        except FileNotFoundError as e:
+            raise FileValidationError(
+                f"post-write verification failed: {target} does not exist",
+            ) from e
+        if actual != expected_bytes:
+            raise FileValidationError(
+                f"post-write verification failed: expected {expected_bytes} bytes, "
+                f"got {actual}",
+            )
+
+    @staticmethod
+    def _verify_moved(src: Path, dest: Path) -> None:
+        """Raise FileValidationError if the move did not produce the expected state."""
+        if not dest.exists():
+            raise FileValidationError(
+                f"post-move verification failed: {dest} does not exist",
+            )
+        if src.exists():
+            raise FileValidationError(
+                f"post-move verification failed: {src} still exists",
+            )
 
     def _write_file_dry_run(
         self,
@@ -197,12 +217,19 @@ class WriteFileService(FileSecurityMixin):
         except PermissionError as e:
             raise FileAuthorizationError(str(e))
         modified = WriteFileService._apply_text_edits(original, req.edits)
+        modified_bytes = len(modified.encode("utf-8"))
+        if modified_bytes > self._max_write_bytes:
+            raise FileValidationError(
+                f"content exceeds {self._max_write_bytes} bytes write limit"
+            )
         diff, applied = WriteFileService._write_if_changed(
             target,
             original,
             modified,
             req.dry_run,
         )
+        if applied:
+            self._verify_written_size(target, modified_bytes)
         return EditFileResponse(path=str(target), diff=diff, applied=applied)
 
     def create_directory(self, req: CreateDirectoryRequest) -> CreateDirectoryResponse:
@@ -260,6 +287,8 @@ class WriteFileService(FileSecurityMixin):
         except OSError as e:
             logger.error("move_file: OS error moving '%s' to '%s': %s", src, dest, e)
             raise FileValidationError(str(e))
+
+        self._verify_moved(src, dest)
 
         return MoveFileResponse(source=str(src), destination=str(dest), dry_run_info="")
 

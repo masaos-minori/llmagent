@@ -256,16 +256,16 @@ class TestDeleteDirectoryRecursiveSafety:
         assert result.deleted is True
         assert not subdir.exists()
 
-    def test_non_recursive_root_directory_not_blocked_by_guard(
+    def test_non_recursive_root_directory_blocked_by_guard(
         self, tmp_path: Path
     ) -> None:
-        from mcp_servers.file.common import FileValidationError
+        from mcp_servers.file.common import FileAuthorizationError
 
         svc = DeleteFileService(
             allowed_dirs=[tmp_path],
             audit_log_path=str(tmp_path / "audit.log"),
         )
-        (tmp_path / "subdir").mkdir()
         req = DeleteDirectoryRequest(path=str(tmp_path), recursive=False)
-        with pytest.raises(FileValidationError):
+        with pytest.raises(FileAuthorizationError, match="allowed root"):
             svc.delete_directory(req)
+        assert tmp_path.exists()

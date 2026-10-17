@@ -465,7 +465,7 @@ class TestEditFileErrorPaths:
         original_write = _Path.write_text
 
         def _fail_write(self: _Path, *args: object, **kwargs: object) -> int:
-            if self.name == "readonly.txt":
+            if self.name in {"readonly.txt", ".tmp_readonly.txt"}:
                 raise PermissionError("read-only filesystem")
             return original_write(self, *args, **kwargs)  # type: ignore[arg-type]
 

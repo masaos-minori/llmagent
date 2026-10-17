@@ -110,7 +110,7 @@ N/A: revert the commit.
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | The "Leave every existing test unchanged" assumption does not hold: Plan row 4 routes `edit_file` through `_atomic_write`, which writes `.tmp_readonly.txt` before the target, so the existing `test_edit_write_permission_error_raises_auth_error` patch — keyed on the exact name `readonly.txt` — stopped firing. Its predicate was widened to `{"readonly.txt", ".tmp_readonly.txt"}` during the Plan row 4 cycle so the test still asserts the permission-error mapping. | True | 20261017-182951 |
 
 ## Work Items Created
 

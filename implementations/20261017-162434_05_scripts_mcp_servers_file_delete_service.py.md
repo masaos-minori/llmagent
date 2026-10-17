@@ -134,11 +134,11 @@ MCP-006 in the known-issue ledger.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the new verification helper | Pending | — | — | REQ-006 |
-| 2 | Make the allowed-root guard unconditional in `delete_directory` | Pending | — | — | REQ-007 |
-| 3 | Add post-delete verification to both delete paths | Pending | — | — | REQ-006 |
+| 1 | Add the new verification helper | Completed | 20261017-182500 | 20261017-182951 | REQ-006 |
+| 2 | Make the allowed-root guard unconditional in `delete_directory` | Completed | 20261017-182500 | 20261017-182951 | REQ-007 |
+| 3 | Add post-delete verification to both delete paths | Completed | 20261017-182500 | 20261017-182951 | REQ-006 |
 | 4 | Add or update tests per Validation plan | Pending | — | — | Owned by Plan rows 9 and 20 |
-| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 5 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

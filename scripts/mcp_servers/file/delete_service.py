@@ -118,6 +118,8 @@ class DeleteFileService(FileSecurityMixin):
             logger.error("delete_file: OS error deleting '%s': %s", target, e)
             raise FileValidationError(str(e))
 
+        self._verify_deleted(target)
+
         # Audit log written after successful deletion
         self._write_audit_log("delete_file", str(target))
         return DeleteFileResponse(path=str(target), deleted=True, file_info="")
@@ -161,6 +163,14 @@ class DeleteFileService(FileSecurityMixin):
             dir_info=f"{count_str} files, {total_size} bytes",
         )
 
+    @staticmethod
+    def _verify_deleted(target: Path) -> None:
+        """Raise FileValidationError if the target still exists after deletion."""
+        if target.exists():
+            raise FileValidationError(
+                f"post-delete verification failed: {target} still exists",
+            )
+
     def _check_not_deleting_allowed_root(self, target: Path) -> None:
         """Raise FileAuthorizationError if target is itself one of the allowed root dirs."""
         for allowed in self._allowed_dirs:
@@ -180,8 +190,7 @@ class DeleteFileService(FileSecurityMixin):
         if req.dry_run:
             return self._dry_run_directory_response(target)
 
-        if req.recursive:
-            self._check_not_deleting_allowed_root(target)
+        self._check_not_deleting_allowed_root(target)
 
         try:
             if req.recursive:
@@ -194,6 +203,8 @@ class DeleteFileService(FileSecurityMixin):
             raise FileAuthorizationError(str(e))
         except OSError as e:
             raise FileValidationError(str(e))
+
+        self._verify_deleted(target)
 
         # Audit log written after successful deletion
         self._write_audit_log("delete_directory", str(target))
