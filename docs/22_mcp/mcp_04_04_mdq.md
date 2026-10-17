@@ -68,6 +68,26 @@ All tools receiving paths enforce fail-closed authorization via `allowed_dirs`.
 
 Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing tools.
 
+### Guard and postcondition coverage
+
+See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) Layered protection model for the general framework this section instantiates. Agent-side approval confirms user intent only; it is not a bypass for any check below.
+
+#### Common guard
+
+The Path Control table above is the common guard, and it is the reference implementation the cross-cutting policy measures the other high-risk servers against: `authorize_path()` canonicalizes with `Path.resolve()`, returns false for a path outside `allowed_dirs` — including `..` traversal and symlink escapes — and denies every path when `allowed_dirs` is empty. (Explicit in code — `scripts/mcp_servers/mdq/auth.py`)
+
+#### Command-specific guard status
+
+The read tools re-check the stored `source_path` of each chunk when reading it, so a chunk that left `allowed_dirs` is excluded or rejected at read time rather than at index time. The stale-document check (`is_stale()`, `mtime_ns > indexed_at`) is a reporting guard: `outline` returns a `stale_warning` and `/health` reports `stale_document_count`; neither rejects the call. (Explicit in code — `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/mdq_models.py`)
+
+#### Postcondition verification
+
+Not applicable per operation. The two mechanisms that do exist are reporting, not comparison: `refresh_paths()` records per-path failures and continues the batch, returning `indexed_count`, `skipped_count`, `deleted_count`, `failed_count`, and `elapsed_seconds`; the Security Posture check `server.index_available` compares document and chunk counts against the FTS row count and reports a warning when documents exist while the FTS index holds no rows. Neither compares one operation's resulting state with an expected state. (Explicit in code — `scripts/mcp_servers/mdq/indexer.py`, `scripts/mcp_servers/mdq/mdq_security_validation.py`)
+
+#### Audit
+
+`mdq_server.py::call_tool` writes one shared `mcp_tool_exec` record per call — one for a tool-level exception with `outcome="error"` and `error_type` set, one for a dispatched call with the outcome taken from the dispatch result — with `target` set by `extract_audit_target()` truncated to 80 characters and `server_key="mdq"`. mdq-mcp has no dedicated audit log, and before/after state snapshots are not applicable. (Explicit in code — `scripts/mcp_servers/mdq/audit_target.py`, `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/mcp_servers/audit.py`)
+
 ### Markdown Compatibility Scope
 
 | Markdown Feature              | Support | Fallback Behavior                                                                                                                                                                                                |

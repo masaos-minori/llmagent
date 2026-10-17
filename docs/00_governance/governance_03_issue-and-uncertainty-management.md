@@ -91,26 +91,6 @@ Part 1 entries, Part 2 items, and "Proposed" ADRs are reviewed quarterly (`gover
 
 Active Items follow an ordering convention: entries are grouped by ID-prefix (RAG-*, DESIGN-*, AGENT-*, MCP-*, DEPLOY-*, EVENTBUS-*, SHARED-*, CI-*), each group's entries in ascending numeric order.
 
-#### MCP-006
-
-- **ID**: MCP-006
-- **Title**: Command-specific guards, postcondition verification, and audit correlation are not implemented for every high-risk tool category
-- **Status**: open
-- **Severity**: Medium
-- **Area**: MCP
-- **Type**: design-gap
-- **Source**: `scripts/mcp_servers/{file,shell,github,git,mdq}/`
-- **Owner**: Repository owner
-- **First Found**: Documentation review (memo1 review, V22-01)
-- **Target**: `docs/91_security/security_02_high-risk-tool-common-policy.md`
-- **Related**: `docs/22_mcp/mcp_04_02_file-write-file-delete-shell.md`, `docs/22_mcp/mcp_04_05_git.md`, `docs/22_mcp/mcp_02_03_audit-logging-and-errors.md`
-- **Summary**: The Layered protection model defines five layers, but only git-mcp implements postcondition verification, and no server records before/after state or approval correlation in its audit record.
-- **Current Description**: The policy states that coverage is uneven and refers to each tool's own document for its current layer coverage.
-- **Observed Implementation**: Every high-risk server implements the common guard (allowlist and read-only or write gating). Postcondition verification exists only in `scripts/mcp_servers/git/repository_state.py`. Command-specific guards exist for git (ref, remote, and protected-branch checks), mdq (path and symlink checks), file-delete (recursive deletion of an allowed root is rejected), and shell (command allowlist, cwd, and env filtering); file-write and github have none beyond the common guard and the configured denylists. file-write-mcp writes no audit record, and the audit records of the other servers carry no before/after state or approval correlation.
-- **Impact**: For file-write, file-delete, shell, and github, a partial or unintended result is not detected after the operation, and an audit record cannot be tied to the approval that authorized it.
-- **Recommended Action**: Per tool category, either implement the missing layer or record in the tool's document that the layer is not applicable, then remove this entry.
-- **Resolution Target**: Each high-risk tool category has every layer of the Layered protection model implemented or explicitly documented as not applicable, and this policy no longer describes an open gap.
-
 ## Part 2: Needs Confirmation Inventory
 
 ### Purpose

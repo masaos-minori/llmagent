@@ -19,7 +19,7 @@ related:
 
 ## Audit Log Format
 
-Each `POST /v1/call_tool` invocation on a server that writes the shared audit log outputs one JSON-lines audit record. Those servers are web-search-mcp, github-mcp, shell-mcp, cicd-mcp, mdq-mcp, and git-mcp. file-read-mcp, file-write-mcp, and rag-pipeline-mcp write no audit log, and file-delete-mcp writes only its dedicated audit log (see the Note below and `mcp_06_05_reading-audit-logs.md`).
+Each `POST /v1/call_tool` invocation on a server that writes the shared audit log outputs one JSON-lines audit record. Those servers are web-search-mcp, github-mcp, shell-mcp, cicd-mcp, mdq-mcp, git-mcp, file-write-mcp, and file-delete-mcp. file-read-mcp and rag-pipeline-mcp write no audit log (see the Note below and `mcp_06_05_reading-audit-logs.md`).
 
 ```json
 {"event":"mcp_tool_exec","source":"mcp_server","ts":1719500000.0,"session_id":"sess-abc","request_id":"req-uuid","tool":"search_web","target":"example query","outcome":"ok","server_key":"web_search","error_type":""}
@@ -30,18 +30,23 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 | `session_id` | `X-Session-Id` request header | Yes | `"-"` |
 | `request_id` | `X-Request-Id` (UUID injected by middleware) | Yes | `"-"` |
 | `tool` | `req.name` (tool name) | Yes | — |
-| `target` | Server-specific: repository slug / truncated command / truncated query (truncation length defined per server, e.g. `scripts/mcp_servers/shell/shell_server.py`, `scripts/mcp_servers/mdq/audit_target.py`) | Yes | — |
-| `outcome` | `"ok"`, `"error"`, or `"rejected"` (the call was rejected by a policy guard before or instead of execution; emitted by git-mcp) | Yes | — |
+| `target` | Server-specific: repository slug / truncated command / truncated query / requested file path (truncation length defined per server, e.g. `scripts/mcp_servers/shell/shell_server.py`, `scripts/mcp_servers/mdq/audit_target.py`). file-write-mcp and file-delete-mcp record the caller-supplied path truncated to 80 characters rather than a resolved canonical path. | Yes | — |
+| `outcome` | `"ok"`, `"error"`, or `"rejected"` (the call was rejected by a policy guard before or instead of execution; emitted by git-mcp, file-write-mcp, and file-delete-mcp) | Yes | — |
 | `detail` | Optional supplementary info | No | Omitted |
 | `server_key` | Server identifier (e.g., `"web_search"`, `"cicd"`, `"mdq"`, `"shell"`, `"github"`) | Yes | `""` |
 | `error_type` | Error classification for transport failures | Yes | `""` |
+| `requested_target` | Caller-supplied resource path as received, before resolution, redacted by the caller; emitted by git-mcp only | No | Omitted |
 | `canonical_target` | Resolved canonical repository path; emitted by git-mcp only | No | Omitted |
 | `pre_condition` | Serialized repository state before the operation; emitted by git-mcp only | No | Omitted |
 | `post_condition` | Serialized repository state after the operation; emitted by git-mcp only | No | Omitted |
 
-**Note:** github-mcp and shell-mcp write to both shared and dedicated audit logs. file-delete-mcp writes only a dedicated audit log. file-read-mcp, file-write-mcp, and rag-pipeline-mcp do not write audit logs. Dedicated audit logs for github-mcp and shell-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
+**Note:** github-mcp, shell-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; file-write-mcp writes only the shared audit log. file-read-mcp and rag-pipeline-mcp do not write audit logs. Dedicated audit logs for github-mcp, shell-mcp, and file-delete-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
 
 Audit log functions are implemented within each server's dispatch handler.
+
+### Approval correlation
+
+`session_id` and `request_id` are the join keys from a shared `mcp_tool_exec` record to the agent-side `tool_exec` record: the agent writes the server's request id into `tool_exec.mcp_request_id` (`scripts/agent/tool_audit.py`), and both records carry the same `session_id`. A call rejected by a server-side guard is joined the same way as an accepted one, because the join uses those keys and not `outcome`. The agent-side `tool_approval` record joins to `tool_exec` on `session_id` and `task_id`. The dedicated plain-text logs carry no correlation fields, so correlating a server-side rejection with the approval that preceded it runs through the shared JSON-lines audit log and the agent-side `tool_exec` / `tool_approval` records.
 
 ---
 

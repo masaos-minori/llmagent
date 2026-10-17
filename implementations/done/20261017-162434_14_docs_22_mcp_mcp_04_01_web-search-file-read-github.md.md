@@ -104,6 +104,7 @@ N/A: revert the commit. A rollback reopens the documentation gap AC-009 closes.
 |------|---------------------|----------|-----------------|
 | 1 | The procedure's Details bullet cites `scripts/mcp_servers/github/github_server.py` as the code evidence for the allowlist guards. The guards are implemented in `scripts/mcp_servers/github/github_service_security.py` (`_assert_allowed_repo`, `_assert_allowed_path`, `_assert_allowed_branch`, `_clamp_per_page`, `_assert_max_file_size`); `github_server.py` only owns the disabled-tool gate and the shared audit call. The subsection cites both files. | Yes | 20261017-210000 |
 | 1 | The procedure names `_assert_max_file_size` against a `max_file_size` limit; the configuration key is `max_file_size_kb` (`scripts/mcp_servers/github/github_models_config.py:34`). The document states the real key. | Yes | 20261017-210000 |
+| 1 | `check_docs_consistency.py --domain mcp` flagged the backticked PyGithub call `branch_ref.edit()` as a symbol not defined under `scripts/`. The wording was changed to "the value PyGithub returns when it moves the branch ref" so the checker stays clean without adding `edit` to the external-callable allowlist in `tools/_docs_consistency_lib.py`, which is outside this Plan's target-file table. | Yes | 20261017-213000 |
 
 ## Work Items Created
 

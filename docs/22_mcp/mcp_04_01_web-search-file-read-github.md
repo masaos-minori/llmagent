@@ -174,6 +174,26 @@ The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server 
 **Logs:** `<log_dir>/github-mcp.log`
 **Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): `github_audit.log`
 
+### Guard and postcondition coverage
+
+See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) Layered protection model for the general framework this section instantiates. Agent-side approval confirms user intent only; it is not a bypass for any check below.
+
+#### Common guard
+
+`github_server.py::call_tool` rejects a disabled tool (reason `GITHUB_TOKEN is not set`) before anything else. Every operation that names a repository asserts it against `allowed_repos` through `_assert_allowed_repo()`, which raises `GitHubAuthorizationError` for a repository outside the allowlist. (Explicit in code — `scripts/mcp_servers/github/github_server.py`, `scripts/mcp_servers/github/github_service_security.py`)
+
+#### Command-specific guard status
+
+Implemented per operation in `github_service_security.py`: `_assert_allowed_path()` rejects a path matching a `path_denylist` glob pattern, `_assert_allowed_branch()` rejects a branch matching a `protected_branches` fnmatch pattern, `_assert_max_file_size()` rejects content above `max_file_size_kb`, and `_clamp_per_page()` clamps a requested `per_page` to `max_per_page`. `allow_force_push` and `require_pr_review` gate `merge_pull_request` (see above). (Explicit in code — `scripts/mcp_servers/github/github_service_security.py`)
+
+#### Postcondition verification
+
+Not applicable in this Plan: the GitHub API response carries the resulting state, so no local before/after state comparison is performed. `push_files` returns the new commit SHA without checking the value PyGithub returns when it moves the branch ref, so it does not confirm that the ref actually moved; confirming ref movement without an extra API call is a follow-up (Plan UNK-02). (Explicit in code — `scripts/mcp_servers/github/github_service_file.py`)
+
+#### Audit
+
+`github_server.py::call_tool` writes one shared `mcp_tool_exec` record per dispatched call, with `target` set to `repo={owner}/{repo}` and `outcome` taken from the dispatch result; a disabled-tool rejection returns before the audit call and writes no record. The service also writes the dedicated `github_audit.log`, and a failure to write it raises `GitHubAuditError` (HTTP 500) rather than being logged and ignored. Before/after state snapshots are not applicable. (Explicit in code — `scripts/mcp_servers/github/github_server.py`, `scripts/mcp_servers/audit.py`)
+
 ### Implementation Details (github-mcp)
 
 - Domain exception HTTP status mapping (`exception_handlers.py`): `GitHubAuthorizationError` → 403, `GitHubNotFoundError` → 404, `GitHubValidationError` → 400, `GitHubConflictError` → 409, `GitHubUpstreamError` → 502, `GitHubAuditError` → 500. (Explicit in code)

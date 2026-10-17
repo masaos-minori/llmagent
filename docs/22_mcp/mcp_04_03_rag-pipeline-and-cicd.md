@@ -104,6 +104,26 @@ The cicd server computes `enabled`/`disabled_reason` via `_cicd_tool_availabilit
 **Architecture:** `CiCdService` → `CiBackend` (Protocol) → `GitHubActionsBackend`
 **Note:** The `CiBackend` Protocol abstracts the CI backend implementation.
 
+### Guard and postcondition coverage
+
+See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) Layered protection model for the general framework this section instantiates. Agent-side approval confirms user intent only; it is not a bypass for any check below.
+
+#### Common guard
+
+`cicd_server.py::call_tool` rejects a disabled tool (reason `repo_allowlist is empty`, or `workflow_allowlist is empty` for `trigger_workflow`) before anything else. Every operation asserts its `repo` argument against `repo_allowlist` — `trigger_workflow` through `_assert_allowed_repo()`, the read tools through `_validate_and_parse_repo()` — and an empty allowlist denies all calls. (Explicit in code — `scripts/mcp_servers/cicd/cicd_server.py`, `scripts/mcp_servers/cicd/cicd_service_guards.py`, `scripts/mcp_servers/cicd/cicd_service_business.py`)
+
+#### Command-specific guard status
+
+`trigger_workflow` runs `_assert_allowed_workflow()`: it denies all triggers when `workflow_allowlist` is empty, rejects a `workflow` value that contains `/` or `\`, and rejects a value that is not in `workflow_allowlist`. The same path-separator rule is checked at startup by the Security Posture check `server.workflow_pattern_valid`, so a configured workflow pattern that contains a separator fails posture validation. The read tools are gated by the repository allowlist only. (Explicit in code — `scripts/mcp_servers/cicd/cicd_service_guards.py`)
+
+#### Postcondition verification
+
+Not applicable: triggering a workflow is asynchronous, and the server returns the identity of the created run rather than a resulting local state to compare against. Run state is read afterwards through `get_workflow_status` and `get_workflow_runs`. (Explicit in code — `scripts/mcp_servers/cicd/cicd_service_business.py`)
+
+#### Audit
+
+`cicd_server.py::call_tool` writes one shared `mcp_tool_exec` record per dispatched call, with `target` set to the requested `repo` and `outcome` taken from the dispatch result; a disabled-tool rejection returns before the audit call and writes no record. cicd-mcp has no dedicated audit log, and before/after state snapshots are not applicable. (Explicit in code — `scripts/mcp_servers/cicd/cicd_server.py`, `scripts/mcp_servers/audit.py`)
+
 ---
 
 ## Keywords
