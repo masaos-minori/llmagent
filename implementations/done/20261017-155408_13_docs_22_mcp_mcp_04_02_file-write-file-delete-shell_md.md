@@ -81,10 +81,10 @@ Other tool docs, the audit schema doc, code changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document five-layer coverage for file-write/delete/shell | Pending | — | — | |
+| 1 | Document five-layer coverage for file-write/delete/shell | Completed | 2026-10-17 | 2026-10-17 | documented current (not resolved) state per user decision |
 | 2 | Add or update tests per Validation plan | N/A (docs-only) | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs consistency check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In Progress | — | — | this doc |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-17 | 2026-10-17 | docs consistency check (--domain mcp) passed, no issues |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-17 | 2026-10-17 | this doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

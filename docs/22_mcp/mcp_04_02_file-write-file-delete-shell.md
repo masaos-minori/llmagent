@@ -184,6 +184,36 @@ Not applicable: an arbitrary allowed command has no expected resulting state to 
 
 ---
 
+## Layered protection coverage
+
+file-write-mcp, file-delete-mcp, and shell-mcp are high-risk category tools (path-authorized filesystem mutation and process execution). The five Layered protection layers stand as follows per tool.
+
+### file-write-mcp
+
+- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; file-write enforces only its own technical constraints (`allowed_dirs`, `max_write_bytes`).
+- **Common guard** — Implemented. `allowed_dirs` fail-closed authorization with `..`-traversal and symbolic-link escape blocked by `Path.resolve()` inside `resolve_safe()`; an empty `allowed_dirs` denies every path (see Path Control). (Explicit in code — `scripts/mcp_servers/file/common.py`)
+- **Command-specific guard** — Partially implemented. `max_write_bytes` is enforced via a manual byte-count check in `write_file` (raises `FileValidationError`); `edit_file` performs no byte-limit check and writes non-atomically. (Explicit in code — `scripts/mcp_servers/file/write_service.py::WriteFileService.write_file`, `edit_file`)
+- **Postcondition verification** — Not implemented. `write_file` never compares the written byte length against the intended size; `move_file` reports success without verifying the source is gone and the destination exists; `edit_file` reports `applied=True` without comparing the resulting file against intent. (Code review — `scripts/mcp_servers/file/write_service.py::write_file`, `move_file`, `edit_file`)
+- **Audit** — Shared `mcp_tool_exec` is not emitted: `call_tool` extracts the request context and discards it, so no audit record carries identity, operation type, or before/after state. No dedicated audit log is written either. (Code review — `scripts/mcp_servers/file/write_server.py::call_tool`)
+
+### file-delete-mcp
+
+- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; file-delete enforces only its own technical constraints (`allowed_dirs`).
+- **Common guard** — Implemented. `allowed_dirs` fail-closed authorization with `..`-traversal and symbolic-link escape blocked by `Path.resolve()` inside `resolve_safe()`. (Explicit in code — `scripts/mcp_servers/file/common.py`)
+- **Command-specific guard** — Partially implemented. The allowed-root protection runs only when `recursive=true`; a non-recursive rmdir() on an empty directory that is itself an allowed root is not rejected. (Explicit in code — `scripts/mcp_servers/file/delete_service.py::delete_directory`)
+- **Postcondition verification** — Not implemented. `delete_file`/`delete_directory` return `deleted=True` without verifying the target is actually gone, and a partial `shutil.rmtree` failure is reported as success. (Code review — `scripts/mcp_servers/file/delete_service.py::delete_file`, `delete_directory`)
+- **Audit** — A dedicated plain-text log (`delete_audit.log`, ISO8601 UTC + op + path + user) is written after a successful deletion, plus the Agent-side `tool_exec`. Shared `mcp_tool_exec` is not emitted. (Explicit in code — `scripts/mcp_servers/file/delete_service.py::_write_audit_log`)
+
+### shell-mcp
+
+- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; shell enforces only its own technical constraints (`command_allowlist`, `shell_cwd_allowed_dirs`, env filter).
+- **Common guard** — Implemented. `command_allowlist`, `shell_cwd_allowed_dirs` (default-deny when empty), and a default-deny environment filter. (Explicit in code — `scripts/mcp_servers/shell/shell_service_static_helpers.py`)
+- **Command-specific guard** — Partially implemented. CWD allowlist, env allowlist, `RLIMIT_*` resource limits, and firejail sandbox backend are enforced; dangerous-option rejection is not applicable because the command surface is free-form. (Explicit in code — `scripts/mcp_servers/shell/shell_service_static_helpers.py`)
+- **Postcondition verification** — Not applicable. An arbitrary command has no expected resulting state; exit-code classification, timeout enforcement, and output truncation reporting are result checks rather than postcondition verification.
+- **Audit** — Implemented. Every call is recorded through the shared `_audit_log()` with `server_key="shell"` (session/request id, action, target command, outcome), plus a dedicated plain-text log (`shell_audit.log`). (Explicit in code — `scripts/mcp_servers/shell/shell_server.py::call_tool`)
+
+---
+
 ## Keywords
 
 - mcp
