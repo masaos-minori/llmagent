@@ -3,8 +3,9 @@ name: python-refactoring
 description: |
   Use this skill PROACTIVELY when refactoring existing Python source files without
   changing external behavior, public APIs, or visible output. Execute the refactor
-  through the mandatory staged process (Phase overview Step 0 through Step 10) gated by a Path A/B/C impact classification that
-  scales tooling depth and architectural safeguards to blast radius. Covers:
+  through the mandatory staged process (Phase overview Step 0 through Step 10) gated by
+  a Path A/B/C impact classification that scales tooling depth and architectural
+  safeguards to blast radius. Covers:
   refactoring-intent declaration, behavior locking via characterization tests and
   mutation testing, Deletion-First evaluation before introducing new abstractions,
   side-effect/public-API/exception-behavior preservation checks, incremental

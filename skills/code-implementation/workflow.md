@@ -378,7 +378,7 @@ continuing to patch.
 This step MUST NOT be skipped.
 
 This workflow's move to `implementations/done/` does not require human approval —
-proceed once Steps 3, 4, and 6 pass, without stopping to ask the user for approval.
+proceed once Step 2 (stale detection) and Steps 3, 4, and 6 pass, without stopping to ask the user for approval.
 `rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`
 only and does not apply to this workflow at all.
 
