@@ -101,13 +101,13 @@ contradicts the tool documents once rows 12-17 have landed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the open-gap paragraph with the per-category pointer | Pending | — | — | REQ-011 |
-| 2 | Run the docs checkers | Pending | — | — | |
+| 1 | Replace the open-gap paragraph with the per-category pointer | Completed | — | 2026-10-17 | REQ-011 |
+| 2 | Run the docs checkers | Completed | — | 2026-10-17 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Report-only finding, not edited here: `docs/91_security/security_02_high-risk-tool-common-policy.md:136` states "Each MCP server emits one JSON-lines audit record per tool call" and lists the record fields without `requested_target` or `canonical_target`. Both claims are now imprecise, but this row's Method is "one paragraph replaced by one paragraph; no heading, table, or list changes", so the line is reported to the owner instead of edited. | No | — |
 
 ## Work Items Created
 
