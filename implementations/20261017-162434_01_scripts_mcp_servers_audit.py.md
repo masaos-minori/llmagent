@@ -106,9 +106,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `requested_target` key to `AuditRecord` and the conditional emission in `_build_audit_record` | Pending | — | — | REQ-003 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Tests are owned by Plan row 11 |
-| 3 | Confirm `tools/generate_reference_table.py --check` passes | Pending | — | — | Generated-reference domain |
+| 1 | Add the `requested_target` key to `AuditRecord` and the conditional emission in `_build_audit_record` | Completed | 20261017-180500 | 20261017-181638 | REQ-003 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-180500 | 20261017-181638 | Tests are owned by Plan row 11 |
+| 3 | Confirm `tools/generate_reference_table.py --check` passes | Completed | 20261017-180500 | 20261017-181638 | Generated-reference domain |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
