@@ -204,6 +204,17 @@ Not applicable in this Plan: the GitHub API response carries the resulting state
 
 ---
 
+## Layered protection coverage
+
+github-mcp is a high-risk category (write operations gated by a repository allowlist) performing
+reads and writes against the GitHub API. The five Layered protection layers stand as follows.
+
+- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; github enforces only its own technical constraints (`GITHUB_TOKEN`, repository / path / branch allowlists).
+- **Common guard** — Implemented. `allowed_repos` fail-closed authorization (`_assert_allowed_repo`); an empty list denies every repository. (Explicit in code — `scripts/mcp_servers/github/github_service_security.py::_assert_allowed_repo`)
+- **Command-specific guard** — Implemented. Per-operation asserts applied before each mutating call: `_assert_allowed_path` (`path_denylist` fnmatch), `_assert_allowed_branch` (`protected_branches`), `_clamp_per_page`, and `_assert_max_file_size` (`max_file_size_kb`). (Explicit in code — `scripts/mcp_servers/github/github_service_security.py`)
+- **Postcondition verification** — Not applicable in this Plan. The GitHub API response carries the resulting state; `push_files` moves the branch ref with `branch_ref.edit(new_commit.sha)` (`scripts/mcp_servers/github/github_service_file.py:140`) without inspecting the returned ref object to confirm movement, so a no-cost resulting-state verification does not exist. Recorded as not applicable; a follow-up may add an explicit verification call. (Code review — `scripts/mcp_servers/github/github_service_file.py::push_files`)
+- **Audit** — Implemented. Shared `mcp_tool_exec` emitted from `call_tool` (`server_key="github"`), plus a dedicated plain-text log via `_write_github_audit_log`. (Explicit in code — `scripts/mcp_servers/github/github_server.py`, `scripts/mcp_servers/github/github_service_security.py::_write_github_audit_log`)
+
 ## Keywords
 
 - mcp

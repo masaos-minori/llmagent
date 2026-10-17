@@ -126,6 +126,18 @@ Not applicable: triggering a workflow is asynchronous, and the server returns th
 
 ---
 
+## Layered protection coverage
+
+cicd-mcp is a high-risk category (`trigger_workflow` is tiered `WRITE_DANGEROUS`) that triggers
+GitHub Actions workflows and inspects their run state. The five Layered protection layers stand as
+follows.
+
+- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; cicd enforces only its own technical constraints (`GITHUB_TOKEN`, repository / workflow allowlists).
+- **Common guard** — Implemented. `repo_allowlist` fail-closed authorization (`_assert_allowed_repo`); an empty list denies every repository. (Explicit in code — `scripts/mcp_servers/cicd/cicd_service_guards.py::_assert_allowed_repo`)
+- **Command-specific guard** — Implemented. `repo_allowlist` and `workflow_allowlist` (both fail-closed when empty) plus path-separator rejection on workflow names (`_assert_allowed_workflow`, `_invalid_workflow_patterns`). (Explicit in code — `scripts/mcp_servers/cicd/cicd_service_guards.py`)
+- **Postcondition verification** — Not applicable. `trigger_workflow` is asynchronous: it POSTs a dispatch event and returns a confirmation string (`scripts/mcp_servers/cicd/cicd_service_github_actions.py:130`) without comparing any resulting state against an expected state; run state is read through separate read tools (`get_workflow_runs`, `get_workflow_status`, `get_workflow_logs`). No resulting-state verification exists to implement. (Code review — `scripts/mcp_servers/cicd/cicd_service_github_actions.py::trigger_workflow`)
+- **Audit** — Implemented. Shared `mcp_tool_exec` only (no dedicated log); recorded via `_audit_log()` with `server_key="cicd"`. (Explicit in code — `scripts/mcp_servers/cicd/cicd_server.py::call_tool`, `scripts/mcp_servers/audit.py`)
+
 ## Keywords
 
 - mcp
