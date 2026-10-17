@@ -161,8 +161,8 @@ MCP-006 in the known-issue ledger.
 | 2 | Enforce the byte limit and the atomic path in `edit_file` | Completed | 20261017-182500 | 20261017-182951 | REQ-005 |
 | 3 | Add post-write and post-move verification calls | Completed | 20261017-182500 | 20261017-182951 | REQ-004 |
 | 4 | Delete `_write_content` | Completed | 20261017-182500 | 20261017-182951 | Deletion-first |
-| 5 | Add or update tests per Validation plan | Pending | — | — | Owned by Plan row 8 |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 5 | Add or update tests per Validation plan | Completed | 20261017-190500 | 20261017-192200 | Owned by Plan row 8 |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-190500 | 20261017-192200 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
