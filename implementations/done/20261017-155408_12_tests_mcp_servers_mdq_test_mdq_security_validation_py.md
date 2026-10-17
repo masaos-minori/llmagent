@@ -76,10 +76,10 @@ Command-guard and postcondition regression tests exist and pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the test changes in test_mdq_security_validation.py | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the test changes in test_mdq_security_validation.py | Completed | 20261017-195349 | 20261017-195349 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-195349 | 20261017-195349 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-195349 | 20261017-195349 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-195349 | 20261017-195349 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

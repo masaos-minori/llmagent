@@ -433,3 +433,27 @@ class TestHealthEndpointPosture:
         resp = await self._get_health(tmp_path, cfg)
         assert resp.status_code == 503
         assert SECRET_DIR not in str(resp.json()["security"])
+
+
+class TestPathSymlinkGuard:
+    """validate_mdq_security() rejects disallowed path/symlink inputs and accepts
+    existing directories (REQ-002). Postcondition (REQ-003) is not applicable to mdq's
+    model, per its verify-and-document row.
+    """
+
+    def test_broken_symlink_is_rejected(self, tmp_path: Path) -> None:
+        link = tmp_path / "broken_link"
+        link.symlink_to(tmp_path / "missing-target")
+        result = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[str(link)]))[
+            "server.allowed_dirs_exist"
+        ]
+        assert result.status is SecurityCheckStatus.FAILED
+        assert result.reason_code == REASON_ALLOWED_DIR_INVALID
+        assert "missing-target" not in result.message
+
+    def test_existing_directory_validates_all_checks(self, tmp_path: Path) -> None:
+        results = _results(tmp_path, cfg=_cfg(tmp_path, allowed_dirs=[str(tmp_path)]))
+        assert results["server.allowed_dirs_exist"].status is SecurityCheckStatus.OK
+        assert all(
+            result.status is SecurityCheckStatus.OK for result in results.values()
+        )
