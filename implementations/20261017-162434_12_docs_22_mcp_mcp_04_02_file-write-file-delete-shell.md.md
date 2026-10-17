@@ -109,9 +109,9 @@ N/A: revert the commit. A rollback reopens the documentation gap AC-009 closes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the three layer-coverage subsections | Pending | — | — | REQ-009 |
-| 2 | Update the three Audit lines and the implementation notes | Pending | — | — | AC-009 |
-| 3 | Run the docs checkers | Pending | — | — | |
+| 1 | Add the three layer-coverage subsections | Completed | — | 2026-10-17 | REQ-009 |
+| 2 | Update the three Audit lines and the implementation notes | Completed | — | 2026-10-17 | AC-009 |
+| 3 | Run the docs checkers | Completed | — | 2026-10-17 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
