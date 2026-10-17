@@ -164,27 +164,37 @@ Classify a server-side security posture `FAILED` result as a safety/integrity fa
 - Updating `docs/23_agent/agent_08_04_*`'s classification table (follow-up).
 - ADR-003's Registry gating wording (row `38`).
 
-## Needs confirmation
+## Confirmation outcomes
 
-- Whether `agent_08_04`'s classification table should gain a posture-failure column in this Plan or remain a
-  follow-up. This row treats it as a follow-up because the Plan's target-file table does not list that document.
+- Resolved 2026-10-17: `agent_08_04`'s classification table is not edited. The Plan's frozen target-file table
+  does not list that document, so a posture-failure column stays a follow-up.
+- Resolved 2026-10-17: the row `18` implementation routed a posture failure by `required`, which contradicted Plan
+  `REQ-013` and `AC-007` ("a non-required server never converts a Safety/Integrity failure into partial
+  availability"). The Plan was amended by appending row 59 for `scripts/agent/services/mcp_health.py`, and
+  `check_service_health()` now routes a Safety or Integrity gate failure to the fatal path whatever `required`
+  says; only an Availability failure of a `required = false` server degrades to a non-fatal warning.
+- Resolved 2026-10-17: the new Verification row cites `tests/agent/test_mcp_health_posture.py` and
+  `tests/agent/test_failure_handling_policy_cross_cutting.py` rather than
+  `tests/mcp_servers/test_mcp_server_base.py`, because the startup-abort assertion lives in the Agent-side tests.
+- Resolved 2026-10-17: the new paragraph names "the conditions of item 8" without a count, because item 8 lists
+  five conditions, not the four this document's step 2 stated.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the current gate results before editing | Pending | — | — | baseline |
-| 2 | Extend Group 2 item 5 with the posture failure class | Pending | — | — | WARNING, needs mapping |
-| 3 | Add the non-required continuation paragraph | Pending | — | — | unnumbered prose |
-| 4 | Add the Verification row and Startup Validation bullet | Pending | — | — | bare paths only |
-| 5 | Add the Negative Consequences and Review Trigger lines | Pending | — | — | |
-| 6 | Run the ADR and docs gates | Pending | — | — | |
+| 1 | Confirm the current gate results before editing | Completed | 2026-10-17 | 2026-10-17 | ADR preservation structure reference matrix docs structure content policy and agent consistency gates all clean before editing, 42 posture tests passing |
+| 2 | Extend Group 2 item 5 with the posture failure class | Completed | 2026-10-17 | 2026-10-17 | item 5 list extended by one entry naming a server security posture FAILED result, rest of the item unchanged |
+| 3 | Add the non-required continuation paragraph | Completed | 2026-10-17 | 2026-10-17 | unnumbered paragraph added after item 13, no MUST SHOULD or MAY used, the item 8 condition count omitted because item 8 lists five conditions, written only after the appended Plan row 59 fixed check_service_health routing |
+| 4 | Add the Verification row and Startup Validation bullet | Completed | 2026-10-17 | 2026-10-17 | row added after the fallback row citing the two agent-side test files because the server-side base test does not assert a startup abort, plus one startup validation bullet, bare paths only |
+| 5 | Add the Negative Consequences and Review Trigger lines | Completed | 2026-10-17 | 2026-10-17 | negative consequences and review trigger lines appended, nothing removed, Exceptions Known Deviations Approval and Implementation References byte-identical |
+| 6 | Run the ADR and docs gates | Completed | 2026-10-17 | 2026-10-17 | only the mapped Decision WARNING remains, size 30903 under the 31037 cap, all gates clean, 42 passed in the posture test file, agent suite shows only the 9 known rollback failures, 114 passed in tests/integration |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 3 | The row `18` implementation routed a posture failure by `required`, contradicting frozen Plan `REQ-013`/`AC-007`; resolved by user decision to append Plan row 59 and fix `check_service_health()` before writing the Decision paragraph | Yes | 2026-10-17 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
@@ -199,4 +209,4 @@ Classify a server-side security posture `FAILED` result as a safety/integrity fa
 - **Source plan**: `plans/20261015-112526_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261016-073146
-- **Related target files**: `docs/10_adr/adr_02_004_environment-failure-handling-policy.md`
+- **Related target files**: `docs/10_adr/adr_02_004_environment-failure-handling-policy.md`, `scripts/agent/services/mcp_health.py` (appended Plan row 59)

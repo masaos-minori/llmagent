@@ -67,7 +67,7 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 ### Group 2: Failure Classification
 
 4. Failures classified into two kinds: "safety/integrity failures" and "availability failures". Used to decide impact boundary; not used to relax safety/integrity requirements.
-5. Safety/integrity failures include: duplicate Tool ownership, missing/invalid Workflow definition, DB connection failure/schema inconsistency, Config Isolation violations, invalid auth/authz/Allowlist/Safety Tier config, missing Secrets, invalid Tool argument schemas, invalid resource-scope definitions, unestablishable approval control, RuntimeToolRegistry initialization failure, undeterminable Tool ownership uniqueness, undeterminable safe Routing destination, unverifiable execution preconditions, data integrity failures.
+5. Safety/integrity failures include: duplicate Tool ownership, missing/invalid Workflow definition, DB connection failure/schema inconsistency, Config Isolation violations, invalid auth/authz/Allowlist/Safety Tier config, a server security-posture `FAILED` result reported by the owning MCP server, missing Secrets, invalid Tool argument schemas, invalid resource-scope definitions, unestablishable approval control, RuntimeToolRegistry initialization failure, undeterminable Tool ownership uniqueness, undeterminable safe Routing destination, unverifiable execution preconditions, data integrity failures.
 6. Safety/integrity failures must not be converted to: partial availability, warning-only continuation, continued execution after disabling a component, Fallback, or No-op treated as success.
 7. Availability failures may include: unavailability of MCP server, Embedding service, external search, external RAG service, Observability output destination, other dependency reachability failures.
 8. An availability failure alone does not permit startup to continue. Continuing startup permitted only when all hold: target component explicitly classified as non-mandatory, failure localized to that component, every affected function can be safely disabled, no safety/integrity control relaxed, resulting partial-availability state observable.
@@ -78,6 +78,8 @@ Environment names must not change startup validation or Fail-Fast/Fail-Closed bo
 11. A component must not be treated as non-mandatory merely because startup is technically possible.
 12. When a component's mandatoriness is undefined or cannot be determined: do not assume non-mandatory. Do not use undefined classification as grounds for continuing startup. Treat as unresolved design/configuration error.
 13. **Division of classification responsibility**: this ADR defines classification criteria and failure handling contract. Approved classification of each MCP server is recorded in the classification table of `agent_08_04`; the `required` field in `config/agent.toml` must match it. Configuration provides effective values only within the range that classification permits. Startup validation verifies effective classification before using it to decide whether startup continues. Configuration alone cannot weaken a mandatory component to non-mandatory without an approved architecture or Specification change.
+
+A posture `FAILED` result is a safety/integrity failure under Group 2 item 5, not an availability failure under item 7. The conditions of item 8 are therefore not all met for such a result: continuing would relax a safety control. A server configured `required = false` does not permit startup to continue past a posture failure, and the server is not treated as disabled; startup aborts.
 ### Group 4: Startup Fail-Fast Boundary
 
 14. Fail-Fast at startup (startup aborted): Missing/Invalid Workflow definition; Required DB connection failure; DB Schema inconsistency; RuntimeToolRegistry initialization failure; Duplicate Tool ownership; Unavailable required MCP server; Invalid auth/authz/Allowlist/Safety Tier config; Missing Secret; Config Isolation violation; Unestablishable approval control; Environment configuration validation failure; Undeterminable component mandatoriness.
@@ -209,6 +211,7 @@ The startup validation results built by `StartupOrchestrator` are an in-memory a
 - Startup validation more comprehensive
 - Every environment must meet same safety requirements
 - Operators must distinguish availability failures from safety/integrity failures when responding
+- A misconfigured non-required server now blocks startup, so operators must fix that server's own configuration rather than rely on `required = false`
 
 ## Invariants
 
@@ -255,12 +258,14 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 | Safety/integrity failures not converted to partial availability | INV-10 | Regression | Yes | Partial (see `adr_01_index.md`) |
 | Calls to Tools of disabled component → rejected | INV-11, INV-12 | Unit | No | Confirmed |
 | Fallback only per ADR-010 | INV-15, INV-16 | Integration | Yes | Not verified (manual audit only; see Manual Review) |
+| A server posture `FAILED` result aborts startup even when the server is `required = false` | INV-07, INV-09, INV-10 | Integration | Yes | Confirmed (`tests/agent/test_mcp_health_posture.py`, `tests/agent/test_failure_handling_policy_cross_cutting.py`) |
 
 ### Startup Validation
 
 - Validation of environment configuration (the same validation items apply regardless of environment name)
 - Validation of each component's effective mandatoriness classification
 - Decision on whether startup can continue based on failure classification
+- Each MCP server's published Security Posture is read from its own `/health` before Tool Discovery and Registry construction, and a `FAILED` result is classified as a safety/integrity failure whatever the server's `required` value
 
 ### Deployment Validation
 
@@ -316,6 +321,7 @@ Re-evaluate when:
 - Component mandatoriness classification criteria change
 - An MCP subprocess server is to be reclassified non-required (the spawn-failure exception must be removed first)
 - New Accepted ADR permitting Fallback added
+- Per-server self-validation and the Security Posture contract (2026-10-16) classify posture failures as safety/integrity failures (linked with ADR-002 and ADR-003)
 
 ## Approval
 

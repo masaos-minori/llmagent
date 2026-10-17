@@ -62,7 +62,7 @@ contract as the decision that replaced it (`REQ-018`).
 - Re-base the `:231` Verification row's subject to "No Agent module imports MCP server configuration models, and
   the posture DTOs hold no secret fields" while keeping both citations and the contract name unchanged. The row
   keeps asserting the same structural property against the mechanism that now enforces it (the contract with its
-  `ignore_imports` grant removed, per row `25`).
+  ignore_imports grant removed, per row `25`).
 - Record the fired Review Trigger inside `## Review Triggers` instead of touching `## Approval`. The Approval
   section is ERROR-monitored, including its "as of 2026-10-13" decision-approval line, so the revision evidence
   must live in an unmonitored section.
@@ -161,7 +161,7 @@ contract as the decision that replaced it (`REQ-018`).
 | Docs structure | `uv run python tools/check_docs_structure.py` | clean |
 | Docs content policy | `uv run python tools/check_docs_content_policy.py --strict` | clean |
 | Claim consistency | `uv run python tools/check_docs_consistency.py --domain agent` | clean |
-| Isolation gate | `PYTHONPATH=scripts uv run lint-imports` | `agent-mcp-config-models` contract passes with no `ignore_imports` grant |
+| Isolation gate | `PYTHONPATH=scripts uv run lint-imports` | `agent-mcp-config-models` contract passes with no ignore_imports grant |
 
 ## Completion criteria
 
@@ -175,31 +175,37 @@ contract as the decision that replaced it (`REQ-018`).
 ## Out of scope
 
 - Deleting `scripts/agent/security_audit.py` and `scripts/agent/security_audit_config.py` (rows `20`-`21`).
-- Removing the `ignore_imports` grant (row `25`).
+- Removing the ignore_imports grant (row `25`).
 - Retargeting the isolation tests (row `27`).
 - ADR-004 failure-classification wording (row `39`).
 - `docs/22_mcp/*` updates (follow-up).
 
-## Needs confirmation
+## Confirmation outcomes
 
-- Dedicated `INV-05` for per-server self-validation: RESOLVED 2026-10-16 (Plan `UNK-05`) as prose only. No
-  `INV-NN` bullet is added, removed, or reworded in any ADR, and `tools/check_adr_preservation.py` is not
-  amended; the new rules live in `## Decision`, `## Verification`, `## Review Triggers`, and
-  `## Consequences` prose.
-- Whether the `## Approval` section's "Current Decision Approval ... as of 2026-10-13" line must be re-dated for
-  this revision. That section is ERROR-monitored, so re-dating it also requires a checker amendment.
+- Resolved 2026-10-16 (Plan `UNK-05`): no dedicated `INV-05` is created for per-server self-validation. No
+  `INV-NN` bullet is added, removed, or reworded, and `tools/check_adr_preservation.py` is not amended; the new
+  rules live in `## Decision`, `## Verification`, `## Review Triggers`, and `## Consequences` prose.
+- Resolved 2026-10-17: `## Approval` is not re-dated. The section is ERROR-monitored, its "as of 2026-10-13"
+  line records who approved the decision rather than when this ADR was last read, and re-dating it would require
+  amending `tools/check_adr_preservation.py`, which is out of this Plan's scope. The revision evidence is recorded
+  in `## Review Triggers` instead.
+- Resolved 2026-10-17: removing the backticked `agent/services/security_audit.py::audit_security_defaults()`
+  citation is an ERROR-level finding under `tools/check_adr_preservation.py:156-161`, not the WARNING this
+  document's `Method` anticipated, and the tool has no override flag. Both deleted-module tokens are therefore
+  kept in `## Review Triggers` as a historical record of the fired trigger, while `## Exceptions` no longer
+  grants a cross-config read.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the current gate results before editing | Pending | — | — | baseline |
-| 2 | Delete the audit exception bullet | Pending | — | — | land with rows `20`-`21` |
-| 3 | Reword Decision item 7 and add the self-validation item | Pending | — | — | WARNING, needs mapping |
-| 4 | Re-base the `:231` Verification row and add posture rows | Pending | — | — | citations unchanged |
-| 5 | Update Security Consequences and Review Triggers | Pending | — | — | |
-| 6 | Run the ADR and docs gates | Pending | — | — | |
+| 1 | Confirm the current gate results before editing | Completed | 2026-10-17 | 2026-10-17 | ADR preservation gate run before editing, clean baseline |
+| 2 | Delete the audit exception bullet | Completed | 2026-10-17 | 2026-10-17 | audit exception bullet deleted, the EventBus bullet and the closing unconditional paragraph unchanged |
+| 3 | Reword Decision item 7 and add the self-validation item | Completed | 2026-10-17 | 2026-10-17 | item 7 states the rule without the exception clause, the self-validation rule is appended as item 16 rather than inserted after item 11 so items 12 to 15 keep their numbers |
+| 4 | Re-base the `:231` Verification row and add posture rows | Completed | 2026-10-17 | 2026-10-17 | verification row re-based to the no-Agent-import wording with both citations and the contract name unchanged, one self-validation row citing a bare test directory added, one startup validation bullet added |
+| 5 | Update Security Consequences and Review Triggers | Completed | 2026-10-17 | 2026-10-17 | security consequences bullet added, the two audit triggers replaced by one fired trigger line that keeps both deleted module tokens because removing the audit citation is an ERROR-level finding not the anticipated WARNING |
+| 6 | Run the ADR and docs gates | Completed | 2026-10-17 | 2026-10-17 | only the mapped Decision WARNING remains, all ADR and docs gates clean, the stale detector needed the import-linter config key written without backticks because it is not a source symbol |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

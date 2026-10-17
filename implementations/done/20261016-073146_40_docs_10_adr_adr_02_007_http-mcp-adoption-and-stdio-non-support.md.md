@@ -170,23 +170,34 @@ result instead of pre-validating MCP server configuration (`REQ-021`).
 - ADR-004 failure classification (row `39`).
 - `docs/22_mcp/mcp_02_02_*` and `docs/22_mcp/mcp_05_*` updates (follow-up).
 
-## Needs confirmation
+## Confirmation outcomes
 
-- Whether the posture payload's field names should be listed in this ADR. This row keeps field names out of the
-  ADR because `## Implementation References` cannot gain items and field-level detail belongs to
-  `docs/22_mcp/mcp_02_02_startup-modes-and-health.md`.
+- Resolved 2026-10-17: the posture payload's field names stay out of this ADR. `## Implementation References`
+  cannot gain items, and field-level detail belongs to `docs/22_mcp/mcp_02_02_startup-modes-and-health.md`
+  (follow-up).
+- Resolved 2026-10-17: `tools/check_docs_structure.py` caps this file at the global `MAX_SIZE` of 24576 bytes and
+  has no `SIZE_EXCEPTIONS` entry for it, so the seven additions were worded to fit: the file now sits at 24571
+  bytes. The cap was not raised, because amending that tool is outside this Plan's frozen target table. Three
+  consequences follow: the new Decision item states the abort but not the Registry exclusion (ADR-003 Decision
+  Detail 16 owns that), the Fail-Open clarification is the single sentence "A posture `FAILED` result is not an
+  availability failure." rather than also restating that partial availability covers availability failures only,
+  and the Review Trigger line omits the explicit "linked with ADR-002 and ADR-004" wording.
+- Resolved 2026-10-17: the Validation plan's `tests/mcp_servers/shell/test_shell_server_health_posture.py` does
+  not exist; the row `42` file is `tests/mcp_servers/shell/test_shell_health_posture.py`, and that is what was run.
+- Resolved 2026-10-17: the new Fail-Fast bullet uses this section's "When ..." phrasing rather than the step 1
+  wording, so the bullet list stays internally consistent.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the current gate results before editing | Pending | — | — | baseline |
-| 2 | Add the posture-contract Decision item | Pending | — | — | cites Decision item 10 |
-| 3 | Add the Fail-Fast bullet and Fail-Open clarification | Pending | — | — | WARNING, needs mapping |
-| 4 | Add Startup Validation, Security Consequences, Implementation Notes lines | Pending | — | — | no new paths |
-| 5 | Add the Review Trigger line | Pending | — | — | |
-| 6 | Run the ADR and docs gates | Pending | — | — | |
+| 1 | Confirm the current gate results before editing | Completed | 2026-10-17 | 2026-10-17 | ADR preservation structure reference matrix docs structure content policy and agent consistency gates all clean before editing, file 23717 bytes under the 24576 cap |
+| 2 | Add the posture-contract Decision item | Completed | 2026-10-17 | 2026-10-17 | Decision item 12 added after item 11, items 1 to 11 unchanged, cites item 10, no MUST SHOULD or MAY used, Registry exclusion left to ADR-003 item 16 |
+| 3 | Add the Fail-Fast bullet and Fail-Open clarification | Completed | 2026-10-17 | 2026-10-17 | one When-phrased Fail-Fast bullet appended, one Fail-Open sentence appended to the existing bullet, existing bullets otherwise unchanged |
+| 4 | Add Startup Validation, Security Consequences, Implementation Notes lines | Completed | 2026-10-17 | 2026-10-17 | startup validation bullet, security consequences bullet, and implementation notes bullet added, no new scripts or tests path named so the References drift check stays clean |
+| 5 | Add the Review Trigger line | Completed | 2026-10-17 | 2026-10-17 | review trigger line appended after the OAuth line, nothing removed |
+| 6 | Run the ADR and docs gates | Completed | 2026-10-17 | 2026-10-17 | only the two mapped Decision and Failure Policy WARNINGs remain, file 24571 bytes under the 24576 cap, all gates clean, 12 passed across the severity test and the shell posture test file whose real name is test_shell_health_posture.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

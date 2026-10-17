@@ -154,22 +154,25 @@ that it does not introduce Hot Rediscovery or any runtime change to LLM visibili
 - Classifying posture failures as Fail-Fast (row `39`).
 - `docs/23_agent/agent_06_*` updates (follow-up).
 
-## Needs confirmation
+## Confirmation outcomes
 
-- Whether `## Failure Policy` `### Fail-Fast Conditions` should also name posture failures. This row keeps the
-  classification in ADR-004 to preserve one authority per rule; if the project wants it in both ADRs, the
-  `## Failure Policy` WARNING must be mapped twice.
+- Resolved 2026-10-17: `## Failure Policy` is not edited. ADR-004 owns failure classification
+  (`docs/10_adr/adr_01_index.md:89`), so naming posture failures there (row `39`) and naming only the exclusion
+  mechanism here keeps one authority per rule and avoids mapping a second `## Failure Policy` WARNING.
+- Resolved 2026-10-17: `tools/check_docs_structure.py:90` caps this file at 26592 bytes, so the four additions
+  were worded to fit inside that cap. The cap was not raised, because amending that tool is outside this Plan's
+  frozen target table.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the current gate results before editing | Pending | — | — | baseline |
-| 2 | Add the posture-gating Decision Details item | Pending | — | — | land with rows `19`, `50` |
-| 3 | Add the Verification rows and Startup Validation bullet | Pending | — | — | bare paths only |
-| 4 | Add the Review Trigger line | Pending | — | — | |
-| 5 | Run the ADR and docs gates | Pending | — | — | |
+| 1 | Confirm the current gate results before editing | Completed | 2026-10-17 | 2026-10-17 | ADR preservation, structure, reference, matrix, docs structure, content policy, and agent consistency gates all clean before editing |
+| 2 | Add the posture-gating Decision Details item | Completed | 2026-10-17 | 2026-10-17 | item 16 appended after item 15, items 11 12 14 and 15 byte-identical, no normative word used |
+| 3 | Add the Verification rows and Startup Validation bullet | Completed | 2026-10-17 | 2026-10-17 | one automated tests row citing two bare test paths plus one startup validation bullet, the bullet names the required and non-required split because only a required server posture failure aborts startup, verified against startup_validation.py step 2 running before step 4 |
+| 4 | Add the Review Trigger line | Completed | 2026-10-17 | 2026-10-17 | review trigger line appended after the central-availability trigger, that trigger left unchanged because availability is still computed per server |
+| 5 | Run the ADR and docs gates | Completed | 2026-10-17 | 2026-10-17 | only the mapped Decision WARNING remains, the 26592 byte cap needed the four additions trimmed to 1077 bytes, 42 passed in the registry test file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

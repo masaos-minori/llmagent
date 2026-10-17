@@ -159,23 +159,27 @@ and that the Agent's only MCP-security responsibility is validating the common p
 - Rewording INV-03.
 - `docs/23_agent/agent_06_*` and `docs/22_mcp/mcp_05_*` updates (follow-up).
 
-## Needs confirmation
+## Confirmation outcomes
 
-- Whether the new `### Automated Tests` row should be Blocking `Yes`. This row sets `No` to match the existing row
-  at `:135` and the note at `:156` that INV-03 is review-verified; the contract gate itself is blocking under
-  ADR-003 (row `38`).
+- Resolved 2026-10-17: the new `### Automated Tests` row stays Blocking `No`, matching the existing row and the
+  note that INV-01 and INV-03 are review-verified. The blocking enforcement of the same gate lives in ADR-003
+  Decision Detail 16 (row `38`) and ADR-004 (row `39`).
+- Resolved 2026-10-17: the row's Test cell carries the parenthetical "contract gate only; the INV-03 duplication
+  rule itself stays review-verified". Step 3 sets `Verifies INV-03` while this document's Design decisions keep the
+  closing note that INV-03 has no automated tests; the parenthetical states which part the row covers, so that note
+  and `docs/10_adr/adr_01_index.md`'s Manual Review entry for ADR-014 INV-03 stay accurate.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the current gate results before editing | Pending | — | — | baseline |
-| 2 | Extend the MCP Server responsibility bullet | Pending | — | — | WARNING, needs mapping |
-| 3 | Add the Agent-side contract Decision item | Pending | — | — | |
-| 4 | Add the Automated Tests row and Manual Review bullet | Pending | — | — | bare paths only |
-| 5 | Add the Review Trigger line | Pending | — | — | |
-| 6 | Run the ADR and docs gates | Pending | — | — | |
+| 1 | Confirm the current gate results before editing | Completed | 2026-10-17 | 2026-10-17 | ADR preservation structure reference matrix docs structure content policy and agent consistency gates all clean before editing, file 15157 bytes |
+| 2 | Extend the MCP Server responsibility bullet | Completed | 2026-10-17 | 2026-10-17 | MCP Server bullet extended with self-validation and posture publication on GET /health, the rest of the bullet unchanged |
+| 3 | Add the Agent-side contract Decision item | Completed | 2026-10-17 | 2026-10-17 | Decision item 4 added after item 3, items 1 to 3 unchanged, no MUST SHOULD or MAY used, INV-03 byte-identical |
+| 4 | Add the Automated Tests row and Manual Review bullet | Completed | 2026-10-17 | 2026-10-17 | automated tests row added in the table spaced separator style with bare test paths and a parenthetical scoping it to the contract gate so the closing note and the index Manual Review entry stay accurate, plus one manual review bullet |
+| 5 | Add the Review Trigger line | Completed | 2026-10-17 | 2026-10-17 | review trigger line appended after the Known Deviations scale trigger, nothing removed |
+| 6 | Run the ADR and docs gates | Completed | 2026-10-17 | 2026-10-17 | only the mapped Decision WARNING remains, all gates clean, lint-imports reports 6 contracts kept 0 broken, file 16339 bytes under the 24576 cap |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

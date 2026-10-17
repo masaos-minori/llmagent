@@ -77,6 +77,7 @@ MCP (Model Context Protocol) normally uses the stdio Transport, but this project
 9. MCP servers bind only to a loopback address (a non-loopback host is rejected at startup) and every MCP server configuration must carry a non-empty authentication token. Every MCP server, including mdq-mcp, rejects a request without a matching Bearer token on every endpoint. mdq-mcp's `allowed_dirs` is a separate, fail-closed resource-authorization boundary applied only after successful authentication; it neither replaces authentication nor is replaced by it. Exposure beyond localhost is not supported; it would additionally require TLS, which is not implemented. (Explicit in code — `scripts/mcp_servers/server.py` `MCPServer.run_http()`, `scripts/agent/startup_validation.py`, `scripts/mcp_servers/mdq/mdq_server.py`)
 10. The Agent and each MCP server read their own token from their own configuration file (the Agent from `agent.toml`, mdq-mcp from `mdq_mcp_server.toml`); the two values must match, but neither process reads the other's file (ADR-002).
 11. Fault isolation, operational monitoring, independent deployment take priority over the cost of HTTP Serialization and Socket communication.
+12. Each MCP server validates its own security configuration and publishes the result as a security posture on `GET /health`; the Agent validates only that posture's contract version and shape, never the server's configuration file (item 10). A posture `FAILED` result aborts startup.
 
 ### Scope
 
@@ -188,6 +189,7 @@ Do not implement authentication; prevent external exposure with Firewall restric
 
 - Trust boundary: privileges are granted only within each process
 - Secret handling: follow the principle of minimal exposure
+- The Agent holds no copy of server security settings; posture is published on the authenticated `/health` response
 
 ## Invariants
 
@@ -219,10 +221,11 @@ Not applicable
 - When mdq-mcp's `allowed_dirs` is empty or a requested path is not inside it, or cannot be canonicalized (the request is denied, fail-closed, after authentication)
 - When an MCP server is configured to bind to a non-loopback address (`run_http()` raises)
 - When the configuration names an unsupported transport (such as stdio)
+- When an MCP server reports a posture check as `FAILED` on `GET /health` (Safety/Integrity, not an availability failure)
 
 ### Fail-Open or Degraded Conditions
 
-- A non-mandatory MCP server that is unavailable is disabled and startup continues in a partial-availability state (ADR-004: an availability failure of a non-mandatory component disables it and startup continues in a partial-availability state)
+- A non-mandatory MCP server that is unavailable is disabled and startup continues in a partial-availability state (ADR-004: an availability failure of a non-mandatory component disables it and startup continues in a partial-availability state). A posture `FAILED` result is not an availability failure.
 
 ### Retry Policy
 
@@ -265,6 +268,7 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 ### Startup Validation
 
 - MCP server Discovery and Health Check results are evaluated at startup
+- Posture results are read from `GET /health` before Tool definitions are registered
 
 ### Deployment Validation
 
@@ -285,6 +289,7 @@ Not applicable (no Fallback exists; in particular, falling back to stdio is proh
 - Each MCP server is an independent HTTP server process started through `MCPServer.run_http()`, which enforces loopback-only binding. Every server module attaches the Bearer-token authentication middleware through `attach_auth_middleware()` with its own `auth_token`: rag-pipeline-mcp uses `MCP_RAG_PIPELINE_AUTH_TOKEN` and mdq-mcp uses `MCP_MDQ_AUTH_TOKEN`, read from `mdq_mcp_server.toml` and refused when empty. The mdq-mcp middleware protects `/health`, `/v1/tools`, and `/v1/call_tool`; a tool call for a path denied by `allowed_dirs` is returned as a tool-level error result (HTTP 200 with `is_error`), per the MCP tool-error contract.
 - `HttpTransport.call()` posts to `/v1/call_tool` with a bounded retry for 429/502/503/504 and for transport request errors other than timeouts; timeouts and other HTTP status errors surface as `TransportError`.
 - `ToolTransportInvoker.invoke()` applies the per-server Semaphore and records success or failure in `McpServerHealthRegistry`.
+- The security posture travels on the existing authenticated `/health` response.
 
 See Implementation References for the current file/symbol list.
 
@@ -308,6 +313,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - Fault isolation is no longer needed
 - Multiple Agents or OS users share an MCP server, or a tool that writes or deletes is added to mdq-mcp
 - OAuth 2.1, mTLS, or a Unix socket is considered as an authentication method, or token rotation without downtime is required
+- Per-server self-validation and the posture contract (2026-10-16) added the posture payload to `/health`
 
 ## Approval
 

@@ -83,6 +83,7 @@ When routing from a Tool name to an MCP server happens through multiple paths, o
 13. An Approval requirement is not a kind of disabled Tool state. Approval is owned by `agent/tool_policy.py`/`tool_approval.py` and is a per-call policy decision applied after Routing is resolved (risk can vary with arguments); it must not be represented as, or confused with, a disabled Tool.
 14. Reflecting Discovery-derived Tool definitions (`raw_definition`, the static `status`, and so on) requires a full restart of the Agent process. Unless the currently approved specification explicitly defines Rediscovery, a Reload operation updates only Policy-derived fields such as Safety Tier and allowlist-derived LLM visibility, and does not re-obtain Discovery-derived Tool definitions. Reload behavior is described only to the extent currently supported.
 15. The static `ToolRegistry` may be used only as input data for startup Drift validation (comparison of the configured `tool_names` and the runtime `/v1/tools` responses by `shared/tool_routing_validation.py`, invoked via `agent/services/routing_drift.py`). This use is not a Routing decision itself; it is a diagnostic verification that warns after the fact about the validity of the already determined `RuntimeToolRegistry`-based Routing result, and it does not change the principle that `ToolRouteResolver.resolve()` references only `RuntimeToolRegistry` (Decision Detail #3, INV-02).
+16. A server whose Security Posture is not accepted is excluded when `RuntimeToolRegistry` is constructed, so its Tools are neither exposed to the LLM nor routable. The exclusion is a Static Availability decision (Decision Detail #11): it is computed once at startup from the posture each server publishes on its own `/health`, it is not a Dynamic Health state, and it is not re-evaluated until the process restarts (Decision Detail #14).
 
 ### Responsibility Boundaries
 
@@ -256,11 +257,13 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 | A registered write tool outside the static sets is never classified as READ, and a write-flag mismatch is reported at startup | INV-03 | Unit | Yes | `tests/agent/test_tool_policy_comprehensive.py`, `tests/agent/services/test_mcp_tool_discovery.py` |
 | A statically disabled Tool is not included in `llm_tool_definitions()` | INV-06 | Regression | Yes | - |
 | Tools belonging to a Circuit-Open server remain in `llm_tool_definitions()` | INV-07 | Integration | Yes | - |
+| Tools of a server whose Security Posture is not accepted are absent from `RuntimeToolRegistry` | INV-06 | Unit | Yes | `tests/shared/test_runtime_tool_registry.py`, `tests/agent/test_mcp_health_posture.py` |
 
 ### Startup Validation
 
 - Routing is determined at startup based on Discovery results
 - Startup aborts when Discovery fails for a required MCP server or a subprocess server fails to spawn (ADR-004 Exceptions); an unavailable non-mandatory server has its Tools disabled (ADR-004 item 18)
+- Each MCP server's published Security Posture is evaluated before `RuntimeToolRegistry` is built: a posture that is not accepted excludes that server's Tools, and a posture failure on a `required=true` server aborts startup through `check_readiness()`
 
 ### Deployment Validation
 
@@ -301,6 +304,7 @@ Not applicable
 - Changes to RuntimeTool field definitions
 - Adding or removing MCP servers without restarting the Agent (Hot Reload/Rediscovery, Policy B) becomes a requirement
 - The design changes so that availability is computed centrally instead of individually by each MCP server
+- Per-server self-validation and the Security Posture contract (2026-10-16) added posture-gated Registry construction as Decision Detail #16 (linked with ADR-002 and ADR-004)
 
 ## Approval
 

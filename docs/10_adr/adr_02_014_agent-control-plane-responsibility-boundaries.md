@@ -57,11 +57,13 @@ ADR-001 established that the Workflow Engine is the mandatory and sole workflow 
    - **Orchestrator** (`scripts/agent/orchestrator.py`): responsible for coordinating processing within a single turn. It performs only coordination that completes within a turn, such as delegating task initialization and startup to the Workflow Engine, managing conversation state, and emitting audit events, and delegates decisions about persistent business state to the Workflow Engine.
     - **LlmTurnExecutor** (`scripts/agent/llm_turn_executor.py`): responsible for the short loop between the LLM and Tool Calls (streaming and Tool call round-trips within a turn). Creating and holding this loop is centralized in the component that actually drives the loop (currently `LlmTurnExecutor`), and no other component holds duplicate unused instances.
     - **ToolExecutor** (`scripts/shared/tool_executor.py`): responsible for executing a single Tool Call (gate checks, lifecycle checks, transport resolution, execution records). State spanning multiple calls and per-turn coordination are left to the Orchestrator/LlmTurnExecutor.
-   - **MCP Server** (under `scripts/mcp_servers/`, for example `shell/shell_service.py`, `tool_validators.py`): responsible for the technical safety of external operations (allowlist validation, path validation, sandboxed execution, resource limits, argument validation). These safety judgments are not taken over by the Orchestrator/ToolExecutor layers.
+   - **MCP Server** (under `scripts/mcp_servers/`, for example `shell/shell_service.py`, `tool_validators.py`): responsible for the technical safety of external operations (allowlist validation, path validation, sandboxed execution, resource limits, argument validation). These safety judgments are not taken over by the Orchestrator/ToolExecutor layers. Each MCP server validates its own security configuration at its own startup and publishes the result as a security posture on `GET /health`.
 
 2. No component takes over or duplicates responsibilities that belong to layers above or below it (such as deciding persistent business state, creating the Tool call loop twice, or judging the technical safety of external operations).
 
 3. This ADR does not change the mandatoriness and uniqueness of the Workflow Engine defined by ADR-001. It is positioned as a complement that extends ADR-001's Scope (`Orchestrator`, `WorkflowEngine`, `WorkflowLoader`, `StateStore`) to `LlmTurnExecutor`, `ToolExecutor`, and MCP Server.
+
+4. The Agent's MCP-security responsibility is limited to validating the common posture contract that each MCP server publishes (contract version, check set, and result shape) and gating Tool registration on that result. The Agent does not re-derive allowlist, path, sandbox, resource-limit, or argument validation decisions, and does not read a server's configuration file to form its own judgment.
 
 ### Scope
 
@@ -133,6 +135,7 @@ The mandatoriness and uniqueness of the Workflow Engine defined by ADR-001 are a
 | Test | Verifies | Type | Blocking | Implementation |
 | --- | --- | --- | --- | --- |
 | A regression test that `Orchestrator` does not hold an unused `LlmTurnExecutor` instance | INV-02 | Unit | No | `tests/agent/test_orchestrator.py` |
+| Agent-side posture contract validation, and no `RuntimeToolRegistry` entry for a server whose posture is not accepted (contract gate only; the INV-03 duplication rule itself stays review-verified) | INV-03 | Unit | No | `tests/agent/test_mcp_health_posture.py`, `tests/shared/test_runtime_tool_registry.py` |
 
 ### Startup Validation
 
@@ -152,6 +155,7 @@ Not applicable.
 ### Manual Review
 
 - When adding a new component, or during code review of a change that alters the scope of responsibility of the Orchestrator/LlmTurnExecutor/ToolExecutor/MCP Server, confirm consistency with this ADR's responsibility boundaries
+- When new Agent-side code inspects MCP server configuration or re-implements a server-side safety decision, review it against INV-03
 
 INV-01 and INV-03 have no automated tests and depend only on code review (Manual Review).
 
@@ -173,6 +177,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - The mandatoriness and uniqueness of the Workflow Engine (ADR-001) itself are re-evaluated
 - The deployment changes to multiple hosts or a distributed configuration
 - An implementation that contradicts this ADR's responsibility boundaries is newly found at a scale that Known Deviations can no longer track
+- Per-server self-validation and the Security Posture contract (2026-10-16) fixed server-side validation and Agent-side contract validation as the boundary (linked with ADR-002, ADR-003, ADR-004)
 
 ## Approval
 

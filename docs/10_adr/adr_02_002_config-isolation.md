@@ -64,7 +64,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 4. chunk_splitter reads only `config/chunk_splitter.toml`.
 5. The ingester reads only `config/ingester.toml`.
 6. The EventBus reads only `config/eventbus.toml`.
-7. The Agent does not interpret MCP-server-internal configuration, except for the read-only startup security audit listed in Exceptions.
+7. The Agent does not interpret MCP-server-internal configuration.
 8. MCP servers do not reference `agent.toml`.
 9. Using a shared Config Loader is permitted, but the permitted files are restricted per process, and reading a non-permitted file is a Runtime Error.
     *Note: EventBus is an exception — it loads its own config through the shared loader without `restrict_to()`; isolation is enforced by a local invariant instead (see Implementation Notes).*
@@ -74,6 +74,7 @@ When multiple processes (Agent, MCP servers, crawler, ingester, chunk_splitter, 
 13. Secrets are exposed only to the processes that need them. Environment variables also have a Prefix or an Allowlist.
 14. The impact scope and restart targets of a configuration change are determined per owning process.
 15. Configuration is not implicitly loaded at module import time.
+16. Each MCP server validates its own security configuration at its own startup and publishes the result as a security posture on `GET /health`. The Agent reads that posture and does not read server configuration files.
 
 ### Per-Process Required Files and Keys
 
@@ -167,6 +168,7 @@ Because each process's configuration is managed independently, data corruption f
 ### Security Consequences
 
 - Trust boundary: privileges are granted only within each process
+- Trust boundary: an MCP server's security settings are read and validated only by that server, and the Agent consumes the posture that server publishes instead of holding a copy of the settings
 - Authentication and authorization: permission decisions based on configuration files
 - Secret handling: follow the principle of minimal exposure
 - Audit Log: `ConfigLoader` emits no configuration-loading audit event
@@ -181,11 +183,6 @@ Because each process's configuration is managed independently, data corruption f
 ## Exceptions
 
 - EventBus does not call `ConfigLoader.restrict_to()`; its isolation is a local invariant described in Implementation Notes.
-- The Agent startup security audit (`agent/services/security_audit.py::audit_security_defaults()`) reads the shell, git, github, and cicd MCP server configuration files. The exception is limited as follows:
-  - The read happens only during Agent startup, through the audit loaders in `agent/security_audit_config.py`, which is the only Agent module allowed to import MCP server configuration models.
-  - The files are read, never written.
-  - The loaded values are narrowed to audit DTOs that hold only the security-posture fields the audit checks (sandbox backend and allowlists); secrets are not loaded.
-  - The values are used only to accept or reject startup and to report the security posture. They never configure Agent behavior, routing, or tool calls.
 
 The restriction is otherwise unconditional: every other process entry point calls `ConfigLoader.restrict_to()` with its own configuration file (the Agent with `agent.toml`, an MCP server with its `own_config_file`, the crawler, chunk_splitter, and ingester with their own files); no environment variable disables the restriction, and reading a non-permitted file is rejected.
 
@@ -228,7 +225,8 @@ Not applicable (this ADR defines no retry policy of its own)
 | Test | Verifies | Type | Blocking | Implementation |
 |---|---|---|---|---|
 | Each process can read only its permitted configuration files | INV-01 | Integration | Yes | `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_allows_authorized`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_truthy_own_config_file_calls_restrict_to`, `tests/mcp_servers/test_mcp_server_base.py::TestConfigIsolationValidation::test_falsy_own_config_file_raises_error`, `tests/mcp_servers/test_config_isolation_fail_closed.py` |
-| Only the security audit loader imports MCP server configuration models, and the audit DTOs hold no secret fields | INV-01 | Unit | Yes | `tests/agent/test_security_audit_config_isolation.py::test_only_audit_module_imports_security_server_config`, `tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields`, and the `agent-mcp-config-models` import-linter contract in `.importlinter` |
+| No Agent module imports MCP server configuration models, and the posture DTOs hold no secret fields | INV-01 | Unit | Yes | `tests/agent/test_security_audit_config_isolation.py::test_only_audit_module_imports_security_server_config`, `tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields`, and the `agent-mcp-config-models` import-linter contract in `.importlinter` |
+| Each MCP server validates its own security configuration at its own startup and publishes the resulting posture | INV-01 | Unit | Yes | `tests/mcp_servers/` |
 | Access to non-permitted configuration files is rejected | INV-02 | Regression | Yes | `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_denies_unauthorized`, `tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error` |
 | An MCP server can start standalone without agent.toml | INV-03 | Integration | Yes | - |
 | The Agent can start without being given MCP-specific Secrets | INV-04 | Integration | Yes | - |
@@ -237,6 +235,7 @@ Not applicable (this ADR defines no retry policy of its own)
 
 - Whether each process's configuration file exists
 - Whether configuration files are valid (parseable TOML, required fields)
+- Whether each MCP server's own validation produced a posture with no `FAILED` check: the Agent reads the postures published on each server's `GET /health` through `check_readiness()`, and a `FAILED` check aborts Agent startup
 
 ### Deployment Validation
 
@@ -270,8 +269,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - The operational scale or concurrency changes significantly
 - The deployment changes from a single host to multiple hosts or a distributed configuration
 - Security or audit requirements change
-- The startup security audit needs a configuration field outside its audit DTOs, or needs to read another MCP server's configuration
-- Each MCP server can enforce the audited settings itself at its own startup (the audit can then move out of the Agent)
+- Fired 2026-10-16: each MCP server now enforces at its own startup the settings `agent/services/security_audit.py::audit_security_defaults()` used to audit from the Agent, and `agent/security_audit_config.py` was deleted with that audit (see Decision item 16 and the Verification rows above)
 - Performance targets or resource constraints change
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
