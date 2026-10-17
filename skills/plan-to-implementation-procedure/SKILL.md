@@ -44,11 +44,10 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 
 - **One target file = one procedure document**: exactly one document per
   `Implementation Target Files` row; a document MUST NOT contain modification
-  instructions for more than one file — see `workflow.md` Step 3.
+  instructions for more than one file.
 - **No duplicate work**: a row may be skipped only when an existing document under
   `implementations/` or `implementations/done/` has both a matching `Source plan` and a
-  matching `Related target files` (by `target_file_path`, not `target_file_name`) — see
-  `workflow.md` Step 3.
+  matching `Related target files` (by `target_file_path`, not `target_file_name`).
 - **Sortable, collision-safe naming**: see `workflow.md`, section "Workflow position",
   for the `{timestamp}_{seq}_{target_file_slug}.md` naming algorithm.
 - **Frozen-inventory revalidation**: before generating any document, revalidate the
@@ -57,7 +56,7 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 - **Blocked on new target discovery**: if implementing a target file requires
   modifying a file not listed in `Implementation Target Files`, stop and report
   `Blocked` — MUST NOT generate further documents until the Plan is amended and
-  revalidated — see `workflow.md` Step 3.
+  revalidated.
 - **One plan at a time**: see `workflow.md` Multi-file processing.
 - **Move is required**: see `workflow.md` Step 4. The move MUST NOT be skipped.
 - **No approval gate on the archival move**: the move to `plans/done/` does not require

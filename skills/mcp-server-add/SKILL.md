@@ -27,7 +27,7 @@ MUST NOT state the assigned port number in `docs/*.md` once deployed — see
 ## Prerequisites
 
 - For Option A (wizard): agent REPL MUST be running (`ps aux | grep agent.py`)
-- Next free port (the "assigned port" used in `workflow.md` Step 1): `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use the next integer above that result
+- Next free port (the "assigned port"): `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use the next integer above that result
 
 ## Phase overview
 
@@ -65,9 +65,9 @@ execution stopped in a `Blocked` state per `workflow.md` Step 1/Step 8's own bou
 
 - Use the port computed in Prerequisites; re-run its `grep` immediately before assigning it,
   because another change may have taken it.
-- Use `ConfigLoader().load(...)` to read the new server's config module, per `workflow.md`
-  Step 1 (an instance of `rules/coding.md`'s `config_loader.py`-only `json.load()` rule — see
-  Constraint checks).
+- Use `ConfigLoader().load(...)` to read the new server's config module (an instance of
+  `rules/coding.md`'s `config_loader.py`-only `json.load()` rule — See `rules/coding.md`,
+  section "Constraint checks (run before every commit)").
 
 See `rules/coding.md` Mandatory conventions ("Module addition", "MCP server addition"
 rows) for the `deploy/deploy.sh` `cp` line and `config/agent.toml
