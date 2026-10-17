@@ -29,7 +29,7 @@ stops treating a security-validation failure as an ordinary health warning (`REQ
   `scripts/agent/startup_validation.py:70-81`.
 - `McpStatusService` already probes each server and keeps the raw body
   (`scripts/agent/services/mcp_status.py:121`, `:156`); this row does not duplicate that status view.
-- Issue `REQ-013` classification (`issues/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md:100-112`):
+- Issue `REQ-013` classification (`issues/done/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md:100-112`):
   an unreachable or unresponsive server is an Availability failure; a server that answers with a failed
   or unusable posture is a Safety/Integrity failure.
 - `web_search` is gated in this row: rows `51` and `52` were added 2026-10-16 resolving Plan
@@ -226,7 +226,7 @@ stops treating a security-validation failure as an ordinary health warning (`REQ
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: `REQ-013` (failure classification), `REQ-014` (Tool Discovery and Tool Call gating)
-- **Source issue**: `issues/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
+- **Source issue**: `issues/done/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261015-112526_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure

@@ -195,7 +195,7 @@ posture is missing, rejected, or failed can never be discovered or called (`REQ-
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: `REQ-014` (Tool Discovery and Tool Call gating)
-- **Source issue**: `issues/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
+- **Source issue**: `issues/done/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261015-112526_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure

@@ -245,7 +245,7 @@ posture is not validated (`REQ-002`, `REQ-003`, `REQ-007`).
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: `REQ-002` (posture published on `/health`), `REQ-003` (shared startup ordering, validation failure blocks bind), `REQ-007` (GitHub self-validation)
-- **Source issue**: `issues/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
+- **Source issue**: `issues/done/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261015-112526_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure

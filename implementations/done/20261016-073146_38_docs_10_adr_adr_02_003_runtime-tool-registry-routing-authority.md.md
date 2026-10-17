@@ -187,7 +187,7 @@ that it does not introduce Hot Rediscovery or any runtime change to LLM visibili
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: `REQ-019` (align ADR-003 with posture-gated discovery and no Hot Rediscovery)
-- **Source issue**: `issues/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
+- **Source issue**: `issues/done/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261015-112526_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure

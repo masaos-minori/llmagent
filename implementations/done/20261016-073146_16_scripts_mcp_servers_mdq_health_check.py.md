@@ -215,7 +215,7 @@ amendment)
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: `REQ-011` (MDQ self-validation), `REQ-002` (posture published on `/health`)
-- **Source issue**: `issues/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
+- **Source issue**: `issues/done/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261015-112526_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure

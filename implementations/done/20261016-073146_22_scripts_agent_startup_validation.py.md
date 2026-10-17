@@ -23,7 +23,7 @@ the postures published by the servers rather than an Agent-side audit of their c
   step at `:84-93`; MCP tool discovery at `:99-121`.
 - The local `logger` (`:50-52`) is still used at `:162` and `:167`, so it stays.
 - Startup ordering requirement from the issue
-  (`issues/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md:100-112`): security
+  (`issues/done/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md:100-112`): security
   posture validation must complete before Tool Discovery registers tools. The existing order already
   satisfies it once row `18` puts posture validation inside `check_readiness()`, because `readiness`
   (`:84-93`) runs before `mcp_tool_discovery` (`:99-121`).
@@ -176,7 +176,7 @@ the postures published by the servers rather than an Agent-side audit of their c
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
 - **Requirement ID**: `REQ-017` (remove Agent-side cross-config audit)
-- **Source issue**: `issues/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
+- **Source issue**: `issues/done/20261015-102802_audit001_move-security-validation-to-each-mcp-server.md`
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: `plans/20261015-112526_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
