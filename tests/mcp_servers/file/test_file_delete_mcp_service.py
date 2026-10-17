@@ -259,6 +259,7 @@ class TestDeleteDirectoryRecursiveSafety:
     def test_non_recursive_root_directory_blocked_by_guard(
         self, tmp_path: Path
     ) -> None:
+        """REQ-007: the allowed-root guard fires for non-recursive deletes too."""
         from mcp_servers.file.common import FileAuthorizationError
 
         svc = DeleteFileService(

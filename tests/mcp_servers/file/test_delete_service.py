@@ -181,6 +181,23 @@ class TestDeleteFile:
                     type("Request", (), {"path": "/fake/path", "dry_run": False})()
                 )
 
+    def test_delete_file_still_exists_after_unlink_raises(self, service: tuple):
+        """REQ-006: if the target still exists after unlink(), delete_file must raise."""
+        svc, tmp_path = service
+        fpath = tmp_path / "test.txt"
+        fpath.write_text("x")
+
+        def _noop_unlink(*_args: object, **_kwargs: object) -> None:
+            # Simulate an unlink that reports success but leaves the file.
+            return None
+
+        with patch("pathlib.Path.unlink", side_effect=_noop_unlink):
+            with pytest.raises(FileValidationError):
+                svc.delete_file(
+                    type("Request", (), {"path": str(fpath), "dry_run": False})()
+                )
+        assert fpath.exists()
+
 
 # ── delete_directory ──
 
@@ -279,6 +296,26 @@ class TestDeleteDirectory:
             )
         assert tmp_path.exists()
 
+    def test_delete_directory_still_exists_after_deletion_raises(self, service: tuple):
+        """REQ-006: if the target still exists after deletion, delete_directory must raise."""
+        svc, tmp_path = service
+        dpath = tmp_path / "empty_dir"
+        dpath.mkdir()
+
+        def _noop_rmdir(*_args: object, **_kwargs: object) -> None:
+            # Simulate an rmdir that reports success but leaves the directory.
+            return None
+
+        with patch("pathlib.Path.rmdir", side_effect=_noop_rmdir):
+            with pytest.raises(FileValidationError):
+                svc.delete_directory(
+                    type(
+                        "Request",
+                        (),
+                        {"path": str(dpath), "recursive": False, "dry_run": False},
+                    )()
+                )
+        assert dpath.exists()
     def test_delete_directory_dry_run_scan_error(self, service: tuple):
         svc, tmp_path = service
         dpath = tmp_path / "dry_scan_error_dir"

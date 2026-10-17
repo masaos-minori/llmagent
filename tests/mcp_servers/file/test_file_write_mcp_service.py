@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytest
-from mcp_servers.file.common import FileAuthorizationError
+from mcp_servers.file.common import FileAuthorizationError, FileValidationError
 from mcp_servers.file.write_models import (
     CreateDirectoryRequest,
     EditFileRequest,
@@ -179,6 +179,61 @@ class TestMoveFileDryRun:
         req = MoveFileRequest(source=str(src), destination=str(dest), dry_run=False)
         with pytest.raises(FileNotFoundError):
             service.move_file(req)
+
+
+class TestMoveFilePostcondition:
+    """REQ-004: move_file verifies dest exists and source is gone after the move."""
+
+    def test_move_file_missing_destination_raises(
+        self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """If shutil.move does not actually relocate the file, the postcondition must fail."""
+        import os as _os
+
+        src = tmp_path / "src.txt"
+        src.write_text("payload", encoding="utf-8")
+        dest = tmp_path / "dest.txt"
+        req = MoveFileRequest(source=str(src), destination=str(dest), dry_run=False)
+
+        def _noop_move(_src: str, _dst: str) -> None:
+            # Simulate a move that reports success but leaves files untouched.
+            return None
+
+        monkeypatch.setattr(_os, "replace", _noop_move)
+        monkeypatch.setattr("shutil.move", _noop_move)
+        with pytest.raises(FileValidationError):
+            service.move_file(req)
+
+
+class TestEditFileByteLimit:
+    """REQ-005: edit_file rejects content whose UTF-8 length exceeds max_write_bytes."""
+
+    def test_edit_file_over_limit_raises(self, tmp_path: Path) -> None:
+        service = WriteFileService(
+            allowed_dirs=[tmp_path],
+            max_write_bytes=16,
+        )
+        target = tmp_path / "big.txt"
+        target.write_text("short", encoding="utf-8")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="short", new_text="short" + "x" * 32)],
+        )
+        with pytest.raises(FileValidationError):
+            service.edit_file(req)
+
+    def test_edit_file_within_limit_succeeds(
+        self, service: WriteFileService, tmp_path: Path
+    ) -> None:
+        target = tmp_path / "ok.txt"
+        target.write_text("base", encoding="utf-8")
+        req = EditFileRequest(
+            path=str(target),
+            edits=[EditOperation(old_text="base", new_text="basemore")],
+        )
+        result = service.edit_file(req)
+        assert result.applied is True
+        assert target.read_text(encoding="utf-8") == "basemore"
 
 
 # ── async fmt_* handlers ──────────────────────────────────────────────────────
@@ -458,18 +513,18 @@ class TestEditFileErrorPaths:
     def test_edit_write_permission_error_raises_auth_error(
         self, service: WriteFileService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from pathlib import Path as _Path
+        import os as _os
 
         target = tmp_path / "readonly.txt"
         target.write_text("foo", encoding="utf-8")
-        original_write = _Path.write_text
+        original_replace = _os.replace
 
-        def _fail_write(self: _Path, *args: object, **kwargs: object) -> int:
-            if self.name in {"readonly.txt", ".tmp_readonly.txt"}:
+        def _fail_replace(_src: str, _dst: str) -> None:
+            if _dst.endswith("readonly.txt"):
                 raise PermissionError("read-only filesystem")
-            return original_write(self, *args, **kwargs)  # type: ignore[arg-type]
+            return original_replace(_src, _dst)
 
-        monkeypatch.setattr(_Path, "write_text", _fail_write)
+        monkeypatch.setattr(_os, "replace", _fail_replace)
         req = EditFileRequest(
             path=str(target),
             edits=[EditOperation(old_text="foo", new_text="bar")],

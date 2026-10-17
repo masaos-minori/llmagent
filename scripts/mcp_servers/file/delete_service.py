@@ -219,6 +219,8 @@ class DeleteFileService(FileSecurityMixin):
         if req.dry_run:
             return self._dry_run_directory_response(target)
 
+        # Allowed-root protection applies to every delete_directory call, including
+        # the non-recursive (rmdir) path (REQ-007).
         self._check_not_deleting_allowed_root(target)
 
         before_state = self._fs_state(target)
