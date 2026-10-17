@@ -24,6 +24,7 @@ from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
 
+from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.file.common import (
     FileAuthorizationError,
@@ -208,16 +209,44 @@ async def list_tools(
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle a generic MCP call_tool request."""
+    session_id, request_id, idempotency_key = extract_request_context(request)
+    audit_target = cast(str, req.args.get("path", ""))[:80]
     if not _cfg.allowed_dirs:
+        _audit_log(
+            logger,
+            session_id=session_id,
+            request_id=request_id,
+            action=req.name,
+            target=audit_target,
+            outcome="rejected",
+            server_key=FILE_DELETE_SERVER_KEY,
+        )
         return CallToolResponse(
             result="Tool disabled: allowed_dirs is empty", is_error=True
         )
     try:
         req.validate_args()
     except ValueError as e:
+        _audit_log(
+            logger,
+            session_id=session_id,
+            request_id=request_id,
+            action=req.name,
+            target=audit_target,
+            outcome="rejected",
+            server_key=FILE_DELETE_SERVER_KEY,
+        )
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
-    _, _, idempotency_key = extract_request_context(request)
     r = await _dispatch_delete_tool(req.name, req.args, idempotency_key=idempotency_key)
+    _audit_log(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        target=audit_target,
+        outcome=r.outcome,
+        server_key=FILE_DELETE_SERVER_KEY,
+    )
     return _to_call_tool_response(r)
 
 

@@ -54,6 +54,7 @@ class AuditRecord(TypedDict):
     detail: NotRequired[str]
     pre_condition: NotRequired[dict[str, object]]
     post_condition: NotRequired[dict[str, object]]
+    requested_target: NotRequired[str]
     canonical_target: NotRequired[str]
 
 
@@ -113,6 +114,8 @@ def _build_audit_record(
             for k, v in post_condition.items()
             if isinstance(v, (str, int, float, bool, type(None)))
         }
+    if requested_target:
+        record["requested_target"] = requested_target
     if canonical_target:
         record["canonical_target"] = canonical_target
     return record
