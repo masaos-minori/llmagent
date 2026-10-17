@@ -102,8 +102,8 @@ MCP-006 in the known-issue ledger.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename and invert the characterization test | Pending | — | — | REQ-007 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rename and invert the characterization test | Completed | 20261017-182500 | 20261017-182951 | REQ-007 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-182500 | 20261017-182951 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
