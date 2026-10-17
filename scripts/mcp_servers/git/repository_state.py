@@ -297,6 +297,27 @@ class PipelineResult:
         )
 
 
+_HEAD_UNREADABLE: tuple[str, None] = ("unreadable", None)
+
+
+def _live_head_identity(state: RepositoryState) -> tuple[str, str | None] | None:
+    """Return (head_type, active_branch) read from the live repository object.
+
+    Returns None when the snapshot holds no real git.Repo, which is the case for
+    test doubles and for snapshots built without a repository reference.
+    """
+    repo = state._repo
+    if not isinstance(repo, git.Repo):
+        return None
+    try:
+        if repo.head.is_detached:
+            return ("detached", None)
+        return ("branch", repo.active_branch.name)
+    except (ValueError, TypeError, git.exc.GitError) as exc:
+        logger.warning("Stage 5b: live HEAD read failed for %s: %s", state.path, exc)
+        return _HEAD_UNREADABLE
+
+
 class WriteProtectionPipeline:
     """Orchestrates the 9-stage write-protection pipeline.
 
@@ -360,18 +381,16 @@ class WriteProtectionPipeline:
         with _get_repo_lock(self._state.path):
             # Stage 5b: Re-check HEAD identity immediately before the mutating
             # Git call (REQ-006) — reject if it drifted since authorization.
-            # Compares only the detached/attached transition (`is_detached_head`,
-            # a property) rather than the exact branch name (`active_branch`, a
-            # required field many existing call sites' test doubles do not
-            # populate) — still catches the primary TOCTOU scenario (a
-            # checkout/rebase detaching or re-attaching HEAD between
-            # authorization and execution).
-            # With a single shared snapshot (REQ-006) there is no fresh
-            # re-check snapshot here. The identity comparison below is therefore
-            # trivially equal, so the 5b guard is a no-op. A real TOCTOU
-            # re-check would require a second snapshot — a behavior change beyond
-            # this procedure (see Plan Gap: TOCTOU re-check).
-            if self._state.is_detached_head != self._state.is_detached_head:
+            # Reads (head_type, active_branch) from the live repository object the
+            # snapshot already holds and compares it with the authorized identity,
+            # so both an attached-to-detached transition and a branch-name change
+            # are caught. The check is skipped only when the snapshot carries no
+            # real git.Repo; an unreadable live HEAD fails closed and denies.
+            live_identity = _live_head_identity(self._state)
+            if live_identity is not None and live_identity != (
+                self._state.head_type,
+                self._state.active_branch,
+            ):
                 return PipelineResult.reject(
                     self._state,
                     "Stage 5b",

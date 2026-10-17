@@ -142,13 +142,12 @@ class TestCrossRepoPathIndependence:
 
 class TestHeadDriftRejectionPerTool:
     @pytest.mark.parametrize("tool_name", ["git_pull", "git_push"])
-    def test_head_drift_not_rejected_with_single_snapshot(
+    def test_head_drift_rejected_by_live_recheck(
         self, repo_a: str, tool_name: str
     ) -> None:
-        """With the single shared snapshot (REQ-006) the Stage 5b drift guard is a
-        no-op, so a HEAD detached after authorization does not reject the op. A
-        real TOCTOU re-check needs a second snapshot — a documented gap (Plan Gap:
-        TOCTOU re-check)."""
+        """Stage 5b re-reads the HEAD identity from the live repository object
+        immediately before the mutating Git call (REQ-008), so a HEAD detached
+        after the authorization-time snapshot rejects the op."""
         state = RepositoryState.snapshot(repo_a)  # captured while attached
         repo = git.Repo(repo_a)
         repo.git.checkout(repo.head.commit.hexsha)  # detach after authorization
@@ -158,8 +157,10 @@ class TestHeadDriftRejectionPerTool:
         def _op() -> str:
             nonlocal op_called
             op_called = True
-            return "should run (5b is a no-op)"
+            return "must not run (5b must reject first)"
 
         result = WriteProtectionPipeline(state).run(tool_name, _op)
-        assert result.ok is True
-        assert op_called is True
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 5b"
+        assert "HEAD state changed" in result.rejection_message
+        assert op_called is False

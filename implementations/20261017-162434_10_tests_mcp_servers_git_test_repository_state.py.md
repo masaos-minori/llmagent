@@ -102,9 +102,9 @@ the known-issue ledger.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rename and invert the drift test | Pending | — | — | REQ-008 |
-| 2 | Add the branch-drift and mocked-snapshot cases | Pending | — | — | REQ-008 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rename and invert the drift test | Completed | 20261017-183000 | 20261017-185200 | REQ-008 |
+| 2 | Add the branch-drift and mocked-snapshot cases | Completed | 20261017-183000 | 20261017-185200 | REQ-008 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

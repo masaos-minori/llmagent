@@ -488,13 +488,10 @@ class TestHeadIdentityRecheck:
         assert result.ok is True
         assert result.output == "ok"
 
-    def test_head_drift_not_rejected_with_single_snapshot(
-        self, working_repo: str
-    ) -> None:
-        """With the single shared snapshot (REQ-006) the Stage 5b drift guard is a
-        no-op identity check, so a HEAD detached between the authorization-time
-        snapshot and the run is NOT rejected here. A real TOCTOU re-check requires
-        a second snapshot — a documented gap (see Plan Gap: TOCTOU re-check)."""
+    def test_head_drift_rejected_by_live_recheck(self, working_repo: str) -> None:
+        """Stage 5b re-reads the HEAD identity from the live repository object
+        immediately before the mutating Git call (REQ-008), so a HEAD detached
+        between the authorization-time snapshot and the run is rejected."""
         from mcp_servers.git.repository_state import WriteProtectionPipeline
 
         state = RepositoryState.snapshot(working_repo)  # captured while attached
@@ -507,11 +504,59 @@ class TestHeadIdentityRecheck:
         def _op() -> str:
             nonlocal op_called
             op_called = True
-            return "should run (5b is a no-op)"
+            return "must not run (5b must reject first)"
 
         result = pipeline.run("git_checkout", _op)
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 5b"
+        assert "HEAD state changed" in result.rejection_message
+        assert op_called is False
+
+    def test_branch_drift_rejected_by_live_recheck(self, working_repo: str) -> None:
+        """A branch-name change after the snapshot is drift too: the live identity
+        pair no longer matches the authorized one, so Stage 5b rejects."""
+        from mcp_servers.git.repository_state import WriteProtectionPipeline
+
+        state = RepositoryState.snapshot(working_repo)  # captured on the initial branch
+        repo = git.Repo(working_repo)
+        repo.git.checkout("-b", "drifted-branch")
+        pipeline = WriteProtectionPipeline(state)
+
+        op_called = False
+
+        def _op() -> str:
+            nonlocal op_called
+            op_called = True
+            return "must not run (5b must reject first)"
+
+        result = pipeline.run("git_checkout", _op)
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 5b"
+        assert op_called is False
+
+    def test_mocked_repo_never_denies_at_stage_5b(self) -> None:
+        """A snapshot whose repository object is not a real git.Repo skips the live
+        re-read, so test doubles cannot be denied by Stage 5b."""
+        from unittest.mock import MagicMock
+
+        from mcp_servers.git.repository_state import (
+            RepositoryState,
+            WriteProtectionPipeline,
+        )
+
+        state = RepositoryState(
+            path="/tmp/stage5b-mocked-repo",
+            is_dirty=False,
+            head_type="branch",
+            active_branch="develop",
+            untracked_file_count=0,
+            protected_branch=False,
+            ref_valid=True,
+            _repo=MagicMock(),
+        )
+        result = WriteProtectionPipeline(state).run("git_status", lambda: "ok")
         assert result.ok is True
-        assert op_called is True
+        assert result.output == "ok"
 
 
 # ── Protected branch check tests (REQ-002) ────────────────────────────────────
