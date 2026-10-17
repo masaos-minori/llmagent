@@ -53,7 +53,7 @@ Agent-side approval confirms user intent and presents the expected operation and
 | **Postcondition verification** | Confirming the resulting state matches intent; detecting unresolved conflicts; preventing partial results from being reported as success | Preventing the operation from starting (that is the guard layers' job) |
 | **Audit** | Recording repository/resource identity, operation type, before/after state, approval correlation, and result — without secrets or full sensitive output | Blocking or allowing the operation |
 
-**Coverage is stated per tool category, not in this document.** Every high-risk server implements the common-guard layer (allowlist + read-only/write gating). Command-specific guards, postcondition verification, and audit correlation are implemented to different depths by different categories, and this document does not record which: each category's own document is the single source for its layer coverage, under its `Guard and postcondition coverage` section — `mcp_04_02_file-write-file-delete-shell.md` (file-write, file-delete, shell), `mcp_04_05_git.md` (git), `mcp_04_01_web-search-file-read-github.md` (github), `mcp_04_04_mdq.md` (mdq), and `mcp_04_03_rag-pipeline-and-cicd.md` (cicd). Do not assume a layer is implemented here merely because this policy defines it as a concept.
+**Layer coverage is resolved per tool.** Every high-risk server implements the common-guard layer (allowlist + read-only/write gating); command-specific guards, postcondition verification, and rich audit correlation are implemented for some categories and recorded as not applicable (with the reason) in others. Each high-risk tool documents its current five-layer status in its own document — `mcp_04_02_file-write-file-delete-shell.md` (file-write, file-delete, shell), `mcp_04_05_git.md` (git), `mcp_04_01_web-search-file-read-github.md` (github), `mcp_04_03_rag-pipeline-and-cicd.md` (cicd), and `mcp_04_04_mdq.md` (mdq) — so no category is left without a resolved per-layer status. Do not assume a layer is implemented here merely because this policy defines it as a concept; consult the owning document for whether it is implemented or not applicable for that tool.
 
 ## Allowed paths/repos
 
@@ -133,14 +133,7 @@ The following table summarizes the approval-to-tier mapping defined in `mcp_05_0
 
 All high-risk tool executions emit audit log entries with the following fields:
 
-Every MCP server except `file-read-mcp` and `rag-pipeline-mcp` emits one JSON-lines audit record per tool
-call (see `mcp_06_05_reading-audit-logs.md` MCP Servers without Audit Logging). The record's field
-definitions (including `event`, `source`, `ts`, `session_id`, `request_id`, `tool`, `target`, `outcome`,
-`server_key`, `error_type`, the optional `detail`, and the git-mcp-only optional `requested_target`,
-`canonical_target`, `pre_condition`, and `post_condition`) are owned by
-`mcp_02_03_audit-logging-and-errors.md` Audit Log Format and are not restated here. The record carries a
-server-specific `target` (repository slug, truncated path, truncated command, or truncated query) rather
-than the full tool arguments.
+Each MCP server emits one JSON-lines audit record per tool call. The record's field definitions (including `event`, `source`, `ts`, `session_id`, `request_id`, `tool`, `target`, `outcome`, `server_key`, `error_type`, and the optional `detail`) are owned by `mcp_02_03_audit-logging-and-errors.md` Audit Log Format and are not restated here. The record carries a server-specific `target` (repository slug, truncated command, or truncated query) rather than the full tool arguments.
 
 *Source: `mcp_02_03_audit-logging-and-errors.md`*
 
