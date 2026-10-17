@@ -83,7 +83,10 @@ class RuntimeToolRegistry:
         cfg = self._server_configs.get(server_key)
         if cfg is not None and getattr(cfg, "is_disabled", False):
             return True
-        if self._allowed_servers is not None and server_key not in self._allowed_servers:
+        if (
+            self._allowed_servers is not None
+            and server_key not in self._allowed_servers
+        ):
             self._posture_excluded.add(server_key)
             return True
         return False
