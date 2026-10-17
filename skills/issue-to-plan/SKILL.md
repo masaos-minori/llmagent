@@ -122,7 +122,7 @@ Generate `plans/{timestamp}_plan.md` (e.g. `plans/20260702-120000_plan.md`) usin
 exact Markdown structure defined in `templates/plan.md`. MUST NOT omit any section. The
 plan file is the working document: update it as scope changes. MUST NOT implement
 directly from it; the next pipeline phase is `plan-to-implementation-procedure`, which
-produces the procedure documents `code-implementation` executes (see Composes with).
+produces the file-level procedure documents `code-implementation` executes (see Composes with).
 
 ## See Also
 See `workflow.md` for detailed phase content, commands, and the toolchain reference.

@@ -359,7 +359,7 @@ Return results in a strict final format.
 **This documentation task is complete when, and only when**: the Final Gate below is
 fully checked (or its unmet items are recorded as Open Questions per Gate failure
 handling's Attempt Limit), and every section of the Final Report Format is populated
-from what Phases 1-9 already recorded — MUST NOT re-run a check merely to produce this report.
+from what Phases 1-9 already recorded — MUST NOT re-derive or re-run a check merely to produce this report.
 
 ### Final Report Format
 #### Updated / Created Files
@@ -380,7 +380,7 @@ from what Phases 1-9 already recorded — MUST NOT re-run a check merely to prod
 
 ### Final Gate
 
-Confirm against the key Phase gates below; MUST NOT re-derive:
+Confirm the key Phase gates listed below against the Phase gates stated above; MUST NOT re-derive:
 
 - [ ] Phase 3 gate met: setup-to-start path is traceable
 - [ ] Phase 4 gate met: entrypoints and dependencies are traceable

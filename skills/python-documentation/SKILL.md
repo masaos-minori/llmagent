@@ -57,7 +57,7 @@ See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, bound
 ## Core Documentation Rules
 
 - **Source of truth**: code, configuration, tests, and CI/CD are factual evidence; documentation describes intent, boundaries, constraints, and known issues, not a copy of implementation detail.
-- **Evidence first**: use `skills/DESIGN.md` Shared Vocabulary (Evidence labels).
+- **Evidence first**: use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary (Evidence labels).
 - **No hallucination**: missing behavior or framework patterns MUST NOT be invented without evidence — see `skills/DESIGN.md` Evidence labels for how to mark unclear behavior.
 - **Remove or compress implementation-derived details**: see `skills/DESIGN.md` Avoid implementation-reference duplication.
 - **No line numbers, no config values, no counts**: see `skills/DESIGN.md` No source-code line numbers, No concrete configuration values, No implementation counts.

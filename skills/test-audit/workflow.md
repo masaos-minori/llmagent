@@ -67,8 +67,7 @@ command list — MUST NOT execute any of them here.
 ## Step 2: Safety Evaluation (Analysis)
 
 Follow `safety.md` Safety Evaluation in full: classify every Step 1 command as `Safe`
-/ `Safe with isolated infrastructure` / `Blocked` / `Not runnable` / `Prohibited`. Do
-not run any command in this step. This also defines the Full-Suite Execution Scope for
+/ `Safe with isolated infrastructure` / `Blocked` / `Not runnable` / `Prohibited`. MUST NOT run any command in this step. This also defines the Full-Suite Execution Scope for
 Step 3 (`safety.md`).
 
 ---

@@ -8,7 +8,7 @@
 | `git branch --show-current` | Check Status | confirm current branch |
 | `git diff --stat` | Check Status | summarize unstaged changes |
 | `git add <files>` | Stage Files | stage explicit paths |
-| `git add -A` | Stage Files | stage all changes — See `skills/git-commit-and-sync/SKILL.md`, section "Core rules". |
+| `git add -A` | Stage Files | stage all changes, only when the user explicitly says "all changes" — See `skills/git-commit-and-sync/SKILL.md`, section "Core rules". |
 | `git diff --cached --stat` | Check Staged | verify staged set before commit |
 | `git diff --cached --name-only` | Check Staged | list staged file paths |
 | `git commit -m` | Commit | create conventional commit |
@@ -243,7 +243,7 @@ Stop. MUST NOT push. Report:
 - `Rebase onto @{u} failed with conflicts. Rebase aborted; branch restored to its pre-rebase state.`
 - the conflicted file paths captured above
 
-Never continue, skip, or manually resolve the rebase. See `skills/git-commit-and-sync/SKILL.md`, section "Core rules".
+Never continue, skip, or manually resolve the rebase, however small or textual the conflict looks. See `skills/git-commit-and-sync/SKILL.md`, section "Core rules".
 
 ### Post-Sync Validation (after a successful fast-forward or rebase)
 

@@ -53,7 +53,7 @@ Decide whether to split work into multiple issues or group it into one.
 
 **Completed when**: every task from Phase 1's scope has been assigned to exactly one issue
 group, using the criteria above (grouping and splitting are mutually exclusive per pair of
-tasks).
+tasks — a pair matching a "Group" criterion is not also split, and vice versa).
 
 ---
 
@@ -118,7 +118,8 @@ by review, test execution, or documentation inspection.
 tests, type checks, lint checks, documentation consistency checks, manual verification. Use
 `Not required` only when the task is documentation-only or clearly does not affect behavior.
 
-**Completed when**: every Acceptance Criteria item is independently testable, and Testing
+**Completed when**: every Acceptance Criteria item is independently testable by review, test
+execution, or documentation inspection, and Testing
 Expectations is filled or marked `Not required` only for a documentation-only/no-behavior-change task.
 
 ---

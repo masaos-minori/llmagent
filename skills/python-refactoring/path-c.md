@@ -157,7 +157,7 @@ purpose-built field list. This MUST NOT invent a new storage convention, locatio
 template; any suggested field with no direct equivalent in the existing convention is
 folded into its nearest existing section rather than added as a new top-level header.
 
-`workflow.md`'s Allowed file operations rule ("Do not edit documentation unless
+`workflow.md`'s Allowed file operations rule ("MUST NOT edit documentation unless
 explicitly instructed") governs where this ADR content is written: Step 10 MUST produce
 the ADR content, in the reconciled shape above, inline in the report as a draft.
 Creating the file under `docs/10_adr/adr_02_{next-number}_{slug}.md` and registering it

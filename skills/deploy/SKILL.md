@@ -2,9 +2,9 @@
 name: deploy
 description: |
   Use this skill PROACTIVELY when deploying changes to the production environment,
-   initializing the database, or syncing scripts and
-   configs to /opt/llm/. Use this when the task involves deploy.sh, init_db.sh,
-   setup_services.sh, service restarts, or verifying that deployed files are current.
+  initializing the database, or syncing scripts and
+  configs to /opt/llm/. Use this when the task involves deploy.sh, init_db.sh,
+  setup_services.sh, service restarts, or verifying that deployed files are current.
 ---
 
 # Deploy Skill

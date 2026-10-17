@@ -195,7 +195,8 @@ Assessment) section, **before** inspecting.
   documentation, callers and callees, dependencies, data ownership, side effects, error
   handling, compatibility constraints, and security constraints. This inspection feeds
   the broader analysis in Step 5.
-  Stop each of the four analysis dimensions (Architecture analysis, Dependency graphing,
+  In Step 5, where `workflow-path-b.md` is loaded, stop each of the four analysis
+  dimensions (Architecture analysis, Dependency graphing,
   Historical analysis, Operational dependency inspection — see
   `workflow-path-b.md`) once its listed toolchain command(s) have been run once against
   the relevant target and their output reviewed; MUST NOT re-run the same command against

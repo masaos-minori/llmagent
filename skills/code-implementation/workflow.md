@@ -175,7 +175,7 @@ the procedure document, extracts cited line ranges, symbol names, import paths, 
 "Before:" code blocks, checks each against the current source, and reports which
 references are stale.
 
-**Completed when**: either the check passes (no stale references found) or the
+**Completed when** (stale detection): either the check passes (no stale references found) or the
 procedure is aborted (stale references detected).
 
 #### Stale detection result handling
@@ -199,7 +199,7 @@ If the stale detector reports any mismatch:
 
 If the stale detector reports no mismatches:
 - Proceed to Step 3 normally.
-- Record the clean check result in the Execution Status Notes for this step.
+- Record the clean check result in the Execution Status Notes for Step 2.
 
 #### Design decisions applied
 
@@ -234,8 +234,7 @@ stated dependencies have each been checked once against current source.
 
 If verification finds an unconfirmed item or an inconsistency, correct the
 implementation procedure document itself (`implementations/{filename}.md`, via Edit)
-before proceeding, and note the correction in the Execution Status table's Notes. Do
-not implement around a stale description — implement against the corrected,
+before proceeding, and note the correction in the Execution Status table's Notes. MUST NOT implement around a stale description — implement against the corrected,
 source-verified understanding.
 
 Apply `rules/workflow-lifecycle.md` Correction-and-Recheck Cycle Bound (re-running
@@ -385,8 +384,7 @@ only and does not apply to this workflow at all.
 
 - Before attempting the move, check whether the destination
   `implementations/done/{filename}.md` already exists. If it does (e.g. Step 1's
-  All-steps-completed check already moved this file earlier in the same session), do
-  not attempt a second move — verify the source no longer exists at
+  All-steps-completed check already moved this file earlier in the same session), MUST NOT attempt a second move — verify the source no longer exists at
   `implementations/{filename}.md` and treat the cycle as already archived.
 - MUST NOT perform this step before Step 5 (documentation update) and Step 6
   (documentation validation) are complete.
@@ -465,7 +463,7 @@ reverted.
 
 **This cycle is complete when, and only when**: Step 7's move has succeeded and been
 verified (both locations checked, per Step 7), or this file's cycle ended in a
-per-file `Blocked` state per Step 3c/3e/4/6/7's own stop conditions (or Rollback on
+per-file `Blocked` state per Step 2/3c/3e/4/6/7's own stop conditions (or Rollback on
 Failure) — in either case, emit this Final Report once, then (per Multi-file
 processing) begin Step 1 for the next target file, or end the batch if none remain.
 

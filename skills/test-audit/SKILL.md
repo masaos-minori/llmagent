@@ -21,8 +21,7 @@ description: |
 
 Audit the test suite as a whole and turn what is found into an execution-ready plan.
 See `skills/DESIGN.md`, section "Safety-over-speed priority".
-The output MUST be usable directly as a QA review memo, a test debt report, a
-refactoring / stabilization work plan, or a source for GitHub Issue creation.
+The output MUST be usable directly as each of: a QA review memo, a test debt report, a refactoring / stabilization work plan, and a source for GitHub Issue creation.
 
 ---
 
@@ -58,8 +57,7 @@ phase type bounds what it may do.
   such a command, and only one Step 2 has already classified `Safe` (or `Safe with
   isolated infrastructure`).
 - **Analysis** — drawing conclusions from already-collected output, or deciding
-  safety, without executing any new test/validation command. Applies to Steps 2
-  (the safety decision itself is Analysis), 5, 6, 7, and 8.
+  safety, without executing any new test/validation command. Applies to Step 2 (the safety decision itself is Analysis) and Steps 5, 6, 7, and 8.
 
 If an Analysis step (2, 5-8) reveals a genuine need to run something that Step 3/4 did
 not already run, MUST NOT execute it inline — record it as a gap and route it back to a

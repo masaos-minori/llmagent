@@ -80,8 +80,7 @@ For each function/class in the target file, record:
 - **Branching**: its decision points
 
 When this analysis identifies a split candidate (a function/class whose responsibilities
-should be divided), report it using the Proposal format (Discovery Vocabulary above) — do
-not implement the split automatically.
+should be divided), report it using the Proposal format (Discovery Vocabulary above) — MUST NOT implement the split automatically.
 
 ---
 

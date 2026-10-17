@@ -14,7 +14,7 @@ description: |
 Design first: produce design output only; implement only when the user explicitly
 requests it (see `skills/DESIGN.md` Analysis-only phase constraint).
 
-Output is clear, structured, minimal (YAGNI), type-safe, testable, and focused on design
+Produce output that is clear, structured, minimal (YAGNI), type-safe, testable, and focused on design
 decisions, responsibility boundaries, constraints, and operational risks — not
 exhaustive implementation-reference detail.
 
