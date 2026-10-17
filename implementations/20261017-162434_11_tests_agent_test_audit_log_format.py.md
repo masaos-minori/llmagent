@@ -91,8 +91,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the present, absent, and serialized cases | Pending | — | — | REQ-003 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the present, absent, and serialized cases | Completed | 20261017-190500 | 20261017-192200 | REQ-003 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-190500 | 20261017-192200 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
