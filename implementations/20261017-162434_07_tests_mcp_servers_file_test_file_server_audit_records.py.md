@@ -109,14 +109,15 @@ N/A: delete the new file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the test module with fixtures and capture helper | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Implement the three cases per server | Pending | — | — | AC-001 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create the test module with fixtures and capture helper | Completed | 20261017-185500 | 20261017-190500 | REQ-001, REQ-002 |
+| 2 | Implement the three cases per server | Completed | 20261017-185500 | 20261017-190500 | AC-001 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-190500 | 20261017-192200 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 2 | The procedure's validation-error case (`{"name": "write_file", "args": {}}`) does not raise: `scripts/mcp_servers/tool_validators.py` registers validators only for `git_commit`, `git_push`, `trigger_workflow`, and `shell_run`, so `validate_args()` is a no-op for the file tools. The tests drive the server's `except ValueError` branch by monkeypatching `mcp_servers.models.validate_tool_args` with a raiser. | Yes | 20261017-190500 |
+| 2 | `request_id` is not read from the `x-request-id` header: the auth middleware generates a UUID and stores it on `request.state` (`scripts/mcp_servers/server.py:127-128`), and `extract_request_context` prefers state over the header fallback. The tests compare the record's `request_id` with the `X-Request-Id` response header instead of the value they sent. | Yes | 20261017-190500 |
 
 ## Work Items Created
 
