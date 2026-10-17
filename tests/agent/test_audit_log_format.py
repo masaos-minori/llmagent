@@ -60,6 +60,29 @@ class TestMcpAuditLogFormat:
         assert parsed["outcome"] == "error"
         assert parsed["detail"] == "permission denied"
 
+    def test_requested_target_present_when_supplied(self) -> None:
+        """REQ-003: requested_target is emitted when a caller supplies it."""
+        parsed = self._get_parsed(
+            session_id="sess-rt",
+            request_id="req-rt",
+            action="write_text_file",
+            target="/tmp/canonical.txt",
+            outcome="ok",
+            requested_target="/tmp/requested.txt",
+        )
+        assert parsed["requested_target"] == "/tmp/requested.txt"
+
+    def test_requested_target_absent_when_empty(self) -> None:
+        """REQ-003: requested_target key is absent when no path is supplied."""
+        parsed = self._get_parsed(
+            session_id="sess-rt",
+            request_id="req-rt",
+            action="write_text_file",
+            target="/tmp/canonical.txt",
+            outcome="ok",
+        )
+        assert "requested_target" not in parsed
+
     def test_empty_session_id_becomes_dash(self) -> None:
         """Empty session_id must become dash in JSON-lines record."""
         parsed = self._get_parsed(
