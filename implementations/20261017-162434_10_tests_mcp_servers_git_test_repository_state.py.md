@@ -104,7 +104,7 @@ the known-issue ledger.
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Rename and invert the drift test | Completed | 20261017-183000 | 20261017-185200 | REQ-008 |
 | 2 | Add the branch-drift and mocked-snapshot cases | Completed | 20261017-183000 | 20261017-185200 | REQ-008 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-190500 | 20261017-192200 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
