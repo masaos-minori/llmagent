@@ -83,10 +83,10 @@ Server code (separate rows), other docs.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define before/after + correlation fields in audit schema | Pending | — | — | |
+| 1 | Define before/after + correlation fields in audit schema | Completed | 20261017-201430 | 20261017-201430 | Added requested_target schema row (mirrors canonical_target) and Approval correlation section |
 | 2 | Add or update tests per Validation plan | N/A (docs-only) | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs consistency check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In Progress | — | — | this doc |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-201430 | 20261017-201430 | check_docs_quality/structure/content_policy/consistency(--domain mcp) all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-201430 | 20261017-201430 | this doc; requested_target documented as the schema field REQ-003 specifies (emitted when non-empty); code emission pending separately |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -39,8 +39,13 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 | `canonical_target` | Resolved canonical repository path; emitted by git-mcp only | No | Omitted |
 | `pre_condition` | Serialized repository state before the operation; emitted by git-mcp only | No | Omitted |
 | `post_condition` | Serialized repository state after the operation; emitted by git-mcp only | No | Omitted |
+| `requested_target` | Redacted caller-supplied target captured before canonical path resolution; emitted only when the caller supplies it, mirroring the `canonical_target` pattern | No | Omitted |
 
 **Note:** github-mcp, shell-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; file-write-mcp writes only the shared audit log. file-read-mcp and rag-pipeline-mcp do not write audit logs. Dedicated audit logs for github-mcp, shell-mcp, and file-delete-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
+
+### Approval correlation
+
+The shared `mcp_tool_exec` record correlates with the Agent-side audit events through shared keys rather than a server-side approval check. The Agent writes a `tool_approval` event (`scripts/agent/tool_audit.py`) carrying `session_id` and `task_id`, then a `tool_exec` event carrying the same `session_id`/`task_id` plus `mcp_request_id`. The server echoes `session_id` and `request_id` into the `mcp_tool_exec` record, where `request_id` equals the Agent-side `tool_exec.mcp_request_id`. Joining on `session_id` (plus `task_id`, and `request_id` = `mcp_request_id`) reconstructs the `tool_approval` -> `tool_exec` -> `mcp_tool_exec` path end to end. No MCP server performs an approval check itself: the servers read only `x-session-id`, `x-request-id`, and `x-idempotency-key`, and the Agent sends no approval identifier server-side (see `scripts/mcp_servers/server.py`). Correlation across the dedicated (non-shared) audit logs therefore relies on these agent-side keys.
 
 Audit log functions are implemented within each server's dispatch handler.
 
