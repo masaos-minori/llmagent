@@ -107,15 +107,16 @@ N/A: revert the commit. A rollback leaves the audit documentation describing a f
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `requested_target` field row | Pending | — | — | REQ-003 |
-| 2 | Update the server list, the Note, and the outcome row | Pending | — | — | REQ-001, REQ-002 |
-| 3 | Add the approval-correlation subsection | Pending | — | — | REQ-010 |
-| 4 | Run the docs checkers | Pending | — | — | |
+| 1 | Add the `requested_target` field row | Completed | — | 2026-10-17 | REQ-003 |
+| 2 | Update the server list, the Note, and the outcome row | Completed | — | 2026-10-17 | REQ-001, REQ-002 |
+| 3 | Add the approval-correlation subsection | Completed | — | 2026-10-17 | REQ-010 |
+| 4 | Run the docs checkers | Completed | — | 2026-10-17 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | The procedure's new row shape states `requested_target` is "emitted by git-mcp and, for rejected calls, by file-write-mcp and file-delete-mcp". The file servers do not pass `requested_target` (Plan rows 2 and 3 record the requested path in `target` only; `scripts/mcp_servers/file/write_server.py` and `delete_server.py` never pass the keyword), so the row states "emitted by git-mcp only" and the file servers' requested-path convention is stated in the existing `target` row. | Yes | 20261017-210000 |
+| 4 | Report-only finding, not edited here: `docs/22_mcp/mcp_06_05_reading-audit-logs.md:72-73` still lists Layer2 as `None` for file-write-mcp and file-delete-mcp, `:87` states "file-write-mcp — No audit functionality implemented", and `:105` repeats it. That file is not in this Plan's `Implementation Target Files` table, so the stale claim is reported to the owner instead of edited in this row. | No | — |
 
 ## Work Items Created
 
