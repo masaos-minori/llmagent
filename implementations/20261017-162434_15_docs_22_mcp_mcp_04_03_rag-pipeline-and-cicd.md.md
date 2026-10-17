@@ -93,13 +93,13 @@ N/A: revert the commit. A rollback reopens the documentation gap AC-009 closes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the cicd-mcp layer-coverage subsection | Pending | — | — | REQ-009 |
-| 2 | Run the docs checkers | Pending | — | — | |
+| 1 | Add the cicd-mcp layer-coverage subsection | Completed | — | 2026-10-17 | REQ-009 |
+| 2 | Run the docs checkers | Completed | — | 2026-10-17 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | The Plan's Design decision table names the cicd common guard as `allowed_repos`. The cicd-mcp configuration key is `repo_allowlist` (`scripts/mcp_servers/cicd/cicd_models.py:30`); `allowed_repos` is the github-mcp key. The subsection names the real key. | Yes | 20261017-210000 |
 
 ## Work Items Created
 
