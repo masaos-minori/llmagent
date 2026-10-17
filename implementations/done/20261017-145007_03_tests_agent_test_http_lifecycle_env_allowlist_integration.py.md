@@ -121,9 +121,9 @@ N/A: revert the commit — a new test file with no production coupling.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the file with constants and the config-alignment gates | Pending | — | — | |
-| 2 | Add the real-child startup gate and the negative control | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create the file with constants and the config-alignment gates | Completed | 20261017-145927 | 20261017-152000 |  |
+| 2 | Add the real-child startup gate and the negative control | Completed | 20261017-145927 | 20261017-152000 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-145927 | 20261017-152000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

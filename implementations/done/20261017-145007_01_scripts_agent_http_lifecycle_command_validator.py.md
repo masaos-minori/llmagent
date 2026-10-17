@@ -123,10 +123,10 @@ data rollback is needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_DEFAULT_ALLOWED_ENV_VARS` with the finalized set | Pending | — | — | |
-| 2 | Rewrite `filter_env` (default-deny, key-only logging, `None` passthrough) | Pending | — | — | |
-| 3 | Update the `filter_env` docstring | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `_DEFAULT_ALLOWED_ENV_VARS` with the finalized set | Completed | 20261017-145927 | 20261017-152000 |  |
+| 2 | Rewrite `filter_env` (default-deny, key-only logging, `None` passthrough) | Completed | 20261017-145927 | 20261017-152000 |  |
+| 3 | Update the `filter_env` docstring | Completed | 20261017-145927 | 20261017-152000 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-145927 | 20261017-152000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

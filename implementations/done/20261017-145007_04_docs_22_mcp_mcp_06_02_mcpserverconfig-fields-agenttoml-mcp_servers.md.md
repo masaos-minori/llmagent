@@ -80,8 +80,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `env` denylist-only paragraph | Pending | — | — | |
-| 2 | Run the docs checkers named in the Validation plan | Pending | — | — | |
+| 1 | Replace the `env` denylist-only paragraph | Completed | 20261017-145927 | 20261017-152000 |  |
+| 2 | Run the docs checkers named in the Validation plan | Completed | 20261017-145927 | 20261017-152000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

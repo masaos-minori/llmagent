@@ -97,9 +97,9 @@ N/A: revert the commit — test-only file, no runtime state.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the three obsolete `TestCommandValidatorFilterEnv` tests | Pending | — | — | |
-| 2 | Add allowlist-drop, allowlist-keep, redaction, denylist-in-server-env, `None` tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rewrite the three obsolete `TestCommandValidatorFilterEnv` tests | Completed | 20261017-145927 | 20261017-152000 |  |
+| 2 | Add allowlist-drop, allowlist-keep, redaction, denylist-in-server-env, `None` tests | Completed | 20261017-145927 | 20261017-152000 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-145927 | 20261017-152000 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

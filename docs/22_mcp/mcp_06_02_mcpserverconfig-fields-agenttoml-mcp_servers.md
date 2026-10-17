@@ -17,9 +17,27 @@ Each MCP server's application settings are described in its corresponding `*_mcp
 ## Agent-side MCP fields (agent.toml `[mcp_servers.*]`)
 
 The configurable fields, plus an automatically derived `key` field (described
-below), are defined in `scripts/shared/mcp_config.py::McpServerConfig`. The `env`
-field's values are filtered through a denylist that rejects `LD_PRELOAD`,
-`LD_LIBRARY_PATH`, and `PYTHONPATH`.
+below), are defined in `scripts/shared/mcp_config.py::McpServerConfig`.
+
+**About the `env` field:** A subprocess server does not inherit a copy of the Agent
+process's environment. `CommandValidator.filter_env` builds the child environment from an
+allowlist and merges the configured `env` on top of it.
+
+- Inherited variables: `PATH`, `HOME`, `USER`, `LOGNAME`, `SHELL`, `TMPDIR`, `TMP`,
+  `TEMP`, `LANG`, `LC_*`, `MCP_*_AUTH_TOKEN`, `GITHUB_TOKEN`, `LLMAGENT_CONFIG_DIR`,
+  `LLMAGENT_SUDACHI_DICT`. Everything else in the Agent process's environment is absent
+  from the child, including unrelated credentials and proxy variables.
+- The allowlist is not a convenience: each server's `auth_token =
+  "${ENV:MCP_<NAME>_AUTH_TOKEN}"` is resolved inside the child, so the token pattern must
+  stay inherited or the server refuses to start.
+- A variable outside the allowlist reaches one server only through that server's own
+  `env`.
+- Declared `env` entries are filtered before the child sees them: a key matching the
+  denylist (`LD_PRELOAD`, `LD_LIBRARY_PATH`, `PYTHONPATH`) is dropped, and a key naming a
+  protected variable (`PATH`, `PYTHONPATH`, `LD_LIBRARY_PATH`, `HOME`, `USER`) is refused.
+  Both are logged by key only, never by value.
+- The same inherited set is what a `shell_run` command sees, together with the shell
+  server's configured `PATH` and the environment supplied in the request.
 
 **Timing, logging and policy fields:**
 
@@ -53,3 +71,4 @@ field's values are filtered through a denylist that rejects `LD_PRELOAD`,
 - configuration
 - McpServerConfig
 - key
+- env
