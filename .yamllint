@@ -1,0 +1,11 @@
+extends: relaxed
+
+# implementations/ holds generated implementation-procedure documents that use a
+# `.yaml` filename suffix but contain Markdown. yamllint must not parse them.
+ignore: |
+  implementations/
+
+rules:
+  line-length:
+    max: 120
+    level: warning

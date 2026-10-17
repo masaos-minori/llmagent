@@ -73,6 +73,7 @@ dev = [
     "types-beautifulsoup4>=4.12",
     "viztracer>=0.17",
     "vulture>=2.11",
+    "yamllint>=1.35",
 ]
 
 [build-system]
