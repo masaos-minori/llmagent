@@ -56,6 +56,7 @@ class AuditRecord(TypedDict):
     post_condition: NotRequired[dict[str, object]]
     requested_target: NotRequired[str]
     canonical_target: NotRequired[str]
+    requested_target: NotRequired[str]
 
 
 def _build_audit_record(

@@ -13,6 +13,7 @@ Provided endpoints:
   GET  /health             Health check
 """
 
+import logging
 import time
 from typing import Any, cast
 
@@ -206,9 +207,44 @@ async def list_tools(
     )
 
 
+_audit_failure_count: int = 0
+
+
+def _audit_log_safe(logger: logging.Logger | Logger, **kwargs: Any) -> None:
+    """Wrap _audit_log so its own failure cannot mask the original response."""
+    global _audit_failure_count
+    try:
+        _audit_log(logger, **kwargs)
+    except Exception:  # noqa: BLE001 — audit failure must never propagate
+        _audit_failure_count += 1
+        logger.error("audit_log failed: %s", kwargs.get("action", "unknown"))
+
+
+def _emit_call_tool_audit(req: CallToolRequest, request: Request, outcome: str) -> None:
+    """Emit one shared mcp_tool_exec record for a call_tool invocation.
+
+    Canonical path resolution happens in the service layer, so ``target`` and
+    ``requested_target`` both reflect the caller's requested resource here.
+    """
+    session_id, request_id = extract_request_context(request)[:2]
+    target = req.args.get("path") or ""
+    _audit_log_safe(
+        logger,
+        session_id=session_id,
+        request_id=request_id,
+        action=req.name,
+        target=target,
+        outcome=outcome,
+        server_key=FILE_DELETE_SERVER_KEY,
+        pre_condition=None,
+        post_condition=None,
+        requested_target=target,
+    )
+
+
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
-    """Handle a generic MCP call_tool request."""
+    """Handle a generic MCP call_tool request with audit logging."""
     session_id, request_id, idempotency_key = extract_request_context(request)
     raw_path = cast(str, req.args.get("path", ""))
     audit_target = raw_path[:80]
@@ -229,29 +265,23 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     try:
         req.validate_args()
     except ValueError as e:
-        _audit_log(
-            logger,
-            session_id=session_id,
-            request_id=request_id,
-            action=req.name,
-            target=audit_target,
-            requested_target=raw_path,
-            outcome="rejected",
-            server_key=FILE_DELETE_SERVER_KEY,
-        )
+        _emit_call_tool_audit(req, request, outcome="rejected")
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
-    r = await _dispatch_delete_tool(req.name, req.args, idempotency_key=idempotency_key)
-    _audit_log(
-        logger,
-        session_id=session_id,
-        request_id=request_id,
-        action=req.name,
-        target=audit_target,
-        requested_target=raw_path,
-        outcome=r.outcome,
-        server_key=FILE_DELETE_SERVER_KEY,
-    )
-    return _to_call_tool_response(r)
+    result: DispatchResult | None = None
+    try:
+        result = await _dispatch_delete_tool(
+            req.name, req.args, idempotency_key=idempotency_key
+        )
+    except FileAuthorizationError:
+        _emit_call_tool_audit(req, request, outcome="rejected")
+        raise
+    except Exception:  # noqa: BLE001 — audit every failure mode, then re-raise
+        _emit_call_tool_audit(req, request, outcome="error")
+        raise
+    outcome = "rejected" if result.is_error else "ok"
+    _emit_call_tool_audit(req, request, outcome=outcome)
+    assert result is not None
+    return _to_call_tool_response(result)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
