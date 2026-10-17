@@ -101,9 +101,9 @@ the ledger is the place that records an open coverage gap.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm no remaining MCP-006 citation outside the entry | Pending | — | — | Gate for deletion |
-| 2 | Delete the MCP-006 entry | Pending | — | — | REQ-011 |
-| 3 | Run the governance and docs checkers | Pending | — | — | |
+| 1 | Confirm no remaining MCP-006 citation outside the entry | Completed | — | 2026-10-17 | Gate for deletion |
+| 2 | Delete the MCP-006 entry | Completed | — | 2026-10-17 | REQ-011 |
+| 3 | Run the governance and docs checkers | Completed | — | 2026-10-17 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
