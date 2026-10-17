@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (42 modules)
+## Index (43 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -42,6 +42,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `generate_mcp_inventory.py` | Reference generation | Output the MCP server list from agent config as JSON/CSV |
 | `generate_reference_table.py` | Reference generation | Generate reference tables for RAG/MCP/deployment/agent/EventBus (the Memory type is pending a decision on its target document); `--check` exits 1 when a generated guarded block drifted from live code (runs in CI) |
 | `generate_workitem.py` | Work item generation | Generate work item skeletons with placeholders. `--kind implementation-procedure --all-rows` generates every row of the Plan's `Implementation Target Files` table in one run (rows whose file already exists are skipped and processing continues) |
+| `add_alternatives_section.py` | Work item generation | Insert a missing `## Alternatives considered` section into implementation procedure documents (required by the canonical template) before the first `## Implementation` heading; picks test-vs-doc body text by file path. `files` targets specific files; `--prefix YYYYMMDD-HHMMSS` scans `implementations/` for a timestamp group. Skips files that already contain the section |
 | `manage_frontmatter.py` | Front Matter management | Detect missing Front Matter, remove duplicates, rename `area`, merge body Related sections into `related:` |
 | `manage_workitem_stage.py` | Work item management | Archive moves, status updates, stale detection |
 | `rename_mcp_modules.py` | Rename helper | Bulk-rename MCP server modules |
@@ -133,6 +134,7 @@ Scripts that check consistency and manage the lifecycle of work items (issues/pl
 |---|---|---|
 | `check_plan_target_overlaps.py` | `plans/*.md` (excluding `plans/done/`) | Detects multiple `Frozen` Plans that target the same file path in their `## Implementation Target Files` tables (`cross-plan-target-overlap`). Design contradictions cannot be judged by static analysis, so it presents only the mechanically cheap precondition (multiple Plans targeting one file at the same time) as candidates. Motivation: a real incident where an SSE heartbeat Plan and a delivery-state-transition Plan targeted the DLQ requeue model in contradictory ways (each was self-consistent alone; the conflict surfaced only as a test-suite collision). `Draft` Plans are out of scope (`Implementation Target Files` is not canonical until `Frozen`). Heuristic report-only tool; the exit code is always 0. Read-only. `--format json\|csv` gives machine-readable output |
 | `manage_workitem_stage.py` | `issues/`, `plans/`, `implementations/` | See the subcommand reference below |
+| `add_alternatives_section.py` | `implementations/` | Inserts a missing `## Alternatives considered` section into implementation procedure documents that lack it (the canonical template requires every heading). Places the heading before the first `## Implementation` heading and chooses test-vs-doc body text by the file path. Accepts explicit file arguments or `--prefix YYYYMMDD-HHMMSS` to scan a timestamp group under `implementations/`; skips files that already contain the section |
 
 ### manage_workitem_stage.py subcommands
 
