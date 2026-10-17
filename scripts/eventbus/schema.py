@@ -162,6 +162,39 @@ def _migrate(conn: Connection) -> None:
             else:
                 raise
 
+    # Legacy databases still carry consumer_delivery.acked_at (a timestamp, NULL = not
+    # acked) from before that column was replaced by the boolean acked. The stale index on
+    # (consumer_id, acked_at) blocks ALTER TABLE ... DROP COLUMN, so it is dropped first,
+    # and the timestamp semantics are converted (any non-NULL acked_at means acked) before
+    # the column disappears. Gated on the column's presence so a current database does not
+    # rebuild its index on every startup. db/schema_sql.py's _EVENTBUS_MIGRATIONS carries
+    # the same conversion for the create_schema() bootstrap path; the two cannot share code
+    # because the eventbus-is-isolated contract forbids eventbus from importing db.
+    legacy_cols = {
+        row[1]
+        for row in conn.execute("PRAGMA table_info(consumer_delivery)").fetchall()
+    }
+    if "acked_at" in legacy_cols:
+        for stmt in (
+            "DROP INDEX IF EXISTS idx_consumer_delivery_consumer_ack",
+            "ALTER TABLE consumer_delivery ADD COLUMN acked INTEGER NOT NULL DEFAULT 0",
+            "UPDATE consumer_delivery"
+            " SET acked = CASE WHEN acked_at IS NOT NULL THEN 1 ELSE 0 END",
+            "ALTER TABLE consumer_delivery DROP COLUMN acked_at",
+        ):
+            try:
+                conn.execute(stmt)
+            except Exception as exc:
+                if exc.args and (
+                    "duplicate column name" in str(exc.args[0])
+                    or "no such column" in str(exc.args[0]).lower()
+                ):
+                    pass  # a previous run already applied part of this conversion
+                else:
+                    raise
+        conn.commit()  # the UPDATE is DML: DDL's implicit commit does not cover it
+        logger.info("migrated: consumer_delivery.acked_at converted to acked")
+
     # Index for the low-water-mark query in get_resume_position(); schema.sql defines
     # the same index for new databases.
     conn.execute(

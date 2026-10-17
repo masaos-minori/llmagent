@@ -45,6 +45,7 @@ Schema migrations for existing databases are idempotent.
 - `idx_events_seq` — For replay cursors
 - `idx_events_dlq_at` — For DLQ queries
 - `idx_events_dlq_seq` — For sorting DLQ events by `seq`
+- `idx_consumer_delivery_consumer_ack` — For the low-water-mark query that resumes a consumer; on databases created before `acked` existed it referenced `acked_at` and is rebuilt by the migration described in [Migration and Scaling](../41_db/db_03_architecture_and_schema-migration-and-scaling.md)
 
 ## JSONL Archive
 
