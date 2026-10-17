@@ -175,15 +175,22 @@ class MCPServer:
     def list_tools(self) -> list[str]:
         """Return the tool names served by this instance.
 
-        Used by check_tool_definitions() in repl_health.py.
+        Introspection helper only: no production call site. The agent reads tool
+        names from each server's HTTP `GET /v1/tools` handler, which builds its
+        response from that module's own `TOOL_LIST`, not from this method.
         """
         return [t["name"] for t in getattr(self, "mcp_tools", [])]
 
     def list_tools_with_server_key(self) -> list[dict[str, Any]]:
-        """Return tool metadata including server_key for live discovery-based routing.
+        """Return tool metadata including server_key.
 
         Each tool dict includes: name, description, inputSchema, server_key.
-        Used by /v1/tools endpoint and startup tool discovery.
+
+        Introspection helper only: no production call site. Every server's
+        `GET /v1/tools` handler annotates its own `TOOL_LIST` (e.g.
+        `_annotate_tool`) and passes the result to `build_tools_response()`, and
+        startup tool discovery reads those HTTP responses, so neither path calls
+        this method.
         """
         server_key = getattr(self, "server_key", type(self).__name__)
         tools = getattr(self, "mcp_tools", [])

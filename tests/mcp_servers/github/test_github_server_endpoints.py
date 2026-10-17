@@ -5,7 +5,8 @@ FastAPI wiring (not the included domain routers, which have their own test
 files):
   - GET  /v1/tools
   - POST /v1/call_tool (success and unknown-tool paths, with audit logging,
-    including the request_id `request.state` vs. header fallback)
+    including the audit record's session_id/request_id field order and the
+    request_id `request.state` vs. header fallback)
   - GET  /health (healthy and degraded-by-missing-token paths)
   - _dispatch_github_tool()
   - GithubMCPServer.dispatch()
@@ -25,8 +26,9 @@ with lines 107-112, 122, 133, 144-158, 178 uncovered).
 
 from __future__ import annotations
 
+import json
 from typing import Any
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from fastapi.testclient import TestClient
@@ -138,21 +140,38 @@ class TestCallToolEndpoint:
         assert resp.status_code == 200
         assert resp.json() == {"result": "ok", "is_error": False}
 
-    def test_request_id_falls_back_to_header_when_state_unset(
-        self, client: TestClient, fake_service: _FakeService
+    def test_audit_record_keeps_session_and_request_context_in_order(
+        self,
+        client: TestClient,
+        fake_service: _FakeService,
+        monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        """No middleware sets request.state.request_id in this bare TestClient
-        app, so the x-request-id header is used (the `getattr(..., default)`
-        fallback branch on github_server.py:145-147)."""
+        """The audit record's `session_id` / `request_id` must follow the order
+        documented by `extract_request_context` (session_id, request_id,
+        idempotency_key); swapping them breaks correlation with the agent-side
+        `tool_exec` record's `mcp_request_id`.
+
+        `attach_auth_middleware` (github_server.py:145) always sets
+        `request.state.request_id`, and `extract_request_context` prefers state over
+        the header fallback, so the record's `request_id` equals the X-Request-Id
+        response header and never the sent `x-request-id` value.
+        """
+        logger = MagicMock()
+        monkeypatch.setattr(github_server, "logger", logger)
         handler = AsyncMock(return_value="ok")
         fake_service._dispatch_table["github_get_issue"] = handler
         resp = client.post(
             "/v1/call_tool",
             json={"name": "github_get_issue", "args": {}},
-            headers={"x-request-id": "hdr-req-id"},
+            headers={"x-session-id": "sess-ctx", "x-request-id": "hdr-req-id"},
         )
         assert resp.status_code == 200
         assert resp.json()["is_error"] is False
+        records = [json.loads(call.args[0]) for call in logger.info.call_args_list]
+        assert len(records) == 1
+        assert records[0]["session_id"] == "sess-ctx"
+        assert records[0]["request_id"] == resp.headers["x-request-id"]
+        assert records[0]["request_id"] != "hdr-req-id"
 
 
 class TestHealthEndpoint:

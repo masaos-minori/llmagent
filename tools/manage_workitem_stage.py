@@ -215,14 +215,18 @@ def _auto_commit(
 
     Runs the real `git add`/`git commit` commands (not GitPython's index API)
     so any configured pre-commit hooks still apply — this must not become a
-    silent way to bypass them. With `stage_only`, only `git add` runs: the
-    file is left staged for the caller's next commit (hooks run then).
+    silent way to bypass them. The commit is limited to `source_abs` by pathspec:
+    changes the caller had already staged for other paths stay staged and out of
+    this commit. With `stage_only`, only `git add` runs: the file is left staged
+    for the caller's next commit (hooks run then).
     """
     message = f"chore: auto-commit {kind} before archival move ({source_abs.name})"
     try:
         _run_with_lock_retry(lambda: repo.git.add(str(source_abs)))
         if not stage_only:
-            _run_with_lock_retry(lambda: repo.git.commit("-m", message))
+            _run_with_lock_retry(
+                lambda: repo.git.commit("-m", message, "--", str(source_abs))
+            )
     except exc_class as e:
         return f"auto-commit failed: {e}"
     return None

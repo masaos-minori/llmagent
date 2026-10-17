@@ -339,6 +339,46 @@ def test_simple_move_ignores_unrelated_uncommitted_file(
     assert destination.exists()
 
 
+@pytest.mark.parametrize(
+    ("subcommand", "stage_dir", "cmd_func"), SIMPLE_MOVE_CASES, ids=SIMPLE_MOVE_IDS
+)
+def test_auto_commit_does_not_sweep_other_staged_changes(
+    temp_git_repo: Path,
+    subcommand: str,
+    stage_dir: str,
+    cmd_func: Callable[[argparse.Namespace], int],
+) -> None:
+    """The auto-commit that precedes an archival move must contain only the source file.
+
+    `move_to_done()` stages the source with `git add <path>`, but a plain
+    `git commit -m` commits whatever the caller had *already* staged too. That swept
+    five unrelated `issues/done/` deletions into one `chore:` auto-commit during the
+    MCP-006 run. The commit is now pathspec-limited to the source, so pre-staged
+    unrelated work stays staged and out of the auto-commit.
+    """
+    repo = git.Repo(temp_git_repo)
+    source = temp_git_repo / stage_dir / "20260110_dirty.md"
+    _dirty_staged(repo, source)
+
+    unrelated = temp_git_repo / stage_dir / "20260110_unrelated.md"
+    unrelated.parent.mkdir(parents=True, exist_ok=True)
+    unrelated.write_text("staged unrelated work\n", encoding="utf-8")
+    repo.index.add([str(unrelated)])
+
+    args = build_parser().parse_args([subcommand, str(source)])
+    exit_code = cmd_func(args)
+
+    destination = temp_git_repo / stage_dir / "done" / "20260110_dirty.md"
+    assert exit_code == 0
+    assert not source.exists()
+    assert destination.exists()
+
+    committed = repo.git.show("--name-only", "--format=", "HEAD").splitlines()
+    assert committed == [f"{stage_dir}/20260110_dirty.md"]
+    staged_after = repo.git.diff("--cached", "--name-only").splitlines()
+    assert f"{stage_dir}/20260110_unrelated.md" in staged_after
+
+
 # ---------------------------------------------------------------------------
 # move_to_done: missing archive directory
 # ---------------------------------------------------------------------------

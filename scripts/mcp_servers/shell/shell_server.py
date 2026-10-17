@@ -217,7 +217,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     enabled, reason = _shell_tool_availability(_cfg, req.name)
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
-    request_id, session_id, idempotency_key = extract_request_context(request)
+    session_id, request_id, idempotency_key = extract_request_context(request)
     r = await _dispatch_shell_tool(req.name, req.args, idempotency_key=idempotency_key)
     _audit_log(
         logger,

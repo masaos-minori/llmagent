@@ -166,7 +166,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     if not enabled:
         return CallToolResponse(result=f"Tool disabled: {reason}", is_error=True)
     t0 = time.perf_counter()
-    request_id, session_id, idempotency_key = extract_request_context(request)
+    session_id, request_id, idempotency_key = extract_request_context(request)
     r = await _dispatch_cicd_tool(req.name, req.args, idempotency_key=idempotency_key)
     ms = (time.perf_counter() - t0) * 1000
     logger.info(fmt_kvlog("call_tool", tool=req.name, ms=f"{ms:.0f}"))

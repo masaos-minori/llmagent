@@ -334,7 +334,11 @@ async def list_tools(
 
 @app.post("/v1/call_tool", response_model=CallToolResponse)
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
-    """Handle MCP call_tool requests with audit logging and error handling."""
+    """Handle MCP call_tool requests with validation and error handling.
+
+    This server emits no `_audit_log()` record: reads are audited only by the
+    agent-side `tool_exec` event (see `mcp_06_05_reading-audit-logs.md`).
+    """
     if not _cfg.allowed_dirs:
         return CallToolResponse(
             result="Tool disabled: allowed_dirs is empty", is_error=True

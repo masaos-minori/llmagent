@@ -133,7 +133,14 @@ The following table summarizes the approval-to-tier mapping defined in `mcp_05_0
 
 All high-risk tool executions emit audit log entries with the following fields:
 
-Each MCP server emits one JSON-lines audit record per tool call. The record's field definitions (including `event`, `source`, `ts`, `session_id`, `request_id`, `tool`, `target`, `outcome`, `server_key`, `error_type`, and the optional `detail`) are owned by `mcp_02_03_audit-logging-and-errors.md` Audit Log Format and are not restated here. The record carries a server-specific `target` (repository slug, truncated command, or truncated query) rather than the full tool arguments.
+Every MCP server except `file-read-mcp` and `rag-pipeline-mcp` emits one JSON-lines audit record per tool
+call (see `mcp_06_05_reading-audit-logs.md` MCP Servers without Audit Logging). The record's field
+definitions (including `event`, `source`, `ts`, `session_id`, `request_id`, `tool`, `target`, `outcome`,
+`server_key`, `error_type`, the optional `detail`, and the git-mcp-only optional `requested_target`,
+`canonical_target`, `pre_condition`, and `post_condition`) are owned by
+`mcp_02_03_audit-logging-and-errors.md` Audit Log Format and are not restated here. The record carries a
+server-specific `target` (repository slug, truncated path, truncated command, or truncated query) rather
+than the full tool arguments.
 
 *Source: `mcp_02_03_audit-logging-and-errors.md`*
 

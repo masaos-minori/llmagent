@@ -238,7 +238,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     except ValueError as e:
         return CallToolResponse(result=f"Validation error: {e}", is_error=True)
     t0 = time.perf_counter()
-    request_id, session_id, idempotency_key = extract_request_context(request)
+    session_id, request_id, idempotency_key = extract_request_context(request)
     repo_path = cast(str, req.args.get("repo_path", ""))
     ok, err, resolved = _resolve_repo_path(repo_path)
     if not ok:

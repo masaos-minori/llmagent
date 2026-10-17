@@ -192,11 +192,12 @@ class ToolConfig:
     # (shared/runtime_tool_registry.py), populated from live /v1/tools, is the sole
     # runtime authority for tool validation/scheduling/approval/execution (no fallback
     # to this field remains in that path). Retained for: (a) startup drift validation
-    # against /v1/tools (agent/repl_health.py) and (b) the shape template for test
-    # fixtures. Still read at runtime by
-    # agent/llm_turn_runner.py::_filter_disabled_tool_definitions() to build the
-    # LLM-facing tool list (filtered by registry visibility) — a separate, narrower use
-    # not covered by this note.
+    # against /v1/tools (agent/services/tool_validation.py::_check_tool_definitions,
+    # re-exported by agent/repl_health.py) and (b) the shape template for test
+    # fixtures. Still read at runtime in two places:
+    # agent/llm_turn_runner.py::_stream_llm() as the LLM-facing tool list when the
+    # runtime registry is absent, and agent/commands/cmd_mcp.py +
+    # agent/commands/registry.py for the tool-count display they print.
     tool_definitions: list[dict] = field(default_factory=list)
     system_prompts: dict[str, str] = field(default_factory=dict)
     system_prompt_tool: str = ""

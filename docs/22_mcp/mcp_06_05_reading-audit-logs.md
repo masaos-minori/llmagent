@@ -69,8 +69,8 @@ grep '"event":"mcp_tool_exec"' <log_dir>/audit.log
 |---|---|---|---|
 | web-search-mcp | tool_exec | mcp_tool_exec | None |
 | file-read-mcp | tool_exec | None | None |
-| file-write-mcp | tool_exec | None | None |
-| file-delete-mcp | tool_exec | None | delete_audit.log |
+| file-write-mcp | tool_exec | mcp_tool_exec | None |
+| file-delete-mcp | tool_exec | mcp_tool_exec | delete_audit.log |
 | github-mcp | tool_exec | mcp_tool_exec | github_audit.log |
 | shell-mcp | tool_exec | mcp_tool_exec | shell_audit.log |
 | mdq-mcp | tool_exec | mcp_tool_exec | None |
@@ -84,8 +84,8 @@ grep '"event":"mcp_tool_exec"' <log_dir>/audit.log
 |---|---|---|
 | web-search-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (MCP server audit) |
 | file-read-mcp | None | No audit functionality implemented |
-| file-write-mcp | None | No audit functionality implemented |
-| file-delete-mcp | `<log_dir>/delete_audit.log` | Structured (ISO8601 + op + path + user) |
+| file-write-mcp | `<log_dir>/file-write-mcp.log` | `_audit_log()` payload in the dedicated application log (JSON object after the standard log-line prefix) |
+| file-delete-mcp | `<log_dir>/file-delete-mcp.log` + `<log_dir>/delete_audit.log` | `_audit_log()` payload in the dedicated application log, plus `DeleteFileService._write_audit_log()` appending `ISO8601 op= path= user=llm-agent` to `delete_audit.log` |
 | github-mcp | `<log_dir>/github_audit.log` | Structured (ISO8601 + op + repo + user). Also used with shared audit log |
 | shell-mcp | `<log_dir>/shell_audit.log` | Structured (ISO8601 + op + command + user). Also used with shared audit log |
 | mdq-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (`_audit_log()`) |
@@ -102,8 +102,10 @@ The following MCP servers do not write any audit logs:
 | Server | Reason |
 |---|---|
 | file-read-mcp | No audit functionality implemented |
-| file-write-mcp | No audit functionality implemented |
 | rag-pipeline-mcp | No audit functionality implemented |
+
+`file-write-mcp` and `file-delete-mcp` were added to the audit path in the MCP-006 guard layer: both call
+`mcp_servers.audit._audit_log()` on the rejected and completed paths, so they no longer belong in this table.
 
 ### Agent-side Audit Logs (Structured Events)
 
