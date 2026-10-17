@@ -161,6 +161,7 @@ class TestEnsureReadySubprocess:
         mgr = _ServerLifecycleRouter({"srv": cfg}, ex)
         mock_mgr = _AsyncMock()
         mock_mgr.verify_running = MagicMock(return_value=False)
+        mock_mgr._http_procs = {}
         mgr._subprocess_mgr._http_mgr = mock_mgr
         await mgr.ensure_ready("srv")
         mock_mgr.start.assert_awaited_once()

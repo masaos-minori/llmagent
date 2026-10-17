@@ -350,6 +350,7 @@ def _make_router(
     )
     router._subprocess_mgr = subprocess_mgr
     subprocess_mgr._http_mgr = AsyncMock()
+    subprocess_mgr._http_mgr._http_procs = {}
     return router, subprocess_mgr
 
 
@@ -406,6 +407,7 @@ def _make_router_with_mock_mgr(
     )
     mock_mgr = AsyncMock()
     mock_mgr.verify_running = MagicMock(return_value=verify_running_result)
+    mock_mgr._http_procs = {}
     router._subprocess_mgr._http_mgr = mock_mgr
     return router, mock_mgr
 
