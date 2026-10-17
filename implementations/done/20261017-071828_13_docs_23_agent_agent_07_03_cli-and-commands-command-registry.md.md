@@ -1,47 +1,49 @@
 ## Goal
 
-Remove the enforcement-table row mapping `_cmd_diff()` to `/diff` from
-`docs/23_agent/agent_02_runtime-architecture.md` (`REQ-007`, command-surface reduction).
+Remove the `/diff`, `/system`, and `/audit` rows from the built-in slash-command index
+table in `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md`
+(`REQ-007`, command-surface reduction).
 
 ## Scope
 
-In scope: remove the enforcement-table row at L62 from
-`docs/23_agent/agent_02_runtime-architecture.md`. Out of scope: the command/handler/mixin
-deletions (`REQ-001`–`REQ-003`), the `GV-017` pattern additions (`REQ-005`), and the other
-docs changes (`REQ-007`, separate documents).
+In scope: remove the three command rows from the index table in
+`docs/23_agent/agent_07_03_cli-and-commands-command-registry.md`. Out of scope: the
+command/handler/mixin deletions (`REQ-001`–`REQ-003`), the `GV-017` pattern additions
+(`REQ-005`), and the other docs changes (`REQ-007`, separate documents).
 
 ## Assumptions
 
-- The single enforcement-table row describes only the removed `_cmd_diff()` → `/diff` gate.
+- The three rows describe only the removed commands; removing them does not affect the
+  remaining rows.
 
 ## Design decisions
 
-- **Delete only that one row.** Leave every other row and the table structure intact.
+- **Delete only the three rows.** Leave every other row and the table structure intact.
 
 ## Alternatives considered
 
-`N/A`: the goal mandates removal with no shim or forwarding path; leaving a stale row would
-mislead readers into thinking the gate still exists.
+`N/A`: the goal mandates removal with no shim or forwarding path; leaving stale rows would
+mislead readers into thinking the commands still exist.
 
 ## Implementation
 
 ### Target file
 
-`docs/23_agent/agent_02_runtime-architecture.md`
+`docs/23_agent/agent_07_03_cli-and-commands-command-registry.md`
 
 ### Procedure
 
-1. Confirm the row with `rg`: the `_cmd_diff()` → `/diff` enforcement row at L62.
-2. Delete that one row from the enforcement table.
+1. Locate the three rows with `rg`: `/diff` (L58), `/system` (L63), `/audit` (L66).
+2. Delete those three rows from the index table.
 3. Leave the rest of the table and the document unchanged.
 
 ### Method
 
-Delete the table row as a whole line, preserving table syntax.
+Delete the three table rows as whole lines, preserving table syntax.
 
 ### Details
 
-- If the row spans multiple lines, delete the whole logical row.
+- If any of the three rows spans multiple lines, delete the whole logical row.
 
 ## Compatibility considerations
 
@@ -59,11 +61,12 @@ Revert the commit.
 
 - Run the agent-domain docs checker named in `routing.md`
   (`uv run python tools/check_docs_consistency.py --domain agent`) — clean.
+- `ruff` / `mypy` — not applicable to docs.
 
 ## Completion criteria
 
-The `_cmd_diff()` → `/diff` enforcement row is gone, and the rest of the document is
-unchanged.
+No `/diff`, `/system`, or `/audit` row remains in the index table, and the rest of the
+document is unchanged.
 
 ## Out of scope
 
@@ -74,8 +77,8 @@ unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the `_cmd_diff()` → `/diff` enforcement-table row from `docs/23_agent/agent_02_runtime-architecture.md` (`REQ-007`) | Pending | — | — | |
-| 3 | Run the docs checkers named in `routing.md` (`check-agent-docs`) | Pending | — | — | |
+| 1 | Remove the `/diff`, `/system`, `/audit` rows from the index table in `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md` (`REQ-007`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the docs checkers named in `routing.md` (`check-agent-docs`) | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -96,4 +99,4 @@ unchanged.
 - **Source plan**: `plans/20261016-233542_plan.md`
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261017-071828
-- **Related target files**: `docs/23_agent/agent_02_runtime-architecture.md`
+- **Related target files**: `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md`

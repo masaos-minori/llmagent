@@ -86,13 +86,6 @@ _COMMANDS: list[CommandDef] = [
         handler="_cmd_compact",
         help="Force immediate compression of conversation history",
     ),
-    CommandDef(
-        name="/diff",
-        prefix=False,
-        is_async=True,
-        handler="_cmd_diff",
-        help="Show diffs for files written/edited this session",
-    ),
     # ── Prefix sync ──────────────────────────────────────────────────────────
     CommandDef(
         name="/mcp",
@@ -164,14 +157,6 @@ _COMMANDS: list[CommandDef] = [
         args=(ArgSpec("n", default="5"),),
     ),
     CommandDef(
-        name="/system",
-        prefix=True,
-        is_async=False,
-        handler="_cmd_system",
-        help="[name]  Switch system prompt preset; list presets if no name given",
-        args=(ArgSpec("name"),),
-    ),
-    CommandDef(
         name="/memory",
         prefix=True,
         is_async=False,
@@ -224,24 +209,6 @@ _COMMANDS: list[CommandDef] = [
         subcommands=[
             SubcommandSpec("verbose", "Debug loggers at DEBUG level"),
             SubcommandSpec("normal", "Debug loggers at INFO level"),
-        ],
-    ),
-    CommandDef(
-        name="/audit",
-        prefix=True,
-        is_async=False,
-        handler="_cmd_audit",
-        help="tail [N] | turn <task_id> | tool <name>  Browse audit log events",
-        subcommands=[
-            SubcommandSpec(
-                "tail", "Last N raw lines (default)", (ArgSpec("N", default="20"),)
-            ),
-            SubcommandSpec(
-                "turn", "Events of one turn", (ArgSpec("task_id", required=True),)
-            ),
-            SubcommandSpec(
-                "tool", "Recent events of one tool", (ArgSpec("name", required=True),)
-            ),
         ],
     ),
 ]

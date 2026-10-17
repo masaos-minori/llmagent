@@ -55,15 +55,12 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 | `/undo` | Roll back the last user+assistant turn added after the last history compression |
 | `/reload` | Reload config files and apply runtime-configurable parameters |
 | `/compact` | Force immediate compression of conversation history |
-| `/diff` | Show diffs for files written/edited this session |
 | `/mcp` | Show MCP server status, tool list and connectivity |
 | `/session` | Manage sessions and session database maintenance |
 | `/clear` | Reset conversation history, optionally starting a new session |
 | `/history` | Show the content of recent user/assistant messages |
-| `/system` | Switch the system prompt preset |
 | `/memory` | Manage long-term memory (status, list, delete, pin, prune, reindex, rebuild) |
 | `/debug` | Toggle debug mode / log level |
-| `/audit` | Browse audit log events |
 
 ### Adding New Commands
 

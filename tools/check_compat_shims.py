@@ -237,6 +237,18 @@ _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
     "SQLiteSessionStore/SessionStore (confirmed removed — SHARED-002 resolution)": re.compile(
         r"\bSQLiteSessionStore\b|\bSessionStore\b"
     ),
+    "/diff (confirmed removed, per plans/20261016-233542_plan.md — diffcmd)": re.compile(
+        r"/\bdiff\b"
+    ),
+    "/system (confirmed removed, per plans/20261016-233542_plan.md — syscmd)": re.compile(
+        r"/\bsystem\b"
+    ),
+    "/audit (confirmed removed, per plans/20261016-233542_plan.md — auditcmd)": re.compile(
+        r"/\baudit\b"
+    ),
+    "/workflow (confirmed removed, per plans/20261016-233542_plan.md — wfcmd)": re.compile(
+        r"/\bworkflow\b"
+    ),
 }
 
 _TOOL_ROUTE_RESOLVER_RE = re.compile(r"\bToolRouteResolver\b")

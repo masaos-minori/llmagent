@@ -81,8 +81,8 @@ and the rest of the document is unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the `GV-017` matrix row (L333) and implementation note (L352) in `docs/00_governance/governance_04_documentation-checks.md` (`REQ-007`) | Pending | — | — | |
-| 3 | Run the docs checkers named in `routing.md` | Pending | — | — | |
+| 1 | Update the `GV-017` matrix row (L333) and implementation note (L352) in `docs/00_governance/governance_04_documentation-checks.md` (`REQ-007`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the docs checkers named in `routing.md` | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

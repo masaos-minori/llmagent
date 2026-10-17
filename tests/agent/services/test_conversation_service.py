@@ -1,16 +1,14 @@
 """tests/test_conversation_service.py
 Unit tests for agent/services/conversation_service.py:
-clear_conversation() and switch_system_prompt().
+clear_conversation().
 """
 
 from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-import pytest
-from agent.services.conversation_service import clear_conversation, switch_system_prompt
+from agent.services.conversation_service import clear_conversation
 from agent.services.enums import ConversationActionType
-from agent.services.exceptions import ConversationStateError
 
 
 def _make_ctx(
@@ -104,64 +102,3 @@ class TestClearConversation:
         ctx = _make_ctx(history=[])
         clear_conversation(ctx)
         assert ctx.conv.history == []
-
-
-# ── switch_system_prompt ──────────────────────────────────────────────────────
-
-
-class TestSwitchSystemPrompt:
-    def test_updates_system_prompt_name(self) -> None:
-        ctx = _make_ctx()
-        switch_system_prompt(ctx, "coding")
-        assert ctx.conv.system_prompt_name == "coding"
-
-    def test_updates_system_prompt_content(self) -> None:
-        ctx = _make_ctx()
-        switch_system_prompt(ctx, "coding")
-        assert ctx.conv.system_prompt_content == "You code well."
-
-    def test_replaces_existing_system_message_in_history(self) -> None:
-        ctx = _make_ctx(history=[{"role": "system", "content": "old prompt"}])
-        switch_system_prompt(ctx, "coding")
-        assert ctx.conv.history[0]["content"] == "You code well."
-
-    def test_returns_switch_prompt_action(self) -> None:
-        ctx = _make_ctx()
-        result = switch_system_prompt(ctx, "coding")
-        assert result.action == ConversationActionType.SWITCH_PROMPT
-
-    def test_result_message_contains_preset_name(self) -> None:
-        ctx = _make_ctx()
-        result = switch_system_prompt(ctx, "coding")
-        assert "coding" in result.message
-
-    def test_unknown_preset_raises_conversation_state_error(self) -> None:
-        ctx = _make_ctx()
-        with pytest.raises(ConversationStateError, match="Unknown preset"):
-            switch_system_prompt(ctx, "nonexistent")
-
-    def test_error_message_lists_available_presets(self) -> None:
-        ctx = _make_ctx()
-        with pytest.raises(ConversationStateError, match="default"):
-            switch_system_prompt(ctx, "nonexistent")
-
-    def test_inserts_system_message_when_history_empty(self) -> None:
-        ctx = _make_ctx(history=[])
-        switch_system_prompt(ctx, "coding")
-        assert len(ctx.conv.history) == 1
-        assert ctx.conv.history[0]["role"] == "system"
-        assert ctx.conv.history[0]["content"] == "You code well."
-
-    def test_does_not_insert_when_content_is_empty(self) -> None:
-        ctx = _make_ctx(
-            history=[],
-            system_prompts={"default": "You are helpful.", "empty": ""},
-        )
-        switch_system_prompt(ctx, "empty")
-        assert len(ctx.conv.history) == 0
-
-    def test_history_without_leading_system_message_inserts_new(self) -> None:
-        ctx = _make_ctx(history=[{"role": "user", "content": "hi"}])
-        switch_system_prompt(ctx, "coding")
-        assert ctx.conv.history[0]["role"] == "system"
-        assert ctx.conv.history[0]["content"] == "You code well."

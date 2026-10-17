@@ -59,7 +59,6 @@ Because an untested execution path may bypass the gate, every path requires a te
 | # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
 |---|---|---|---|---|---|
 | 1 | `scripts/agent/repository_gateway.py` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
-| 2 | `scripts/agent/commands/cmd_context.py` | `_ContextMixin._cmd_diff()` → `/diff` | Enforced | Covered (`tests/agent/commands/test_agent_cmd_context.py`, `git_diff` denial case) | None |
 | 3 | `scripts/agent/tool_approval.py` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
 
 ### Exempt Paths

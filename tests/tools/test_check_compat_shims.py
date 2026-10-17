@@ -369,6 +369,50 @@ class TestRemovedNameReintroduction:
         assert issues == []
 
 
+class TestRemovedCommandNamePatterns:
+    """GV-017: the four removed slash-command names are reintroduced-as-current
+    only when they appear in slash-command form; ordinary words and
+    historical-context mentions are exempt."""
+
+    @pytest.mark.parametrize(
+        ("name", "usage"),
+        [
+            ("/diff", "Run /diff to see what changed this session."),
+            ("/system", "Type /system coding to switch presets."),
+            ("/audit", "Use /audit tail to browse recent events."),
+            ("/workflow", "Invoke /workflow to run the pipeline."),
+        ],
+    )
+    def test_removed_command_names_flagged_as_current(
+        self, name: str, usage: str, tmp_path: Path
+    ) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text(f"{usage}\n")
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert any(name in issue for issue in issues), (
+            f"Expected {name!r} to be flagged as a current-spec reintroduction"
+        )
+
+    @pytest.mark.parametrize("word", ["diff", "system", "audit", "workflow"])
+    def test_bare_words_not_flagged(self, word: str, tmp_path: Path) -> None:
+        """Ordinary prose uses of the removed names must not false-positive."""
+        doc = tmp_path / "example.md"
+        doc.write_text(
+            f"This section discusses the {word} tool and its {word} behavior.\n"
+        )
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert issues == []
+
+    def test_removed_names_exempted_in_historical_context(self, tmp_path: Path) -> None:
+        doc = tmp_path / "example.md"
+        doc.write_text(
+            "**Status**: resolved\n\n"
+            "Previously you could run /diff, /system, /audit, and /workflow.\n"
+        )
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert issues == []
+
+
 class TestCheckAllRemovedNamesGating:
     """check_all()'s `include_removed_names` defaults to False so the
     existing .pre-commit-config.yaml wiring (a bare invocation with no

@@ -109,11 +109,11 @@ def test_command_coverage_clean(tmp_path: Path) -> None:
 
 
 def test_command_coverage_reports_missing_index_and_chapter(tmp_path: Path) -> None:
-    repo = _command_repo(tmp_path, ["/help", "/audit"])
+    repo = _command_repo(tmp_path, ["/help", "/debug"])
     _write_agent_docs(tmp_path / "docs", ["/help"], "`/help`\n")
     messages = [i.message for i in cdc.check_command_coverage(tmp_path / "docs", repo)]
-    assert any("'/audit'" in m and "Built-in Command Index" in m for m in messages)
-    assert any("'/audit'" in m and "per-command chapter" in m for m in messages)
+    assert any("'/debug'" in m and "Built-in Command Index" in m for m in messages)
+    assert any("'/debug'" in m and "per-command chapter" in m for m in messages)
     assert not any("'/help'" in m for m in messages)
 
 

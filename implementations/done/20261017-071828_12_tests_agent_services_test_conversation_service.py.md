@@ -86,10 +86,10 @@ the file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `TestSwitchSystemPrompt` from `tests/agent/services/test_conversation_service.py` (`REQ-004`) | Pending | — | — | Confirm the file holds only this class before deleting the file |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Delete `TestSwitchSystemPrompt` from `tests/agent/services/test_conversation_service.py` (`REQ-004`) | Completed | 20261017-100006 | 20261017-100006 | Confirm the file holds only this class before deleting the file |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

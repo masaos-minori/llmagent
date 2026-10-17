@@ -99,10 +99,10 @@ function.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `switch_system_prompt()` from `scripts/agent/services/conversation_service.py` (`REQ-004`) | Pending | — | — | Confirm no external caller (UNK-01) before deleting |
-| 2 | Delete `TestSwitchSystemPrompt` (`test_conversation_service.py`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove `switch_system_prompt()` from `scripts/agent/services/conversation_service.py` (`REQ-004`) | Completed | 20261017-100006 | 20261017-100006 | Confirm no external caller (UNK-01) before deleting |
+| 2 | Delete `TestSwitchSystemPrompt` (`test_conversation_service.py`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -80,10 +80,10 @@ rest of the file is unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the `/audit` registration assertion from `tests/docs/test_command_docs_sync.py` (`REQ-007`) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove the `/audit` registration assertion from `tests/docs/test_command_docs_sync.py` (`REQ-007`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

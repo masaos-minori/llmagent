@@ -14,7 +14,6 @@ Mixins (keep in sync with CommandRegistry base class list):
    cmd_context.py    — _ContextMixin:    /context, /clear, /undo, /history, /system
    cmd_tooling.py    — _ToolingMixin:    /plan
   cmd_debug.py      — _DebugMixin:      /debug
-  cmd_audit.py      — _AuditMixin:      /audit
   cmd_rag_export.py — _RagExportMixin:  /compact
   cmd_memory.py     — _MemoryMixin:     /memory
 
@@ -28,7 +27,6 @@ _COMMANDS ownership:
 from collections.abc import Callable
 from typing import Any
 
-from agent.commands.cmd_audit import _AuditMixin
 from agent.commands.cmd_config import _ConfigMixin
 from agent.commands.cmd_context import _ContextMixin
 from agent.commands.cmd_debug import _DebugMixin
@@ -52,7 +50,6 @@ class CommandRegistry(
     _ContextMixin,
     _ToolingMixin,
     _DebugMixin,
-    _AuditMixin,
     _RagExportMixin,
     _MemoryMixin,
 ):

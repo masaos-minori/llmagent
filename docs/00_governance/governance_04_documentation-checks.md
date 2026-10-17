@@ -330,7 +330,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Partial | Automate auto-check implementation audit (currently manual) |
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
 | GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
-| GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Implement the context-aware (retained-but-superseded) detection case; promote to default-on once the corpus is compliant |
+| GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Slash-command removed-name patterns implemented (`/diff`, `/system`, `/audit`, `/workflow`); promote to default-on once the corpus is compliant |
 | GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py --strict` | PR | Blocking | Existing | None |
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
@@ -349,12 +349,13 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
 4. **GV-014**: Automate auto-check implementation audit (currently manual)
 5. **GV-015**: Automate glossary term classification validation (currently manual)
 6. **GV-016**: Automate metadata field usage policy enforcement (currently manual)
-7. **GV-017**: Implement the `read_json_file`-style context-aware detection case (a name
-     retained in source but no longer the current production path); promote
-     `--check-removed-names` from opt-in to default-on once the corpus is compliant, per
-     `check_compat_shims.py`'s own "report-only until compliant" convention. The retired
-     identifier patterns and historical-context markers are defined in
-     `tools/check_compat_shims.py` (`_REMOVED_NAME_PATTERNS`, `_HISTORICAL_CONTEXT_MARKERS`).
+7. **GV-017**: Four slash-command removed-name patterns are implemented
+     (`/diff`, `/system`, `/audit`, `/workflow`) via `check_removed_name_reintroduction()`;
+     promote `--check-removed-names` from opt-in to default-on once the corpus is
+     compliant, per `check_compat_shims.py`'s own "report-only until compliant"
+     convention. The retired identifier patterns and historical-context markers are
+     defined in `tools/check_compat_shims.py` (`_REMOVED_NAME_PATTERNS`,
+     `_HISTORICAL_CONTEXT_MARKERS`).
 
 ## Change Impact Assessment
 

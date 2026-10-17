@@ -74,8 +74,8 @@ No `/system` row or prose remains in the document, and the rest is unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the `/system [name]` row and prose from `docs/23_agent/agent_07_08_cli-and-commands-slash-commands-context-plan.md` (`REQ-007`) | Pending | — | — | |
-| 3 | Run the docs checkers named in `routing.md` (`check-agent-docs`) | Pending | — | — | |
+| 1 | Remove the `/system [name]` row and prose from `docs/23_agent/agent_07_08_cli-and-commands-slash-commands-context-plan.md` (`REQ-007`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the docs checkers named in `routing.md` (`check-agent-docs`) | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

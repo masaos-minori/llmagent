@@ -80,8 +80,8 @@ the rest of the document is unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Trim the removed-command mentions from the chapter-description cells in `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` (`REQ-007`) | Pending | — | — | |
-| 3 | Run the docs checkers named in `routing.md` (`check-agent-docs`) | Pending | — | — | |
+| 1 | Trim the removed-command mentions from the chapter-description cells in `docs/23_agent/agent_07_01_cli-and-commands-cli-reference.md` (`REQ-007`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the docs checkers named in `routing.md` (`check-agent-docs`) | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -40,15 +40,6 @@ A group of commands related to debugging and audit logs.
 | `/debug` | `/debug` | Toggles debug mode, which controls RAG pipeline step output, and reports ON or OFF |
 | `/debug` | `/debug verbose` | Sets the debug loggers to the DEBUG log level |
 | `/debug` | `/debug normal` | Restores the debug loggers to the INFO log level |
-| `/audit` | `/audit` or `/audit tail [N]` | Shows the last `N` raw lines of the audit log (default 20; `N` must be a positive integer) |
-| `/audit` | `/audit turn <task_id>` | Shows every audit event recorded for one turn |
-| `/audit` | `/audit tool <name>` | Shows recent audit events for one tool, scanning only the tail of the log and capping the number shown |
-
-The `/debug` subcommand is case-insensitive; any other subcommand is rejected with `Unknown subcommand` and a usage line. `/audit` with an unknown subcommand, or a missing `task_id` or tool name, prints the usage line and changes nothing. A missing or unreadable audit log, and a query with no matching events, are reported without raising an error. Both commands only read state; `/audit` never modifies the audit log.
-
-### Git/Diff Category
-
-`/diff` only sees tool calls remaining in the current session's `ctx.conv.history`. If `/compact` or `/clear` is executed during a session, files written/edited prior to those operations fall outside the scope of `/diff` (a design trade-off; no DB-based change tracking is performed).
 
 ### Compact Category
 
@@ -64,10 +55,7 @@ RAG search is not provided as a slash command — it is automatically called by 
 
 ## Known Limitations
 
-- `/diff` only sees tool calls remaining in the current session's `ctx.conv.history`
-
 ## Keywords
 
-- debug/audit category
-- git/diff category
+- debug category
 - compact category

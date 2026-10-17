@@ -93,10 +93,10 @@ symbol in the module is unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `_AuditMixin` import/composition/docstring from `scripts/agent/commands/registry.py` (`REQ-003`) | Pending | — | — | |
-| 2 | Delete deleted-handler/audit tests (`test_agent_cmd_context.py`, `test_cmd_audit.py`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove `_AuditMixin` import/composition/docstring from `scripts/agent/commands/registry.py` (`REQ-003`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 2 | Delete deleted-handler/audit tests (`test_agent_cmd_context.py`, `test_cmd_audit.py`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

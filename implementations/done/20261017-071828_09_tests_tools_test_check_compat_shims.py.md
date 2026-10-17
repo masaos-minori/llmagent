@@ -89,10 +89,10 @@ hit, a no-hit, and an exemption assertion, and all pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add GV-017 pattern tests to `tests/tools/test_check_compat_shims.py` (`REQ-005`) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Add GV-017 pattern tests to `tests/tools/test_check_compat_shims.py` (`REQ-005`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

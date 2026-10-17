@@ -106,11 +106,6 @@ class TestCommandDocsSync:
         registered = self.get_registered_commands()
         assert "/debug" in registered, "/debug should be registered"
 
-    def test_audit_commands_in_registry(self) -> None:
-        """/audit is registered as a built-in command."""
-        registered = self.get_registered_commands()
-        assert "/audit" in registered, "/audit should be registered"
-
     def test_memory_commands_in_registry(self) -> None:
         """/memory is registered as a built-in command."""
         registered = self.get_registered_commands()

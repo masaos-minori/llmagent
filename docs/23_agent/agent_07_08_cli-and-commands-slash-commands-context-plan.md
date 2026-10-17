@@ -37,7 +37,6 @@ A group of commands for managing context information and history.
 |---|---|---|
 | `/context` | None | Displays history size, budget, system prompt, and workflow mode |
 | `/compact` | LLM call (compression) | Immediately compresses history |
-| `/system [name]` | Updates `history[0]` | `ctx.conv.system_prompt_name` |
 
 ### Plan Category
 

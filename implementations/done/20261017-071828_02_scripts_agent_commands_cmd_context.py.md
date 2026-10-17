@@ -109,10 +109,10 @@ deleted symbols.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `/diff`/`/system` handlers and helpers from `scripts/agent/commands/cmd_context.py` (`REQ-002`) | Pending | — | — | |
-| 2 | Drop deleted-handler tests; add the four rejection tests (`test_agent_cmd_context.py`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Delete `/diff`/`/system` handlers and helpers from `scripts/agent/commands/cmd_context.py` (`REQ-002`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 2 | Drop deleted-handler tests; add the four rejection tests (`test_agent_cmd_context.py`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

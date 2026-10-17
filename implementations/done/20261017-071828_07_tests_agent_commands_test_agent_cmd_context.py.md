@@ -94,10 +94,10 @@ each of `/diff`, `/system`, `/audit`, `/workflow` exists and passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete deleted-handler tests; add four rejection tests in `tests/agent/commands/test_agent_cmd_context.py` (`REQ-002`, `REQ-006`) | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Delete deleted-handler tests; add four rejection tests in `tests/agent/commands/test_agent_cmd_context.py` (`REQ-002`, `REQ-006`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

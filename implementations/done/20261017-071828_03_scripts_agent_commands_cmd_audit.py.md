@@ -91,10 +91,10 @@ composes `_AuditMixin`, and no other file references the module.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `scripts/agent/commands/cmd_audit.py` (`REQ-003`) | Pending | — | — | |
-| 2 | Delete `tests/agent/commands/test_cmd_audit.py` (`REQ-003`) | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Delete `scripts/agent/commands/cmd_audit.py` (`REQ-003`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 2 | Delete `tests/agent/commands/test_cmd_audit.py` (`REQ-003`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261017-100006 | 20261017-100006 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261017-100006 | 20261017-100006 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
