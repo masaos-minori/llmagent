@@ -3,9 +3,9 @@
 Tests for the MCP Security Posture gating in scripts/agent/services/mcp_health.py:
 collect_server_postures() probes every usable HTTP server once and turns the answer into a gate,
 classify_server_failure() separates Availability from Safety and Integrity, allowed_server_keys()
-keeps only fully green gates, check_service_health() routes a required server's failure into errors,
-and check_readiness() aborts startup on a Safety or Integrity failure without copying a fingerprint or
-a server-supplied message into the Agent's message.
+keeps only fully green gates, check_service_health() routes a required server's failure and any Safety
+or Integrity posture failure into errors, and check_readiness() aborts startup on a Safety or Integrity
+failure without copying a fingerprint or a server-supplied message into the Agent's message.
 """
 
 from __future__ import annotations
@@ -374,7 +374,7 @@ class TestAllowedServerKeys:
 
 
 class TestCheckServiceHealthPosture:
-    """Posture entries reuse the required-versus-optional shape of the LLM checks."""
+    """Posture entries reuse the required-versus-optional shape only for availability failures."""
 
     async def test_green_server_produces_no_issue(self) -> None:
         http = _http({HEALTH_URL: _response(_body(_security_block()))})
@@ -389,12 +389,37 @@ class TestCheckServiceHealthPosture:
         assert f"reason={REASON_POSTURE_MISSING}" in result.errors[0].message
         assert result.warnings == []
 
-    async def test_optional_server_failure_is_a_warning(self) -> None:
+    async def test_optional_server_integrity_failure_is_an_error(self) -> None:
+        """ADR-004 INV-09/INV-10: `required = false` does not soften an Integrity failure."""
         http = _http({HEALTH_URL: _response(_body())})
+        ctx = _ctx({SERVER_KEY: _server(required=False)}, http)
+        result = await check_service_health(ctx)
+        assert [w.label for w in result.errors] == [f"mcp:{SERVER_KEY}"]
+        assert "integrity" in result.errors[0].message
+        assert result.warnings == []
+
+    async def test_optional_server_safety_failure_is_an_error(self) -> None:
+        """A published posture with `validated = false` is fatal even for an optional server."""
+        http = _http(
+            {
+                HEALTH_URL: _response(
+                    _body(_security_block(validated=False, ready=False))
+                )
+            }
+        )
+        ctx = _ctx({SERVER_KEY: _server(required=False)}, http)
+        result = await check_service_health(ctx)
+        assert [w.label for w in result.errors] == [f"mcp:{SERVER_KEY}"]
+        assert "safety" in result.errors[0].message
+        assert result.warnings == []
+
+    async def test_optional_server_availability_failure_is_a_warning(self) -> None:
+        http = _http({HEALTH_URL: httpx.ConnectError("connection refused")})
         ctx = _ctx({SERVER_KEY: _server(required=False)}, http)
         result = await check_service_health(ctx)
         assert result.errors == []
         assert result.warnings[0].label == f"mcp:{SERVER_KEY}"
+        assert "availability" in result.warnings[0].message
         assert result.warnings[0].message.startswith(OutputTag.NON_FATAL)
 
     async def test_llm_and_posture_failures_coexist(self) -> None:
@@ -415,14 +440,14 @@ class TestCheckServiceHealthPosture:
             await check_service_health(_ctx({SERVER_KEY: _server()}, None))
 
     async def test_warning_carries_the_configured_url(self) -> None:
-        http = _http({HEALTH_URL: _response(_body())})
+        http = _http({HEALTH_URL: httpx.ConnectError("connection refused")})
         ctx = _ctx({SERVER_KEY: _server(required=False)}, http)
         result = await check_service_health(ctx)
         assert result.warnings[0].url == BASE_URL
 
 
 class TestCheckReadinessPosture:
-    """A Safety or Integrity failure for a required server aborts startup."""
+    """A Safety or Integrity failure aborts startup whatever `required` says."""
 
     async def test_integrity_failure_raises_with_remediation(self) -> None:
         http = _http({HEALTH_URL: _response(_body())})
@@ -446,6 +471,21 @@ class TestCheckReadinessPosture:
         with pytest.raises(RuntimeError) as excinfo:
             await check_readiness(_ctx({SERVER_KEY: _server()}, http))
         assert "safety" in str(excinfo.value)
+
+    async def test_safety_failure_raises_for_an_optional_server(self) -> None:
+        """ADR-004 INV-09/INV-10: `required = false` never turns a Safety failure into degraded mode."""
+        http = _http(
+            {
+                HEALTH_URL: _response(
+                    _body(_security_block(validated=False, ready=False))
+                )
+            }
+        )
+        ctx = _ctx({SERVER_KEY: _server(required=False)}, http)
+        with pytest.raises(RuntimeError) as excinfo:
+            await check_readiness(ctx)
+        assert "safety" in str(excinfo.value)
+        assert "remediation" in str(excinfo.value)
 
     async def test_availability_failure_for_an_optional_server_does_not_raise(
         self,

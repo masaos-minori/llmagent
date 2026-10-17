@@ -97,7 +97,7 @@ class PostureGate:
 
     Fields:
         server_key:       Config key of the probed server.
-        required:         Config flag deciding error versus warning, mirroring discovery escalation.
+        required:         Config flag deciding error versus warning for an Availability failure; a Safety or Integrity failure is an error whatever it says.
         reachable:        An HTTP response was received.
         posture_accepted: The published posture satisfied the shared contract.
         ready:            The posture's own ready flag; False when the posture was rejected.
@@ -130,6 +130,21 @@ _INTEGRITY_REASON_CODES = frozenset(
 )
 
 _POSTURE_LABEL_PREFIX = "mcp:"
+
+_SAFETY_INTEGRITY_CLASSES = frozenset(
+    {ServerFailureClass.SAFETY, ServerFailureClass.INTEGRITY}
+)
+
+
+def _is_fatal_gate(gate: PostureGate) -> bool:
+    """Decide whether one non-green gate blocks startup.
+
+    A Safety or Integrity posture failure blocks startup whatever `required` says: ADR-004 Group 2
+    item 6 and INV-09/INV-10 permit partial availability only for an availability failure of a
+    component classified non-mandatory. `required` therefore decides the fate of an Availability
+    failure alone.
+    """
+    return gate.required or gate.failure_class in _SAFETY_INTEGRITY_CLASSES
 
 
 def classify_server_failure(gate: PostureGate) -> ServerFailureClass | None:
@@ -243,7 +258,7 @@ def _posture_warning(gate: PostureGate, url: str) -> ServiceWarning:
         raise ValueError(f"green gate has no warning: {gate.server_key}")
     label = f"{_POSTURE_LABEL_PREFIX}{gate.server_key}"
     message = f"{label} {failure_class.value} failure (reason={gate.reason_code})"
-    if not gate.required:
+    if not _is_fatal_gate(gate):
         message = f"{OutputTag.NON_FATAL} {message}"
     return ServiceWarning(label=label, url=url, message=message)
 
@@ -269,8 +284,9 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
     The LLM is a required service: its failure is reported as a fatal error. The
     embed-llm is optional: the agent runs in degraded mode without it, so its
     failure is a non-fatal warning. Derives each /health URL by stripping the path
-    from the endpoint URL. MCP posture entries follow the same required-versus-optional
-    shape, so a Safety or Integrity failure for a required server lands in errors.
+    from the endpoint URL. An MCP posture entry degrades to a warning only when the
+    failure is an Availability failure of a server configured required=false; a
+    Safety or Integrity posture failure lands in errors whatever that flag says.
     """
     if ctx.services_required.http is None:
         raise RuntimeError("http service not initialized")
@@ -307,7 +323,7 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
         if gate.failure_class is None:
             continue
         entry = _posture_warning(gate, ctx.cfg.mcp.mcp_servers[server_key].url)
-        if gate.required:
+        if _is_fatal_gate(gate):
             errors.append(entry)
         else:
             logger.warning("%s", entry.message)
@@ -318,9 +334,10 @@ async def check_service_health(ctx: AgentContext) -> HealthCheckResult:
 async def check_readiness(ctx: AgentContext) -> HealthCheckResult:
     """Probe required services at startup; raise RuntimeError on required-service failure.
 
-    Only required services block startup: the LLM and every MCP server configured as required whose
-    posture gate is not green. Optional services (the embed-llm, an MCP server configured
-    required=false) degrade: their failures surface as non-fatal warnings instead of raising.
+    Required services block startup, and so does any MCP server whose posture gate reports a
+    Safety or Integrity failure. Optional services degrade only on an availability failure: the
+    embed-llm and an MCP server configured required=false whose gate failure is Availability
+    surface as non-fatal warnings instead of raising.
     """
     result = await check_service_health(ctx)
     if result.errors:
