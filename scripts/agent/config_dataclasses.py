@@ -259,10 +259,9 @@ class MCPConfig:
     """MCP server lifecycle settings."""
 
     mcp_servers: dict[str, McpServerConfig] = field(default_factory=dict)
-    # Deployment security profile: "local" (auth optional) or "production" (auth required for HTTP).
+    # Deployment security profile. SecurityProfile has one member (PRODUCTION), so MCP auth
+    # enforcement is unconditional and there is no per-deployment relaxation knob.
     security_profile: SecurityProfile = SecurityProfile.PRODUCTION
-    # Set to True to suppress deny-all startup warnings when deny-all is intentional.
-    security_lockdown_enabled: bool = False
 
     def __post_init__(self) -> None:
         """Coerce security_profile to SecurityProfile enum if needed."""

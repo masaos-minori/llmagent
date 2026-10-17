@@ -44,7 +44,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_github_allowed_repos": [],
         "allowed_root": "",
         "security_profile": "development",
-        "security_lockdown_enabled": False,
         "memory_local_only": False,
     }
     merged = {**defaults, **overrides}

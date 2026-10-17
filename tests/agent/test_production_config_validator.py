@@ -448,6 +448,18 @@ class TestProductionConfigValidatorUnknownTopLevelKeys:
         )
         assert not any("Unknown config keys" in err for err in result.errors)
 
+    def test_removed_security_lockdown_key_is_rejected(self) -> None:
+        """The deny-all suppression knob was removed with its only consumer,
+        agent/services/security_audit.py; a stale key left in agent.toml is a hard error."""
+        config = {"tool_definitions_strict": True, "security_lockdown_enabled": True}
+        result = ProductionConfigValidator().validate(
+            config, security_profile="production"
+        )
+        assert any(
+            "Unknown config keys" in err and "security_lockdown_enabled" in err
+            for err in result.errors
+        )
+
 
 class TestProductionConfigValidatorConfigValidationResultIdentity:
     """Tests for ConfigValidationResult identity after REQ-004 consolidation."""

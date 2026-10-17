@@ -402,7 +402,6 @@ class TestBuildAgentConfig:
                 **_MIN_CFG,
                 "tool_definitions_strict": True,
                 "routing_drift_strict": True,
-                "security_lockdown_enabled": True,
                 "otel_enabled": True,
                 "structured_log": True,
                 "otel_endpoint": "http://otel",
@@ -410,12 +409,21 @@ class TestBuildAgentConfig:
                 "audit_log_file": "/custom/audit.log",
             }
         )
-        assert cfg.mcp.security_lockdown_enabled is True
         assert cfg.obs.otel_enabled is True
         assert cfg.obs.structured_log is True
         assert cfg.obs.otel_endpoint == "http://otel"
         assert cfg.obs.otel_service_name == "custom-svc"
         assert cfg.obs.audit_log_file == "/custom/audit.log"
+
+    def test_removed_security_lockdown_field_is_absent(self) -> None:
+        """The deny-all suppression knob was removed together with its only consumer,
+        agent/services/security_audit.py (ADR-004: no configuration can downgrade a
+        Safety/Integrity posture failure)."""
+        from dataclasses import fields
+
+        from agent.config_dataclasses import MCPConfig
+
+        assert "security_lockdown_enabled" not in {f.name for f in fields(MCPConfig)}
 
     def test_system_prompt_tool_and_security_profile_propagate(self) -> None:
         cfg = build_agent_config(

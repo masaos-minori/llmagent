@@ -249,6 +249,12 @@ _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
     "/workflow (confirmed removed, per plans/20261016-233542_plan.md — wfcmd)": re.compile(
         r"/\bworkflow\b"
     ),
+    "security_lockdown_enabled (confirmed removed — the deny-all suppression knob lost its "
+    "only consumer when agent/services/security_audit.py was deleted, per "
+    "plans/done/20261015-112526_plan.md REQ-017; ADR-004 leaves no configuration path that "
+    "downgrades a Safety/Integrity posture failure)": re.compile(
+        r"\bsecurity_lockdown_enabled\b"
+    ),
 }
 
 _TOOL_ROUTE_RESOLVER_RE = re.compile(r"\bToolRouteResolver\b")

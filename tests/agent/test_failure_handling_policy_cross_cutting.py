@@ -2,7 +2,7 @@
 
 Cross-cutting tests for ADR-004 environment failure handling policy, re-based on the MCP Security
 Posture path: a required server whose published posture fails a security check aborts startup in every
-environment, and no environment name or suppression flag relaxes that.
+environment, and no environment name or configuration knob relaxes that.
 Covers ADR-004 INV-01, INV-02, INV-07 and INV-10.
 """
 
@@ -75,7 +75,6 @@ def _ctx(servers: dict[str, McpServerConfig], postures: dict[str, object]) -> Ma
     )
     ctx = MagicMock()
     ctx.cfg.mcp.mcp_servers = servers
-    ctx.cfg.mcp.security_lockdown_enabled = False
     ctx.cfg.llm.llm_url = ""
     ctx.cfg.rag.embed_url = ""
     ctx.services_required.http = http
@@ -165,8 +164,9 @@ class TestFailureHandlingPolicy:
         with pytest.raises(RuntimeError, match="mcp:github"):
             await check_readiness(ctx)
 
-    async def test_lockdown_does_not_suppress_production_failure(self) -> None:
-        """ADR-004 INV-07/INV-10: no suppression flag downgrades a posture failure."""
+    async def test_shell_sandbox_backend_failure_raises(self) -> None:
+        """ADR-004 INV-01/INV-02: a shell server whose sandbox backend check FAILED aborts
+        startup. No configuration knob exists that could downgrade it."""
         ctx = _ctx(
             {"shell": _server("shell")},
             {
@@ -176,7 +176,6 @@ class TestFailureHandlingPolicy:
                 )
             },
         )
-        ctx.cfg.mcp.security_lockdown_enabled = True
         with pytest.raises(RuntimeError, match="mcp:shell"):
             await check_readiness(ctx)
 
@@ -203,13 +202,12 @@ class TestFailureHandlingPolicy:
         assert "mcp:shell" not in message
         assert "mcp:github" not in message
 
-    async def test_lockdown_mode_validates_required_configs(self) -> None:
+    async def test_missing_required_check_is_rejected(self) -> None:
         """ADR-004 INV-07/INV-10: a posture missing a required check is rejected, not accepted."""
         ctx = _ctx(
             {"shell": _server("shell")},
             {"shell": _posture("shell", drop=("server.command_allowlist",))},
         )
-        ctx.cfg.mcp.security_lockdown_enabled = True
         with pytest.raises(RuntimeError, match="check_set_mismatch"):
             await check_readiness(ctx)
 

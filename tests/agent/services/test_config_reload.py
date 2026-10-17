@@ -820,7 +820,7 @@ class TestRegistryFieldClassification:
             for entry in CONFIG_FIELD_REGISTRY.values()
             if entry.section_path == "mcp"
         ]
-        expected = {"security_profile", "security_lockdown_enabled"}
+        expected = {"security_profile"}
         assert set(mcp_fields) == expected
 
     def test_all_registry_entries_have_validators_or_none(self) -> None:

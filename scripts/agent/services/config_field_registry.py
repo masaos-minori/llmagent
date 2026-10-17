@@ -98,7 +98,6 @@ _CONFIG_ENTRIES: list[ConfigFieldRegistry] = [
     ConfigFieldRegistry("memory_embed_enabled", "memory", False),
     # MCP section
     ConfigFieldRegistry("security_profile", "mcp", True),
-    ConfigFieldRegistry("security_lockdown_enabled", "mcp", True),
 ]
 
 CONFIG_FIELD_REGISTRY: dict[str, ConfigFieldRegistry] = {

@@ -35,7 +35,6 @@ def _cfg(**overrides: Any) -> AgentConfig:
         "approval_github_allowed_repos": [],
         "allowed_root": "",
         "security_profile": "production",
-        "security_lockdown_enabled": False,
         "memory_local_only": True,
         "memory_embed_enabled": False,
         "mcp_servers": {

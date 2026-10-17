@@ -398,9 +398,6 @@ def _assemble_agent_config(
     security_profile_val: SecurityProfile,
 ) -> AgentConfig:
     """Assemble AgentConfig by delegating to builder functions."""
-    security_lockdown_enabled = _get_or_default(
-        cfg, "security_lockdown_enabled", _get_bool, False
-    )
     otel_enabled = _get_or_default(cfg, "otel_enabled", _get_bool, False)
     structured_log = _get_or_default(cfg, "structured_log", _get_bool, False)
     return AgentConfig(
@@ -411,7 +408,6 @@ def _assemble_agent_config(
         mcp=MCPConfig(
             mcp_servers=_build_mcp_servers(cfg),
             security_profile=security_profile_val,
-            security_lockdown_enabled=security_lockdown_enabled,
         ),
         approval=_build_approval_config(cfg),
         obs=ObservabilityConfig(
