@@ -89,8 +89,10 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # Raised to 26592 for the write-classification note, test entry and reference (2026-10-13).
     "adr_02_003_runtime-tool-registry-routing-authority.md": 26592,
     # ADR-004 grew by the audit Owner assignment and the spawn-failure Exceptions
-    # section (2026-10-13); the ceiling equals the size reached.
-    "adr_02_004_environment-failure-handling-policy.md": 31037,
+    # section (2026-10-13), the security-posture Decision and Automated Tests rows
+    # (2026-10-17), and the by-phase failure-class verification evidence (2026-10-17);
+    # the ceiling equals the size reached.
+    "adr_02_004_environment-failure-handling-policy.md": 32280,
     "adr_02_008_sqlite-4db-separation.md": 33647,
     # ADR-006 grew past MAX_SIZE by the EVENTBUS-008 resolution follow-up (2026-10-14):
     # the empty-mapping gap was resolved to deny-all and the superuser residual deviation
