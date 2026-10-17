@@ -31,26 +31,26 @@ related:
 | `path_denylist` (github-mcp) | Fail-open (no blocking by default) | All paths allowed |
 | `protected_branches` (github-mcp) | Fail-open (no blocking by default) | All branches allowed |
 
-### Startup Audit
+### Startup Security Validation
 
-`agent/services/security_audit.py::audit_security_defaults()` runs at agent startup and logs a summary of the security posture. It reads each server's config file and checks the following:
+Each MCP server validates its own security settings when its process starts and publishes the result as the `security` block of its `/health` response (see [mcp_02_02_startup-modes-and-health.md](./mcp_02_02_startup-modes-and-health.md)). The Agent reads that block during startup readiness and MCP tool discovery; a `failed` check blocks Agent startup whatever the server's `required` classification says (see [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md)). There is no Agent-side audit pass over server config files.
 
-| Setting | Server Config File | Check Details |
-|---|---|---|
-| `shell_sandbox_backend` | `shell_mcp_server.toml` | RuntimeError if `"firejail"` + binary missing; WARNING if not `"firejail"` or `"none"`; RuntimeError regardless of environment if `"none"` |
-| `command_allowlist` | `shell_mcp_server.toml` | DENY-ALL warning if empty (fail-closed) |
-| `allowed_repo_paths` | `git_mcp_server.toml` | DENY-ALL warning if empty (fail-closed) |
-| `workflow_allowlist` | `cicd_mcp_server.toml` | DENY-ALL warning at both agent and server layers if empty (see [mcp_05_01_access-control-and-allowlists.md](./mcp_05_01_access-control-and-allowlists.md)) |
+| Setting | Server | Check id | Result when the setting is unsafe |
+|---|---|---|---|
+| `shell_sandbox_backend` | shell-mcp | `server.sandbox_backend` | `failed` when the backend is not `"firejail"` |
+| `shell_sandbox_backend` | shell-mcp | `server.sandbox_binary` | `failed` when `"firejail"` is configured but the binary is missing; `not_applicable` when the backend itself was rejected |
+| `command_allowlist` | shell-mcp | `server.command_allowlist` | `failed` when empty |
+| `allowed_repo_paths` | git-mcp | `server.repo_allowlist` | `failed` when empty |
+| `allowed_repo_paths` | git-mcp | `server.repo_allowlist_resolvable` | `failed` when a configured root does not resolve inside the allowlist; `not_applicable` when the allowlist is empty |
+| `repo_allowlist` | cicd-mcp | `server.repo_allowlist` | `failed` when empty |
+| `workflow_allowlist` | cicd-mcp | `server.workflow_allowlist` | `failed` when empty |
+| `workflow_allowlist` | cicd-mcp | `server.workflow_pattern_valid` | `failed` when a configured pattern contains a path separator; `not_applicable` when the allowlist is empty |
+| `path_denylist` | github-mcp | `server.path_denylist` | `not_applicable` when empty (fail-open setting; never `failed`) |
+| `protected_branches` | github-mcp | `server.protected_branches` | `not_applicable` when empty (fail-open setting; never `failed`) |
 
-Warnings for empty allowlists use the following format: `DENY-ALL detected: {setting} is empty. {server} will reject ALL requests from this category. Verify this is intentional or add allowed values to config.`
+An empty capability-gating allowlist is a posture failure, not a warning: the server refuses to bind its HTTP port and the Agent refuses to start. Fail-open settings are reported as `not_applicable` instead of being omitted, so a missing restriction is visible in the posture rather than silently absent.
 
-At the end of the checks, the following summary line is logged:
-
-``` text
-Security posture summary — fail-closed (deny when empty): <list>; fail-open (allow when empty): <list>
-```
-
-An empty fail-closed setting is an intended safe default (access is denied). An empty fail-open setting is highlighted as a warning because it allows unrestricted access.
+Runtime denial is enforced independently by each server, so a running server keeps its fail-closed behavior for whatever its allowlists permit. An empty fail-closed setting is an intended safe default (access is denied); an empty fail-open setting allows unrestricted access and is now surfaced as `not_applicable` in the posture.
 
 ---
 

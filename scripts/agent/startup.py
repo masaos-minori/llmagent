@@ -42,7 +42,8 @@ class StartupOrchestrator:
     """Runs the full agent startup sequence before the REPL input loop begins.
 
     Handles: component init, MCP server spawning, service health checks,
-    security audit, tool definition validation, and initial system prompt setup.
+    startup validation (readiness and Security Posture), tool definition
+    validation, and initial system prompt setup.
     """
 
     def __init__(
@@ -104,7 +105,7 @@ class StartupOrchestrator:
         await self._mcp_starter.verify_health()
 
     async def _check_services(self) -> None:
-        """Probe LLM/Embed health, validate tool definitions, and audit security defaults."""
+        """Probe LLM/Embed health, validate MCP readiness and Security Posture, validate tool definitions."""
         pipeline = await self._validation_pipeline.check_services()
         self._display_pipeline_results(pipeline)
         self._report_readiness(pipeline)

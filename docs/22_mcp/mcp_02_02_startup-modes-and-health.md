@@ -48,9 +48,41 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 
 **`details`**: Server-specific supplementary information (e.g., `sandbox_backend`, `service`). Empty dict if not applicable.
 
+**`security`**: Security Posture block. Every MCP server validates its own security settings at startup and publishes the result here, so the key is present in all 10 server responses. `ready` requires `security.validated` in addition to an empty `dependencies` dict (Explicit in code). The block carries exactly these keys:
+
+| Key | Meaning |
+|---|---|
+| `contract_version` | Version of the posture contract the block conforms to |
+| `server_key` | Server key the posture belongs to; matches the `[mcp_servers.<key>]` section |
+| `policy_version` | Version of that server's own check policy |
+| `validated` | `true` when no check reported `failed` |
+| `ready` | Mirrors `validated`; a posture is never ready without validation |
+| `fingerprint` | 64-character lowercase hex digest over the server's non-secret security settings (scalars and counts only) |
+| `checks` | Ordered list of that server's checks; each entry carries `id`, `status`, `reason_code`, `message` |
+
+`status` is one of `ok`, `warning`, `failed`, `not_applicable`. Only `failed` blocks `validated`. `warning` is reported and the server still binds. `not_applicable` means the check does not apply to that server and is never treated as a failure. Check messages carry setting names and counts, never secrets, allowlist entries, or absolute paths.
+
+`security` block as published by shell-mcp (the `checks` list is server-specific):
+
+```json
+"security": {
+  "contract_version": "1",
+  "server_key": "shell",
+  "policy_version": "1",
+  "validated": true,
+  "ready": true,
+  "fingerprint": "<64 lowercase hex characters>",
+  "checks": [
+    {"id": "server.sandbox_backend", "status": "ok", "reason_code": "ok", "message": "sandbox backend is firejail"}
+  ]
+}
+```
+
+The Agent reads this block during startup readiness and MCP tool discovery. A `failed` check blocks Agent startup regardless of the server's `required` classification; see [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md). A server whose posture is not validated refuses to bind its HTTP port.
+
 **HTTP Status Codes**:
 - `200` if `status="ok"` and `ready=true` (fully healthy)
-- `503` if `status="degraded"` or `ready=false` (dependency failure)
+- `503` if `status="degraded"` or `ready=false` (dependency failure, or a security posture that did not validate)
 
 **Dependency Values**: Any non-empty dependency value (`"not configured"`, `"not_set"`, `"check failed"`, etc.) constitutes a degraded state — a server is not healthy until all dependencies are satisfied. These values are not just informational; they always indicate an actual missing or failed dependency.
 
@@ -61,7 +93,7 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 
 There is no automatic restart of MCP servers. For manual recovery procedures, see [mcp_06_07_mcp-failure-diagnosis.md](mcp_06_07_mcp-failure-diagnosis.md).
 
-**Healthy Response Example**:
+**Healthy Response Example** (the `security` block is detailed above and is present in every server response):
 ```json
 {
   "status": "ok",
@@ -70,7 +102,8 @@ There is no automatic restart of MCP servers. For manual recovery procedures, se
   "restart_recommended": false,
   "operator_action_required": false,
   "dependencies": {},
-  "details": {}
+  "details": {},
+  "security": { "contract_version": "1", "server_key": "shell", "policy_version": "1", "validated": true, "ready": true, "fingerprint": "<64 hex>", "checks": [ ... ] }
 }
 ```
 
@@ -85,7 +118,8 @@ There is no automatic restart of MCP servers. For manual recovery procedures, se
   "dependencies": {
     "github_token": "not_set"
   },
-  "details": {}
+  "details": {},
+  "security": { "contract_version": "1", "server_key": "github", "policy_version": "1", "validated": true, "ready": true, "fingerprint": "<64 hex>", "checks": [ ... ] }
 }
 ```
 
