@@ -9,7 +9,8 @@ Extracted from orchestrator.py (_process_turn).
 
 from __future__ import annotations
 
-from collections.abc import Callable
+import inspect
+from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING, Any
 
 from shared.llm_exceptions import LLMTransportError
@@ -39,7 +40,7 @@ class LlmTurnExecutor:
         diagnostic_store: DiagnosticStore | None = None,
         tracer: Any = None,
         on_error: Callable[[Exception], None] | None = None,
-        on_llm_wait_start: Callable[[str], None] | None = None,
+        on_llm_wait_start: Callable[[str], Awaitable[None] | None] | None = None,
         on_llm_wait_end: Callable[[], None] | None = None,
     ) -> None:
         """Initialize the LLM turn executor."""
@@ -57,10 +58,12 @@ class LlmTurnExecutor:
         if self._on_llm_wait_end:
             self._on_llm_wait_end()
 
-    def call_on_llm_wait_start(self, msg: str = "Thinking") -> None:
-        """Invoke on_llm_wait_start if configured."""
+    async def call_on_llm_wait_start(self, msg: str = "Thinking") -> None:
+        """Invoke on_llm_wait_start if configured, awaiting it if it is async."""
         if self._on_llm_wait_start:
-            self._on_llm_wait_start(msg)
+            result = self._on_llm_wait_start(msg)
+            if inspect.isawaitable(result):
+                await result
 
     def call_on_error(self, exc: Exception) -> None:
         """Invoke on_error with exc if configured."""
@@ -84,7 +87,7 @@ class LlmTurnExecutor:
             tracer=self._tracer,
         )
         try:
-            self.call_on_llm_wait_start()
+            await self.call_on_llm_wait_start()
             result = await runner.run(
                 llm_url,
                 workflow_id=workflow_id,
