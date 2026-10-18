@@ -75,18 +75,19 @@ def _classify_error(e: Exception) -> DbCondition:
 
     Uses sqlite_errorcode where available (Python 3.14+), falling back to
     substring matching for conditions not covered by error codes.
-    Priority: lock/permission via error code > INVALID_FORMAT via message >
+    Priority: INVALID_FORMAT via message > lock/permission via error code >
     CORRUPTION > UNKNOWN.
 
-    An OperationalError is classified only by `_classify_operational_error`. It is a
-    DatabaseError subclass, but the INVALID_FORMAT/CORRUPTION branch below is not
-    consulted for it, matching the original elif chain.
+    The INVALID_FORMAT signal is checked for every sqlite3 error, OperationalError
+    included: SQLite raises an OperationalError when it reads the header of a file
+    that is not a database, and classifying that as UNKNOWN would hide the reason
+    the file cannot be opened.
     """
+    if isinstance(e, (sqlite3.Error, ValueError)) and _INVALID_FORMAT_SIGNAL in str(e):
+        return DbCondition.INVALID_FORMAT
     if isinstance(e, sqlite3.OperationalError):
         return _classify_operational_error(e)
     if isinstance(e, (sqlite3.DatabaseError, ValueError)):
-        if _INVALID_FORMAT_SIGNAL in str(e):
-            return DbCondition.INVALID_FORMAT
         return DbCondition.CORRUPTION
     return DbCondition.UNKNOWN
 
@@ -329,7 +330,15 @@ def _backup_is_usable(backup: Path, target: str) -> tuple[str | None, str]:
         logger.error("Backup is also corrupt: %s", err)
         return "bad_backup", err
 
-    domain_ok, domain_error = _verify_domain_identity(backup, target)
+    try:
+        domain_ok, domain_error = _verify_domain_identity(backup, target)
+    except sqlite3.Error as e:
+        # The check opens the backup, so a sqlite3.Error here means the backup cannot
+        # be read. recover_corruption() wraps only OSError, and that try block starts
+        # after this check, so an uncaught sqlite3.Error would escape to the caller
+        # instead of reporting a failed recovery.
+        logger.error("Backup domain-identity check failed: %s", e)
+        return "bad_backup", f"domain-identity check failed: {e}"
     if not domain_ok:
         err = domain_error or f"backup failed domain-identity check for target={target}"
         logger.error("Backup belongs to a different persistence domain: %s", err)

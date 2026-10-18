@@ -306,20 +306,12 @@ def check_rag_consistency(
 
 
 def is_consistent(report: RagConsistencyReport) -> bool:
-    """Return True when all consistency checks pass."""
-    consistent: bool = (
-        report.fts_gap == 0
-        and report.fts_orphan_count == 0
-        and report.orphan_vec_count == 0
-        and report.vec == report.chunks
-        and report.documents_without_chunks_count == 0
-        and report.chunks_without_vec_count == 0
-        and report.duplicate_chunk_index_count == 0
-        and not report.url_level_mismatches
-        and not report.diagnostic_errors
-        and report.read_smoke_test_ok
-    )
-    return consistent
+    """Return True when every rule in the `_CHECKS` group is clean.
+
+    `_CHECKS` is defined below with the issue builders: it is the one place each
+    consistency condition is stated, and `summarize_issues()` reads the same rules.
+    """
+    return all(check.clean(report) for check in _CHECKS)
 
 
 _FTS_ORPHAN_NO_IDS_CLAUSE = (
@@ -361,10 +353,8 @@ def _urls_clause(
     return f" Affected URLs: [{rendered}{marker}]."
 
 
-def _fts_gap_issue(report: RagConsistencyReport) -> str | None:
+def _fts_gap_issue(report: RagConsistencyReport) -> str:
     """FTS rows are missing for chunks that are in the chunk table."""
-    if report.fts_gap <= 0:
-        return None
     detail = _ids_clause(
         report.affected_doc_ids, "doc_ids", limit=10, mark_at=10
     ) or _ids_clause(report.affected_chunk_ids, "chunk_ids", limit=10, mark_at=10)
@@ -374,10 +364,8 @@ def _fts_gap_issue(report: RagConsistencyReport) -> str | None:
     )
 
 
-def _fts_orphan_issue(report: RagConsistencyReport) -> str | None:
+def _fts_orphan_issue(report: RagConsistencyReport) -> str:
     """The FTS index holds more entries than the chunk table, which indicates data loss."""
-    if report.fts_orphan_count <= 0:
-        return None
     detail = (
         _ids_clause(report.affected_orphan_chunk_ids, "chunk_ids", limit=10, mark_at=10)
         or _urls_clause(report.affected_orphan_urls, limit=5, mark_at=10)
@@ -390,10 +378,8 @@ def _fts_orphan_issue(report: RagConsistencyReport) -> str | None:
     )
 
 
-def _orphan_vec_issue(report: RagConsistencyReport) -> str | None:
+def _orphan_vec_issue(report: RagConsistencyReport) -> str:
     """chunks_vec holds rows whose chunk_id has no chunk row."""
-    if report.orphan_vec_count <= 0:
-        return None
     detail = _urls_clause(
         report.affected_orphan_urls, limit=5, mark_at=10
     ) or _ids_clause(
@@ -405,10 +391,8 @@ def _orphan_vec_issue(report: RagConsistencyReport) -> str | None:
     )
 
 
-def _vector_mismatch_issue(report: RagConsistencyReport) -> str | None:
+def _vector_mismatch_issue(report: RagConsistencyReport) -> str:
     """chunks_vec and chunks hold a different number of rows."""
-    if report.vec == report.chunks:
-        return None
     detail = _urls_clause(
         report.affected_orphan_urls, limit=5, mark_at=10
     ) or _ids_clause(
@@ -420,10 +404,8 @@ def _vector_mismatch_issue(report: RagConsistencyReport) -> str | None:
     )
 
 
-def _documents_without_chunks_issue(report: RagConsistencyReport) -> str | None:
+def _documents_without_chunks_issue(report: RagConsistencyReport) -> str:
     """A document row has no chunk rows."""
-    if report.documents_without_chunks_count <= 0:
-        return None
     detail = _ids_clause(
         report.affected_docs_without_chunks, "doc_ids", limit=10, mark_at=None
     )
@@ -433,10 +415,8 @@ def _documents_without_chunks_issue(report: RagConsistencyReport) -> str | None:
     )
 
 
-def _chunks_without_vec_issue(report: RagConsistencyReport) -> str | None:
+def _chunks_without_vec_issue(report: RagConsistencyReport) -> str:
     """A chunk row has no vector row."""
-    if report.chunks_without_vec_count <= 0:
-        return None
     detail = _ids_clause(
         report.affected_chunks_without_vec, "chunk_ids", limit=10, mark_at=None
     )
@@ -446,10 +426,8 @@ def _chunks_without_vec_issue(report: RagConsistencyReport) -> str | None:
     )
 
 
-def _duplicate_chunk_index_issue(report: RagConsistencyReport) -> str | None:
+def _duplicate_chunk_index_issue(report: RagConsistencyReport) -> str:
     """The same (doc_id, chunk_index) pair appears more than once."""
-    if report.duplicate_chunk_index_count <= 0:
-        return None
     pairs = report.affected_duplicate_chunk_indices
     detail = (
         f" Affected (doc_id, chunk_index): [{', '.join(f'({d},{c})' for d, c in pairs[:10])}]."
@@ -462,34 +440,67 @@ def _duplicate_chunk_index_issue(report: RagConsistencyReport) -> str | None:
     )
 
 
-def _url_mismatch_issue(report: RagConsistencyReport) -> str | None:
+def _url_mismatch_issue(report: RagConsistencyReport) -> str:
     """At least one URL has a different number of chunk, vec, and fts rows."""
-    if not report.url_level_mismatches:
-        return None
-    detail = _urls_clause(report.url_level_mismatches, limit=5, mark_at=5)
+    mismatches = report.url_level_mismatches or {}
+    detail = _urls_clause(mismatches, limit=5, mark_at=5)
     return (
-        f"[WARNING] URL-level inconsistency detected (mismatched URLs={len(report.url_level_mismatches)}).{detail}"
+        f"[WARNING] URL-level inconsistency detected (mismatched URLs={len(mismatches)}).{detail}"
         f" Re-run ingestion for affected URLs."
     )
 
 
-_ISSUE_BUILDERS: tuple[Callable[[RagConsistencyReport], str | None], ...] = (
-    _fts_gap_issue,
-    _fts_orphan_issue,
-    _orphan_vec_issue,
-    _vector_mismatch_issue,
-    _documents_without_chunks_issue,
-    _chunks_without_vec_issue,
-    _duplicate_chunk_index_issue,
-    _url_mismatch_issue,
+@dataclasses.dataclass(frozen=True)
+class _ConsistencyCheck:
+    """One consistency rule: the predicate that says it is clean, and its message.
+
+    `is_consistent()` and `summarize_issues()` both iterate `_CHECKS`, so each rule is
+    stated once. An issue builder runs only when its own predicate reports the rule
+    unclean, which is why the builders no longer guard their own conditions.
+    `issue` is None for the two rules whose state the caller already reads from the
+    report fields and that have no repair guidance to add.
+    """
+
+    clean: Callable[[RagConsistencyReport], bool]
+    issue: Callable[[RagConsistencyReport], str] | None = None
+
+
+_CHECKS: tuple[_ConsistencyCheck, ...] = (
+    _ConsistencyCheck(lambda report: report.fts_gap == 0, _fts_gap_issue),
+    _ConsistencyCheck(lambda report: report.fts_orphan_count == 0, _fts_orphan_issue),
+    _ConsistencyCheck(lambda report: report.orphan_vec_count == 0, _orphan_vec_issue),
+    _ConsistencyCheck(
+        lambda report: report.vec == report.chunks, _vector_mismatch_issue
+    ),
+    _ConsistencyCheck(
+        lambda report: report.documents_without_chunks_count == 0,
+        _documents_without_chunks_issue,
+    ),
+    _ConsistencyCheck(
+        lambda report: report.chunks_without_vec_count == 0,
+        _chunks_without_vec_issue,
+    ),
+    _ConsistencyCheck(
+        lambda report: report.duplicate_chunk_index_count == 0,
+        _duplicate_chunk_index_issue,
+    ),
+    _ConsistencyCheck(
+        lambda report: not report.url_level_mismatches, _url_mismatch_issue
+    ),
+    _ConsistencyCheck(lambda report: not report.diagnostic_errors),
+    _ConsistencyCheck(lambda report: report.read_smoke_test_ok),
 )
 
 
 def summarize_issues(report: RagConsistencyReport) -> list[str]:
-    """Return severity-prefixed descriptions of consistency issues with repair guidance.
+    """Return severity-prefixed descriptions of the `_CHECKS` rules that are not clean.
 
-    Each builder in _ISSUE_BUILDERS returns one message or None, and the tuple order is
-    the order the repair guidance assumes: FTS first, then vector rows, then the
-    document-level checks, then the URL-level check.
+    The tuple order is the order the repair guidance assumes: FTS first, then vector
+    rows, then the document-level checks, then the URL-level check.
     """
-    return [issue for issue in (build(report) for build in _ISSUE_BUILDERS) if issue]
+    issues: list[str] = []
+    for check in _CHECKS:
+        if check.issue is None or check.clean(report):
+            continue
+        issues.append(check.issue(report))
+    return issues

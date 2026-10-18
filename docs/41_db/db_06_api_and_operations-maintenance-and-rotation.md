@@ -79,15 +79,15 @@ with SQLiteHelper('rag').open() as db:
 
 `check_rag_consistency(db, embed_failed=0) -> RagConsistencyReport`: A read-only report containing chunk/FTS/vec row counts and orphan detection. Note that `embed_failed` (the number of embedding failures known by the caller) is passed in but not detected by this function itself.
 
-`is_consistent(report) -> bool`: Returns `True` if there are no orphans and the FTS gap is zero.
+`is_consistent(report) -> bool`: Returns `True` when every rule in the module's `_CHECKS` group is clean: `fts_gap == 0`, `fts_orphan_count == 0`, `orphan_vec_count == 0`, `vec == chunks`, `documents_without_chunks_count == 0`, `chunks_without_vec_count == 0`, `duplicate_chunk_index_count == 0`, no `url_level_mismatches`, no `diagnostic_errors`, and `read_smoke_test_ok`.
 
-`summarize_issues(report) -> list[str]`: Provides human-readable issue descriptions.
+`summarize_issues(report) -> list[str]`: Provides human-readable issue descriptions for the `_CHECKS` rules that are not clean, in tuple order.
 
 **RagConsistencyReport (frozen dataclass):**
 Contains `chunks` (int), `fts` (int), `vec` (int), `orphan_vec_count` (int), `fts_gap` (int: `chunks - fts`; positive means missing FTS entries), `fts_orphan_count` (int: `fts - chunks`; positive means extra FTS entries/data loss risk), `embed_failed` (int=0, caller-supplied), `issues` (tuple[str,...], populated by `summarize_issues(report)`), and optional diagnostic identifiers: `affected_chunk_ids` (up to 10 chunk IDs missing from FTS), `affected_doc_ids` (up to 10 doc IDs whose chunks are missing from FTS), and `affected_orphan_chunk_ids`/`affected_orphan_urls` (up to 10 items for orphaned vector rows).
 
 **Implementation Details:**
-- `is_consistent` condition: `fts_gap == 0 and fts_orphan_count == 0 and orphan_vec_count == 0 and vec == chunks`.
+- The rules are one `_CHECKS` tuple of `(clean predicate, issue builder)` pairs. `is_consistent` requires every predicate to hold; `summarize_issues` renders the builder of each predicate that does not. `diagnostic_errors` and `read_smoke_test_ok` are the two rules with no builder, so they make a report inconsistent without adding an issue string.
 - `check_rag_consistency` automatically calls `summarize_issues(report)` and populates the `issues` field in the report.
 - Diagnostic identifier lists (`affected_*`) are only populated when `fts_gap > 0` or `orphan_vec_count > 0`.
 

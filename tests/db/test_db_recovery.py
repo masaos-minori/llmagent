@@ -179,6 +179,32 @@ def test_recover_wrong_domain_backup_distinct_action(mock_db_cfg, mock_sqlite_he
         assert result.action not in ("no_backup", "bad_backup")
 
 
+def test_recover_backup_with_unreadable_sqlite_master(mock_db_cfg, mock_sqlite_helper):
+    """A backup whose sqlite_master cannot be read reports a failed recovery, not an exception.
+
+    `_verify_domain_identity()` opens the backup, and `recover_corruption()`'s OSError
+    handler starts after that check, so the sqlite3.Error has to be reported as a
+    failed backup instead of escaping to the caller.
+    """
+    with (
+        patch("db.recovery._run_integrity_check") as mock_integrity,
+        patch(
+            "db.recovery._verify_domain_identity",
+            side_effect=sqlite3.DatabaseError("file is not a database"),
+        ),
+        patch("pathlib.Path.exists", return_value=True),
+    ):
+        mock_integrity.side_effect = [
+            (DbCondition.CORRUPTION, "corruption error"),  # current DB
+            (DbCondition.HEALTHY, None),  # backup
+        ]
+        result = recover_corruption(backup_path="/tmp/backup.db", target="session")
+
+    assert result.success is False
+    assert result.action == "bad_backup"
+    assert "domain-identity check failed" in (result.detail or "")
+
+
 def test_recover_wrong_domain_backup_leaves_db_untouched(
     mock_db_cfg, mock_sqlite_helper
 ):
@@ -852,10 +878,10 @@ class TestClassifyErrorBranchBoundaries:
         e.sqlite_errorcode = 0
         assert _classify_error(e) == DbCondition.UNKNOWN
 
-    def test_operational_error_never_reaches_the_invalid_format_branch(self) -> None:
-        """The OperationalError branch wins, so the DatabaseError signal is not consulted."""
+    def test_operational_error_with_the_signal_is_invalid_format(self) -> None:
+        """The INVALID_FORMAT signal is checked before the OperationalError branch."""
         e = _sqlite3.OperationalError("file is not a database")
-        assert _classify_error(e) == DbCondition.UNKNOWN
+        assert _classify_error(e) == DbCondition.INVALID_FORMAT
 
     def test_plain_database_error_with_the_signal_is_invalid_format(self) -> None:
         e = _sqlite3.DatabaseError("file is not a database")
