@@ -261,14 +261,11 @@ class TestSignalHandling:
             patch.object(os, "killpg", side_effect=ProcessLookupError),
         ):
             with patch.object(
-                type(manager), "_wait_exited", new=AsyncMock(return_value=True)
+                manager._process_terminator,
+                "terminate_with_timeout",
+                side_effect=track_terminate,
             ):
-                with patch.object(
-                    manager._process_terminator,
-                    "terminate_with_timeout",
-                    side_effect=track_terminate,
-                ):
-                    await manager.shutdown_all()
+                await manager.shutdown_all()
 
         assert "test" in terminate_keys
 
@@ -496,11 +493,8 @@ class TestSubprocessLifecycle:
             patch.object(os, "getpgid", return_value=8888),
             patch.object(asyncio, "sleep", return_value=None),
         ):
-            with patch.object(
-                type(mgr), "_wait_exited", new=AsyncMock(return_value=False)
-            ):
-                with pytest.raises(HttpStartupError):
-                    await mgr.restart("test", _make_cfg())
+            with pytest.raises(HttpStartupError):
+                await mgr.restart("test", _make_cfg())
 
         assert mgr._stderr_files.get("test") is None
         assert mgr._stderr_log_manager.get_log_path("test") is None
@@ -823,14 +817,11 @@ class TestShutdownSequence:
             patch.object(asyncio, "sleep", return_value=None),
         ):
             with patch.object(
-                type(mgr), "_wait_exited", new=AsyncMock(return_value=True)
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                side_effect=track_terminate,
             ):
-                with patch.object(
-                    mgr._process_terminator,
-                    "terminate_with_timeout",
-                    side_effect=track_terminate,
-                ):
-                    await mgr.shutdown_all()
+                await mgr.shutdown_all()
 
         assert len(terminate_keys) == 3
         assert terminate_keys[0] != terminate_keys[1]

@@ -432,7 +432,7 @@ class TestStartHttpSubprocess:
 
         with (
             patch(
-                "agent.http_lifecycle.shutil.which",
+                "agent.http_lifecycle_command_validator.shutil.which",
                 return_value="/usr/bin/nonexistent_cmd",
             ),
             patch("agent.http_lifecycle.os.path.isfile", return_value=False),
@@ -447,8 +447,9 @@ class TestStartHttpSubprocess:
         mgr = _ServerLifecycleRouter({"s": cfg}, ex)
 
         mock_proc = _make_mock_proc()
-        # After terminate() is called, poll() should return exit code 1
-        # so _wait_exited resolves immediately without blocking for timeout
+        # After terminate() is called, poll() should return exit code 1. The mock's
+        # pid is not an int, so ProcessTerminator resolves no pgid and takes its
+        # no-pgid fallback path instead of a killpg wait.
         mock_proc.poll.side_effect = lambda: 1 if mock_proc.terminate.called else None
 
         with (
@@ -998,9 +999,9 @@ class TestProcessGroupShutdown:
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
-        # Still running until SIGTERM has been sent, then reports exited — this
-        # lets _wait_exited's first poll (right after SIGTERM) return True
-        # immediately, without waiting out the real timeout.
+        # Still running until SIGTERM has been recorded, then reports exited.
+        # ProcessTerminator's wait loop probes os.killpg(pgid, 0), which this
+        # stub never reports as gone, so the loop runs the given timeout out.
         proc.poll = MagicMock(side_effect=lambda: 0 if killed else None)
         mgr._http_pgids["srv"] = 42
 
@@ -1048,10 +1049,9 @@ class TestProcessGroupShutdown:
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=55)
-        # Stays "running" through the first _wait_exited call (forcing SIGTERM's
-        # wait to time out and escalate to SIGKILL), then reports exited as soon
-        # as SIGKILL has actually been sent — a small real timeout means the
-        # forced elapse of the first deadline costs only tens of milliseconds.
+        # Reports exited only once SIGKILL has been sent. The killpg probe never
+        # raises ProcessLookupError here, so the SIGTERM deadline must elapse for
+        # the terminator to escalate; timeout=0.05 keeps that cost tens of ms.
         proc.poll = MagicMock(
             side_effect=lambda: (
                 0 if any(sig == _signal.SIGKILL for _, sig in killed) else None
@@ -1091,7 +1091,7 @@ class TestProcessGroupShutdown:
         proc.poll = MagicMock(return_value=None)  # never exits
         mgr._http_pgids["srv"] = 77
 
-        # Small real timeouts so this test costs ~tens of ms, not the 3.0s production default.
+        # Small real timeouts so this test costs ~tens of ms, not the 5.0s production default.
         await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=0.02)
 
         assert (77, _signal.SIGTERM) in killed
@@ -1146,9 +1146,10 @@ class TestProcessGroupShutdown:
 
         mock_proc = _make_mock_proc(exit_code=None)
         mock_proc.pid = 12345
-        # Still running until killpg has been invoked (start()'s cleanup path),
-        # then reports exited — avoids _wait_exited genuinely waiting out the
-        # full 3.0s default timeout twice (SIGTERM + SIGKILL) in this test.
+        # Still running until killpg has been invoked (the poll-timeout cleanup
+        # path), then reports exited. The terminator's killpg probe never raises
+        # ProcessLookupError with this stub, so its wait loop runs the terminate
+        # timeout out before escalating to SIGKILL.
         mock_proc.poll = MagicMock(
             side_effect=lambda: 0 if killpg_mock.called else None
         )

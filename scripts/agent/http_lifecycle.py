@@ -5,38 +5,38 @@ HTTP subprocess MCP server lifecycle: start, health-poll, restart, shutdown.
 Extracted from lifecycle.py. _ServerLifecycleRouter in lifecycle_router.py delegates
 to HttpServerLifecycleManager for all HTTP subprocess operations.
 
-Refactored: HttpServerLifecycleManager is a true composition facade delegating
-all concern-specific work to six modules with zero pure-delegation wrappers:
+Refactored: HttpServerLifecycleManager is a composition facade that delegates
+concern-specific work to five modules:
 - CommandValidator: command allowlist and symlink resolution checks
 - StderrLogManager: stderr log file creation, appending, and tail retrieval
 - ProcessTerminator: graceful and forced process termination
-- HealthChecker: HTTP health check polling
-- ProcessSnapshotProvider: process info snapshots
+- HealthChecker: HTTP health check polling, including the startup readiness poll loop
 - ShutdownCoordinator: coordinated shutdown of all managed processes
 
+Two methods delegate with arguments rather than forwarding the call unchanged:
+shutdown_all passes the manager to ShutdownCoordinator, and
+_health_poll_until_ready passes the manager and this module's poll timings to
+HealthChecker.poll_until_ready.
+
 Custom logic retained in this class:
-- _wait_exited: asyncio-aware proc.poll() polling loop with timeout
 - MCPSERVER_HEALTH_TIMEOUT: global constant for httpx.AsyncClient timeout
+- process info snapshots: _build_snapshot and the snapshot accessors
 """
 
 from __future__ import annotations
 
 import asyncio
-import json
 import logging
 import os
-import shutil  # noqa: F401 — kept for tests patching agent.http_lifecycle.shutil.which (shared module object also used by CommandValidator)
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
 from collections.abc import Iterator
 from dataclasses import asdict
-from http import HTTPStatus
 from typing import IO, Any, NoReturn, cast
 
 import httpx
 from shared.mcp_config import McpServerConfig
 
-from agent.secrets_masker import _mask_secrets
 from agent.services.models import ProcessInfoSnapshot
 
 from .http_lifecycle_command_validator import CommandValidator
@@ -49,10 +49,8 @@ from .http_lifecycle_stderr_log_manager import StderrLogManager
 logger = logging.getLogger(__name__)
 
 MCPSERVER_HEALTH_TIMEOUT: float = 5.0
-_TERMINATE_POLL_INTERVAL_SEC: float = 0.05
 HEALTH_POLL_INTERVAL_SEC: float = 0.5
 TERMINATE_TIMEOUT_SEC: float = 5.0
-RESTART_TERMINATE_TIMEOUT_SEC: float = 3.0
 
 
 class HttpServerLifecycleManager:
@@ -90,22 +88,6 @@ class HttpServerLifecycleManager:
         self._http_pgids: dict[str, int] = {}
         self._stderr_files: dict[str, IO[bytes]] = {}
         self._last_health_check: dict[str, float] = {}
-
-    async def _wait_exited(self, proc: subprocess.Popen[bytes], timeout: float) -> bool:
-        """Poll proc.poll() (non-blocking) until it exits or timeout elapses.
-
-        Deliberately avoids asyncio.to_thread: wrapping a blocking proc.wait() in a
-        thread cannot be cancelled once asyncio.wait_for's timeout fires, so a
-        process stuck in an uninterruptible (D) state leaves a live, non-daemon
-        ThreadPoolExecutor worker that CPython's interpreter-shutdown atexit hook
-        (concurrent.futures.thread._python_exit) then blocks on indefinitely.
-        """
-        deadline = time.monotonic() + timeout
-        while proc.poll() is None:
-            if time.monotonic() >= deadline:
-                return False
-            await asyncio.sleep(_TERMINATE_POLL_INTERVAL_SEC)
-        return True
 
     def verify_running(self, server_key: str) -> bool:
         """Return True if the HTTP subprocess server is running, False if missing or exited."""
@@ -240,27 +222,6 @@ class HttpServerLifecycleManager:
         """
         yield from self._http_procs.items()
 
-    async def _interruptible_poll_sleep(
-        self, delay: float, shutdown_event: asyncio.Event | None
-    ) -> bool:
-        """Sleep for `delay` seconds, racing against `shutdown_event`.
-
-        Returns True iff the shutdown event fired before `delay` elapsed (caller
-        should abort the health-poll loop); returns False if the full delay
-        elapsed normally or no `shutdown_event` was configured.
-        """
-        if shutdown_event is None:
-            await asyncio.sleep(delay)
-            return False
-        sleep_task = asyncio.ensure_future(asyncio.sleep(delay))
-        shutdown_task = asyncio.ensure_future(shutdown_event.wait())
-        done, pending = await asyncio.wait(
-            {sleep_task, shutdown_task}, return_when=asyncio.FIRST_COMPLETED
-        )
-        for task in pending:
-            task.cancel()
-        return shutdown_task in done
-
     async def _create_and_validate_proc(
         self,
         server_key: str,
@@ -390,25 +351,6 @@ class HttpServerLifecycleManager:
             )
         )
 
-    async def _is_degraded_but_live(self, resp: httpx.Response) -> bool:
-        """Return True iff a non-200 /health response is degraded-but-live.
-
-        Mirrors McpServerStartupStarter.verify_health: a 503 with a JSON body
-        whose `liveness` flag is true means the server started but an optional
-        dependency (e.g. GITHUB_TOKEN) is unavailable. Such a server is alive
-        and must count as ready at startup rather than abort it. The spawn and
-        post-startup phases must agree on what "live" means.
-        """
-        if resp.status_code != HTTPStatus(503):
-            return False
-        if "application/json" not in resp.headers.get("content-type", ""):
-            return False
-        try:
-            body = resp.json()
-        except (json.JSONDecodeError, httpx.DecodingError):
-            return False
-        return bool(body.get("liveness", False))
-
     async def _health_poll_until_ready(
         self,
         server_key: str,
@@ -417,16 +359,10 @@ class HttpServerLifecycleManager:
         deadline: float,
         shutdown_event: asyncio.Event | None,
     ) -> None:
-        """Poll /health endpoint until the server becomes healthy or timeout expires.
+        """Delegate the /health readiness poll loop to HealthChecker.poll_until_ready.
 
-        Polls the health endpoint in a loop, checking for early exit and shutdown
-        events between polls. Raises HttpStartupError on early exit, shutdown,
-        or timeout.
-
-        Note: A new AsyncClient is created per call site (not reused across calls).
-        This prioritizes correctness — no leaked connections on failure paths —
-        over connection pooling benefits, which are marginal for short-lived
-        health checks against localhost.
+        Supplies this module's poll timings so the health checker does not import
+        them from http_lifecycle.py.
 
         Args:
             server_key: Server identifier key.
@@ -438,58 +374,17 @@ class HttpServerLifecycleManager:
         Raises:
             HttpStartupError: On early exit, shutdown, or timeout.
         """
-        health_url = cfg.url.rstrip("/") + "/health"
-        hc_timeout = self._health_checker.compute_health_check_timeout(
-            cfg.startup_timeout_sec, MCPSERVER_HEALTH_TIMEOUT
+        await self._health_checker.poll_until_ready(
+            self,
+            server_key,
+            cfg,
+            proc,
+            deadline,
+            shutdown_event,
+            poll_interval_sec=HEALTH_POLL_INTERVAL_SEC,
+            request_timeout_sec=MCPSERVER_HEALTH_TIMEOUT,
+            terminate_timeout_sec=TERMINATE_TIMEOUT_SEC,
         )
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(timeout=hc_timeout), headers=cfg.auth_headers()
-        ) as client:
-            while time.monotonic() < deadline:
-                if proc.poll() is not None:
-                    stderr_full = self._cleanup_server_resources(server_key)
-                    logger.error(
-                        "Lifecycle: %r exited early; stderr (%s chars): %s",
-                        server_key,
-                        len(stderr_full),
-                        _mask_secrets(stderr_full[:500]),
-                    )
-                    self._raise_startup_failure(server_key, "exited early", stderr_full)
-                try:
-                    resp = await client.get(health_url)
-                    if resp.status_code == HTTPStatus.OK:
-                        self._mark_health_checked(server_key)
-                        logger.info(
-                            "Lifecycle: HTTP subprocess %r ready",
-                            server_key,
-                        )
-                        return
-                    if await self._is_degraded_but_live(resp):
-                        self._mark_health_checked(server_key)
-                        logger.info(
-                            "Lifecycle: HTTP subprocess %r ready (degraded but live)",
-                            server_key,
-                        )
-                        return
-                except (httpx.HTTPError, OSError) as e:
-                    logger.info("Lifecycle: health-check poll %r: %s", server_key, e)
-                if await self._interruptible_poll_sleep(
-                    HEALTH_POLL_INTERVAL_SEC, shutdown_event
-                ):
-                    stderr_full = self._cleanup_server_resources(server_key)
-                    self._raise_startup_failure(
-                        server_key, "shutdown requested", stderr_full
-                    )
-
-            stderr_full = self._cleanup_server_resources(server_key)
-            await self._process_terminator.terminate_with_timeout(
-                proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
-            )
-            self._raise_startup_failure(
-                server_key,
-                f"did not become healthy within {cfg.startup_timeout_sec}s",
-                stderr_full,
-            )
 
     async def start(
         self,

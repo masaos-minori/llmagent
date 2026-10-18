@@ -1,7 +1,8 @@
 """Regression tests for HTTP health-poll client lifecycle.
 
-Covers the documented intentional behavior of
-``HttpServerLifecycleManager._health_poll_until_ready()`` in
+Covers the documented intentional behavior of the readiness poll loop
+``HealthChecker.poll_until_ready()`` in ``scripts/agent/http_lifecycle_health_checker.py``,
+reached through ``HttpServerLifecycleManager._health_poll_until_ready()`` in
 ``scripts/agent/http_lifecycle.py``:
 
 - REQ-002: the ``httpx.AsyncClient`` context is always exited, so no connection
@@ -25,8 +26,10 @@ from types import TracebackType
 from unittest.mock import AsyncMock, Mock, patch
 
 import agent.http_lifecycle as hl_module
+import agent.http_lifecycle_health_checker as hc_module
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager, HttpStartupError
+from agent.http_lifecycle_health_checker import HealthChecker
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from starlette.requests import Request
 
@@ -86,7 +89,7 @@ class TestHealthPollClientLifecycle:
             return client
 
         with (
-            patch.object(hl_module.httpx, "AsyncClient", side_effect=_factory),
+            patch.object(hc_module.httpx, "AsyncClient", side_effect=_factory),
             patch.object(mgr, "_cleanup_server_resources", return_value=""),
             patch.object(
                 mgr._process_terminator,
@@ -119,7 +122,7 @@ class TestHealthPollClientLifecycle:
             instantiated.append(client)
             return client
 
-        with patch.object(hl_module.httpx, "AsyncClient", side_effect=_factory):
+        with patch.object(hc_module.httpx, "AsyncClient", side_effect=_factory):
             with (
                 patch.object(mgr, "_cleanup_server_resources", return_value=""),
                 patch.object(
@@ -254,7 +257,7 @@ class TestStartupPollWithDistinctServerToken:
         cfg = _make_cfg(auth_token="main-secret")
         proc = Mock(pid=1234, poll=Mock(return_value=None))
         with (
-            patch.object(hl_module.httpx, "AsyncClient", _asgi_client_factory(app)),
+            patch.object(hc_module.httpx, "AsyncClient", _asgi_client_factory(app)),
             patch.object(hl_module, "HEALTH_POLL_INTERVAL_SEC", 0.01),
             patch.object(mgr, "_cleanup_server_resources", return_value=""),
             patch.object(
@@ -283,7 +286,7 @@ class TestStartupPollWithDistinctServerToken:
         cfg = _make_cfg(auth_token="main-secret")
         proc = Mock(pid=1234, poll=Mock(return_value=None))
         with (
-            patch.object(hl_module.httpx, "AsyncClient", _asgi_client_factory(app)),
+            patch.object(hc_module.httpx, "AsyncClient", _asgi_client_factory(app)),
             patch.object(hl_module, "HEALTH_POLL_INTERVAL_SEC", 0.01),
         ):
             await mgr._health_poll_until_ready(
@@ -369,47 +372,43 @@ class TestHealthPollDegradedTolerance:
                 "srv", cfg, proc, deadline=time.monotonic() + 0.05, shutdown_event=None
             )
 
-    @pytest.mark.asyncio
-    async def test_is_degraded_but_live_branches(self) -> None:
+    def test_is_degraded_but_live_branches(self) -> None:
         """Unit-cover every branch of the degraded-detection helper."""
         import httpx
-        from agent.http_lifecycle import HttpServerLifecycleManager
-
-        mgr = HttpServerLifecycleManager()
 
         ok = httpx.Response(200, json={"liveness": True})
-        assert await mgr._is_degraded_but_live(ok) is False
+        assert HealthChecker.is_degraded_but_live(ok) is False
 
         server_error = httpx.Response(500, json={"liveness": True})
-        assert await mgr._is_degraded_but_live(server_error) is False
+        assert HealthChecker.is_degraded_but_live(server_error) is False
 
         non_json = httpx.Response(
             503, headers={"content-type": "text/plain"}, text="unavailable"
         )
-        assert await mgr._is_degraded_but_live(non_json) is False
+        assert HealthChecker.is_degraded_but_live(non_json) is False
 
         no_flag = httpx.Response(
             503,
             headers={"content-type": "application/json"},
             json={"status": "degraded"},
         )
-        assert await mgr._is_degraded_but_live(no_flag) is False
+        assert HealthChecker.is_degraded_but_live(no_flag) is False
 
         dead = httpx.Response(
             503,
             headers={"content-type": "application/json"},
             json={"liveness": False},
         )
-        assert await mgr._is_degraded_but_live(dead) is False
+        assert HealthChecker.is_degraded_but_live(dead) is False
 
         broken = httpx.Response(
             503, headers={"content-type": "application/json"}, content=b"{nope"
         )
-        assert await mgr._is_degraded_but_live(broken) is False
+        assert HealthChecker.is_degraded_but_live(broken) is False
 
         live = httpx.Response(
             503,
             headers={"content-type": "application/json"},
             json={"liveness": True},
         )
-        assert await mgr._is_degraded_but_live(live) is True
+        assert HealthChecker.is_degraded_but_live(live) is True

@@ -1,7 +1,7 @@
 import logging
 import os
 import subprocess
-from unittest.mock import AsyncMock, Mock, patch
+from unittest.mock import Mock, patch
 
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager
@@ -32,12 +32,9 @@ async def test_terminate_warning_when_no_pgid():
     logger.setLevel(logging.WARNING)
 
     try:
-        with (
-            patch.object(mgr, "_wait_exited", new=AsyncMock(return_value=True)),
-        ):
-            await mgr._process_terminator.terminate_with_timeout(
-                proc_mock, "test-server", timeout=1.0
-            )
+        await mgr._process_terminator.terminate_with_timeout(
+            proc_mock, "test-server", timeout=1.0
+        )
 
         assert any(
             "terminated, but children may remain" in w for w in captured_warnings
@@ -67,7 +64,6 @@ async def test_terminate_warning_when_killpg_fails():
 
     try:
         with (
-            patch.object(mgr, "_wait_exited", new=AsyncMock(return_value=True)),
             patch.object(mgr, "_http_pgids", {"test-server": 1234}),
             patch.object(os, "killpg", side_effect=OSError("No such process")),
         ):
@@ -104,7 +100,6 @@ async def test_terminate_warning_integration_simulation():
     try:
         # Simulate scenario where pgid is unavailable, leading to proc.terminate()
         with (
-            patch.object(mgr, "_wait_exited", new=AsyncMock(return_value=True)),
             patch.object(os, "killpg", side_effect=OSError("Permission denied")),
         ):
             await mgr._process_terminator.terminate_with_timeout(
