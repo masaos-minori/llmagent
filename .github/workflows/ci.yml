@@ -33,6 +33,8 @@ jobs:
         run: uv run python tools/check_db_separation.py
       - name: Generated reference docs drift check
         run: uv run python tools/generate_reference_table.py --check
+      - name: Module docstring format check
+        run: uv run python tools/check_docstrings.py
       - name: Pre-commit
         run: uv run pre-commit run --all-files
 

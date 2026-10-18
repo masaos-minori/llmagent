@@ -179,7 +179,7 @@ Status updates and queries:
 
 | File | Description |
 |---|---|
-| `check_docstrings.py` | Validates the docstring format of Python files under `scripts/`. Checks that an em-dash (U+2014) is present and that the form `scripts/<path> — description` is valid. It does **not** add or fix docstrings. Violations that predate the check are listed in `tools/check_docstrings_baseline.txt` (`<relpath>`, tab, issue kind): only new violations fail, and a baseline entry whose violation is gone is reported as stale and also fails. `--update-baseline` regenerates the file; `--no-baseline` reports everything; `--baseline PATH` selects another file. Runs as the pre-commit hook `check-docstrings` when `scripts/**/*.py`, this tool, or its baseline changes |
+| `check_docstrings.py` | Validates the docstring format of Python files under `scripts/`. Checks that an em-dash (U+2014) is present and that the form `scripts/<path> — description` is valid. It does **not** add or fix docstrings. Violations that predate the check are listed in `tools/check_docstrings_baseline.txt` (`<relpath>`, tab, issue kind): only new violations fail, and a baseline entry whose violation is gone is reported as stale and also fails. `--update-baseline` regenerates the file; `--no-baseline` reports everything; `--baseline PATH` selects another file. Runs as the pre-commit hook `check-docstrings` when `scripts/**/*.py`, this tool, or its baseline changes, and as a step of the CI `lint` job |
 
 ### Limitations of docstring-editing scripts
 
