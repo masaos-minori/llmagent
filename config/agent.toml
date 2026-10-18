@@ -146,7 +146,6 @@ allowed_tools = [
   "delete_directory",
   "shell_run",
   "search_web",
-  "browser_fetch",
   "github_search_repositories",
   "github_search_code",
   "github_get_file_contents",
@@ -378,7 +377,7 @@ url              = "http://127.0.0.1:8004"
 startup_mode     = "subprocess"
 auth_token       = "${ENV:MCP_WEB_SEARCH_AUTH_TOKEN}"
 role             = "search"
-tool_names       = ["search_web", "browser_fetch"]
+tool_names       = ["search_web"]
 cmd              = ["/opt/llm/bin/mcp_web_search"]
 
 [mcp_servers.file_delete]
@@ -1555,25 +1554,6 @@ description = "リポジトリのスラッグ (owner/repo 形式)"
 [tool_definitions.function.parameters.properties.run_id]
 type        = "integer"
 description = "ワークフロー実行 ID (get_workflow_runs の出力から取得)"
-
-[[tool_definitions]]
-type = "function"
-
-[tool_definitions.function]
-name        = "browser_fetch"
-description = "指定した URL のページを取得し、可視テキストを抽出して返す(読み取り専用; JavaScript は実行しない; クリック・フォーム入力・ナビゲーション等の対話操作は行わない)。アクセス可能なドメインは allowlist 設定による。"
-
-[tool_definitions.function.parameters]
-type     = "object"
-required = ["url"]
-
-[tool_definitions.function.parameters.properties.url]
-type        = "string"
-description = "取得する絶対 URL (http/https のみ; ホストは allowlist 設定が必要)"
-
-[tool_definitions.function.parameters.properties.max_response_kb]
-type        = "integer"
-description = "レスポンステキストのサイズ上限 (KB)。サーバ設定の上限値でクランプされる。"
 
 [[tool_definitions]]
 type = "function"
