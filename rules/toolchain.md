@@ -65,7 +65,8 @@ ast-grep --pattern 'except: $$$' --lang python scripts/
 ### 5. Security scan (bandit)
 
 ```bash
-uv run bandit -r scripts/ -c pyproject.toml
+uv run bandit -r scripts/ -c pyproject.toml -ll      # CI gate: medium severity and above
+uv run bandit -r scripts/ -c pyproject.toml         # include low severity (informational)
 uv run bandit -r scripts/ -l -ii            # high severity only
 uv run bandit scripts/<file>.py             # single-file scan
 ```
@@ -110,7 +111,7 @@ continuing to patch beyond that bound.
 
 - `uv run ruff check scripts/` passes with no errors
 - `uv run mypy --no-namespace-packages scripts/` passes (no new regressions vs pre-existing errors)
-- `uv run bandit -r scripts/ -c pyproject.toml` passes (no high/medium unaddressed)
+- `uv run bandit -r scripts/ -c pyproject.toml -ll` passes (no high/medium unaddressed)
 - `PYTHONPATH=scripts uv run lint-imports` passes (no architecture boundary violations)
 - `uv run pytest` passes with no new failures
 - `uv run pytest tests/mcp_servers/mdq/test_mdq_rag_boundary.py` passes (MDQ/RAG boundary clean)

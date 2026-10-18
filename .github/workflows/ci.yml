@@ -26,7 +26,7 @@ jobs:
       - name: Type check
         run: uv run mypy --no-namespace-packages scripts/
       - name: Security scan
-        run: uv run bandit -r scripts/ -c pyproject.toml
+        run: uv run bandit -r scripts/ -c pyproject.toml -ll
       - name: Architecture check
         run: PYTHONPATH=scripts uv run lint-imports
       - name: SQLite 4DB separation check

@@ -67,7 +67,7 @@ def nack_event(
     try:
         # Check if event exists and is not DLQ'd
         existing = conn.execute(
-            f"SELECT {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",
+            f"SELECT {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
             (event_id,),
         ).fetchone()
         if not existing:
@@ -87,7 +87,7 @@ def nack_event(
 
             # NACK idempotency: skip if same consumer already NACKed this attempt
             last_attempt = conn.execute(
-                f"SELECT {_COL_CONSUMER_LAST_NACK_ATTEMPT} FROM consumer_delivery "
+                f"SELECT {_COL_CONSUMER_LAST_NACK_ATTEMPT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
                 f"WHERE consumer_id = ? AND event_id = ?",
                 (consumer_id, event_id),
             ).fetchone()
@@ -97,14 +97,14 @@ def nack_event(
             ):
                 # Idempotent: return current counts without incrementing
                 consumer_row = conn.execute(
-                    f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "
+                    f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
                     f"WHERE consumer_id = ? AND event_id = ?",
                     (consumer_id, event_id),
                 ).fetchone()
                 if consumer_row:
                     # Read delivery_failure_count from events table (existing[_COL_DLQ_AT] is None here)
                     row = conn.execute(
-                        f"SELECT {_COL_DELIVERY_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",
+                        f"SELECT {_COL_DELIVERY_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
                         (event_id,),
                     ).fetchone()
                     dfc = int(row[_COL_DELIVERY_FAILURE_COUNT]) if row else -1
@@ -119,7 +119,7 @@ def nack_event(
         # Update consumer_delivery table if consumer_id is provided
         if consumer_id is not None:
             conn.execute(
-                f"INSERT INTO consumer_delivery (consumer_id, event_id, {_COL_CONSUMER_DELIVERY_FAILURE_COUNT}, {_COL_CONSUMER_LAST_NACK_ATTEMPT}) "
+                f"INSERT INTO consumer_delivery (consumer_id, event_id, {_COL_CONSUMER_DELIVERY_FAILURE_COUNT}, {_COL_CONSUMER_LAST_NACK_ATTEMPT}) "  # nosec B608 — column names are module-level constants, values parameterized
                 f"VALUES (?, ?, 1, ?) "
                 f"ON CONFLICT(consumer_id, event_id) DO UPDATE SET "
                 f"{_COL_CONSUMER_DELIVERY_FAILURE_COUNT} = {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} + 1, "
@@ -131,7 +131,7 @@ def nack_event(
 
         # Read back the counts
         row = conn.execute(
-            f"SELECT {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",
+            f"SELECT {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
             (event_id,),
         ).fetchone()
         if row:
@@ -142,7 +142,7 @@ def nack_event(
             # Include per-consumer failure count when consumer_id was provided
             if consumer_id is not None:
                 consumer_row = conn.execute(
-                    f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "
+                    f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
                     f"WHERE consumer_id = ? AND event_id = ?",
                     (consumer_id, event_id),
                 ).fetchone()
@@ -195,7 +195,7 @@ def ack_event_for_consumer(
         # REQ-005: Verify event existence BEFORE writing consumer_delivery
         # This prevents orphan rows in consumer_delivery for nonexistent events
         event_exists = conn.execute(
-            f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",
+            f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
             (event_id,),
         ).fetchone()
         if not event_exists:
@@ -203,7 +203,7 @@ def ack_event_for_consumer(
 
         # REQ-005: Reject ACK for DLQ events
         dlq_row = conn.execute(
-            f"SELECT {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",
+            f"SELECT {_COL_DLQ_AT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
             (event_id,),
         ).fetchone()
         if dlq_row and dlq_row[_COL_DLQ_AT] is not None:

@@ -100,7 +100,7 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
         event_id = row["event_id"]
         # Get the per-consumer failure count for this event (max across consumers)
         consumer_row = db.execute(
-            f"SELECT MAX({_COL_CONSUMER_DELIVERY_FAILURE_COUNT}) FROM consumer_delivery "
+            f"SELECT MAX({_COL_CONSUMER_DELIVERY_FAILURE_COUNT}) FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
             f"WHERE event_id = ?",
             (event_id,),
         ).fetchone()
