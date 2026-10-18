@@ -119,6 +119,33 @@ ENTRIES=(
 
 # ── 事前チェック ──────────────────────────────────────────────────────────────
 command -v uv >/dev/null 2>&1 || { echo "[FATAL] uv not found. Install uv first." >&2; exit 1; }
+
+# Nuitka は Python.h (開発ヘッダ) を持つ Python を要求する。uv が選ぶ Python がシステムの
+# python3.13 でヘッダ無し (libpython3.13-dev 未導入) の場合、nuitka は exit 1 で終了し、
+# 後段で「nuitka not available」と誤認される。uv 管理の Python (ヘッダ同梱) へ切り替える。
+# UV_PYTHON 明示時はそれを尊重する。切替時は .venv を再作成させないため
+# UV_PROJECT_ENVIRONMENT もビルド専用 venv に向ける (明示済みならそれを尊重)。
+_py_has_headers() {
+    "$1" -c 'import os, sys, sysconfig; sys.exit(0 if os.path.exists(os.path.join(sysconfig.get_paths()["include"], "Python.h")) else 1)' 2>/dev/null
+}
+if [[ -z "${UV_PYTHON:-}" ]]; then
+    _default_py="$(uv python find 2>/dev/null || true)"
+    if [[ -n "${_default_py}" ]] && ! _py_has_headers "${_default_py}"; then
+        for _cand in "$(uv python dir 2>/dev/null)"/cpython-3.1[3-9]*/bin/python3.*; do
+            if [[ -x "${_cand}" ]] && _py_has_headers "${_cand}"; then
+                export UV_PYTHON="${_cand}"
+                export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-${XDG_CACHE_HOME:-${HOME}/.cache}/llmagent-build-venv}"
+                echo "[INFO] ${_default_py} has no Python.h; using uv-managed ${UV_PYTHON} (venv: ${UV_PROJECT_ENVIRONMENT})." >&2
+                break
+            fi
+        done
+        if [[ -z "${UV_PYTHON:-}" ]]; then
+            echo "[WARN] ${_default_py} has no Python.h and no uv-managed Python with headers was found." >&2
+            echo "       Install libpython3.13-dev, or run 'uv python install 3.13'." >&2
+        fi
+    fi
+fi
+
 # nuitka の実コマンドを解決する。既定 (NUTKA_PRIMARY_CMD) が解決できなければ
 # `uv run --with nuitka` で都度解決する (nuitka が pyproject 依存ではないため)。
 if "${NUTKA_PRIMARY_CMD[@]}" --version >/dev/null 2>&1; then
@@ -126,6 +153,8 @@ if "${NUTKA_PRIMARY_CMD[@]}" --version >/dev/null 2>&1; then
 elif "${NUTKA_FALLBACK_CMD[@]}" --version >/dev/null 2>&1; then
     NUTKA_CMD=( "${NUTKA_FALLBACK_CMD[@]}" )
 else
+    echo "[INFO] fallback nuitka output (cause of failure):" >&2
+    "${NUTKA_FALLBACK_CMD[@]}" --version 2>&1 | head -5 >&2 || true
     echo "[FATAL] nuitka not available (tried: '${NUTKA_PRIMARY_CMD[*]}' and '${NUTKA_FALLBACK_CMD[*]}')." >&2
     exit 1
 fi
