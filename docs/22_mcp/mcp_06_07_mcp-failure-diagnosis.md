@@ -66,7 +66,7 @@ See also: Two-stage tool resolution (LLM visibility vs runtime routability)
 When a tool call arrives via the internal dispatch path:
 
 ```python
-# In agent/factory.py _ServerLifecycleRouter.ensure_ready():
+# In agent/lifecycle_router.py _ServerLifecycleRouter.ensure_ready():
 if _shutting_down: return immediately          # shutdown guard
 cfg.transport != HTTP or cfg.startup_mode != SUBPROCESS: return immediately  # non-subprocess servers skip this check
 not http_mgr.verify_running(server_key):      # subprocess-mode, not running -> start!
@@ -82,7 +82,7 @@ In other words, even if a server repeatedly crashes, individual tool calls that 
 
 Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recovery of any kind — `ensure_ready()` returns immediately for them (`cfg.transport != TransportType.HTTP or cfg.startup_mode != StartupMode.SUBPROCESS`) — so recovery for a crashed persistent-mode server depends entirely on external process supervision (see [mcp_06_13_pre-production-fail-open-checklist.md](./mcp_06_13_pre-production-fail-open-checklist.md)'s restart-policy requirement). This explicitly contrasts with subprocess-mode's reactive-on-next-dispatch recovery described above.
 
-**Implementation Note (Explicit in code):** `ensure_ready()` is not in `shared/tool_executor.py`; it is implemented in the `_ServerLifecycleRouter` class in `agent/factory.py`. Actual subprocess startup/shutdown is delegated to `HttpServerLifecycleManager` in `agent/http_lifecycle.py`. `ToolExecutor` only calls this router via `LifecycleProtocol` (`shared/tool_lifecycle.py`) and does not hold the startup logic itself.
+**Implementation Note (Explicit in code):** `ensure_ready()` is not in `shared/tool_executor.py`; it is implemented in the `_ServerLifecycleRouter` class in `agent/lifecycle_router.py`. Actual subprocess startup/shutdown is delegated to `HttpServerLifecycleManager` in `agent/http_lifecycle.py`. `ToolExecutor` only calls this router via `LifecycleProtocol` (`shared/tool_lifecycle.py`) and does not hold the startup logic itself.
 
 ---
 

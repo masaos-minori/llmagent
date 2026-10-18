@@ -1,6 +1,6 @@
 """
 tests/test_agent_factory.py
-Unit tests for agent/factory.py:
+Unit tests for agent/factory.py and the lifecycle router (agent/lifecycle_router.py):
   - build_agent_context: ctx.services.* にすべてのサービスが注入されること
   - init_tracer: build_tracer を正しく呼ぶこと
   - use_memory_layer フラグによる MemoryServices の有無
@@ -15,13 +15,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.factory import (
-    _logger,
-    _ServerLifecycleRouter,
-    _SubprocessLifecycleManager,
     build_agent_context,
     init_tracer,
 )
 from agent.lifecycle import LifecycleState
+from agent.lifecycle_router import (
+    _logger,
+    _ServerLifecycleRouter,
+    _SubprocessLifecycleManager,
+)
 from shared.mcp_config import (
     McpServerConfig,
     StartupMode,
@@ -93,7 +95,7 @@ _FACTORY_PATCHES = [
     "agent.factory.LLMClient",
     "agent.factory.ToolExecutor",
     "agent.factory._ServerLifecycleRouter",
-    "agent.factory._SubprocessLifecycleManager",
+    "agent.lifecycle_router._SubprocessLifecycleManager",
     "agent.factory.HistoryManager",
     "agent.factory.build_tracer",
 ]
@@ -381,7 +383,7 @@ class TestShutdownGuard:
     ) -> None:
         router, _ = _make_router()
         await router.shutdown_all()
-        with caplog.at_level(logging.WARNING, logger="agent.factory"):
+        with caplog.at_level(logging.WARNING, logger="agent.lifecycle_router"):
             await router.restart("srv")
         assert any("shutting down" in r.message for r in caplog.records)
         assert any(r.levelno == logging.WARNING for r in caplog.records)
@@ -590,3 +592,90 @@ class TestGetSubprocessServerConfigs:
         result = router.get_subprocess_server_configs()
         keys = {k for k, _ in result}
         assert keys == {"web", "shell"}
+
+
+# ── Path C migration characterization: guards, transitions, delegations ──────
+
+
+class TestRouterInvalidTransitionLogging:
+    """_set_state logs and still stores a transition rejected by the state machine."""
+
+    def test_set_state_logs_warning_and_stores_invalid_transition(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        router, _ = _make_router()
+        router._states["srv"] = LifecycleState.RUNNING
+
+        with caplog.at_level(logging.WARNING, logger="agent.lifecycle_router"):
+            router._set_state("srv", LifecycleState.RUNNING)
+
+        assert any("invalid state transition" in r.message for r in caplog.records)
+        assert router._states["srv"] == LifecycleState.RUNNING
+
+
+class TestRouterAppUnhealthyPath:
+    """ensure_ready() restarts an OS-alive but app-unhealthy subprocess server."""
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_restarts_when_os_alive_but_app_unhealthy(self) -> None:
+        router, mock_mgr = _make_router_with_mock_mgr(verify_running_result=True)
+        mock_mgr.verify_running_async = AsyncMock(return_value=False)
+
+        await router.ensure_ready("srv")
+
+        mock_mgr.restart.assert_awaited_once_with("srv", router._server_configs["srv"])
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_does_not_restart_when_app_healthy(self) -> None:
+        router, mock_mgr = _make_router_with_mock_mgr(verify_running_result=True)
+        mock_mgr.verify_running_async = AsyncMock(return_value=True)
+
+        await router.ensure_ready("srv")
+
+        mock_mgr.restart.assert_not_called()
+
+
+class TestRouterPostShutdownGuards:
+    """start_http_subprocess() and shutdown_idle() are inert once shutdown started."""
+
+    @pytest.mark.asyncio
+    async def test_start_http_subprocess_returns_none_after_shutdown_all(self) -> None:
+        router, subprocess_mgr = _make_router()
+        await router.shutdown_all()
+        cfg = router._server_configs["srv"]
+
+        result = await router.start_http_subprocess("srv", cfg)
+
+        assert result is None
+        subprocess_mgr._http_mgr.start.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_idle_after_shutdown_all_performs_no_extra_shutdown(
+        self,
+    ) -> None:
+        router, subprocess_mgr = _make_router()
+        await router.shutdown_all()
+
+        await router.shutdown_idle()
+
+        subprocess_mgr._http_mgr.shutdown_all.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_shutdown_idle_without_shutdown_all_is_noop(self) -> None:
+        router, subprocess_mgr = _make_router()
+
+        await router.shutdown_idle()
+
+        subprocess_mgr._http_mgr.shutdown_all.assert_not_called()
+
+
+class TestRouterCleanupDelegation:
+    """cleanup_server_resources() delegates through the subprocess manager."""
+
+    def test_cleanup_server_resources_delegates_to_http_manager(self) -> None:
+        router, subprocess_mgr = _make_router()
+        cleanup = MagicMock(return_value="cleaned srv")
+        subprocess_mgr._http_mgr._cleanup_server_resources = cleanup
+
+        assert router.cleanup_server_resources("srv") == "cleaned srv"
+        cleanup.assert_called_once_with("srv")

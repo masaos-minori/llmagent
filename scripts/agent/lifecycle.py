@@ -4,7 +4,7 @@
 LifecycleState enum shared by lifecycle managers and callers.
 
 ServerLifecycleManager facade has been removed — routing is now handled
-by _ServerLifecycleRouter in factory.py.
+by _ServerLifecycleRouter in lifecycle_router.py.
 """
 
 from __future__ import annotations

@@ -33,7 +33,7 @@ Describes the primary runtime components, their dependencies, and responsibility
 ### Responsibility Boundary Supplement
 
 - `AgentContext` and `Orchestrator` details → see the AgentContext and Orchestrator entries under Runtime Extension Points, Lifecycle and Shutdown below.
-- The runtime implementation of `AppServices.lifecycle` is defined in `agent/factory.py`; starting and stopping HTTP subprocesses is delegated to `agent/http_lifecycle.py`.
+- The runtime implementation of `AppServices.lifecycle` is `_ServerLifecycleRouter` in `agent/lifecycle_router.py` (constructed by `agent/factory.py`); starting and stopping HTTP subprocesses is delegated to `agent/http_lifecycle.py`.
 
 ## Key Constraints
 
@@ -215,7 +215,7 @@ Service checks accumulate results in `StartupValidationResult`, and startup is a
 
 #### Lifecycle Implementation Location
 
-`LifecycleManagerProtocol` defines `ensure_ready`/`shutdown_all`/`restart`/`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot` using structural subtyping. The production implementation is in `agent/factory.py`, where HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
+`LifecycleManagerProtocol` defines `ensure_ready`/`shutdown_all`/`restart`/`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot` using structural subtyping. The production implementation is `_ServerLifecycleRouter` and `_SubprocessLifecycleManager` in `agent/lifecycle_router.py` (constructed by `agent/factory.py`), where HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
 
 `ensure_ready`/`start_http_subprocess`/`restart` are guarded against being ignored once shutdown has started.
 

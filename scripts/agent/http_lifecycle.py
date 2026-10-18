@@ -2,7 +2,7 @@
 
 HTTP subprocess MCP server lifecycle: start, health-poll, restart, shutdown.
 
-Extracted from lifecycle.py. _ServerLifecycleRouter in factory.py delegates
+Extracted from lifecycle.py. _ServerLifecycleRouter in lifecycle_router.py delegates
 to HttpServerLifecycleManager for all HTTP subprocess operations.
 
 Refactored: HttpServerLifecycleManager is a true composition facade delegating

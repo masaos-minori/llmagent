@@ -23,7 +23,7 @@ related:
 
 These methods only perform `proc.poll()` or read cached states; they do not terminate or restart processes.
 
-`_ServerLifecycleRouter` (a facade in `factory.py`) exposes these three methods as thin delegations to `HttpServerLifecycleManager`. This allows callers like `McpStatusService` to access them via duck typing (`getattr(lifecycle, "get_process_snapshot", None)`) without directly accessing the internals of `_http_mgr`.
+`_ServerLifecycleRouter` (a facade in `agent/lifecycle_router.py`) exposes these three methods as thin delegations to `HttpServerLifecycleManager`. This allows callers like `McpStatusService` to access them via duck typing (`getattr(lifecycle, "get_process_snapshot", None)`) without directly accessing the internals of `_http_mgr`.
 
 ---
 

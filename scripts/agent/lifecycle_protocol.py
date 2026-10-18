@@ -23,8 +23,8 @@ from agent.lifecycle import LifecycleState
 class LifecycleManagerProtocol(Protocol):
     """Protocol for MCP server lifecycle managers.
 
-    _ServerLifecycleRouter in factory.py is the coordinator implementation.
-    _SubprocessLifecycleManager in factory.py is the subprocess operations implementation.
+    _ServerLifecycleRouter in lifecycle_router.py is the coordinator implementation.
+    _SubprocessLifecycleManager in lifecycle_router.py is the subprocess operations implementation.
     HttpServerLifecycleManager is the low-level subprocess manager they delegate to.
     """
 

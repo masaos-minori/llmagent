@@ -1,5 +1,5 @@
 """tests/test_lifecycle.py
-Unit tests for agent.factory _ServerLifecycleRouter and _SubprocessLifecycleManager.
+Unit tests for agent.lifecycle_router _ServerLifecycleRouter and _SubprocessLifecycleManager.
 """
 
 from __future__ import annotations
@@ -16,8 +16,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from agent import factory
-from agent.factory import _ServerLifecycleRouter, _SubprocessLifecycleManager
+from agent import lifecycle_router
 from agent.http_lifecycle import (
     HttpServerLifecycleManager,
     HttpStartupError,
@@ -25,6 +24,7 @@ from agent.http_lifecycle import (
 )
 from agent.http_lifecycle_stderr_log_manager import StderrLogManager
 from agent.lifecycle import LifecycleState, assert_valid_transition
+from agent.lifecycle_router import _ServerLifecycleRouter, _SubprocessLifecycleManager
 from agent.services.models import ProcessInfoSnapshot
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 from shared.tool_lifecycle import ServerCooldownError
@@ -1276,7 +1276,9 @@ class TestCooldownCharacterization:
 
     def test_expired_failure_is_not_in_cooldown_and_clears_entry(self) -> None:
         mgr = self._mgr()
-        mgr._failed_starts["s"] = time.monotonic() - (factory._COOLDOWN_SECONDS + 1.0)
+        mgr._failed_starts["s"] = time.monotonic() - (
+            lifecycle_router._COOLDOWN_SECONDS + 1.0
+        )
 
         assert mgr._in_cooldown("s") is False
         assert "s" not in mgr._failed_starts
@@ -1334,11 +1336,13 @@ class TestCooldownRemainingCharacterization:
 
         remaining = mgr._cooldown_remaining("s")
 
-        assert 0 < remaining <= factory._COOLDOWN_SECONDS
+        assert 0 < remaining <= lifecycle_router._COOLDOWN_SECONDS
 
     def test_expired_failure_returns_non_positive(self) -> None:
         mgr = self._mgr()
-        mgr._failed_starts["s"] = time.monotonic() - (factory._COOLDOWN_SECONDS + 1.0)
+        mgr._failed_starts["s"] = time.monotonic() - (
+            lifecycle_router._COOLDOWN_SECONDS + 1.0
+        )
 
         assert mgr._cooldown_remaining("s") < 0
 
@@ -1374,6 +1378,113 @@ class TestSubprocessManagerGuardAndDelegation:
         mgr._http_mgr.get_process_snapshot = MagicMock(return_value=expected)
 
         assert mgr.get_process_snapshot("s") is expected
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_starts_when_os_not_alive(self) -> None:
+        cfg = _http_subprocess_cfg()
+        mgr = _SubprocessLifecycleManager({"s": cfg}, _mock_tool_executor())
+        mgr._http_mgr.verify_running = MagicMock(return_value=False)
+        start = AsyncMock()
+        mgr._http_mgr.start = start
+
+        await mgr.ensure_ready("s")
+
+        start.assert_awaited_once_with("s", cfg)
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_restarts_when_os_alive_but_app_unhealthy(self) -> None:
+        cfg = _http_subprocess_cfg()
+        mgr = _SubprocessLifecycleManager({"s": cfg}, _mock_tool_executor())
+        mgr._http_mgr.verify_running = MagicMock(return_value=True)
+        mgr._http_mgr.verify_running_async = AsyncMock(return_value=False)
+        restart = AsyncMock()
+        mgr._http_mgr.restart = restart
+
+        await mgr.ensure_ready("s")
+
+        restart.assert_awaited_once_with("s", cfg)
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_does_nothing_when_os_alive_and_app_healthy(
+        self,
+    ) -> None:
+        cfg = _http_subprocess_cfg()
+        mgr = _SubprocessLifecycleManager({"s": cfg}, _mock_tool_executor())
+        mgr._http_mgr.verify_running = MagicMock(return_value=True)
+        mgr._http_mgr.verify_running_async = AsyncMock(return_value=True)
+        restart = AsyncMock()
+        mgr._http_mgr.restart = restart
+
+        await mgr.ensure_ready("s")
+
+        restart.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_restart_ignores_unknown_server_key(self) -> None:
+        mgr = _SubprocessLifecycleManager({}, _mock_tool_executor())
+        restart = AsyncMock()
+        mgr._http_mgr.restart = restart
+
+        await mgr.restart("missing")
+
+        restart.assert_not_awaited()
+
+    def test_get_transport_state_returns_unknown(self) -> None:
+        mgr = _SubprocessLifecycleManager(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+
+        assert mgr.get_transport_state("s") is LifecycleState.UNKNOWN
+
+    def test_cleanup_server_resources_delegates(self) -> None:
+        mgr = _SubprocessLifecycleManager(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+        cleanup = MagicMock(return_value="cleaned s")
+        mgr._http_mgr._cleanup_server_resources = cleanup
+
+        assert mgr.cleanup_server_resources("s") == "cleaned s"
+        cleanup.assert_called_once_with("s")
+
+    def test_get_process_info_delegates(self) -> None:
+        mgr = _SubprocessLifecycleManager(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+        expected = ProcessInfoSnapshot(
+            server_key="s",
+            managed=True,
+            pid=4242,
+            pgid=4242,
+            running=True,
+            last_exit_code=None,
+            stderr_log="",
+        )
+        info = MagicMock(return_value=expected)
+        mgr._http_mgr.get_process_info = info
+
+        assert mgr.get_process_info("s") is expected
+        info.assert_called_once_with("s")
+
+    def test_list_processes_delegates(self) -> None:
+        mgr = _SubprocessLifecycleManager(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+        expected = [
+            ProcessInfoSnapshot(
+                server_key="s",
+                managed=True,
+                pid=4242,
+                pgid=4242,
+                running=True,
+                last_exit_code=None,
+                stderr_log="",
+            )
+        ]
+        listing = MagicMock(return_value=expected)
+        mgr._http_mgr.list_processes = listing
+
+        assert mgr.list_processes() is expected
+        listing.assert_called_once_with()
 
 
 class TestRouterObservabilityDelegation:
