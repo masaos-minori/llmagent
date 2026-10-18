@@ -52,6 +52,13 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Sentinel source forced into the validation view during history restore.
+# Guaranteed absent from `TRUSTED_SOURCES`, so any ephemeral key on a restored
+# row fails `validate_message()` and is stripped by `_sanitize_message()`.
+# Restore data comes from session.sqlite, which a local actor may tamper with,
+# so every restored row is treated as untrusted regardless of its embedded source.
+_UNTRUSTED_RESTORE_SOURCE = "__restore_untrusted__"
+
 
 # ---------------------------------------------------------------------------
 # Sub-structures
@@ -170,11 +177,17 @@ class ConversationState:
     async def replace_history(
         self, msgs: list[LLMMessage], *, source: str = ""
     ) -> None:
-        """Clear history, then validate and append each message in *msgs*."""
+        """Clear history, then validate and append each message in *msgs*.
+
+        Every restored row is validated as untrusted: the per-message call forces
+        ``_UNTRUSTED_RESTORE_SOURCE`` so any ephemeral key embedded in a restored
+        row fails validation and is stripped by ``_sanitize_message()``, even when
+        the row carries a trusted embedded ``source``.
+        """
         async with self._ensure_lock:
             self.history = []
             for msg in msgs:
-                await self._append_message_locked(msg, source=source)
+                await self._append_message_locked(msg, source=_UNTRUSTED_RESTORE_SOURCE)
 
 
 @dataclass

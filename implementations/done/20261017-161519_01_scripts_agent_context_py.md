@@ -135,10 +135,10 @@ the doc update (separate row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route replace_history() through untrusted-source validation | Pending | — | — | approach (a) recommended |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: test file is a separate row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc is a separate row |
+| 1 | Route replace_history() through untrusted-source validation | Completed | 20261018-102329 | 20261018-102329 | approach (a) recommended |
+| 2 | Add or update tests per Validation plan | Completed | 20261018-102329 | 20261018-102329 | N/A: test file is a separate row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261018-102329 | 20261018-102329 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261018-102329 | 20261018-102329 | N/A: doc is a separate row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -73,6 +73,24 @@ class TestAppendMessage:
 
         assert conv.history == [{"role": "user", "content": "hello"}]
 
+    async def test_live_path_preserves_authorized_ephemeral_key_for_cmd_handler(
+        self,
+    ) -> None:
+        """REQ-002: the live-append path still authorizes ephemeral keys for a
+        trusted source — proving the restore fix did not break normal injection."""
+        conv = ConversationState()
+        msg: LLMMessage = {
+            "role": "user",
+            "content": "hello",
+            "_ephemeral": True,
+        }
+
+        await conv.append_message(msg, source="cmd_handler")
+
+        assert conv.history == [
+            {"role": "user", "content": "hello", "_ephemeral": True}
+        ]
+
     async def test_message_missing_content_after_sanitization_is_dropped(
         self, caplog
     ) -> None:
@@ -124,3 +142,32 @@ class TestReplaceHistory:
         await conv.replace_history([{"role": "user", "content": "new"}])
 
         assert conv.history == [{"role": "user", "content": "new"}]
+
+    async def test_tampered_row_strips_embedded_ephemeral_key(self) -> None:
+        """REQ-004: a restored row carrying a trusted embedded `source` plus a
+        reserved ephemeral key must not retain that key (fail closed on restore)."""
+        conv = ConversationState()
+        tampered: LLMMessage = {
+            "role": "user",
+            "content": "x",
+            "source": "cmd_handler",
+            "_ephemeral": True,
+        }
+
+        await conv.replace_history([tampered])
+
+        assert all("_ephemeral" not in m for m in conv.history)
+        assert conv.history == [{"role": "user", "content": "x"}]
+
+    async def test_well_formed_restored_row_preserved(self) -> None:
+        """REQ-003: a well-formed restored row without ephemeral keys is preserved
+        unchanged (backward compatible)."""
+        conv = ConversationState()
+        restored: list[LLMMessage] = [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "hello"},
+        ]
+
+        await conv.replace_history(restored)
+
+        assert conv.history == restored
