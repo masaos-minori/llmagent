@@ -21,9 +21,7 @@ from agent.tool_preparation import PreparedToolCall
 from agent.tool_runner import (
     _apply_turn_char_limit,
     _collect_tool_result_msgs,
-    _compute_serial_overhead,
     _emit_tool_result,
-    _estimate_parallel_time,
     _execute_with_dag,
     execute_all_tool_calls,
     execute_one_tool_call,
@@ -790,24 +788,6 @@ class TestRunApprovalGateEndToEnd:
 
         mock_prompt.assert_awaited_once()
         executor.execute.assert_awaited_once_with("write_file", {})
-
-
-class TestSerializationHelpers:
-    def test_estimate_parallel_time_empty(self) -> None:
-        assert _estimate_parallel_time({}) == 0.0
-
-    def test_estimate_parallel_time_sums_values(self) -> None:
-        assert _estimate_parallel_time({"a": 10.0, "b": 20.0}) == 30.0
-
-    def test_compute_serial_overhead_zero_parallel(self) -> None:
-        assert _compute_serial_overhead(100.0, 0.0) == 1.0
-
-    def test_compute_serial_overhead_ratio(self) -> None:
-        assert _compute_serial_overhead(30.0, 10.0) == 3.0
-
-    def test_compute_serial_overhead_rounds_to_two(self) -> None:
-        result = _compute_serial_overhead(10.0, 3.0)
-        assert result == round(10.0 / 3.0, 2)
 
 
 class TestApplyTurnCharLimit:

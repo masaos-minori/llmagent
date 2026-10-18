@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import sqlite3
 import time
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
@@ -60,20 +59,6 @@ def get_serialization_stats() -> dict[str, int]:
     return dict(_serialization_stats)
 
 
-def _estimate_parallel_time(tool_timings: dict[str, float]) -> float:
-    """Estimate parallel execution time as the sum of per-tool times (conservative lower bound)."""
-    if not tool_timings:
-        return 0.0
-    return sum(tool_timings.values())
-
-
-def _compute_serial_overhead(actual_ms: float, estimated_parallel_ms: float) -> float:
-    """Compute ratio of actual serial time to estimated parallel time."""
-    if estimated_parallel_ms <= 0:
-        return 1.0
-    return round(actual_ms / estimated_parallel_ms, 2)
-
-
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
@@ -120,11 +105,11 @@ async def _execute_prepared_call(
     """Execute one call through the gateway, or through *tools* when it is absent.
 
     Gateway-bypass safety justification:
-    When ctx.services_required.gateway is None, no tools are available
-    for execution in this context. The fallback to ctx.services_required.tools
-    is a no-op because tools.execute() will raise an error if no tools
-    are registered. This is intentional -- it prevents unauthorized tool
-    access while allowing the system to handle edge cases gracefully.
+    When ctx.services_required.gateway is None the call runs through *tools*
+    instead of the gateway. Policy enforcement is not lost: every non-READ
+    operation still passes check_preflight() before execution, and a tool name
+    that is not in the RuntimeToolRegistry raises ValueError in
+    ToolRouteResolver.resolve(), so an unregistered tool cannot execute.
     NOTE: In production, factory.py:652 creates RepositoryGateway unconditionally
     during AppServices construction, so this branch should never execute.
     """
@@ -557,7 +542,3 @@ def _build_denied_messages(
         )
         messages.append(("tool", denied_text, None, denied_id))
     return history_entries, messages
-
-
-# Expose sqlite3 in module scope so callers can catch the right exception type.
-_sqlite3_error = sqlite3.Error
