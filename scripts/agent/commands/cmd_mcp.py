@@ -167,7 +167,7 @@ class _McpMixin(MixinBase):
             McpServerHealthState.UNAVAILABLE,
             "Unavailable",
         )
-        from agent.tool_runner import get_serialization_stats
+        from agent.tool_run_recorder import get_serialization_stats
 
         stats = get_serialization_stats()
         if stats["total_events"] > 0:

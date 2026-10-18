@@ -18,6 +18,7 @@ from agent.repository_gateway import RepositoryGateway
 from agent.tool_exceptions import ToolExecutorUnavailableError
 from agent.tool_policy import PolicyViolationError
 from agent.tool_preparation import PreparedToolCall
+from agent.tool_run_recorder import get_serialization_stats
 from agent.tool_runner import (
     _apply_turn_char_limit,
     _collect_tool_result_msgs,
@@ -25,7 +26,6 @@ from agent.tool_runner import (
     _execute_with_dag,
     execute_all_tool_calls,
     execute_one_tool_call,
-    get_serialization_stats,
 )
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
@@ -1332,7 +1332,7 @@ class TestDagBucketDebugLines:
             spec=ToolSpec(call_id="call_r", name="read_text_file", is_write=False),
         )
 
-        with caplog.at_level(logging.DEBUG, logger="agent.tool_runner"):
+        with caplog.at_level(logging.DEBUG, logger="agent.tool_run_recorder"):
             await _execute_with_dag(
                 ctx, [serial_pc, scoped_pc, unscoped_write_pc, parallel_pc]
             )
@@ -1356,7 +1356,7 @@ class TestDagBucketDebugLines:
             spec=ToolSpec(call_id="call_r", name="read_text_file", is_write=False),
         )
 
-        with caplog.at_level(logging.INFO, logger="agent.tool_runner"):
+        with caplog.at_level(logging.INFO, logger="agent.tool_run_recorder"):
             await _execute_with_dag(ctx, [pc])
 
         assert not [r for r in caplog.records if "DAG_BUCKET:" in r.message]

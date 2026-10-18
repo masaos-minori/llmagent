@@ -502,7 +502,7 @@ class TestCmdMcpStatusSerialization:
                 return_value=_mock_client(),
             ),
             patch(
-                "agent.tool_runner.get_serialization_stats",
+                "agent.tool_run_recorder.get_serialization_stats",
                 return_value={
                     "total_events": 2,
                     "total_tools_affected": 3,
@@ -531,7 +531,7 @@ class TestCmdMcpStatusSerialization:
                 return_value=_mock_client(),
             ),
             patch(
-                "agent.tool_runner.get_serialization_stats",
+                "agent.tool_run_recorder.get_serialization_stats",
                 return_value={
                     "total_events": 0,
                     "total_tools_affected": 0,
