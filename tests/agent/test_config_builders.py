@@ -638,3 +638,140 @@ class TestPyYAMLImport:
 
         assert hasattr(yaml, "safe_load")
         assert hasattr(yaml, "dump")
+
+
+# ── Characterization tests for the paths the suite left uncovered ─────────────
+#
+# These lock behavior the refactor of scripts/agent/config_builders.py must
+# preserve: the rag validator's warning/error reporting, the diagnostics
+# sensitive_fields fallback, the tool-registry failure conversion, the
+# production-validation warning path, and the two different empty-string
+# fallback idioms (`_get_str_or_default` vs `_get_str(...) or default`).
+
+
+class TestRagConfigValidationReporting:
+    """Characterization: `_build_rag_config` logs and raises per validator result."""
+
+    def test_use_rrf_false_logs_a_warning_and_still_builds(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.WARNING, logger="agent.config_builders"):
+            cfg = _build_rag_config({"use_rrf": False})
+
+        assert cfg.embed_url == ""
+        assert any(
+            "rag config warning: use_rrf=false" in r.message for r in caplog.records
+        )
+
+    def test_removed_semantic_cache_key_logs_an_error_and_raises(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        with caplog.at_level(logging.ERROR, logger="agent.config_builders"):
+            with pytest.raises(ValueError, match="RAG config validation failed"):
+                _build_rag_config({"semantic_cache_max_size": 100})
+
+        assert any(
+            "rag config error: Configuration key(s) semantic_cache_max_size"
+            in r.message
+            for r in caplog.records
+        )
+
+
+class TestDiagnosticsSensitiveFieldsFallback:
+    """Characterization: a non-list sensitive_fields becomes an empty frozenset."""
+
+    def test_list_becomes_a_frozenset(self) -> None:
+        cfg = _build_diagnostics_config(
+            {"diagnostics": {"sensitive_fields": ["api_key", "token"]}}
+        )
+
+        assert cfg.sensitive_fields == frozenset({"api_key", "token"})
+
+    def test_non_list_becomes_an_empty_frozenset(self) -> None:
+        cfg = _build_diagnostics_config(
+            {"diagnostics": {"sensitive_fields": "api_key"}}
+        )
+
+        assert cfg.sensitive_fields == frozenset()
+
+    def test_absent_key_becomes_an_empty_frozenset(self) -> None:
+        assert _build_diagnostics_config({}).sensitive_fields == frozenset()
+
+
+class TestToolRegistryFailureConversion:
+    """Characterization: both registry failure modes become ConfigReloadValidationError."""
+
+    def test_value_error_is_rewrapped_with_the_registry_prefix(self) -> None:
+        with patch("agent.config_builders.get_registry") as mock_registry:
+            mock_registry.return_value.get_all_tool_names.side_effect = ValueError(
+                "duplicate tool name"
+            )
+
+            with pytest.raises(
+                ConfigReloadValidationError,
+                match="Tool registry resolution failed during config build: duplicate tool name",
+            ):
+                build_agent_config({**_MIN_CFG})
+
+    def test_import_error_is_rewrapped_with_the_registry_prefix(self) -> None:
+        with patch("agent.config_builders.get_registry") as mock_registry:
+            mock_registry.return_value.get_all_tool_names.side_effect = ImportError(
+                "registry module missing"
+            )
+
+            with pytest.raises(
+                ConfigReloadValidationError,
+                match="Tool registry module unavailable during config build: registry module missing",
+            ):
+                build_agent_config({**_MIN_CFG})
+
+
+class TestProductionValidationWarningPath:
+    """Characterization: warnings are logged and never abort the build."""
+
+    def test_warnings_are_logged_and_the_build_completes(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        cfg = {
+            **_MIN_CFG,
+            "tool_definitions_strict": True,
+            "routing_drift_strict": True,
+        }
+        with (
+            caplog.at_level(logging.WARNING, logger="agent.config_builders"),
+            patch(
+                "agent.production_config_validator.ProductionConfigValidator.validate"
+            ) as mock_validate,
+        ):
+            mock_validate.return_value = MagicMock(errors=[], warnings=["warn one"])
+            result = build_agent_config(cfg)
+
+        assert isinstance(result, AgentConfig)
+        assert any("warn one" in r.message for r in caplog.records)
+
+
+class TestEmptyStringFallbackIdioms:
+    """Characterization: the two fallback idioms differ for an explicit empty string."""
+
+    def test_get_str_or_default_keeps_an_explicit_empty_string(self) -> None:
+        assert _build_llm_config({"llm_url": ""}).llm_url == ""
+
+    def test_get_str_or_default_falls_back_when_the_value_is_none(self) -> None:
+        assert _build_llm_config({"llm_url": None}).llm_url == ""
+
+    def test_or_idiom_replaces_an_explicit_empty_string(self) -> None:
+        """`_get_str(...) or default` treats "" as absent, unlike _get_str_or_default."""
+        cfg = build_agent_config(
+            {
+                **_MIN_CFG,
+                "tool_definitions_strict": True,
+                "routing_drift_strict": True,
+                "otel_service_name": "",
+                "audit_log_file": "",
+                "memory_jsonl_dir": "",
+            }
+        )
+
+        assert cfg.obs.otel_service_name == "llm-agent"
+        assert cfg.obs.audit_log_file == "/opt/llm/logs/audit.log"
+        assert cfg.memory.memory_jsonl_dir == "/opt/llm/memory"

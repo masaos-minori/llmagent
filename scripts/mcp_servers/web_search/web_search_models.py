@@ -243,6 +243,94 @@ def _is_hostname_shape(value: str) -> bool:
     return not any(char in value for char in " \t:/")
 
 
+def _invariant_result(
+    check_id: str,
+    ok: bool,
+    ok_message: str,
+    fail_message: str,
+) -> SecurityCheckResult:
+    """Map one boolean invariant to its OK or FAILED posture result."""
+    return _result(
+        check_id,
+        SecurityCheckStatus.OK if ok else SecurityCheckStatus.FAILED,
+        REASON_OK if ok else REASON_CONFIG_INVALID,
+        ok_message if ok else fail_message,
+    )
+
+
+def _numeric_checks(cfg: WebSearchConfig) -> list[SecurityCheckResult]:
+    """The four numeric invariants, in the order the posture contract expects.
+
+    Each entry pairs its condition with both message variants, so a check reports its
+    state without naming the configured value.
+    """
+    return [
+        _invariant_result(
+            "server.results_bounds",
+            cfg.default_max_results >= 1
+            and cfg.max_results_limit >= 1
+            and cfg.default_max_results <= cfg.max_results_limit
+            and cfg.max_results_limit <= HARD_MAX_RESULTS_LIMIT,
+            "default_max_results is within max_results_limit and the module ceiling",
+            "result-count bounds are violated so the advertised inputSchema is not enforced",
+        ),
+        _invariant_result(
+            "server.search_timeout_valid",
+            0 < cfg.search_timeout_sec <= HARD_SEARCH_TIMEOUT_SEC_LIMIT,
+            "search_timeout_sec is in (0, HARD_SEARCH_TIMEOUT_SEC_LIMIT]",
+            "search_timeout_sec is outside (0, HARD_SEARCH_TIMEOUT_SEC_LIMIT]",
+        ),
+        _invariant_result(
+            "server.browser_timeout_valid",
+            0 < cfg.browser_timeout_sec <= HARD_BROWSER_TIMEOUT_SEC_LIMIT,
+            "browser_timeout_sec is in (0, HARD_BROWSER_TIMEOUT_SEC_LIMIT]",
+            "browser_timeout_sec must be positive and within "
+            "HARD_BROWSER_TIMEOUT_SEC_LIMIT",
+        ),
+        _invariant_result(
+            "server.browser_response_limit",
+            0 < cfg.browser_max_response_kb <= HARD_BROWSER_MAX_RESPONSE_KB,
+            "browser_max_response_kb is positive and within "
+            "HARD_BROWSER_MAX_RESPONSE_KB",
+            "browser_max_response_kb must be positive and within "
+            "HARD_BROWSER_MAX_RESPONSE_KB",
+        ),
+    ]
+
+
+def _allowlist_check(cfg: WebSearchConfig) -> SecurityCheckResult:
+    """Map browser_allowed_domains to its posture result.
+
+    An empty allowlist is NOT_APPLICABLE rather than FAILED: it removes the
+    browser_fetch capability instead of widening a boundary, so the shipped deny-all
+    configuration stays startable. A malformed entry is WARNING because the runtime
+    already denies everything it cannot match.
+    """
+    entries = cfg.browser_allowed_domains
+    if not entries:
+        return _result(
+            "server.browser_allowlist",
+            SecurityCheckStatus.NOT_APPLICABLE,
+            REASON_NOT_APPLICABLE,
+            "browser_allowed_domains is empty so browser_fetch is disabled for every domain",
+        )
+    malformed = sum(1 for entry in entries if not _is_hostname_shape(entry))
+    if malformed:
+        return _result(
+            "server.browser_allowlist",
+            SecurityCheckStatus.WARNING,
+            REASON_ALLOWLIST_INVALID,
+            f"browser_allowed_domains contains {malformed} of "
+            f"{len(entries)} entries that cannot match a hostname",
+        )
+    return _result(
+        "server.browser_allowlist",
+        SecurityCheckStatus.OK,
+        REASON_OK,
+        f"browser_allowed_domains holds {len(entries)} hostname-shaped entries",
+    )
+
+
 def validate_web_search_security(cfg: WebSearchConfig) -> list[SecurityCheckResult]:
     """Web Search's own configuration checks, in the order the posture contract expects.
 
@@ -257,96 +345,8 @@ def validate_web_search_security(cfg: WebSearchConfig) -> list[SecurityCheckResu
 
     Messages name the setting and its state: allowlist entries are reported by count only.
     """
-    checks: list[SecurityCheckResult] = []
-
-    bounds_ok = (
-        cfg.default_max_results >= 1
-        and cfg.max_results_limit >= 1
-        and cfg.default_max_results <= cfg.max_results_limit
-        and cfg.max_results_limit <= HARD_MAX_RESULTS_LIMIT
-    )
-    checks.append(
-        _result(
-            "server.results_bounds",
-            SecurityCheckStatus.OK if bounds_ok else SecurityCheckStatus.FAILED,
-            REASON_OK if bounds_ok else REASON_CONFIG_INVALID,
-            "default_max_results is within max_results_limit and the module ceiling"
-            if bounds_ok
-            else "result-count bounds are violated so the advertised inputSchema is not enforced",
-        )
-    )
-
-    search_ok = 0 < cfg.search_timeout_sec <= HARD_SEARCH_TIMEOUT_SEC_LIMIT
-    checks.append(
-        _result(
-            "server.search_timeout_valid",
-            SecurityCheckStatus.OK if search_ok else SecurityCheckStatus.FAILED,
-            REASON_OK if search_ok else REASON_CONFIG_INVALID,
-            "search_timeout_sec is in (0, HARD_SEARCH_TIMEOUT_SEC_LIMIT]"
-            if search_ok
-            else "search_timeout_sec is outside (0, HARD_SEARCH_TIMEOUT_SEC_LIMIT]",
-        )
-    )
-
-    browser_timeout_ok = 0 < cfg.browser_timeout_sec <= HARD_BROWSER_TIMEOUT_SEC_LIMIT
-    checks.append(
-        _result(
-            "server.browser_timeout_valid",
-            SecurityCheckStatus.OK
-            if browser_timeout_ok
-            else SecurityCheckStatus.FAILED,
-            REASON_OK if browser_timeout_ok else REASON_CONFIG_INVALID,
-            "browser_timeout_sec is in (0, HARD_BROWSER_TIMEOUT_SEC_LIMIT]"
-            if browser_timeout_ok
-            else "browser_timeout_sec must be positive and within "
-            "HARD_BROWSER_TIMEOUT_SEC_LIMIT",
-        )
-    )
-
-    response_ok = 0 < cfg.browser_max_response_kb <= HARD_BROWSER_MAX_RESPONSE_KB
-    checks.append(
-        _result(
-            "server.browser_response_limit",
-            SecurityCheckStatus.OK if response_ok else SecurityCheckStatus.FAILED,
-            REASON_OK if response_ok else REASON_CONFIG_INVALID,
-            "browser_max_response_kb is positive and within "
-            "HARD_BROWSER_MAX_RESPONSE_KB"
-            if response_ok
-            else "browser_max_response_kb must be positive and within "
-            "HARD_BROWSER_MAX_RESPONSE_KB",
-        )
-    )
-
-    if not cfg.browser_allowed_domains:
-        allowlist_status = SecurityCheckStatus.NOT_APPLICABLE
-        allowlist_reason = REASON_NOT_APPLICABLE
-        allowlist_message = "browser_allowed_domains is empty so browser_fetch is disabled for every domain"
-    elif any(not _is_hostname_shape(entry) for entry in cfg.browser_allowed_domains):
-        invalid = sum(
-            1 for entry in cfg.browser_allowed_domains if not _is_hostname_shape(entry)
-        )
-        allowlist_status = SecurityCheckStatus.WARNING
-        allowlist_reason = REASON_ALLOWLIST_INVALID
-        allowlist_message = (
-            f"browser_allowed_domains contains {invalid} of "
-            f"{len(cfg.browser_allowed_domains)} entries that cannot match a hostname"
-        )
-    else:
-        allowlist_status = SecurityCheckStatus.OK
-        allowlist_reason = REASON_OK
-        allowlist_message = (
-            f"browser_allowed_domains holds {len(cfg.browser_allowed_domains)} "
-            "hostname-shaped entries"
-        )
-    checks.append(
-        _result(
-            "server.browser_allowlist",
-            allowlist_status,
-            allowlist_reason,
-            allowlist_message,
-        )
-    )
-
+    checks = _numeric_checks(cfg)
+    checks.append(_allowlist_check(cfg))
     return checks
 
 

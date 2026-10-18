@@ -96,20 +96,21 @@ def _get_or_default(
 ) -> Any:
     """Extract a value from cfg using *getter*, falling back to *default* when absent.
 
-    Only use this for keys whose default is non-empty (non-zero for numbers,
-    non-empty string for strings). For empty-string defaults, use
-    ``_get_str_or_default`` instead to preserve None vs "" semantics.
+    The getter reports an absent key as None, so *default* is only ever returned for a
+    missing key. A `""` default would make an explicit empty-string override
+    indistinguishable from a missing key — use `_get_str_or_default` for those keys.
     """
     v = getter(cfg, key)
     return v if v is not None else default
 
 
-def _get_str_or_default(cfg: dict[str, Any], key: str, default: str) -> str:
+def _get_str_or_default(cfg: dict[str, Any], key: str, default: str = "") -> str:
     """Extract a str from cfg, falling back to *default* only when the key is absent.
 
-    Only use this for keys whose default is `""` — for a non-empty default, an
-    explicit empty-string override must not be conflated with an absent key (see
-    the `_get_str(cfg, key) or default` call sites left untouched for that case).
+    The default is `""` because every call site needs the empty-string default: for a
+    non-empty default, an explicit empty-string override must not be conflated with an
+    absent key (see the `_get_str(cfg, key) or default` call sites left untouched for
+    that case).
     """
     v = _get_str(cfg, key)
     return v if v is not None else default
@@ -136,7 +137,7 @@ def _validate_dry_run_tools(tools: list[str]) -> list[str]:
 def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
     """Build LLMConfig from a raw config dict."""
     return LLMConfig(
-        llm_url=_get_str_or_default(cfg, "llm_url", ""),
+        llm_url=_get_str_or_default(cfg, "llm_url"),
         http_timeout=_get_or_default(cfg, "http_timeout", _get_float, 30.0),
         llm_retry_base_delay=_get_or_default(
             cfg, "llm_retry_base_delay", _get_float, 1.0
@@ -164,7 +165,7 @@ def _build_llm_config(cfg: dict[str, Any]) -> LLMConfig:
         llm_compress_max_tokens=_get_or_default(
             cfg, "llm_compress_max_tokens", _get_int, 300
         ),
-        tokenize_url=_get_str_or_default(cfg, "tokenize_url", ""),
+        tokenize_url=_get_str_or_default(cfg, "tokenize_url"),
         context_token_limit=_get_or_default(cfg, "context_token_limit", _get_int, 0),
         context_char_limit=_get_or_default(cfg, "context_char_limit", _get_int, 8000),
         context_compress_turns=_get_or_default(
@@ -190,7 +191,7 @@ def _build_rag_config(cfg: dict[str, Any]) -> RAGConfig:
     refiner_errors = check_agent_refiner_keys(cfg)
     if refiner_errors:
         raise ValueError(f"RAG config validation failed: {refiner_errors}")
-    return RAGConfig(embed_url=_get_str_or_default(cfg, "embed_url", ""))
+    return RAGConfig(embed_url=_get_str_or_default(cfg, "embed_url"))
 
 
 def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConfig:
@@ -315,7 +316,7 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
         ),
     )
     tool_safety_tiers = _get_or_default(cfg, "tool_safety_tiers", _get_dict, {})
-    allowed_root = _get_str_or_default(cfg, "allowed_root", "")
+    allowed_root = _get_str_or_default(cfg, "allowed_root")
     approval_github_allowed_repos = _get_or_default(
         cfg, "approval_github_allowed_repos", _get_list, []
     )
@@ -340,17 +341,15 @@ def _build_approval_config(cfg: dict[str, Any]) -> ApprovalConfig:
 def _build_diagnostics_config(cfg: dict[str, Any]) -> DiagnosticsConfig:
     """Build DiagnosticsConfig from a raw config dict's [diagnostics] table."""
     diagnostics_raw = _get_dict(cfg, "diagnostics") or {}
-    encryption_key = _get_str_or_default(diagnostics_raw, "encryption_key", "")
+    encryption_key = _get_str_or_default(diagnostics_raw, "encryption_key")
     retention_days = _get_or_default(diagnostics_raw, "retention_days", _get_int, 30)
     raw_sf = diagnostics_raw.get("sensitive_fields", [])
-    if isinstance(raw_sf, list):
-        sf = frozenset(raw_sf)
-    else:
-        sf = frozenset()
+    # A non-list value means "no sensitive fields"; it is not a validation error.
+    sensitive_fields = frozenset(raw_sf) if isinstance(raw_sf, list) else frozenset()
     return DiagnosticsConfig(
         encryption_key=encryption_key,
         retention_days=retention_days,
-        sensitive_fields=sf,
+        sensitive_fields=sensitive_fields,
     )
 
 
@@ -384,7 +383,7 @@ def _run_production_validation(
     if results.errors:
         logger.error("Production config validation failed:")
         for err in results.errors:
-            logger.error(f"  - {err}")
+            logger.error("  - %s", err)
         raise ConfigReloadValidationError(
             f"Production config validation failed: {results.errors}"
         )
@@ -412,7 +411,7 @@ def _assemble_agent_config(
         approval=_build_approval_config(cfg),
         obs=ObservabilityConfig(
             otel_enabled=otel_enabled,
-            otel_endpoint=_get_str_or_default(cfg, "otel_endpoint", ""),
+            otel_endpoint=_get_str_or_default(cfg, "otel_endpoint"),
             otel_service_name=_get_str(cfg, "otel_service_name") or "llm-agent",
             audit_log_file=_get_str(cfg, "audit_log_file") or "/opt/llm/logs/audit.log",
             structured_log=structured_log,

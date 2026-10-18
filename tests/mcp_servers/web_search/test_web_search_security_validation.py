@@ -16,8 +16,10 @@ from mcp_servers.web_search.web_search_models import (
     HARD_BROWSER_MAX_RESPONSE_KB,
     HARD_BROWSER_TIMEOUT_SEC_LIMIT,
     HARD_MAX_RESULTS_LIMIT,
+    HARD_SEARCH_TIMEOUT_SEC_LIMIT,
     WEB_SEARCH_OWN_CONFIG_FILE,
     WebSearchConfig,
+    _is_hostname_shape,
     validate_web_search_security,
 )
 
@@ -28,6 +30,15 @@ def _statuses(cfg: WebSearchConfig) -> dict[str, tuple[str, str]]:
         check.check_id: (check.status.value, check.reason_code)
         for check in validate_web_search_security(cfg)
     }
+
+
+def _message(cfg: WebSearchConfig, check_id: str) -> str:
+    """Return the exact message text *cfg* produces for *check_id*."""
+    return next(
+        check.message
+        for check in validate_web_search_security(cfg)
+        if check.check_id == check_id
+    )
 
 
 def _cfg(**overrides: Any) -> WebSearchConfig:
@@ -213,3 +224,175 @@ class TestNonSecretView:
         view["extra"] = 1
 
         assert cfg.browser_allowed_domains == ["example.com"]
+
+
+# ── Characterization tests for the paths the suite left unpinned ──────────────
+#
+# These lock the exact message text and the remaining boundary values the refactor
+# of validate_web_search_security() must preserve.
+
+
+class TestBoundsRuleConjunction:
+    """bounds_ok is a conjunction of four rules; each one alone can fail it."""
+
+    @pytest.mark.parametrize(
+        "overrides",
+        [
+            {"default_max_results": 0},
+            {"default_max_results": -3},
+            {"max_results_limit": 0},
+            {"max_results_limit": -1},
+            {"default_max_results": 30, "max_results_limit": 20},
+            {"max_results_limit": HARD_MAX_RESULTS_LIMIT + 1},
+        ],
+    )
+    def test_each_rule_violation_fails_the_check(
+        self, overrides: dict[str, int]
+    ) -> None:
+        assert _statuses(_cfg(**overrides))["server.results_bounds"] == (
+            "failed",
+            "config_invalid",
+        )
+
+    def test_the_module_ceiling_itself_is_ok(self) -> None:
+        statuses = _statuses(
+            _cfg(default_max_results=1, max_results_limit=HARD_MAX_RESULTS_LIMIT)
+        )
+
+        assert statuses["server.results_bounds"] == ("ok", "ok")
+
+
+class TestTimeoutAndSizeCeilings:
+    """The ceilings are inclusive and the lower bounds are exclusive."""
+
+    @pytest.mark.parametrize("value", [0.0, -0.5])
+    def test_non_positive_search_timeout_is_a_failure(self, value: float) -> None:
+        assert _statuses(_cfg(search_timeout_sec=value))[
+            "server.search_timeout_valid"
+        ] == (
+            "failed",
+            "config_invalid",
+        )
+
+    def test_exactly_the_ceiling_is_ok(self) -> None:
+        statuses = _statuses(_cfg(search_timeout_sec=HARD_SEARCH_TIMEOUT_SEC_LIMIT))
+
+        assert statuses["server.search_timeout_valid"] == ("ok", "ok")
+
+    def test_exactly_the_browser_ceiling_is_ok(self) -> None:
+        statuses = _statuses(
+            _cfg(
+                browser_timeout_sec=HARD_BROWSER_TIMEOUT_SEC_LIMIT,
+                browser_max_response_kb=HARD_BROWSER_MAX_RESPONSE_KB,
+            )
+        )
+
+        assert statuses["server.browser_timeout_valid"] == ("ok", "ok")
+        assert statuses["server.browser_response_limit"] == ("ok", "ok")
+
+
+class TestHostnameShape:
+    """_is_hostname_shape() is the posture-time mirror of _check_domain()'s comparison."""
+
+    @pytest.mark.parametrize("value", ["", " ", "\t"])
+    def test_blank_entries_are_not_hostname_shaped(self, value: str) -> None:
+        assert _is_hostname_shape(value) is False
+
+    @pytest.mark.parametrize(
+        "entry",
+        ["Example.com", "https://example.com", "example.com/path", "example.com:443"],
+    )
+    def test_scheme_path_port_and_case_are_rejected(self, entry: str) -> None:
+        assert _is_hostname_shape(entry) is False
+
+    @pytest.mark.parametrize("entry", ["example.com", "docs.python.org", "localhost"])
+    def test_plain_lowercase_hostnames_are_accepted(self, entry: str) -> None:
+        assert _is_hostname_shape(entry) is True
+
+
+class TestCheckMessages:
+    """Every message names the setting and its state; allowlist entries stay by count."""
+
+    def test_results_bounds_messages(self) -> None:
+        assert _message(_cfg(), "server.results_bounds") == (
+            "default_max_results is within max_results_limit and the module ceiling"
+        )
+        assert _message(_cfg(default_max_results=0), "server.results_bounds") == (
+            "result-count bounds are violated so the advertised inputSchema is not enforced"
+        )
+
+    def test_search_timeout_messages(self) -> None:
+        assert _message(_cfg(), "server.search_timeout_valid") == (
+            "search_timeout_sec is in (0, HARD_SEARCH_TIMEOUT_SEC_LIMIT]"
+        )
+        assert _message(
+            _cfg(search_timeout_sec=0.0), "server.search_timeout_valid"
+        ) == ("search_timeout_sec is outside (0, HARD_SEARCH_TIMEOUT_SEC_LIMIT]")
+
+    def test_browser_timeout_messages(self) -> None:
+        assert _message(_cfg(), "server.browser_timeout_valid") == (
+            "browser_timeout_sec is in (0, HARD_BROWSER_TIMEOUT_SEC_LIMIT]"
+        )
+        assert _message(
+            _cfg(browser_timeout_sec=0), "server.browser_timeout_valid"
+        ) == (
+            "browser_timeout_sec must be positive and within HARD_BROWSER_TIMEOUT_SEC_LIMIT"
+        )
+
+    def test_browser_response_limit_messages(self) -> None:
+        assert _message(_cfg(), "server.browser_response_limit") == (
+            "browser_max_response_kb is positive and within HARD_BROWSER_MAX_RESPONSE_KB"
+        )
+        assert _message(
+            _cfg(browser_max_response_kb=0), "server.browser_response_limit"
+        ) == (
+            "browser_max_response_kb must be positive and within HARD_BROWSER_MAX_RESPONSE_KB"
+        )
+
+    def test_allowlist_messages(self) -> None:
+        assert _message(
+            _cfg(browser_allowed_domains=[]), "server.browser_allowlist"
+        ) == (
+            "browser_allowed_domains is empty so browser_fetch is disabled for every domain"
+        )
+        assert _message(
+            _cfg(browser_allowed_domains=["example.com", "docs.python.org"]),
+            "server.browser_allowlist",
+        ) == ("browser_allowed_domains holds 2 hostname-shaped entries")
+        assert _message(
+            _cfg(
+                browser_allowed_domains=[
+                    "example.com",
+                    "Docs.Python.org",
+                    "https://x.com",
+                ]
+            ),
+            "server.browser_allowlist",
+        ) == (
+            "browser_allowed_domains contains 2 of 3 entries that cannot match a hostname"
+        )
+
+    def test_no_message_carries_a_configured_value(self) -> None:
+        cfg = _cfg(
+            default_max_results=7,
+            max_results_limit=9,
+            search_timeout_sec=11.5,
+            browser_timeout_sec=13,
+            browser_max_response_kb=17,
+            browser_allowed_domains=["private-intranet.example"],
+            auth_token="super-secret-token",
+        )
+
+        rendered = " | ".join(
+            check.message for check in validate_web_search_security(cfg)
+        )
+        for value in (
+            "7",
+            "9",
+            "11.5",
+            "13",
+            "17",
+            "private-intranet.example",
+            "super-secret-token",
+        ):
+            assert value not in rendered
