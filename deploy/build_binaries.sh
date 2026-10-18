@@ -12,8 +12,8 @@
 # 使用例:
 #   cd /path/to/repo
 #   bash deploy/build_binaries.sh
-#   # 低メモリホスト (LTO を無効化。サイズは増える):
-#   NUTKA_EXTRA_FLAGS="--lto=no" bash deploy/build_binaries.sh
+#   # LTO を有効化 (既定は無効。ビルド時間・メモリが増える):
+#   NUTKA_LTO=yes bash deploy/build_binaries.sh
 #   # デバッグ用 (strip しない。サイズは増える):
 #   NUTKA_UNSTRIPPED=1 bash deploy/build_binaries.sh
 #   # 出力先を変更:
@@ -41,7 +41,8 @@ export PYTHONPATH="${REPO_ROOT}/scripts${PYTHONPATH:+:${PYTHONPATH}}"
 # 既定の Nuitka フラグ (サイズ最小化重視)。
 #   --onefile            : 単一バイナリ (payload は既定で圧縮される。--onefile-no-compression は使わない)
 #   --include-package-data=sudachipy : sudachipy/resources/* の同梱 (必須・数KB)
-#   --lto=yes            : リンク時最適化。未使用コードを除去しサイズ減 (ビルド時間・メモリは増)
+#   --lto                : 既定 no (NUTKA_LTO=yes で有効化)。計測 (agent, 非圧縮同条件) で
+#                          サイズ差は約 0.5% に留まり時間短縮も確認できなかったため。
 #   --python-flag=no_docstrings : docstring を除去。実行時の __doc__ 依存は scripts/ の
 #                          ビルド対象経路に無い (argparse description の 2 箇所は非ビルド対象)。
 #                          -O (no_asserts) は assert の実行時ガード用途を壊しうるため使わない。
@@ -52,7 +53,7 @@ export PYTHONPATH="${REPO_ROOT}/scripts${PYTHONPATH:+:${PYTHONPATH}}"
 BASE_NUTKA_ARGS=(
     --onefile
     --include-package-data=sudachipy
-    --lto=yes
+    --lto="${NUTKA_LTO:-no}"
     --python-flag=no_docstrings
     --noinclude-unittest-mode=nofollow
     --noinclude-pytest-mode=nofollow
@@ -93,7 +94,10 @@ LAZY_IMPORTS=()
 # `uv run --with nuitka` で都度解決する。バージョンは再現のため固定デフォルト。
 NUTKA_VERSION="${NUTKA_VERSION:-4.2.2}"
 NUTKA_PRIMARY_CMD=( "${NUTKA_CMD[@]:-uv}" run nuitka )
-NUTKA_FALLBACK_CMD=( uv run --with nuitka==${NUTKA_VERSION} nuitka )
+# [onefile] extra は zstandard を含む。無いと onefile payload が非圧縮になり約2倍のサイズになる。
+NUTKA_FALLBACK_CMD=( uv run --with "nuitka[onefile]==${NUTKA_VERSION}" nuitka )
+# dev 依存 (mypy 等) を build 環境に入れない。Nuitka が辿るファイルが約4割減り時間が半減する。
+export UV_NO_DEV="${UV_NO_DEV:-1}"
 
 # ── エントリ表 (モジュールパス : 出力バイナリ名 : サーバークラス) ──────────────
 # 計11件 (エージェント1 + MCP サーバー10)。出力名は config/agent.toml の
@@ -147,8 +151,10 @@ else
 fi
 # ccache: nuitka の Scons は ccache を使う。CCACHE_DIR が読み取り専用だと
 # "ccache: error: Permission denied" で C ビルドが中断する。書けない場合のみ無効化。
+# ディレクトリ未作成は「書けない」ではない (初回は ccache が作る) ため、先に作成を試みる。
 if [[ -z "${CCACHE_DISABLE:-}" ]] && command -v ccache >/dev/null 2>&1; then
     _cc_dir="${CCACHE_DIR:-${XDG_CACHE_HOME:-${HOME}/.cache}/ccache}"
+    mkdir -p "${_cc_dir}" 2>/dev/null || true
     if [[ ! -w "${_cc_dir}" ]]; then
         echo "[WARN] ccache dir '${_cc_dir}' is not writable; setting CCACHE_DISABLE=1." >&2
         export CCACHE_DISABLE=1
