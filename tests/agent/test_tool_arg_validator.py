@@ -9,6 +9,7 @@ import pytest
 from agent.tool_arg_validator import (
     _CUSTOM_VALIDATORS,
     ValidationResult,
+    _check_type_validation,
     register_custom_validator,
     validate_tool_arguments,
 )
@@ -331,3 +332,31 @@ class TestCustomValidatorHooks:
         result = validate_tool_arguments("hooked_tool", {"count": 1}, {})
         assert result.success is True
         assert calls == []
+
+
+class TestTypeValidationMalformedSchema:
+    """Tests for the SchemaError path added to _check_type_validation()."""
+
+    _MALFORMED_SCHEMA = {"type": "invalid-type-token"}
+
+    def test_malformed_schema_returns_failure_without_raising(self) -> None:
+        result = _check_type_validation("read_file", {}, self._MALFORMED_SCHEMA)
+        assert result.success is False
+        assert "Invalid input schema" in result.reason
+
+    def test_valid_schema_passes(self) -> None:
+        schema = {
+            "type": "object",
+            "properties": {"path": {"type": "string"}},
+        }
+        result = _check_type_validation("read_file", {"path": "/tmp/f"}, schema)
+        assert result.success is True
+
+    def test_type_mismatch_keeps_reason_format(self) -> None:
+        schema = {
+            "type": "object",
+            "properties": {"count": {"type": "integer"}},
+        }
+        result = _check_type_validation("create_item", {"count": "x"}, schema)
+        assert result.success is False
+        assert "Type mismatch" in result.reason

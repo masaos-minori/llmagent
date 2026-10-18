@@ -192,4 +192,9 @@ def _check_type_validation(
             success=False,
             reason=f"Type mismatch for {tool_name}: {e.message}",
         )
+    except jsonschema.SchemaError as e:
+        return ValidationResult(
+            success=False,
+            reason=f"Invalid input schema for {tool_name}: {e.message}",
+        )
     return ValidationResult(success=True)

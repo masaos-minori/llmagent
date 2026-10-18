@@ -123,10 +123,10 @@ any JSON Schema library version change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `except jsonschema.SchemaError` to `_check_type_validation()` | Pending | — | — | drop non-existent JSONSchemaError (verification finding) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: test file is a separate row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc is a separate row |
+| 1 | Add `except jsonschema.SchemaError` to `_check_type_validation()` | Completed | 20261018-100916 | 20261018-100916 | drop non-existent JSONSchemaError (verification finding) |
+| 2 | Add or update tests per Validation plan | Completed | 20261018-100916 | 20261018-100916 | N/A: test file is a separate row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261018-100916 | 20261018-100916 | stale_detector findings were false positives (jsonschema.SchemaError is a valid library exception; _Error/JSONSchemaError are prose mentions in the findings section); ruff clean, mypy clean, 27 tests pass, malformed-schema returns success=False |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261018-100916 | 20261018-100916 | N/A: doc is a separate row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
