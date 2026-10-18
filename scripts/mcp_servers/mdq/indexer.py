@@ -24,6 +24,7 @@ from mcp_servers.mdq.mdq_models import (
     IndexPathsMetadata,
     IndexPathsRequest,
     MdqAuthorizationError,
+    ParsedSection,
     ParseMarkdownRequest,
     RefreshIndexRequest,
 )
@@ -128,6 +129,86 @@ def _estimate_token_count(text: str) -> int:
     return max(1, len(text) // 4)
 
 
+def _rollback_quietly(conn: sqlite3.Connection) -> None:
+    """Roll back an open transaction, ignoring a second failure."""
+    try:
+        conn.execute("ROLLBACK")
+    except sqlite3.Error:
+        pass
+
+
+def _write_document_chunks(
+    conn: sqlite3.Connection,
+    service: MdqService,
+    path: Path,
+    sections: list[ParsedSection],
+    tags_json: str,
+) -> None:
+    """Replace one document's rows in a single BEGIN IMMEDIATE transaction.
+
+    The caller owns the connection: it rolls back on a sqlite3.Error and closes it.
+    """
+    doc_id = hashlib.sha256(str(path).encode()).hexdigest()
+    now = path.stat().st_mtime_ns
+    indexed_at = time.time()
+    normalized_path = path.resolve().as_posix()
+    file_content_hash = hashlib.sha256((str(path) + str(now)).encode()).hexdigest()
+
+    conn.execute("BEGIN IMMEDIATE")
+    # Delete old chunks and upsert document atomically
+    conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
+    conn.execute(
+        "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (
+            doc_id,
+            str(path),
+            now,
+            path.stat().st_size,
+            file_content_hash,
+            indexed_at,
+        ),
+    )
+
+    for section in sections:
+        if len(section["content"]) > service.max_chunk_chars:
+            section["content"] = section["content"][: service.max_chunk_chars]
+        content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
+        normalized_content = " ".join(section["content"].split())
+        char_count = len(section["content"])
+        token_count = _estimate_token_count(section["content"])
+        chunk_id = generate_chunk_id(
+            normalized_path,
+            section.get("heading_path", ""),
+            section.get("ordinal", 0),
+            content_hash,
+        )
+
+        # Insert chunk with new schema
+        conn.execute(
+            "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                chunk_id,
+                doc_id,
+                str(path),
+                section["heading"],
+                section.get("heading_path", ""),
+                section.get("heading_level", 0),
+                section.get("ordinal", 0),
+                section["content"],
+                normalized_content,
+                section["start_line"],
+                section["end_line"],
+                char_count,
+                token_count,
+                content_hash,
+                tags_json,
+                indexed_at,
+            ),
+        )
+
+    conn.execute("COMMIT")
+
+
 async def _index_single_file(service: MdqService, path: Path) -> None:
     """Index a single Markdown file into the service DB."""
     logger.info("Indexing file: %s", path)
@@ -158,70 +239,9 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
 
     conn = service._get_db_connection()
     try:
-        doc_id = hashlib.sha256(str(path).encode()).hexdigest()
-        now = path.stat().st_mtime_ns
-        indexed_at = time.time()
-        normalized_path = path.resolve().as_posix()
-        file_content_hash = hashlib.sha256((str(path) + str(now)).encode()).hexdigest()
-
-        conn.execute("BEGIN IMMEDIATE")
-        # Delete old chunks and upsert document atomically
-        conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
-        conn.execute(
-            "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
-            (
-                doc_id,
-                str(path),
-                now,
-                path.stat().st_size,
-                file_content_hash,
-                indexed_at,
-            ),
-        )
-
-        for section in sections:
-            if len(section["content"]) > service.max_chunk_chars:
-                section["content"] = section["content"][: service.max_chunk_chars]
-            content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
-            normalized_content = " ".join(section["content"].split())
-            char_count = len(section["content"])
-            token_count = _estimate_token_count(section["content"])
-            chunk_id = generate_chunk_id(
-                normalized_path,
-                section.get("heading_path", ""),
-                section.get("ordinal", 0),
-                content_hash,
-            )
-
-            # Insert chunk with new schema
-            conn.execute(
-                "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (
-                    chunk_id,
-                    doc_id,
-                    str(path),
-                    section["heading"],
-                    section.get("heading_path", ""),
-                    section.get("heading_level", 0),
-                    section.get("ordinal", 0),
-                    section["content"],
-                    normalized_content,
-                    section["start_line"],
-                    section["end_line"],
-                    char_count,
-                    token_count,
-                    content_hash,
-                    tags_json,
-                    indexed_at,
-                ),
-            )
-
-        conn.execute("COMMIT")
+        _write_document_chunks(conn, service, path, sections, tags_json)
     except sqlite3.Error as e:
-        try:
-            conn.execute("ROLLBACK")
-        except sqlite3.Error:
-            pass
+        _rollback_quietly(conn)
         logger.error("Failed to write chunks for %s: %s", path, e)
     finally:
         conn.close()
@@ -312,6 +332,44 @@ def _compute_dirs_to_scan(paths: list[str]) -> set[Path]:
     return dirs_to_scan
 
 
+def _is_stale_index_key(
+    path_str_key: str, current_md_files: set[str], dir_path: Path
+) -> bool:
+    """True when an index_state mtime key names a file under dir_path that is gone.
+
+    Keys that are not `mtime:` entries are not file records and never match.
+    """
+    if not path_str_key.startswith("mtime:"):
+        return False
+    file_path = path_str_key[6:]
+    return file_path not in current_md_files and dir_path in Path(file_path).parents
+
+
+def _delete_stale_entries(
+    service: MdqService,
+    conn: sqlite3.Connection,
+    current_state: dict[str, str],
+    dir_path: Path,
+) -> int:
+    """Delete index entries for files under dir_path that are no longer on disk.
+
+    Returns how many entries were removed. A failure partway through the directory
+    stops that directory but keeps what it already removed.
+    """
+    deleted_count = 0
+    try:
+        current_md_files = {str(f) for f in _iter_indexable_files(service, dir_path)}
+        for path_str_key in list(current_state):
+            if not _is_stale_index_key(path_str_key, current_md_files, dir_path):
+                continue
+            # File was deleted — remove from index
+            delete_file_from_index(service, conn, Path(path_str_key[6:]))
+            deleted_count += 1
+    except Exception as e:  # noqa: BLE001 — a single directory's deletion scan failure must not abort the rest of the refresh
+        logger.error("Failed to scan for deleted files in %s: %s", dir_path, e)
+    return deleted_count
+
+
 def _detect_deleted_files(
     service: MdqService,
     conn: sqlite3.Connection,
@@ -320,28 +378,13 @@ def _detect_deleted_files(
 ) -> int:
     """Detect files removed from the filesystem and delete their index entries.
 
-    Returns the number of files removed from the index.
+    Returns the number of files removed from the index. Each directory is scanned
+    independently, so one directory's failure does not stop the others.
     """
-    deleted_count = 0
-    for dir_path in dirs_to_scan:
-        try:
-            current_md_files = {
-                str(f) for f in _iter_indexable_files(service, dir_path)
-            }
-            for path_str_key, mtime_val in list(current_state.items()):
-                if not path_str_key.startswith("mtime:"):
-                    continue
-                file_path = path_str_key[6:]
-                if (
-                    file_path not in current_md_files
-                    and dir_path in Path(file_path).parents
-                ):
-                    # File was deleted — remove from index
-                    delete_file_from_index(service, conn, Path(file_path))
-                    deleted_count += 1
-        except Exception as e:  # noqa: BLE001 — a single directory's deletion scan failure must not abort the rest of the refresh
-            logger.error("Failed to scan for deleted files in %s: %s", dir_path, e)
-    return deleted_count
+    return sum(
+        _delete_stale_entries(service, conn, current_state, dir_path)
+        for dir_path in dirs_to_scan
+    )
 
 
 async def _reindex_forced(service: MdqService, path: Path, path_str: str) -> int:

@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import asyncio
+import hashlib
 import logging
 import sqlite3
 import time
@@ -543,3 +544,177 @@ class TestIndexPathsCounters:
     def test_path_outside_allowed_directories_raises(self, service: MdqService) -> None:
         with pytest.raises(MdqAuthorizationError, match="outside allowed directories"):
             asyncio.run(index_paths(service, IndexPathsRequest(paths=["/etc/passwd"])))
+
+
+def _documents_row_count(service: MdqService, path: Path) -> int:
+    """Rows in documents for the doc_id the indexer derives from path."""
+    doc_id = hashlib.sha256(str(path).encode()).hexdigest()
+    conn = sqlite3.connect(service.db_path)
+    try:
+        return int(
+            conn.execute(
+                "SELECT COUNT(*) FROM documents WHERE doc_id = ?", (doc_id,)
+            ).fetchone()[0]
+        )
+    finally:
+        conn.close()
+
+
+class _RecordingConnection:
+    """Wraps a real connection and records every statement it is asked to execute."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+        self.statements: list[str] = []
+
+    def execute(self, sql: str, params: tuple[object, ...] = ()) -> sqlite3.Cursor:
+        self.statements.append(sql)
+        return self._conn.execute(sql, params)
+
+    def close(self) -> None:
+        self._conn.close()
+
+
+class TestIndexSingleFileWriteFailure:
+    """Characterization: a sqlite3.Error mid-transaction rolls back the whole write."""
+
+    @pytest.fixture()
+    def service(self, tmp_path: Path) -> MdqService:
+        return _fresh_service(tmp_path)
+
+    def test_chunk_write_failure_rolls_back_the_document_upsert(
+        self,
+        service: MdqService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """The document upsert is rolled back when a chunk write fails."""
+        target = tmp_path / "a.md"
+        target.write_text("# A\n\nOne")
+
+        def _fail_on_chunk(content: str) -> int:
+            raise sqlite3.OperationalError("simulated chunk write failure")
+
+        monkeypatch.setattr(indexer, "_estimate_token_count", _fail_on_chunk)
+
+        recorded = _RecordingConnection(service._get_db_connection())
+        monkeypatch.setattr(service, "_get_db_connection", lambda: recorded)
+
+        caplog.set_level(logging.ERROR, logger="mcp_servers.mdq.indexer")
+        asyncio.run(indexer._index_single_file(service, target))
+
+        assert "Failed to write chunks for" in caplog.text
+        assert "BEGIN IMMEDIATE" in recorded.statements
+        assert "ROLLBACK" in recorded.statements
+        assert "COMMIT" not in recorded.statements
+        assert _documents_row_count(service, target) == 0
+
+    def test_rollback_quietly_discards_the_open_transaction(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        try:
+            conn.execute("CREATE TABLE t (v INTEGER)")
+            conn.execute("BEGIN IMMEDIATE")
+            conn.execute("INSERT INTO t VALUES (1)")
+
+            indexer._rollback_quietly(conn)
+
+            assert conn.execute("SELECT COUNT(*) FROM t").fetchone()[0] == 0
+        finally:
+            conn.close()
+
+    def test_rollback_quietly_ignores_a_connection_that_cannot_rollback(self) -> None:
+        """A second sqlite3.Error during ROLLBACK is swallowed, not reported."""
+        conn = sqlite3.connect(":memory:")
+        conn.close()
+
+        indexer._rollback_quietly(conn)
+
+
+class TestDeletedFileDetectionFailureIsolation:
+    """Characterization: a directory's failure stops that directory only."""
+
+    @pytest.fixture()
+    def service(self, tmp_path: Path) -> MdqService:
+        return _fresh_service(tmp_path)
+
+    def _index(self, service: MdqService, directory: Path) -> None:
+        asyncio.run(
+            _refresh_paths(service, RefreshIndexRequest(paths=[str(directory)]))
+        )
+
+    def test_scan_failure_in_one_directory_does_not_stop_another(
+        self,
+        service: MdqService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        first = tmp_path / "first"
+        second = tmp_path / "second"
+        for directory in (first, second):
+            directory.mkdir()
+            for name in ("a.md", "b.md"):
+                (directory / name).write_text(f"# {name}\n\nBody")
+        self._index(service, first)
+        self._index(service, second)
+        (first / "a.md").unlink()
+        (second / "a.md").unlink()
+
+        original_scan = indexer._iter_indexable_files
+
+        def _scan(service: MdqService, directory: Path) -> list[Path]:
+            if directory == first:
+                raise RuntimeError("scan failed")
+            return original_scan(service, directory)
+
+        monkeypatch.setattr(indexer, "_iter_indexable_files", _scan)
+        caplog.set_level(logging.ERROR, logger="mcp_servers.mdq.indexer")
+
+        result = asyncio.run(
+            _refresh_paths(
+                service,
+                RefreshIndexRequest(paths=[str(first / "b.md"), str(second / "b.md")]),
+            )
+        )
+
+        assert result["deleted_count"] == 1
+        assert "Failed to scan for deleted files in" in caplog.text
+
+    def test_mid_directory_failure_keeps_the_deletions_already_made(
+        self,
+        service: MdqService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        """deleted_count keeps what the directory removed before it failed."""
+        directory = tmp_path / "docs"
+        directory.mkdir()
+        for name in ("a.md", "b.md", "c.md"):
+            (directory / name).write_text(f"# {name}\n\nBody")
+        self._index(service, directory)
+        (directory / "a.md").unlink()
+        (directory / "b.md").unlink()
+
+        original_delete = indexer.delete_file_from_index
+        calls = 0
+
+        def _delete(service: MdqService, conn: sqlite3.Connection, path: Path) -> None:
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                raise RuntimeError("delete failed")
+            original_delete(service, conn, path)
+
+        monkeypatch.setattr(indexer, "delete_file_from_index", _delete)
+        caplog.set_level(logging.ERROR, logger="mcp_servers.mdq.indexer")
+
+        result = asyncio.run(
+            _refresh_paths(
+                service, RefreshIndexRequest(paths=[str(directory / "c.md")])
+            )
+        )
+
+        assert result["deleted_count"] == 1
+        assert "Failed to scan for deleted files in" in caplog.text
