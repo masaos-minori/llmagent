@@ -45,7 +45,18 @@ class GitHubService(
         return f"#{i.number} [{i.state}]{label_str} {i.title}\n{i.url}"
 
     @staticmethod
-    def _fmt_pr_line(pr: PullRequestInfo) -> str:
-        """Format one pull request with state, head→base branch, and URL."""
-        draft_str = " [draft]" if pr.draft else ""
-        return f"#{pr.number} [{pr.state}]{draft_str} {pr.title} ({pr.head_ref}->{pr.base_ref})\n{pr.url}"
+    def _fmt_pr_line(pr: PullRequestInfo | IssueInfo) -> str:
+        """Format one pull request with state, head→base branch, and URL.
+
+        `IssueInfo` is accepted because the GitHub Search API returns Issue
+        objects for `is:pr` queries: a search hit carries no head/base refs and
+        no draft flag, so those segments are omitted and the hit renders in the
+        same shape as a `github_list_pull_requests` line.
+        """
+        if isinstance(pr, PullRequestInfo):
+            draft_str = " [draft]" if pr.draft else ""
+            ref_str = f" ({pr.head_ref}->{pr.base_ref})"
+        else:
+            draft_str = ""
+            ref_str = ""
+        return f"#{pr.number} [{pr.state}]{draft_str} {pr.title}{ref_str}\n{pr.url}"

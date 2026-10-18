@@ -116,3 +116,11 @@ class TestFmtPrLine:
         result = GitHubService._fmt_pr_line(pr)
 
         assert "(dev->release)" in result
+
+    def test_issue_info_input_omits_ref_and_draft_segments(self) -> None:
+        """A Search API PR hit arrives as IssueInfo and renders without the ref segment."""
+        issue = _make_issue(number=21, state="open", title="Search hit", labels=["bug"])
+
+        result = GitHubService._fmt_pr_line(issue)
+
+        assert result == f"#21 [open] Search hit\n{issue.url}"

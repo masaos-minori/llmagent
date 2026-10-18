@@ -62,6 +62,21 @@ class _DryRunRequest(Protocol):
     dry_run: bool
 
 
+_PREVIEW_BODY_LIMIT = 80
+
+
+def _fmt_body_field(body: str) -> str:
+    """Render the body an update would send, capped so the preview stays one line.
+
+    The real run sends the whole body. The preview reports the size and the start of
+    the first line, which is what a caller needs to confirm the right text is set.
+    """
+    first_line = body.splitlines()[0] if body else ""
+    if len(first_line) > _PREVIEW_BODY_LIMIT:
+        return f"body='{first_line[:_PREVIEW_BODY_LIMIT]}...' ({len(body)} chars)"
+    return f"body='{first_line}' ({len(body)} chars)"
+
+
 class GitHubService(_GitHubServiceCore):
     """GitHubService with dispatch formatters (extends service_business.GitHubService)."""
 
@@ -415,18 +430,22 @@ class GitHubService(_GitHubServiceCore):
         )
 
     async def fmt_search_pull_requests(self, args: ToolArgs) -> str:
-        """Format search pull requests results showing PR numbers, states, and titles."""
+        """Format search results as pull-request lines, identical to `fmt_list_pull_requests`."""
         result = await self.search_pull_requests(
             SearchPullRequestsRequest(
                 query=args["query"],
                 per_page=args.get("per_page", 10),
             )
         )
-        lines = [self._fmt_issue_line(i) for i in result.results]
+        lines = [self._fmt_pr_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
     async def fmt_update_pull_request(self, args: ToolArgs) -> str:
-        """Format update pull request operation result with optional dry-run support."""
+        """Format update pull request operation result with optional dry-run support.
+
+        The preview lists every field the real run would change, `body` included: a
+        dry run that omitted it would report "(no changes)" for a body-only update.
+        """
         req = UpdatePullRequestRequest(
             owner=args["owner"],
             repo=args["repo"],
@@ -439,6 +458,8 @@ class GitHubService(_GitHubServiceCore):
         fields: list[str] = []
         if req.title is not None:
             fields.append(f"title='{req.title}'")
+        if req.body is not None:
+            fields.append(_fmt_body_field(req.body))
         if req.state is not None:
             fields.append(f"state={req.state}")
         changes = ", ".join(fields) or "(no changes)"

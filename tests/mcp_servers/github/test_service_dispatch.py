@@ -461,7 +461,7 @@ class TestFmtGetPullRequest:
 
 
 class TestFmtSearchPullRequests:
-    async def test_results_render_via_shared_issue_line_formatter(self) -> None:
+    async def test_results_render_via_pr_line_formatter(self) -> None:
         svc = _make_service()
         # Search PR results reuse IssueInfo (GitHub search API returns Issue objects for PRs).
         issue = _make_issue(number=21, state="open", title="Search hit")
@@ -472,6 +472,48 @@ class TestFmtSearchPullRequests:
         result = await svc.fmt_search_pull_requests({"query": "q"})
 
         assert result == f"#21 [open] Search hit\n{issue.url}"
+
+    async def test_search_hit_labels_are_not_rendered(self) -> None:
+        """The unified PR line carries no label segment, unlike the issue line."""
+        svc = _make_service()
+        issue = _make_issue(
+            number=22, state="open", title="Labelled hit", labels=["bug", "docs"]
+        )
+        svc.search_pull_requests = AsyncMock(  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+            return_value=SearchPullRequestsResponse(query="q", results=[issue])
+        )
+
+        result = await svc.fmt_search_pull_requests({"query": "q"})
+
+        assert result == f"#22 [open] Labelled hit\n{issue.url}"
+
+    async def test_search_and_list_render_the_same_pr_identically(self) -> None:
+        """A PR that carries refs renders the same through both formatters."""
+        svc = _make_service()
+        pr = _make_pr(
+            number=21,
+            state="open",
+            title="Search hit",
+            head_ref="feat",
+            base_ref="main",
+        )
+        issue = _make_issue(number=21, state="open", title="Search hit")
+        svc.search_pull_requests = AsyncMock(  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+            return_value=SearchPullRequestsResponse(query="q", results=[issue])
+        )
+        svc.list_pull_requests = AsyncMock(  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+            return_value=ListPullRequestsResponse(pull_requests=[pr])
+        )
+
+        search_line = (await svc.fmt_search_pull_requests({"query": "q"})).splitlines()[
+            0
+        ]
+        list_line = (
+            await svc.fmt_list_pull_requests({"owner": "org", "repo": "repo"})
+        ).splitlines()[0]
+
+        assert search_line == "#21 [open] Search hit"
+        assert list_line == "#21 [open] Search hit (feat->main)"
 
     async def test_no_results_returns_placeholder(self) -> None:
         svc = _make_service()
@@ -515,6 +557,60 @@ class TestFmtUpdatePullRequest:
         )
 
         assert '"Would update PR #4 in org/repo: (no changes)"' in result
+
+    async def test_dry_run_preview_lists_a_body_only_change(self) -> None:
+        """A body-only update is a change the preview has to report."""
+        svc = _make_service()
+        svc.update_pull_request = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_update_pull_request(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "pr_number": 4,
+                "body": "first line\nsecond line",
+                "dry_run": True,
+            }
+        )
+
+        assert result == (
+            '{"dry_run":true,"preview":"Would update PR #4 in org/repo: '
+            "body='first line' (22 chars)\"}"
+        )
+        svc.update_pull_request.assert_not_awaited()
+
+    async def test_dry_run_preview_caps_a_long_body_to_one_line(self) -> None:
+        svc = _make_service()
+        svc.update_pull_request = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_update_pull_request(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "pr_number": 4,
+                "body": "x" * 120,
+                "dry_run": True,
+            }
+        )
+
+        assert f"body='{'x' * 80}...' (120 chars)" in result
+
+    async def test_dry_run_preview_reports_an_empty_body_as_a_change(self) -> None:
+        """body="" clears the body, so it is a change rather than an absent field."""
+        svc = _make_service()
+        svc.update_pull_request = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_update_pull_request(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "pr_number": 4,
+                "body": "",
+                "dry_run": True,
+            }
+        )
+
+        assert "body='' (0 chars)" in result
 
     async def test_non_dry_run_calls_service_and_formats_result(self) -> None:
         svc = _make_service()
