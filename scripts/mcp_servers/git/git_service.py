@@ -35,7 +35,8 @@ from mcp_servers.git.git_models import (
     GitStatusRequest,
 )
 from mcp_servers.git.git_security import is_within_allowed_paths
-from mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+from mcp_servers.git.repository_state import RepositoryState
+from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 from mcp_servers.server import ToolArgs
 
 from .format_output import (

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """tests/mcp_servers/git/test_repository_state.py
 
-Tests for RepositoryState module: snapshot capture, property access,
-and guard integration with GitService handlers.
+Tests for RepositoryState and the WriteProtectionPipeline extracted from it:
+snapshot capture, property access, pipeline stage recording, and guard
+integration with GitService handlers.
 """
 
 from __future__ import annotations
@@ -17,10 +18,10 @@ import git
 import pytest
 from mcp_servers.git.repository_state import (
     RepositoryState,
-    WriteProtectionPipeline,
     _is_protected_branch,
     _validate_ref,
 )
+from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 
@@ -192,7 +193,7 @@ class TestGuardDelegation:
 class TestPipelineOrdering:
     def test_stage_4_before_stage_5(self, working_repo: str) -> None:
         """Verify Stage 4 (state snapshot) runs before Stage 5 (preconditions)."""
-        from mcp_servers.git.repository_state import WriteProtectionPipeline
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         state = RepositoryState.snapshot(working_repo)
         pipeline = WriteProtectionPipeline(state)
@@ -369,7 +370,7 @@ class TestPostconditionChecks:
 
     def test_pipeline_result_ok_has_post_state(self, working_repo: str) -> None:
         """PipelineResult.ok_result stores post_state."""
-        from mcp_servers.git.repository_state import PipelineResult
+        from mcp_servers.git.write_protection_pipeline import PipelineResult
 
         state = RepositoryState.snapshot(working_repo)
         result = PipelineResult.ok_result(state, "output", post_state=state)
@@ -377,7 +378,7 @@ class TestPostconditionChecks:
 
     def test_pipeline_result_reject_has_post_state(self, working_repo: str) -> None:
         """PipelineResult.reject stores post_state when provided."""
-        from mcp_servers.git.repository_state import PipelineResult
+        from mcp_servers.git.write_protection_pipeline import PipelineResult
 
         state = RepositoryState.snapshot(working_repo)
         result = PipelineResult.reject(state, "Stage 7", "failed", post_state=state)
@@ -386,7 +387,7 @@ class TestPostconditionChecks:
 
     def test_pipeline_result_reject_without_post_state(self, working_repo: str) -> None:
         """PipelineResult.reject has None post_state when not provided."""
-        from mcp_servers.git.repository_state import PipelineResult
+        from mcp_servers.git.write_protection_pipeline import PipelineResult
 
         state = RepositoryState.snapshot(working_repo)
         result = PipelineResult.reject(state, "Stage 7", "failed")
@@ -439,12 +440,12 @@ class TestRedactRemoteUrl:
 
 class TestGetRepoLock:
     def test_same_path_returns_same_lock(self) -> None:
-        from mcp_servers.git.repository_state import _get_repo_lock
+        from mcp_servers.git.write_protection_pipeline import _get_repo_lock
 
         assert _get_repo_lock("/tmp/repo-a") is _get_repo_lock("/tmp/repo-a")
 
     def test_distinct_paths_return_distinct_locks(self) -> None:
-        from mcp_servers.git.repository_state import _get_repo_lock
+        from mcp_servers.git.write_protection_pipeline import _get_repo_lock
 
         assert _get_repo_lock("/tmp/repo-b") is not _get_repo_lock("/tmp/repo-c")
 
@@ -456,7 +457,7 @@ class TestGetRepoLock:
         ``asyncio.Lock`` cannot be acquired from a worker thread. Per-repo
         serialisation is therefore preserved with a ``threading.Lock``.
         """
-        from mcp_servers.git.repository_state import _get_repo_lock
+        from mcp_servers.git.write_protection_pipeline import _get_repo_lock
 
         lock = _get_repo_lock("/tmp/repo-lock-type")
         assert not isinstance(lock, asyncio.Lock)
@@ -470,7 +471,7 @@ class TestGetRepoLock:
 
 class TestHeadIdentityRecheck:
     def test_head_unchanged_during_op_succeeds(self, working_repo: str) -> None:
-        from mcp_servers.git.repository_state import WriteProtectionPipeline
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         state = RepositoryState.snapshot(working_repo)
         pipeline = WriteProtectionPipeline(state)
@@ -482,7 +483,7 @@ class TestHeadIdentityRecheck:
         """Stage 5b re-reads the HEAD identity from the live repository object
         immediately before the mutating Git call (REQ-008), so a HEAD detached
         between the authorization-time snapshot and the run is rejected."""
-        from mcp_servers.git.repository_state import WriteProtectionPipeline
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         state = RepositoryState.snapshot(working_repo)  # captured while attached
         repo = git.Repo(working_repo)
@@ -505,7 +506,7 @@ class TestHeadIdentityRecheck:
     def test_branch_drift_rejected_by_live_recheck(self, working_repo: str) -> None:
         """A branch-name change after the snapshot is drift too: the live identity
         pair no longer matches the authorized one, so Stage 5b rejects."""
-        from mcp_servers.git.repository_state import WriteProtectionPipeline
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         state = RepositoryState.snapshot(working_repo)  # captured on the initial branch
         repo = git.Repo(working_repo)
@@ -529,10 +530,8 @@ class TestHeadIdentityRecheck:
         re-read, so test doubles cannot be denied by Stage 5b."""
         from unittest.mock import MagicMock
 
-        from mcp_servers.git.repository_state import (
-            RepositoryState,
-            WriteProtectionPipeline,
-        )
+        from mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         state = RepositoryState(
             path="/tmp/stage5b-mocked-repo",
@@ -758,7 +757,7 @@ class TestStage3DestinationProtection:
     def test_protected_destination_rejected_at_stage_3_without_precheck(
         self, working_repo: str
     ) -> None:
-        from mcp_servers.git.repository_state import WriteProtectionPipeline
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         # HEAD is on master (unprotected); call the pipeline directly so the
         # git_service pre-pipeline _validate_protected() never runs. A protected
@@ -781,7 +780,7 @@ class TestStage3DestinationProtection:
         assert op_called is False
 
     def test_unprotected_destination_allowed(self, working_repo: str) -> None:
-        from mcp_servers.git.repository_state import WriteProtectionPipeline
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         state = RepositoryState.snapshot(working_repo, protected_branches=["main"])
         pipeline = WriteProtectionPipeline(state)

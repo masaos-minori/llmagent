@@ -878,10 +878,8 @@ class TestCompletePipelineCoverage:
 
     def test_all_stages_execute_in_order_for_checkout(self, client, monkeypatch):
         """REQ-010, AC-1: Authorization, precondition, execution, and postcondition stages execute in documented order."""
-        from mcp_servers.git.repository_state import (
-            RepositoryState,
-            WriteProtectionPipeline,
-        )
+        from mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         recorded_stages = []
         original_record = WriteProtectionPipeline.record_stage
@@ -918,10 +916,8 @@ class TestCompletePipelineCoverage:
 
     def test_all_stages_execute_in_order_for_pull(self, client, monkeypatch):
         """REQ-010, AC-1: Pull stages execute in documented order."""
-        from mcp_servers.git.repository_state import (
-            RepositoryState,
-            WriteProtectionPipeline,
-        )
+        from mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         recorded_stages = []
         original_record = WriteProtectionPipeline.record_stage
@@ -962,10 +958,8 @@ class TestCompletePipelineCoverage:
 
     def test_all_stages_execute_in_order_for_push(self, client, monkeypatch):
         """REQ-010, AC-1: Push stages execute in documented order."""
-        from mcp_servers.git.repository_state import (
-            RepositoryState,
-            WriteProtectionPipeline,
-        )
+        from mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         recorded_stages = []
         original_record = WriteProtectionPipeline.record_stage
@@ -1050,9 +1044,9 @@ class TestLiveCallToolAuthorization:
 
     @pytest.fixture
     def mock_repo_state_snapshot_dynamic(self, monkeypatch):
-        from mcp_servers.git.repository_state import (
+        from mcp_servers.git.repository_state import RepositoryState
+        from mcp_servers.git.write_protection_pipeline import (
             PipelineResult,
-            RepositoryState,
             WriteProtectionPipeline,
         )
 

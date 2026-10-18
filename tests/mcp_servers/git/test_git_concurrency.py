@@ -12,7 +12,8 @@ from pathlib import Path
 
 import git
 import pytest
-from mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
+from mcp_servers.git.repository_state import RepositoryState
+from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
 # ── Fixtures ────────────────────────────────────────────────────────────────
 

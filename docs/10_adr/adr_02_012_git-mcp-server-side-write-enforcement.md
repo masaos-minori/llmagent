@@ -63,7 +63,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 
 ### Scope
 
-- **Components**: `scripts/mcp_servers/git/git_service.py`, `format_output.py`, `git_server.py`, `git_models.py`, `repository_state.py`.
+- **Components**: `scripts/mcp_servers/git/git_service.py`, `format_output.py`, `git_server.py`, `git_models.py`, `repository_state.py`, `write_protection_pipeline.py`.
 - **Tools**: `git_checkout`, `git_pull`, `git_push` specifically; `git_add`/`git_commit` have no command-specific guard of their own, but the common write-protection check applies to them: it compares the current HEAD branch against the protected branches.
 
 ### Out of Scope
@@ -200,7 +200,8 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Implementation References
 
-- `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `RepositoryState.snapshot()`, `WriteProtectionPipeline`, `WriteProtectionPipeline.run()`
+- `scripts/mcp_servers/git/repository_state.py` — `RepositoryState`, `RepositoryState.snapshot()`
+- `scripts/mcp_servers/git/write_protection_pipeline.py` — `WriteProtectionPipeline`, `WriteProtectionPipeline.run()`
 - `scripts/mcp_servers/git/git_service.py` — `GitService`, `GitService.get_dispatch_table()`
 - `scripts/mcp_servers/git/format_output.py` — `format_checkout()`, `format_pull()`, `format_push()`
 - `scripts/mcp_servers/git/git_server.py` — `call_tool()` endpoint, audit logging
