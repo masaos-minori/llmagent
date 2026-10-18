@@ -81,28 +81,41 @@ def _validate_config_bounds(
 ) -> None:
     """Enforce WebSearchConfig's numeric invariants.
 
+    The tuple is the invariant list: one entry per rule, in the order the rules
+    are reported.
+
     Raises:
         ValueError: if any value violates its invariant. Message text and
             check order match the pre-extraction inline checks exactly.
     """
-    if default_max_results < 1:
-        raise ValueError(f"default_max_results ({default_max_results}) must be >= 1")
-    if max_results_limit < 1:
-        raise ValueError(f"max_results_limit ({max_results_limit}) must be >= 1")
-    if default_max_results > max_results_limit:
-        raise ValueError(
+    violations: tuple[tuple[bool, str], ...] = (
+        (
+            default_max_results < 1,
+            f"default_max_results ({default_max_results}) must be >= 1",
+        ),
+        (
+            max_results_limit < 1,
+            f"max_results_limit ({max_results_limit}) must be >= 1",
+        ),
+        (
+            default_max_results > max_results_limit,
             f"default_max_results ({default_max_results}) must not exceed "
-            f"max_results_limit ({max_results_limit})"
-        )
-    if max_results_limit > HARD_MAX_RESULTS_LIMIT:
-        raise ValueError(
+            f"max_results_limit ({max_results_limit})",
+        ),
+        (
+            max_results_limit > HARD_MAX_RESULTS_LIMIT,
             f"max_results_limit ({max_results_limit}) must not exceed "
-            f"HARD_MAX_RESULTS_LIMIT ({HARD_MAX_RESULTS_LIMIT})"
-        )
-    if not (0 < search_timeout_sec <= HARD_SEARCH_TIMEOUT_SEC_LIMIT):
-        raise ValueError(
-            f"search_timeout_sec ({search_timeout_sec}) must be in (0, {HARD_SEARCH_TIMEOUT_SEC_LIMIT}]"
-        )
+            f"HARD_MAX_RESULTS_LIMIT ({HARD_MAX_RESULTS_LIMIT})",
+        ),
+        (
+            not 0 < search_timeout_sec <= HARD_SEARCH_TIMEOUT_SEC_LIMIT,
+            f"search_timeout_sec ({search_timeout_sec}) must be in "
+            f"(0, {HARD_SEARCH_TIMEOUT_SEC_LIMIT}]",
+        ),
+    )
+    for violated, message in violations:
+        if violated:
+            raise ValueError(message)
 
 
 @dataclasses.dataclass
