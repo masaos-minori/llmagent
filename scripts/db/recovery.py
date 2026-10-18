@@ -110,19 +110,12 @@ def _run_integrity_check(
         return _classify_error(e), str(e)
 
 
-def _handle_dry_run(check_result: str) -> RecoveryResult:
-    """Return appropriate RecoveryResult for dry_run mode."""
-    if check_result == "ok":
-        return RecoveryResult(
-            success=True,
-            action="vacuum",
-            detail="integrity ok (dry run)",
-            dry_run=True,
-        )
+def _dry_run_integrity_ok() -> RecoveryResult:
+    """Return the dry_run result reported when the integrity check reports HEALTHY."""
     return RecoveryResult(
-        success=False,
-        action="error",
-        detail=f"integrity check failed: {check_result}",
+        success=True,
+        action="vacuum",
+        detail="integrity ok (dry run)",
         dry_run=True,
     )
 
@@ -472,7 +465,7 @@ def _result_for_condition(
     """
     if condition == DbCondition.HEALTHY:
         if dry_run:
-            return _handle_dry_run("ok")
+            return _dry_run_integrity_ok()
         return _vacuum_db(target)
 
     if condition in _NO_RESTORE_CONDITIONS:

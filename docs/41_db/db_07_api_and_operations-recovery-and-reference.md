@@ -81,7 +81,7 @@ Repair actions the logical-verification stage only **recommends** but does not i
 
 ### 9.6 Dry Run contract
 
-- `dry_run=True` MUST NOT move, replace, truncate, delete, or rewrite the target database — **current behavior satisfies this on the normal path**: `_handle_dry_run()` returns before either `_vacuum_db()` or `_restore_from_backup()` is called (Verified by test — `test_dry_run_returns_recovery_result`, `test_dry_run_integrity_failure`).
+- `dry_run=True` MUST NOT move, replace, truncate, delete, or rewrite the target database — **current behavior satisfies this on the normal path**: `_result_for_condition()` returns `_dry_run_integrity_ok()` before either `_vacuum_db()` or `_restore_from_backup()` is called (Verified by test — `test_recover_dry_run_healthy`, `test_dry_run_healthy_reports_the_vacuum_preview`).
 - On the physical-corruption path, `sqlite3.DatabaseError` is caught by `_classify_error()` and classified as `DbCondition.CORRUPTION` (9.4); the dry-run branch then returns a `RecoveryResult` without modifying the target file (Explicit in code — dry-run guarantee holds by design, not coincidence).
 
 ### 9.7 Persistence-domain policy

@@ -784,7 +784,7 @@ from db.models import (
     SessionConsistencyReport,
 )
 from db.recovery import (
-    _handle_dry_run,
+    _dry_run_integrity_ok,
     _run_integrity_check,
     _run_logical_verification,
     _vacuum_db,
@@ -896,22 +896,14 @@ class TestRunIntegrityCheckCharacterization:
         )
 
 
-class TestHandleDryRunCharacterization:
-    """Characterization: both branches of `_handle_dry_run`, verbatim results."""
+class TestDryRunIntegrityOkCharacterization:
+    """Characterization: the dry_run result a HEALTHY integrity check reports."""
 
-    def test_ok_branch(self) -> None:
-        assert _handle_dry_run("ok") == RecoveryResult(
+    def test_dry_run_result(self) -> None:
+        assert _dry_run_integrity_ok() == RecoveryResult(
             success=True,
             action="vacuum",
             detail="integrity ok (dry run)",
-            dry_run=True,
-        )
-
-    def test_failure_branch(self) -> None:
-        assert _handle_dry_run("no such table: chunks") == RecoveryResult(
-            success=False,
-            action="error",
-            detail="integrity check failed: no such table: chunks",
             dry_run=True,
         )
 
