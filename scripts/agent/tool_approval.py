@@ -58,6 +58,15 @@ _KNOWN_DRY_RUN_CAPABLE_TOOLS: frozenset[str] = frozenset(
         "delete_file",
         "delete_directory",
         "move_file",
+        "github_create_or_update_file",
+        "github_push_files",
+        "github_delete_file",
+        "github_create_issue",
+        "github_add_issue_comment",
+        "github_create_pull_request",
+        "github_update_pull_request",
+        "github_merge_pull_request",
+        "github_create_branch",
     ]
 )
 

@@ -14,6 +14,7 @@ import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_approval import check_approval
+from shared.transport_dto import ToolCallResult
 
 from tests.agent._config_test_defaults import (
     ALL_APPROVAL_RISK_RULES,
@@ -69,6 +70,12 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.session.session_id = None
     ctx.services_required.audit_logger = None
     ctx.services_required.tools = AsyncMock()
+    # A working tools service returns a successful ToolCallResult. Without this,
+    # the bare AsyncMock yields a truthy MagicMock for is_error, which trips the
+    # HIGH-risk dry-run blocking path for github_push_files (now dry-run-capable).
+    ctx.services_required.tools.execute.return_value = ToolCallResult.from_transport(
+        output="dry-run preview", is_error=False
+    )
     return ctx
 
 

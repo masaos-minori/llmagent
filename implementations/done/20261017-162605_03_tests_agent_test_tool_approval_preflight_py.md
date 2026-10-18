@@ -50,14 +50,14 @@ Depends on the code changes in `scripts/agent/tool_approval.py` (row 1) and
 
 ### Procedure
 
-1. In `TestCheckApprovalDryRun`, add `test_github_tool_triggers_dry_run`:
+1. In `TestCheckApprovalDryRun`, add `test_github_tool_triggers_dry_run` (new):
    - Wire `ctx.services_required.tools.execute = AsyncMock(...)` as in the existing test.
    - Call `await check_approval(ctx, "github_create_issue", {...})`.
    - Assert `ctx.services_required.tools.execute.assert_awaited_once()` with
      `{**args, "dry_run": True}`.
    - Assert the returned preview includes the dry-run output (not static text only)
      (REQ-001, REQ-005).
-2. Add `test_readonly_github_tool_does_not_trigger_dry_run`:
+2. Add `test_readonly_github_tool_does_not_trigger_dry_run` (new):
    - Use a read-only GitHub tool (e.g. `github_get_issue`).
    - Assert `ctx.services_required.tools.execute.assert_not_awaited()` (REQ-004).
 3. Confirm existing `test_dry_run_result_appended_to_preview` /
@@ -109,10 +109,10 @@ row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the test changes in test_tool_approval_preflight.py | Pending | — | — | align with rows 1–2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the test changes in test_tool_approval_preflight.py | Completed | 20261018-120816 | 20261018-120816 | Two tests added under TestCheckApprovalDryRun; aligns with rows 1–2 (tool_approval.py/constants.py). |
+| 2 | Add or update tests per Validation plan | Completed | 20261018-120816 | 20261018-120816 | test_github_tool_triggers_dry_run (REQ-005) and test_readonly_github_tool_does_not_trigger_dry_run (REQ-004). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261018-120816 | 20261018-120816 | ruff/mypy/bandit-high/lint-imports clean; 9109 passed, 0 failed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261018-120816 | 20261018-120816 | N/A: test-only change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

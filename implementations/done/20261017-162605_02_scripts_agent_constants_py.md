@@ -125,10 +125,10 @@ and the doc update (none required).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add nine dry-run-capable GitHub tools to `_DEFAULT_DRY_RUN_TOOLS` | Pending | — | — | keep existing six verbatim |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: test file is a separate row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: no doc update required |
+| 1 | Add nine dry-run-capable GitHub tools to `_DEFAULT_DRY_RUN_TOOLS` | Completed | 20261018-112907 | 20261018-112907 | keep existing six verbatim |
+| 2 | Add or update tests per Validation plan | Completed | 20261018-112907 | 20261018-112907 | N/A: test file is a separate row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261018-112907 | 20261018-112907 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261018-112907 | 20261018-112907 | N/A: no doc update required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

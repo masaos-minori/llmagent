@@ -567,6 +567,57 @@ class TestCheckApprovalDryRun:
         assert call_args[0] == "create_directory"
         assert call_args[1]["dry_run"] is True
 
+    @pytest.mark.asyncio
+    async def test_github_tool_triggers_dry_run(self) -> None:
+        """github_create_issue is dry_run-capable; dry-run output enriches the preview."""
+        cfg = _make_cfg(approval_github_allowed_repos=["octocat/hello-world"])
+        ctx = _make_ctx(cfg=cfg)
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="Dry-run: issue #1 created [dry run]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+        )
+
+        printed: list[str] = []
+        with (
+            patch("builtins.print", side_effect=lambda *a: printed.append(str(a))),
+            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+        ):
+            result = await check_approval(
+                ctx,
+                "github_create_issue",
+                {"owner": "octocat", "repo": "hello-world", "title": "Bug report"},
+            )
+
+        assert result is True
+        combined = " ".join(printed)
+        assert "Dry-run" in combined
+        ctx.services_required.tools.execute.assert_awaited_once()
+        call_args = ctx.services_required.tools.execute.await_args[0]
+        assert call_args[0] == "github_create_issue"
+        assert call_args[1]["dry_run"] is True
+
+    @pytest.mark.asyncio
+    async def test_readonly_github_tool_does_not_trigger_dry_run(self) -> None:
+        """Read-only github_get_issue is not dry_run-capable; execute must not be called."""
+        cfg = _make_cfg()
+        ctx = _make_ctx(cfg=cfg)
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock()
+
+        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+            await check_approval(
+                ctx,
+                "github_get_issue",
+                {"owner": "octocat", "repo": "hello-world", "issue_number": "1"},
+            )
+
+        ctx.services_required.tools.execute.assert_not_awaited()
+
 
 # ── _audit_tool_exec() ────────────────────────────────────────────────────────
 
