@@ -6,6 +6,7 @@ in db/maintenance.py.
 from __future__ import annotations
 
 import sqlite3
+from typing import Any
 
 from db.models import RagConsistencyReport
 from db.rag_consistency import check_rag_consistency, is_consistent, summarize_issues
@@ -594,3 +595,410 @@ class TestNewConsistencyChecks:
         assert report.chunks_without_vec_count == 0
         assert report.duplicate_chunk_index_count == 0
         assert report.url_level_mismatches is None
+
+
+# ── Characterization tests for the identifier detail rendering ────────────────
+#
+# summarize_issues() renders each issue from a different identifier source, and the
+# truncation markers are not uniform: doc_ids/chunk_ids cut at 10 and mark at 10,
+# orphan URLs cut at 5 but mark only at 10, and the new-check identifiers never
+# mark. These pin the exact text of the branches the suite left uncovered.
+
+
+def _report(**overrides: Any) -> RagConsistencyReport:
+    """Return a report whose only issue is what *overrides* introduces.
+
+    vec mirrors chunks unless overridden, so the vector-mismatch issue stays silent
+    in tests that target a different check.
+    """
+    base: dict[str, Any] = {
+        "chunks": 0,
+        "fts": 0,
+        "orphan_vec_count": 0,
+        "fts_gap": 0,
+        "fts_orphan_count": 0,
+        "read_smoke_test_ok": True,
+    }
+    base.update(overrides)
+    base.setdefault("vec", base["chunks"])
+    return RagConsistencyReport(**base)
+
+
+def _only_issue(report: RagConsistencyReport) -> str:
+    """Return the single issue *report* produces."""
+    issues = summarize_issues(report)
+    assert len(issues) == 1
+    return issues[0]
+
+
+class TestFtsGapIssueDetail:
+    """doc_ids win; chunk_ids are the fallback; both mark at exactly 10."""
+
+    def test_doc_ids_take_precedence(self) -> None:
+        report = _report(
+            chunks=3, fts=2, fts_gap=1, affected_doc_ids=(7,), affected_chunk_ids=(1, 3)
+        )
+
+        assert _only_issue(report) == (
+            "[WARNING] FTS gap detected (chunks=3, fts=2, gap=1). Affected doc_ids: [7]. "
+            "Run '/session rag-rebuild-fts' to repair."
+        )
+
+    def test_chunk_ids_are_used_when_doc_ids_are_unavailable(self) -> None:
+        report = _report(chunks=3, fts=2, fts_gap=1, affected_chunk_ids=(1, 3))
+
+        assert _only_issue(report) == (
+            "[WARNING] FTS gap detected (chunks=3, fts=2, gap=1). Affected chunk_ids: [1, 3]. "
+            "Run '/session rag-rebuild-fts' to repair."
+        )
+
+    def test_ten_identifiers_add_the_ellipsis(self) -> None:
+        report = _report(
+            chunks=11, fts=1, fts_gap=10, affected_doc_ids=tuple(range(1, 11))
+        )
+
+        assert _only_issue(report) == (
+            "[WARNING] FTS gap detected (chunks=11, fts=1, gap=10). "
+            "Affected doc_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10 ...]. "
+            "Run '/session rag-rebuild-fts' to repair."
+        )
+
+    def test_nine_identifiers_do_not_add_the_ellipsis(self) -> None:
+        report = _report(
+            chunks=10, fts=1, fts_gap=9, affected_doc_ids=tuple(range(1, 10))
+        )
+
+        assert _only_issue(report) == (
+            "[WARNING] FTS gap detected (chunks=10, fts=1, gap=9). "
+            "Affected doc_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9]. "
+            "Run '/session rag-rebuild-fts' to repair."
+        )
+
+    def test_no_identifiers_render_no_affected_clause(self) -> None:
+        report = _report(chunks=3, fts=2, fts_gap=1)
+
+        assert _only_issue(report) == (
+            "[WARNING] FTS gap detected (chunks=3, fts=2, gap=1). "
+            "Run '/session rag-rebuild-fts' to repair."
+        )
+
+
+class TestFtsOrphanIssueDetail:
+    """Three identifier sources, then a static clause when none are available."""
+
+    _TAIL = (
+        " Run '/session rag-rebuild-fts' immediately; "
+        "orphan FTS entries indicate data loss risk."
+    )
+
+    def test_orphan_chunk_ids(self) -> None:
+        report = _report(
+            chunks=2, fts=3, fts_orphan_count=1, affected_orphan_chunk_ids=(4, 5)
+        )
+
+        assert _only_issue(report) == (
+            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "Affected chunk_ids: [4, 5]." + self._TAIL
+        )
+
+    def test_orphan_urls_are_used_when_chunk_ids_are_unavailable(self) -> None:
+        report = _report(
+            chunks=2,
+            fts=3,
+            fts_orphan_count=1,
+            affected_orphan_urls=("https://a", "https://b"),
+        )
+
+        assert _only_issue(report) == (
+            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "Affected URLs: [https://a, https://b]." + self._TAIL
+        )
+
+    def test_seven_urls_are_cut_at_five_without_the_ellipsis(self) -> None:
+        """The URL list is cut at 5 while the marker looks for 10: a latent mismatch."""
+        urls = tuple(f"https://u{i}" for i in range(7))
+        report = _report(chunks=2, fts=3, fts_orphan_count=1, affected_orphan_urls=urls)
+
+        assert _only_issue(report) == (
+            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4]."
+            + self._TAIL
+        )
+
+    def test_ten_urls_add_the_ellipsis(self) -> None:
+        urls = tuple(f"https://u{i}" for i in range(10))
+        report = _report(chunks=2, fts=3, fts_orphan_count=1, affected_orphan_urls=urls)
+
+        assert _only_issue(report) == (
+            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4 ...]."
+            + self._TAIL
+        )
+
+    def test_static_clause_when_no_identifier_is_available(self) -> None:
+        report = _report(chunks=2, fts=3, fts_orphan_count=1)
+
+        assert _only_issue(report) == (
+            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2). "
+            "Chunk-level identifiers unavailable (FTS orphans have no parent chunk rows)."
+            + self._TAIL
+        )
+
+    def test_available_chunk_ids_suppress_the_static_clause(self) -> None:
+        """affected_chunk_ids is only consulted to decide whether the fallback text is true."""
+        report = _report(chunks=2, fts=3, fts_orphan_count=1, affected_chunk_ids=(1, 2))
+
+        assert _only_issue(report) == (
+            "[CRITICAL] FTS index has more entries than chunks (fts=3, chunks=2)."
+            + self._TAIL
+        )
+
+
+class TestOrphanVecAndVectorMismatchDetail:
+    """Both share the URL-first / chunk_ids-fallback shape, and neither marks truncation."""
+
+    def test_orphan_vec_prefers_urls(self) -> None:
+        report = _report(
+            orphan_vec_count=2,
+            affected_orphan_urls=("https://a", "https://b"),
+            affected_orphan_chunk_ids=(4, 5),
+        )
+
+        assert _only_issue(report) == (
+            "[CRITICAL] Orphan vec rows detected (count=2). "
+            "Affected URLs: [https://a, https://b]. "
+            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+        )
+
+    def test_orphan_vec_urls_cut_at_five_and_mark_at_ten(self) -> None:
+        urls = tuple(f"https://u{i}" for i in range(10))
+        report = _report(orphan_vec_count=10, affected_orphan_urls=urls)
+
+        assert _only_issue(report) == (
+            "[CRITICAL] Orphan vec rows detected (count=10). "
+            "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4 ...]. "
+            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+        )
+
+    def test_orphan_vec_chunk_ids_never_mark_truncation(self) -> None:
+        report = _report(
+            orphan_vec_count=10, affected_orphan_chunk_ids=tuple(range(1, 11))
+        )
+
+        assert _only_issue(report) == (
+            "[CRITICAL] Orphan vec rows detected (count=10). "
+            "Affected chunk_ids: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]. "
+            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+        )
+
+    def test_vector_mismatch_prefers_urls(self) -> None:
+        report = _report(chunks=2, vec=1, affected_orphan_urls=("https://a",))
+
+        assert _only_issue(report) == (
+            "[WARNING] Vector count mismatch (chunks=2, vec=1). Affected URLs: [https://a]. "
+            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+        )
+
+    def test_vector_mismatch_falls_back_to_chunk_ids(self) -> None:
+        report = _report(chunks=2, vec=1, affected_orphan_chunk_ids=(4, 5))
+
+        assert _only_issue(report) == (
+            "[WARNING] Vector count mismatch (chunks=2, vec=1). Affected chunk_ids: [4, 5]. "
+            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+        )
+
+    def test_vector_mismatch_without_identifiers(self) -> None:
+        report = _report(chunks=2, vec=1)
+
+        assert _only_issue(report) == (
+            "[WARNING] Vector count mismatch (chunks=2, vec=1). "
+            "Re-run ingestion with 'ingester.py --force' for affected URLs."
+        )
+
+
+class TestNewCheckIssueDetails:
+    """The document-level checks render identifiers without any truncation marker."""
+
+    def test_documents_without_chunks(self) -> None:
+        report = _report(
+            documents_without_chunks_count=2, affected_docs_without_chunks=(4, 5)
+        )
+
+        assert _only_issue(report) == (
+            "[WARNING] Documents without chunks detected (count=2). Affected doc_ids: [4, 5]. "
+            "Re-run ingestion for affected documents."
+        )
+
+    def test_documents_without_chunks_without_identifiers(self) -> None:
+        report = _report(documents_without_chunks_count=2)
+
+        assert _only_issue(report) == (
+            "[WARNING] Documents without chunks detected (count=2). "
+            "Re-run ingestion for affected documents."
+        )
+
+    def test_chunks_without_vec(self) -> None:
+        report = _report(chunks_without_vec_count=1, affected_chunks_without_vec=(9,))
+
+        assert _only_issue(report) == (
+            "[CRITICAL] Chunks without vector rows detected (count=1). Affected chunk_ids: [9]. "
+            "Re-run ingestion with 'ingester.py --force' for affected chunks."
+        )
+
+    def test_chunks_without_vec_without_identifiers(self) -> None:
+        report = _report(chunks_without_vec_count=1)
+
+        assert _only_issue(report) == (
+            "[CRITICAL] Chunks without vector rows detected (count=1). "
+            "Re-run ingestion with 'ingester.py --force' for affected chunks."
+        )
+
+    def test_duplicate_chunk_indices_render_pairs(self) -> None:
+        report = _report(
+            duplicate_chunk_index_count=2,
+            affected_duplicate_chunk_indices=((1, 1), (2, 3)),
+        )
+
+        assert _only_issue(report) == (
+            "[CRITICAL] Duplicate chunk_index values detected (count=2). "
+            "Affected (doc_id, chunk_index): [(1,1), (2,3)]. "
+            "Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+        )
+
+    def test_duplicate_chunk_indices_without_identifiers(self) -> None:
+        report = _report(duplicate_chunk_index_count=2)
+
+        assert _only_issue(report) == (
+            "[CRITICAL] Duplicate chunk_index values detected (count=2). "
+            "Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+        )
+
+
+class TestUrlMismatchIssueDetail:
+    """url_level_mismatches is a mapping: the keys are the affected URLs."""
+
+    @staticmethod
+    def _mismatches(count: int) -> dict[str, dict[str, int]]:
+        return {
+            f"https://u{i}": {"chunk_count": 1, "vec_count": 1, "fts_count": 1}
+            for i in range(count)
+        }
+
+    def test_four_urls_render_without_the_ellipsis(self) -> None:
+        report = _report(url_level_mismatches=self._mismatches(4))
+
+        assert _only_issue(report) == (
+            "[WARNING] URL-level inconsistency detected (mismatched URLs=4). "
+            "Affected URLs: [https://u0, https://u1, https://u2, https://u3]. "
+            "Re-run ingestion for affected URLs."
+        )
+
+    def test_exactly_five_urls_mark_truncation(self) -> None:
+        report = _report(url_level_mismatches=self._mismatches(5))
+
+        assert _only_issue(report) == (
+            "[WARNING] URL-level inconsistency detected (mismatched URLs=5). "
+            "Affected URLs: [https://u0, https://u1, https://u2, https://u3, https://u4 ...]. "
+            "Re-run ingestion for affected URLs."
+        )
+
+    def test_empty_mapping_produces_no_issue(self) -> None:
+        assert summarize_issues(_report(url_level_mismatches={})) == []
+
+
+class TestIssueOrder:
+    """Every issue is emitted in the fixed order the repair guidance assumes."""
+
+    def test_all_eight_issues_in_order(self) -> None:
+        report = _report(
+            chunks=5,
+            fts=4,
+            vec=3,
+            orphan_vec_count=1,
+            fts_gap=1,
+            fts_orphan_count=1,
+            documents_without_chunks_count=1,
+            chunks_without_vec_count=1,
+            duplicate_chunk_index_count=1,
+            url_level_mismatches={
+                "https://u0": {"chunk_count": 1, "vec_count": 1, "fts_count": 1}
+            },
+        )
+
+        assert [issue.split(" (")[0] for issue in summarize_issues(report)] == [
+            "[WARNING] FTS gap detected",
+            "[CRITICAL] FTS index has more entries than chunks",
+            "[CRITICAL] Orphan vec rows detected",
+            "[WARNING] Vector count mismatch",
+            "[WARNING] Documents without chunks detected",
+            "[CRITICAL] Chunks without vector rows detected",
+            "[CRITICAL] Duplicate chunk_index values detected",
+            "[WARNING] URL-level inconsistency detected",
+        ]
+
+    def test_consistent_report_produces_no_issues(self) -> None:
+        assert summarize_issues(_report(chunks=2, fts=2, vec=2)) == []
+
+
+class TestCollectionFailureDiagnostics:
+    """A missing table is recorded per collection stage instead of aborting the report."""
+
+    @staticmethod
+    def _db_without(*tables: str) -> _FakeSQLiteHelper:
+        db = _make_rag_db()
+        for table in tables:
+            db.execute(f"DROP TABLE {table}")
+        db.commit()
+        return db
+
+    def test_missing_chunks_table_records_every_stage_that_reads_it(self) -> None:
+        db = self._db_without("chunks")
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+
+        prefixes = {error.split(":")[0] for error in report.diagnostic_errors}
+        assert prefixes == {
+            "Basic counts collection failed",
+            "Document checks collection failed",
+            "Affected identifiers collection failed",
+        }
+        assert "URL mismatch collection failed" not in prefixes
+        assert (report.chunks, report.fts, report.vec) == (0, 0, 0)
+        assert report.read_smoke_test_ok is False
+        assert is_consistent(report) is False
+
+    def test_missing_documents_table_leaves_url_mismatches_empty(self) -> None:
+        """_safe_url_count_query() swallows per-query failures, so the URL stage never raises."""
+        db = self._db_without("documents")
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+
+        prefixes = {error.split(":")[0] for error in report.diagnostic_errors}
+        assert prefixes == {
+            "Document checks collection failed",
+            "Affected identifiers collection failed",
+        }
+        assert report.url_level_mismatches is None
+        assert report.read_smoke_test_ok is False
+        assert is_consistent(report) is False
+
+    def test_missing_vec_table_breaks_every_stage_that_reads_it(self) -> None:
+        db = self._db_without("chunks_vec")
+
+        report = check_rag_consistency(db)  # type: ignore[arg-type]
+
+        prefixes = {error.split(":")[0] for error in report.diagnostic_errors}
+        assert prefixes == {
+            "Basic counts collection failed",
+            "Document checks collection failed",
+            "Affected identifiers collection failed",
+        }
+        assert report.read_smoke_test_ok is False
+        assert is_consistent(report) is False
+
+    def test_a_consistent_database_records_no_diagnostics(self) -> None:
+        report = check_rag_consistency(_make_rag_db())  # type: ignore[arg-type]
+
+        assert report.diagnostic_errors is None
+        assert report.read_smoke_test_ok is True
+        assert is_consistent(report) is True

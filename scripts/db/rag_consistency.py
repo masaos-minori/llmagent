@@ -3,6 +3,7 @@
 
 import dataclasses
 import sqlite3
+from collections.abc import Callable, Iterable, Sequence
 
 from db.helper import SQLiteHelper
 from db.models import RagConsistencyReport
@@ -92,6 +93,21 @@ def _collect_url_counts_and_mismatches(db: SQLiteHelper) -> dict[str, dict[str, 
     return url_level_mismatches
 
 
+def _query_ids[T](db: SQLiteHelper, sql: str) -> tuple[T, ...]:
+    """Return the first column of a top-10 identifier query."""
+    return tuple(row[0] for row in db.execute(sql).fetchall())
+
+
+def _query_ids_or_none[T](db: SQLiteHelper, sql: str) -> tuple[T, ...] | None:
+    """_query_ids() for a query whose empty result means the issue does not exist."""
+    return _query_ids(db, sql) or None
+
+
+def _query_pairs(db: SQLiteHelper, sql: str) -> tuple[tuple[int, int], ...]:
+    """Return the first two columns of a top-10 identifier query."""
+    return tuple((row[0], row[1]) for row in db.execute(sql).fetchall())
+
+
 def _collect_affected_identifiers(
     db: SQLiteHelper,
     *,
@@ -111,59 +127,65 @@ def _collect_affected_identifiers(
     tuple[tuple[int, int], ...] | None,
     tuple[str, ...] | None,
 ]:
-    """Collect affected identifiers for each issue type (read-only; top 10 each)."""
-    affected_chunk_ids: tuple[int, ...] | None = None
-    affected_doc_ids: tuple[int, ...] | None = None
-    affected_orphan_chunk_ids: tuple[int, ...] | None = None
-    affected_orphan_urls: tuple[str, ...] | None = None
-    affected_docs_without_chunks: tuple[int, ...] | None = None
-    affected_chunks_without_vec: tuple[int, ...] | None = None
-    affected_duplicate_chunk_indices: tuple[tuple[int, int], ...] | None = None
-    affected_url_mismatches: tuple[str, ...] | None = None
+    """Collect affected identifiers for each issue type (read-only; top 10 each).
 
-    rows = db.execute(
-        "SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize LIMIT 10"
-    ).fetchall()
-    affected_chunk_ids = tuple(r[0] for r in rows) if rows else None
-    doc_rows = db.execute(
+    The four always-run queries report None when they find no rows, because an empty
+    result means that issue does not exist. The guarded queries only run when a count
+    already says the issue exists, so they keep their result as written.
+    """
+    affected_chunk_ids: tuple[int, ...] | None = _query_ids_or_none(
+        db,
+        "SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize LIMIT 10",
+    )
+    affected_doc_ids: tuple[int, ...] | None = _query_ids_or_none(
+        db,
         "SELECT c.doc_id FROM chunks c "
         "WHERE c.chunk_id IN (SELECT chunk_id FROM chunks EXCEPT SELECT id FROM chunks_fts_docsize) "
-        "ORDER BY c.doc_id LIMIT 10"
-    ).fetchall()
-    affected_doc_ids = tuple(r[0] for r in doc_rows) if doc_rows else None
-    id_rows = db.execute(
-        "SELECT chunk_id FROM chunks_vec EXCEPT SELECT chunk_id FROM chunks LIMIT 10"
-    ).fetchall()
-    affected_orphan_chunk_ids = tuple(r[0] for r in id_rows) if id_rows else None
-    url_rows = db.execute(
+        "ORDER BY c.doc_id LIMIT 10",
+    )
+    affected_orphan_chunk_ids: tuple[int, ...] | None = _query_ids_or_none(
+        db,
+        "SELECT chunk_id FROM chunks_vec EXCEPT SELECT chunk_id FROM chunks LIMIT 10",
+    )
+    affected_orphan_urls: tuple[str, ...] | None = _query_ids_or_none(
+        db,
         "SELECT DISTINCT d.url FROM chunks_vec cv "
         "JOIN chunks c ON cv.chunk_id = c.chunk_id "
         "JOIN documents d ON c.doc_id = d.doc_id "
         "WHERE cv.chunk_id NOT IN (SELECT chunk_id FROM chunks) "
-        "ORDER BY d.url LIMIT 10"
-    ).fetchall()
-    affected_orphan_urls = tuple(r[0] for r in url_rows) if url_rows else None
-    if docs_without_chunks > 0:
-        id_rows = db.execute(
+        "ORDER BY d.url LIMIT 10",
+    )
+    affected_docs_without_chunks: tuple[int, ...] | None = (
+        _query_ids(
+            db,
             "SELECT doc_id FROM documents WHERE doc_id NOT IN (SELECT DISTINCT doc_id FROM chunks)"
-            " ORDER BY doc_id LIMIT 10"
-        ).fetchall()
-        affected_docs_without_chunks = tuple(r[0] for r in id_rows)
-    if chunks_without_vec > 0:
-        id_rows = db.execute(
+            " ORDER BY doc_id LIMIT 10",
+        )
+        if docs_without_chunks > 0
+        else None
+    )
+    affected_chunks_without_vec: tuple[int, ...] | None = (
+        _query_ids(
+            db,
             "SELECT chunk_id FROM chunks WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks_vec)"
-            " ORDER BY chunk_id LIMIT 10"
-        ).fetchall()
-        affected_chunks_without_vec = tuple(r[0] for r in id_rows)
-    if duplicate_chunk_index_count > 0:
-        limited_dups = db.execute(
+            " ORDER BY chunk_id LIMIT 10",
+        )
+        if chunks_without_vec > 0
+        else None
+    )
+    affected_duplicate_chunk_indices: tuple[tuple[int, int], ...] | None = (
+        _query_pairs(
+            db,
             "SELECT doc_id, chunk_index FROM chunks"
             " GROUP BY doc_id, chunk_index HAVING COUNT(*) > 1"
-            " ORDER BY doc_id, chunk_index LIMIT 10"
-        ).fetchall()
-        affected_duplicate_chunk_indices = tuple((r[0], r[1]) for r in limited_dups)
-    if url_level_mismatches:
-        affected_url_mismatches = tuple(list(url_level_mismatches.keys())[:5])
+            " ORDER BY doc_id, chunk_index LIMIT 10",
+        )
+        if duplicate_chunk_index_count > 0
+        else None
+    )
+    affected_url_mismatches: tuple[str, ...] | None = (
+        tuple(list(url_level_mismatches.keys())[:5]) if url_level_mismatches else None
+    )
 
     return (
         affected_chunk_ids,
@@ -302,119 +324,174 @@ def is_consistent(report: RagConsistencyReport) -> bool:
     return consistent
 
 
+_FTS_ORPHAN_NO_IDS_CLAUSE = (
+    " Chunk-level identifiers unavailable (FTS orphans have no parent chunk rows)."
+)
+
+
+def _ids_clause(
+    values: Sequence[int] | None,
+    label: str,
+    *,
+    limit: int,
+    mark_at: int | None,
+) -> str:
+    """Render " Affected <label>: [1, 2 ...]." for an identifier tuple, or "" when empty.
+
+    mark_at is the length that earns the trailing " ..." marker; None never marks.
+    The callers do not agree on either value, so each one states both explicitly.
+    """
+    if not values:
+        return ""
+    rendered = ", ".join(str(value) for value in values[:limit])
+    marker = " ..." if mark_at is not None and len(values) == mark_at else ""
+    return f" Affected {label}: [{rendered}{marker}]."
+
+
+def _urls_clause(
+    values: Iterable[str] | None, *, limit: int, mark_at: int | None
+) -> str:
+    """Render " Affected URLs: [...]." for a URL sequence or mapping, or "" when empty.
+
+    A mapping contributes its keys, which is how url_level_mismatches is reported.
+    """
+    urls = tuple(values or ())
+    if not urls:
+        return ""
+    rendered = ", ".join(urls[:limit])
+    marker = " ..." if mark_at is not None and len(urls) == mark_at else ""
+    return f" Affected URLs: [{rendered}{marker}]."
+
+
+def _fts_gap_issue(report: RagConsistencyReport) -> str | None:
+    """FTS rows are missing for chunks that are in the chunk table."""
+    if report.fts_gap <= 0:
+        return None
+    detail = _ids_clause(
+        report.affected_doc_ids, "doc_ids", limit=10, mark_at=10
+    ) or _ids_clause(report.affected_chunk_ids, "chunk_ids", limit=10, mark_at=10)
+    return (
+        f"[WARNING] FTS gap detected (chunks={report.chunks}, fts={report.fts},"
+        f" gap={report.fts_gap}).{detail} Run '/session rag-rebuild-fts' to repair."
+    )
+
+
+def _fts_orphan_issue(report: RagConsistencyReport) -> str | None:
+    """The FTS index holds more entries than the chunk table, which indicates data loss."""
+    if report.fts_orphan_count <= 0:
+        return None
+    detail = (
+        _ids_clause(report.affected_orphan_chunk_ids, "chunk_ids", limit=10, mark_at=10)
+        or _urls_clause(report.affected_orphan_urls, limit=5, mark_at=10)
+        or ("" if report.affected_chunk_ids else _FTS_ORPHAN_NO_IDS_CLAUSE)
+    )
+    return (
+        f"[CRITICAL] FTS index has more entries than chunks"
+        f" (fts={report.fts}, chunks={report.chunks}).{detail}"
+        f" Run '/session rag-rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
+    )
+
+
+def _orphan_vec_issue(report: RagConsistencyReport) -> str | None:
+    """chunks_vec holds rows whose chunk_id has no chunk row."""
+    if report.orphan_vec_count <= 0:
+        return None
+    detail = _urls_clause(
+        report.affected_orphan_urls, limit=5, mark_at=10
+    ) or _ids_clause(
+        report.affected_orphan_chunk_ids, "chunk_ids", limit=10, mark_at=None
+    )
+    return (
+        f"[CRITICAL] Orphan vec rows detected (count={report.orphan_vec_count}).{detail}"
+        f" Re-run ingestion with 'ingester.py --force' for affected URLs."
+    )
+
+
+def _vector_mismatch_issue(report: RagConsistencyReport) -> str | None:
+    """chunks_vec and chunks hold a different number of rows."""
+    if report.vec == report.chunks:
+        return None
+    detail = _urls_clause(
+        report.affected_orphan_urls, limit=5, mark_at=10
+    ) or _ids_clause(
+        report.affected_orphan_chunk_ids, "chunk_ids", limit=10, mark_at=None
+    )
+    return (
+        f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec}).{detail}"
+        f" Re-run ingestion with 'ingester.py --force' for affected URLs."
+    )
+
+
+def _documents_without_chunks_issue(report: RagConsistencyReport) -> str | None:
+    """A document row has no chunk rows."""
+    if report.documents_without_chunks_count <= 0:
+        return None
+    detail = _ids_clause(
+        report.affected_docs_without_chunks, "doc_ids", limit=10, mark_at=None
+    )
+    return (
+        f"[WARNING] Documents without chunks detected (count={report.documents_without_chunks_count}).{detail}"
+        f" Re-run ingestion for affected documents."
+    )
+
+
+def _chunks_without_vec_issue(report: RagConsistencyReport) -> str | None:
+    """A chunk row has no vector row."""
+    if report.chunks_without_vec_count <= 0:
+        return None
+    detail = _ids_clause(
+        report.affected_chunks_without_vec, "chunk_ids", limit=10, mark_at=None
+    )
+    return (
+        f"[CRITICAL] Chunks without vector rows detected (count={report.chunks_without_vec_count}).{detail}"
+        f" Re-run ingestion with 'ingester.py --force' for affected chunks."
+    )
+
+
+def _duplicate_chunk_index_issue(report: RagConsistencyReport) -> str | None:
+    """The same (doc_id, chunk_index) pair appears more than once."""
+    if report.duplicate_chunk_index_count <= 0:
+        return None
+    pairs = report.affected_duplicate_chunk_indices
+    detail = (
+        f" Affected (doc_id, chunk_index): [{', '.join(f'({d},{c})' for d, c in pairs[:10])}]."
+        if pairs
+        else ""
+    )
+    return (
+        f"[CRITICAL] Duplicate chunk_index values detected (count={report.duplicate_chunk_index_count}).{detail}"
+        f" Check ingestion logic; duplicate chunk indices indicate data corruption risk."
+    )
+
+
+def _url_mismatch_issue(report: RagConsistencyReport) -> str | None:
+    """At least one URL has a different number of chunk, vec, and fts rows."""
+    if not report.url_level_mismatches:
+        return None
+    detail = _urls_clause(report.url_level_mismatches, limit=5, mark_at=5)
+    return (
+        f"[WARNING] URL-level inconsistency detected (mismatched URLs={len(report.url_level_mismatches)}).{detail}"
+        f" Re-run ingestion for affected URLs."
+    )
+
+
+_ISSUE_BUILDERS: tuple[Callable[[RagConsistencyReport], str | None], ...] = (
+    _fts_gap_issue,
+    _fts_orphan_issue,
+    _orphan_vec_issue,
+    _vector_mismatch_issue,
+    _documents_without_chunks_issue,
+    _chunks_without_vec_issue,
+    _duplicate_chunk_index_issue,
+    _url_mismatch_issue,
+)
+
+
 def summarize_issues(report: RagConsistencyReport) -> list[str]:
-    """Return severity-prefixed descriptions of consistency issues with repair guidance."""
-    issues: list[str] = []
-    if report.fts_gap > 0:
-        detail = ""
-        if report.affected_doc_ids:
-            ids = ", ".join(str(i) for i in report.affected_doc_ids[:10])
-            truncated = " ..." if len(report.affected_doc_ids) == 10 else ""
-            detail = f" Affected doc_ids: [{ids}{truncated}]."
-        elif report.affected_chunk_ids:
-            ids = ", ".join(str(i) for i in report.affected_chunk_ids[:10])
-            truncated = " ..." if len(report.affected_chunk_ids) == 10 else ""
-            detail = f" Affected chunk_ids: [{ids}{truncated}]."
-        issues.append(
-            f"[WARNING] FTS gap detected (chunks={report.chunks}, fts={report.fts},"
-            f" gap={report.fts_gap}).{detail} Run '/session rag-rebuild-fts' to repair."
-        )
-    if report.fts_orphan_count > 0:
-        detail = ""
-        if report.affected_orphan_chunk_ids:
-            ids = ", ".join(str(i) for i in report.affected_orphan_chunk_ids[:10])
-            truncated = " ..." if len(report.affected_orphan_chunk_ids) == 10 else ""
-            detail = f" Affected chunk_ids: [{ids}{truncated}]."
-        elif report.affected_orphan_urls:
-            urls = ", ".join(report.affected_orphan_urls[:5])
-            truncated = " ..." if len(report.affected_orphan_urls) == 10 else ""
-            detail = f" Affected URLs: [{urls}{truncated}]."
-        elif not report.affected_chunk_ids:
-            detail = " Chunk-level identifiers unavailable (FTS orphans have no parent chunk rows)."
-        issues.append(
-            f"[CRITICAL] FTS index has more entries than chunks"
-            f" (fts={report.fts}, chunks={report.chunks}).{detail}"
-            f" Run '/session rag-rebuild-fts' immediately; orphan FTS entries indicate data loss risk."
-        )
-    if report.orphan_vec_count > 0:
-        detail = ""
-        if report.affected_orphan_urls:
-            urls = ", ".join(report.affected_orphan_urls[:5])
-            truncated = " ..." if len(report.affected_orphan_urls) == 10 else ""
-            detail = f" Affected URLs: [{urls}{truncated}]."
-        elif report.affected_orphan_chunk_ids:
-            ids = ", ".join(str(i) for i in report.affected_orphan_chunk_ids[:10])
-            detail = f" Affected chunk_ids: [{ids}]."
-        issues.append(
-            f"[CRITICAL] Orphan vec rows detected (count={report.orphan_vec_count}).{detail}"
-            f" Re-run ingestion with 'ingester.py --force' for affected URLs."
-        )
-    if report.vec != report.chunks:
-        detail = ""
-        if report.affected_orphan_urls:
-            urls = ", ".join(report.affected_orphan_urls[:5])
-            truncated = " ..." if len(report.affected_orphan_urls) == 10 else ""
-            detail = f" Affected URLs: [{urls}{truncated}]."
-        elif report.affected_orphan_chunk_ids:
-            ids = ", ".join(str(i) for i in report.affected_orphan_chunk_ids[:10])
-            detail = f" Affected chunk_ids: [{ids}]."
-        issues.append(
-            f"[WARNING] Vector count mismatch (chunks={report.chunks}, vec={report.vec}).{detail}"
-            f" Re-run ingestion with 'ingester.py --force' for affected URLs."
-        )
-    if report.documents_without_chunks_count > 0:
-        ids = (
-            ", ".join(str(i) for i in report.affected_docs_without_chunks[:10])
-            if report.affected_docs_without_chunks
-            else ""
-        )
-        detail = (
-            f" Affected doc_ids: [{ids}]."
-            if report.affected_docs_without_chunks
-            else ""
-        )
-        issues.append(
-            f"[WARNING] Documents without chunks detected (count={report.documents_without_chunks_count}).{detail}"
-            f" Re-run ingestion for affected documents."
-        )
-    if report.chunks_without_vec_count > 0:
-        ids = (
-            ", ".join(str(i) for i in report.affected_chunks_without_vec[:10])
-            if report.affected_chunks_without_vec
-            else ""
-        )
-        detail = (
-            f" Affected chunk_ids: [{ids}]."
-            if report.affected_chunks_without_vec
-            else ""
-        )
-        issues.append(
-            f"[CRITICAL] Chunks without vector rows detected (count={report.chunks_without_vec_count}).{detail}"
-            f" Re-run ingestion with 'ingester.py --force' for affected chunks."
-        )
-    if report.duplicate_chunk_index_count > 0:
-        pairs = (
-            ", ".join(
-                f"({d},{c})" for d, c in report.affected_duplicate_chunk_indices[:10]
-            )
-            if report.affected_duplicate_chunk_indices
-            else ""
-        )
-        detail = (
-            f" Affected (doc_id, chunk_index): [{pairs}]."
-            if report.affected_duplicate_chunk_indices
-            else ""
-        )
-        issues.append(
-            f"[CRITICAL] Duplicate chunk_index values detected (count={report.duplicate_chunk_index_count}).{detail}"
-            f" Check ingestion logic; duplicate chunk indices indicate data corruption risk."
-        )
-    if report.url_level_mismatches:
-        urls = ", ".join(list(report.url_level_mismatches.keys())[:5])
-        truncated = " ..." if len(report.url_level_mismatches) == 5 else ""
-        detail = f" Affected URLs: [{urls}{truncated}]."
-        issues.append(
-            f"[WARNING] URL-level inconsistency detected (mismatched URLs={len(report.url_level_mismatches)}).{detail}"
-            f" Re-run ingestion for affected URLs."
-        )
-    return issues
+    """Return severity-prefixed descriptions of consistency issues with repair guidance.
+
+    Each builder in _ISSUE_BUILDERS returns one message or None, and the tuple order is
+    the order the repair guidance assumes: FTS first, then vector rows, then the
+    document-level checks, then the URL-level check.
+    """
+    return [issue for issue in (build(report) for build in _ISSUE_BUILDERS) if issue]
