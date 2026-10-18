@@ -6,11 +6,13 @@ Indexing logic for Markdown files — writes to SQLite documents/chunks tables.
 
 from __future__ import annotations
 
+import dataclasses
 import fnmatch
 import hashlib
 import logging
 import sqlite3
 import time
+from collections.abc import Awaitable
 from pathlib import Path
 from typing import TYPE_CHECKING, TypedDict
 
@@ -86,6 +88,19 @@ class RefreshSummary(TypedDict):
     deleted_count: int
     failed_count: int
     elapsed_seconds: float
+
+
+@dataclasses.dataclass
+class _PathTally:
+    """Mutable per-path counters for one index_paths() or refresh_paths() run.
+
+    The counters are updated as each path is processed, so a failure partway through a
+    directory keeps the counts already recorded for the files before it.
+    """
+
+    indexed: int = 0
+    skipped: int = 0
+    failed: int = 0
 
 
 def generate_chunk_id(
@@ -218,48 +233,60 @@ async def _index_directory(service: MdqService, path: Path) -> None:
         await _index_single_file(service, child)
 
 
+async def _tally_indexing(
+    coro: Awaitable[None], path_str: str, tally: _PathTally
+) -> None:
+    """Await one indexing call and tally its outcome.
+
+    The caller has already created coro, so a failure records one failed_count and the
+    batch moves on to the next path.
+    """
+    try:
+        await coro
+    except Exception as e:  # noqa: BLE001 — a single path's indexing failure must not abort the batch; record it and continue
+        logger.error("Failed to index %s: %s", path_str, e)
+        tally.failed += 1
+    else:
+        tally.indexed += 1
+
+
+async def _index_one_path(
+    service: MdqService, path_str: str, tally: _PathTally
+) -> None:
+    """Validate and index one requested path, tallying what it produced."""
+    p = Path(path_str)
+    if not p.exists():
+        logger.warning("Path does not exist: %s", path_str)
+        tally.skipped += 1
+        return
+    if not authorize_path(p, service.allowed_dirs):
+        raise MdqAuthorizationError(
+            f"Access denied: {path_str} is outside allowed directories"
+        )
+    if p.is_file() and p.suffix == ".md":
+        await _tally_indexing(_index_single_file(service, p), path_str, tally)
+    elif p.is_dir():
+        await _tally_indexing(_index_directory(service, p), path_str, tally)
+    else:
+        logger.warning("Skipping non-Markdown path: %s", path_str)
+        tally.skipped += 1
+
+
 async def index_paths(
     service: MdqService, req: IndexPathsRequest
 ) -> tuple[str, IndexPathsMetadata]:
     """Index a set of paths into the in-process SQLite DB."""
     logger.info("Indexing paths: %s", req.paths)
     t0 = time.perf_counter()
-    indexed_count = skipped_count = failed_count = 0
+    tally = _PathTally()
     for path_str in req.paths:
-        p = Path(path_str)
-        if not p.exists():
-            logger.warning("Path does not exist: %s", path_str)
-            skipped_count += 1
-            continue
-        if not authorize_path(p, service.allowed_dirs):
-            raise MdqAuthorizationError(
-                f"Access denied: {path_str} is outside allowed directories"
-            )
-        if p.is_file() and p.suffix == ".md":
-            try:
-                await _index_single_file(service, p)
-            except Exception as e:  # noqa: BLE001 — a single file's indexing failure must not abort the batch; record it and continue
-                logger.error("Failed to index %s: %s", path_str, e)
-                failed_count += 1
-            else:
-                indexed_count += 1
-        elif p.is_dir():
-            try:
-                await _index_directory(service, p)
-            except Exception as e:  # noqa: BLE001 — a single directory's indexing failure must not abort the batch; record it and continue
-                logger.error("Failed to index %s: %s", path_str, e)
-                failed_count += 1
-            else:
-                indexed_count += 1
-        else:
-            logger.warning("Skipping non-Markdown path: %s", path_str)
-            skipped_count += 1
+        await _index_one_path(service, path_str, tally)
     duration_ms = (time.perf_counter() - t0) * 1000
     return "Indexing complete", IndexPathsMetadata(
         input_path_count=len(req.paths),
-        indexed_count=indexed_count,
-        skipped_count=skipped_count,
-        failed_count=failed_count,
+        indexed_count=tally.indexed,
+        skipped_count=tally.skipped,
+        failed_count=tally.failed,
         duration_ms=duration_ms,
     )
 
@@ -317,6 +344,135 @@ def _detect_deleted_files(
     return deleted_count
 
 
+async def _reindex_forced(service: MdqService, path: Path, path_str: str) -> int:
+    """Force mode: re-index one path regardless of index_state.
+
+    Returns 1 when something was indexed. A directory counts as one indexed path even
+    when it holds several files, which is not how incremental mode counts it.
+    """
+    if path.is_file() and path.suffix == ".md":
+        await _index_single_file(service, path)
+        return 1
+    if path.is_dir():
+        if _iter_indexable_files(service, path):
+            await _index_directory(service, path)
+            return 1
+        logger.info("No indexable files found in directory: %s", path_str)
+        return 0
+    logger.warning("Path is not a file or directory: %s", path_str)
+    return 0
+
+
+async def _reindex_forced_path(
+    service: MdqService, path: Path, path_str: str, tally: _PathTally
+) -> None:
+    """Force mode for one requested path."""
+    try:
+        tally.indexed += await _reindex_forced(service, path, path_str)
+    except Exception as e:  # noqa: BLE001 — a single path's forced re-index failure must not abort the batch; record it and continue
+        logger.error("Failed to index %s: %s", path_str, e)
+        tally.failed += 1
+
+
+async def _refresh_changed_file(
+    service: MdqService,
+    conn: sqlite3.Connection,
+    current_state: dict[str, str],
+    file_path: Path,
+) -> bool:
+    """Re-index one file and record its mtime in index_state.
+
+    Returns False when index_state already holds this file's mtime, in which case
+    nothing is read or written. index_state is only updated after a successful re-index,
+    and current_state is never refreshed, so a path listed twice in one request is
+    re-indexed twice.
+    """
+    state_key = f"mtime:{str(file_path)}"
+    current_mtime = str(file_path.stat().st_mtime_ns)
+    if current_state.get(state_key) == current_mtime:
+        return False
+    await _index_single_file(service, file_path)
+    conn.execute(
+        "INSERT OR REPLACE INTO index_state (key, value) VALUES (?, ?)",
+        (state_key, current_mtime),
+    )
+    conn.commit()
+    return True
+
+
+async def _refresh_file_path(
+    service: MdqService,
+    conn: sqlite3.Connection,
+    current_state: dict[str, str],
+    path: Path,
+    path_str: str,
+    tally: _PathTally,
+) -> None:
+    """Incremental mode for one Markdown file."""
+    try:
+        if await _refresh_changed_file(service, conn, current_state, path):
+            tally.indexed += 1
+        else:
+            tally.skipped += 1
+    except Exception as e:  # noqa: BLE001 — a single file's incremental refresh failure must not abort the batch; record it and continue
+        logger.error("Failed to refresh %s: %s", path_str, e)
+        tally.failed += 1
+
+
+async def _refresh_directory_path(
+    service: MdqService,
+    conn: sqlite3.Connection,
+    current_state: dict[str, str],
+    path: Path,
+    path_str: str,
+    tally: _PathTally,
+) -> None:
+    """Incremental mode for one directory: every indexable file under it.
+
+    The try/except wraps the whole loop, so a failure on one file stops the remaining
+    files in this directory while keeping the counts already recorded for them.
+    """
+    try:
+        for md_file in _iter_indexable_files(service, path):
+            if await _refresh_changed_file(service, conn, current_state, md_file):
+                tally.indexed += 1
+            else:
+                tally.skipped += 1
+    except Exception as e:  # noqa: BLE001 — a single directory's incremental refresh failure must not abort the batch; record it and continue
+        logger.error("Failed to refresh directory %s: %s", path_str, e)
+        tally.failed += 1
+
+
+async def _refresh_one_path(
+    service: MdqService,
+    conn: sqlite3.Connection,
+    current_state: dict[str, str],
+    path_str: str,
+    *,
+    force: bool,
+    tally: _PathTally,
+) -> None:
+    """Validate and refresh one requested path.
+
+    A path that is neither a Markdown file nor a directory is not counted by any
+    counter in incremental mode.
+    """
+    p = Path(path_str)
+    if not p.exists():
+        logger.warning("Path does not exist: %s", path_str)
+        return
+    if not authorize_path(p, service.allowed_dirs):
+        raise MdqAuthorizationError(
+            f"Access denied: {path_str} is outside allowed directories"
+        )
+    if force:
+        await _reindex_forced_path(service, p, path_str, tally)
+    elif p.is_file() and p.suffix == ".md":
+        await _refresh_file_path(service, conn, current_state, p, path_str, tally)
+    elif p.is_dir():
+        await _refresh_directory_path(service, conn, current_state, p, path_str, tally)
+
+
 async def refresh_paths(
     service: MdqService, req: RefreshIndexRequest
 ) -> RefreshSummary:
@@ -326,101 +482,21 @@ async def refresh_paths(
     failed_count, and elapsed_seconds.
     """
     start = time.time()
-    indexed_count = 0
-    skipped_count = 0
-    deleted_count = 0
-    failed_count = 0
+    tally = _PathTally()
 
     conn = service._get_db_connection()
     try:
         # Load current index_state records for tracking
         current_state = _load_index_state(conn)
 
-        # Track paths that exist on filesystem to detect deletions
-        tracked_paths: set[str] = set()
-
         # Determine which directories to scan for deletion detection
         dirs_to_scan = _compute_dirs_to_scan(req.paths)
 
         # Index or skip each requested path
         for path_str in req.paths:
-            p = Path(path_str)
-            if not p.exists():
-                logger.warning("Path does not exist: %s", path_str)
-                continue
-            if not authorize_path(p, service.allowed_dirs):
-                raise MdqAuthorizationError(
-                    f"Access denied: {path_str} is outside allowed directories"
-                )
-
-            # Force mode: always re-index
-            if req.force:
-                try:
-                    if p.is_file() and p.suffix == ".md":
-                        await _index_single_file(service, p)
-                        indexed_count += 1
-                    elif p.is_dir():
-                        md_files = _iter_indexable_files(service, p)
-                        if md_files:
-                            await _index_directory(service, p)
-                            indexed_count += 1
-                        else:
-                            logger.info(
-                                "No indexable files found in directory: %s", path_str
-                            )
-                    else:
-                        logger.warning("Path is not a file or directory: %s", path_str)
-                except Exception as e:  # noqa: BLE001 — a single path's forced re-index failure must not abort the batch; record it and continue
-                    logger.error("Failed to index %s: %s", path_str, e)
-                    failed_count += 1
-                continue
-
-            # Incremental mode: compare metadata
-            if p.is_file() and p.suffix == ".md":
-                state_key = f"mtime:{str(p)}"
-                current_mtime = str(p.stat().st_mtime_ns)
-                if current_state.get(state_key) == current_mtime:
-                    skipped_count += 1
-                    continue
-
-                # File changed — re-index
-                try:
-                    await _index_single_file(service, p)
-                    # Update state after indexing
-                    conn.execute(
-                        "INSERT OR REPLACE INTO index_state (key, value) VALUES (?, ?)",
-                        (state_key, current_mtime),
-                    )
-                    conn.commit()
-                    indexed_count += 1
-                except Exception as e:  # noqa: BLE001 — a single file's incremental refresh failure must not abort the batch; record it and continue
-                    logger.error("Failed to refresh %s: %s", path_str, e)
-                    failed_count += 1
-
-            elif p.is_dir():
-                # For directories, scan for changes in all indexable files
-                try:
-                    md_files = _iter_indexable_files(service, p)
-                    for md_file in md_files:
-                        state_key = f"mtime:{str(md_file)}"
-                        current_mtime = str(md_file.stat().st_mtime_ns)
-                        if current_state.get(state_key) == current_mtime:
-                            skipped_count += 1
-                            continue
-
-                        # File changed — re-index
-                        await _index_single_file(service, md_file)
-                        conn.execute(
-                            "INSERT OR REPLACE INTO index_state (key, value) VALUES (?, ?)",
-                            (state_key, current_mtime),
-                        )
-                        conn.commit()
-                        indexed_count += 1
-                except Exception as e:  # noqa: BLE001 — a single directory's incremental refresh failure must not abort the batch; record it and continue
-                    logger.error("Failed to refresh directory %s: %s", path_str, e)
-                    failed_count += 1
-
-            tracked_paths.add(str(p))
+            await _refresh_one_path(
+                service, conn, current_state, path_str, force=req.force, tally=tally
+            )
 
         # Detect deleted files within scanned directories
         deleted_count = _detect_deleted_files(
@@ -429,10 +505,10 @@ async def refresh_paths(
 
         elapsed = time.time() - start
         return {
-            "indexed_count": indexed_count,
-            "skipped_count": skipped_count,
+            "indexed_count": tally.indexed,
+            "skipped_count": tally.skipped,
             "deleted_count": deleted_count,
-            "failed_count": failed_count,
+            "failed_count": tally.failed,
             "elapsed_seconds": round(elapsed, 3),
         }
     finally:
