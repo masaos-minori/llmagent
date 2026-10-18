@@ -53,11 +53,7 @@ agent/repl.py	empty description
 agent/repl_health.py	missing separator
 agent/repository_gateway.py	missing separator
 agent/services/__init__.py	missing separator
-agent/services/config_field_registry.py	path mismatch
-agent/services/config_outcome_classification.py	path mismatch
 agent/services/config_reload.py	empty description
-agent/services/config_section_reload.py	path mismatch
-agent/services/config_service_sync.py	path mismatch
 agent/services/config_validators.py	missing separator
 agent/services/context_view.py	missing separator
 agent/services/conversation_service.py	missing separator
@@ -116,7 +112,6 @@ eventbus/app.py	missing separator
 eventbus/auth.py	missing separator
 eventbus/broker.py	missing separator
 eventbus/config.py	missing separator
-eventbus/db.py	no docstring
 eventbus/dlq.py	missing separator
 eventbus/offsets.py	missing separator
 mcp_launcher.py	missing separator

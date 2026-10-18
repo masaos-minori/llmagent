@@ -1,4 +1,4 @@
-"""Service sync logic — propagates config changes to live service instances."""
+"""scripts/agent/services/config_service_sync.py — Service sync logic: propagates config changes to live service instances."""
 
 from __future__ import annotations
 

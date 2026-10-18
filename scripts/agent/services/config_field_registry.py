@@ -1,4 +1,4 @@
-"""Configuration field registry — shared schema definition for config reload."""
+"""scripts/agent/services/config_field_registry.py — Configuration field registry: shared schema definition for config reload."""
 
 from __future__ import annotations
 

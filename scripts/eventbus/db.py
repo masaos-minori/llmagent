@@ -1,3 +1,5 @@
+"""scripts/eventbus/db.py — Re-export facade over the eventbus layer modules (connection, event, delivery, DLQ, offset migration)."""
+
 # WARNING: Do not add new functions here. Add them to the appropriate layer module
 # and re-export from this stub. See scripts/eventbus/README.md for layer boundaries.
 

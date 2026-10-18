@@ -1,4 +1,4 @@
-"""Outcome classification — standalone functions for MCP server changes, startup-only fields, diagnostics."""
+"""scripts/agent/services/config_outcome_classification.py — Outcome classification: standalone functions for MCP server changes, startup-only fields, diagnostics."""
 
 from __future__ import annotations
 

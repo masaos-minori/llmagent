@@ -1,4 +1,4 @@
-"""Section reload logic — validated (llm/rag/tool) and direct (approval/memory/mcp) paths."""
+"""scripts/agent/services/config_section_reload.py — Section reload logic: validated (llm/rag/tool) and direct (approval/memory/mcp) paths."""
 
 from __future__ import annotations
 
