@@ -1025,3 +1025,160 @@ class TestGitPullPushBranchRequired:
         assert result == "Pushed 'main' to 'origin'"
         # Verify the mock_cfg was used (not GitConfig.load())
         assert mock_cfg.allowed_remote_urls == ["https://example.com/repo.git"]
+
+
+# ── Characterization: handler guard order ─────────────────────────────────────
+
+
+def _write_svc(protected: list[str] | None = None) -> GitService:
+    """GitService with write access enabled and an optional protected-branch list."""
+    cfg = GitConfig(
+        allowed_repo_paths=["/opt/repos"],
+        read_only=False,
+        protected_branches=protected or [],
+    )
+    return GitService(
+        allowed_repo_paths=list(cfg.allowed_repo_paths),
+        read_only=cfg.read_only,
+        protected_branches=list(cfg.protected_branches),
+        _config=cfg,
+    )
+
+
+class TestHandlerGuardOrderCharacterization:
+    """Characterization: every ref guard rejects before RepositoryState.snapshot()."""
+
+    @pytest.mark.asyncio
+    async def test_git_log_rejects_option_branch(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+
+        def _no_snapshot(*_a, **_k):
+            raise AssertionError("snapshot() must not be reached for a bad ref")
+
+        with (
+            patch.object(RepositoryState, "snapshot", side_effect=_no_snapshot),
+            pytest.raises(ValueError, match="CLI option"),
+        ):
+            await svc.git_log({"repo_path": "/opt/repos/proj", "branch": "-u"})
+
+    @pytest.mark.asyncio
+    async def test_git_diff_rejects_option_commit(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+
+        def _no_snapshot(*_a, **_k):
+            raise AssertionError("snapshot() must not be reached for a bad ref")
+
+        with (
+            patch.object(RepositoryState, "snapshot", side_effect=_no_snapshot),
+            pytest.raises(ValueError, match="CLI option"),
+        ):
+            await svc.git_diff({"repo_path": "/opt/repos/proj", "commit": "--stat"})
+
+    @pytest.mark.asyncio
+    async def test_git_show_rejects_option_ref(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+
+        def _no_snapshot(*_a, **_k):
+            raise AssertionError("snapshot() must not be reached for a bad ref")
+
+        with (
+            patch.object(RepositoryState, "snapshot", side_effect=_no_snapshot),
+            pytest.raises(ValueError, match="CLI option"),
+        ):
+            await svc.git_show({"repo_path": "/opt/repos/proj", "ref": "--output"})
+
+    @pytest.mark.asyncio
+    async def test_git_pull_rejects_allowlist_form_before_protected_check(self) -> None:
+        """A branch that is both protected and malformed reports the allowlist message."""
+        svc = _write_svc(protected=["main"])
+
+        def _no_snapshot(*_a, **_k):
+            raise AssertionError("snapshot() must not be reached for a bad ref")
+
+        with (
+            patch.object(RepositoryState, "snapshot", side_effect=_no_snapshot),
+            pytest.raises(ValueError, match="not a valid simple branch name"),
+        ):
+            await svc.git_pull(
+                {"repo_path": "/opt/repos/proj", "branch": "+main", "remote": "origin"}
+            )
+
+    @pytest.mark.asyncio
+    async def test_git_pull_rejects_protected_branch_before_remote_check(self) -> None:
+        svc = _write_svc(protected=["main"])
+
+        def _no_snapshot(*_a, **_k):
+            raise AssertionError("snapshot() must not be reached for a bad ref")
+
+        with (
+            patch.object(RepositoryState, "snapshot", side_effect=_no_snapshot),
+            pytest.raises(ValueError, match="is a protected branch"),
+        ):
+            await svc.git_pull(
+                {"repo_path": "/opt/repos/proj", "branch": "main", "remote": "-x"}
+            )
+
+    @pytest.mark.asyncio
+    async def test_git_pull_rejects_bad_remote_last(self) -> None:
+        svc = _write_svc(protected=["main"])
+
+        def _no_snapshot(*_a, **_k):
+            raise AssertionError("snapshot() must not be reached for a bad ref")
+
+        with (
+            patch.object(RepositoryState, "snapshot", side_effect=_no_snapshot),
+            pytest.raises(ValueError, match="not a valid remote name"),
+        ):
+            await svc.git_pull(
+                {"repo_path": "/opt/repos/proj", "branch": "develop", "remote": "a:b"}
+            )
+
+
+class TestWriteRefAllowlistEmptyRefCharacterization:
+    """Characterization: an empty ref passes the allowlist and is denied later."""
+
+    def test_empty_ref_passes_allowlist(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, msg = svc._validate_ref_allowlist("")
+        assert ok is True
+        assert msg == ""
+
+    @pytest.mark.asyncio
+    async def test_empty_branch_is_denied_by_the_protected_guard(self) -> None:
+        svc = _write_svc()
+        with pytest.raises(ValueError, match="branch must not be empty"):
+            await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": ""})
+
+
+# ── Characterization: path guard messages ─────────────────────────────────────
+
+
+class TestPathGuardMessageCharacterization:
+    """Characterization: the containment guards' exact denial messages."""
+
+    def test_is_within_allowed_paths_empty_list_message(self) -> None:
+        svc = _svc(allowed=[])
+        ok, err = svc._is_within_allowed_paths("/any/path")
+        assert ok is False
+        assert err == "[DENIED] allowed_repo_paths is empty"
+
+    def test_is_within_allowed_paths_sibling_message(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, err = svc._is_within_allowed_paths("/opt/repos-evil")
+        assert ok is False
+        assert err == "[DENIED] repo_path not in allowed paths"
+
+    def test_check_repo_path_empty_list_keeps_the_loop_message(self) -> None:
+        """The legacy guard predates the fail-closed empty-list message and keeps its own."""
+        svc = _svc(allowed=[])
+        ok, err, resolved = svc._check_repo_path("/any/path")
+        assert ok is False
+        assert err == "[DENIED] repo_path not in allowed paths"
+        assert resolved == ""
+
+    def test_check_repo_path_unresolvable_path(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        ok, err, resolved = svc._check_repo_path("")
+        assert ok is False
+        assert err == "repo_path is empty"
+        assert resolved == ""

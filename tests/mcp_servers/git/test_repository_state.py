@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from unittest.mock import MagicMock
+from types import SimpleNamespace
+from typing import Any
+from unittest.mock import MagicMock, patch
 
 import git
 import pytest
@@ -807,3 +809,169 @@ class TestStage3DestinationProtection:
             active_ref="develop",
         )
         assert result.ok is True
+
+
+# ── Characterization: git.Repo API-variance fallbacks ─────────────────────────
+
+
+class _QueryFailingRepo:
+    """git.Repo stand-in whose dirty/untracked/active-branch queries all raise.
+
+    Reproduces the GitPython API variance the fallback branches exist for
+    (bare or partially unreadable repositories) without depending on a specific
+    GitPython version raising on a real repo.
+    """
+
+    def __init__(self, *, detached: bool = False) -> None:
+        self.head = SimpleNamespace(is_detached=detached)
+
+    def is_dirty(self, untracked_files: bool = True) -> bool:
+        raise git.exc.GitError("is_dirty query failed")
+
+    @property
+    def untracked_files(self) -> list[str]:
+        raise git.exc.GitError("untracked_files query failed")
+
+    @property
+    def active_branch(self) -> Any:
+        raise git.exc.GitError("active_branch query failed")
+
+
+class TestSnapshotQueryFallbackCharacterization:
+    """Characterization: snapshot() falls back to defaults when a query raises."""
+
+    def test_queries_that_raise_fall_back_to_defaults(self) -> None:
+        stub = _QueryFailingRepo()
+
+        with patch.object(git, "Repo", return_value=stub):
+            state = RepositoryState.snapshot("/tmp/query-failing-repo")
+
+        assert state.is_dirty is False
+        assert state.untracked_file_count == 0
+        assert state.active_branch is None
+        assert state.head_type == "branch"
+        assert state.ref_valid is False
+        assert state.protected_branch is False
+
+    def test_protected_branch_is_false_when_branch_lookup_raises(self) -> None:
+        stub = _QueryFailingRepo()
+
+        with patch.object(git, "Repo", return_value=stub):
+            state = RepositoryState.snapshot(
+                "/tmp/query-failing-repo", protected_branches=["main"]
+            )
+
+        assert state.protected_branch is False
+
+
+class TestProtectedBranchLookupFailureCharacterization:
+    """Characterization: _is_protected_branch() fails closed on lookup failure."""
+
+    def test_lookup_failure_returns_false(self) -> None:
+        assert _is_protected_branch(_QueryFailingRepo(), ["main"]) is False
+
+    def test_blank_branch_name_returns_false(self) -> None:
+        """A whitespace-only branch name normalizes to "" and cannot match."""
+        repo = MagicMock(spec=git.Repo)
+        repo.head.is_detached = False
+        branch = MagicMock()
+        branch.name = "   "
+        repo.active_branch = branch
+        assert _is_protected_branch(repo, ["main"]) is False
+
+
+class TestVerifyAuthorizationRefGuardCharacterization:
+    """Characterization: an invalid ref denies at Stage 3 before the protected check."""
+
+    def test_denies_when_ref_invalid(self) -> None:
+        state = RepositoryState(
+            path="/tmp/ref-guard",
+            is_dirty=False,
+            head_type="branch",
+            active_branch="main",
+            untracked_file_count=0,
+            protected_branch=False,
+            ref_valid=False,
+        )
+
+        ok, message = state.verify_authorization(
+            "git_pull", requested_branch="-u", protected_branches=["main"]
+        )
+
+        assert ok is False
+        assert "CLI option" in message
+
+    def test_denies_protected_destination_after_ref_guard(self) -> None:
+        state = RepositoryState(
+            path="/tmp/ref-guard",
+            is_dirty=False,
+            head_type="branch",
+            active_branch="develop",
+            untracked_file_count=0,
+            protected_branch=False,
+            ref_valid=True,
+        )
+
+        ok, message = state.verify_authorization(
+            "git_checkout",
+            requested_branch="refs/heads/MAIN",
+            protected_branches=["main"],
+        )
+
+        assert ok is False
+        assert "protected branch" in message
+
+    def test_allows_unprotected_destination(self) -> None:
+        state = RepositoryState(
+            path="/tmp/ref-guard",
+            is_dirty=False,
+            head_type="branch",
+            active_branch="develop",
+            untracked_file_count=0,
+            protected_branch=False,
+            ref_valid=True,
+        )
+
+        ok, message = state.verify_authorization(
+            "git_checkout", requested_branch="feature/x", protected_branches=["main"]
+        )
+
+        assert ok is True
+        assert message == ""
+
+
+class TestStage7RejectionCharacterization:
+    """Characterization: a failed Stage 7 postcondition rejects after the operation."""
+
+    def test_postcondition_failure_rejects_and_is_not_recorded(self) -> None:
+        state = MagicMock(spec=RepositoryState)
+        state.path = "/tmp/stage7"
+        state.head_type = "branch"
+        state.active_branch = "main"
+        state.verify_authorization.return_value = (True, "")
+        state.verify_preconditions.return_value = (True, "")
+        state.verify_postcondition.return_value = (
+            False,
+            "[DENIED] unmerged blobs remain",
+        )
+
+        op_ran = False
+
+        def _op() -> str:
+            nonlocal op_ran
+            op_ran = True
+            return "ok"
+
+        pipeline = WriteProtectionPipeline(state)
+        result = pipeline.run("git_pull", _op)
+
+        assert op_ran is True
+        assert result.ok is False
+        assert result.rejected_at_stage == "Stage 7"
+        assert result.rejection_message == "[DENIED] unmerged blobs remain"
+        assert result.post_state is state
+        assert [stage.name for stage in pipeline.stages] == [
+            "Stage 3",
+            "Stage 5",
+            "Stage 5b",
+        ]

@@ -93,18 +93,9 @@ class RepositoryState:
         path_str = str(repo_path)
         repo = git.Repo(path_str, search_parent_directories=False)
         # Bare repos do not support untracked_files/is_dirty; fall back to defaults.
-        try:
-            dirty = repo.is_dirty(untracked_files=True)
-        except Exception:  # noqa: BLE001 — broad catch for git.Repo API variance across versions
-            dirty = False
-        try:
-            untracked = len(repo.untracked_files)
-        except Exception:  # noqa: BLE001 — broad catch for git.Repo API variance across versions
-            untracked = 0
-        try:
-            branch_name = repo.active_branch.name if not repo.head.is_detached else None
-        except Exception:  # noqa: BLE001 — broad catch for git.Repo API variance across versions
-            branch_name = None
+        dirty = _query_or_default(lambda: repo.is_dirty(untracked_files=True), False)
+        untracked = _query_or_default(lambda: len(repo.untracked_files), 0)
+        branch_name = _active_branch_name(repo)
         return cls(
             path=path_str,
             is_dirty=dirty,
@@ -149,8 +140,6 @@ class RepositoryState:
         requested branch. This is REQ-002 (destination-based) and REQ-003
         (checkout away from a protected branch is allowed).
         """
-        if protected_branches is None:
-            protected_branches = []
         # Destination = the branch the operation actually changes.
         if tool_name in ("git_add", "git_commit"):
             destination = self.active_branch  # current HEAD
@@ -160,12 +149,10 @@ class RepositoryState:
         if not self.ref_valid:
             return False, f"[DENIED] Ref {destination!r} looks like a CLI option"
         # Protected check against the destination (normalized, case-insensitive).
-        if destination:
-            normalized_dest = _normalize_branch_name(destination)
-            if any(
-                _normalize_branch_name(p) == normalized_dest for p in protected_branches
-            ):
-                return False, f"[DENIED] {destination!r} is a protected branch"
+        if not destination:
+            return True, ""
+        if _matches_protected(_normalize_branch_name(destination), protected_branches):
+            return False, f"[DENIED] {destination!r} is a protected branch"
         return True, ""
 
     def verify_preconditions(
@@ -353,23 +340,24 @@ class WriteProtectionPipeline:
         # Stage 3: Common authorization check (protected branch / ref validity)
         # Destination-aware (REQ-002/003): pass the operation context so the
         # protected-branch decision targets the branch the op actually changes.
-        ok, msg = self._state.verify_authorization(
-            tool_name, requested_branch, protected_branches, active_ref
+        rejected = self._record_or_reject(
+            "Stage 3",
+            3,
+            self._state.verify_authorization(
+                tool_name, requested_branch, protected_branches, active_ref
+            ),
         )
-        if not ok:
-            return PipelineResult.reject(self._state, "Stage 3", msg)
-        self.record_stage(PipelineStage(name="Stage 3", index=3, result=(True, "")))
+        if rejected is not None:
+            return rejected
 
         # Stage 5: Verify preconditions (dirty worktree, detached HEAD)
-        ok, msg = self._state.verify_preconditions(
-            tool_name, dry_run, allow_detached_head
+        rejected = self._record_or_reject(
+            "Stage 5",
+            5,
+            self._state.verify_preconditions(tool_name, dry_run, allow_detached_head),
         )
-        if not ok:
-            return PipelineResult.reject(self._state, "Stage 5", msg)
-        self.record_stage(PipelineStage(name="Stage 5", index=5, result=(True, "")))
-
-        if protected_branches is None:
-            protected_branches = []
+        if rejected is not None:
+            return rejected
 
         # Serialize concurrent writes to the same canonical repo path (REQ-005)
         # from immediately before the mutating Git call through postcondition
@@ -381,16 +369,7 @@ class WriteProtectionPipeline:
         with _get_repo_lock(self._state.path):
             # Stage 5b: Re-check HEAD identity immediately before the mutating
             # Git call (REQ-006) — reject if it drifted since authorization.
-            # Reads (head_type, active_branch) from the live repository object the
-            # snapshot already holds and compares it with the authorized identity,
-            # so both an attached-to-detached transition and a branch-name change
-            # are caught. The check is skipped only when the snapshot carries no
-            # real git.Repo; an unreadable live HEAD fails closed and denies.
-            live_identity = _live_head_identity(self._state)
-            if live_identity is not None and live_identity != (
-                self._state.head_type,
-                self._state.active_branch,
-            ):
+            if self._head_identity_drifted():
                 return PipelineResult.reject(
                     self._state,
                     "Stage 5b",
@@ -401,27 +380,73 @@ class WriteProtectionPipeline:
             )
 
             # Stage 6: Execute the operation
-            try:
-                output = op()
-            except GitServiceError:
-                raise
-            except Exception as e:
-                logger.error("%s execution error: %s", tool_name, e)
-                raise GitServiceError(f"{tool_name} failed: {e}") from e
+            output = self._execute(tool_name, op)
 
             # Stage 7: Verify postcondition against the single shared snapshot
             # (REQ-006). No separate post-state snapshot is taken — the pipeline
             # captures exactly one snapshot per request.
-            ok, msg = self._state.verify_postcondition(
-                output, self._state, tool_name, requested_branch
+            rejected = self._record_or_reject(
+                "Stage 7",
+                7,
+                self._state.verify_postcondition(
+                    output, self._state, tool_name, requested_branch
+                ),
+                post_state=self._state,
             )
-            if not ok:
-                return PipelineResult.reject(
-                    self._state, "Stage 7", msg, post_state=self._state
-                )
+            if rejected is not None:
+                return rejected
 
-            self.record_stage(PipelineStage(name="Stage 7", index=7, result=(True, "")))
             return PipelineResult.ok_result(self._state, output, post_state=self._state)
+
+    def _record_or_reject(
+        self,
+        stage_name: str,
+        index: int,
+        result: tuple[bool, str],
+        post_state: RepositoryState | None = None,
+    ) -> PipelineResult | None:
+        """Record a passed stage, or return the rejection result when it failed.
+
+        Returns None when the stage succeeded so the caller continues to the next
+        stage. A failed stage is never recorded, matching the pipeline's rule that
+        `stages` holds only stages that ran.
+        """
+        ok, message = result
+        if not ok:
+            return PipelineResult.reject(
+                self._state, stage_name, message, post_state=post_state
+            )
+        self.record_stage(
+            PipelineStage(name=stage_name, index=index, result=(True, ""))
+        )
+        return None
+
+    def _head_identity_drifted(self) -> bool:
+        """Return True when the live HEAD identity differs from the authorized one.
+
+        Returns False when the snapshot carries no real git.Repo (test doubles);
+        an unreadable live HEAD yields the sentinel identity and therefore denies.
+        """
+        live_identity = _live_head_identity(self._state)
+        return live_identity is not None and live_identity != (
+            self._state.head_type,
+            self._state.active_branch,
+        )
+
+    def _execute(self, tool_name: str, op: Callable[[], str]) -> str:
+        """Stage 6: run the operation, translating unexpected failures.
+
+        A `GitServiceError` raised by the operation already carries its own
+        rejection message and propagates unchanged; any other failure is logged
+        and re-raised as `GitServiceError`.
+        """
+        try:
+            return op()
+        except GitServiceError:
+            raise
+        except Exception as e:
+            logger.error("%s execution error: %s", tool_name, e)
+            raise GitServiceError(f"{tool_name} failed: {e}") from e
 
     def record_stage(self, stage: PipelineStage) -> None:
         """Record a completed pipeline stage."""
@@ -463,6 +488,40 @@ def _normalize_branch_name(branch: str) -> str:
     return f"refs/heads/{stripped}".lower()
 
 
+def _query_or_default[T](query: Callable[[], T], default: T) -> T:
+    """Run a git.Repo query, returning *default* when the API raises.
+
+    git.Repo behaves differently for bare repositories and across GitPython
+    versions, so every snapshot query fails closed to a default value.
+    """
+    try:
+        return query()
+    except Exception:  # noqa: BLE001 — broad catch for git.Repo API variance across versions
+        return default
+
+
+def _active_branch_name(repo: git.Repo) -> str | None:
+    """Return the active branch name, or None when HEAD is detached or unreadable."""
+    return _query_or_default(
+        lambda: None if repo.head.is_detached else repo.active_branch.name,
+        None,
+    )
+
+
+def _matches_protected(
+    normalized_name: str, protected_branches: list[str] | None
+) -> bool:
+    """Return True when an already-normalized branch name matches a protected entry.
+
+    *protected_branches* are normalized here and an unset or empty list never
+    matches; *normalized_name* must already be in `refs/heads/<name>` form (see
+    `_normalize_branch_name`).
+    """
+    if not protected_branches:
+        return False
+    return any(_normalize_branch_name(p) == normalized_name for p in protected_branches)
+
+
 def _is_protected_branch(
     repo: git.Repo, protected_branches: list[str] | None = None
 ) -> bool:
@@ -470,23 +529,15 @@ def _is_protected_branch(
 
     Compares the active branch (normalized to refs/heads/<name>) against
     the configured protected_branches list (also normalized). Returns True
-    when any match is found.
+    when any match is found. A detached HEAD, an unreadable branch, or a branch
+    name that normalizes to empty never matches.
     """
     if not protected_branches:
         return False
-    try:
-        branch_name = repo.active_branch.name if not repo.head.is_detached else None
-    except Exception:  # noqa: BLE001 — any GitPython lookup failure means "no active branch", handled below by returning False
-        branch_name = None
-    if branch_name is None:
-        return False
-    normalized_head = _normalize_branch_name(branch_name)
+    normalized_head = _normalize_branch_name(_active_branch_name(repo) or "")
     if not normalized_head:
         return False
-    for protected in protected_branches:
-        if _normalize_branch_name(protected) == normalized_head:
-            return True
-    return False
+    return _matches_protected(normalized_head, protected_branches)
 
 
 def _is_safe_ref(ref: str) -> bool:
