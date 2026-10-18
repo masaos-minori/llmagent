@@ -40,6 +40,8 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
+from shared.tool_constants import CONFIG_GATED_TOOLS
+
 logger = logging.getLogger(__name__)
 
 
@@ -128,7 +130,11 @@ class ToolRegistry:
         server_key: str,
         config_tool_names: list[str],
     ) -> list[str]:
-        """Validate config tool_names against registry. Returns list of mismatches."""
+        """Validate config tool_names against registry. Returns list of mismatches.
+
+        A registry tool in `CONFIG_GATED_TOOLS` may be absent from config (the server
+        withholds it until its config prerequisite is met), so its absence is not drift.
+        """
         registry_tools = set(self.get_tool_names(server_key))
         config_set = set(config_tool_names)
 
@@ -137,7 +143,13 @@ class ToolRegistry:
             _diff_messages(config_set, registry_tools, server_key, "config", "registry")
         )
         mismatches.extend(
-            _diff_messages(registry_tools, config_set, server_key, "registry", "config")
+            _diff_messages(
+                registry_tools - CONFIG_GATED_TOOLS,
+                config_set,
+                server_key,
+                "registry",
+                "config",
+            )
         )
         return mismatches
 
@@ -152,6 +164,9 @@ class ToolRegistry:
         distinguishes between:
         - Unknown tool: not registered to any server (get_server_for_tool returns None).
         - Wrong-owner tool: registered to a different server than the one being validated.
+
+        A registry tool in `CONFIG_GATED_TOOLS` may be absent from the live response,
+        so its absence is not drift.
         """
         registry_tools = set(self.get_tool_names(server_key))
         live_set = set(live_tool_names)
@@ -172,7 +187,11 @@ class ToolRegistry:
 
         mismatches.extend(
             _diff_messages(
-                registry_tools, live_set, server_key, "registry", "live response"
+                registry_tools - CONFIG_GATED_TOOLS,
+                live_set,
+                server_key,
+                "registry",
+                "live response",
             )
         )
 

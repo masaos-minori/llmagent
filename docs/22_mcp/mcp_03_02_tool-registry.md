@@ -41,6 +41,8 @@ WARNING Routing drift [file_read]: [file_read] tool 'read_multiple_files' in reg
 
 To resolve a drift warning, update `tool_names` under `[mcp_servers.<key>]` in `config/agent.toml`, or the static registry source (`shared/tool_constants.py`). (Explicit in code — `scripts/shared/mcp_config.py::McpServerConfig.tool_names`)
 
+A registered tool listed in `CONFIG_GATED_TOOLS` is exempt from the registry-versus-config and registry-versus-live absence checks, because its server withholds it until a config prerequisite is met. Currently this is `browser_fetch`, which web-search-mcp withholds while `browser_allowed_domains` is empty. The absence of any other registered tool, and any config or live tool name that is not in the registry, is still drift. (Explicit in code — `scripts/shared/tool_constants.py::CONFIG_GATED_TOOLS`, `scripts/shared/tool_registry.py::ToolRegistry.validate_tool_names_match`)
+
 ### Adding a New Tool
 
 For detailed procedures, refer to [Adding a new tool](mcp_03_05_lifecycle-and-new-server.md#adding-a-new-tool). Note that `tool_names` is not an input for routing, but metadata for drift verification.

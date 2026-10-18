@@ -129,6 +129,12 @@ SHELL_TOOLS: frozenset[str] = frozenset({"shell_run"})
 # retired standalone browser-mcp server.
 WEB_SEARCH_TOOLS: frozenset[str] = frozenset({"search_web", "browser_fetch"})
 
+# Tools a server withholds from /v1/tools (and so from config tool_names) while a config
+# prerequisite is unmet, e.g. web-search-mcp's browser_fetch with an empty
+# browser_allowed_domains. They stay registered as the static ownership seed, and drift
+# validation does not report their absence from config or from the live response.
+CONFIG_GATED_TOOLS: frozenset[str] = frozenset({"browser_fetch"})
+
 # GitHub tools (github-mcp, port 8012)
 GITHUB_READ_TOOLS: frozenset[str] = frozenset(
     {

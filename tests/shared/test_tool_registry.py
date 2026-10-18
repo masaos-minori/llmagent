@@ -120,6 +120,69 @@ class TestValidateRoutingAgainstLive:
         assert drift == {}
 
 
+class TestConfigGatedToolDrift:
+    """A config-gated tool the server withholds is not drift; other absences still are."""
+
+    @staticmethod
+    def _web_search_registry() -> ToolRegistry:
+        registry = ToolRegistry()
+        registry.register(ToolDefinition(name="search_web", server_key="web_search"))
+        registry.register(ToolDefinition(name="browser_fetch", server_key="web_search"))
+        return registry
+
+    @staticmethod
+    def _config(tool_names: list[str]) -> dict[str, McpServerConfig]:
+        cfg = MagicMock(spec=McpServerConfig)
+        cfg.tool_names = tool_names
+        return {"web_search": cfg}
+
+    def test_gated_tool_absent_from_config_is_not_drift(self) -> None:
+        drift = validate_routing_against_config(
+            registry=self._web_search_registry(),
+            server_configs=self._config(["search_web"]),
+        )
+        assert drift == {}
+
+    def test_gated_tool_present_in_config_is_not_drift(self) -> None:
+        drift = validate_routing_against_config(
+            registry=self._web_search_registry(),
+            server_configs=self._config(["search_web", "browser_fetch"]),
+        )
+        assert drift == {}
+
+    def test_ungated_tool_absent_from_config_is_still_drift(self) -> None:
+        drift = validate_routing_against_config(
+            registry=self._web_search_registry(),
+            server_configs=self._config(["browser_fetch"]),
+        )
+        assert drift["web_search"] == [
+            "[web_search] tool 'search_web' in registry but not in config"
+        ]
+
+    def test_unregistered_tool_in_config_is_still_drift(self) -> None:
+        drift = validate_routing_against_config(
+            registry=self._web_search_registry(),
+            server_configs=self._config(["search_web", "no_such_tool"]),
+        )
+        assert drift["web_search"] == [
+            "[web_search] tool 'no_such_tool' in config but not in registry"
+        ]
+
+    def test_gated_tool_absent_from_live_is_not_drift(self) -> None:
+        drift = validate_routing_against_live(
+            self._web_search_registry(), {"web_search": ["search_web"]}
+        )
+        assert drift == {}
+
+    def test_ungated_tool_absent_from_live_is_still_drift(self) -> None:
+        drift = validate_routing_against_live(
+            self._web_search_registry(), {"web_search": ["browser_fetch"]}
+        )
+        assert drift["web_search"] == [
+            "[web_search] tool 'search_web' in registry but not in live response"
+        ]
+
+
 class TestStartupValidationStrictMode:
     """Tests for the four strict-mode drift conditions checked at startup.
 
