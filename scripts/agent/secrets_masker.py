@@ -9,6 +9,9 @@ SECRET_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"(?i)((?:secret|token)\s*=\s*)(\S+)"),
     re.compile(r"(?i)(Authorization:\s*\S+\s+)(\S+)"),
     re.compile(r"(?i)(Bearer\s+)(\S+)"),
+    re.compile(
+        r'(?i)("(?:password|passwd|pwd|api[_-]?key|apikey|secret|token)"\s*[:,]\s*["\'])([^"\']*)'
+    ),
 ]
 
 

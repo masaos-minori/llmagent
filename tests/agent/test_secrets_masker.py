@@ -74,3 +74,70 @@ class TestMaskSecrets:
             result = _mask_secrets(f"token={short_val}")
             assert short_val not in result, f"Value '{short_val}' leaked in: {result}"
             assert "***MASKED***" in result
+
+
+class TestJsonSecretMasking:
+    """REQ-004: JSON-style secret values for known key names are masked.
+
+    Covers both `:` and `,` separators and multiple known key names while leaving
+    non-secret quoted values untouched (no false positives).
+    """
+
+    @pytest.mark.parametrize(
+        "input_text,expected",
+        [
+            ('{"token": "abc123"}', '{"token": "***MASKED***"}'),
+            ('"api_key":"xyz"', '"api_key":"***MASKED***"'),
+            (
+                '{"password": "pw", "name": "John"}',
+                '{"password": "***MASKED***", "name": "John"}',
+            ),
+            ('{"secret":"s3cr3t"}', '{"secret":"***MASKED***"}'),
+            (
+                '{"api_key": "AKIA123", "region": "us-east-1"}',
+                '{"api_key": "***MASKED***", "region": "us-east-1"}',
+            ),
+        ],
+    )
+    def test_json_secret_values_are_masked(
+        self, input_text: str, expected: str
+    ) -> None:
+        result = _mask_secrets(input_text)
+        assert result == expected
+        assert "***MASKED***" in result
+
+    @pytest.mark.parametrize(
+        "key_name",
+        [
+            "token",
+            "api_key",
+            "apikey",
+            "api-key",
+            "password",
+            "passwd",
+            "pwd",
+            "secret",
+        ],
+    )
+    def test_json_known_key_names_all_masked(self, key_name: str) -> None:
+        input_text = f'{{"{key_name}": "value"}}'
+        result = _mask_secrets(input_text)
+        assert "***MASKED***" in result
+        assert "value" not in result
+
+    def test_non_secret_stderr_sample_unchanged(self) -> None:
+        """REQ-003: a plausible stderr line without a known-secret-key + quoted
+        value is returned unchanged (no false positive)."""
+        sample = (
+            "2026-10-18 12:00:00 INFO request handled "
+            "path=/api/items status=200 duration_ms=12 "
+            'user="John Doe" role="assistant"'
+        )
+        assert _mask_secrets(sample) == sample
+
+    def test_pattern_count_grew_by_exactly_one(self) -> None:
+        """REQ-006: exactly one pattern was added (5 -> 6); no stray/bare-token
+        pattern slipped in."""
+        from agent.secrets_masker import SECRET_PATTERNS
+
+        assert len(SECRET_PATTERNS) == 6
