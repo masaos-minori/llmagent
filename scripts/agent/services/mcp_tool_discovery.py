@@ -156,7 +156,6 @@ class ToolEntryValidator:
         server_key: str,
         server_url: str,
         entry: object,
-        required_server: bool,
     ) -> tuple[dict[str, object] | None, StartupCheckOutcome | None]:
         """Validate one raw /v1/tools entry. Returns (normalized_entry_or_None, finding_or_None)."""
         if not isinstance(entry, dict):
@@ -276,7 +275,7 @@ def _normalize_entries(
     validator = ToolEntryValidator()
     for raw_entry in tools:
         normalized, finding = validator.validate_entry(
-            server_key, server_url, raw_entry, required_server=False
+            server_key, server_url, raw_entry
         )
         if finding is not None:
             findings.append(finding)

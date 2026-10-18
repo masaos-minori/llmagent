@@ -239,7 +239,7 @@ class TestExecuteWithDag:
                 call_id="call_read_text_file", name="read_text_file", is_write=False
             ),
         )
-        results = await _execute_with_dag(ctx, [pc], 0)
+        results = await _execute_with_dag(ctx, [pc])
         assert len(results) == 1
 
     @pytest.mark.asyncio
@@ -290,7 +290,7 @@ class TestExecuteWithDag:
             )
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
-        await _execute_with_dag(ctx, [write_a_pc, write_b_pc, read_pc], 0)
+        await _execute_with_dag(ctx, [write_a_pc, write_b_pc, read_pc])
         # The conflicting write pair must execute in group order.
         assert call_order.index("write_file") < call_order.index("edit_file")
         # The unrelated read still executes (no ordering guarantee against it).
@@ -326,13 +326,13 @@ class TestExecuteWithDag:
             )
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
-        await _execute_with_dag(ctx, [shell_pc, read_pc], 0)
+        await _execute_with_dag(ctx, [shell_pc, read_pc])
         assert call_order[0] == "shell_run"
 
     @pytest.mark.asyncio
     async def test_empty_approved_calls_returns_empty(self) -> None:
         ctx = _make_ctx()
-        results = await _execute_with_dag(ctx, [], 0)
+        results = await _execute_with_dag(ctx, [])
         assert results == []
 
     @pytest.mark.asyncio
@@ -376,7 +376,7 @@ class TestExecuteWithDag:
             )
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record)
-        results = await _execute_with_dag(ctx, [write_pc, github_pc, read_pc], 0)
+        results = await _execute_with_dag(ctx, [write_pc, github_pc, read_pc])
         assert len(results) == 3
         assert set(executed) == {"write_file", "github_push_files", "read_text_file"}
 
@@ -402,7 +402,7 @@ class TestExecuteWithDag:
                 output="ok", is_error=False, request_id="req", server_key=""
             )
         )
-        results = await _execute_with_dag(ctx, [read_pc, write_pc], 0)
+        results = await _execute_with_dag(ctx, [read_pc, write_pc])
         assert len(results) == 2
         # tc_id at index 0 should be "call_read_text_file"
         assert results[0][0] == "call_read_text_file"
@@ -435,7 +435,7 @@ class TestExecuteWithDag:
                 "agent.tool_scheduler", fromlist=["build_execution_groups"]
             ).build_execution_groups,
         ) as mock_build:
-            await _execute_with_dag(ctx, [pc1, pc2], 0)
+            await _execute_with_dag(ctx, [pc1, pc2])
 
         passed_tool_meta = mock_build.call_args[0][1]
         assert set(passed_tool_meta.keys()) == {"call_1", "call_2"}
@@ -453,7 +453,7 @@ class TestExecuteWithDag:
         )
 
         with patch("rag.llm_client.summarize_tool_result") as mock_summarize:
-            result = await execute_one_tool_call(ctx, _pc("shell_run", {}), 0)
+            result = await execute_one_tool_call(ctx, _pc("shell_run", {}))
             assert mock_summarize.call_count == 0
             _, _, _, _, _, llm_text = result
             assert len(llm_text) <= 100 + len("\n... (truncated)")
@@ -469,7 +469,7 @@ class TestExecuteWithDag:
             )
         )
 
-        result = await execute_one_tool_call(ctx, _pc("shell_run", {}), 0)
+        result = await execute_one_tool_call(ctx, _pc("shell_run", {}))
         _, _, _, _, _, llm_text = result
         assert llm_text == short_text
 
@@ -485,7 +485,7 @@ class TestExecuteWithDag:
         )
 
         _tc_id, _name, _args, _text, is_error, llm_text = await execute_one_tool_call(
-            ctx, _pc("read_text_file", {}), 0
+            ctx, _pc("read_text_file", {})
         )
 
         assert is_error
@@ -509,7 +509,7 @@ class TestExecuteWithDag:
         )
 
         _tc_id, _name, _args, _text, _is_error, llm_text = await execute_one_tool_call(
-            ctx, _pc("read_text_file", {}), 0
+            ctx, _pc("read_text_file", {})
         )
 
         assert llm_text == text_over_old_threshold
@@ -1119,7 +1119,7 @@ class TestGatewayBypassGapResolution:
             call_id="call_r",
             spec=ToolSpec(call_id="call_r", name="read_text_file", is_write=False),
         )
-        result = await execute_one_tool_call(ctx, pc, 0)
+        result = await execute_one_tool_call(ctx, pc)
 
         executor.execute.assert_awaited_once_with("read_text_file", {})
         assert result[0] == "call_r"
@@ -1137,7 +1137,7 @@ class TestGatewayBypassGapResolution:
         )
 
         pc = _pc("read_text_file", args={}, call_id="call_r")
-        result = await execute_one_tool_call(ctx, pc, 0)
+        result = await execute_one_tool_call(ctx, pc)
 
         ctx.services_required.tools.execute.assert_called_once()
         assert result[0] == "call_r"
@@ -1162,7 +1162,7 @@ class TestExecutorUnavailableGuard:
             match="Tool executor is not available",
         ):
             await execute_one_tool_call(
-                ctx, _pc("read_text_file", {}, call_id="call_r"), 0
+                ctx, _pc("read_text_file", {}, call_id="call_r")
             )
 
 
@@ -1184,7 +1184,7 @@ class TestGatewayBypassPreflightDenial:
             ),
         ):
             with pytest.raises(PolicyViolationError, match="denied by policy"):
-                await execute_one_tool_call(ctx, pc, 0)
+                await execute_one_tool_call(ctx, pc)
 
         assert any(
             "tool_runner.policy_denied tool='shell_run' reason=denied by policy"
@@ -1212,7 +1212,7 @@ class TestTransportFailureDiagnostics:
         )
         pc = _pc("read_text_file", {}, call_id="call_r")
 
-        _, _, _, text, is_error, _ = await execute_one_tool_call(ctx, pc, 0)
+        _, _, _, text, is_error, _ = await execute_one_tool_call(ctx, pc)
 
         assert is_error is True
         assert len(text) == 900
@@ -1239,7 +1239,7 @@ class TestTransportFailureDiagnostics:
         )
         pc = _pc("read_text_file", {}, call_id="call_r")
 
-        await execute_one_tool_call(ctx, pc, 0)
+        await execute_one_tool_call(ctx, pc)
 
         ctx.diagnostics.save_transport_failure.assert_not_called()
 
@@ -1334,7 +1334,7 @@ class TestDagBucketDebugLines:
 
         with caplog.at_level(logging.DEBUG, logger="agent.tool_runner"):
             await _execute_with_dag(
-                ctx, [serial_pc, scoped_pc, unscoped_write_pc, parallel_pc], 0
+                ctx, [serial_pc, scoped_pc, unscoped_write_pc, parallel_pc]
             )
 
         assert {r.message for r in caplog.records if "DAG_BUCKET:" in r.message} == {
@@ -1357,7 +1357,7 @@ class TestDagBucketDebugLines:
         )
 
         with caplog.at_level(logging.INFO, logger="agent.tool_runner"):
-            await _execute_with_dag(ctx, [pc], 0)
+            await _execute_with_dag(ctx, [pc])
 
         assert not [r for r in caplog.records if "DAG_BUCKET:" in r.message]
 

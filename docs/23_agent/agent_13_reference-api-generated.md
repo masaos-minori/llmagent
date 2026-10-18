@@ -180,7 +180,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `build_github_preview` | `def build_github_preview(args) -> str` | Build preview string for github_* tools showing repo and extra args. |
 |  | `build_preview` | `def build_preview(tool_name, args) -> str` | Build a human-readable operation preview shown before approval prompts. |
 | `scripts/agent/tool_runner.py` | `get_serialization_stats` | `def get_serialization_stats() -> dict[str, int]` | Return current serialization statistics. |
-|  | `execute_one_tool_call` | `async def execute_one_tool_call(ctx, pc, turn) -> tuple[str, str, dict, str, bool, str]` | Execute and truncate one already-prepared tool call. |
+|  | `execute_one_tool_call` | `async def execute_one_tool_call(ctx, pc) -> tuple[str, str, dict, str, bool, str]` | Execute and truncate one already-prepared tool call. |
 |  | `execute_all_tool_calls` | `async def execute_all_tool_calls(ctx, tool_calls, turn, out_failed_keys) -> None` | Execute all tool calls then append results in original order. |
 | `scripts/agent/tool_scheduler.py` | `MissingToolSpecError` | `class MissingToolSpecError` | Raised when a tool call's call_id has no entry in the call_specs map |
 |  | `SerializationEvent` | `class SerializationEvent` | Record of one serialization decision made while building an ExecutionPlan. |

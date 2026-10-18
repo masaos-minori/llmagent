@@ -72,17 +72,14 @@ async def _run_group_calls(
     group: list[PreparedToolCall],
     serialize: bool,
     ctx: AgentContext,
-    turn: int,
 ) -> list[Any]:
     """Execute one group of tool calls, sequentially when serialize=True, gathered otherwise."""
     if serialize:
         results: list[Any] = []
         for pc in group:
-            results.append(await execute_one_tool_call(ctx, pc, turn))
+            results.append(await execute_one_tool_call(ctx, pc))
         return results
-    return list(
-        await asyncio.gather(*(execute_one_tool_call(ctx, pc, turn) for pc in group))
-    )
+    return list(await asyncio.gather(*(execute_one_tool_call(ctx, pc) for pc in group)))
 
 
 def _idempotency_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
@@ -158,7 +155,6 @@ def _truncate_for_llm(text: str, limit: int) -> str:
 async def execute_one_tool_call(
     ctx: AgentContext,
     pc: PreparedToolCall,
-    turn: int,
 ) -> tuple[str, str, dict, str, bool, str]:
     """Execute and truncate one already-prepared tool call.
 
@@ -322,7 +318,6 @@ async def _run_plan_batches(
     ctx: AgentContext,
     plan: ExecutionPlan,
     pc_by_id: dict[str, PreparedToolCall],
-    turn: int,
 ) -> list[Any]:
     """Run every batch of the plan, flattening group results into one list."""
     results: list[Any] = []
@@ -338,7 +333,7 @@ async def _run_plan_batches(
         ]
         batch_results = await asyncio.gather(
             *(
-                _run_group_calls(pcs, group.sequential, ctx, turn)
+                _run_group_calls(pcs, group.sequential, ctx)
                 for pcs, group in zip(pc_groups, batch.groups)
             )
         )
@@ -416,7 +411,6 @@ def _record_round_exec(
 async def _execute_with_dag(
     ctx: AgentContext,
     approved_calls: list[PreparedToolCall],
-    turn: int,
     force_serial: bool = False,
 ) -> list[Any]:
     """Run approved calls through the single DAG execution plan.
@@ -444,7 +438,7 @@ async def _execute_with_dag(
     _record_serialization_stats(serialization_events)
 
     call_order = {pc.call_id: i for i, pc in enumerate(approved_calls)}
-    results = await _run_plan_batches(ctx, plan, pc_by_id, turn)
+    results = await _run_plan_batches(ctx, plan, pc_by_id)
     results.sort(key=lambda r: call_order.get(r[0], 0))
 
     elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -489,7 +483,7 @@ async def execute_all_tool_calls(
 
     if approved_calls:
         results = await _execute_with_dag(
-            ctx, approved_calls, turn, force_serial=ctx.cfg.tool.serial_tool_calls
+            ctx, approved_calls, force_serial=ctx.cfg.tool.serial_tool_calls
         )
     else:
         results = []
