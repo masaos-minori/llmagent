@@ -159,6 +159,7 @@ class TestAllowlistCoversShippedConfig:
 
 
 @pytest.mark.integration
+@pytest.mark.usefixtures("firejail_on_path")
 class TestFilteredEnvironmentStartsEveryServer:
     """A real child process per configured subprocess server, started with the filtered env."""
 

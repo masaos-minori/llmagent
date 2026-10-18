@@ -4,9 +4,11 @@ Adds scripts/ to sys.path so all project modules are importable without installa
 """
 
 import os
+import shutil
 import sys
 from collections.abc import Generator
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -44,6 +46,37 @@ for _mcp_env_var in (
     "MCP_MDQ_AUTH_TOKEN",
 ):
     os.environ.setdefault(_mcp_env_var, "test-token")
+
+# shell-mcp builds its sandbox when mcp_servers.shell is first imported (the package
+# __init__ imports shell_server, which calls build_service()), and that raises
+# RuntimeError when the firejail binary is not in PATH. Hosts without firejail (the CI
+# runner) therefore fail at collection, before any fixture can patch it. Report firejail
+# as present only when it is really absent, so the import succeeds and no test depends
+# on the host; tests that exercise the missing-binary path patch shutil.which themselves.
+# Production code is unchanged, so the fail-closed startup rule (ADR-004) still holds.
+if shutil.which("firejail") is None:
+    _real_which = shutil.which
+
+    def _which_with_firejail_present(cmd: str, *args: Any, **kwargs: Any) -> str | None:
+        if cmd == "firejail":
+            return "/usr/bin/firejail"
+        return _real_which(cmd, *args, **kwargs)
+
+    shutil.which = _which_with_firejail_present
+
+
+@pytest.fixture
+def firejail_on_path(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """Put a stub firejail first in PATH so child interpreters need no host binary.
+
+    shell-mcp only looks the binary up at import (never runs it), and the in-process
+    shutil.which shim above does not reach a fresh interpreter. Tests that start a real
+    shell-mcp child process opt in with `pytest.mark.usefixtures("firejail_on_path")`.
+    """
+    stub = tmp_path / "firejail"
+    stub.write_text("#!/bin/sh\nexit 0\n", encoding="utf-8")
+    stub.chmod(0o755)
+    monkeypatch.setenv("PATH", f"{tmp_path}{os.pathsep}{os.environ.get('PATH', '')}")
 
 
 @pytest.fixture(autouse=True)

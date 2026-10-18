@@ -21,6 +21,8 @@ _MODULE = "mcp_servers.shell.shell_server"
 _ENV_VAR = "MCP_SHELL_AUTH_TOKEN"
 _TOKEN = "unit-test-token"
 
+pytestmark = pytest.mark.usefixtures("firejail_on_path")
+
 _APP_SCRIPT = """
 import json
 import sys
