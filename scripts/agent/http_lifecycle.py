@@ -130,12 +130,16 @@ class HttpServerLifecycleManager:
             result = await HealthChecker.verify_running_async(
                 server_key, cfg, url=url, headers=cfg.auth_headers()
             )
-            self._last_health_check[server_key] = time.monotonic()
+            self._mark_health_checked(server_key)
             return result
         except (httpx.HTTPError, OSError) as exc:
             logger.error("Health check failed for %s: %s", cfg.url, exc)
-            self._last_health_check[server_key] = time.monotonic()
+            self._mark_health_checked(server_key)
             return False
+
+    def _mark_health_checked(self, server_key: str) -> None:
+        """Record the time of a health observation to rate-limit the next check."""
+        self._last_health_check[server_key] = time.monotonic()
 
     def _clear_server_tracking_data(self, server_key: str) -> None:
         """Remove health check timestamps, stderr file handles, and paths for a server."""
@@ -193,8 +197,9 @@ class HttpServerLifecycleManager:
         proc = self._http_procs.get(server_key)
         if proc is None:
             return None
-        running = proc.poll() is None
-        last_exit_code = proc.poll() if not running else None
+        exit_code = proc.poll()
+        running = exit_code is None
+        last_exit_code = None if running else exit_code
         pgid = self._http_pgids.get(server_key)
         stderr_log = self._stderr_log_manager.get_log_path(server_key) or ""
         return ProcessInfoSnapshot(
@@ -288,9 +293,7 @@ class HttpServerLifecycleManager:
         try:
             self._command_validator.validate(server_key, cfg.cmd[0])
         except ValueError as e:
-            stderr_fh.close()
-            self._stderr_files.pop(server_key, None)
-            self._stderr_log_manager.forget(server_key)
+            self._close_stderr_log(server_key, stderr_fh)
             raise HttpStartupError(
                 StartupFailure(
                     server_key=server_key,
@@ -315,53 +318,65 @@ class HttpServerLifecycleManager:
                 ),
             )
         except Exception:
-            stderr_fh.close()
-            self._stderr_files.pop(server_key, None)
-            self._stderr_log_manager.forget(server_key)
+            self._close_stderr_log(server_key, stderr_fh)
             raise
         try:
             self._http_pgids[server_key] = os.getpgid(proc.pid)
         except OSError as e:
-            logger.warning(
-                "Lifecycle: getpgid() failed for %r pid=%d; cleaning up",
-                server_key,
-                proc.pid,
-            )
-            try:
-                await self._process_terminator.terminate_with_timeout(
-                    proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
-                )
-                poll_result = proc.poll()
-                if poll_result is not None and poll_result != 0:
-                    logger.info(
-                        "Lifecycle: subprocess %r (pid=%d) terminated with exit code %d",
-                        server_key,
-                        proc.pid,
-                        poll_result,
-                    )
-                # Process terminated successfully — remove tracking entries only
-                # after confirmed exit so a failed termination keeps them available
-                # for a subsequent manual-cleanup attempt.
-                self._http_procs.pop(server_key, None)
-                self._http_pgids.pop(server_key, None)
-            except Exception as term_err:
-                # Termination failed — keep tracking entries for manual intervention.
-                logger.error(
-                    "Lifecycle: getpgid() failed AND termination failed for %r (pid=%d): %s. "
-                    "Tracking entry retained for manual cleanup.",
-                    server_key,
-                    proc.pid,
-                    term_err,
-                )
-                raise
-            finally:
-                # Resource cleanup always happens regardless of termination outcome.
-                stderr_fh.close()
-                self._stderr_files.pop(server_key, None)
-                self._stderr_log_manager.forget(server_key)
-            raise e
+            await self._handle_getpgid_failure(server_key, proc, stderr_fh, e)
         self._http_procs[server_key] = proc
         return proc, stderr_fh
+
+    def _close_stderr_log(self, server_key: str, stderr_fh: IO[bytes]) -> None:
+        """Close a startup-attempt stderr handle and drop its log tracking entries."""
+        stderr_fh.close()
+        self._stderr_files.pop(server_key, None)
+        self._stderr_log_manager.forget(server_key)
+
+    async def _handle_getpgid_failure(
+        self,
+        server_key: str,
+        proc: subprocess.Popen[bytes],
+        stderr_fh: IO[bytes],
+        error: OSError,
+    ) -> NoReturn:
+        """Terminate a process whose pgid could not be resolved, then re-raise *error*.
+
+        Tracking entries are removed only after a confirmed exit so a failed
+        termination keeps them available for a subsequent manual-cleanup attempt.
+        Stderr resources are always released regardless of the termination outcome.
+        """
+        logger.warning(
+            "Lifecycle: getpgid() failed for %r pid=%d; cleaning up",
+            server_key,
+            proc.pid,
+        )
+        try:
+            await self._process_terminator.terminate_with_timeout(
+                proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
+            )
+            poll_result = proc.poll()
+            if poll_result is not None and poll_result != 0:
+                logger.info(
+                    "Lifecycle: subprocess %r (pid=%d) terminated with exit code %d",
+                    server_key,
+                    proc.pid,
+                    poll_result,
+                )
+            self._http_procs.pop(server_key, None)
+            self._http_pgids.pop(server_key, None)
+        except Exception as term_err:
+            logger.error(
+                "Lifecycle: getpgid() failed AND termination failed for %r (pid=%d): %s. "
+                "Tracking entry retained for manual cleanup.",
+                server_key,
+                proc.pid,
+                term_err,
+            )
+            raise
+        finally:
+            self._close_stderr_log(server_key, stderr_fh)
+        raise error
 
     def _raise_startup_failure(
         self, server_key: str, reason: str, stderr_full: str
@@ -443,14 +458,14 @@ class HttpServerLifecycleManager:
                 try:
                     resp = await client.get(health_url)
                     if resp.status_code == HTTPStatus.OK:
-                        self._last_health_check[server_key] = time.monotonic()
+                        self._mark_health_checked(server_key)
                         logger.info(
                             "Lifecycle: HTTP subprocess %r ready",
                             server_key,
                         )
                         return
                     if await self._is_degraded_but_live(resp):
-                        self._last_health_check[server_key] = time.monotonic()
+                        self._mark_health_checked(server_key)
                         logger.info(
                             "Lifecycle: HTTP subprocess %r ready (degraded but live)",
                             server_key,
@@ -518,14 +533,7 @@ class HttpServerLifecycleManager:
 
     async def restart(self, server_key: str, cfg: McpServerConfig) -> None:
         """Terminate and restart an HTTP subprocess server."""
-        stderr_fh = self._stderr_files.pop(server_key, None)
-        if stderr_fh is not None:
-            try:
-                stderr_fh.close()
-            except OSError:
-                pass
-        self._stderr_log_manager.forget(server_key)
-        self._last_health_check.pop(server_key, None)
+        self._clear_server_tracking_data(server_key)
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info("Lifecycle: terminating %r for restart", server_key)

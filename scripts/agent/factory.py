@@ -52,6 +52,18 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
+_logger = logging.getLogger(__name__)
+
+# Cooldown duration for failed MCP subprocess starts (seconds)
+_COOLDOWN_SECONDS: float = 30.0
+
+
+def _is_http_subprocess_server(cfg: McpServerConfig) -> bool:
+    """Return True when *cfg* is an HTTP server started as a subprocess."""
+    return cfg.transport == TransportType.HTTP and (
+        cfg.startup_mode == StartupMode.SUBPROCESS
+    )
+
 
 @dataclass(frozen=True)
 class LlmClientResult:
@@ -98,10 +110,7 @@ class _SubprocessLifecycleManager(LifecycleManagerProtocol):
         cfg = self._server_configs.get(server_key)
         if cfg is None:
             return
-        if (
-            cfg.transport != TransportType.HTTP
-            or cfg.startup_mode != StartupMode.SUBPROCESS
-        ):
+        if not _is_http_subprocess_server(cfg):
             return
         os_alive = self._http_mgr.verify_running(server_key)
         if not os_alive:
@@ -152,8 +161,7 @@ class _SubprocessLifecycleManager(LifecycleManagerProtocol):
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return process snapshot dict for a managed subprocess server, or None."""
-        snapshot: dict | None = self._http_mgr.get_process_snapshot(server_key)
-        return snapshot
+        return self._http_mgr.get_process_snapshot(server_key)
 
     def cleanup_server_resources(self, server_key: str) -> str:
         """Clean up resources for a removed MCP server. Delegates to HttpServerLifecycleManager."""
@@ -174,12 +182,6 @@ class _SubprocessLifecycleManager(LifecycleManagerProtocol):
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return ProcessInfoSnapshot list for all managed subprocess servers; delegates."""
         return self._http_mgr.list_processes()
-
-
-_logger = logging.getLogger(__name__)
-
-# Cooldown duration for failed MCP subprocess starts (seconds)
-_COOLDOWN_SECONDS: float = 30.0
 
 
 class _ServerLifecycleRouter:
@@ -246,17 +248,24 @@ class _ServerLifecycleRouter:
             self._set_state(server_key, LifecycleState.FAILED)
             raise
 
+    def _cooldown_remaining(self, server_key: str) -> float:
+        """Return the seconds left in *server_key*'s cooldown window (0.0 when never failed)."""
+        last_failure = self._failed_starts.get(server_key)
+        if last_failure is None:
+            return 0.0
+        return _COOLDOWN_SECONDS - (time.monotonic() - last_failure)
+
     def _in_cooldown(self, server_key: str) -> bool:
         """Return True if the server is within its cooldown window."""
-        last_failure = self._failed_starts.get(server_key, 0)
-        if last_failure == 0:
+        last_failure = self._failed_starts.get(server_key)
+        if not last_failure:
             return False
-        elapsed = time.monotonic() - last_failure
-        if elapsed < _COOLDOWN_SECONDS:
+        remaining = self._cooldown_remaining(server_key)
+        if remaining > 0:
             _logger.info(
                 "Lifecycle: %r still in cooldown (%.1fs remaining)",
                 server_key,
-                _COOLDOWN_SECONDS - elapsed,
+                remaining,
             )
             return True
         # Cooldown expired — remove stale entry
@@ -273,15 +282,10 @@ class _ServerLifecycleRouter:
         cfg = self._server_configs.get(server_key)
         if cfg is None:
             return
-        if (
-            cfg.transport != TransportType.HTTP
-            or cfg.startup_mode != StartupMode.SUBPROCESS
-        ):
+        if not _is_http_subprocess_server(cfg):
             return
         if self._in_cooldown(server_key):
-            remaining = _COOLDOWN_SECONDS - (
-                time.monotonic() - self._failed_starts[server_key]
-            )
+            remaining = self._cooldown_remaining(server_key)
             raise ServerCooldownError(
                 f"MCP server {server_key!r} is restarting. Try again in {max(0, remaining):.0f}s"
             )
@@ -373,28 +377,22 @@ class _ServerLifecycleRouter:
 
     def get_process_snapshot(self, server_key: str) -> dict | None:
         """Return process snapshot dict for a managed subprocess server, or None."""
-        snapshot: dict | None = self._subprocess_mgr.get_process_snapshot(server_key)
-        return snapshot
+        return self._subprocess_mgr.get_process_snapshot(server_key)
 
     def get_process_info(self, server_key: str) -> ProcessInfoSnapshot | None:
         """Return ProcessInfoSnapshot for a managed subprocess server, or None."""
-        info: ProcessInfoSnapshot | None = self._subprocess_mgr.get_process_info(
-            server_key
-        )
-        return info
+        return self._subprocess_mgr.get_process_info(server_key)
 
     def list_processes(self) -> list[ProcessInfoSnapshot]:
         """Return list of ProcessInfoSnapshot for all managed subprocess servers."""
-        processes: list[ProcessInfoSnapshot] = self._subprocess_mgr.list_processes()
-        return processes
+        return self._subprocess_mgr.list_processes()
 
     def get_subprocess_server_configs(self) -> list[tuple[str, McpServerConfig]]:
         """Return (key, config) pairs for all HTTP subprocess-mode servers."""
         return [
             (key, cfg)
             for key, cfg in self._server_configs.items()
-            if cfg.transport == TransportType.HTTP
-            and cfg.startup_mode == StartupMode.SUBPROCESS
+            if _is_http_subprocess_server(cfg)
         ]
 
     def cleanup_server_resources(self, server_key: str) -> str:

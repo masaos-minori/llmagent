@@ -16,7 +16,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import httpx
 import pytest
-from agent.factory import _ServerLifecycleRouter
+from agent import factory
+from agent.factory import _ServerLifecycleRouter, _SubprocessLifecycleManager
 from agent.http_lifecycle import (
     HttpServerLifecycleManager,
     HttpStartupError,
@@ -24,7 +25,9 @@ from agent.http_lifecycle import (
 )
 from agent.http_lifecycle_stderr_log_manager import StderrLogManager
 from agent.lifecycle import LifecycleState, assert_valid_transition
+from agent.services.models import ProcessInfoSnapshot
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
+from shared.tool_lifecycle import ServerCooldownError
 
 _TEST_HTTP_URL = "http://127.0.0.1:9999"
 
@@ -1248,3 +1251,167 @@ class TestCleanupServerResources:
         result = mgr._cleanup_server_resources("nonexistent")
 
         assert result == ""
+
+
+class TestCooldownCharacterization:
+    """Characterization tests for _in_cooldown() and the cooldown-aware entry points."""
+
+    def _mgr(self) -> _ServerLifecycleRouter:
+        return _ServerLifecycleRouter(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+
+    def test_no_failure_entry_is_not_in_cooldown(self) -> None:
+        assert self._mgr()._in_cooldown("s") is False
+
+    def test_unknown_server_key_is_not_in_cooldown(self) -> None:
+        assert self._mgr()._in_cooldown("missing") is False
+
+    def test_recent_failure_is_in_cooldown_and_keeps_entry(self) -> None:
+        mgr = self._mgr()
+        mgr._failed_starts["s"] = time.monotonic()
+
+        assert mgr._in_cooldown("s") is True
+        assert "s" in mgr._failed_starts
+
+    def test_expired_failure_is_not_in_cooldown_and_clears_entry(self) -> None:
+        mgr = self._mgr()
+        mgr._failed_starts["s"] = time.monotonic() - (factory._COOLDOWN_SECONDS + 1.0)
+
+        assert mgr._in_cooldown("s") is False
+        assert "s" not in mgr._failed_starts
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_raises_cooldown_error(self) -> None:
+        mgr = self._mgr()
+        mgr._failed_starts["s"] = time.monotonic()
+        mgr._subprocess_mgr.verify_running = MagicMock(return_value=False)
+
+        with pytest.raises(ServerCooldownError) as excinfo:
+            await mgr.ensure_ready("s")
+
+        assert "is restarting" in str(excinfo.value)
+        mgr._subprocess_mgr.verify_running.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_start_http_subprocess_returns_none_in_cooldown(self) -> None:
+        mgr = self._mgr()
+        mgr._failed_starts["s"] = time.monotonic()
+
+        result = await mgr.start_http_subprocess("s", _http_subprocess_cfg())
+
+        assert result is None
+
+    @pytest.mark.asyncio
+    async def test_restart_skips_when_in_cooldown(self) -> None:
+        mgr = self._mgr()
+        mgr._failed_starts["s"] = time.monotonic()
+        restart = AsyncMock()
+        mgr._subprocess_mgr.restart = restart
+
+        await mgr.restart("s")
+
+        restart.assert_not_awaited()
+
+
+class TestCooldownRemainingCharacterization:
+    """Characterization tests for _cooldown_remaining()."""
+
+    def _mgr(self) -> _ServerLifecycleRouter:
+        return _ServerLifecycleRouter(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+
+    def test_no_failure_entry_returns_zero(self) -> None:
+        assert self._mgr()._cooldown_remaining("s") == 0.0
+
+    def test_unknown_server_key_returns_zero(self) -> None:
+        assert self._mgr()._cooldown_remaining("missing") == 0.0
+
+    def test_recent_failure_returns_positive_remaining(self) -> None:
+        mgr = self._mgr()
+        mgr._failed_starts["s"] = time.monotonic()
+
+        remaining = mgr._cooldown_remaining("s")
+
+        assert 0 < remaining <= factory._COOLDOWN_SECONDS
+
+    def test_expired_failure_returns_non_positive(self) -> None:
+        mgr = self._mgr()
+        mgr._failed_starts["s"] = time.monotonic() - (factory._COOLDOWN_SECONDS + 1.0)
+
+        assert mgr._cooldown_remaining("s") < 0
+
+
+class TestSubprocessManagerGuardAndDelegation:
+    """Characterization tests for _SubprocessLifecycleManager guards and delegation."""
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_ignores_non_subprocess_server(self) -> None:
+        mgr = _SubprocessLifecycleManager({"web": _http_cfg()}, _mock_tool_executor())
+        start = AsyncMock()
+        mgr._http_mgr.start = start
+
+        await mgr.ensure_ready("web")
+
+        start.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_ensure_ready_ignores_unknown_server_key(self) -> None:
+        mgr = _SubprocessLifecycleManager({}, _mock_tool_executor())
+        start = AsyncMock()
+        mgr._http_mgr.start = start
+
+        await mgr.ensure_ready("missing")
+
+        start.assert_not_awaited()
+
+    def test_get_process_snapshot_delegates(self) -> None:
+        mgr = _SubprocessLifecycleManager(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+        expected = {"pid": 4242}
+        mgr._http_mgr.get_process_snapshot = MagicMock(return_value=expected)
+
+        assert mgr.get_process_snapshot("s") is expected
+
+
+class TestRouterObservabilityDelegation:
+    """Characterization tests for the router's process-observability delegation."""
+
+    def _mgr(self) -> _ServerLifecycleRouter:
+        return _ServerLifecycleRouter(
+            {"s": _http_subprocess_cfg()}, _mock_tool_executor()
+        )
+
+    def _snapshot(self) -> ProcessInfoSnapshot:
+        return ProcessInfoSnapshot(
+            server_key="s",
+            managed=True,
+            pid=4242,
+            pgid=4242,
+            running=True,
+            last_exit_code=None,
+            stderr_log="",
+        )
+
+    def test_get_process_snapshot_delegates(self) -> None:
+        mgr = self._mgr()
+        expected = {"pid": 4242}
+        mgr._subprocess_mgr.get_process_snapshot = MagicMock(return_value=expected)
+
+        assert mgr.get_process_snapshot("s") is expected
+
+    def test_get_process_info_delegates(self) -> None:
+        mgr = self._mgr()
+        expected = self._snapshot()
+        mgr._subprocess_mgr.get_process_info = MagicMock(return_value=expected)
+
+        assert mgr.get_process_info("s") is expected
+
+    def test_list_processes_delegates(self) -> None:
+        mgr = self._mgr()
+        expected = [self._snapshot()]
+        mgr._subprocess_mgr.list_processes = MagicMock(return_value=expected)
+
+        assert mgr.list_processes() is expected

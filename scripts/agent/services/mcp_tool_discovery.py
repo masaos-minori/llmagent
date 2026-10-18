@@ -504,6 +504,17 @@ class McpToolDiscoveryService:
         """Return True when strict mode is enabled."""
         return bool(getattr(self._ctx.cfg.tool, "tool_definitions_strict", False))
 
+    def _unified_status(self) -> StartupCheckStatus:
+        """Return the severity a non-duplicate finding takes under the current strict mode.
+
+        Single place where `SeverityClassifier` is consulted, so every finding builder in
+        this service applies the same unified severity scheme.
+        """
+        classifier = SeverityClassifier(strict=self._is_strict(), is_duplicate=False)
+        if classifier.is_fatal:
+            return StartupCheckStatus.FATAL
+        return StartupCheckStatus.WARNING
+
     def _build_drift_findings(
         self, entries: list[_RawEntry]
     ) -> list[StartupCheckOutcome]:
@@ -518,12 +529,7 @@ class McpToolDiscoveryService:
         drift = validate_routing_against_live(live_tool_lists=per_server)
         if not drift:
             return []
-        classifier = SeverityClassifier(strict=self._is_strict(), is_duplicate=False)
-        status = (
-            StartupCheckStatus.FATAL
-            if classifier.is_fatal
-            else StartupCheckStatus.WARNING
-        )
+        status = self._unified_status()
         return [
             StartupCheckOutcome(
                 source=_SOURCE,
@@ -540,12 +546,7 @@ class McpToolDiscoveryService:
         messages = check_write_classification(registry)
         if not messages:
             return []
-        classifier = SeverityClassifier(strict=self._is_strict(), is_duplicate=False)
-        status = (
-            StartupCheckStatus.FATAL
-            if classifier.is_fatal
-            else StartupCheckStatus.WARNING
-        )
+        status = self._unified_status()
         return [
             StartupCheckOutcome(
                 source=_SOURCE,
@@ -564,15 +565,10 @@ class McpToolDiscoveryService:
         detection was silently downgraded to "skipped" by an unrelated
         exception handler.
         """
-        classifier = SeverityClassifier(strict=self._is_strict(), is_duplicate=False)
+        status = self._unified_status()
         try:
             result = await _check_tool_definitions(self._ctx, strict=self._is_strict())
             if result.has_issues:
-                status = (
-                    StartupCheckStatus.FATAL
-                    if classifier.is_fatal
-                    else StartupCheckStatus.WARNING
-                )
                 return StartupCheckOutcome(
                     source=_SOURCE,
                     status=status,
@@ -580,11 +576,6 @@ class McpToolDiscoveryService:
                 )
             return None
         except RuntimeError as exc:
-            status = (
-                StartupCheckStatus.FATAL
-                if classifier.is_fatal
-                else StartupCheckStatus.WARNING
-            )
             return StartupCheckOutcome(source=_SOURCE, status=status, message=str(exc))
 
     def _escalate_unreachable_findings(
@@ -617,18 +608,21 @@ class McpToolDiscoveryService:
         registry: RuntimeToolRegistry,
     ) -> list[StartupCheckOutcome]:
         """Check that all required tools are present in the discovery results."""
+        discovered_names = {tool.name for tool in registry.all_tools()}
         for srv_key, srv_cfg in self._ctx.cfg.mcp.mcp_servers.items():
-            if srv_cfg.required and srv_cfg.tool_names:
-                for tool_name in srv_cfg.tool_names:
-                    if tool_name not in {t.name for t in registry.all_tools()}:
-                        findings.append(
-                            StartupCheckOutcome(
-                                source=_SOURCE,
-                                status=StartupCheckStatus.FATAL,
-                                message=(
-                                    f"{srv_key}: required tool {tool_name!r} not found in discovery results"
-                                ),
-                                remediation="Verify the server's /v1/tools response includes this tool.",
-                            )
-                        )
+            if not srv_cfg.required or not srv_cfg.tool_names:
+                continue
+            for tool_name in srv_cfg.tool_names:
+                if tool_name in discovered_names:
+                    continue
+                findings.append(
+                    StartupCheckOutcome(
+                        source=_SOURCE,
+                        status=StartupCheckStatus.FATAL,
+                        message=(
+                            f"{srv_key}: required tool {tool_name!r} not found in discovery results"
+                        ),
+                        remediation="Verify the server's /v1/tools response includes this tool.",
+                    )
+                )
         return findings
