@@ -395,6 +395,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/db/create_schema.py` (`create_schema()`)
 - `scripts/db/rag_consistency.py` (`check_rag_consistency()`)
 - `scripts/db/recovery.py` (`recover_corruption()`, `_classify_error()`, `_run_integrity_check()`, `_restore_from_backup()`)
+- `scripts/db/recovery_restore.py` (`_resolve_backup()`, `_stage_restore()`, `_quarantine_sidecar_files()`, `_stage_backup_sidecars()`)
 - `scripts/db/rotation.py` (`rotate_all_dbs()`, `rotate_eventbus_db()`)
 - `scripts/db/session_consistency.py` (`check_session_consistency()`)
 - `rag.sqlite` (`documents`, `chunks`, `chunks_fts`, `chunks_vec`)

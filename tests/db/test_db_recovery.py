@@ -619,7 +619,7 @@ import shutil
 import tempfile
 import time
 
-from db.recovery import (
+from db.recovery_restore import (
     _quarantine_sidecar_files,
     _stage_backup_sidecars,
 )

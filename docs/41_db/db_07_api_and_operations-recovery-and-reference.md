@@ -31,6 +31,7 @@ Database recovery exists to restore a usable persistence state after physical co
 
 - **Integrity checking** (`_run_integrity_check()`): determines whether the target database can be opened and runs SQLite integrity verification. It MUST NOT itself replace the database, delete the damaged file, or select an unverified backup.
 - **physical-recovery coordinator** (`recover_corruption()`): interprets the integrity result, applies recovery policy, and returns a structured `RecoveryResult`.
+- **restore file staging** (`scripts/db/recovery_restore.py`, `_stage_restore()` and its helpers): performs the filesystem steps a restore needs — quarantine the stale `-wal`/`-shm` sidecars, archive the damaged file, copy the backup to a temporary path, and swap it into place. It applies no recovery policy and returns no `RecoveryResult`; `db/recovery.py` decides when and whether staging runs.
 - **Backup provider**: the caller-supplied `backup_path`. Nothing in the current implementation validates the backup's own integrity before it is used — see 9.4 and 9.5.
 - **Startup orchestration**: no current caller invokes `recover_corruption()` during agent startup (Explicit in code — invocation sites are limited to the manual `/session recover` CLI path via `DbMaintenanceService.recover_session()` and `RagMaintenanceService.recover()`). Startup-time DB failures are handled by a separate, unrelated path (9.8).
 
@@ -54,11 +55,11 @@ Current implementation produces a structured classification via the `DbCondition
 
 Target sequence: detect and classify → preserve the damaged database → locate a candidate backup → validate the candidate independently → restore to a temporary location → verify the restored copy → atomically replace the target → reopen and verify → return a structured result → gate startup on the persistence-domain policy.
 
-**Current implementation status against this sequence** (Explicit in code — `db/recovery.py::_restore_from_backup`):
+**Current implementation status against this sequence** (Explicit in code — `db/recovery.py::_restore_from_backup`, with the copy/swap steps in `db/recovery_restore.py::_stage_restore`):
 
 - The damaged database IS preserved (`shutil.copy2` to a timestamped `_corrupt_` archive) on all recovery paths, including the no-backup path where `_run_integrity_check()` returns a failed-but-parseable result.
 - Backup integrity IS verified before use (`_run_integrity_check(backup, target)`). A corrupted backup is detected and rejected.
-- Restoration IS atomic: copies the backup to a temporary file via `shutil.copy2()`, then replaces the target via `os.replace()` — a mid-copy failure leaves the original intact.
+- Restoration IS atomic: `_stage_restore()` copies the backup to a temporary file via `shutil.copy2()`, then replaces the target via `os.replace()` — a mid-copy failure leaves the original intact (`db/recovery_restore.py`; the cleanup of the half-written temp file stays in `_restore_from_backup()`).
 - The restored database IS reopened and re-verified before success is reported (`_run_integrity_check(db_path, target)`).
 - After the physical re-check succeeds, a RAG or Session logical-verification stage runs (`check_rag_consistency()`/`check_session_consistency()` per `target`) before `success=True` is returned; a logical-verification failure produces `success=False` with an `action` value distinct from `restore_verify_failed`.
 
