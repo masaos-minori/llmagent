@@ -132,32 +132,9 @@ class McpToolsHttpClient:
                 f"(got {type(body).__name__})"
             )
 
-        schema_version = body.get("schema_version")
-        if schema_version is None:
-            logger.warning(
-                "mcp_tool_discovery: server_key=%s missing schema_version in %s response",
-                server_key,
-                _TOOLS_ENDPOINT,
-            )
-            return _warning_fetch_result(
-                f"{server_key}: {_TOOLS_ENDPOINT} response is missing schema_version "
-                f"(expected {MCP_TOOL_SCHEMA_VERSION!r})"
-            )
-        if schema_version != MCP_TOOL_SCHEMA_VERSION:
-            logger.warning(
-                "mcp_tool_discovery: server_key=%s unsupported schema_version=%s",
-                server_key,
-                schema_version,
-            )
-            return _warning_fetch_result(
-                f"{server_key}: {_TOOLS_ENDPOINT} response has unsupported schema_version "
-                f"{schema_version!r} (expected {MCP_TOOL_SCHEMA_VERSION!r})"
-            )
-        logger.debug(
-            "mcp_tool_discovery: server_key=%s schema_version=%s",
-            server_key,
-            schema_version,
-        )
+        schema_error = _schema_version_error(server_key, body)
+        if schema_error is not None:
+            return _warning_fetch_result(schema_error)
 
         tools = body.get("tools")
         if not isinstance(tools, list):
@@ -166,18 +143,7 @@ class McpToolsHttpClient:
                 f"(got {type(tools).__name__})"
             )
 
-        entries: list[_RawEntry] = []
-        entry_findings: list[StartupCheckOutcome] = []
-        validator = ToolEntryValidator()
-        for raw_entry in tools:
-            normalized, finding = validator.validate_entry(
-                server_key, cfg.url, raw_entry, required_server=False
-            )
-            if finding is not None:
-                entry_findings.append(finding)
-            if normalized is not None:
-                entries.append((server_key, cfg.url, normalized))
-
+        entries, entry_findings = _normalize_entries(server_key, cfg.url, tools)
         return entries, entry_findings, False
 
 
@@ -204,48 +170,13 @@ class ToolEntryValidator:
                 f"{server_key}: {_TOOLS_ENDPOINT} entry has invalid name {name!r}"
             )
 
-        description = entry.get("description")
-        if not isinstance(description, str):
-            return _warning_entry(
-                f"{server_key}: tool {name!r} has invalid description {description!r}"
-            )
+        schema_error = _entry_schema_error(server_key, name, entry)
+        if schema_error is not None:
+            return _warning_entry(schema_error)
 
-        input_schema = entry.get("inputSchema")
-        if not isinstance(input_schema, dict):
-            return _warning_entry(
-                f"{server_key}: tool {name!r} has invalid inputSchema {input_schema!r}"
-            )
-
-        missing_fields = [f for f in _REQUIRED_SCHEMA_V2_FIELDS if f not in entry]
-        if missing_fields:
-            return _warning_entry(
-                f"{server_key}: tool {name!r} missing required schema-2.0 field(s): "
-                f"{', '.join(missing_fields)}"
-            )
-
-        schema_errors = validate_tool_schema_v2(entry)
-        if schema_errors:
-            return _warning_entry(
-                f"{server_key}: tool {name!r} failed schema-2.0 validation: "
-                f"{'; '.join(schema_errors)}"
-            )
-
-        for field_name, expected_type in (
-            ("status", str),
-            ("enabled", bool),
-        ):
-            if field_name in entry and not isinstance(entry[field_name], expected_type):
-                return _warning_entry(
-                    f"{server_key}: tool {name!r} has invalid {field_name} "
-                    f"{entry[field_name]!r} (expected {expected_type.__name__})"
-                )
-
-        capabilities = entry.get("capabilities")
-        if capabilities is not None and not isinstance(capabilities, list):
-            return _warning_entry(
-                f"{server_key}: tool {name!r} on server {server_url!r}: "
-                "capabilities must be a list"
-            )
+        field_error = _entry_optional_field_error(server_key, server_url, name, entry)
+        if field_error is not None:
+            return _warning_entry(field_error)
 
         return entry, None
 
@@ -300,6 +231,110 @@ def _warning_entry(msg: str) -> tuple[None, StartupCheckOutcome]:
     )
 
 
+def _schema_version_error(server_key: str, body: dict[str, object]) -> str | None:
+    """Return the response-level schema_version error, or None when it is accepted.
+
+    Logs a WARNING for a missing or unsupported `schema_version` and a DEBUG line
+    when it matches `mcp_servers.server.MCP_TOOL_SCHEMA_VERSION`.
+    """
+    schema_version = body.get("schema_version")
+    if schema_version is None:
+        logger.warning(
+            "mcp_tool_discovery: server_key=%s missing schema_version in %s response",
+            server_key,
+            _TOOLS_ENDPOINT,
+        )
+        return (
+            f"{server_key}: {_TOOLS_ENDPOINT} response is missing schema_version "
+            f"(expected {MCP_TOOL_SCHEMA_VERSION!r})"
+        )
+    if schema_version != MCP_TOOL_SCHEMA_VERSION:
+        logger.warning(
+            "mcp_tool_discovery: server_key=%s unsupported schema_version=%s",
+            server_key,
+            schema_version,
+        )
+        return (
+            f"{server_key}: {_TOOLS_ENDPOINT} response has unsupported schema_version "
+            f"{schema_version!r} (expected {MCP_TOOL_SCHEMA_VERSION!r})"
+        )
+    logger.debug(
+        "mcp_tool_discovery: server_key=%s schema_version=%s",
+        server_key,
+        schema_version,
+    )
+    return None
+
+
+def _normalize_entries(
+    server_key: str, server_url: str, tools: list[object]
+) -> tuple[list[_RawEntry], list[StartupCheckOutcome]]:
+    """Validate one server's raw tool entries into (accepted entries, findings)."""
+    entries: list[_RawEntry] = []
+    findings: list[StartupCheckOutcome] = []
+    validator = ToolEntryValidator()
+    for raw_entry in tools:
+        normalized, finding = validator.validate_entry(
+            server_key, server_url, raw_entry, required_server=False
+        )
+        if finding is not None:
+            findings.append(finding)
+        if normalized is not None:
+            entries.append((server_key, server_url, normalized))
+    return entries, findings
+
+
+def _entry_schema_error(
+    server_key: str, name: str, entry: dict[str, object]
+) -> str | None:
+    """Return the first error for the entry's required fields and schema-2.0 contract."""
+    for field_name, expected_type in (
+        ("description", str),
+        ("inputSchema", dict),
+    ):
+        value = entry.get(field_name)
+        if not isinstance(value, expected_type):
+            return f"{server_key}: tool {name!r} has invalid {field_name} {value!r}"
+
+    missing_fields = [f for f in _REQUIRED_SCHEMA_V2_FIELDS if f not in entry]
+    if missing_fields:
+        return (
+            f"{server_key}: tool {name!r} missing required schema-2.0 field(s): "
+            f"{', '.join(missing_fields)}"
+        )
+
+    schema_errors = validate_tool_schema_v2(entry)
+    if schema_errors:
+        return (
+            f"{server_key}: tool {name!r} failed schema-2.0 validation: "
+            f"{'; '.join(schema_errors)}"
+        )
+    return None
+
+
+def _entry_optional_field_error(
+    server_key: str, server_url: str, name: str, entry: dict[str, object]
+) -> str | None:
+    """Return the first error for the entry's optional typed fields and capabilities."""
+    for field_name, expected_type in (
+        ("status", str),
+        ("enabled", bool),
+    ):
+        if field_name in entry and not isinstance(entry[field_name], expected_type):
+            return (
+                f"{server_key}: tool {name!r} has invalid {field_name} "
+                f"{entry[field_name]!r} (expected {expected_type.__name__})"
+            )
+
+    capabilities = entry.get("capabilities")
+    if capabilities is not None and not isinstance(capabilities, list):
+        return (
+            f"{server_key}: tool {name!r} on server {server_url!r}: "
+            "capabilities must be a list"
+        )
+    return None
+
+
 class McpToolDiscoveryService:
     """Discover live MCP tools and build a `RuntimeToolRegistry`."""
 
@@ -319,34 +354,7 @@ class McpToolDiscoveryService:
 
     async def discover_all(self) -> DiscoveryResult:
         """Fetch tools from every HTTP-transport MCP server and build a registry."""
-        entries: list[_RawEntry] = []
-        findings: list[StartupCheckOutcome] = []
-        unreachable: list[str] = []
-        http_client = self._ctx.services_required.http
-        for key, cfg in self._ctx.cfg.mcp.mcp_servers.items():
-            if cfg.transport != TransportType.HTTP or not cfg.url or cfg.is_disabled:
-                continue
-            client = McpToolsHttpClient(http_client)
-            fetched, server_findings, is_unreachable = await client.fetch_tools(
-                key, cfg
-            )
-            if is_unreachable:
-                findings = self._escalate_unreachable_findings(
-                    findings, server_findings, cfg.required, key
-                )
-                unreachable.append(key)
-            else:
-                for finding in server_findings:
-                    if finding is not None and cfg.required:
-                        finding = StartupCheckOutcome(
-                            source=finding.source,
-                            status=StartupCheckStatus.FATAL,
-                            message=finding.message,
-                            remediation=finding.remediation,
-                        )
-                    if finding is not None:
-                        findings.append(finding)
-            entries.extend(fetched)
+        entries, findings, unreachable = await self._fetch_all_server_entries()
         unavailable_keys = frozenset(unreachable)
         allowed_servers = (
             None
@@ -368,6 +376,35 @@ class McpToolDiscoveryService:
             findings=findings,
             unreachable=unreachable,
         )
+
+    async def _fetch_all_server_entries(
+        self,
+    ) -> tuple[list[_RawEntry], list[StartupCheckOutcome], list[str]]:
+        """Fetch every HTTP-transport server's tools and collect its findings.
+
+        Returns `(entries, findings, unreachable)`. A server's findings are escalated
+        to FATAL when that server is `required` (ADR-004), whether the fetch failed or
+        it returned per-tool findings; the server key is recorded in `unreachable` only
+        when the fetch itself failed.
+        """
+        entries: list[_RawEntry] = []
+        findings: list[StartupCheckOutcome] = []
+        unreachable: list[str] = []
+        http_client = self._ctx.services_required.http
+        for key, cfg in self._ctx.cfg.mcp.mcp_servers.items():
+            if cfg.transport != TransportType.HTTP or not cfg.url or cfg.is_disabled:
+                continue
+            client = McpToolsHttpClient(http_client)
+            fetched, server_findings, is_unreachable = await client.fetch_tools(
+                key, cfg
+            )
+            findings = self._escalate_unreachable_findings(
+                findings, server_findings, cfg.required
+            )
+            if is_unreachable:
+                unreachable.append(key)
+            entries.extend(fetched)
+        return entries, findings, unreachable
 
     def _detect_duplicates(
         self, entries: list[_RawEntry]
@@ -467,14 +504,6 @@ class McpToolDiscoveryService:
         """Return True when strict mode is enabled."""
         return bool(getattr(self._ctx.cfg.tool, "tool_definitions_strict", False))
 
-    def _is_fatal_severity(self) -> bool:
-        """Return True when findings should be FATAL per the unified severity scheme.
-
-        `is_fatal = strict` — applies to all findings emitted by this service
-        (duplicates, drift, tool-definitions, malformed-capabilities).
-        """
-        return self._is_strict()
-
     def _build_drift_findings(
         self, entries: list[_RawEntry]
     ) -> list[StartupCheckOutcome]:
@@ -563,23 +592,23 @@ class McpToolDiscoveryService:
         current_findings: list[StartupCheckOutcome],
         server_findings: list[StartupCheckOutcome],
         is_required: bool,
-        key: str,
     ) -> list[StartupCheckOutcome]:
-        """Escalate unreachable server findings to FATAL when required."""
-        new_findings = []
-        for o in server_findings:
-            new_status = (
-                StartupCheckStatus.FATAL if is_required else StartupCheckStatus.WARNING
+        """Escalate one server's findings to FATAL when that server is required.
+
+        Each finding keeps its `source`, `message`, and `remediation`; only `status`
+        changes — FATAL for a required server, WARNING otherwise. Applies to both an
+        unreachable server and a reachable server that returned per-tool findings.
+        """
+        status = StartupCheckStatus.FATAL if is_required else StartupCheckStatus.WARNING
+        current_findings.extend(
+            StartupCheckOutcome(
+                source=o.source,
+                status=status,
+                message=o.message,
+                remediation=o.remediation,
             )
-            new_findings.append(
-                StartupCheckOutcome(
-                    source=o.source,
-                    status=new_status,
-                    message=o.message,
-                    remediation=o.remediation,
-                )
-            )
-        current_findings.extend(new_findings)
+            for o in server_findings
+        )
         return current_findings
 
     def _check_required_tools(
