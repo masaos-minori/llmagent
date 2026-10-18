@@ -88,6 +88,7 @@ Contains `chunks` (int), `fts` (int), `vec` (int), `orphan_vec_count` (int), `ft
 
 **Implementation Details:**
 - The rules are one `_CHECKS` tuple of `(clean predicate, issue builder)` pairs. `is_consistent` requires every predicate to hold; `summarize_issues` renders the builder of each predicate that does not. `diagnostic_errors` and `read_smoke_test_ok` are the two rules with no builder, so they make a report inconsistent without adding an issue string.
+- **Read-only SQL probes** (`scripts/db/rag_consistency_queries.py`): the table-level count queries, the per-URL count queries, the top-10 affected-identifier queries, and the read smoke test. `check_rag_consistency()` calls them stage by stage, turns the `sqlite3.Error` a stage raises into a `diagnostic_errors` entry, and assembles the `RagConsistencyReport`. The `_CHECKS` rules, the issue builders, and the issue text stay in `db/rag_consistency.py`.
 - `check_rag_consistency` automatically calls `summarize_issues(report)` and populates the `issues` field in the report.
 - Diagnostic identifier lists (`affected_*`) are only populated when `fts_gap > 0` or `orphan_vec_count > 0`.
 

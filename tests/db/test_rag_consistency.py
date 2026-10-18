@@ -114,7 +114,7 @@ class TestCollectUrlCountsAndMismatchesErrorHandling:
     _collect_url_counts_and_mismatches — previously uncovered."""
 
     def test_missing_fts_table_falls_back_to_zero_fts_count(self) -> None:
-        from db.rag_consistency import _collect_url_counts_and_mismatches
+        from db.rag_consistency_queries import _collect_url_counts_and_mismatches
 
         db = _make_rag_db()
         doc_id = _insert_doc(db)
@@ -128,7 +128,7 @@ class TestCollectUrlCountsAndMismatchesErrorHandling:
         assert result["https://example.com/doc"]["fts_count"] == 0
 
     def test_missing_documents_table_returns_empty_mismatches(self) -> None:
-        from db.rag_consistency import _collect_url_counts_and_mismatches
+        from db.rag_consistency_queries import _collect_url_counts_and_mismatches
 
         db = _make_rag_db()
         db.execute("DROP TABLE documents")
