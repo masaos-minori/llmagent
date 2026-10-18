@@ -225,12 +225,15 @@ class TestMdqV1ToolsEndpoint:
                 f"Tool '{tool['name']}' missing server_key='mdq'"
             )
 
-    def test_empty_allowed_dirs_disables_all_tools(self) -> None:
+    def test_empty_allowed_dirs_disables_all_tools(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """All tools report enabled=False when allowed_dirs is empty (REQ-004)."""
         from fastapi.testclient import TestClient
-        from mcp_servers.mdq.mdq_server import app
+        from mcp_servers.mdq import mdq_server
 
-        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
+        monkeypatch.setattr(mdq_server._service, "_allowed_dirs", [])
+        client = TestClient(mdq_server.app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get("/v1/tools?include_disabled=true")
         assert response.status_code == 200
         for tool in response.json()["tools"]:
@@ -254,22 +257,28 @@ class TestMdqV1ToolsEndpoint:
             assert tool["enabled"] is True
             assert tool["disabled_reason"] == ""
 
-    def test_include_disabled_false_omits_all_when_disabled(self) -> None:
+    def test_include_disabled_false_omits_all_when_disabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """include_disabled=false (the default) omits every tool when disabled (REQ-005)."""
         from fastapi.testclient import TestClient
-        from mcp_servers.mdq.mdq_server import app
+        from mcp_servers.mdq import mdq_server
 
-        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
+        monkeypatch.setattr(mdq_server._service, "_allowed_dirs", [])
+        client = TestClient(mdq_server.app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get("/v1/tools?include_disabled=false")
         assert response.status_code == 200
         assert response.json()["tools"] == []
 
-    def test_disabled_code_matches_all_tools_when_disabled(self) -> None:
+    def test_disabled_code_matches_all_tools_when_disabled(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
         """disabled_code filters to the matching tools (REQ-005)."""
         from fastapi.testclient import TestClient
-        from mcp_servers.mdq.mdq_server import app
+        from mcp_servers.mdq import mdq_server
 
-        client = TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
+        monkeypatch.setattr(mdq_server._service, "_allowed_dirs", [])
+        client = TestClient(mdq_server.app, headers=MCP_TEST_AUTH_HEADERS)
         response = client.get(
             "/v1/tools?include_disabled=true&disabled_code=allowed_dirs+is+empty"
         )

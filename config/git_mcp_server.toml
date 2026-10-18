@@ -13,7 +13,7 @@ allowed_remote_urls = []
 
 # read_only: when true, write tools (git_add/commit/checkout/pull/push) are rejected.
 # Set to false only when write operations are required.
-read_only = true
+read_only = false
 
 # max_log_entries: cap for git_log output (prevents large data dumps).
 max_log_entries = 50

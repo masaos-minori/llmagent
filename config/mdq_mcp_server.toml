@@ -10,7 +10,7 @@ auth_token = "${ENV:MCP_MDQ_AUTH_TOKEN}"
 # Directories that mdq-mcp is allowed to read from.
 # Default: [] (deny-all — no paths are allowed until explicitly configured).
 # Production example: allowed_dirs = ["/opt/llm/docs"]
-allowed_dirs = []
+allowed_dirs = ["/opt/llm/docs"]
 
 # Database path
 db_path = "/opt/llm/db/mdq.sqlite"

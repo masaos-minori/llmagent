@@ -236,6 +236,7 @@ Layout on the deployed host:
 - `/opt/llm/bin/` holds the 11 binaries (`agent` plus one `mcp_<server>` per MCP server). It must not be group/world-writable; the CommandValidator rejects binaries located under a writable directory.
 - `/opt/llm/dict/system.dic` is the external Sudachi dictionary (built by `deploy/build_binaries.sh`, placed by `deploy/deploy.sh`).
 - `config/` stays external (copied by `deploy/deploy.sh`).
+- `/opt/llm/docs/` holds a copy of the repository `docs/` tree (created and synced with `rsync --delete` by `deploy/deploy.sh`). It is the directory `config/mdq_mcp_server.toml` lists in `allowed_dirs`; without it mdq-mcp has nothing to serve and withholds all its tools.
 
 `deploy/start_agent.sh` exports two variables before launch so the binary resolves these external files:
 

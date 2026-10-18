@@ -44,6 +44,7 @@ DEPLOY_DB="/opt/llm/db"
 DEPLOY_LOGS="/opt/llm/logs"
 DEPLOY_RAG_SRC="/opt/llm/rag-src"
 DEPLOY_TESTS="/opt/llm/tests"
+DEPLOY_DOCS="/opt/llm/docs"
 
 echo "=== deploy.sh: デプロイ開始 ==="
 echo "リポジトリ: ${REPO_ROOT}"
@@ -58,6 +59,7 @@ mkdir -p "${DEPLOY_RAG_SRC}/chunk"
 mkdir -p "${DEPLOY_RAG_SRC}/registered"
 mkdir -p /opt/llm/memory
 mkdir -p "${DEPLOY_TESTS}"
+mkdir -p "${DEPLOY_DOCS}"
 mkdir -p /opt/llm/storage
 mkdir -p /opt/llm/offsets
 mkdir -p /opt/llm/deadletter
@@ -176,6 +178,10 @@ rsync -av --delete \
   --exclude="*.pyc" \
   --exclude="*.pyo" \
   "${REPO_ROOT}/tests/" "${DEPLOY_TESTS}/"
+
+# ── ドキュメント (mdq-mcp の allowed_dirs が参照する) ───────────────────────────
+echo "--- docs/ → ${DEPLOY_DOCS}/ ---"
+rsync -av --delete "${REPO_ROOT}/docs/" "${DEPLOY_DOCS}/"
 
 # ── 起動スクリプト ─────────────────────────────────────────────────────────────
 echo "--- start_agent.sh → /opt/llm/ ---"
