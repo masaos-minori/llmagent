@@ -44,6 +44,7 @@ from mcp_servers.github.github_models import (
 from mcp_servers.github.github_service_business import (
     GitHubService as _GitHubServiceCore,
 )
+from mcp_servers.server import ToolArgs
 
 logger = logging.getLogger(__name__)
 
@@ -64,7 +65,7 @@ class _DryRunRequest(Protocol):
 class GitHubService(_GitHubServiceCore):
     """GitHubService with dispatch formatters (extends service_business.GitHubService)."""
 
-    async def fmt_search_repositories(self, args: dict) -> str:
+    async def fmt_search_repositories(self, args: ToolArgs) -> str:
         """Format search repositories results as markdown links with star counts."""
         result = await self.search_repositories(
             SearchRepositoriesRequest(
@@ -78,7 +79,7 @@ class GitHubService(_GitHubServiceCore):
         ]
         return "\n\n".join(lines) if lines else "No results found."
 
-    async def fmt_list_branches(self, args: dict) -> str:
+    async def fmt_list_branches(self, args: ToolArgs) -> str:
         """Format list branches results showing branch names and SHAs."""
         result = await self.list_branches(
             ListBranchesRequest(
@@ -114,7 +115,7 @@ class GitHubService(_GitHubServiceCore):
             return self._dry_run_preview(preview_callback())
         return await execute_callback()
 
-    async def fmt_create_branch(self, args: dict) -> str:
+    async def fmt_create_branch(self, args: ToolArgs) -> str:
         """Format create branch operation result with optional dry-run support."""
         req = CreateBranchRequest(
             owner=args["owner"],
@@ -138,7 +139,7 @@ class GitHubService(_GitHubServiceCore):
             _execute,
         )
 
-    async def fmt_list_commits(self, args: dict) -> str:
+    async def fmt_list_commits(self, args: ToolArgs) -> str:
         """Format list commits results showing SHA, message, and author."""
         result = await self.list_commits(
             ListCommitsRequest(
@@ -151,7 +152,7 @@ class GitHubService(_GitHubServiceCore):
         lines = [f"{c.sha[:8]} {c.message} ({c.author})" for c in result.commits]
         return "\n".join(lines) if lines else "No commits found."
 
-    async def fmt_get_commit(self, args: dict) -> str:
+    async def fmt_get_commit(self, args: ToolArgs) -> str:
         """Format get commit details including SHA, message, author, and files changed."""
         result = await self.get_commit(
             GetCommitRequest(
@@ -167,7 +168,7 @@ class GitHubService(_GitHubServiceCore):
             f"Files changed: {c.files_changed}\nURL: {c.url}"
         )
 
-    async def fmt_search_code(self, args: dict) -> str:
+    async def fmt_search_code(self, args: ToolArgs) -> str:
         """Format search code results as repository/path links."""
         result = await self.search_code(
             SearchCodeRequest(
@@ -178,7 +179,7 @@ class GitHubService(_GitHubServiceCore):
         lines = [f"[{r.repository}/{r.path}]({r.url})" for r in result.results]
         return "\n".join(lines) if lines else "No results found."
 
-    async def fmt_get_file_contents(self, args: dict) -> str:
+    async def fmt_get_file_contents(self, args: ToolArgs) -> str:
         """Get raw file contents from GitHub."""
         result = await self.get_file_contents(
             GetFileContentsRequest(
@@ -190,7 +191,7 @@ class GitHubService(_GitHubServiceCore):
         )
         return result.content
 
-    async def fmt_create_or_update_file(self, args: dict) -> str:
+    async def fmt_create_or_update_file(self, args: ToolArgs) -> str:
         """Format create or update file operation result with optional dry-run support."""
         req = CreateOrUpdateFileRequest(
             owner=args["owner"],
@@ -220,7 +221,7 @@ class GitHubService(_GitHubServiceCore):
             _execute,
         )
 
-    async def fmt_push_files(self, args: dict) -> str:
+    async def fmt_push_files(self, args: ToolArgs) -> str:
         """Format push files operation result with optional dry-run support."""
         req = PushFilesRequest(
             owner=args["owner"],
@@ -246,7 +247,7 @@ class GitHubService(_GitHubServiceCore):
             _execute,
         )
 
-    async def fmt_delete_file(self, args: dict) -> str:
+    async def fmt_delete_file(self, args: ToolArgs) -> str:
         """Format delete file operation result with optional dry-run support."""
         req = DeleteRepoFileRequest(
             owner=args["owner"],
@@ -272,7 +273,7 @@ class GitHubService(_GitHubServiceCore):
             _execute,
         )
 
-    async def fmt_list_issues(self, args: dict) -> str:
+    async def fmt_list_issues(self, args: ToolArgs) -> str:
         """Format list issues results showing issue numbers, states, and titles."""
         result = await self.list_issues(
             ListIssuesRequest(
@@ -285,7 +286,7 @@ class GitHubService(_GitHubServiceCore):
         lines = [self._fmt_issue_line(i) for i in result.issues]
         return "\n\n".join(lines) if lines else "No issues found."
 
-    async def fmt_get_issue(self, args: dict) -> str:
+    async def fmt_get_issue(self, args: ToolArgs) -> str:
         """Format get issue details including number, state, title, body, and URL."""
         result = await self.get_issue(
             GetIssueRequest(
@@ -297,7 +298,7 @@ class GitHubService(_GitHubServiceCore):
         i = result.issue
         return f"#{i.number} [{i.state}] {i.title}\n{i.body or ''}\nURL: {i.url}"
 
-    async def fmt_create_issue(self, args: dict) -> str:
+    async def fmt_create_issue(self, args: ToolArgs) -> str:
         """Format create issue operation result with optional dry-run support."""
         req = CreateIssueRequest(
             owner=args["owner"],
@@ -324,7 +325,7 @@ class GitHubService(_GitHubServiceCore):
             _execute,
         )
 
-    async def fmt_search_issues(self, args: dict) -> str:
+    async def fmt_search_issues(self, args: ToolArgs) -> str:
         """Format search issues results showing issue numbers, states, and titles."""
         result = await self.search_issues(
             SearchIssuesRequest(
@@ -335,7 +336,7 @@ class GitHubService(_GitHubServiceCore):
         lines = [self._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
-    async def fmt_add_issue_comment(self, args: dict) -> str:
+    async def fmt_add_issue_comment(self, args: ToolArgs) -> str:
         """Format add issue comment operation result with optional dry-run support."""
         req = AddIssueCommentRequest(
             owner=args["owner"],
@@ -358,7 +359,7 @@ class GitHubService(_GitHubServiceCore):
             _execute,
         )
 
-    async def fmt_list_pull_requests(self, args: dict) -> str:
+    async def fmt_list_pull_requests(self, args: ToolArgs) -> str:
         """Format list pull requests results showing PR numbers, states, and titles."""
         result = await self.list_pull_requests(
             ListPullRequestsRequest(
@@ -371,7 +372,7 @@ class GitHubService(_GitHubServiceCore):
         lines = [self._fmt_pr_line(pr) for pr in result.pull_requests]
         return "\n\n".join(lines) if lines else "No pull requests found."
 
-    async def fmt_get_pull_request(self, args: dict) -> str:
+    async def fmt_get_pull_request(self, args: ToolArgs) -> str:
         """Format get pull request details including number, state, title, refs, body, and URL."""
         result = await self.get_pull_request(
             GetPullRequestRequest(
@@ -387,7 +388,7 @@ class GitHubService(_GitHubServiceCore):
             f"{pr.body or ''}\nURL: {pr.url}"
         )
 
-    async def fmt_create_pull_request(self, args: dict) -> str:
+    async def fmt_create_pull_request(self, args: ToolArgs) -> str:
         """Format create pull request operation result with optional dry-run support."""
         req = CreatePullRequestRequest(
             owner=args["owner"],
@@ -413,7 +414,7 @@ class GitHubService(_GitHubServiceCore):
             _execute,
         )
 
-    async def fmt_search_pull_requests(self, args: dict) -> str:
+    async def fmt_search_pull_requests(self, args: ToolArgs) -> str:
         """Format search pull requests results showing PR numbers, states, and titles."""
         result = await self.search_pull_requests(
             SearchPullRequestsRequest(
@@ -424,7 +425,7 @@ class GitHubService(_GitHubServiceCore):
         lines = [self._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
-    async def fmt_update_pull_request(self, args: dict) -> str:
+    async def fmt_update_pull_request(self, args: ToolArgs) -> str:
         """Format update pull request operation result with optional dry-run support."""
         req = UpdatePullRequestRequest(
             owner=args["owner"],
@@ -456,7 +457,7 @@ class GitHubService(_GitHubServiceCore):
             _execute,
         )
 
-    async def fmt_merge_pull_request(self, args: dict) -> str:
+    async def fmt_merge_pull_request(self, args: ToolArgs) -> str:
         """Format merge pull request operation result with optional dry-run support."""
         req = MergePullRequestRequest(
             owner=args["owner"],
