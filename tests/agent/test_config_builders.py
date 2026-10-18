@@ -18,12 +18,15 @@ from agent.config_builders import (
     _build_memory_config,
     _build_rag_config,
     _build_tool_config,
+    _get_or_default,
+    _get_str_or_default,
     _validate_dry_run_tools,
     build_agent_config,
     load_config,
 )
 from agent.config_dataclasses import AgentConfig
 from agent.services.exceptions import ConfigReloadValidationError
+from agent.services.typed_validators import _get_int, _get_str
 from shared.mcp_config import SecurityProfile
 
 # Minimal config satisfying _build_mcp_servers (needs at least one HTTP server with url) and
@@ -645,8 +648,8 @@ class TestPyYAMLImport:
 # These lock behavior the refactor of scripts/agent/config_builders.py must
 # preserve: the rag validator's warning/error reporting, the diagnostics
 # sensitive_fields fallback, the tool-registry failure conversion, the
-# production-validation warning path, and the two different empty-string
-# fallback idioms (`_get_str_or_default` vs `_get_str(...) or default`).
+# production-validation warning path, and the single empty-string fallback rule
+# (`_or_default`: an absent key and an explicit "" both fall back to the default).
 
 
 class TestRagConfigValidationReporting:
@@ -751,16 +754,14 @@ class TestProductionValidationWarningPath:
 
 
 class TestEmptyStringFallbackIdioms:
-    """Characterization: the two fallback idioms differ for an explicit empty string."""
+    """Characterization: one fallback rule — absent key and explicit "" both fall back."""
 
-    def test_get_str_or_default_keeps_an_explicit_empty_string(self) -> None:
+    def test_empty_string_and_absent_key_both_yield_the_default(self) -> None:
         assert _build_llm_config({"llm_url": ""}).llm_url == ""
-
-    def test_get_str_or_default_falls_back_when_the_value_is_none(self) -> None:
         assert _build_llm_config({"llm_url": None}).llm_url == ""
 
-    def test_or_idiom_replaces_an_explicit_empty_string(self) -> None:
-        """`_get_str(...) or default` treats "" as absent, unlike _get_str_or_default."""
+    def test_non_empty_default_replaces_an_explicit_empty_string(self) -> None:
+        """A builder default wins over an explicit "" in the config."""
         cfg = build_agent_config(
             {
                 **_MIN_CFG,
@@ -775,3 +776,47 @@ class TestEmptyStringFallbackIdioms:
         assert cfg.obs.otel_service_name == "llm-agent"
         assert cfg.obs.audit_log_file == "/opt/llm/logs/audit.log"
         assert cfg.memory.memory_jsonl_dir == "/opt/llm/memory"
+
+    def test_get_str_or_default_treats_empty_string_as_unset(self) -> None:
+        assert _get_str_or_default({"k": ""}, "k", "fallback") == "fallback"
+
+    def test_get_or_default_treats_empty_string_as_unset(self) -> None:
+        assert _get_or_default({"k": ""}, "k", _get_str, "fallback") == "fallback"
+
+    def test_get_or_default_keeps_a_present_value(self) -> None:
+        assert _get_or_default({"k": 7}, "k", _get_int, 3) == 7
+
+
+# ── Builder exception type (P22) ──────────────────────────────────────────────
+
+
+class TestBuilderExceptionTypeUniformity:
+    """Every builder reports a rejected value as ConfigReloadValidationError.
+
+    Before `_build_model()` only the memory and approval builders wrapped the failure,
+    so `context_char_limit=-1` reached the caller as a bare dataclass ValueError while
+    `memory_fts_limit=0` arrived as a ConfigReloadValidationError.
+    """
+
+    def test_llm_builder_wraps_a_negative_char_limit(self) -> None:
+        with pytest.raises(ConfigReloadValidationError, match="context_char_limit"):
+            _build_llm_config({"context_char_limit": -1})
+
+    def test_tool_builder_wraps_a_zero_dedup_limit(self) -> None:
+        with pytest.raises(ConfigReloadValidationError, match="tool_dedup_max_repeats"):
+            _build_tool_config({"tool_dedup_max_repeats": 0}, "default")
+
+    def test_rag_builder_reports_a_validator_failure_as_the_same_type(self) -> None:
+        with pytest.raises(
+            ConfigReloadValidationError, match="RAG config validation failed"
+        ):
+            _build_rag_config({"semantic_cache_max_size": 100})
+
+    def test_rag_builder_reports_both_error_sources_in_one_message(self) -> None:
+        """The validator errors and the refiner-key errors are collected before raising."""
+        with pytest.raises(ConfigReloadValidationError) as excinfo:
+            _build_rag_config({"semantic_cache_max_size": 100, "use_refiner": True})
+
+        message = str(excinfo.value)
+        assert "semantic_cache_max_size" in message
+        assert "rag_pipeline_mcp_server.toml" in message
