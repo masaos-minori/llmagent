@@ -6,12 +6,17 @@ import os
 import shutil
 import sqlite3
 import time
+from collections.abc import Callable
 from enum import StrEnum
 from pathlib import Path
 
 from db.config import build_db_config, format_timestamp
 from db.helper import SQLiteHelper
-from db.models import RecoveryResult
+from db.models import (
+    RagConsistencyReport,
+    RecoveryResult,
+    SessionConsistencyReport,
+)
 from db.rag_consistency import check_rag_consistency
 from db.rag_consistency import is_consistent as rag_is_consistent
 from db.session_consistency import (
@@ -35,6 +40,36 @@ class DbCondition(StrEnum):
     UNKNOWN = "unknown"
 
 
+# sqlite_errorcode -> condition for the failures SQLite identifies by code
+# (5/6 = SQLITE_BUSY / SQLITE_LOCKED, 8 = SQLITE_READONLY).
+_ERRORCODE_CONDITIONS: dict[int, DbCondition] = {
+    5: DbCondition.LOCK_CONTENTION,
+    6: DbCondition.LOCK_CONTENTION,
+    8: DbCondition.PERMISSION_FAILURE,
+}
+
+# Message fallbacks, in priority order, for the conditions error codes do not cover.
+_MESSAGE_CONDITIONS: tuple[tuple[tuple[str, ...], DbCondition], ...] = (
+    (("database is locked", "busy"), DbCondition.LOCK_CONTENTION),
+    (("permission denied", "readonly"), DbCondition.PERMISSION_FAILURE),
+)
+
+# Signal the SQLite C library reports when the file is not a database at all.
+_INVALID_FORMAT_SIGNAL = "file is not a database"
+
+
+def _classify_operational_error(e: sqlite3.OperationalError) -> DbCondition:
+    """Classify an OperationalError: error code first, message substrings second."""
+    errcode: int | None = getattr(e, "sqlite_errorcode", None)
+    if errcode is not None and errcode in _ERRORCODE_CONDITIONS:
+        return _ERRORCODE_CONDITIONS[errcode]
+    msg = str(e).lower()
+    for tokens, condition in _MESSAGE_CONDITIONS:
+        if any(token in msg for token in tokens):
+            return condition
+    return DbCondition.UNKNOWN
+
+
 def _classify_error(e: Exception) -> DbCondition:
     """Classify a caught exception into a DbCondition.
 
@@ -42,29 +77,15 @@ def _classify_error(e: Exception) -> DbCondition:
     substring matching for conditions not covered by error codes.
     Priority: lock/permission via error code > INVALID_FORMAT via message >
     CORRUPTION > UNKNOWN.
+
+    An OperationalError is classified only by `_classify_operational_error`. It is a
+    DatabaseError subclass, but the INVALID_FORMAT/CORRUPTION branch below is not
+    consulted for it, matching the original elif chain.
     """
     if isinstance(e, sqlite3.OperationalError):
-        # Lock/permission conditions: prefer error code over substring matching
-        errcode = getattr(e, "sqlite_errorcode", None)
-        if errcode is not None:
-            if errcode in (5, 6):  # SQLITE_BUSY / SQLITE_LOCKED
-                return DbCondition.LOCK_CONTENTION
-            if errcode == 8:  # SQLITE_READONLY
-                return DbCondition.PERMISSION_FAILURE
-        # Substring fallback for lock/permission conditions
-        msg = str(e).lower()
-        if "database is locked" in msg or "busy" in msg:
-            return DbCondition.LOCK_CONTENTION
-        if "permission denied" in msg or "readonly" in msg:
-            return DbCondition.PERMISSION_FAILURE
-    elif isinstance(e, sqlite3.DatabaseError):
-        # INVALID_FORMAT: "file is not a database" signal from SQLite C library
-        if "file is not a database" in str(e):
-            return DbCondition.INVALID_FORMAT
-        return DbCondition.CORRUPTION
-    elif isinstance(e, ValueError):
-        # Same INVALID_FORMAT signal applies to ValueError
-        if "file is not a database" in str(e):
+        return _classify_operational_error(e)
+    if isinstance(e, (sqlite3.DatabaseError, ValueError)):
+        if _INVALID_FORMAT_SIGNAL in str(e):
             return DbCondition.INVALID_FORMAT
         return DbCondition.CORRUPTION
     return DbCondition.UNKNOWN
@@ -106,77 +127,107 @@ def _handle_dry_run(check_result: str) -> RecoveryResult:
     )
 
 
+def _failure(action: str, detail: str | None, dry_run: bool) -> RecoveryResult:
+    """Build the failed RecoveryResult every recovery guard reports."""
+    return RecoveryResult(success=False, action=action, detail=detail, dry_run=dry_run)
+
+
+def _rag_inconsistency_detail(report: RagConsistencyReport) -> str:
+    """Summarize a rag report's inconsistencies as counts/identifiers only (REQ-010/AC-7).
+
+    Entries are listed in the order `check_rag_consistency` computes them. An empty
+    string means the inconsistency came from a check this summary does not name
+    (read smoke test, diagnostic errors).
+    """
+    mismatches = report.url_level_mismatches or {}
+    entries: list[tuple[bool, str]] = [
+        (report.fts_gap > 0, f"fts_gap={report.fts_gap}"),
+        (report.fts_orphan_count > 0, f"fts_orphan={report.fts_orphan_count}"),
+        (report.orphan_vec_count > 0, f"orphan_vec={report.orphan_vec_count}"),
+        (report.vec != report.chunks, f"vec={report.vec}/chunks={report.chunks}"),
+        (
+            report.documents_without_chunks_count > 0,
+            f"docs_no_chunks={report.documents_without_chunks_count}",
+        ),
+        (
+            report.chunks_without_vec_count > 0,
+            f"chunks_no_vec={report.chunks_without_vec_count}",
+        ),
+        (
+            report.duplicate_chunk_index_count > 0,
+            f"dup_chunk_idx={report.duplicate_chunk_index_count}",
+        ),
+        (bool(mismatches), f"url_mismatches={len(mismatches)}"),
+    ]
+    return "; ".join(text for include, text in entries if include)
+
+
+def _session_inconsistency_detail(report: SessionConsistencyReport) -> str:
+    """Summarize a session report's inconsistencies as counts/identifiers only (REQ-010/AC-7).
+
+    `write_smoke_test_ok is False` is the only trigger for the write-smoke entry:
+    None means the test was not run, which is not an inconsistency.
+    """
+    errors = report.diagnostic_errors or ()
+    entries: list[tuple[bool, str]] = [
+        (
+            report.orphaned_message_count > 0,
+            f"orphan_msgs={report.orphaned_message_count}",
+        ),
+        (
+            report.orphaned_memory_link_count > 0,
+            f"orphan_mem_links={report.orphaned_memory_link_count}",
+        ),
+        (not report.session_diagnostics_readable, "diag_not_readable"),
+        (not report.read_smoke_test_ok, "read_smoke_fail"),
+        (report.write_smoke_test_ok is False, "write_smoke_fail"),
+        (bool(errors), f"errors={len(errors)}"),
+    ]
+    return "; ".join(text for include, text in entries if include)
+
+
+def _verify_rag_logic(db: SQLiteHelper) -> tuple[bool, str | None]:
+    """Return (consistent, count-only detail) for the rag domain."""
+    report = check_rag_consistency(db)
+    if rag_is_consistent(report):
+        return True, None
+    return False, _rag_inconsistency_detail(report)
+
+
+def _verify_session_logic(db: SQLiteHelper) -> tuple[bool, str | None]:
+    """Return (consistent, count-only detail) for the session domain."""
+    report = check_session_consistency(db)
+    if session_is_consistent(report):
+        return True, None
+    return False, _session_inconsistency_detail(report)
+
+
+# Logical verifiers by target. A target missing from this table skips logical
+# verification entirely: no consistency contract is defined for it.
+_LOGICAL_VERIFIERS: dict[str, Callable[[SQLiteHelper], tuple[bool, str | None]]] = {
+    "rag": _verify_rag_logic,
+    "session": _verify_session_logic,
+}
+
+
 def _run_logical_verification(db_path: Path, target: str) -> tuple[bool, str | None]:
     """Run logical consistency verification on the restored database.
 
     Returns (consistent, detail_string) — detail contains a short summary
     of counts/identifiers only (no row content), matching REQ-010/AC-7.
+
+    An unknown target, or a database this stage cannot open, is reported as
+    consistent: a verification gap must never block a completed physical restore.
     """
+    verify = _LOGICAL_VERIFIERS.get(target)
+    if verify is None:
+        return True, None
     try:
         with SQLiteHelper(target, db_path=str(db_path)).open() as db:
-            if target == "rag":
-                report = check_rag_consistency(db)
-                consistent = rag_is_consistent(report)
-                if not consistent:
-                    parts: list[str] = []
-                    if report.fts_gap > 0:
-                        parts.append(f"fts_gap={report.fts_gap}")
-                    if report.fts_orphan_count > 0:
-                        parts.append(f"fts_orphan={report.fts_orphan_count}")
-                    if report.orphan_vec_count > 0:
-                        parts.append(f"orphan_vec={report.orphan_vec_count}")
-                    if report.vec != report.chunks:
-                        parts.append(f"vec={report.vec}/chunks={report.chunks}")
-                    if report.documents_without_chunks_count > 0:
-                        parts.append(
-                            f"docs_no_chunks={report.documents_without_chunks_count}"
-                        )
-                    if report.chunks_without_vec_count > 0:
-                        parts.append(f"chunks_no_vec={report.chunks_without_vec_count}")
-                    if report.duplicate_chunk_index_count > 0:
-                        parts.append(
-                            f"dup_chunk_idx={report.duplicate_chunk_index_count}"
-                        )
-                    if report.url_level_mismatches:
-                        parts.append(
-                            f"url_mismatches={len(report.url_level_mismatches)}"
-                        )
-                    detail = "; ".join(parts)
-                else:
-                    detail = None
-            elif target == "session":
-                session_report = check_session_consistency(db)
-                consistent = session_is_consistent(session_report)
-                if not consistent:
-                    session_parts: list[str] = []
-                    if session_report.orphaned_message_count > 0:
-                        session_parts.append(
-                            f"orphan_msgs={session_report.orphaned_message_count}"
-                        )
-                    if session_report.orphaned_memory_link_count > 0:
-                        session_parts.append(
-                            f"orphan_mem_links={session_report.orphaned_memory_link_count}"
-                        )
-                    if not session_report.session_diagnostics_readable:
-                        session_parts.append("diag_not_readable")
-                    if not session_report.read_smoke_test_ok:
-                        session_parts.append("read_smoke_fail")
-                    if session_report.write_smoke_test_ok is False:
-                        session_parts.append("write_smoke_fail")
-                    if session_report.diagnostic_errors:
-                        session_parts.append(
-                            f"errors={len(session_report.diagnostic_errors)}"
-                        )
-                    detail = "; ".join(session_parts)
-                else:
-                    detail = None
-            else:
-                # Unknown target — skip logical verification
-                return True, None
+            return verify(db)
     except sqlite3.Error as e:
         logger.warning("Logical verification could not open DB: %s", e)
         return True, None
-    return consistent, detail
 
 
 def _vacuum_db(target: str = "rag") -> RecoveryResult:
@@ -254,6 +305,114 @@ def _stage_backup_sidecars(
     return staged
 
 
+def _resolve_backup(backup_path: str | Path | None) -> tuple[Path | None, str]:
+    """Return (backup, detail) for the two backup-availability guards.
+
+    backup is None when no usable backup exists, and detail then carries the message
+    the no_backup result reports. The two failure modes log differently, so the
+    logging stays here rather than being reconstructed by the caller.
+    """
+    if backup_path is None:
+        logger.error("No backup_path provided — manual recovery required")
+        return None, "no backup_path provided"
+
+    backup = Path(backup_path)
+    if not backup.exists():
+        logger.error("Backup not found: %s", backup)
+        return None, f"backup not found: {backup}"
+
+    return backup, ""
+
+
+def _backup_is_usable(backup: Path, target: str) -> tuple[str | None, str]:
+    """Return (failed_action, detail) for the checks a backup must pass before it is copied in.
+
+    (None, "") means the backup may replace the target database.
+    """
+    # 1. Verify backup integrity
+    integrity_condition, integrity_error = _run_integrity_check(backup, target)
+    if integrity_condition != DbCondition.HEALTHY:
+        err = integrity_error or f"backup integrity check failed: {integrity_condition}"
+        logger.error("Backup is also corrupt: %s", err)
+        return "bad_backup", err
+
+    domain_ok, domain_error = _verify_domain_identity(backup, target)
+    if not domain_ok:
+        err = domain_error or f"backup failed domain-identity check for target={target}"
+        logger.error("Backup belongs to a different persistence domain: %s", err)
+        return "backup_wrong_domain", err
+
+    return None, ""
+
+
+def _stage_restore(
+    db_path: Path,
+    backup: Path,
+    corrupt_archive: Path,
+    temp_restore: Path,
+    quarantine_dir: Path,
+) -> None:
+    """Quarantine sidecars, archive the corrupt DB, and swap the backup into place.
+
+    Steps 2-4a of the restore. Filesystem failures are raised for the caller's
+    cleanup handler, which owns the half-written temp file.
+    """
+    # 2. Quarantine pre-existing -wal/-shm sidecar files on the target path
+    quarantine_dir.mkdir(exist_ok=True)
+    _quarantine_sidecar_files(db_path, quarantine_dir)
+
+    # 3. Archive current corrupt DB (if it exists)
+    if db_path.exists():
+        shutil.copy2(db_path, corrupt_archive)
+        logger.info("Corrupt DB archived: %s", corrupt_archive)
+
+    # 4. Atomic restore: copy backup + sidecars to temp, then rename
+    shutil.copy2(backup, temp_restore)
+    staged = _stage_backup_sidecars(backup, temp_restore.parent)
+    for suffix, staged_path in staged.items():
+        dest = temp_restore.parent / f"{temp_restore.stem}{suffix}"
+        shutil.copy2(staged_path, dest)
+    os.replace(temp_restore, db_path)
+
+    # 4a. Rename staged -wal/-shm files to final locations alongside db_path
+    for suffix, staged_path in staged.items():
+        final_path = db_path.parent / f"{db_path.stem}{suffix}"
+        try:
+            shutil.move(staged_path, final_path)
+        except OSError:
+            logger.warning(
+                "Failed to move staged sidecar %s to %s; proceeding without it",
+                staged_path,
+                final_path,
+            )
+
+
+def _post_restore_failure(
+    db_path: Path, target: str, dry_run: bool
+) -> RecoveryResult | None:
+    """Return the failure result for a post-restore check, or None when both pass.
+
+    The physical re-check runs before the logical-verification stage, which is the
+    order the restore reports them in.
+    """
+    post_condition, post_detail = _run_integrity_check(db_path, target)
+    if post_condition != DbCondition.HEALTHY:
+        detail = (
+            post_detail
+            or f"post-restore integrity check failed: {post_condition.value}"
+        )
+        logger.error("Post-restore integrity check failed: %s", detail)
+        return _failure("restore_verify_failed", detail, dry_run)
+
+    logical_ok, logical_detail = _run_logical_verification(db_path, target)
+    if not logical_ok:
+        err_detail = logical_detail or f"logical verification failed: {target}"
+        logger.error("Post-restore logical verification failed: %s", err_detail)
+        return _failure("logical_verify_failed", err_detail, dry_run)
+
+    return None
+
+
 def _restore_from_backup(
     db_path: Path,
     backup_path: str | Path | None,
@@ -261,108 +420,29 @@ def _restore_from_backup(
     dry_run: bool = False,
 ) -> RecoveryResult:
     """Restore DB from backup; returns RecoveryResult."""
-    if backup_path is None:
-        logger.error("No backup_path provided — manual recovery required")
-        return RecoveryResult(
-            success=False,
-            action="no_backup",
-            detail="no backup_path provided",
-            dry_run=dry_run,
-        )
+    backup, detail = _resolve_backup(backup_path)
+    if backup is None:
+        return _failure("no_backup", detail, dry_run)
 
-    backup = Path(backup_path)
-    if not backup.exists():
-        logger.error("Backup not found: %s", backup)
-        return RecoveryResult(
-            success=False,
-            action="no_backup",
-            detail=f"backup not found: {backup}",
-            dry_run=dry_run,
-        )
-
-    # 1. Verify backup integrity
-    integrity_condition, integrity_error = _run_integrity_check(backup, target)
-    if integrity_condition != DbCondition.HEALTHY:
-        err = integrity_error or f"backup integrity check failed: {integrity_condition}"
-        logger.error("Backup is also corrupt: %s", err)
-        return RecoveryResult(
-            success=False, action="bad_backup", detail=err, dry_run=dry_run
-        )
-
-    domain_ok, domain_error = _verify_domain_identity(backup, target)
-    if not domain_ok:
-        err = domain_error or f"backup failed domain-identity check for target={target}"
-        logger.error("Backup belongs to a different persistence domain: %s", err)
-        return RecoveryResult(
-            success=False, action="backup_wrong_domain", detail=err, dry_run=dry_run
-        )
+    action, detail = _backup_is_usable(backup, target)
+    if action is not None:
+        return _failure(action, detail, dry_run)
 
     ts = format_timestamp()
     corrupt_archive = db_path.with_name(f"{db_path.stem}_corrupt_{ts}{db_path.suffix}")
     temp_restore = db_path.with_name(f"{db_path.stem}.tmp_{ts}{db_path.suffix}")
+    quarantine_dir = db_path.parent / f"{db_path.stem}_sidecar_quarantine_{ts}"
 
     try:
-        # 2. Quarantine pre-existing -wal/-shm sidecar files on the target path
-        quarantine_dir = db_path.parent / f"{db_path.stem}_sidecar_quarantine_{ts}"
-        quarantine_dir.mkdir(exist_ok=True)
-        _quarantine_sidecar_files(db_path, quarantine_dir)
+        _stage_restore(db_path, backup, corrupt_archive, temp_restore, quarantine_dir)
 
-        # 3. Archive current corrupt DB (if it exists)
-        if db_path.exists():
-            shutil.copy2(db_path, corrupt_archive)
-            logger.info("Corrupt DB archived: %s", corrupt_archive)
-
-        # 4. Atomic restore: copy backup + sidecars to temp, then rename
-        shutil.copy2(backup, temp_restore)
-        staged = _stage_backup_sidecars(backup, temp_restore.parent)
-        for suffix, staged_path in staged.items():
-            dest = temp_restore.parent / f"{temp_restore.stem}{suffix}"
-            shutil.copy2(staged_path, dest)
-        os.replace(temp_restore, db_path)
-
-        # 4a. Rename staged -wal/-shm files to final locations alongside db_path
-        for suffix, staged_path in staged.items():
-            final_path = db_path.parent / f"{db_path.stem}{suffix}"
-            try:
-                shutil.move(staged_path, final_path)
-            except OSError:
-                logger.warning(
-                    "Failed to move staged sidecar %s to %s; proceeding without it",
-                    staged_path,
-                    final_path,
-                )
-
-        # 4. Re-verify the restored database before reporting success
-        post_condition, post_detail = _run_integrity_check(db_path, target)
-        if post_condition != DbCondition.HEALTHY:
-            detail = (
-                post_detail
-                or f"post-restore integrity check failed: {post_condition.value}"
-            )
-            logger.error("Post-restore integrity check failed: %s", detail)
-            return RecoveryResult(
-                success=False,
-                action="restore_verify_failed",
-                detail=detail,
-                dry_run=dry_run,
-            )
-
-        # 5. Logical-verification stage (between physical re-check and success)
-        logical_ok, logical_detail = _run_logical_verification(db_path, target)
-        if not logical_ok:
-            err_detail = logical_detail or f"logical verification failed: {target}"
-            logger.error("Post-restore logical verification failed: %s", err_detail)
-            return RecoveryResult(
-                success=False,
-                action="logical_verify_failed",
-                detail=err_detail,
-                dry_run=dry_run,
-            )
+        failure = _post_restore_failure(db_path, target, dry_run)
+        if failure is not None:
+            return failure
 
         logger.info("DB restored from backup: %s", backup)
         # Cleanup quarantine directory after successful restore
-        if quarantine_dir.exists():
-            shutil.rmtree(quarantine_dir, ignore_errors=True)
+        shutil.rmtree(quarantine_dir, ignore_errors=True)
         return RecoveryResult(
             success=True, action="restored", detail=str(backup), dry_run=dry_run
         )
@@ -370,9 +450,42 @@ def _restore_from_backup(
         logger.error("Recovery failed: %s", e)
         if temp_restore.exists():
             temp_restore.unlink()
-        return RecoveryResult(
-            success=False, action="error", detail=str(e), dry_run=dry_run
+        return _failure("error", str(e), dry_run)
+
+
+# Conditions that must not trigger a restore: they report action="error" instead.
+_NO_RESTORE_CONDITIONS: frozenset[DbCondition] = frozenset(
+    {
+        DbCondition.LOCK_CONTENTION,
+        DbCondition.PERMISSION_FAILURE,
+        DbCondition.INVALID_FORMAT,
+    }
+)
+
+
+def _result_for_condition(
+    condition: DbCondition, detail: str | None, target: str, dry_run: bool
+) -> RecoveryResult | None:
+    """Map an integrity-check condition to the result that ends recovery here.
+
+    Returns None only for CORRUPTION: the caller owns the restore attempt.
+    """
+    if condition == DbCondition.HEALTHY:
+        if dry_run:
+            return _handle_dry_run("ok")
+        return _vacuum_db(target)
+
+    if condition in _NO_RESTORE_CONDITIONS:
+        return _failure("error", f"{condition.value}: {detail}", dry_run)
+
+    if condition == DbCondition.UNKNOWN:
+        return _failure(
+            "preserved_operator_intervention_required",
+            f"Unknown integrity-check failure ({detail}): operator intervention required",
+            dry_run,
         )
+
+    return None
 
 
 def recover_corruption(
@@ -421,38 +534,15 @@ def recover_corruption(
 
     db_path = Path(target_db_path)
     condition, detail = _run_integrity_check(db_path, target)
-    if condition == DbCondition.HEALTHY:
-        if dry_run:
-            return _handle_dry_run("ok")
-        return _vacuum_db(target)
 
-    if condition in (
-        DbCondition.LOCK_CONTENTION,
-        DbCondition.PERMISSION_FAILURE,
-        DbCondition.INVALID_FORMAT,
-    ):
-        return RecoveryResult(
-            success=False,
-            action="error",
-            detail=f"{condition.value}: {detail}",
-            dry_run=dry_run,
-        )
-
-    if condition == DbCondition.UNKNOWN:
-        return RecoveryResult(
-            success=False,
-            action="preserved_operator_intervention_required",
-            detail=f"Unknown integrity-check failure ({detail}): operator intervention required",
-            dry_run=dry_run,
-        )
+    result = _result_for_condition(condition, detail, target, dry_run)
+    if result is not None:
+        return result
 
     # It's CORRUPTION
     if dry_run:
-        return RecoveryResult(
-            success=False,
-            action="error",
-            detail=f"Integrity failure ({condition.value}): {detail}",
-            dry_run=True,
+        return _failure(
+            "error", f"Integrity failure ({condition.value}): {detail}", True
         )
 
     # For rag and session, we attempt restoration
