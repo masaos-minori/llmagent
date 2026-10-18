@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import logging
 from collections.abc import Awaitable, Callable
+from typing import Protocol
 
 from shared.formatters import fmt_md_link
 from shared.json_utils import dumps as _json_dumps
@@ -45,6 +46,19 @@ from mcp_servers.github.github_service_business import (
 )
 
 logger = logging.getLogger(__name__)
+
+
+class _DryRunRequest(Protocol):
+    """Contract for the request models the dry-run funnel accepts.
+
+    Every write request model handled below carries the repository identity and the
+    dry-run flag. Naming that here removes the repeated `req.owner, req.repo,
+    req.dry_run` triple from all nine call sites.
+    """
+
+    owner: str
+    repo: str
+    dry_run: bool
 
 
 class GitHubService(_GitHubServiceCore):
@@ -82,20 +96,21 @@ class GitHubService(_GitHubServiceCore):
     @staticmethod
     def _dry_run_preview(preview: str) -> str:
         """Return a JSON dry-run preview response string."""
-        result: str = _json_dumps({"preview": preview, "dry_run": True})
-        return result
+        return _json_dumps({"preview": preview, "dry_run": True})
 
     async def _execute_with_dry_run(
         self,
-        owner: str,
-        repo: str,
-        dry_run: bool,
+        req: _DryRunRequest,
         preview_callback: Callable[[], str],
         execute_callback: Callable[[], Awaitable[str]],
     ) -> str:
-        """Execute a GitHub operation with optional dry-run mode."""
-        self._assert_allowed_repo(owner, repo)
-        if dry_run:
+        """Execute a GitHub operation with optional dry-run mode.
+
+        Authorization is checked first for both modes, so a denied repository fails
+        identically whether or not the call is a dry run.
+        """
+        self._assert_allowed_repo(req.owner, req.repo)
+        if req.dry_run:
             return self._dry_run_preview(preview_callback())
         return await execute_callback()
 
@@ -116,9 +131,7 @@ class GitHubService(_GitHubServiceCore):
             return f"Branch created: {result.branch_name} (SHA: {result.sha[:8]})"
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would create branch '{req.branch_name}' from '{from_b}' in {req.owner}/{req.repo}"
             ),
@@ -175,8 +188,7 @@ class GitHubService(_GitHubServiceCore):
                 ref=args.get("ref", ""),
             )
         )
-        content: str = result.content
-        return content
+        return result.content
 
     async def fmt_create_or_update_file(self, args: dict) -> str:
         """Format create or update file operation result with optional dry-run support."""
@@ -201,9 +213,7 @@ class GitHubService(_GitHubServiceCore):
             )
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would {op} file '{req.path}' on branch '{branch}' in {req.owner}/{req.repo}"
             ),
@@ -229,9 +239,7 @@ class GitHubService(_GitHubServiceCore):
             return f"Pushed: branch={result.branch} files={result.files_pushed} commit={sha_short}"
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would push {len(paths)} file(s) to branch '{req.branch}' in {req.owner}/{req.repo}: {paths}"
             ),
@@ -257,9 +265,7 @@ class GitHubService(_GitHubServiceCore):
             return f"Deleted: {result.path} (commit: {result.commit_sha[:8]})"
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would delete '{req.path}' from branch '{branch}' in {req.owner}/{req.repo}"
             ),
@@ -276,7 +282,7 @@ class GitHubService(_GitHubServiceCore):
                 per_page=args.get("per_page", 10),
             )
         )
-        lines = [GitHubService._fmt_issue_line(i) for i in result.issues]
+        lines = [self._fmt_issue_line(i) for i in result.issues]
         return "\n\n".join(lines) if lines else "No issues found."
 
     async def fmt_get_issue(self, args: dict) -> str:
@@ -311,9 +317,7 @@ class GitHubService(_GitHubServiceCore):
             return f"Created: #{i.number} {i.title}\n{i.url}"
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would create issue '{req.title}'{labels} in {req.owner}/{req.repo}"
             ),
@@ -328,7 +332,7 @@ class GitHubService(_GitHubServiceCore):
                 per_page=args.get("per_page", 10),
             )
         )
-        lines = [GitHubService._fmt_issue_line(i) for i in result.results]
+        lines = [self._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
     async def fmt_add_issue_comment(self, args: dict) -> str:
@@ -347,9 +351,7 @@ class GitHubService(_GitHubServiceCore):
             return f"Comment posted: #{result.issue_number} {result.comment_url}"
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would post comment on issue #{req.issue_number} in {req.owner}/{req.repo}"
             ),
@@ -366,7 +368,7 @@ class GitHubService(_GitHubServiceCore):
                 per_page=args.get("per_page", 10),
             )
         )
-        lines = [GitHubService._fmt_pr_line(pr) for pr in result.pull_requests]
+        lines = [self._fmt_pr_line(pr) for pr in result.pull_requests]
         return "\n\n".join(lines) if lines else "No pull requests found."
 
     async def fmt_get_pull_request(self, args: dict) -> str:
@@ -404,9 +406,7 @@ class GitHubService(_GitHubServiceCore):
             return f"Created: #{pr.number} {pr.title}\nhead: {pr.head_ref} → base: {pr.base_ref}\nURL: {pr.url}"
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would create PR '{req.title}' ({req.head} → {req.base}) in {req.owner}/{req.repo}"
             ),
@@ -421,7 +421,7 @@ class GitHubService(_GitHubServiceCore):
                 per_page=args.get("per_page", 10),
             )
         )
-        lines = [GitHubService._fmt_issue_line(i) for i in result.results]
+        lines = [self._fmt_issue_line(i) for i in result.results]
         return "\n\n".join(lines) if lines else "No results found."
 
     async def fmt_update_pull_request(self, args: dict) -> str:
@@ -449,9 +449,7 @@ class GitHubService(_GitHubServiceCore):
             return f"Updated: #{pr.number} [{pr.state}] {pr.title}\n{pr.url}"
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would update PR #{req.pr_number} in {req.owner}/{req.repo}: {changes}"
             ),
@@ -477,9 +475,7 @@ class GitHubService(_GitHubServiceCore):
             return f"Merged: #{result.pr_number} merged={result.merged} sha={sha_short}\n{result.message}"
 
         return await self._execute_with_dry_run(
-            req.owner,
-            req.repo,
-            req.dry_run,
+            req,
             lambda: (
                 f"Would merge PR #{req.pr_number} in {req.owner}/{req.repo} using method='{req.merge_method}'"
             ),

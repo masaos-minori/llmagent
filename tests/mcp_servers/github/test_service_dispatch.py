@@ -29,6 +29,7 @@ from __future__ import annotations
 import types
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from mcp_servers.github.github_models import GitHubConfig
 from mcp_servers.github.github_models_base import IssueInfo, PullRequestInfo
 from mcp_servers.github.github_models_file import (
@@ -608,3 +609,254 @@ class TestGetDispatchTable:
 
         assert first is not second
         assert first == {k: first[k] for k in first}  # sanity: still a plain dict
+
+
+def _preview_json(preview: str) -> str:
+    """Exact dry-run response string: `_json_dumps({"preview": ..., "dry_run": True})`."""
+    return f'{{"dry_run":true,"preview":"{preview}"}}'
+
+
+class TestDryRunPreviewContractCharacterization:
+    """Characterization: the dry-run funnel every write handler passes through.
+
+    `_execute_with_dry_run` is the single path all nine write handlers use. These
+    lock the exact preview text each handler feeds it, the JSON envelope shape,
+    and that the business-layer method is never awaited in dry-run mode.
+    """
+
+    async def test_create_branch_uses_default_branch_placeholder(self) -> None:
+        svc = _make_service()
+        svc.create_branch = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_create_branch(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "branch_name": "feature",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would create branch 'feature' from '(default branch)' in org/repo"
+        )
+        svc.create_branch.assert_not_awaited()
+
+    async def test_create_branch_names_the_from_branch(self) -> None:
+        svc = _make_service()
+        svc.create_branch = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_create_branch(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "branch_name": "feature",
+                "from_branch": "main",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would create branch 'feature' from 'main' in org/repo"
+        )
+
+    async def test_create_or_update_file_reports_update_when_sha_present(self) -> None:
+        svc = _make_service()
+        svc.create_or_update_file = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_create_or_update_file(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "path": "a.txt",
+                "content": "body",
+                "message": "msg",
+                "sha": "deadbeef",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would update file 'a.txt' on branch '(default branch)' in org/repo"
+        )
+        svc.create_or_update_file.assert_not_awaited()
+
+    async def test_create_or_update_file_reports_create_without_sha(self) -> None:
+        svc = _make_service()
+        svc.create_or_update_file = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_create_or_update_file(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "path": "a.txt",
+                "content": "body",
+                "message": "msg",
+                "branch": "develop",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would create file 'a.txt' on branch 'develop' in org/repo"
+        )
+
+    async def test_push_files_lists_count_and_paths(self) -> None:
+        svc = _make_service()
+        svc.push_files = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_push_files(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "branch": "main",
+                "files": [
+                    {"path": "a.txt", "content": "1"},
+                    {"path": "b.txt", "content": "2"},
+                ],
+                "message": "msg",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would push 2 file(s) to branch 'main' in org/repo: ['a.txt', 'b.txt']"
+        )
+        svc.push_files.assert_not_awaited()
+
+    async def test_delete_file_uses_default_branch_placeholder(self) -> None:
+        svc = _make_service()
+        svc.delete_repo_file = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_delete_file(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "path": "a.txt",
+                "message": "msg",
+                "sha": "deadbeef",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would delete 'a.txt' from branch '(default branch)' in org/repo"
+        )
+        svc.delete_repo_file.assert_not_awaited()
+
+    async def test_delete_file_names_the_branch(self) -> None:
+        svc = _make_service()
+        svc.delete_repo_file = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_delete_file(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "path": "a.txt",
+                "message": "msg",
+                "sha": "deadbeef",
+                "branch": "develop",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would delete 'a.txt' from branch 'develop' in org/repo"
+        )
+
+    async def test_create_issue_lists_labels_only_when_present(self) -> None:
+        svc = _make_service()
+        svc.create_issue = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        with_labels = await svc.fmt_create_issue(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "title": "Title",
+                "labels": ["bug"],
+                "dry_run": True,
+            }
+        )
+        without_labels = await svc.fmt_create_issue(
+            {"owner": "org", "repo": "repo", "title": "Title", "dry_run": True}
+        )
+
+        assert with_labels == _preview_json(
+            "Would create issue 'Title' labels=['bug'] in org/repo"
+        )
+        assert without_labels == _preview_json("Would create issue 'Title' in org/repo")
+        svc.create_issue.assert_not_awaited()
+
+    async def test_add_issue_comment_names_the_issue(self) -> None:
+        svc = _make_service()
+        svc.add_issue_comment = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_add_issue_comment(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "issue_number": 4,
+                "body": "comment",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json("Would post comment on issue #4 in org/repo")
+        svc.add_issue_comment.assert_not_awaited()
+
+    async def test_create_pull_request_shows_head_and_base(self) -> None:
+        svc = _make_service()
+        svc.create_pull_request = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_create_pull_request(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "title": "Title",
+                "head": "feature",
+                "base": "main",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would create PR 'Title' (feature → main) in org/repo"
+        )
+        svc.create_pull_request.assert_not_awaited()
+
+    async def test_merge_pull_request_shows_the_method(self) -> None:
+        svc = _make_service()
+        svc.merge_pull_request = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        result = await svc.fmt_merge_pull_request(
+            {
+                "owner": "org",
+                "repo": "repo",
+                "pr_number": 4,
+                "merge_method": "squash",
+                "dry_run": True,
+            }
+        )
+
+        assert result == _preview_json(
+            "Would merge PR #4 in org/repo using method='squash'"
+        )
+        svc.merge_pull_request.assert_not_awaited()
+
+    async def test_denied_repo_raises_before_any_preview(self) -> None:
+        """The authorization guard runs inside the funnel, before the preview."""
+        from mcp_servers.github.github_models_config import GitHubAuthorizationError
+
+        svc = _make_service()
+        svc.create_branch = AsyncMock()  # type: ignore[method-assign]  — instance-level stub replaces the business-layer call; only fmt_* formatting is under test here
+
+        with pytest.raises(GitHubAuthorizationError, match="not in allowed_repos"):
+            await svc.fmt_create_branch(
+                {
+                    "owner": "other",
+                    "repo": "repo",
+                    "branch_name": "feature",
+                    "dry_run": True,
+                }
+            )
+        svc.create_branch.assert_not_awaited()
