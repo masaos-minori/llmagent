@@ -2,7 +2,7 @@
 
 ## Phase 1: Pre-deploy check
 
-**Gate: syntax check passes; deploy.sh copy list is current**
+**Gate: syntax check passes; deploy.sh config and binary lists are current**
 
 ```bash
 python3 -m compileall -q scripts/
@@ -10,7 +10,7 @@ python3 -m compileall -q scripts/
 
 If any file reports `SyntaxError`: fix it before proceeding (see `SKILL.md` Required behavior).
 
-**Completed when**: `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, and the copy-list diff below is empty.
+**Completed when**: `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, and the config and binary list diffs below are empty or fully explained.
 **On a repeat `SyntaxError` after a fix**: per `AGENTS.md` Loop Prevention > Attempt Limit,
 at most 3 fix-and-recheck attempts for the same file; if it still fails after 3 attempts,
 stop and report `Blocked: {file} still has a syntax error after 3 attempts`.
@@ -21,11 +21,19 @@ Verify the SQLite 4DB separation (ADR-008); a non-zero exit blocks the deploy:
 uv run python tools/check_db_separation.py
 ```
 
-If any script or config file was added or removed, confirm the `deploy/deploy.sh` copy list is up to date:
+`deploy/deploy.sh` syncs `scripts/` as a whole with `rsync -av --delete`, so added or removed
+`scripts/**/*.py` files need no copy-list entry. Only `config/*.toml` and the 11 binaries are
+listed explicitly. If a config file or an MCP server was added or removed, confirm those lists
+are up to date:
 
 ```bash
-diff <(find scripts/ -name '*.py' | sort) \
-     <(grep -oP 'scripts/\S+\.py' deploy/deploy.sh | sort)
+# config/*.toml files copied by deploy.sh (any diff line must be explained, e.g. a dev-only file)
+diff <(ls config/*.toml | sort) \
+     <(grep -oP '\$\{REPO_ROOT\}/\Kconfig/\S+\.toml' deploy/deploy.sh | sort -u)
+
+# binary names: build_binaries.sh ENTRIES vs deploy.sh BINARY_NAMES (must be empty)
+diff <(grep -oP '^\s+"\K[a-z_.]+:[a-z_]+(?=:)' deploy/build_binaries.sh | cut -d: -f2 | sort) \
+     <(sed -n '/BINARY_NAMES=(/,/^)/p' deploy/deploy.sh | grep -oE '\b(agent|mcp_[a-z_]+)\b' | sort)
 ```
 
 ---
@@ -46,7 +54,7 @@ If `deploy/deploy.sh` fails:
 
 1. Check which file caused the error (the script prints the failing `cp` command)
 2. Verify the file exists: `ls scripts/<module>.py`
-3. Fix the missing file or update the copy list in `deploy/deploy.sh`
+3. Fix the missing file or update the config/binary list in `deploy/deploy.sh`
 4. Re-run `bash deploy/deploy.sh`
 
 **Completed when**: `bash deploy/deploy.sh` exits 0.

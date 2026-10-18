@@ -43,7 +43,7 @@ The agent binary resolves these via:
 
 | Phase | Goal | Gate |
 |---|---|---|
-| 1 Pre-deploy | Syntax check + deploy.sh copy list confirmation | `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, copy-list diff empty (`workflow.md` Phase 1 Completed when) |
+| 1 Pre-deploy | Syntax check + deploy.sh config/binary list confirmation | `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, config and binary list diffs empty or explained (`workflow.md` Phase 1 Completed when) |
 | 2 Deploy | Copy files to `/opt/llm/` | `bash deploy/deploy.sh` exits 0 |
 | 3 Restart | Restart only affected services | Port health check returns OK |
 | 4 Verify | Log check + basic operation | No new errors in logs |
