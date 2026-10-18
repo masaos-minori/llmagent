@@ -240,7 +240,7 @@ Not applicable (this ADR defines no retry policy of its own)
 ### Deployment Validation
 
 - Check the SHA256 checksum of `config/workflows/default.json` before and after deployment (`deploy/deploy.sh`)
-- Whether the deployed configuration files match the source
+- Whether the deployed configuration files match the source (deploy/deploy.sh verifies the workflow definition `config/workflows/default.json` by SHA256 before and after deployment; per-process `*.toml` files are copied without a checksum)
 
 ### Runtime Monitoring
 
@@ -269,7 +269,7 @@ Re-evaluate this ADR when any of the following conditions occurs.
 - The operational scale or concurrency changes significantly
 - The deployment changes from a single host to multiple hosts or a distributed configuration
 - Security or audit requirements change
-- Fired 2026-10-16: each MCP server now enforces at its own startup the settings `agent/services/security_audit.py::audit_security_defaults()` used to audit from the Agent, and `agent/security_audit_config.py` was deleted with that audit (see Decision item 16 and the Verification rows above)
+- Fired 2026-10-17: the Agent-side cross-config audit (`agent/services/security_audit.py::audit_security_defaults()`) and `agent/security_audit_config.py` were both removed (commit `1c06cff03`); each MCP server now enforces its own config-security settings at startup and publishes a security posture on `GET /health`, which the Agent consumes via `mcp_health.collect_server_postures()` and gates tool registration through `posture_validator.validate_posture()` (see Decision item 16 and the Verification rows above)
 - Performance targets or resource constraints change
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid

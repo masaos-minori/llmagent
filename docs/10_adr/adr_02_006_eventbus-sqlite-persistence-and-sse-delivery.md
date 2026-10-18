@@ -267,6 +267,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 - Offset store: `consumer_delivery` tracks per-consumer delivery progress and `consumer_offsets` stores monotonic offsets; `ack_event_for_consumer()` updates both atomically. At startup, `migrate_legacy_offsets()` reads each offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; without a `.map` companion, the sanitized filename is the `consumer_id`.
 - INV-07 is enforced by content comparison logic in `insert_event()`: duplicate events cannot corrupt stored data; identical retries return the original seq, conflicting retries return HTTP 409.
+- DLQ promotion threshold (INV-13): an Event promotes when every attempting consumer's `consumer_delivery_failure_count` has reached `max_retry` (`>= max_retry`, i.e. its retry budget is exhausted) and none has ACKed. This `>=` boundary is enforced in `ack_route.py` and `dlq.py` and confirmed by `test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry`.
 
 ## Known Deviations
 

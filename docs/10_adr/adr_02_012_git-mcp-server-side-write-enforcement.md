@@ -56,7 +56,7 @@ Approval and technical safety are different concerns: Agent-side approval confir
 4. A protected-branch policy MUST be enforced by Git MCP itself for `git_checkout`/`git_push`/`git_pull` against configured protected branches, independent of any Agent-side branch-name checks (which apply only to `github_*` tools, not local git).
 5. `git_checkout`/`git_pull` MUST reject execution against a Dirty Worktree unless a documented safe exception applies; Detached HEAD MUST be rejected unless explicitly permitted by policy.
 6. Postcondition verification MUST confirm the resulting branch/HEAD and detect unresolved conflicts before reporting success; a non-zero `git` exit status alone does not guarantee the repository ended up in the intended state.
-7. Audit records for Git MCP write operations MUST include the correct repository identity (the `repo_path` key).
+7. Audit records for Git MCP write operations MUST include the correct repository identity in the `target` field (with the resolved path also recorded as `canonical_target`).
 8. `RepositoryState` frozen dataclass MUST capture full repository state from a single `git.Repo` query and provide immutable access to all fields.
 9. Write-protection pipeline MUST enforce stage ordering: Stage 4 (state snapshot) → Stage 5 (preconditions) → Stage 5b (HEAD-identity re-check immediately before the mutating Git call) → Stage 6 (execution) → Stage 7 (postcondition verification).
 10. Audit records for Git MCP write operations MUST include both pre-condition and post-condition snapshots captured by `RepositoryState`.
@@ -121,7 +121,7 @@ A write surface with this risk profile (repository state mutation, potential his
 - Operators configuring Git MCP define a protected-branch list, analogous to GitHub MCP's existing configuration.
 
 ### Security Consequences
-- Closes the option-injection and refspec vectors for ref-shaped arguments: write tools reject structural, revision, `refs/` and `HEAD` forms through the safe-ref allow-list and option-shaped values through the Stage 5 ref-validity precondition; read tools reject values that start with `-` (Explicit in code — `scripts/mcp_servers/git/git_service.py`, `scripts/mcp_servers/git/repository_state.py`).
+- Closes the option-injection and refspec vectors for ref-shaped arguments: write tools reject structural, revision, `refs/` and `HEAD` forms through the safe-ref allow-list and option-shaped values through the Stage 3 ref-validity precondition; read tools reject values that start with `-` (Explicit in code — `scripts/mcp_servers/git/git_service.py`, `scripts/mcp_servers/git/repository_state.py`).
 - Audit records identify the affected repository and capture the pre- and post-condition state: every call that passes argument validation is audited, with the canonical repository path in the `target` field. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `scripts/mcp_servers/audit.py`)
 
 ## Invariants

@@ -62,7 +62,7 @@ This system executes tasks planned by the LLM. Some tools have side effects, som
 3. There is no workflow-disable mode.
 4. There is no direct execution path that bypasses the workflow, including a fallback path taken when the workflow definition fails to load.
 5. All Agent processing, including simple question answering, is placed under the management of the Workflow Engine. Simplicity of processing is not a reason to bypass the Workflow Engine.
-6. The basic states are defined as `plan -> execute -> verify -> complete/failed`. Human approval is decided before a Tool executes, by the tool-level approval owned by `agent/tool_policy.py` and `agent/tool_approval.py`, inside the `execute` stage. The workflow has no approval stage, and a workflow definition that contains the `require_approval` key is rejected at load time. Workflow management is never skipped.
+6. The basic states are `plan -> execute -> verify -> completed/failed`; a Task that exceeds its retry budget is persisted as a third terminal state `halted`. Human approval is decided before a Tool executes, by the tool-level approval owned by `agent/tool_policy.py` and `agent/tool_approval.py`, inside the `execute` stage. The workflow has no approval stage, and a workflow definition that contains the `require_approval` key is rejected at load time. Workflow management is never skipped.
 7. Execution success and verification success are distinguished.
 8. The Workflow Engine's own precondition checks, such as Health Checks and pre-startup validation, are out of scope.
 9. Workflow state (Task, Attempt, processed Event, Artifact) is persisted in `workflow.sqlite`. When a Task is deleted, its related Attempts, processed Events, and Artifacts are deleted by Cascade.
@@ -223,6 +223,7 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 
 - The `approvals` table no longer exists in `workflow.sqlite`: an incremental migration marks tasks left in the removed approval stage as failed, because their `execute` stage completed but their `verify` stage never ran, and then drops the table (Explicit in code — `scripts/db/schema_sql.py`).
 - The `tool_approval` audit event is written only inside a workflow context, which guarantees INV-11's workflow linkage (Explicit in code — `scripts/agent/tool_audit.py`).
+- Invariant IDs are not contiguous: `INV-04`, `INV-09`, and `INV-12` are absent from the list. The present IDs are stable and referenced by the invariant verification matrix in `adr_01_index.md`; do not renumber them.
 
 See Implementation References for the file/symbol list.
 

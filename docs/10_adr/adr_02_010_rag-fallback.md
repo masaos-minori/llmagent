@@ -69,7 +69,7 @@ This problem applies only to a process that delegates over HTTP. No production p
 3. The HTTP call is made by `call_rag_service()`, and each attempt is bounded by a configured timeout.
 4. HTTP errors (401, 403, 4xx, 5xx) are distinguished from empty results (`""`).
 5. An empty result is treated as a valid result and does not trigger fallback.
-6. Only technical failures are fallback conditions: timeouts and connection errors and HTTP 5xx after the bounded retries are exhausted, and HTTP 4xx other than 401/403. Authentication errors (401/403) do not fall back.
+6. Only technical failures are fallback conditions: timeouts and connection errors, HTTP 5xx after the bounded retries are exhausted, HTTP 4xx other than 401/403, and an HTTP 200 response carrying `is_error=true`. Authentication errors (401/403) do not fall back.
 7. On fallback, the whole pipeline MQE → KNN/BM25 → RRF → Rerank → Augment is re-executed.
 8. The result source (Remote/Local/Fallback) is tracked and recorded in metrics and logs.
 9. Parse errors are logged and treated as empty results.
