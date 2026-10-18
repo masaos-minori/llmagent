@@ -77,12 +77,18 @@ WEB_SEARCH_OWN_CONFIG_FILE: str = "web_search_mcp_server.toml"
 
 
 def _validate_config_bounds(
-    default_max_results: int, max_results_limit: int, search_timeout_sec: float
+    default_max_results: int,
+    max_results_limit: int,
+    search_timeout_sec: float,
+    browser_timeout_sec: int,
+    browser_max_response_kb: int,
 ) -> None:
     """Enforce WebSearchConfig's numeric invariants.
 
     The tuple is the invariant list: one entry per rule, in the order the rules
-    are reported.
+    are reported. It covers every value `_numeric_checks()` reports on, so a
+    configuration the posture would flag is rejected here at load instead of
+    starting and then reporting a failed check.
 
     Raises:
         ValueError: if any value violates its invariant. Message text and
@@ -111,6 +117,16 @@ def _validate_config_bounds(
             not 0 < search_timeout_sec <= HARD_SEARCH_TIMEOUT_SEC_LIMIT,
             f"search_timeout_sec ({search_timeout_sec}) must be in "
             f"(0, {HARD_SEARCH_TIMEOUT_SEC_LIMIT}]",
+        ),
+        (
+            not 0 < browser_timeout_sec <= HARD_BROWSER_TIMEOUT_SEC_LIMIT,
+            f"browser_timeout_sec ({browser_timeout_sec}) must be in "
+            f"(0, {HARD_BROWSER_TIMEOUT_SEC_LIMIT}]",
+        ),
+        (
+            not 0 < browser_max_response_kb <= HARD_BROWSER_MAX_RESPONSE_KB,
+            f"browser_max_response_kb ({browser_max_response_kb}) must be in "
+            f"(0, {HARD_BROWSER_MAX_RESPONSE_KB}]",
         ),
     )
     for violated, message in violations:
@@ -184,7 +200,11 @@ class WebSearchConfig:
         auth_token = get_str(d, "auth_token", "")
 
         _validate_config_bounds(
-            default_max_results, max_results_limit, search_timeout_sec
+            default_max_results,
+            max_results_limit,
+            search_timeout_sec,
+            browser_timeout_sec,
+            browser_max_response_kb,
         )
 
         return cls(

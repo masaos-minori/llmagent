@@ -10,6 +10,8 @@ import importlib
 import pytest
 from mcp_servers.web_search.web_search_models import (
     DEFAULT_MAX_RESULTS,
+    HARD_BROWSER_MAX_RESPONSE_KB,
+    HARD_BROWSER_TIMEOUT_SEC_LIMIT,
     HARD_MAX_RESULTS_LIMIT,
     HARD_SEARCH_TIMEOUT_SEC_LIMIT,
     MAX_RESULTS_LIMIT,
@@ -164,6 +166,27 @@ class TestWebSearchConfigBrowserFields:
         assert cfg.browser_max_response_kb == 256
         assert cfg.browser_timeout_sec == 15
         assert cfg.auth_token == ""
+
+    def test_from_dict_rejects_non_positive_browser_timeout(self) -> None:
+        """The posture's browser_timeout bound is enforced at load, not only reported."""
+        with pytest.raises(ValueError, match="browser_timeout_sec"):
+            WebSearchConfig.from_dict({"browser_timeout_sec": 0})
+
+    def test_from_dict_rejects_browser_timeout_above_the_ceiling(self) -> None:
+        with pytest.raises(ValueError, match="browser_timeout_sec"):
+            WebSearchConfig.from_dict(
+                {"browser_timeout_sec": HARD_BROWSER_TIMEOUT_SEC_LIMIT + 1}
+            )
+
+    def test_from_dict_rejects_non_positive_browser_response_limit(self) -> None:
+        with pytest.raises(ValueError, match="browser_max_response_kb"):
+            WebSearchConfig.from_dict({"browser_max_response_kb": 0})
+
+    def test_from_dict_rejects_browser_response_limit_above_the_ceiling(self) -> None:
+        with pytest.raises(ValueError, match="browser_max_response_kb"):
+            WebSearchConfig.from_dict(
+                {"browser_max_response_kb": HARD_BROWSER_MAX_RESPONSE_KB + 1}
+            )
 
     def test_removed_browser_token_key_raises(self) -> None:
         """A stale configuration that still names the removed key must fail

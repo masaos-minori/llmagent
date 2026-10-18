@@ -111,7 +111,7 @@ class TestSearchTimeout:
 
 
 class TestBrowserTimeout:
-    """server.browser_timeout_valid is the gap _validate_config_bounds() leaves open."""
+    """server.browser_timeout_valid reports the bound _validate_config_bounds() rejects."""
 
     @pytest.mark.parametrize("value", [0, -1])
     def test_non_positive_is_a_failure(self, value: int) -> None:
