@@ -111,8 +111,6 @@ def _query_pairs(db: SQLiteHelper, sql: str) -> tuple[tuple[int, int], ...]:
 def _collect_affected_identifiers(
     db: SQLiteHelper,
     *,
-    fts_gap: int,
-    orphan_vec_count: int,
     docs_without_chunks: int,
     chunks_without_vec: int,
     duplicate_chunk_index_count: int,
@@ -129,9 +127,9 @@ def _collect_affected_identifiers(
 ]:
     """Collect affected identifiers for each issue type (read-only; top 10 each).
 
-    The four always-run queries report None when they find no rows, because an empty
-    result means that issue does not exist. The guarded queries only run when a count
-    already says the issue exists, so they keep their result as written.
+    Every query reports None when it finds no rows, so an absent issue has one
+    representation regardless of which guard skipped its query. The guarded
+    queries only run when a count already says the issue exists.
     """
     affected_chunk_ids: tuple[int, ...] | None = _query_ids_or_none(
         db,
@@ -156,7 +154,7 @@ def _collect_affected_identifiers(
         "ORDER BY d.url LIMIT 10",
     )
     affected_docs_without_chunks: tuple[int, ...] | None = (
-        _query_ids(
+        _query_ids_or_none(
             db,
             "SELECT doc_id FROM documents WHERE doc_id NOT IN (SELECT DISTINCT doc_id FROM chunks)"
             " ORDER BY doc_id LIMIT 10",
@@ -165,7 +163,7 @@ def _collect_affected_identifiers(
         else None
     )
     affected_chunks_without_vec: tuple[int, ...] | None = (
-        _query_ids(
+        _query_ids_or_none(
             db,
             "SELECT chunk_id FROM chunks WHERE chunk_id NOT IN (SELECT chunk_id FROM chunks_vec)"
             " ORDER BY chunk_id LIMIT 10",
@@ -174,11 +172,14 @@ def _collect_affected_identifiers(
         else None
     )
     affected_duplicate_chunk_indices: tuple[tuple[int, int], ...] | None = (
-        _query_pairs(
-            db,
-            "SELECT doc_id, chunk_index FROM chunks"
-            " GROUP BY doc_id, chunk_index HAVING COUNT(*) > 1"
-            " ORDER BY doc_id, chunk_index LIMIT 10",
+        (
+            _query_pairs(
+                db,
+                "SELECT doc_id, chunk_index FROM chunks"
+                " GROUP BY doc_id, chunk_index HAVING COUNT(*) > 1"
+                " ORDER BY doc_id, chunk_index LIMIT 10",
+            )
+            or None
         )
         if duplicate_chunk_index_count > 0
         else None
@@ -254,10 +255,9 @@ def check_rag_consistency(
     except sqlite3.Error as e:
         diagnostic_errors.append(f"Document checks collection failed: {e}")
 
-    try:
-        url_level_mismatches = _collect_url_counts_and_mismatches(db)
-    except sqlite3.Error as e:
-        diagnostic_errors.append(f"URL mismatch collection failed: {e}")
+    # _safe_url_count_query() records each per-query failure itself, so this stage
+    # has no sqlite3.Error left to report.
+    url_level_mismatches = _collect_url_counts_and_mismatches(db)
 
     try:
         (
@@ -271,8 +271,6 @@ def check_rag_consistency(
             affected_url_mismatches,
         ) = _collect_affected_identifiers(
             db,
-            fts_gap=fts_gap,
-            orphan_vec_count=orphan_vec_count,
             docs_without_chunks=docs_without_chunks,
             chunks_without_vec=chunks_without_vec,
             duplicate_chunk_index_count=duplicate_chunk_index_count,
