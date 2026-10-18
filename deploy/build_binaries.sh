@@ -16,6 +16,8 @@
 #   NUTKA_EXTRA_FLAGS="--onefile-no-compression" bash deploy/build_binaries.sh
 #   # 出力先を変更:
 #   BIN_DIR=/opt/llm/bin OUTPUT_DIR=/data/nuitka_dist bash deploy/build_binaries.sh
+#   # 一部のバイナリのみ再ビルド (空白区切りの出力名):
+#   BUILD_ONLY="agent" bash deploy/build_binaries.sh
 #
 # nuitka4.x に関する注記:
 #   --onefile（スタンドアロン実行可能）と --module（インポート用拡張モジュール）は
@@ -46,6 +48,9 @@ BASE_NUTKA_ARGS=(
 
 # ホスト固有のフラグ (空白区切り)。例: --onefile-no-compression (低メモリ用)。
 NUTKA_EXTRA_FLAGS="${NUTKA_EXTRA_FLAGS:-}"
+
+# 空白区切りの出力バイナリ名 (例: "agent mcp_shell") のみビルドする。空なら全件。
+BUILD_ONLY="${BUILD_ONLY:-}"
 
 # 遅延 import (--include-module)。PoC で発見した遅延 import を記載。
 # rag_pipeline_server 現行には rag.pipeline の遅延 import は無し (未検証なら追加)。
@@ -140,7 +145,7 @@ trap cleanup_launchers EXIT
 # コンパイルしてスタンドアロン実行可能を生産する。
 gen_launcher() {
     local module="$1" final_name="$2" cls="$3"
-    local dest="${LAUNCHER_DIR}/${final_name}.py"
+    local dest="${LAUNCHER_DIR}/${final_name}_launcher.py"
 
     if [[ -z "${cls}" ]]; then
         # agent.repl など main() を呼ぶ種別
@@ -169,7 +174,10 @@ total_bytes=0
 
 build_one() {
     local module="$1" final_name="$2" cls="$3"
-    local launcher="${LAUNCHER_DIR}/${final_name}.py"
+    # The launcher is compiled as a top-level module named after its file, so its
+    # name must not equal a scripts/ package (e.g. "agent"), or `import agent.repl`
+    # resolves to the launcher itself ("'agent' is not a package").
+    local launcher="${LAUNCHER_DIR}/${final_name}_launcher.py"
 
     echo "--- ビルド: ${module} -> ${final_name} ---"
     gen_launcher "${module}" "${final_name}" "${cls}"
@@ -200,7 +208,7 @@ build_one() {
     # 念のため拡張子なし / .so にも対応。
     local produced=""
     local cand
-    for cand in "${OUTPUT_DIR}/${final_name}.bin" "${OUTPUT_DIR}/${final_name}" "${OUTPUT_DIR}/${final_name}.so" "${OUTPUT_DIR}/${final_name}".*.so; do
+    for cand in "${OUTPUT_DIR}/${final_name}_launcher.bin" "${OUTPUT_DIR}/${final_name}_launcher" "${OUTPUT_DIR}/${final_name}.bin" "${OUTPUT_DIR}/${final_name}" "${OUTPUT_DIR}/${final_name}.so" "${OUTPUT_DIR}/${final_name}".*.so; do
         if [[ -f "${cand}" ]]; then produced="${cand}"; break; fi
     done
     if [[ -z "${produced}" ]]; then
@@ -232,16 +240,25 @@ echo "  NUTKA_CMD   : ${NUTKA_CMD[*]}"
 echo "  エントリポイント数: ${#ENTRIES[@]}"
 echo ""
 
+built=0
 for entry in "${ENTRIES[@]}"; do
     module="${entry%%:*}"
     rest="${entry#*:}"
     final_name="${rest%%:*}"
     cls="${rest#*:}"
+    if [[ -n "${BUILD_ONLY}" && " ${BUILD_ONLY} " != *" ${final_name} "* ]]; then
+        continue
+    fi
     build_one "${module}" "${final_name}" "${cls}"
+    built=$(( built + 1 ))
 done
+if (( built == 0 )); then
+    echo "[FATAL] BUILD_ONLY='${BUILD_ONLY}' matched no entry." >&2
+    exit 1
+fi
 
 echo ""
-echo "=== build_binaries.sh: 完了 (${#ENTRIES[@]} 本) ==="
+echo "=== build_binaries.sh: 完了 (${built} 本) ==="
 # 総ビルド時間 (秒) と総サイズ (人間が読みやすい形式) を出力。Plan の Execution Status 用に利用。
 awk -v secs="${total_seconds}" -v bytes="${total_bytes}" 'BEGIN {
     split("B KiB MiB GiB TiB", u, " ");
