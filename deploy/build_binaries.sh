@@ -12,8 +12,10 @@
 # 使用例:
 #   cd /path/to/repo
 #   bash deploy/build_binaries.sh
-#   # 低メモリホスト:
-#   NUTKA_EXTRA_FLAGS="--onefile-no-compression" bash deploy/build_binaries.sh
+#   # 低メモリホスト (LTO を無効化。サイズは増える):
+#   NUTKA_EXTRA_FLAGS="--lto=no" bash deploy/build_binaries.sh
+#   # デバッグ用 (strip しない。サイズは増える):
+#   NUTKA_UNSTRIPPED=1 bash deploy/build_binaries.sh
 #   # 出力先を変更:
 #   BIN_DIR=/opt/llm/bin OUTPUT_DIR=/data/nuitka_dist bash deploy/build_binaries.sh
 #   # 一部のバイナリのみ再ビルド (空白区切りの出力名):
@@ -36,17 +38,46 @@ OUTPUT_DIR="${OUTPUT_DIR:-/opt/llm/dist}"
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PYTHONPATH="${REPO_ROOT}/scripts${PYTHONPATH:+:${PYTHONPATH}}"
 
-# 既定の Nuitka フラグ (implementation procedure method step 3 に準拠)。
-#   --onefile            : 単一バイナリ
-#   --unstripped         : デバッグシンタ保留 (問題時のトレース用)。nuitka4.x では --no-strip が廃止。
+# 既定の Nuitka フラグ (サイズ最小化重視)。
+#   --onefile            : 単一バイナリ (payload は既定で圧縮される。--onefile-no-compression は使わない)
 #   --include-package-data=sudachipy : sudachipy/resources/* の同梱 (必須・数KB)
+#   --lto=yes            : リンク時最適化。未使用コードを除去しサイズ減 (ビルド時間・メモリは増)
+#   --python-flag=no_docstrings : docstring を除去。実行時の __doc__ 依存は scripts/ の
+#                          ビルド対象経路に無い (argparse description の 2 箇所は非ビルド対象)。
+#                          -O (no_asserts) は assert の実行時ガード用途を壊しうるため使わない。
+#   --noinclude-*-mode=nofollow : 取り込むと巨大化する開発用パッケージの追跡を抑止
+#   --nofollow-import-to : テスト/GUI 等、実行に不要なモジュールの追跡を抑止
+#   --remove-output      : ビルド中間物 (*.build, *.onefile-build) を削除しディスクを節約
+# strip は nuitka の既定 (有効) に任せる。--unstripped はトレース用に NUTKA_UNSTRIPPED=1 で有効化。
 BASE_NUTKA_ARGS=(
     --onefile
-    --unstripped
     --include-package-data=sudachipy
+    --lto=yes
+    --python-flag=no_docstrings
+    --noinclude-unittest-mode=nofollow
+    --noinclude-pytest-mode=nofollow
+    --noinclude-setuptools-mode=nofollow
+    --noinclude-pydoc-mode=nofollow
+    --noinclude-IPython-mode=nofollow
+    --noinclude-dask-mode=nofollow
+    --noinclude-numba-mode=nofollow
+    --nofollow-import-to=tkinter
+    --nofollow-import-to=doctest
+    --nofollow-import-to=*.tests
+    --nofollow-import-to=*.test
+    --remove-output
 )
+if [[ "${NUTKA_UNSTRIPPED:-0}" == "1" ]]; then
+    BASE_NUTKA_ARGS+=(--unstripped)
+fi
 
-# ホスト固有のフラグ (空白区切り)。例: --onefile-no-compression (低メモリ用)。
+# C コンパイラの同時実行数 (--jobs)。既定は CPU スレッド数の半分 (最小 1)。
+# 全 CPU を使うと LTO リンク時にメモリ不足になりやすいため。NUTKA_JOBS で上書き可能。
+_cpu_threads="$(nproc 2>/dev/null || echo 2)"
+NUTKA_JOBS="${NUTKA_JOBS:-$(( _cpu_threads / 2 > 0 ? _cpu_threads / 2 : 1 ))}"
+BASE_NUTKA_ARGS+=(--jobs="${NUTKA_JOBS}")
+
+# ホスト固有のフラグ (空白区切り)。BASE の後に追加され、同一オプションは後勝ち。例: --lto=no (低メモリ用)。
 NUTKA_EXTRA_FLAGS="${NUTKA_EXTRA_FLAGS:-}"
 
 # 空白区切りの出力バイナリ名 (例: "agent mcp_shell") のみビルドする。空なら全件。
@@ -236,6 +267,7 @@ echo "=== build_binaries.sh: Nuitka --onefile ビルド開始 ==="
 echo "  BIN_DIR     : ${BIN_DIR}"
 echo "  OUTPUT_DIR  : ${OUTPUT_DIR} (${FS_TYPE:-unknown})"
 echo "  NUTKA_CMD   : ${NUTKA_CMD[*]}"
+echo "  NUTKA_JOBS  : ${NUTKA_JOBS} (cpu threads: ${_cpu_threads})"
 [[ -n "${NUTKA_EXTRA_FLAGS}" ]] && echo "  EXTRA FLAGS : ${NUTKA_EXTRA_FLAGS}"
 echo "  エントリポイント数: ${#ENTRIES[@]}"
 echo ""
