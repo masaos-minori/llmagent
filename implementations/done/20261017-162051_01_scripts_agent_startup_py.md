@@ -128,10 +128,10 @@ success path, the test file (separate row), and the doc update (separate row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add operator-visible emit to rollback-failure branch | Pending | — | — | write_fatal recommended (confirm console routing) |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: test file is a separate row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc is a separate row |
+| 1 | Add operator-visible emit to rollback-failure branch | Completed | 20261018-103504 | 20261018-103504 | write_fatal recommended (confirm console routing) |
+| 2 | Add or update tests per Validation plan | Completed | 20261018-103504 | 20261018-103504 | N/A: test file is a separate row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261018-103504 | 20261018-103504 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261018-103504 | 20261018-103504 | N/A: doc is a separate row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

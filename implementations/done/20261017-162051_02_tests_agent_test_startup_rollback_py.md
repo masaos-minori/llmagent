@@ -95,10 +95,10 @@ raised; the rollback-success path produces no operator-visible rollback emit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the test changes in test_startup_rollback.py | Pending | — | — | align emit channel with row 1 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the test changes in test_startup_rollback.py | Completed | 20261018-104329 | 20261018-104329 | align emit channel with row 1 |
+| 2 | Add or update tests per Validation plan | Completed | 20261018-104329 | 20261018-104329 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261018-104329 | 20261018-104329 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261018-104329 | 20261018-104329 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

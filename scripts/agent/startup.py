@@ -82,6 +82,9 @@ class StartupOrchestrator:
                     "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
                     shutdown_err,
                 )
+                self._view.write_fatal(
+                    "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned"
+                )
             # Pass subprocess list to caller for termination
             raise setup_err
         if self._cmds is None or self._orchestrator is None:

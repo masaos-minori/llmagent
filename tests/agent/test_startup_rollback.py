@@ -99,6 +99,26 @@ class TestStartupRollback:
         with pytest.raises(RuntimeError, match="original error"):
             await orch.run()
 
+        # REQ-004: the rollback-failure branch surfaces the failure via an
+        # operator-visible console emit, in addition to the logger line above.
+        orch._view.write_fatal.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_no_fatal_emit_on_successful_startup(self) -> None:
+        """REQ-003: a successful startup produces no operator-visible rollback
+        emit — the emit is scoped to the rollback-failure branch only."""
+        orch, mock_lifecycle = _make_rollback_startup()
+        fake_procs = [MagicMock(spec=subprocess.Popen)]
+        orch._start_servers = AsyncMock(return_value=fake_procs)
+        orch._check_services = AsyncMock()
+        orch._setup_prompt = AsyncMock()
+        orch._cmds = MagicMock()
+        orch._orchestrator = MagicMock()
+
+        await orch.run()
+
+        orch._view.write_fatal.assert_not_called()
+
     @pytest.mark.asyncio
     async def test_no_rollback_on_initialize_failure(self) -> None:
         orch, mock_lifecycle = _make_rollback_startup()
