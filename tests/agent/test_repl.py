@@ -683,6 +683,30 @@ class TestReadInputShutdownRace:
         assert result is None
 
 
+# ── AgentREPL.run() wires the startup results into the input loop ─────────────
+
+
+class TestRunBindsStartupResultsToInputLoop:
+    """The fixtures assign _input_loop._cmds by hand, which would hide a missing wiring."""
+
+    @pytest.mark.asyncio
+    async def test_startup_results_reach_the_input_loop(self) -> None:
+        repl = _make_bare_repl()
+        repl._input_loop._cmds = None  # type: ignore[assignment]
+        repl._input_loop._orchestrator = None  # type: ignore[assignment]
+        cmds, orchestrator = MagicMock(), MagicMock()
+
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                return_value=(cmds, orchestrator, [])
+            )
+            with patch.object(repl._input_loop, "run", new=AsyncMock()):
+                await repl.run()
+
+        assert repl._input_loop._cmds is cmds
+        assert repl._input_loop._orchestrator is orchestrator
+
+
 # ── AgentREPL.run() sqlite3.Error message format ──────────────────────────────
 
 

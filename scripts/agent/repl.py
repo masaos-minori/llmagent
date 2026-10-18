@@ -141,6 +141,8 @@ class AgentREPL:
                 self._view.write_fatal(f"Startup failed: {e}")
                 raise
 
+            self._input_loop.bind(self._cmds, self._orchestrator)
+
             # Show memory disabled warning immediately after startup if applicable
             if (
                 self._ctx.conv.memory_disabled

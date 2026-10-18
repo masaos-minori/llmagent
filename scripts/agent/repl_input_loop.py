@@ -47,8 +47,8 @@ class ReplInputLoop:
         - Signal handler delegates cancellation to shutdown_event.set() (see signal_handler.py)
 
     _cmds lifecycle:
-        - Set once during initialization via _init_components()
-        - Immutable after initialization — never reassigned
+        - Set once after startup via bind(), together with the orchestrator
+        - Immutable after binding — never reassigned
         - Checked in _repl_loop as the single authoritative precondition
     """
 
@@ -67,6 +67,11 @@ class ReplInputLoop:
         self._input_coro: asyncio.Task[str] | None = None
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
+
+    def bind(self, cmds: "CommandRegistry", orchestrator: "Orchestrator") -> None:
+        """Attach the startup results; _repl_loop refuses to run until this is called."""
+        self._cmds = cmds
+        self._orchestrator = orchestrator
 
     async def run(
         self,
