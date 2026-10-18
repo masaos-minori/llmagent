@@ -354,6 +354,30 @@ class TestRemovedNameReintroduction:
         issues = check_removed_name_reintroduction(doc.read_text(), doc)
         assert issues == []
 
+    @pytest.mark.parametrize(
+        "denial",
+        [
+            "## ToolRouteResolver\n\n"
+            "- **Config:** no `server_configs` parameter is accepted.\n",
+            "## ToolRouteResolver\n\n"
+            "- **Config:** No `server_configs` parameter exists.\n",
+            "## ToolRouteResolver\n\n"
+            "- **Config:** `server_configs` does not exist as a "
+            "constructor argument.\n",
+        ],
+    )
+    def test_tool_route_resolver_server_configs_negation_not_flagged(
+        self, denial: str, tmp_path: Path
+    ) -> None:
+        """A `server_configs` mention that denies the stale resolver argument
+        (any casing, any of the observed phrasings) documents the absence and
+        must not be flagged, even though ToolRouteResolver and server_configs
+        co-occur in the same section."""
+        doc = tmp_path / "example.md"
+        doc.write_text(denial)
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert issues == []
+
     def test_server_configs_alone_without_class_name_not_flagged(
         self, tmp_path: Path
     ) -> None:
@@ -411,6 +435,33 @@ class TestRemovedCommandNamePatterns:
         )
         issues = check_removed_name_reintroduction(doc.read_text(), doc)
         assert issues == []
+
+    @pytest.mark.parametrize(
+        ("text", "should_match"),
+        [
+            # Slash-command form — a genuine reintroduction, must be flagged.
+            ("Run /diff to see what changed this session.", True),
+            ("Use `/audit` tail to browse recent events.", True),
+            # Path/filename/identifier substrings — the GV-017 false positives
+            # that the tightened matcher must reject.
+            ("`scripts/mcp_servers/audit.py` exports AuditRecord.", False),
+            ("`scripts/eventbus/audit.py` writes the audit log.", False),
+            ("tail -f <log_dir>/audit.log | jq .", False),
+            ("`dict/system.dic` is the external Sudachi dictionary.", False),
+            ("Routing/audit/Config gates unauthorized access.", False),
+            ("`agent/workflow/workflow_engine.py` manages stages.", False),
+            ("`tests/agent/workflow/test_workflow_loader.py` rejects it.", False),
+        ],
+    )
+    def test_removed_slash_command_matches_command_form_only(
+        self, text: str, should_match: bool, tmp_path: Path
+    ) -> None:
+        """GV-017: the removed slash-command names match only in command form;
+        path separators, filenames, and identifier substrings must not."""
+        doc = tmp_path / "example.md"
+        doc.write_text(f"{text}\n")
+        issues = check_removed_name_reintroduction(doc.read_text(), doc)
+        assert (len(issues) > 0) == should_match
 
 
 class TestCheckAllRemovedNamesGating:

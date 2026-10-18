@@ -200,6 +200,23 @@ _HISTORICAL_CONTEXT_MARKERS: frozenset[str] = frozenset(
     }
 )
 
+
+def _removed_slash_command(name: str) -> re.Pattern[str]:
+    r"""Compile a removed slash-command pattern that matches ONLY the command
+    form, never a path or filename substring.
+
+    GV-017's four removed names (`/diff`, `/system`, `/audit`, `/workflow`) were
+    previously matched with `/<name>\b`, which also matched inside file paths
+    (`scripts/mcp_servers/audit.py`), filenames (`<log_dir>/audit.log`,
+    `dict/system.dic`), and path segments (`Routing/audit/Config`,
+    `agent/workflow/`). The leading `(?<!\w)` requires the `/` to begin a token
+    rather than continue a path; the trailing `(?![\w/])(?!\.\w)` rejects a
+    following path separator, identifier character, or file extension while
+    still allowing a sentence-ending period.
+    """
+    return re.compile(rf"(?<!\w)/{name}(?![\w/])(?!\.\w)")
+
+
 _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
     "_update_null_fill (confirmed removed from scripts/rag/ingestion/, per "
     "plans/20260903-085718_plan.md)": re.compile(r"_update_null_fill\b"),
@@ -237,17 +254,17 @@ _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
     "SQLiteSessionStore/SessionStore (confirmed removed — SHARED-002 resolution)": re.compile(
         r"\bSQLiteSessionStore\b|\bSessionStore\b"
     ),
-    "/diff (confirmed removed, per plans/20261016-233542_plan.md — diffcmd)": re.compile(
-        r"/\bdiff\b"
+    "/diff (confirmed removed, per plans/20261016-233542_plan.md — diffcmd)": _removed_slash_command(
+        "diff"
     ),
-    "/system (confirmed removed, per plans/20261016-233542_plan.md — syscmd)": re.compile(
-        r"/\bsystem\b"
+    "/system (confirmed removed, per plans/20261016-233542_plan.md — syscmd)": _removed_slash_command(
+        "system"
     ),
-    "/audit (confirmed removed, per plans/20261016-233542_plan.md — auditcmd)": re.compile(
-        r"/\baudit\b"
+    "/audit (confirmed removed, per plans/20261016-233542_plan.md — auditcmd)": _removed_slash_command(
+        "audit"
     ),
-    "/workflow (confirmed removed, per plans/20261016-233542_plan.md — wfcmd)": re.compile(
-        r"/\bworkflow\b"
+    "/workflow (confirmed removed, per plans/20261016-233542_plan.md — wfcmd)": _removed_slash_command(
+        "workflow"
     ),
     "security_lockdown_enabled (confirmed removed — the deny-all suppression knob lost its "
     "only consumer when agent/services/security_audit.py was deleted, per "
@@ -259,6 +276,16 @@ _REMOVED_NAME_PATTERNS: dict[str, re.Pattern[str]] = {
 
 _TOOL_ROUTE_RESOLVER_RE = re.compile(r"\bToolRouteResolver\b")
 _SERVER_CONFIGS_RE = re.compile(r"\bserver_configs\b")
+# A `server_configs` mention that DENIES the stale resolver argument
+# ("no server_configs parameter", "server_configs does not exist") documents
+# the absence rather than reintroducing the claim, so it must not be flagged.
+# Exempt such lines to avoid false-positives on the corrections made by
+# plans/20260903-090104_plan.md.
+_NEGATED_SERVER_CONFIGS_RE = re.compile(
+    r"\bno\b[^.\n]*\bserver_configs\b"
+    r"|\bserver_configs\b[^.\n]*(?:does not|has no|never)\b",
+    re.IGNORECASE,
+)
 _HEADING_RE = re.compile(r"^#{1,6}\s")
 
 
@@ -317,16 +344,19 @@ def check_removed_name_reintroduction(content: str, filepath: Path) -> list[str]
             and _SERVER_CONFIGS_RE.search("\n".join(section))
         ):
             for j, sec_line in enumerate(section):
-                if _SERVER_CONFIGS_RE.search(sec_line) and not _is_historical_context(
-                    lines, section_start + j
-                ):
-                    issues.append(
-                        f"{filepath}:{section_start + j + 1}: "
-                        f"ToolRouteResolver+server_configs co-occurrence in the "
-                        f"same section — this constructor argument does not "
-                        f"exist in current code (confirmed removed, per "
-                        f"plans/20260903-090104_plan.md): {sec_line.strip()}"
-                    )
+                if not _SERVER_CONFIGS_RE.search(sec_line):
+                    continue
+                if _is_historical_context(lines, section_start + j):
+                    continue
+                if _NEGATED_SERVER_CONFIGS_RE.search(sec_line):
+                    continue
+                issues.append(
+                    f"{filepath}:{section_start + j + 1}: "
+                    f"ToolRouteResolver+server_configs co-occurrence in the "
+                    f"same section — this constructor argument does not "
+                    f"exist in current code (confirmed removed, per "
+                    f"plans/20260903-090104_plan.md): {sec_line.strip()}"
+                )
         section_start = i
     return issues
 
@@ -385,12 +415,13 @@ def check_all(
     `include_removed_names` defaults to `False` so this tool's existing
     `.pre-commit-config.yaml` wiring (a bare `python -m tools.check_compat_shims`
     with no flags) keeps its current pass/fail behavior unchanged.
-    `check_removed_name_reintroduction()` currently has one confirmed, known
-    finding in the live corpus (`docs/05_agent_12_reference-api.md:114`,
-    tracked by `plans/20260903-090104_plan.md`) — per this repository's
-    "new checks stay report-only until the corpus is compliant" convention,
-    it must be opted into explicitly (`--check-removed-names`) until that
-    Plan lands, not silently made blocking for every future commit.
+    `check_removed_name_reintroduction()` reports zero findings in the live
+    corpus today: the section-scoped `ToolRouteResolver`+`server_configs`
+    matcher was tightened to exempt lines that deny the stale argument
+    (the corrections made by `plans/20260903-090104_plan.md`). The
+    report-only (opt-in) gating is retained per this repository's "new
+    checks stay report-only until the corpus is compliant" convention;
+    making it blocking by default is a separate decision, not done here.
     """
     if is_allowlisted(filepath, allowlist):
         return []
@@ -417,11 +448,11 @@ def main() -> int:
         action="store_true",
         help=(
             "Also run the removed-name-reintroduction check (docs/*.md only; "
-            "see check_removed_name_reintroduction()). Off by default — this "
-            "check currently has one known, Plan-tracked finding "
-            "(docs/05_agent_12_reference-api.md:114) and stays report-only "
-            "(opt-in) until that Plan lands, per this repository's convention "
-            "for new checks."
+            "see check_removed_name_reintroduction()). Off by default — the "
+            "live corpus reports zero findings (the ToolRouteResolver+"
+            "server_configs matcher exempts lines that deny the stale "
+            "argument), but it stays report-only (opt-in) per this "
+            "repository's convention for new checks."
         ),
     )
     parser.add_argument(
