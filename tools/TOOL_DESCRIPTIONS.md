@@ -8,11 +8,11 @@ Naming convention: `<verb>_<target>.py`.
 - `fix_*`: applies a correction.
 - `generate_*`: generates output.
 - `manage_*`: several subcommands for managing one kind of object.
-- `merge_*` / `rename_*`: a single specific operation.
+- `rename_*`: a single specific operation.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (43 modules)
+## Index (42 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -24,6 +24,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `check_canonical_source_conflicts.py` | Canonical Source | Detect semantic conflicts in the Canonical Source Registry |
 | `check_canonical_source_registry.py` | Canonical Source | Validate the Canonical Source Registry schema |
 | `check_compat_shims.py` | Consistency checker | Detect leftover backward-compatibility stubs and shims |
+| `check_docs_consistency.py` | Consistency checker | Cross-check `docs/` claims (ports, config keys, symbol references, command contracts) against `config/agent.toml` and `scripts/`, per `--domain` |
 | `check_docs_content_policy.py` | Docs policy | Detect implementation-detail content that violates `skills/DESIGN.md` "Docs content policy — remove" and "Avoid implementation-reference duplication" (16 categories) |
 | `check_adr_preservation.py` | ADR lightweighting | Compare changed `docs/10_adr/*.md` files with a Git ref and report content-preservation errors plus before/after sizes |
 | `check_docs_japanese.py` | Docs policy | List Markdown files containing hiragana, katakana, or kanji (exit code 1 if any) |
@@ -42,16 +43,13 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `generate_mcp_inventory.py` | Reference generation | Output the MCP server list from agent config as JSON/CSV |
 | `generate_reference_table.py` | Reference generation | Generate reference tables for RAG/MCP/deployment/agent/EventBus (the Memory type is pending a decision on its target document); `--check` exits 1 when a generated guarded block drifted from live code (runs in CI) |
 | `generate_workitem.py` | Work item generation | Generate work item skeletons with placeholders. `--kind implementation-procedure --all-rows` generates every row of the Plan's `Implementation Target Files` table in one run (rows whose file already exists are skipped and processing continues) |
-| `add_alternatives_section.py` | Work item generation | Insert a missing `## Alternatives considered` section into implementation procedure documents (required by the canonical template) before the first `## Implementation` heading; picks test-vs-doc body text by file path. `files` targets specific files; `--prefix YYYYMMDD-HHMMSS` scans `implementations/` for a timestamp group. Skips files that already contain the section |
 | `manage_frontmatter.py` | Front Matter management | Detect missing Front Matter, remove duplicates, rename `area`, merge body Related sections into `related:` |
 | `manage_workitem_stage.py` | Work item management | Archive moves, status updates, stale detection |
-| `rename_mcp_modules.py` | Rename helper | Bulk-rename MCP server modules |
 | `rename_doc.py` | Rename helper | `git mv` a `docs/*.md` file and update internal links and Front Matter `related:`. Also reports mentions of the old filename in tracked files outside `docs/` (scripts/tools/tests/skills, etc.) |
-| `rename_impl_procedure_docs.py` | Rename helper | Bulk-rename procedure Markdown files under `implementations/` that wrongly have a `.py` extension to `.py.md` |
 | `fix_docstring_blank_line.py` | Formatting helper | Bulk-fix D205 violations (missing blank line after docstring summary) |
 | `fix_docs_section_marks.py` | Formatting helper | Replace the `§` symbol with plain English wording |
 | `fix_docstring_paths.py` | Formatting helper | Update the path in the module docstring header of scripts modules |
-| `check_docstrings.py` | Docs quality | Validate script docstring format |
+| `check_docstrings.py` | Docs quality | Validate script docstring format; existing violations are grandfathered in `check_docstrings_baseline.txt` (`--update-baseline`, `--no-baseline`) |
 | `check_tool_descriptions_sync.py` | Consistency checker | Cross-check this file against the actual `tools/*.py`. Also verifies that every `tools/<name>.py` / `-m tools.<name>` reference in `.github/workflows/*.yml`, `.pre-commit-config.yaml`, and `tox.ini` points to an existing tool |
 | `check_chunks_fts_invariant.py` | Consistency checker | Detect direct INSERT/UPDATE statements on `chunks_fts` in Python sources under `scripts/`, outside the allowed paths (`rag_maintenance_service.py::rebuild_fts()` and `scripts/db/schema_sql.py`). `scripts/mcp_servers/mdq/` and `tests/` are excluded |
 | `check_db_separation.py` | Consistency checker | Verify the ADR-008 SQLite 4DB separation: table ownership per database, cross-DB `REFERENCES`, distinct DB file paths, sqlite-vec scope, and `ATTACH`/schema-qualified access in `scripts/` SQL strings (exit code 1 on violation) |
@@ -103,12 +101,10 @@ These scripts generate reference tables in `docs/` from values in source code an
 | `check_docs_structure.py` | Validates structural conventions of `docs/*.md`: file size (an individual size-limit exception exists only for documents the owner has allowed); H1 heading count; Front Matter; Keywords section; reachability of internal `.md` links. ADR bodies (`ADR-*.md`) require `## Related ADRs`. In every document including ADRs, a body Related-type section (`## Related Documents` / `## Related Docs` / `## Related Chapters`, at any heading level) is reported if it remains. ADR documents are also checked for whether the Front Matter `related:` covers every body reference. Each `related:` entry must be a bare filename ending in `.md` (no path, no anchor). Usage: `uv run python tools/check_docs_structure.py [glob ...]`. `--schema [PATH]` (default `schemas/doc_front_matter.json` when the value is omitted) additionally runs schema-driven Front Matter validation (required fields and `area`/`status` enum constraints); it is disabled by default and does not affect existing behavior. The schema itself is loaded via `tools/_front_matter_schema.py`; if it does not exist, falls back to the current four required fields |
 | `check_dependency_graph_cycles.py` | Parses the edge list (`- A → B` format) from the `## Software Runtime Dependency Graph` section of `docs/00_governance/governance_05_change-impact-and-dependency-graphs.md`, and exits non-zero if a cycle exists among the five nodes Agent/MCP/RAG/EventBus/Shared-DB. Edges under both `Confirmed edges` and `Needs Confirmation` are included in cycle detection |
 | `manage_frontmatter.py` | Subcommands. `add-missing`: detect and add missing Front Matter (if `area` cannot be inferred from the filename with confidence, it is not guessed as `overview` etc.; the file is only reported as `[AMBIGUOUS]`). `dedupe-lists`: remove duplicate entries from list fields. `rename-category-to-area` (new): rename the `category:` key inside valid fenced (`---`) Front Matter to `area:`, keeping the value (if both keys coexist, report only and do not rename). `merge-related` (one-off migration aid; `## ` level only): merge entries of body `## Related Documents` / `## Related Docs` / `## Related Chapters` into Front Matter `related:` (default is dry-run; `--fix` writes; walks `docs/**/*.md` recursively; path arguments narrow the target; for ADR documents only Front Matter is updated and the body is left unchanged; sections containing non-link lines or nonexistent references are reported, not deleted; deeper `### ` blocks are out of scope and need manual migration; body blocks at any level are detected by `check_docs_structure.py`). Bug fix on 2026-09-03: `AREA_PREFIX_MAP` lacked the `06_eventbus` prefix (nonexistent `06_config` / `91_eventbus` were registered by mistake, so existing `06_eventbus_*.md` files were wrongly inferred as `area: overview`) |
-| `rename_mcp_modules.py` | Bulk-renames module names under `mcp_servers/<server>/`. Automatically updates absolute imports, relative imports, patch targets, and docstrings |
 | `rename_doc.py` | Takes `<old-path> <new-path>` and runs `git mv` on a `docs/*.md` file (including `docs/10_adr/*.md`). Scans all Markdown files under `docs/` and rewrites Markdown link paths to that file and Front Matter `related:` entries (bare filename or `../` form; other forms are reported, not rewritten). If both `--old-title` and `--new-title` are given, link text is also replaced (non-link plain-text mentions are reported, not rewritten). Writes are limited to `docs/`. Mentions of the old filename (including with a path) in tracked text files outside `docs/` (excluding `*/done/` and `*/superseded/`) are reported, not rewritten. Without `--apply`, it behaves as `--dry-run` (default) and only displays the changes |
-| `rename_impl_procedure_docs.py` | Scans `implementations/` and `implementations/done/` for procedure Markdown files wrongly generated with a `.py` extension (files with Markdown structure such as the `# Implementation Procedure:` banner and `## ` headings) and bulk-renames them to `.py.md`. Files already ending in `.md` are skipped; files without Markdown structure (real code) are protected and not renamed. Renaming uses `Path.rename` only (git detects the rename at the next commit). Runs by default without `--apply` |
 | `fix_docstring_blank_line.py` | Bulk-fixes D205 (no blank line right after the docstring summary line) by inserting a blank line. Triple-quoted string detection is hardened to avoid false positives on SQL string literals. `--dir` sets the directory to scan |
 | `fix_docs_section_marks.py` | Removes the section symbol `§` (a cause of rendering problems) from Markdown files under `docs/` and `skills/` and replaces it with plain English (`section N`, `sections N-M`, etc.). `--dir <path...>` changes the scan target (default `docs skills`). Dry-run unless `--apply` is given |
-| `fix_docstring_paths.py` | Rewrites the module-level docstring header path of `scripts/**/*.py` to the repository-root-relative form (`scripts/<relpath>`). `--dry-run` shows the changes; `--apply` applies them |
+| `fix_docstring_paths.py` | Rewrites the module-level docstring header path of `scripts/**/*.py` to the repository-root-relative form (`scripts/<relpath>`). A first line with no self-reference becomes `scripts/<relpath> — <existing text>`, matching `check_docstrings.py`. Files with no docstring, or whose first line already contains an em-dash, are reported for manual review, not edited. `--dry-run` shows the changes; `--apply` applies them |
 
 ## Test-Related Checkers
 
@@ -135,7 +131,6 @@ Scripts that check consistency and manage the lifecycle of work items (issues/pl
 |---|---|---|
 | `check_plan_target_overlaps.py` | `plans/*.md` (excluding `plans/done/`) | Detects multiple `Frozen` Plans that target the same file path in their `## Implementation Target Files` tables (`cross-plan-target-overlap`). Design contradictions cannot be judged by static analysis, so it presents only the mechanically cheap precondition (multiple Plans targeting one file at the same time) as candidates. Motivation: a real incident where an SSE heartbeat Plan and a delivery-state-transition Plan targeted the DLQ requeue model in contradictory ways (each was self-consistent alone; the conflict surfaced only as a test-suite collision). `Draft` Plans are out of scope (`Implementation Target Files` is not canonical until `Frozen`). Heuristic report-only tool; the exit code is always 0. Read-only. `--format json\|csv` gives machine-readable output |
 | `manage_workitem_stage.py` | `issues/`, `plans/`, `implementations/` | See the subcommand reference below |
-| `add_alternatives_section.py` | `implementations/` | Inserts a missing `## Alternatives considered` section into implementation procedure documents that lack it (the canonical template requires every heading). Places the heading before the first `## Implementation` heading and chooses test-vs-doc body text by the file path. Accepts explicit file arguments or `--prefix YYYYMMDD-HHMMSS` to scan a timestamp group under `implementations/`; skips files that already contain the section |
 
 ### manage_workitem_stage.py subcommands
 
@@ -184,7 +179,7 @@ Status updates and queries:
 
 | File | Description |
 |---|---|
-| `check_docstrings.py` | Validates the docstring format of Python files under `scripts/`. Checks that an em-dash (U+2014) is present and that the form `scripts/<path> — description` is valid. It does **not** add or fix docstrings |
+| `check_docstrings.py` | Validates the docstring format of Python files under `scripts/`. Checks that an em-dash (U+2014) is present and that the form `scripts/<path> — description` is valid. It does **not** add or fix docstrings. Violations that predate the check are listed in `tools/check_docstrings_baseline.txt` (`<relpath>`, tab, issue kind): only new violations fail, and a baseline entry whose violation is gone is reported as stale and also fails. `--update-baseline` regenerates the file; `--no-baseline` reports everything; `--baseline PATH` selects another file |
 
 ### Limitations of docstring-editing scripts
 

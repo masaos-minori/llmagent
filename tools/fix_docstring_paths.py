@@ -13,10 +13,12 @@ basename, using dotted-module notation, or missing entirely with a stray
 `scripts/` glued onto free-text description from a prior partial edit.
 
 Files with a docstring that has no recognizable self-reference (pure prose, e.g.
-"AgentREPL") get the real path prepended as a new first line, description kept
-verbatim below it. Files with no module docstring at all get a new one-line
-docstring containing just `scripts/<relpath>` inserted (after a shebang line,
-if present).
+"AgentREPL") get `scripts/<relpath> \u2014 ` prepended to the first line, so the
+header matches the `scripts/<relpath> \u2014 <description>` form that
+tools/check_docstrings.py enforces; the rest of the docstring is kept verbatim.
+Files that cannot be fixed without inventing text are reported for manual review
+instead of being edited: a file with no module docstring (or an empty file), and a
+prose first line that already contains an em-dash.
 
 Usage:
     python tools/fix_docstring_paths.py --dry-run
@@ -30,6 +32,8 @@ import ast
 import re
 import sys
 from pathlib import Path
+
+EM_DASH = "\u2014"
 
 # Two dotted-module headers (mcp_servers.rag_pipeline.{models,server}) are the
 # only observed instances of this style; handled explicitly rather than via a
@@ -58,6 +62,8 @@ def get_module_docstring_span(tree: ast.Module) -> tuple[int, int, int, int] | N
     ):
         return None
     node = first.value
+    if node.end_lineno is None or node.end_col_offset is None:
+        return None
     return node.lineno, node.col_offset, node.end_lineno, node.end_col_offset
 
 
@@ -93,8 +99,8 @@ def compute_new_header(
     """Returns (new_header_first_line, mode) or None if no self-reference found.
 
     mode is "inline" (simple substitution within the first line) or
-    "repair" (the whole first line was a broken scripts/+description glue
-    with no real path -- caller must insert a blank line before the rest).
+    "repair" (the first line holds only description text with no real path --
+    the caller prepends `<correct> \u2014 ` to it).
     """
     m = PY_PATH_RE.match(header)
     if m:
@@ -127,34 +133,9 @@ def compute_new_header(
         return remainder, "repair"
 
     # Pure prose with no self-reference at all (e.g. "AgentREPL"): treat the
-    # whole existing header as the description and prepend the real path,
-    # same construction as the "repair" case above.
+    # whole existing header as the description, same construction as the
+    # "repair" case above.
     return header, "repair"
-
-
-def insert_new_docstring(path: Path, source: str, correct: str, apply: bool) -> str:
-    """Adds a `\"\"\"scripts/<relpath>\"\"\"` docstring to a file that has none."""
-    if source.strip() == "":
-        new_source = f'"""{correct}"""\n'
-    else:
-        shebang, rest = "", source
-        if source.startswith("#!"):
-            nl = source.find("\n")
-            if nl == -1:
-                shebang, rest = source + "\n", ""
-            else:
-                shebang, rest = source[: nl + 1], source[nl + 1 :]
-        new_source = f'{shebang}"""{correct}"""\n\n{rest}'
-
-    try:
-        ast.parse(new_source)
-    except SyntaxError as e:
-        return f"SKIP (new docstring would break syntax): {path}: {e}"
-
-    summary = f"{correct} [new]:\n  + {correct!r}"
-    if apply:
-        path.write_text(new_source, encoding="utf-8")
-    return summary
 
 
 def process_file(path: Path, scripts_root: Path, apply: bool) -> str | None:
@@ -167,8 +148,7 @@ def process_file(path: Path, scripts_root: Path, apply: bool) -> str | None:
 
     span = get_module_docstring_span(tree)
     if span is None:
-        relpath = path.relative_to(scripts_root).as_posix()
-        return insert_new_docstring(path, source, f"scripts/{relpath}", apply)
+        return f"SKIP (no module docstring; a description is needed, manual review): {path}"
     start_line, start_col, end_line, end_col = span
 
     source_bytes = source.encode("utf-8")
@@ -204,7 +184,12 @@ def process_file(path: Path, scripts_root: Path, apply: bool) -> str | None:
         return None  # already correct
 
     if mode == "repair":
-        new_body = correct + "\n\n" + new_header + (sep + rest if sep else "")
+        if EM_DASH in new_header:
+            return (
+                f"SKIP (description already contains an em-dash, "
+                f"needs manual review): {path}"
+            )
+        new_body = f"{correct} {EM_DASH} {new_header}" + (sep + rest if sep else "")
     else:
         new_body = new_header + (sep + rest if sep else "")
 
