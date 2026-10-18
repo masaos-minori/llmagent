@@ -232,3 +232,6 @@ node_modules/
 
 # Mutation testing snapshot tree (cosmic-ray/mutmut style working copy)
 mutants/
+
+# Nuitka build diagnostics
+nuitka-crash-report.xml
