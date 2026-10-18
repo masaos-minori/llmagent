@@ -105,3 +105,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^(tests/.*\.py|scripts/.*\.py|tools/check_mock_patch_targets\.py)$
+      - id: check-docstrings
+        name: Check scripts/ module docstring format (baseline-gated)
+        entry: python -m tools.check_docstrings
+        language: system
+        pass_filenames: false
+        files: ^(scripts/.*\.py|tools/check_docstrings(_baseline\.txt|\.py))$
