@@ -230,6 +230,43 @@ class TestDiscoverAllHappyPath:
 # ── enabled_for_llm derivation from `enabled` key ─────────────────────────────
 
 
+class TestDiscoverAllSendsBearerAuth:
+    """/v1/tools requires the same Bearer token as every other MCP endpoint (401 otherwise)."""
+
+    @staticmethod
+    def _empty_tools_http() -> AsyncMock:
+        http = AsyncMock(spec=httpx.AsyncClient)
+        http.get = _async_result(_resp(200, {"schema_version": "1.0", "tools": []}))
+        return http
+
+    @pytest.mark.asyncio
+    async def test_each_server_receives_its_own_bearer_token(self) -> None:
+        http = self._empty_tools_http()
+        alpha = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9001",
+            startup_mode=StartupMode.PERSISTENT,
+            auth_token="token-alpha",
+        )
+        beta = McpServerConfig(
+            transport=TransportType.HTTP,
+            url="http://127.0.0.1:9002",
+            startup_mode=StartupMode.PERSISTENT,
+            auth_token="token-beta",
+        )
+        ctx = _make_ctx({"alpha": alpha, "beta": beta}, http)
+
+        await McpToolDiscoveryService(ctx).discover_all()
+
+        sent = {
+            call.args[0]: call.kwargs["headers"] for call in http.get.call_args_list
+        }
+        assert sent == {
+            "http://127.0.0.1:9001/v1/tools": {"Authorization": "Bearer token-alpha"},
+            "http://127.0.0.1:9002/v1/tools": {"Authorization": "Bearer token-beta"},
+        }
+
+
 class TestDiscoverAllEnabledForLlm:
     @pytest.mark.asyncio
     async def test_enabled_key_absent_defaults_to_true(self) -> None:

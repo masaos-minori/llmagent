@@ -107,6 +107,7 @@ class McpToolsHttpClient:
         try:
             resp = await self._http_client.get(
                 f"{cfg.url}{_TOOLS_ENDPOINT}",
+                headers=cfg.auth_headers(),
                 timeout=httpx.Timeout(timeout=get_effective_health_timeout(cfg)),
             )
         except (httpx.HTTPError, OSError) as e:
