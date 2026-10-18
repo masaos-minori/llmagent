@@ -1,6 +1,8 @@
 """tests/mcp_servers/github/test_service_dispatch.py
 
-Characterization tests for scripts/mcp_servers/github/github_service_dispatch.py.
+Characterization tests for scripts/mcp_servers/github/github_service_dispatch.py and
+scripts/mcp_servers/github/github_service_dispatch_writes.py, the write-dispatch mixin
+that file composes; every method under test is still reached through `GitHubService`.
 
 Baseline coverage for this file was 67% (verified during the 04_refactor.md
 sweep of this subsystem): the `fmt_*` wrapper methods that only format an
@@ -19,9 +21,9 @@ These tests lock:
 Each `fmt_*` method under test delegates I/O to a business-layer method
 (e.g. `list_branches`, `get_commit`) that is monkeypatched directly on the
 instance with a canned response; this isolates the formatting responsibility
-that lives in this file from the GitHub-API-calling responsibility that
-lives in service_business.py / service_*.py mixins (already covered by
-their own test files).
+that lives in service_dispatch.py / service_dispatch_writes.py from the
+GitHub-API-calling responsibility that lives in service_business.py /
+service_*.py mixins (already covered by their own test files).
 """
 
 from __future__ import annotations
