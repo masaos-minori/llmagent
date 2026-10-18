@@ -75,3 +75,20 @@ Confirm whether the intended MDQ model is pre-bind fail-closed or `/health`-base
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261018-191517
 - **Related target files**: scripts/mcp_servers/mdq/mdq_server.py, scripts/mcp_servers/mdq/mdq_security_validation.py
+
+## Verification
+
+Overall assessment: The issue is accurate and reproducible against current source. Every factual claim holds; the core defect is real and unambiguous.
+
+Core claim status: Holds. `mdq_server.py` has no `_enforce_posture_gate()` and its `__main__` calls only `server.run_http()`, while every sibling MCP server defines `_enforce_posture_gate()` and invokes it before `run_http()`. The MDQ posture machinery (`validate_mdq_security()`, `build_mdq_posture()`) exists and is exercised by `check_health()`, but only publishes on `/health`, never as a pre-bind gate.
+
+Findings by severity:
+
+- Medium — Missing pre-bind fail-closed gate. `mdq_server.py` entry point binds HTTP before any misconfiguration (missing DB, schema error, empty `allowed_dirs`) is detected; detection waits for the next `/health` probe. Evidence: sibling servers (`web_search_server.py`, `file/read_server.py`, `git_server.py`, etc.) each define `_enforce_posture_gate()` reading `_security_posture.validated` and raise `SystemExit(1)`; `mdq_server.py` has no such symbol. Confidence: High (Explicit in code).
+- Medium — No corresponding test. Sibling servers each ship `test_*_health_posture.py` asserting fail-closed startup; `tests/mcp_servers/mdq/` has none. Confidence: High (Explicit in code).
+- Low — Import-time posture is absent for MDQ. Siblings build their posture once at module import (`_security_posture = _build_security_posture(_cfg)`); MDQ builds it only inside `check_health()` per probe, so a pre-bind gate requires lifting posture construction to import time. Confidence: High (Explicit in code).
+- Informational — Practical impact is bounded. The Agent-side `startup_validation.py` also validates via the `/health` probe rather than a pre-bind gate, so MDQ is consistent with the Agent's own model; the gap is contract inconsistency with sibling servers, not a missing control. Confidence: High (Explicit in code).
+
+Highest severity: Medium.
+
+Verdict: Valid, actionable issue. Recommend adding the pre-bind gate reusing existing MDQ validation machinery, and adding a fail-closed startup test mirroring the sibling servers.

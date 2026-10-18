@@ -88,3 +88,18 @@ Fix at the config-validation boundary first; confirm `resolve_rag_config` raises
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261018-193310
 - **Related target files**: scripts/shared/config_validator.py, scripts/rag/config_resolution.py, scripts/rag/llm_prompts.py, scripts/rag/llm_client.py, scripts/rag/stages/mqe.py, scripts/rag/stages/rerank.py
+
+## Verification
+
+Overall assessment: The issue is a real, evidence-grounded bug. Every factual claim in the issue was checked against current source and holds.
+
+Core claim status: Still holds. Prompt templates are not type-validated at config load, and a non-string template reaches the pipeline stages as an uncaught `TypeError`.
+
+Findings by severity:
+
+- High — Validation gap confirmed. `RagConfigValidator.validate` in `scripts/shared/config_validator.py` only emits a `use_rrf` warning and an error for removed semantic-cache keys; it never inspects `mqe_prompt_template` or `rerank_prompt_template` types. Both production call sites (`resolve_rag_config` in `scripts/rag/config_resolution.py` and `RagPipelineConfig.load` in `scripts/mcp_servers/rag_pipeline/rag_pipeline_models.py`) raise `ValueError` on `ok=False`, so adding a type check here fails fast at startup.
+- High — Uncaught exception path confirmed. `_mqe_prompt` and `_build_rerank_prompt` in `scripts/rag/llm_prompts.py` raise `TypeError` for a non-str template. `expand_queries` in `scripts/rag/llm_client.py` catches only `(httpx.HTTPStatusError, httpx.RequestError, orjson.JSONDecodeError, MqeParseError)`; `MqeStage.run` in `scripts/rag/stages/mqe.py` catches only `RagExpansionError`; `_run_stage` in `scripts/rag/stage_lifecycle.py` catches only `(RuntimeError, sqlite3.OperationalError, httpx.HTTPStatusError, httpx.RequestError, TimeoutError)`. `TypeError` is absent from every one and propagates out of `RagPipelineStageLifecycle.run()`. The rerank side mirrors this: `cross_encoder_rerank` catches `(httpx.HTTPStatusError, httpx.RequestError, ValueError)` and `RerankStage.run` catches only `RagRerankError`.
+- Low — Policy alignment. `rules/coding.md` Type-coercion policy requires config loaders to validate field types via `get_typed`-style validation; prompt templates currently bypass it entirely.
+- Low — No false positive. The real config (`config/rag_pipeline_mcp_server.toml`) uses string templates, so the integration test in `tests/shared/test_config_validator.py` will still pass once the fix is added.
+
+Verdict: Valid and actionable. Fix at the config-validation boundary per the issue's stated intent.

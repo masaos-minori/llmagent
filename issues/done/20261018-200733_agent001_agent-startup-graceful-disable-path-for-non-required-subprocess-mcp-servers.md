@@ -81,3 +81,16 @@ Confirm `disable_server` has no other callers, then delete the unreachable `requ
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261018-200733
 - **Related target files**: scripts/agent/startup_mcp_starter.py, scripts/shared/mcp_config.py
+
+## Verification
+
+Overall assessment: The issue's core claim holds against current source. Both the dead-code and contradictory-comment findings are confirmed by direct reading of the implementation, tests, config, and the cited ADR.
+
+Core claim status: Still valid. `McpServerConfig.__post_init__` -> `_validate_cross_fields` -> `_validate_startup_requirements` raises `ValueError` for `startup_mode=subprocess` with `required=false`; `_build_mcp_servers` routes every server through that constructor, so no runtime subprocess server can carry `required=false`. Every subprocess server is therefore `required=true`.
+
+Findings by severity:
+
+- Low (primary): Unreachable graceful-disable path. `start_servers` branches on `cfg.required` after the retry helper; the `if not cfg.required:` branch calls `disable_server` and continues. `disable_server` has exactly one caller (that branch). Because every subprocess server is `required=true`, the branch never disables-and-continues; it always falls to the fatal raise. Evidence: `scripts/agent/startup_mcp_starter.py` (`start_servers`, `disable_server`); `scripts/shared/mcp_config.py` (`_validate_startup_requirements`); `tests/shared/test_mcp_config.py::test_subprocess_non_required_rejected`; ADR-004 Implementation Notes explicitly states the `disable_server` branch is never reached. No test or reload path constructs a `required=false` subprocess server or calls `disable_server`.
+- Low: Contradictory guard comment. The comment above the `required=false` rejection asserts "the spawn path ignores `required`", but `start_servers` explicitly consults `cfg.required` and branches on it. The observable outcome (always abort) is coincidentally correct, but the stated mechanism is wrong and invites an incorrect mental model. Evidence: cross-reading `scripts/shared/mcp_config.py` (guard comment) and `scripts/agent/startup_mcp_starter.py` (`start_servers`).
+
+One-line verdict: Issue is valid and actionable as a behavior-preserving cleanup; proceed to plan.

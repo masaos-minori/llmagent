@@ -75,3 +75,16 @@ Only correct the `HttpAugment.run` docstring to match the current terminal-empty
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261018-193523
 - **Related target files**: scripts/rag/http_augment.py
+
+## Verification
+
+Overall assessment: The issue is valid. The `HttpAugment.run` docstring genuinely contradicts both the implementation and the other two RAG docstrings on the empty-result contract. One factual claim in the issue is incorrect: the asserted test gap does not exist.
+
+Core claim status: Holds. Against current source, `RagPipeline.augment()` returns `""` for an HTTP 200 empty remote result and never falls back to in-process search, while the `HttpAugment.run` docstring still states `""` means "caller should fall back to in-process search."
+
+Findings by severity:
+
+- Medium — Docstring contradiction. `HttpAugment.run` docstring (`scripts/rag/http_augment.py`) states `""` means "caller should fall back to in-process search"; the code, `call_rag_service()` docstring (`scripts/rag/pipeline_service.py`, `"empty"` documented as "Not a failure"), and `RagPipeline.augment()` docstring (`scripts/rag/pipeline.py`, HTTP step documented as `str/"" (final)`) all treat `""` as terminal. Evidence: traced the full chain `call_rag_service` -> `HttpAugment.run` -> `AugmentRefiner.run_http_augment` -> `RagPipeline.augment()`.
+- Low — Testing-gap claim is false. The issue claims no test pins the empty-remote behavior at the `RagPipeline.augment()` level; `tests/rag/test_rag_http_mode.py::test_remote_empty_does_not_trigger_in_process` already asserts `augment()` returns `""` and that in-process `run()` is not invoked for an HTTP 200 empty result. Test passes; listed as CI-blocking under ADR-010 INV-03. No new test is required.
+
+Verdict: Issue is valid; the fix is a docstring-only alignment. The plan corrects the false testing-gap claim and adds no new test.

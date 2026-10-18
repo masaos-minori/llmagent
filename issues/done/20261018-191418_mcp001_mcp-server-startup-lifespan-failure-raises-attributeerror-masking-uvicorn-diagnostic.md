@@ -75,3 +75,21 @@ Do not rewrite `run_http()` or the bind policy. Add a single guard at the top of
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261018-191418
 - **Related target files**: scripts/mcp_servers/server.py, tests/mcp_servers/test_mcp_server_base.py
+
+## Verification
+
+**Overall assessment:** The issue's core claim is verified against the current source and reproduced at runtime. The `_LoopbackVerifyingServer.startup()` override in `scripts/mcp_servers/server.py` accesses `self.servers` unconditionally after `await super().startup()`. In uvicorn 0.49.0, `Server.startup()` returns early (setting `self.should_exit = True` and leaving `self.servers` unset) whenever the ASGI lifespan startup fails, and `Server.__init__` never initializes `self.servers`. The override therefore raises `AttributeError` on the failing-lifespan path, masking uvicorn's own "Application startup failed. Exiting." diagnostic.
+
+**Core claim status:** HOLDS. Reproduced with a subclass of the real `uvicorn.Server` and a FastAPI app whose lifespan raises during startup: uvicorn logged `ERROR: Application startup failed. Exiting.` and the override then raised `AttributeError: '_LoopbackVerifyingServer' object has no attribute 'servers'`. A guarded variant (`if self.should_exit or not getattr(self, "servers", None): return`) eliminated the `AttributeError` while preserving the clean diagnostic.
+
+**Findings by severity:**
+
+- **High — Diagnostic masking on failing lifespan (core).** `_LoopbackVerifyingServer.startup()` iterates `self.servers` with no guard. On the early-exit path `self.servers` is never assigned, so the override raises `AttributeError`, which escapes `run_http()` (its `try/except` catches only `KeyboardInterrupt`) and produces an unhandled traceback and exit code 1. The underlying cause (embedding/LLM endpoint unreachable, DB missing, invalid config) is hidden. Only `rag-pipeline-mcp` defines a FastAPI lifespan (`_lifespan` awaiting `RagPipelineMCPService.start()`), so it is the sole affected server. Evidence: `scripts/mcp_servers/server.py` `_LoopbackVerifyingServer.startup()`; uvicorn 0.49.0 `Server.startup()` early-return; `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py` `_lifespan`; runtime reproduction under `/tmp/mcprepro/`.
+
+- **Medium — No test coverage of the failing-lifespan path.** Every bind-path test in `tests/mcp_servers/test_mcp_server_base.py` patches `uvicorn.Server.run` to a no-op (`_fake_run`) that sets `self.started` and never calls the real `startup()`, so the override's early-exit branch is never exercised. This is why the defect survived. The requested regression test closes this gap. Evidence: `tests/mcp_servers/test_mcp_server_base.py` `TestBindAddressValidation._fake_run`.
+
+- **Low — Wording inconsistency in Documentation Impact.** The "Documentation Impact" section refers to "the redundancy" of the post-start verification without ever establishing that redundancy elsewhere in the document; reads as template residue. Does not affect the core claim.
+
+- **Informational — Guard formulation.** The suggested guard `if self.should_exit or not getattr(self, "servers", None): return` is correct and minimal. An equally valid, simpler signal is `if not self.started: return`, since `self.started` is set True only on the normal path. Either preserves the loopback verification for the successful start.
+
+**Verdict:** Holds — the issue describes a real, currently-unresolved defect. Proceed to plan.
