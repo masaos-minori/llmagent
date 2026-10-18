@@ -95,11 +95,18 @@ class RepositoryState:
         # Bare repos do not support untracked_files/is_dirty; fall back to defaults.
         dirty = _query_or_default(lambda: repo.is_dirty(untracked_files=True), False)
         untracked = _query_or_default(lambda: len(repo.untracked_files), 0)
-        branch_name = _active_branch_name(repo)
+        # One HEAD read decides both head_type and active_branch, so the two
+        # fields can never disagree about the same snapshot.
+        detached = _head_is_detached(repo)
+        branch_name = (
+            None
+            if detached
+            else _query_or_default(lambda: repo.active_branch.name, None)
+        )
         return cls(
             path=path_str,
             is_dirty=dirty,
-            head_type="detached" if repo.head.is_detached else "branch",
+            head_type="detached" if detached else "branch",
             active_branch=branch_name,
             untracked_file_count=untracked,
             protected_branch=_is_protected_branch(repo, protected_branches),
@@ -492,12 +499,21 @@ def _query_or_default[T](query: Callable[[], T], default: T) -> T:
         return default
 
 
+def _head_is_detached(repo: git.Repo) -> bool:
+    """Return True when HEAD is detached, failing closed to True when unreadable.
+
+    A HEAD reference that cannot be read is reported as detached: the write
+    guards reject a detached HEAD, so an unreadable reference cannot pass for an
+    ordinary branch.
+    """
+    return _query_or_default(lambda: repo.head.is_detached, True)
+
+
 def _active_branch_name(repo: git.Repo) -> str | None:
     """Return the active branch name, or None when HEAD is detached or unreadable."""
-    return _query_or_default(
-        lambda: None if repo.head.is_detached else repo.active_branch.name,
-        None,
-    )
+    if _head_is_detached(repo):
+        return None
+    return _query_or_default(lambda: repo.active_branch.name, None)
 
 
 def _matches_protected(

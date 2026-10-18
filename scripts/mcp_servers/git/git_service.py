@@ -257,6 +257,17 @@ class GitService:
             return pipeline_result.output
         raise ValueError(pipeline_result.rejection_message)
 
+    def _require_config(self, tool_name: str) -> GitConfig:
+        """Return the server config a network-write tool needs, or raise.
+
+        `format_pull` and `format_push` read the timeout and remote settings from the
+        config, so a service built without one cannot run them. An `assert` would
+        disappear under `python -O`, which is why the check is explicit.
+        """
+        if self._config is None:
+            raise GitServiceError(f"{tool_name} requires the git MCP server config")
+        return self._config
+
     def _write_timeout(self, tool_name: str) -> float | None:
         """Return the network-write timeout (seconds) for a tool, or None.
 
@@ -390,8 +401,7 @@ class GitService:
         self._require_ok(self._validate_remote(req.remote))
 
         def _pull_op(repo: git.Repo, state: RepositoryState) -> str:
-            assert self._config is not None
-            return format_pull(state, req, self._config)
+            return format_pull(state, req, self._require_config("git_pull"))
 
         return await self._run_tool(
             "git_pull",
@@ -414,8 +424,7 @@ class GitService:
         self._require_ok(self._validate_remote(req.remote))
 
         def _push_op(repo: git.Repo, state: RepositoryState) -> str:
-            assert self._config is not None
-            return format_push(state, req, self._config)
+            return format_push(state, req, self._require_config("git_push"))
 
         return await self._run_tool(
             "git_push",

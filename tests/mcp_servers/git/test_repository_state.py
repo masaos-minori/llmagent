@@ -805,8 +805,10 @@ class _QueryFailingRepo:
     GitPython version raising on a real repo.
     """
 
-    def __init__(self, *, detached: bool = False) -> None:
-        self.head = SimpleNamespace(is_detached=detached)
+    def __init__(self, *, detached: bool = False, head_raises: bool = False) -> None:
+        self.head = (
+            _RaisingHead() if head_raises else SimpleNamespace(is_detached=detached)
+        )
 
     def is_dirty(self, untracked_files: bool = True) -> bool:
         raise git.exc.GitError("is_dirty query failed")
@@ -818,6 +820,14 @@ class _QueryFailingRepo:
     @property
     def active_branch(self) -> Any:
         raise git.exc.GitError("active_branch query failed")
+
+
+class _RaisingHead:
+    """HEAD stand-in whose is_detached lookup raises (unreadable reference)."""
+
+    @property
+    def is_detached(self) -> bool:
+        raise git.exc.GitError("head.is_detached query failed")
 
 
 class TestSnapshotQueryFallbackCharacterization:
@@ -835,6 +845,16 @@ class TestSnapshotQueryFallbackCharacterization:
         assert state.head_type == "branch"
         assert state.ref_valid is False
         assert state.protected_branch is False
+
+    def test_unreadable_head_falls_back_to_detached(self) -> None:
+        """An unreadable HEAD reference reports head_type detached, not an error."""
+        stub = _QueryFailingRepo(head_raises=True)
+
+        with patch.object(git, "Repo", return_value=stub):
+            state = RepositoryState.snapshot("/tmp/query-failing-repo")
+
+        assert state.head_type == "detached"
+        assert state.active_branch is None
 
     def test_protected_branch_is_false_when_branch_lookup_raises(self) -> None:
         stub = _QueryFailingRepo()

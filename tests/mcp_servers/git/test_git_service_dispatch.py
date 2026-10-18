@@ -330,6 +330,51 @@ class TestGitPull:
         assert result == "Already up to date."
 
 
+class TestNetworkWriteToolsRequireConfig:
+    """`_require_config()` replaces an `assert`, so `python -O` cannot skip the check."""
+
+    @staticmethod
+    def _snap(mock_repo: MagicMock) -> MagicMock:
+        snap = MagicMock(spec=RepositoryState)
+        snap.path = "/tmp/repo"
+        snap._repo = mock_repo
+        snap.is_dirty = False
+        snap.is_detached_head = False
+        snap.verify_authorization.return_value = (True, "")
+        snap.verify_preconditions.return_value = (True, "")
+        snap.verify_postcondition.return_value = (True, "")
+        snap.audit.return_value = {}
+        return snap
+
+    @pytest.mark.asyncio
+    async def test_git_pull_without_config_raises_git_service_error(self) -> None:
+        svc = GitService(allowed_repo_paths=["/opt/repos"], read_only=False)
+        mock_repo = MagicMock()
+        mock_repo.git.fetch.return_value = "up to date"
+
+        with patch.object(
+            RepositoryState, "snapshot", return_value=self._snap(mock_repo)
+        ):
+            with pytest.raises(
+                GitServiceError, match="git_pull requires the git MCP server config"
+            ):
+                await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": "main"})
+
+    @pytest.mark.asyncio
+    async def test_git_push_without_config_raises_git_service_error(self) -> None:
+        svc = GitService(allowed_repo_paths=["/opt/repos"], read_only=False)
+        mock_repo = MagicMock()
+        mock_repo.git.push.return_value = "Everything up-to-date"
+
+        with patch.object(
+            RepositoryState, "snapshot", return_value=self._snap(mock_repo)
+        ):
+            with pytest.raises(
+                GitServiceError, match="git_push requires the git MCP server config"
+            ):
+                await svc.git_push({"repo_path": "/opt/repos/proj", "branch": "main"})
+
+
 # ── Audit record fields — status dispatch path (NC-020 Row 6) ────────────────
 
 
