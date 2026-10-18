@@ -1,4 +1,4 @@
-"""Shared column name constants across eventbus layers.
+"""scripts/eventbus/_constants.py — Shared column name constants across eventbus layers.
 
 Column names derived from events table DDL in schema.sql. These are safe from SQL
 injection because they originate from the schema definition, not user input.

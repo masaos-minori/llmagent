@@ -1,4 +1,4 @@
-"""Connection layer: SQLite connection lifecycle, locking, pragma application."""
+"""scripts/eventbus/db_conn.py — Connection layer: SQLite connection lifecycle, locking, pragma application."""
 
 from __future__ import annotations
 

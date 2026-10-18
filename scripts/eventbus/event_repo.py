@@ -1,4 +1,4 @@
-"""Event repository: all event read/write operations."""
+"""scripts/eventbus/event_repo.py — Event repository: all event read/write operations."""
 
 from __future__ import annotations
 

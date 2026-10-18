@@ -1,4 +1,4 @@
-"""Schema layer: schema definition, migration logic."""
+"""scripts/eventbus/schema.py — Schema layer: schema definition, migration logic."""
 
 from pathlib import Path
 from sqlite3 import Connection

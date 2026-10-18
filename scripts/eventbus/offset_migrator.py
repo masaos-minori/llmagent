@@ -1,4 +1,4 @@
-"""Offset migrator: legacy offset migration with isolated file I/O."""
+"""scripts/eventbus/offset_migrator.py — Offset migrator: legacy offset migration with isolated file I/O."""
 
 from __future__ import annotations
 

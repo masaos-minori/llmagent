@@ -1,4 +1,4 @@
-"""Delivery repository: ack/nack semantics and per-consumer delivery state."""
+"""scripts/eventbus/delivery_repo.py — Delivery repository: ack/nack semantics and per-consumer delivery state."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-"""DLQ repository: dead-letter queue operations."""
+"""scripts/eventbus/dlq_repo.py — DLQ repository: dead-letter queue operations."""
 
 from __future__ import annotations
 
