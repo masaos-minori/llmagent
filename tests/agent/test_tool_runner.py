@@ -5,6 +5,7 @@ Unit tests for tool_runner.py: DAG execution, standard execution, and entry poin
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -14,15 +15,21 @@ from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.context import ConversationState
 from agent.repository_gateway import RepositoryGateway
+from agent.tool_exceptions import ToolExecutorUnavailableError
+from agent.tool_policy import PolicyViolationError
 from agent.tool_preparation import PreparedToolCall
 from agent.tool_runner import (
     _apply_turn_char_limit,
+    _collect_tool_result_msgs,
     _compute_serial_overhead,
+    _emit_tool_result,
     _estimate_parallel_time,
     _execute_with_dag,
     execute_all_tool_calls,
     execute_one_tool_call,
+    get_serialization_stats,
 )
+from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
 
@@ -1154,3 +1161,232 @@ class TestGatewayBypassGapResolution:
 
         ctx.services_required.tools.execute.assert_called_once()
         assert result[0] == "call_r"
+
+
+# ── Characterization tests for the paths the suite left uncovered ─────────────
+#
+# These lock behavior the refactor of scripts/agent/tool_runner.py must preserve:
+# the fail-closed executor guard, the gateway-bypass preflight denial, the
+# transport-failure diagnostics write, the failed-call hash key, the long-result
+# display substitution, the DAG bucket debug lines, and the stats snapshot copy.
+
+
+class TestExecutorUnavailableGuard:
+    @pytest.mark.asyncio
+    async def test_none_tool_executor_raises_unavailable_error(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.tools = None
+
+        with pytest.raises(
+            ToolExecutorUnavailableError,
+            match="Tool executor is not available",
+        ):
+            await execute_one_tool_call(
+                ctx, _pc("read_text_file", {}, call_id="call_r"), 0
+            )
+
+
+class TestGatewayBypassPreflightDenial:
+    @pytest.mark.asyncio
+    async def test_policy_violation_is_logged_and_reraised(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A non-READ call on the gateway-bypass path never reaches tools.execute()."""
+        ctx = _make_ctx()
+        ctx.services_required.gateway = None
+        pc = _pc("shell_run", {"command": "ls"}, call_id="call_s")
+
+        with (
+            caplog.at_level(logging.WARNING, logger="agent.tool_runner"),
+            patch(
+                "agent.tool_runner.check_preflight",
+                side_effect=PolicyViolationError("denied", "denied by policy"),
+            ),
+        ):
+            with pytest.raises(PolicyViolationError, match="denied by policy"):
+                await execute_one_tool_call(ctx, pc, 0)
+
+        assert any(
+            "tool_runner.policy_denied tool='shell_run' reason=denied by policy"
+            in r.message
+            for r in caplog.records
+        )
+        ctx.services_required.tools.execute.assert_not_called()
+
+
+class TestTransportFailureDiagnostics:
+    @pytest.mark.asyncio
+    async def test_transport_error_is_saved_to_diagnostics(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.gateway = None
+        ctx.session.session_id = "sess-1"
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="x" * 900,
+                is_error=True,
+                request_id="req-1",
+                server_key="mcp-git",
+                source="mcp",
+                error_type="transport",
+            )
+        )
+        pc = _pc("read_text_file", {}, call_id="call_r")
+
+        _, _, _, text, is_error, _ = await execute_one_tool_call(ctx, pc, 0)
+
+        assert is_error is True
+        assert len(text) == 900
+        ctx.diagnostics.save_transport_failure.assert_called_once_with(
+            session_id="sess-1",
+            tool_name="read_text_file",
+            server_key="mcp-git",
+            error_msg="x" * 500,
+        )
+
+    @pytest.mark.asyncio
+    async def test_tool_level_error_does_not_write_transport_diagnostics(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.gateway = None
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="bad args",
+                is_error=True,
+                request_id="req-1",
+                server_key="mcp-git",
+                source="mcp",
+                error_type="tool",
+            )
+        )
+        pc = _pc("read_text_file", {}, call_id="call_r")
+
+        await execute_one_tool_call(ctx, pc, 0)
+
+        ctx.diagnostics.save_transport_failure.assert_not_called()
+
+
+class TestFailedResultHashKey:
+    @pytest.mark.asyncio
+    async def test_failed_result_records_its_hash_key(self) -> None:
+        ctx = _make_ctx()
+        failed_keys: set[str] = set()
+        results = [("call_1", "read_text_file", {"path": "/a"}, "boom", True, "boom")]
+
+        tool_msgs = await _collect_tool_result_msgs(ctx, results, 0, failed_keys)
+
+        assert failed_keys == {tool_hash_key("read_text_file", {"path": "/a"})}
+        assert tool_msgs == [("tool", "boom", None, "call_1")]
+
+    @pytest.mark.asyncio
+    async def test_absent_failed_keys_container_is_tolerated(self) -> None:
+        ctx = _make_ctx()
+        results = [("call_1", "read_text_file", {}, "boom", True, "boom")]
+
+        tool_msgs = await _collect_tool_result_msgs(ctx, results, 0, None)
+
+        assert tool_msgs == [("tool", "boom", None, "call_1")]
+
+
+class TestLongResultDisplay:
+    def test_long_result_is_replaced_with_line_and_char_counts(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        text = "\n".join(["a" * 60] * 12)
+        assert len(text) > 500
+
+        with (
+            caplog.at_level(logging.INFO, logger="agent.tool_runner"),
+            patch("agent.tool_runner.emit_tool_result") as mock_emit,
+        ):
+            _emit_tool_result(text, "read_text_file")
+
+        mock_emit.assert_called_once_with(
+            "read_text_file",
+            f"{len(text.splitlines())} lines / {len(text)} chars (truncated)",
+        )
+        assert any(
+            "Tool result read_text_file (full): " in r.message for r in caplog.records
+        )
+
+    def test_short_result_is_emitted_verbatim(self) -> None:
+        with patch("agent.tool_runner.emit_tool_result") as mock_emit:
+            _emit_tool_result("short", "read_text_file")
+
+        mock_emit.assert_called_once_with("read_text_file", "short")
+
+
+class TestDagBucketDebugLines:
+    @pytest.mark.asyncio
+    async def test_each_call_is_labelled_with_its_scheduling_bucket(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        ctx = _make_ctx()
+        serial_pc = _pc(
+            "shell_run",
+            {},
+            call_id="call_s",
+            spec=ToolSpec(
+                call_id="call_s", name="shell_run", requires_serial=True, is_write=False
+            ),
+        )
+        scoped_pc = _pc(
+            "write_file",
+            {},
+            call_id="call_w",
+            spec=ToolSpec(
+                call_id="call_w",
+                name="write_file",
+                resource_scopes=("filesystem:/a", "filesystem:/b"),
+                is_write=True,
+            ),
+        )
+        unscoped_write_pc = _pc(
+            "delete_file",
+            {},
+            call_id="call_d",
+            spec=ToolSpec(call_id="call_d", name="delete_file", is_write=True),
+        )
+        parallel_pc = _pc(
+            "read_text_file",
+            {},
+            call_id="call_r",
+            spec=ToolSpec(call_id="call_r", name="read_text_file", is_write=False),
+        )
+
+        with caplog.at_level(logging.DEBUG, logger="agent.tool_runner"):
+            await _execute_with_dag(
+                ctx, [serial_pc, scoped_pc, unscoped_write_pc, parallel_pc], 0
+            )
+
+        assert {r.message for r in caplog.records if "DAG_BUCKET:" in r.message} == {
+            "DAG_BUCKET: shell_run → serial_barrier",
+            "DAG_BUCKET: write_file → resource_scope:filesystem:/a,filesystem:/b",
+            "DAG_BUCKET: delete_file → resource_scope:global:write",
+            "DAG_BUCKET: read_text_file → parallel",
+        }
+
+    @pytest.mark.asyncio
+    async def test_bucket_labels_are_skipped_when_debug_is_disabled(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        ctx = _make_ctx()
+        pc = _pc(
+            "read_text_file",
+            {},
+            call_id="call_r",
+            spec=ToolSpec(call_id="call_r", name="read_text_file", is_write=False),
+        )
+
+        with caplog.at_level(logging.INFO, logger="agent.tool_runner"):
+            await _execute_with_dag(ctx, [pc], 0)
+
+        assert not [r for r in caplog.records if "DAG_BUCKET:" in r.message]
+
+
+class TestSerializationStatsSnapshot:
+    def test_stats_are_a_copy_of_the_module_counters(self) -> None:
+        before = get_serialization_stats()
+
+        snapshot = get_serialization_stats()
+        snapshot["total_events"] = 999
+
+        assert get_serialization_stats() == before

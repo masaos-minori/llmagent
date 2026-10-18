@@ -21,8 +21,10 @@ from shared.json_utils import (
 from shared.json_utils import (
     now_iso_raw,
 )
+from shared.tool_executor import ToolExecutor
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
+from shared.transport_dto import ToolCallResult
 from shared.types import LLMMessage
 
 from agent.tool_audit import audit_tool_exec, write_round_exec
@@ -39,7 +41,12 @@ from agent.tool_result_formatter import (
     mask_args,
     turn_limit_hint,
 )
-from agent.tool_scheduler import ExecutionPlan, build_execution_groups
+from agent.tool_scheduler import (
+    ExecutionPlan,
+    ScheduledBatch,
+    SerializationEvent,
+    build_execution_groups,
+)
 
 _serialization_stats: dict[str, int] = {
     "total_events": 0,
@@ -93,6 +100,76 @@ async def _run_group_calls(
     )
 
 
+def _idempotency_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
+    """Derive a stable, retry-invariant idempotency key for this Tool Call.
+
+    Composition: {workflow_id}:{task_id}:{turn_id}:{call_id}
+    """
+    workflow_id = ctx.workflow.workflow_id or ""
+    task_id = ctx.workflow.current_task_id or ""
+    turn_id = ctx.turn.current_turn_id or ""
+    return f"{workflow_id}:{task_id}:{turn_id}:{pc.call_id}"
+
+
+async def _execute_prepared_call(
+    ctx: AgentContext,
+    tools: ToolExecutor,
+    name: str,
+    args: dict[str, Any],
+) -> ToolCallResult:
+    """Execute one call through the gateway, or through *tools* when it is absent.
+
+    Gateway-bypass safety justification:
+    When ctx.services_required.gateway is None, no tools are available
+    for execution in this context. The fallback to ctx.services_required.tools
+    is a no-op because tools.execute() will raise an error if no tools
+    are registered. This is intentional -- it prevents unauthorized tool
+    access while allowing the system to handle edge cases gracefully.
+    NOTE: In production, factory.py:652 creates RepositoryGateway unconditionally
+    during AppServices construction, so this branch should never execute.
+    """
+    gateway = ctx.services_required.gateway
+    if gateway is not None:
+        return await gateway.execute(ctx, name, args)
+    # Preflight check when gateway is None for non-READ operations
+    # NOTE: strict_mode behavior — both strict_mode=True and strict_mode=False
+    # always raise ValueError on an unresolved tool; the difference is in
+    # error-message wording only. See ToolRouteResolver.__init__ docstring.
+    op = classify_operation_type(name, ctx.services_required.runtime_tools)
+    if op != OperationType.READ:
+        try:
+            check_preflight(ctx.cfg, name, args)
+        except PolicyViolationError as exc:
+            logger.warning("tool_runner.policy_denied tool=%r reason=%s", name, exc)
+            raise  # Re-raise to prevent unauthorized execution
+    return await tools.execute(name, args)
+
+
+def _record_transport_failure(
+    ctx: AgentContext, name: str, result: ToolCallResult
+) -> None:
+    """Persist a transport-level failure into diagnostics, when diagnostics are wired."""
+    if (
+        not result.is_error
+        or result.error_type != "transport"
+        or ctx.diagnostics is None
+    ):
+        return
+    ctx.diagnostics.save_transport_failure(
+        session_id=getattr(ctx.session, "session_id", None),
+        tool_name=name,
+        server_key=result.server_key or "",
+        error_msg=result.output[:500],
+    )
+
+
+def _truncate_for_llm(text: str, limit: int) -> str:
+    """Cap a tool result at *limit* chars for the copy handed back to the LLM."""
+    if len(text) <= limit:
+        return text
+    return text[:limit] + "\n... (truncated)"
+
+
 async def execute_one_tool_call(
     ctx: AgentContext,
     pc: PreparedToolCall,
@@ -105,43 +182,16 @@ async def execute_one_tool_call(
     Argument parsing and validation already happened in the preparation phase
     (agent.tool_preparation.prepare_tool_calls) before this function is ever called.
     """
-    if ctx.services_required.tools is None:
+    tools = ctx.services_required.tools
+    if tools is None:
         raise ToolExecutorUnavailableError(
             "Tool executor is not available (ctx.services_required.tools is None)"
         )
     name = pc.name
     args = pc.args
 
-    # Derive a stable, retry-invariant idempotency key for this Tool Call.
-    # Composition: {workflow_id}:{task_id}:{turn_id}:{call_id}
-    workflow_id = ctx.workflow.workflow_id or ""
-    task_id = ctx.workflow.current_task_id or ""
-    turn_id = ctx.turn.current_turn_id or ""
-    idempotency_key = f"{workflow_id}:{task_id}:{turn_id}:{pc.call_id}"
-
-    if ctx.services_required.gateway is not None:
-        result = await ctx.services_required.gateway.execute(ctx, name, args)
-    else:
-        # Gateway-bypass safety justification:
-        # When ctx.services_required.gateway is None, no tools are available
-        # for execution in this context. The fallback to ctx.services_required.tools
-        # is a no-op because tools.execute() will raise an error if no tools
-        # are registered. This is intentional -- it prevents unauthorized tool
-        # access while allowing the system to handle edge cases gracefully.
-        # NOTE: In production, factory.py:652 creates RepositoryGateway unconditionally
-        # during AppServices construction, so this branch should never execute.
-        # Preflight check when gateway is None for non-READ operations
-        # NOTE: strict_mode behavior — both strict_mode=True and strict_mode=False
-        # always raise ValueError on an unresolved tool; the difference is in
-        # error-message wording only. See ToolRouteResolver.__init__ docstring.
-        op = classify_operation_type(name, ctx.services_required.runtime_tools)
-        if op != OperationType.READ:
-            try:
-                check_preflight(ctx.cfg, name, args)
-            except PolicyViolationError as exc:
-                logger.warning("tool_runner.policy_denied tool=%r reason=%s", name, exc)
-                raise  # Re-raise to prevent unauthorized execution
-        result = await ctx.services_required.tools.execute(name, args)
+    idempotency_key = _idempotency_key(ctx, pc)
+    result = await _execute_prepared_call(ctx, tools, name, args)
     text, is_error, x_request_id = result.output, result.is_error, result.request_id
     audit_tool_exec(
         ctx,
@@ -154,23 +204,9 @@ async def execute_one_tool_call(
         idempotency_key=idempotency_key,
     )
 
-    if (
-        result.is_error
-        and result.error_type == "transport"
-        and ctx.diagnostics is not None
-    ):
-        ctx.diagnostics.save_transport_failure(
-            session_id=getattr(ctx.session, "session_id", None),
-            tool_name=name,
-            server_key=result.server_key or "",
-            error_msg=result.output[:500],
-        )
+    _record_transport_failure(ctx, name, result)
 
-    llm_text = (
-        text[: ctx.cfg.tool.tool_result_max_llm_chars] + "\n... (truncated)"
-        if len(text) > ctx.cfg.tool.tool_result_max_llm_chars
-        else text
-    )
+    llm_text = _truncate_for_llm(text, ctx.cfg.tool.tool_result_max_llm_chars)
 
     return pc.call_id, name, args, text, is_error, llm_text
 
@@ -262,57 +298,48 @@ def _apply_turn_char_limit(
     return llm_text
 
 
-async def _execute_with_dag(
-    ctx: AgentContext,
-    approved_calls: list[PreparedToolCall],
-    turn: int,
-    force_serial: bool = False,
-) -> list[Any]:
-    """Run approved calls through the single DAG execution plan.
+def _dag_bucket_label(spec: ToolSpec) -> str:
+    """Name the scheduling bucket a call's ToolSpec places it in (debug output only)."""
+    if spec.requires_serial:
+        return "serial_barrier"
+    if spec.resource_scopes or spec.is_write:
+        scopes = spec.resource_scopes or ("global:write",)
+        return f"resource_scope:{','.join(scopes)}"
+    return "parallel"
 
-    Delegates to build_execution_groups(), the sole scheduling engine — passing
-    force_serial through as a planner input (rather than selecting between two
-    execution engines) is what lets ctx.cfg.tool.serial_tool_calls still force
-    fully serial execution without a second code path. Scheduling metadata
-    comes entirely from each PreparedToolCall.spec (already resolved via
-    RuntimeToolRegistry.tool_spec_for_call() during the preparation phase) —
-    this function performs no registry lookups of its own.
-    """
-    call_specs: dict[str, ToolSpec] = {pc.call_id: pc.spec for pc in approved_calls}
-    pc_by_id: dict[str, PreparedToolCall] = {pc.call_id: pc for pc in approved_calls}
 
-    round_id = str(uuid4())
-    t0 = time.perf_counter()
-    plan: ExecutionPlan = build_execution_groups(
-        [pc.original_call for pc in approved_calls],
-        call_specs,
-        force_serial=force_serial,
-    )
-    if logger.isEnabledFor(logging.DEBUG):
-        for _pc in approved_calls:
-            _m = _pc.spec
-            if _m.requires_serial:
-                _bucket = "serial_barrier"
-            elif _m.resource_scopes or _m.is_write:
-                _scopes = _m.resource_scopes or ("global:write",)
-                _bucket = f"resource_scope:{','.join(_scopes)}"
-            else:
-                _bucket = "parallel"
-            logger.debug("DAG_BUCKET: %s → %s", _pc.name, _bucket)
-    serialization_events = plan.serialization_events
-    if serialization_events:
-        total_affected = sum(e.tools_count for e in serialization_events)
-        _serialization_stats["total_events"] += len(serialization_events)
-        _serialization_stats["total_tools_affected"] += total_affected
-        _serialization_stats["tools_affected_last_round"] = total_affected
-        logger.info(
-            "Serialization impact: %d tools grouped serially (normally would run in parallel)",
-            total_affected,
-        )
-    else:
+def _log_dag_buckets(approved_calls: list[PreparedToolCall]) -> None:
+    """Label every approved call's scheduling bucket when DEBUG logging is enabled."""
+    if not logger.isEnabledFor(logging.DEBUG):
+        return
+    for pc in approved_calls:
+        logger.debug("DAG_BUCKET: %s → %s", pc.name, _dag_bucket_label(pc.spec))
+
+
+def _record_serialization_stats(
+    serialization_events: tuple[SerializationEvent, ...],
+) -> None:
+    """Fold one round's serialization events into the module-level counters."""
+    if not serialization_events:
         _serialization_stats["tools_affected_last_round"] = 0
+        return
+    total_affected = sum(e.tools_count for e in serialization_events)
+    _serialization_stats["total_events"] += len(serialization_events)
+    _serialization_stats["total_tools_affected"] += total_affected
+    _serialization_stats["tools_affected_last_round"] = total_affected
+    logger.info(
+        "Serialization impact: %d tools grouped serially (normally would run in parallel)",
+        total_affected,
+    )
 
-    call_order = {pc.call_id: i for i, pc in enumerate(approved_calls)}
+
+async def _run_plan_batches(
+    ctx: AgentContext,
+    plan: ExecutionPlan,
+    pc_by_id: dict[str, PreparedToolCall],
+    turn: int,
+) -> list[Any]:
+    """Run every batch of the plan, flattening group results into one list."""
     results: list[Any] = []
     for batch in plan.batches:
         is_concurrent = len(batch.groups) > 1
@@ -331,8 +358,16 @@ async def _execute_with_dag(
             )
         )
         results.extend(r for group_res in batch_results for r in group_res)
-    results.sort(key=lambda r: call_order.get(r[0], 0))
-    elapsed_ms = (time.perf_counter() - t0) * 1000
+    return results
+
+
+def _record_round_serialization_events(
+    ctx: AgentContext,
+    serialization_events: tuple[SerializationEvent, ...],
+    round_id: str,
+    elapsed_ms: float,
+) -> None:
+    """Append one stats entry per serialization event and mirror it into diagnostics."""
     ts = now_iso_raw()
     for se in serialization_events:
         round_event: dict[str, Any] = {
@@ -360,21 +395,82 @@ async def _execute_with_dag(
                 elapsed_ms=elapsed_ms,
                 reason=se.reason,
             )
-    is_concurrent_round = any(len(batch.groups) > 1 for batch in plan.batches)
-    scheduling_mode = "dag_concurrent" if is_concurrent_round else "dag_sequential"
+
+
+def _scheduling_mode(batches: tuple[ScheduledBatch, ...]) -> str:
+    """Return the round's mode label: concurrent when any batch holds several groups."""
+    if any(len(batch.groups) > 1 for batch in batches):
+        return "dag_concurrent"
+    return "dag_sequential"
+
+
+def _record_round_exec(
+    ctx: AgentContext,
+    approved_calls: list[PreparedToolCall],
+    serialization_events: tuple[SerializationEvent, ...],
+    round_id: str,
+    elapsed_ms: float,
+    batches: tuple[ScheduledBatch, ...],
+) -> None:
+    """Write the round-level execution record that /mcp stats reads back."""
+    first_event = next(iter(serialization_events), None)
     write_round_exec(
         ctx,
         round_id=round_id,
         tool_count=len(approved_calls),
         mode="parallel",
-        has_side_effect=bool(serialization_events),
-        trigger_tool=serialization_events[0].trigger_tool
-        if serialization_events
-        else None,
+        has_side_effect=first_event is not None,
+        trigger_tool=first_event.trigger_tool if first_event else None,
         elapsed_ms=elapsed_ms,
         affected_tools=[pc.name for pc in approved_calls],
-        serial_reason=serialization_events[0].reason if serialization_events else None,
-        scheduling_mode=scheduling_mode,
+        serial_reason=first_event.reason if first_event else None,
+        scheduling_mode=_scheduling_mode(batches),
+    )
+
+
+async def _execute_with_dag(
+    ctx: AgentContext,
+    approved_calls: list[PreparedToolCall],
+    turn: int,
+    force_serial: bool = False,
+) -> list[Any]:
+    """Run approved calls through the single DAG execution plan.
+
+    Delegates to build_execution_groups(), the sole scheduling engine — passing
+    force_serial through as a planner input (rather than selecting between two
+    execution engines) is what lets ctx.cfg.tool.serial_tool_calls still force
+    fully serial execution without a second code path. Scheduling metadata
+    comes entirely from each PreparedToolCall.spec (already resolved via
+    RuntimeToolRegistry.tool_spec_for_call() during the preparation phase) —
+    this function performs no registry lookups of its own.
+    """
+    call_specs: dict[str, ToolSpec] = {pc.call_id: pc.spec for pc in approved_calls}
+    pc_by_id: dict[str, PreparedToolCall] = {pc.call_id: pc for pc in approved_calls}
+
+    round_id = str(uuid4())
+    t0 = time.perf_counter()
+    plan: ExecutionPlan = build_execution_groups(
+        [pc.original_call for pc in approved_calls],
+        call_specs,
+        force_serial=force_serial,
+    )
+    _log_dag_buckets(approved_calls)
+    serialization_events = plan.serialization_events
+    _record_serialization_stats(serialization_events)
+
+    call_order = {pc.call_id: i for i, pc in enumerate(approved_calls)}
+    results = await _run_plan_batches(ctx, plan, pc_by_id, turn)
+    results.sort(key=lambda r: call_order.get(r[0], 0))
+
+    elapsed_ms = (time.perf_counter() - t0) * 1000
+    _record_round_serialization_events(ctx, serialization_events, round_id, elapsed_ms)
+    _record_round_exec(
+        ctx,
+        approved_calls,
+        serialization_events,
+        round_id,
+        elapsed_ms,
+        plan.batches,
     )
     return results
 
