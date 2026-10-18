@@ -114,8 +114,8 @@ Messages constructed by the LLM client's streaming aggregation logic consist onl
 ## Known Limitations
 
 - Cycle detection is fingerprint-based, so tool calls that are functionally equivalent but have different orderings might not be detected as the same pattern.
-- Retry suppression is only effective if `tool_error_retry_max > 0`.
-- Empty result repeat detection is only effective if `tool_empty_result_max_repeats > 0`.
+- Retry suppression is only effective if `tool_error_retry_max > 0`. The effective on/off state is logged once at startup by the tool loop guard (`agent.tool_loop_guard startup diagnostic: retry_suppression=<on|off>(<n>) empty_result_detection=<on|off>(<n>)`). See `scripts/agent/tool_loop_guard.py`.
+- Empty result repeat detection is only effective if `tool_empty_result_max_repeats > 0`. The effective on/off state is logged once at startup by the tool loop guard (`agent.tool_loop_guard startup diagnostic: retry_suppression=<on|off>(<n>) empty_result_detection=<on|off>(<n>)`). See `scripts/agent/tool_loop_guard.py`.
 
 ## Keywords
 

@@ -54,16 +54,16 @@ Depends on the code changes in `scripts/agent/tool_loop_guard.py` (row 1) and
 
 ### Procedure
 
-1. Add `test_report_effective_state_on_off`:
+1. Add `test_report_effective_state_on_off` (new):
    - Construct a guard with a config where both guards are enabled; assert the summary
      contains `retry_suppression=on(` and `empty_result_detection=on(`.
    - Construct a guard with empty-result detection disabled; assert
      `empty_result_detection=off(`.
-2. Add `test_report_effective_state_emits_once_per_process`:
+2. Add `test_report_effective_state_emits_once_per_process` (new):
    - Construct the guard twice; assert the logger was called only once (module-flag
      behavior). If the suite cannot observe the module flag directly, assert the summary is
      produced by only one of the two constructions.
-3. Add `test_report_effective_state_logger_unavailable_does_not_raise`:
+3. Add `test_report_effective_state_logger_unavailable_does_not_raise` (new):
    - Point the guard's logger at a stub that raises; construct the guard and assert no
      exception propagates (REQ-003).
 4. Add/confirm a defaults regression: `ToolConfig().tool_error_retry_max == 1` and
@@ -113,10 +113,10 @@ gating tests remain green.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the test changes in test_tool_loop_guard.py | Pending | — | — | align with rows 1–2 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the test changes in test_tool_loop_guard.py | Completed | 2026-10-18 | 2026-10-18 | 4 tests added (REQ-001/002/003/004); existing gating tests intact |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-18 | 2026-10-18 | `TestReportEffectiveState` appended; `(new)` markers added to procedure for the 3 new names |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-18 | 2026-10-18 | ruff format+check clean; full suite 9113 passed/22 skipped/0 failed; stale detector clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-18 | 2026-10-18 | N/A (test-only) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

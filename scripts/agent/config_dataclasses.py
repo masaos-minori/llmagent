@@ -168,11 +168,13 @@ class ToolConfig:
     # Window size for cyclic planning detection; 0 disables
     tool_cycle_detect_window: int = 2
     tool_error_max_consecutive: int = 3
-    # Max retries for an (name, args) combo that returned an error; 0 = disabled
+    # Max retries for an (name, args) combo that returned an error; > 0 enables
+    # retry suppression, <= 0 disables it. Default 1 (enabled).
     tool_error_retry_max: int = 1
     # Window size for progress stagnation detection; 0 disables
     progress_stagnation_window: int = 3
-    # Max consecutive empty tool results within a turn; 0 = disabled
+    # Max consecutive empty tool results within a turn; > 0 enables
+    # empty-result repeat detection, <= 0 disables it. Default 0 (disabled).
     tool_empty_result_max_repeats: int = 0
     # Per-server concurrent call limit; empty = unlimited
     tool_concurrency_limits: dict[str, int] = field(default_factory=dict)

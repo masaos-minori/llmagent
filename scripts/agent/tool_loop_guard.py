@@ -30,6 +30,11 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Fires report_effective_state() exactly once per process (see __init__). The guard
+# is constructed per turn (llm_turn_executor.py), so a module-level flag — not a
+# session-start hook — is the reliable once-per-process mechanism.
+_STARTUP_REPORTED: bool = False
+
 # Human-readable descriptions of guard events stored in the diagnostic channel.
 DEDUP_HINT = (
     "[System] The same tool was called with identical arguments multiple times."
@@ -87,7 +92,35 @@ class ToolLoopGuard:
     def __init__(self, ctx: AgentContext) -> None:
         """Initialize the tool loop guard with the agent context for diagnostic tracking."""
         self._ctx = ctx
+        global _STARTUP_REPORTED
+        if not _STARTUP_REPORTED:
+            _STARTUP_REPORTED = True
+            try:
+                state = self.report_effective_state()
+                if "empty_result_detection=off" in state:
+                    logger.warning("%s startup diagnostic: %s", __name__, state)
+                else:
+                    logger.info("%s startup diagnostic: %s", __name__, state)
+            except Exception:  # noqa: BLE001 — emit must never propagate a logging failure (REQ-003)
+                # REQ-003: an unavailable logger must not fail startup.
+                pass
         self._empty_result_counts: dict[str, int] = {}
+
+    def report_effective_state(self) -> str:
+        """Return a concise summary of the effective on/off state of both guards.
+
+        Reports the resolved (not default) values of the retry-suppression and
+        empty-result-repeat guards so their effective protection state is
+        observable at startup. Does not change any gating, threshold, or default.
+        """
+        cfg = self._ctx.cfg.tool
+        retry_on = cfg.tool_error_retry_max > 0
+        empty_on = cfg.tool_empty_result_max_repeats > 0
+        return (
+            f"retry_suppression={'on' if retry_on else 'off'}({cfg.tool_error_retry_max}) "
+            f"empty_result_detection={'on' if empty_on else 'off'}("
+            f"{cfg.tool_empty_result_max_repeats})"
+        )
 
     # ── Diagnostic save helper ────────────────────────────────────────────────
 

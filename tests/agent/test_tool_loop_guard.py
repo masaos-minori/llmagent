@@ -354,3 +354,60 @@ class TestCheckRetryHint:
         result = guard.check_retry(failed_calls, message)
         assert result is not None
         assert any(d.get("hint") == RETRY_HINT for d in saved)
+
+
+class TestReportEffectiveState:
+    def test_report_effective_state_on_off(self) -> None:
+        """report_effective_state() reflects the configured on/off state (REQ-001)."""
+        # Both guards enabled. build_agent_config does not map
+        # tool_empty_result_max_repeats, so set it directly on the ToolConfig.
+        cfg = _cfg()
+        cfg.tool.tool_empty_result_max_repeats = 1
+        guard = ToolLoopGuard(_make_ctx(cfg))
+        state = guard.report_effective_state()
+        assert "retry_suppression=on(" in state
+        assert "empty_result_detection=on(" in state
+
+        # Empty-result detection disabled (default); retry suppression still on.
+        guard_off = ToolLoopGuard(_make_ctx(_cfg()))
+        state_off = guard_off.report_effective_state()
+        assert "retry_suppression=on(" in state_off
+        assert "empty_result_detection=off(" in state_off
+
+    def test_report_effective_state_emits_once_per_process(self) -> None:
+        """Construction emits the startup diagnostic exactly once per process (REQ-002)."""
+        import agent.tool_loop_guard as tlg
+
+        # Reset the module flag so the emit path runs for this test.
+        tlg._STARTUP_REPORTED = False
+        with patch.object(tlg, "logger", MagicMock()) as mock_logger:
+            ToolLoopGuard(_make_ctx(_cfg()))
+            ToolLoopGuard(_make_ctx(_cfg()))
+        # __init__ logs via logger.info/warning (child mocks); exactly one emit
+        # happens before the module flag suppresses the second.
+        assert mock_logger.info.call_count + mock_logger.warning.call_count == 1
+
+    def test_report_effective_state_logger_unavailable_does_not_raise(self) -> None:
+        """An unavailable logger must not fail construction (REQ-003)."""
+        import agent.tool_loop_guard as tlg
+
+        tlg._STARTUP_REPORTED = False
+
+        class _RaisingLogger:
+            def info(self, *args: object, **kwargs: object) -> None:
+                raise RuntimeError("logger down")
+
+            def warning(self, *args: object, **kwargs: object) -> None:
+                raise RuntimeError("logger down")
+
+        with patch.object(tlg, "logger", _RaisingLogger()):
+            # Must not propagate.
+            ToolLoopGuard(_make_ctx(_cfg()))
+
+    def test_defaults_unchanged(self) -> None:
+        """Defaults unchanged: retry suppression ON, empty-result detection OFF (REQ-004)."""
+        from agent.config_dataclasses import ToolConfig
+
+        cfg = ToolConfig()
+        assert cfg.tool_error_retry_max == 1
+        assert cfg.tool_empty_result_max_repeats == 0

@@ -103,10 +103,10 @@ and the Known Limitations doc update (separate row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document >0/>=0 semantics on the two ToolConfig field comments | Pending | — | — | docstring-only; keep defaults |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: test file is a separate row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: doc is a separate row |
+| 1 | Document >0/>=0 semantics on the two ToolConfig field comments | Completed | 2026-10-17 | 2026-10-18 | comment-only; defaults 1/0 unchanged (REQ-004) |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-17 | 2026-10-18 | N/A: test file is a separate row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-18 | 2026-10-18 | ruff/mypy(422) clean; defaults regression `1 0` |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-17 | 2026-10-18 | N/A: doc is a separate row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

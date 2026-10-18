@@ -168,10 +168,10 @@ Known Limitations doc update (separate row).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add report_effective_state() + module-once flag emit in __init__ | Pending | — | — | approach (a); warning for empty-result-off |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: test file is a separate row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: docs are separate rows |
+| 1 | Add report_effective_state() + module-once flag emit in __init__ | Completed | 2026-10-17 | 2026-10-18 | approach (a); warning for empty-result-off; noqa: BLE001 added to the REQ-003 emit |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-17 | 2026-10-18 | N/A: test file is a separate row (162934_03) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-18 | 2026-10-18 | ruff/mypy(422)/lint-imports/ast-grep/bandit-high all clean; suite 9113 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-17 | 2026-10-18 | N/A: docs are separate rows |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

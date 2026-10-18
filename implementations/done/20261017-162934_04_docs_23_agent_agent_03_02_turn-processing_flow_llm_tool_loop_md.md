@@ -98,10 +98,10 @@ The guard code (separate row), the config docstrings (separate row), the test fi
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update Known Limitations bullets to reference the diagnostic | Pending | — | — | doc-only |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: test file is a separate row |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Update Known Limitations bullets to reference the diagnostic | Completed | 2026-10-18 | 2026-10-18 | extended both bullets; `> 0` wording preserved verbatim |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-18 | 2026-10-18 | N/A: test file is a separate row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-18 | 2026-10-18 | `check_docs_consistency --domain agent` → No issues found |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-18 | 2026-10-18 | This row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
