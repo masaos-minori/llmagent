@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (42 modules)
+## Index (43 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -58,6 +58,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `stale_detector.py` | Consistency checker | Verify that line numbers, symbol names, imports, and `# Before:` blocks cited by an implementation procedure still exist in the current source, using regular expressions. A single mismatch marks the procedure stale and blocks execution. The CLI reports the result by exit code (1 if stale). Details are in the "Stale detector rules" section below |
 | `mark_procedure_new_symbols.py` | Work item | `list` reports the symbol names `stale_detector.py` reports as missing in one procedure document with the lines of their unmarked backticked occurrences; `mark` inserts the `(new)` marker for the names the operator supplies, and refuses any name `stale_detector.py` does not report as missing |
 | `set_execution_status.py` | Work item | Mark the selected rows of one procedure document's `### Execution Status` table `Completed`, stamp the `Started` and `Completed` columns, and set `Notes` from `--note STEP:TEXT`. `--all` or `--step 1,4` selects rows; a step the table does not contain is refused. Updates the table state `manage_workitem_stage.py close-implementation` gates on |
+| `run_refactor_validation.py` | Validation runner | Runs the per-file refactor gate (`rules/toolchain.md`): ruff format and check, mypy, radon grade gate, targeted tests, coverage plus diff-cover scoped to the changed files |
 
 ## Domain Documentation Consistency Checkers
 
@@ -114,6 +115,14 @@ Static checks of test-environment health. This group includes both heuristic rep
 |---|---|---|
 | `check_mock_patch_targets.py` | `tests/**/test_*.py` | Uses AST static analysis to detect `unittest.mock.patch("module.Symbol")` calls that are ineffective (`ineffective-patch-target`): the target string names a symbol that the module under test (a known source module imported by the test file itself) has already bound into its own namespace via a module-level `from module import Symbol`. A bound reference is not rewritten by patch. Deferred imports inside functions and imports under `if TYPE_CHECKING:` are not treated as module-level (only direct children of `ast.Module.body` are examined), so they are not false positives. `patch.object(...)` is out of scope (the target is not a dotted string). Because it is heuristic, false positives are possible; any finding makes the exit code 1 (exclude a false positive individually with a marker). Used by the pre-commit hook `mock-patch-targets`. Read-only. `--format json\|csv` gives machine-readable output. Appending `# mock-patch-ok: <reason>` to the end of the physical line containing `patch(` excludes that patch from detection (for legitimate patches the heuristic cannot distinguish, e.g. when the module under test imports inside a function). The reason is required; a marker with an empty reason, or a marker on a different line, does not suppress |
 | `check_conftest_integrity.py` | `tests/conftest.py` | Verifies three things. (1) `tests/conftest.py` exists. (2) No suspicious renamed backup file of the form `conftest.py.*` exists as a sibling (conftest-suspicious-backup-file). (3) Every known required autouse fixture listed in `REQUIRED_AUTOUSE_FIXTURES` (a hardcoded manifest; e.g. `_reset_tool_registry`) is still defined as `@pytest.fixture(autouse=True)`. Motivation: a real incident where `tests/conftest.py` was renamed to `.bak` by an unrelated commit and pytest silently skipped it for about one month, so about 130 order-dependent test-pollution failures accumulated undetected. Read-only. All three categories are definite defects (not heuristics), so the exit code is gated. `--format json\|csv` gives machine-readable output |
+
+## Refactor Validation Runner
+
+Runs the per-file validation gate defined in `rules/toolchain.md` so a multi-file refactor program does not re-type the same command chain (`AGENTS.md` Global Rule 7).
+
+| File | Target | Description |
+|---|---|---|
+| `run_refactor_validation.py` | `--src scripts/**/*.py` (repeatable), `--tests tests/**/*.py` (repeatable) | Runs in order: `ruff format` and `ruff check` on the given source and test files, `mypy --no-namespace-packages` on the source files, the radon grade gate (fails when any function scores grade C or worse), the targeted tests, then `coverage run` over the same tests plus `coverage xml` and `diff-cover` (default `--fail-under 90`, `--compare-branch master`). `--include` is set from `--src`, so the diff-cover score covers only the files under refactor and previously completed files in the same working tree do not lower it. `--skip mypy\|radon\|tests\|diff-cover` drops a step. Prints one `PASS`/`FAIL` line per step plus a `GATE PASSED`/`GATE FAILED` summary; exit code 1 on any failure. Read-only: it never edits source |
 
 ## Lint/Suppression
 
