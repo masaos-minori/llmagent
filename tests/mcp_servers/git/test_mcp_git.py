@@ -12,6 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 from hypothesis import given
 from hypothesis import strategies as st
+from mcp_servers.git.git_security import _resolve_repo_path
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.git.repository_state import RepositoryState
@@ -29,7 +30,7 @@ def _svc(
     )
 
 
-# ── _check_repo_path ──────────────────────────────────────────────────────────
+# ── repo path guard ───────────────────────────────────────────────────────────
 
 
 @given(st.text(), st.lists(st.text(), min_size=1))
@@ -59,47 +60,45 @@ def test_check_repo_path_equivalence(target: str, allowed_repos: list[str]) -> N
 class TestCheckRepoPath:
     def test_empty_allowed_denies_all(self) -> None:
         svc = _svc(allowed=[])
-        ok, err, _resolved = svc._check_repo_path("/any/path")
+        ok, err = svc._is_within_allowed_paths("/any/path")
         assert not ok
         assert "[DENIED]" in err
 
     def test_matching_prefix_allowed(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        ok, err, _resolved = svc._check_repo_path("/opt/repos/myproject")
+        ok, err = svc._is_within_allowed_paths("/opt/repos/myproject")
         assert ok
         assert err == ""
 
     def test_exact_match_allowed(self) -> None:
         svc = _svc(allowed=["/opt/repos/myproject"])
-        ok, err, _resolved = svc._check_repo_path("/opt/repos/myproject")
+        ok, _err = svc._is_within_allowed_paths("/opt/repos/myproject")
         assert ok
 
     def test_non_matching_path_denied(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        ok, err, _resolved = svc._check_repo_path("/home/user/project")
+        ok, err = svc._is_within_allowed_paths("/home/user/project")
         assert not ok
         assert "[DENIED]" in err
 
     def test_path_traversal_denied(self) -> None:
         # /opt/repos/../secret is resolved to /opt/secret — not under /opt/repos
         svc = _svc(allowed=["/opt/repos"])
-        ok, _, _ = svc._check_repo_path("/opt/repos/../secret")
+        ok, _err = svc._is_within_allowed_paths("/opt/repos/../secret")
         assert not ok
 
     # ── Resolved path assertions (NC-020 Row 5) ──────────────────────────────────
 
     def test_resolved_path_on_success(self) -> None:
-        svc = _svc(allowed=["/opt/repos"])
-        ok, err, resolved = svc._check_repo_path("/opt/repos/myproject")
+        ok, err, resolved = _resolve_repo_path("/opt/repos/myproject")
         assert ok is True
         assert err == ""
         assert resolved == "/opt/repos/myproject"
 
-    def test_empty_resolved_path_on_failure(self) -> None:
-        svc = _svc(allowed=["/opt/repos"])
-        ok, err, resolved = svc._check_repo_path("/home/user/project")
+    def test_unresolvable_path_has_no_resolved_value(self) -> None:
+        ok, err, resolved = _resolve_repo_path("")
         assert ok is False
-        assert "[DENIED]" in err
+        assert err == "repo_path is empty"
         assert resolved == ""
 
 
@@ -140,19 +139,21 @@ class TestAuditTargetResolution:
             )
 
 
-# ── _check_write ──────────────────────────────────────────────────────────────
+# ── write guard ───────────────────────────────────────────────────────────────
 
 
 class TestCheckWrite:
-    def test_read_only_true_denies_write(self) -> None:
+    @pytest.mark.asyncio
+    async def test_read_only_true_denies_write(self) -> None:
         svc = _svc(allowed=["/tmp"], read_only=True)
-        ok, err = svc._check_write()
+        ok, err = await svc._validate_repo("/tmp/repo", "git_checkout")
         assert not ok
         assert "read_only=true" in err
 
-    def test_read_only_false_allows_write(self) -> None:
+    @pytest.mark.asyncio
+    async def test_read_only_false_allows_write(self) -> None:
         svc = _svc(allowed=["/tmp"], read_only=False)
-        ok, err = svc._check_write()
+        ok, err = await svc._validate_repo("/tmp/repo", "git_checkout")
         assert ok
         assert err == ""
 

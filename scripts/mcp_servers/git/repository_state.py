@@ -130,7 +130,6 @@ class RepositoryState:
         tool_name: str,
         requested_branch: str | None = None,
         protected_branches: list[str] | None = None,
-        active_ref: str = "",
     ) -> tuple[bool, str]:
         """Stage 3: authorization check against the operation destination.
 
@@ -157,16 +156,14 @@ class RepositoryState:
 
     def verify_preconditions(
         self,
-        command: str,
         dry_run: bool = False,
         allow_detached_head: bool = False,
     ) -> tuple[bool, str]:
-        """Stage 5: Command-specific precondition checks.
+        """Stage 5: precondition checks shared by every write command.
 
-        dirty-worktree and detached-HEAD guards apply only to write commands
-        when dry_run is False. When dry_run is False, the detached-HEAD guard
-        is skipped only when allow_detached_head is True; the dirty-worktree
-        guard remains unconditional.
+        dirty-worktree and detached-HEAD guards apply only when dry_run is False.
+        When dry_run is False, the detached-HEAD guard is skipped only when
+        allow_detached_head is True; the dirty-worktree guard remains unconditional.
         """
         if dry_run:
             return True, ""
@@ -178,21 +175,19 @@ class RepositoryState:
 
     def verify_postcondition(
         self,
-        result: object,
         post_state: RepositoryState,
         tool_name: str,
-        requested_branch: str | None = None,
     ) -> tuple[bool, str]:
         """Stage 7: Postcondition verification — operation-specific checks.
 
         git_checkout is intentionally NOT branch-checked here: the real
-        postcondition (that the checkout landed on ``requested_branch``) is
+        postcondition (that the checkout landed on the requested branch) is
         enforced inside ``format_checkout`` (which refreshes its own snapshot
         after the mutating Git call). With the single shared snapshot (REQ-006)
         this method only holds the *pre*-checkout state, so comparing
-        ``post_state.active_branch`` against ``requested_branch`` would falsely
+        ``post_state.active_branch`` against the requested branch would falsely
         reject every successful checkout. pull/push have no such in-op check, so
-        they are verified here.
+        pull is verified here.
         """
         if tool_name == "git_pull":
             if post_state._repo is not None and post_state._repo.index.unmerged_blobs():
@@ -202,7 +197,7 @@ class RepositoryState:
                 )
         return True, ""
 
-    def audit(self, result: object) -> dict[str, object]:
+    def audit(self) -> dict[str, object]:
         """Stage 8: Audit record generation."""
         return {
             "path": self.path,
@@ -265,7 +260,7 @@ class PipelineResult:
             rejection_message=message,
             repository_state=state,
             post_state=post_state,
-            audit_record=state.audit(state),
+            audit_record=state.audit(),
         )
 
     @classmethod
@@ -280,7 +275,7 @@ class PipelineResult:
             output=output,
             repository_state=state,
             post_state=post_state,
-            audit_record=state.audit(state),
+            audit_record=state.audit(),
         )
 
 
@@ -334,7 +329,6 @@ class WriteProtectionPipeline:
         allow_detached_head: bool = False,
         requested_branch: str | None = None,
         protected_branches: list[str] | None = None,
-        active_ref: str = "",
     ) -> PipelineResult:
         """Execute the pipeline: precondition check → operation → postcondition check."""
         # Stage 3: Common authorization check (protected branch / ref validity)
@@ -344,7 +338,7 @@ class WriteProtectionPipeline:
             "Stage 3",
             3,
             self._state.verify_authorization(
-                tool_name, requested_branch, protected_branches, active_ref
+                tool_name, requested_branch, protected_branches
             ),
         )
         if rejected is not None:
@@ -354,7 +348,7 @@ class WriteProtectionPipeline:
         rejected = self._record_or_reject(
             "Stage 5",
             5,
-            self._state.verify_preconditions(tool_name, dry_run, allow_detached_head),
+            self._state.verify_preconditions(dry_run, allow_detached_head),
         )
         if rejected is not None:
             return rejected
@@ -388,9 +382,7 @@ class WriteProtectionPipeline:
             rejected = self._record_or_reject(
                 "Stage 7",
                 7,
-                self._state.verify_postcondition(
-                    output, self._state, tool_name, requested_branch
-                ),
+                self._state.verify_postcondition(self._state, tool_name),
                 post_state=self._state,
             )
             if rejected is not None:

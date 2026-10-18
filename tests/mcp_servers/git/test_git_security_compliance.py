@@ -11,6 +11,7 @@ import git
 import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.git.git_models import GitConfig
+from mcp_servers.git.git_security import _resolve_repo_path, is_within_allowed_paths
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.repository_state import RepositoryState
 
@@ -70,19 +71,19 @@ class TestGitSecurityCompliance:
         )
 
     def test_is_safe_ref(self, svc: GitService) -> None:
-        assert svc._is_safe_ref("main") is True
-        assert svc._is_safe_ref("feature/abc") is True
-        assert svc._is_safe_ref("-force") is False
-        assert svc._is_safe_ref("--help") is False
+        assert svc._validate_ref("main")[0] is True
+        assert svc._validate_ref("feature/abc")[0] is True
+        assert svc._validate_ref("-force")[0] is False
+        assert svc._validate_ref("--help")[0] is False
 
     def test_check_protected_branch(self, svc: GitService) -> None:
-        assert svc._check_protected_branch("main")[0] is False
+        assert svc._validate_protected("main")[0] is False
         assert (
-            svc._check_protected_branch("main")[1]
+            svc._validate_protected("main")[1]
             == "[DENIED] 'main' is a protected branch"
         )
-        assert svc._check_protected_branch("develop")[0] is True
-        assert svc._check_protected_branch("develop")[1] == ""
+        assert svc._validate_protected("develop")[0] is True
+        assert svc._validate_protected("develop")[1] == ""
 
     @pytest.mark.asyncio
     async def test_git_checkout_protected_branch(self, svc: GitService) -> None:
@@ -416,28 +417,18 @@ class TestGitSecurityCompliance:
 
 
 class TestCheckRepoPathResolvedPath:
-    """Verify _check_repo_path returns resolved canonical path."""
+    """Verify the guards compare against the resolved canonical path."""
 
     def test_resolved_path_on_success(self) -> None:
-        svc = GitService(
-            allowed_repo_paths=["/opt/repos"],
-            read_only=True,
-            max_log_entries=50,
-        )
-        ok, err, resolved = svc._check_repo_path("/opt/repos/myproject")
+        ok, err, resolved = _resolve_repo_path("/opt/repos/myproject")
         assert ok is True
         assert err == ""
         assert resolved == "/opt/repos/myproject"
 
-    def test_empty_resolved_path_on_failure(self) -> None:
-        svc = GitService(
-            allowed_repo_paths=["/opt/repos"],
-            read_only=True,
-            max_log_entries=50,
-        )
-        ok, err, resolved = svc._check_repo_path("/home/user/project")
+    def test_empty_path_is_unresolvable(self) -> None:
+        ok, err, resolved = _resolve_repo_path("")
         assert ok is False
-        assert "[DENIED]" in err
+        assert err == "repo_path is empty"
         assert resolved == ""
 
     def test_symlink_resolved_path(self) -> None:
@@ -449,14 +440,14 @@ class TestCheckRepoPathResolvedPath:
             link_dir = pathlib.Path(tmpdir) / "link"
             real_dir.mkdir()
             link_dir.symlink_to(real_dir)
-            svc = GitService(
-                allowed_repo_paths=[str(real_dir)],
-                read_only=True,
-                max_log_entries=50,
-            )
-            ok, _, resolved = svc._check_repo_path(str(link_dir))
+            ok, _, resolved = _resolve_repo_path(str(link_dir))
             assert ok is True
             assert resolved == str(real_dir)
+            # The allowlist compares the canonical target, so a symlink that
+            # points outside it cannot pass.
+            ok, err = is_within_allowed_paths(str(link_dir), [str(real_dir)])
+            assert ok is True
+            assert err == ""
 
 
 class TestAuditTargetResolution:
@@ -784,12 +775,10 @@ class TestPostConditionBypassPrevention:
         snap.repo.is_dirty.return_value = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
-        snap.verify_postcondition.side_effect = (
-            lambda result, post_state, tool_name, requested_branch: (
-                (False, "checkout postcondition failed: expected branch 'dev'")
-                if tool_name == "git_checkout"
-                else (True, "")
-            )
+        snap.verify_postcondition.side_effect = lambda post_state, tool_name: (
+            (False, "checkout postcondition failed: expected branch 'dev'")
+            if tool_name == "git_checkout"
+            else (True, "")
         )
         snap.audit.return_value = {}
 
@@ -816,12 +805,10 @@ class TestPostConditionBypassPrevention:
         snap.repo.is_dirty.return_value = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
-        snap.verify_postcondition.side_effect = (
-            lambda result, post_state, tool_name, requested_branch: (
-                (False, "pull postcondition failed: unresolved merge conflicts remain")
-                if tool_name == "git_pull"
-                else (True, "")
-            )
+        snap.verify_postcondition.side_effect = lambda post_state, tool_name: (
+            (False, "pull postcondition failed: unresolved merge conflicts remain")
+            if tool_name == "git_pull"
+            else (True, "")
         )
         snap.audit.return_value = {}
 
@@ -855,12 +842,10 @@ class TestPostConditionBypassPrevention:
         snap.repo.is_dirty.return_value = False
         snap.verify_authorization.return_value = (True, "")
         snap.verify_preconditions.return_value = (True, "")
-        snap.verify_postcondition.side_effect = (
-            lambda result, post_state, tool_name, requested_branch: (
-                (False, "push postcondition failed: rejected")
-                if tool_name == "git_push"
-                else (True, "")
-            )
+        snap.verify_postcondition.side_effect = lambda post_state, tool_name: (
+            (False, "push postcondition failed: rejected")
+            if tool_name == "git_push"
+            else (True, "")
         )
         snap.audit.return_value = {}
 
@@ -1126,7 +1111,6 @@ class TestLiveCallToolAuthorization:
             allow_detached_head=False,
             requested_branch=None,
             protected_branches=None,
-            active_ref="",
         ):
             # Signature kept in sync with WriteProtectionPipeline.run() (gitdryrun's
             # dry_run/allow_detached_head params) so positional call sites don't
@@ -1134,20 +1118,16 @@ class TestLiveCallToolAuthorization:
             ok, msg = self._state.verify_authorization()
             if not ok:
                 return PipelineResult.reject(self._state, "Stage 3", msg)
-            ok, msg = self._state.verify_preconditions(
-                tool_name, dry_run, allow_detached_head
-            )
+            ok, msg = self._state.verify_preconditions(dry_run, allow_detached_head)
             if not ok:
                 return PipelineResult.reject(self._state, "Stage 5", msg)
             output = f"{tool_name} succeeded on {self._state.active_branch}"
             post_state = self._state.snapshot(
                 self._state.path,
                 protected_branches=protected_branches or [],
-                active_ref=active_ref,
+                active_ref=self._state.active_branch or "",
             )
-            ok, msg = self._state.verify_postcondition(
-                output, post_state, tool_name, requested_branch
-            )
+            ok, msg = self._state.verify_postcondition(post_state, tool_name)
             if not ok:
                 return PipelineResult.reject(
                     self._state, "Stage 7", msg, post_state=post_state

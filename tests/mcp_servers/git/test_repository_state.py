@@ -157,16 +157,13 @@ class TestGuardDelegation:
 
     def test_verify_preconditions_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
-        ok, err = state.verify_preconditions("checkout")
+        ok, err = state.verify_preconditions()
         assert ok is True
         assert err == ""
 
     def test_verify_postcondition_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
-        actual_branch = state.active_branch
-        ok, err = state.verify_postcondition(
-            "success", state, "git_checkout", actual_branch
-        )
+        ok, err = state.verify_postcondition(state, "git_checkout")
         assert ok is True
         assert err == ""
 
@@ -174,15 +171,13 @@ class TestGuardDelegation:
         self, working_repo: str
     ) -> None:
         state = RepositoryState.snapshot(working_repo)
-        ok, err = state.verify_postcondition(
-            "Pushed 'main' to 'origin'", state, "git_push"
-        )
+        ok, err = state.verify_postcondition(state, "git_push")
         assert ok is True
         assert err == ""
 
     def test_audit_delegates_to_state(self, working_repo: str) -> None:
         state = RepositoryState.snapshot(working_repo)
-        result = state.audit("success")
+        result = state.audit()
         assert isinstance(result, dict)
 
     def test_legacy_validate_repo_delegates(self, working_repo: str) -> None:
@@ -206,16 +201,13 @@ class TestPipelineOrdering:
     def test_stage_5_before_stage_6(self, working_repo: str) -> None:
         """Verify Stage 5 (preconditions) runs before Stage 6 (execution)."""
         state = RepositoryState.snapshot(working_repo)
-        ok, _ = state.verify_preconditions("checkout")
+        ok, _ = state.verify_preconditions()
         assert ok is True
 
     def test_stage_6_before_stage_7(self, working_repo: str) -> None:
         """Verify Stage 6 (execution) runs before Stage 7 (postcondition verification)."""
         state = RepositoryState.snapshot(working_repo)
-        actual_branch = state.active_branch
-        ok, _ = state.verify_postcondition(
-            "success", state, "git_checkout", actual_branch
-        )
+        ok, _ = state.verify_postcondition(state, "git_checkout")
         assert ok is True
 
 
@@ -238,7 +230,7 @@ def detached_repo(working_repo: str) -> str:
 class TestVerifyPreconditionsDryRunAndDetachedHead:
     def test_dirty_worktree_dry_run_true_is_allowed(self, dirty_repo: str) -> None:
         state = RepositoryState.snapshot(dirty_repo)
-        ok, err = state.verify_preconditions("checkout", dry_run=True)
+        ok, err = state.verify_preconditions(dry_run=True)
         assert ok is True
         assert err == ""
 
@@ -248,14 +240,14 @@ class TestVerifyPreconditionsDryRunAndDetachedHead:
     ) -> None:
         state = RepositoryState.snapshot(dirty_repo)
         ok, err = state.verify_preconditions(
-            "checkout", dry_run=False, allow_detached_head=allow_detached_head
+            dry_run=False, allow_detached_head=allow_detached_head
         )
         assert ok is False
         assert "dirty worktree" in err
 
     def test_detached_head_dry_run_true_is_allowed(self, detached_repo: str) -> None:
         state = RepositoryState.snapshot(detached_repo)
-        ok, err = state.verify_preconditions("checkout", dry_run=True)
+        ok, err = state.verify_preconditions(dry_run=True)
         assert ok is True
         assert err == ""
 
@@ -263,9 +255,7 @@ class TestVerifyPreconditionsDryRunAndDetachedHead:
         self, detached_repo: str
     ) -> None:
         state = RepositoryState.snapshot(detached_repo)
-        ok, err = state.verify_preconditions(
-            "checkout", dry_run=False, allow_detached_head=False
-        )
+        ok, err = state.verify_preconditions(dry_run=False, allow_detached_head=False)
         assert ok is False
         assert "detached HEAD" in err
 
@@ -273,9 +263,7 @@ class TestVerifyPreconditionsDryRunAndDetachedHead:
         self, detached_repo: str
     ) -> None:
         state = RepositoryState.snapshot(detached_repo)
-        ok, err = state.verify_preconditions(
-            "checkout", dry_run=False, allow_detached_head=True
-        )
+        ok, err = state.verify_preconditions(dry_run=False, allow_detached_head=True)
         assert ok is True
         assert err == ""
 
@@ -293,14 +281,14 @@ class TestGuardIntegration:
         repo.index.add([str(f)])
         state = RepositoryState.snapshot(str(repo_dir))
         assert state.is_dirty is True
-        ok, err = state.verify_preconditions("checkout")
+        ok, err = state.verify_preconditions()
         assert ok is False
         assert "dirty worktree" in err.lower()
 
     def test_detached_head_rejected(self, detached_repo: str) -> None:
         """Detached HEAD is rejected by verify_preconditions (Stage 5)."""
         state = RepositoryState.snapshot(detached_repo)
-        ok, err = state.verify_preconditions("checkout", allow_detached_head=False)
+        ok, err = state.verify_preconditions(allow_detached_head=False)
         assert ok is False
         assert "detached head" in err.lower()
 
@@ -325,19 +313,19 @@ class TestAuditLogVerification:
     def test_audit_record_has_pre_condition(self, working_repo: str) -> None:
         """Verify audit record includes pre-condition snapshot."""
         state = RepositoryState.snapshot(working_repo)
-        result = state.audit("success")
+        result = state.audit()
         assert isinstance(result, dict)
 
     def test_audit_record_has_post_condition(self, working_repo: str) -> None:
         """Verify audit record includes post-condition snapshot."""
         state = RepositoryState.snapshot(working_repo)
-        result = state.audit("success")
+        result = state.audit()
         assert isinstance(result, dict)
 
     def test_audit_record_includes_repo_identity(self, working_repo: str) -> None:
         """Verify audit record includes correct repository identity."""
         state = RepositoryState.snapshot(working_repo)
-        result = state.audit("success")
+        result = state.audit()
         assert isinstance(result, dict)
 
 
@@ -356,7 +344,7 @@ class TestPostconditionChecks:
         "resulting branch matches requested target" check lives in
         test_format_output.py against format_checkout."""
         state = RepositoryState.snapshot(working_repo)
-        ok, msg = state.verify_postcondition("", state, "git_checkout", "main")
+        ok, msg = state.verify_postcondition(state, "git_checkout")
         assert ok is True
         assert msg == ""
 
@@ -365,7 +353,7 @@ class TestPostconditionChecks:
     ) -> None:
         """When no requested_branch provided, checkout postcondition passes."""
         state = RepositoryState.snapshot(working_repo)
-        ok, msg = state.verify_postcondition("", state, "git_checkout", None)
+        ok, msg = state.verify_postcondition(state, "git_checkout")
         assert ok is True
         assert msg == ""
 
@@ -373,10 +361,10 @@ class TestPostconditionChecks:
         """REQ-005: detect unresolved conflicts after pull."""
         state = RepositoryState.snapshot(working_repo)
         if state._repo is not None:
-            ok, msg = state.verify_postcondition("", state, "git_pull", None)
+            ok, msg = state.verify_postcondition(state, "git_pull")
             assert ok is True
         else:
-            ok, msg = state.verify_postcondition("", state, "git_pull", None)
+            ok, msg = state.verify_postcondition(state, "git_pull")
             assert ok is True
 
     def test_pipeline_result_ok_has_post_state(self, working_repo: str) -> None:
@@ -786,11 +774,7 @@ class TestStage3DestinationProtection:
             return "should not run"
 
         result = pipeline.run(
-            "git_checkout",
-            _op,
-            requested_branch="main",
-            protected_branches=["main"],
-            active_ref="main",
+            "git_checkout", _op, requested_branch="main", protected_branches=["main"]
         )
         assert result.ok is False
         assert result.rejected_at_stage == "Stage 3"
@@ -806,7 +790,6 @@ class TestStage3DestinationProtection:
             lambda: "ok",
             requested_branch="develop",
             protected_branches=["main"],
-            active_ref="develop",
         )
         assert result.ok is True
 

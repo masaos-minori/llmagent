@@ -1168,17 +1168,15 @@ class TestPathGuardMessageCharacterization:
         assert ok is False
         assert err == "[DENIED] repo_path not in allowed paths"
 
-    def test_check_repo_path_empty_list_keeps_the_loop_message(self) -> None:
-        """The legacy guard predates the fail-closed empty-list message and keeps its own."""
+    def test_validate_repo_empty_allowlist_message(self) -> None:
+        """The empty-allowlist denial is the same message the containment guard gives."""
         svc = _svc(allowed=[])
-        ok, err, resolved = svc._check_repo_path("/any/path")
+        ok, err = asyncio.run(svc._validate_repo("/any/path", "git_checkout"))
         assert ok is False
-        assert err == "[DENIED] repo_path not in allowed paths"
-        assert resolved == ""
+        assert err == "[DENIED] allowed_repo_paths is empty"
 
-    def test_check_repo_path_unresolvable_path(self) -> None:
+    def test_validate_repo_unresolvable_path_message(self) -> None:
         svc = _svc(allowed=["/opt/repos"])
-        ok, err, resolved = svc._check_repo_path("")
+        ok, err = asyncio.run(svc._validate_repo("", "git_status"))
         assert ok is False
         assert err == "repo_path is empty"
-        assert resolved == ""

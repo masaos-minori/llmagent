@@ -13,7 +13,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import re
 from collections.abc import Awaitable, Callable
 
@@ -35,7 +34,7 @@ from mcp_servers.git.git_models import (
     GitShowRequest,
     GitStatusRequest,
 )
-from mcp_servers.git.git_security import _resolve_repo_path, is_within_allowed_paths
+from mcp_servers.git.git_security import is_within_allowed_paths
 from mcp_servers.git.repository_state import RepositoryState, WriteProtectionPipeline
 from mcp_servers.server import ToolArgs
 
@@ -184,28 +183,7 @@ class GitService:
         self._require_ok(self._validate_ref_allowlist(branch))
         self._require_ok(self._validate_protected(branch))
 
-    # ── Backward-compatible guards (used by tests) ────────────────────────────
-
-    def _check_repo_path(self, repo_path: str) -> tuple[bool, str, str]:
-        """Return (ok, error, resolved_path).
-
-        ok=True when repo_path is within an allowed path prefix.
-        When ok=True, resolved_path contains the canonical (symlink-resolved) path.
-        When ok=False, resolved_path is empty string.
-        """
-        from pathlib import PurePosixPath
-
-        ok, err, resolved = _resolve_repo_path(repo_path)
-        if not ok:
-            return False, err, ""
-        normalized = os.path.normpath(resolved)
-        for allowed in self._allowed_repo_paths:
-            try:
-                PurePosixPath(normalized).relative_to(PurePosixPath(allowed))
-                return True, "", resolved
-            except ValueError:
-                continue
-        return False, "[DENIED] repo_path not in allowed paths", ""
+    # ── Shared execution helpers ──────────────────────────────────────────────
 
     def _is_within_allowed_paths(self, repo_path: str) -> tuple[bool, str]:
         """Check whether repo_path is within one of the allowed repository roots.
@@ -215,22 +193,6 @@ class GitService:
         checks and `git_server.py` also use.
         """
         return is_within_allowed_paths(repo_path, self._allowed_repo_paths)
-
-    def _check_write(self) -> tuple[bool, str]:
-        """Return (ok, error); ok=True when write operations are permitted."""
-        if self._read_only:
-            return False, "[DENIED] git-mcp is configured with read_only=true"
-        return True, ""
-
-    def _is_safe_ref(self, ref: str) -> bool:
-        """Return True if ref is safe (not a CLI option)."""
-        return not ref.startswith("-")
-
-    def _check_protected_branch(self, branch: str) -> tuple[bool, str]:
-        """Return (ok, error); ok=True if branch is NOT protected."""
-        if branch in self._protected_branches:
-            return False, "[DENIED] 'main' is a protected branch"
-        return True, ""
 
     def _wrap_git_op(self, tool_name: str, func: Callable[[], str]) -> str:
         """Execute a git operation with error wrapping."""
@@ -285,7 +247,6 @@ class GitService:
             self._allow_detached_head,
             requested_branch=requested_branch,
             protected_branches=self._protected_branches,
-            active_ref=active_ref,
         )
         pipeline_result = (
             await asyncio.wait_for(dispatch, timeout)

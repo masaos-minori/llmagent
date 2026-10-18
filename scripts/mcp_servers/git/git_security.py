@@ -192,10 +192,12 @@ def validate_git_security(
 
 class GitSecurityGuards:
     """Repository access and write-permission guards.
-    Mixed into GitService via inheritance so tests can still call
-    svc._check_repo_path() and svc._check_write().
 
-    A host service that installs this mixin provides _allowed_repo_paths; the class-level
+    Used for the posture view (validate_security()): GitService holds its own
+    configuration and calls is_within_allowed_paths() directly, so these guards
+    are not an inheritance mixin.
+
+    A host service that installs this class provides _allowed_repo_paths; the class-level
     default is empty so a guard set that was never installed reports the fail-closed reading.
     """
 
