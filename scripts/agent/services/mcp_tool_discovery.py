@@ -48,7 +48,7 @@ decides a gate itself.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
 from http import HTTPStatus
 from logging import getLogger
@@ -94,110 +94,89 @@ _REQUIRED_SCHEMA_V2_FIELDS = (
 )
 
 
-class McpToolsHttpClient:
-    """Handles HTTP fetching and top-level response validation."""
+async def _fetch_server_tools(
+    http_client: httpx.AsyncClient, server_key: str, cfg: McpServerConfig
+) -> tuple[list[_RawEntry], list[StartupCheckOutcome], bool]:
+    """Fetch one server's /v1/tools response. Returns (entries, findings, is_unreachable)."""
+    try:
+        resp = await http_client.get(
+            f"{cfg.url}{_TOOLS_ENDPOINT}",
+            headers=cfg.auth_headers(),
+            timeout=httpx.Timeout(timeout=get_effective_health_timeout(cfg)),
+        )
+    except (httpx.HTTPError, OSError) as e:
+        return _warning_fetch_result(
+            f"{server_key} unreachable at {cfg.url}{_TOOLS_ENDPOINT}: {e}"
+        )
 
-    def __init__(self, http_client: httpx.AsyncClient) -> None:
-        self._http_client = http_client
+    if resp.status_code != HTTPStatus.OK:
+        return _warning_fetch_result(
+            f"{server_key} {_TOOLS_ENDPOINT} returned HTTP {resp.status_code}"
+        )
 
-    async def fetch_tools(
-        self, server_key: str, cfg: McpServerConfig
-    ) -> tuple[list[_RawEntry], list[StartupCheckOutcome], bool]:
-        """Fetch one server's /v1/tools response. Returns (entries, findings, is_unreachable)."""
-        try:
-            resp = await self._http_client.get(
-                f"{cfg.url}{_TOOLS_ENDPOINT}",
-                headers=cfg.auth_headers(),
-                timeout=httpx.Timeout(timeout=get_effective_health_timeout(cfg)),
-            )
-        except (httpx.HTTPError, OSError) as e:
-            return _warning_fetch_result(
-                f"{server_key} unreachable at {cfg.url}{_TOOLS_ENDPOINT}: {e}"
-            )
+    try:
+        body: object = resp.json()
+    except ValueError as e:
+        return _warning_fetch_result(
+            f"{server_key}: {_TOOLS_ENDPOINT} response is not valid JSON: {e}"
+        )
 
-        if resp.status_code != HTTPStatus.OK:
-            return _warning_fetch_result(
-                f"{server_key} {_TOOLS_ENDPOINT} returned HTTP {resp.status_code}"
-            )
+    if not isinstance(body, dict):
+        return _warning_fetch_result(
+            f"{server_key}: {_TOOLS_ENDPOINT} response is not a JSON object "
+            f"(got {type(body).__name__})"
+        )
 
-        try:
-            body: object = resp.json()
-        except ValueError as e:
-            return _warning_fetch_result(
-                f"{server_key}: {_TOOLS_ENDPOINT} response is not valid JSON: {e}"
-            )
+    schema_error = _schema_version_error(server_key, body)
+    if schema_error is not None:
+        return _warning_fetch_result(schema_error)
 
-        if not isinstance(body, dict):
-            return _warning_fetch_result(
-                f"{server_key}: {_TOOLS_ENDPOINT} response is not a JSON object "
-                f"(got {type(body).__name__})"
-            )
+    tools = body.get("tools")
+    if not isinstance(tools, list):
+        return _warning_fetch_result(
+            f"{server_key}: {_TOOLS_ENDPOINT} 'tools' field must be a list "
+            f"(got {type(tools).__name__})"
+        )
 
-        schema_error = _schema_version_error(server_key, body)
-        if schema_error is not None:
-            return _warning_fetch_result(schema_error)
-
-        tools = body.get("tools")
-        if not isinstance(tools, list):
-            return _warning_fetch_result(
-                f"{server_key}: {_TOOLS_ENDPOINT} 'tools' field must be a list "
-                f"(got {type(tools).__name__})"
-            )
-
-        entries, entry_findings = _normalize_entries(server_key, cfg.url, tools)
-        return entries, entry_findings, False
+    entries, entry_findings = _normalize_entries(server_key, cfg.url, tools)
+    return entries, entry_findings, False
 
 
-class ToolEntryValidator:
-    """Validates individual /v1/tools entries."""
+def _validate_entry(
+    server_key: str, server_url: str, entry: object
+) -> tuple[dict[str, object] | None, StartupCheckOutcome | None]:
+    """Validate one raw /v1/tools entry. Returns (normalized_entry_or_None, finding_or_None)."""
+    if not isinstance(entry, dict):
+        return _warning_entry(
+            f"{server_key}: {_TOOLS_ENDPOINT} tool entry is not an object "
+            f"(got {type(entry).__name__})"
+        )
 
-    def validate_entry(
-        self,
-        server_key: str,
-        server_url: str,
-        entry: object,
-    ) -> tuple[dict[str, object] | None, StartupCheckOutcome | None]:
-        """Validate one raw /v1/tools entry. Returns (normalized_entry_or_None, finding_or_None)."""
-        if not isinstance(entry, dict):
-            return _warning_entry(
-                f"{server_key}: {_TOOLS_ENDPOINT} tool entry is not an object "
-                f"(got {type(entry).__name__})"
-            )
+    name = entry.get("name")
+    if not isinstance(name, str) or not name.strip():
+        return _warning_entry(
+            f"{server_key}: {_TOOLS_ENDPOINT} entry has invalid name {name!r}"
+        )
 
-        name = entry.get("name")
-        if not isinstance(name, str) or not name.strip():
-            return _warning_entry(
-                f"{server_key}: {_TOOLS_ENDPOINT} entry has invalid name {name!r}"
-            )
+    schema_error = _entry_schema_error(server_key, name, entry)
+    if schema_error is not None:
+        return _warning_entry(schema_error)
 
-        schema_error = _entry_schema_error(server_key, name, entry)
-        if schema_error is not None:
-            return _warning_entry(schema_error)
+    field_error = _entry_optional_field_error(server_key, server_url, name, entry)
+    if field_error is not None:
+        return _warning_entry(field_error)
 
-        field_error = _entry_optional_field_error(server_key, server_url, name, entry)
-        if field_error is not None:
-            return _warning_entry(field_error)
-
-        return entry, None
+    return entry, None
 
 
-class SeverityClassifier:
-    """Consolidated severity classification logic."""
-
-    def __init__(self, strict: bool, is_duplicate: bool = False) -> None:
-        self._strict = strict
-        self._is_duplicate = is_duplicate
-
-    @property
-    def is_fatal(self) -> bool:
-        """Return True when findings should be FATAL per the unified severity scheme.
-
-        For non-duplicate findings: is_fatal = strict.
-        For duplicate findings: always True (exception to the scheme).
-        """
-        if self._is_duplicate:
-            return True
-        return self._strict
+def _unified_findings(
+    messages: Iterable[str], status: StartupCheckStatus
+) -> list[StartupCheckOutcome]:
+    """Wrap already-formatted messages as findings carrying the unified severity status."""
+    return [
+        StartupCheckOutcome(source=_SOURCE, status=status, message=message)
+        for message in messages
+    ]
 
 
 @dataclass(frozen=True)
@@ -272,11 +251,8 @@ def _normalize_entries(
     """Validate one server's raw tool entries into (accepted entries, findings)."""
     entries: list[_RawEntry] = []
     findings: list[StartupCheckOutcome] = []
-    validator = ToolEntryValidator()
     for raw_entry in tools:
-        normalized, finding = validator.validate_entry(
-            server_key, server_url, raw_entry
-        )
+        normalized, finding = _validate_entry(server_key, server_url, raw_entry)
         if finding is not None:
             findings.append(finding)
         if normalized is not None:
@@ -394,12 +370,11 @@ class McpToolDiscoveryService:
         for key, cfg in self._ctx.cfg.mcp.mcp_servers.items():
             if cfg.transport != TransportType.HTTP or not cfg.url or cfg.is_disabled:
                 continue
-            client = McpToolsHttpClient(http_client)
-            fetched, server_findings, is_unreachable = await client.fetch_tools(
-                key, cfg
+            fetched, server_findings, is_unreachable = await _fetch_server_tools(
+                http_client, key, cfg
             )
-            findings = self._escalate_unreachable_findings(
-                findings, server_findings, cfg.required
+            findings.extend(
+                self._escalate_unreachable_findings(server_findings, cfg.required)
             )
             if is_unreachable:
                 unreachable.append(key)
@@ -408,7 +383,7 @@ class McpToolDiscoveryService:
 
     def _detect_duplicates(
         self, entries: list[_RawEntry]
-    ) -> tuple[list[tuple[str, str, dict[str, object]]], list[StartupCheckOutcome]]:
+    ) -> tuple[list[_RawEntry], list[StartupCheckOutcome]]:
         """Detect duplicate tool names and separate unique entries.
 
         Returns (unique_entries, dedup_findings). Duplicate tool names produce
@@ -421,27 +396,27 @@ class McpToolDiscoveryService:
             by_name.setdefault(name, []).append((server_key, server_url, entry))
 
         findings: list[StartupCheckOutcome] = []
-        unique_entries: list[tuple[str, str, dict[str, object]]] = []
+        unique_entries: list[_RawEntry] = []
         for name, group in by_name.items():
             server_keys = sorted({server_key for server_key, _, _ in group})
             if len(server_keys) > 1:
                 # Always fatal — tool is unusable when duplicated across servers
-                status = StartupCheckStatus.FATAL
                 msg = (
                     f"duplicate tool name {name!r} reported by multiple servers: "
                     f"{', '.join(server_keys)} — excluded from registry"
                 )
                 findings.append(
-                    StartupCheckOutcome(source=_SOURCE, status=status, message=msg)
+                    StartupCheckOutcome(
+                        source=_SOURCE, status=StartupCheckStatus.FATAL, message=msg
+                    )
                 )
                 continue
-            server_key, server_url, entry = group[0]
-            unique_entries.append((server_key, server_url, entry))
+            unique_entries.append(group[0])
         return unique_entries, findings
 
     def _build_runtime_tools(
         self,
-        unique_entries: list[tuple[str, str, dict[str, object]]],
+        unique_entries: list[_RawEntry],
         unavailable_servers: frozenset[str],
         allowed_servers: frozenset[str] | None = None,
     ) -> RuntimeToolRegistry:
@@ -455,8 +430,9 @@ class McpToolDiscoveryService:
         for server_key, server_url, entry in unique_entries:
             if server_key in unavailable_servers:
                 continue
-            built[str(entry["name"])] = build_runtime_tool(
-                name=str(entry["name"]),
+            name = str(entry["name"])
+            built[name] = build_runtime_tool(
+                name=name,
                 server_key=server_key,
                 server_url=server_url,
                 description=str(entry.get("description", "")),
@@ -485,11 +461,10 @@ class McpToolDiscoveryService:
         registry entirely (per this module's docstring), each producing one
         FATAL finding — tool is unusable when duplicated across servers.
 
-        Every entry reaching this method has already passed
-        ToolEntryValidator.validate_entry()'s hard schema-2.0 requirement, so
-        `is_write`/`requires_serial`/`resource_scope_kind`/`resource_scope_keys`
-        are guaranteed present — they are indexed directly (`entry[...]`), not
-        defaulted via `.get()`.
+        Every entry reaching this method has already passed `_validate_entry()`'s hard
+        schema-2.0 requirement, so `is_write`/`requires_serial`/`resource_scope_kind`/
+        `resource_scope_keys` are guaranteed present — they are indexed directly
+        (`entry[...]`), not defaulted via `.get()`.
 
         `allowed_servers` travels exactly like `unavailable_servers` and reaches the registry unchanged:
         this module transports the gate, it does not decide it.
@@ -507,11 +482,11 @@ class McpToolDiscoveryService:
     def _unified_status(self) -> StartupCheckStatus:
         """Return the severity a non-duplicate finding takes under the current strict mode.
 
-        Single place where `SeverityClassifier` is consulted, so every finding builder in
-        this service applies the same unified severity scheme.
+        Single place where the unified severity scheme (`is_fatal = strict`) is decided, so
+        every finding builder in this service agrees. Duplicate-tool findings are the one
+        exception, and `_detect_duplicates()` builds them as FATAL directly.
         """
-        classifier = SeverityClassifier(strict=self._is_strict(), is_duplicate=False)
-        if classifier.is_fatal:
+        if self._is_strict():
             return StartupCheckStatus.FATAL
         return StartupCheckStatus.WARNING
 
@@ -529,15 +504,10 @@ class McpToolDiscoveryService:
         drift = validate_routing_against_live(live_tool_lists=per_server)
         if not drift:
             return []
-        status = self._unified_status()
-        return [
-            StartupCheckOutcome(
-                source=_SOURCE,
-                status=status,
-                message=f"Live routing drift [{sk}]: {msgs}",
-            )
-            for sk, msgs in drift.items()
-        ]
+        return _unified_findings(
+            (f"Live routing drift [{sk}]: {msgs}" for sk, msgs in drift.items()),
+            self._unified_status(),
+        )
 
     def _build_write_classification_findings(
         self, registry: RuntimeToolRegistry
@@ -546,15 +516,10 @@ class McpToolDiscoveryService:
         messages = check_write_classification(registry)
         if not messages:
             return []
-        status = self._unified_status()
-        return [
-            StartupCheckOutcome(
-                source=_SOURCE,
-                status=status,
-                message=f"Write classification mismatch: {msg}",
-            )
-            for msg in messages
-        ]
+        return _unified_findings(
+            (f"Write classification mismatch: {msg}" for msg in messages),
+            self._unified_status(),
+        )
 
     async def _check_tool_definitions_finding(self) -> StartupCheckOutcome | None:
         """Wrap `_check_tool_definitions` to surface failures as data, not exceptions.
@@ -579,19 +544,17 @@ class McpToolDiscoveryService:
             return StartupCheckOutcome(source=_SOURCE, status=status, message=str(exc))
 
     def _escalate_unreachable_findings(
-        self,
-        current_findings: list[StartupCheckOutcome],
-        server_findings: list[StartupCheckOutcome],
-        is_required: bool,
+        self, server_findings: list[StartupCheckOutcome], is_required: bool
     ) -> list[StartupCheckOutcome]:
         """Escalate one server's findings to FATAL when that server is required.
 
         Each finding keeps its `source`, `message`, and `remediation`; only `status`
         changes — FATAL for a required server, WARNING otherwise. Applies to both an
         unreachable server and a reachable server that returned per-tool findings.
+        Returns a new list; the caller appends it to the findings collected so far.
         """
         status = StartupCheckStatus.FATAL if is_required else StartupCheckStatus.WARNING
-        current_findings.extend(
+        return [
             StartupCheckOutcome(
                 source=o.source,
                 status=status,
@@ -599,8 +562,7 @@ class McpToolDiscoveryService:
                 remediation=o.remediation,
             )
             for o in server_findings
-        )
-        return current_findings
+        ]
 
     def _check_required_tools(
         self,
