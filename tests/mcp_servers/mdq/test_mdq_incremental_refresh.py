@@ -159,15 +159,18 @@ class TestIncrementalRefresh:
         assert "elapsed_seconds" in result
         assert result["elapsed_seconds"] >= 0
 
-    def test_skips_nonexistent_path(self, service: MdqService) -> None:
-        """Non-existent paths are skipped without incrementing any counters."""
+    def test_skips_nonexistent_path(
+        self, service: MdqService, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A non-existent path is counted in skipped_count, as index_paths() counts it."""
         result = asyncio.run(
             _refresh_paths(service, RefreshIndexRequest(paths=["/nonexistent/path.md"]))
         )
         assert result["indexed_count"] == 0
-        assert result["skipped_count"] == 0
+        assert result["skipped_count"] == 1
         assert result["deleted_count"] == 0
         assert result["failed_count"] == 0
+        assert "Path does not exist" in caplog.text
 
     def test_chunk_id_stable_after_refresh(
         self, service: MdqService, tmp_path: Path
@@ -257,13 +260,13 @@ async def _always_fail(service: MdqService, path: Path) -> None:
 
 
 class TestRefreshForceModeBranches:
-    """Force mode re-indexes unconditionally and counts a directory as one path."""
+    """Force mode re-indexes unconditionally and counts a directory per indexable file."""
 
     @pytest.fixture()
     def service(self, tmp_path: Path) -> MdqService:
         return _fresh_service(tmp_path)
 
-    def test_directory_counts_one_indexed_path_not_one_per_file(
+    def test_directory_counts_one_indexed_path_per_file(
         self, service: MdqService, tmp_path: Path
     ) -> None:
         (tmp_path / "a.md").write_text("# A\n\nOne")
@@ -275,7 +278,7 @@ class TestRefreshForceModeBranches:
             )
         )
 
-        assert _counters(result) == (1, 0, 0)
+        assert _counters(result) == (2, 0, 0)
 
     def test_directory_without_indexable_files_counts_nothing(
         self, service: MdqService, tmp_path: Path, caplog: pytest.LogCaptureFixture
@@ -291,7 +294,7 @@ class TestRefreshForceModeBranches:
         assert _counters(result) == (0, 0, 0)
         assert "No indexable files found in directory" in caplog.text
 
-    def test_non_markdown_file_reports_as_neither_file_nor_directory(
+    def test_force_mode_non_markdown_file_is_skipped(
         self, service: MdqService, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
         target = tmp_path / "notes.txt"
@@ -303,8 +306,8 @@ class TestRefreshForceModeBranches:
             )
         )
 
-        assert _counters(result) == (0, 0, 0)
-        assert "Path is not a file or directory" in caplog.text
+        assert _counters(result) == (0, 1, 0)
+        assert "Skipping non-Markdown path" in caplog.text
 
     def test_path_outside_allowed_directories_raises(self, service: MdqService) -> None:
         with pytest.raises(MdqAuthorizationError, match="outside allowed directories"):
@@ -314,16 +317,16 @@ class TestRefreshForceModeBranches:
 
 
 class TestRefreshIncrementalBranches:
-    """Incremental mode counts per changed file and ignores non-Markdown paths."""
+    """Incremental mode counts per changed file and counts an unusable path as skipped."""
 
     @pytest.fixture()
     def service(self, tmp_path: Path) -> MdqService:
         return _fresh_service(tmp_path)
 
-    def test_non_markdown_file_is_not_counted_by_any_counter(
+    def test_incremental_non_markdown_file_is_skipped(
         self, service: MdqService, tmp_path: Path, caplog: pytest.LogCaptureFixture
     ) -> None:
-        """refresh_paths() has no else branch: a .txt path is silently dropped."""
+        """refresh_paths() reports a .txt path the same way index_paths() does."""
         target = tmp_path / "notes.txt"
         target.write_text("plain text")
 
@@ -331,8 +334,23 @@ class TestRefreshIncrementalBranches:
             _refresh_paths(service, RefreshIndexRequest(paths=[str(target)]))
         )
 
-        assert _counters(result) == (0, 0, 0)
-        assert "Skipping non-Markdown path" not in caplog.text
+        assert _counters(result) == (0, 1, 0)
+        assert "Skipping non-Markdown path" in caplog.text
+
+    def test_same_path_listed_twice_is_indexed_once(
+        self, service: MdqService, tmp_path: Path
+    ) -> None:
+        """_refresh_changed_file() updates current_state, so the second listing is a skip."""
+        target = tmp_path / "a.md"
+        target.write_text("# A\n\nOne")
+
+        result = asyncio.run(
+            _refresh_paths(
+                service, RefreshIndexRequest(paths=[str(target), str(target)])
+            )
+        )
+
+        assert _counters(result) == (1, 1, 0)
 
     def test_failed_reindex_does_not_record_the_new_mtime(
         self, service: MdqService, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -415,14 +433,14 @@ class TestRefreshFailureCounters:
         assert _counters(result) == (0, 0, 1)
         assert "Failed to index" in caplog.text
 
-    def test_deletion_scan_failure_is_not_a_failed_count(
+    def test_deletion_scan_failure_records_a_failed_count(
         self,
         service: MdqService,
         tmp_path: Path,
         monkeypatch: pytest.MonkeyPatch,
         caplog: pytest.LogCaptureFixture,
     ) -> None:
-        """_detect_deleted_files() logs its own failure and never touches failed_count."""
+        """A directory whose scan fails records one failed_count, not a silent zero."""
         sub = tmp_path / "sub"
         sub.mkdir()
         for name in ("a.md", "b.md"):
@@ -439,7 +457,7 @@ class TestRefreshFailureCounters:
         )
 
         assert result["deleted_count"] == 0
-        assert _counters(result) == (0, 1, 0)
+        assert _counters(result) == (0, 1, 1)
         assert "Failed to scan for deleted files" in caplog.text
 
     def test_index_state_keys_that_are_not_mtime_records_are_ignored(

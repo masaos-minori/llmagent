@@ -35,6 +35,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# One wording for "this requested path is not something the indexer can read", shared by
+# index_paths() and both refresh modes so the same input reports the same way.
+_NON_MARKDOWN_PATH_WARNING = "Skipping non-Markdown path: %s"
+
 
 def _matches_any_glob(rel_posix: str, patterns: list[str]) -> bool:
     """Return True if rel_posix matches any of patterns, at any path depth.
@@ -93,15 +97,17 @@ class RefreshSummary(TypedDict):
 
 @dataclasses.dataclass
 class _PathTally:
-    """Mutable per-path counters for one index_paths() or refresh_paths() run.
+    """Mutable counters for one index_paths() or refresh_paths() run.
 
     The counters are updated as each path is processed, so a failure partway through a
-    directory keeps the counts already recorded for the files before it.
+    directory keeps the counts already recorded for the files before it. deleted is only
+    ever incremented by refresh_paths(), which reports it as deleted_count.
     """
 
     indexed: int = 0
     skipped: int = 0
     failed: int = 0
+    deleted: int = 0
 
 
 def generate_chunk_id(
@@ -270,6 +276,11 @@ async def _tally_indexing(
         tally.indexed += 1
 
 
+def _is_indexable_path(path: Path) -> bool:
+    """True when the indexer can read this path: a Markdown file or a directory."""
+    return (path.is_file() and path.suffix == ".md") or path.is_dir()
+
+
 async def _index_one_path(
     service: MdqService, path_str: str, tally: _PathTally
 ) -> None:
@@ -283,13 +294,14 @@ async def _index_one_path(
         raise MdqAuthorizationError(
             f"Access denied: {path_str} is outside allowed directories"
         )
-    if p.is_file() and p.suffix == ".md":
-        await _tally_indexing(_index_single_file(service, p), path_str, tally)
-    elif p.is_dir():
-        await _tally_indexing(_index_directory(service, p), path_str, tally)
-    else:
-        logger.warning("Skipping non-Markdown path: %s", path_str)
+    if not _is_indexable_path(p):
+        logger.warning(_NON_MARKDOWN_PATH_WARNING, path_str)
         tally.skipped += 1
+        return
+    if p.is_file():
+        await _tally_indexing(_index_single_file(service, p), path_str, tally)
+    else:
+        await _tally_indexing(_index_directory(service, p), path_str, tally)
 
 
 async def index_paths(
@@ -350,13 +362,14 @@ def _delete_stale_entries(
     conn: sqlite3.Connection,
     current_state: dict[str, str],
     dir_path: Path,
-) -> int:
+    tally: _PathTally,
+) -> None:
     """Delete index entries for files under dir_path that are no longer on disk.
 
-    Returns how many entries were removed. A failure partway through the directory
-    stops that directory but keeps what it already removed.
+    tally.deleted counts what was removed. A failure partway through the directory keeps
+    what it already removed and records one tally.failed, so a caller can tell "nothing
+    was deleted" apart from "the scan did not run".
     """
-    deleted_count = 0
     try:
         current_md_files = {str(f) for f in _iter_indexable_files(service, dir_path)}
         for path_str_key in list(current_state):
@@ -364,10 +377,10 @@ def _delete_stale_entries(
                 continue
             # File was deleted — remove from index
             delete_file_from_index(service, conn, Path(path_str_key[6:]))
-            deleted_count += 1
+            tally.deleted += 1
     except Exception as e:  # noqa: BLE001 — a single directory's deletion scan failure must not abort the rest of the refresh
         logger.error("Failed to scan for deleted files in %s: %s", dir_path, e)
-    return deleted_count
+        tally.failed += 1
 
 
 def _detect_deleted_files(
@@ -375,35 +388,33 @@ def _detect_deleted_files(
     conn: sqlite3.Connection,
     current_state: dict[str, str],
     dirs_to_scan: set[Path],
-) -> int:
+    tally: _PathTally,
+) -> None:
     """Detect files removed from the filesystem and delete their index entries.
 
-    Returns the number of files removed from the index. Each directory is scanned
-    independently, so one directory's failure does not stop the others.
+    Each directory is scanned independently, so one directory's failure does not stop the
+    others.
     """
-    return sum(
-        _delete_stale_entries(service, conn, current_state, dir_path)
-        for dir_path in dirs_to_scan
-    )
+    for dir_path in dirs_to_scan:
+        _delete_stale_entries(service, conn, current_state, dir_path, tally)
 
 
 async def _reindex_forced(service: MdqService, path: Path, path_str: str) -> int:
     """Force mode: re-index one path regardless of index_state.
 
-    Returns 1 when something was indexed. A directory counts as one indexed path even
-    when it holds several files, which is not how incremental mode counts it.
+    Callers gate on _is_indexable_path(), so path is a Markdown file or a directory here.
+    Returns how many files were indexed: a directory contributes one per indexable file,
+    which is the unit incremental mode counts in.
     """
-    if path.is_file() and path.suffix == ".md":
+    if path.is_file():
         await _index_single_file(service, path)
         return 1
-    if path.is_dir():
-        if _iter_indexable_files(service, path):
-            await _index_directory(service, path)
-            return 1
+    indexable_files = _iter_indexable_files(service, path)
+    if not indexable_files:
         logger.info("No indexable files found in directory: %s", path_str)
         return 0
-    logger.warning("Path is not a file or directory: %s", path_str)
-    return 0
+    await _index_directory(service, path)
+    return len(indexable_files)
 
 
 async def _reindex_forced_path(
@@ -423,12 +434,11 @@ async def _refresh_changed_file(
     current_state: dict[str, str],
     file_path: Path,
 ) -> bool:
-    """Re-index one file and record its mtime in index_state.
+    """Re-index one file and record its mtime in index_state and in current_state.
 
-    Returns False when index_state already holds this file's mtime, in which case
-    nothing is read or written. index_state is only updated after a successful re-index,
-    and current_state is never refreshed, so a path listed twice in one request is
-    re-indexed twice.
+    Returns False when index_state already holds this file's mtime, in which case nothing
+    is read or written. Both copies are updated only after a successful re-index, so a
+    path listed twice in one request is indexed once and skipped the second time.
     """
     state_key = f"mtime:{str(file_path)}"
     current_mtime = str(file_path.stat().st_mtime_ns)
@@ -440,6 +450,7 @@ async def _refresh_changed_file(
         (state_key, current_mtime),
     )
     conn.commit()
+    current_state[state_key] = current_mtime
     return True
 
 
@@ -497,22 +508,27 @@ async def _refresh_one_path(
 ) -> None:
     """Validate and refresh one requested path.
 
-    A path that is neither a Markdown file nor a directory is not counted by any
-    counter in incremental mode.
+    A path that does not exist, or that is neither a Markdown file nor a directory, is
+    counted as skipped in both modes, the same way index_paths() counts it.
     """
     p = Path(path_str)
     if not p.exists():
         logger.warning("Path does not exist: %s", path_str)
+        tally.skipped += 1
         return
     if not authorize_path(p, service.allowed_dirs):
         raise MdqAuthorizationError(
             f"Access denied: {path_str} is outside allowed directories"
         )
+    if not _is_indexable_path(p):
+        logger.warning(_NON_MARKDOWN_PATH_WARNING, path_str)
+        tally.skipped += 1
+        return
     if force:
         await _reindex_forced_path(service, p, path_str, tally)
-    elif p.is_file() and p.suffix == ".md":
+    elif p.is_file():
         await _refresh_file_path(service, conn, current_state, p, path_str, tally)
-    elif p.is_dir():
+    else:
         await _refresh_directory_path(service, conn, current_state, p, path_str, tally)
 
 
@@ -542,15 +558,13 @@ async def refresh_paths(
             )
 
         # Detect deleted files within scanned directories
-        deleted_count = _detect_deleted_files(
-            service, conn, current_state, dirs_to_scan
-        )
+        _detect_deleted_files(service, conn, current_state, dirs_to_scan, tally)
 
         elapsed = time.time() - start
         return {
             "indexed_count": tally.indexed,
             "skipped_count": tally.skipped,
-            "deleted_count": deleted_count,
+            "deleted_count": tally.deleted,
             "failed_count": tally.failed,
             "elapsed_seconds": round(elapsed, 3),
         }
