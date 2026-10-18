@@ -11,6 +11,7 @@ import time
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
+import mcp_servers.mdq.index_write as index_write
 import mcp_servers.mdq.indexer as indexer
 import pytest
 from mcp_servers.mdq.indexer import RefreshSummary, index_paths
@@ -614,7 +615,8 @@ class TestIndexSingleFileWriteFailure:
         def _fail_on_chunk(content: str) -> int:
             raise sqlite3.OperationalError("simulated chunk write failure")
 
-        monkeypatch.setattr(indexer, "_estimate_token_count", _fail_on_chunk)
+        # The chunk loop runs in index_write, so the name it looks up lives there.
+        monkeypatch.setattr(index_write, "_estimate_token_count", _fail_on_chunk)
 
         recorded = _RecordingConnection(service._get_db_connection())
         monkeypatch.setattr(service, "_get_db_connection", lambda: recorded)
@@ -647,6 +649,34 @@ class TestIndexSingleFileWriteFailure:
         conn.close()
 
         indexer._rollback_quietly(conn)
+
+
+class TestWriteDocumentChunksTransaction:
+    """Characterization: index_write owns one BEGIN IMMEDIATE ... COMMIT per document."""
+
+    @pytest.fixture()
+    def service(self, tmp_path: Path) -> MdqService:
+        return _fresh_service(tmp_path)
+
+    def test_successful_write_brackets_its_row_statements(
+        self,
+        service: MdqService,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """The document and chunk statements run inside one committed transaction."""
+        target = tmp_path / "a.md"
+        target.write_text("# A\n\nOne")
+
+        recorded = _RecordingConnection(service._get_db_connection())
+        monkeypatch.setattr(service, "_get_db_connection", lambda: recorded)
+
+        asyncio.run(indexer._index_single_file(service, target))
+
+        assert recorded.statements[0] == "BEGIN IMMEDIATE"
+        assert recorded.statements[-1] == "COMMIT"
+        assert "ROLLBACK" not in recorded.statements
+        assert _documents_row_count(service, target) == 1
 
 
 class TestDeletedFileDetectionFailureIsolation:

@@ -11,11 +11,11 @@ from tempfile import mkstemp
 from unittest.mock import patch
 
 import pytest
+from mcp_servers.mdq.index_write import generate_chunk_id
 from mcp_servers.mdq.indexer import (
     _index_directory,
     _index_single_file,
     _iter_indexable_files,
-    generate_chunk_id,
     index_paths,
 )
 from mcp_servers.mdq.mdq_models import (

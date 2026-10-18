@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import dataclasses
 import fnmatch
-import hashlib
 import logging
 import sqlite3
 import time
@@ -20,11 +19,11 @@ from shared.json_utils import dumps as _json_dumps
 
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.index_delete import delete_file_from_index
+from mcp_servers.mdq.index_write import write_document_chunks
 from mcp_servers.mdq.mdq_models import (
     IndexPathsMetadata,
     IndexPathsRequest,
     MdqAuthorizationError,
-    ParsedSection,
     ParseMarkdownRequest,
     RefreshIndexRequest,
 )
@@ -110,109 +109,12 @@ class _PathTally:
     deleted: int = 0
 
 
-def generate_chunk_id(
-    normalized_path: str, heading_path: str, ordinal: int, content_hash: str
-) -> str:
-    """Generate a stable chunk ID from normalized path, heading path, ordinal, and content hash.
-
-    Stable across re-indexing of unchanged content. Uses | as delimiter to reduce
-    collision risk with paths containing colons.
-    normalized_path should be Path(path).resolve().as_posix().
-    """
-    return hashlib.sha256(
-        f"{normalized_path}|{heading_path}|{ordinal}|{content_hash}".encode()
-    ).hexdigest()
-
-
-def _estimate_token_count(text: str) -> int:
-    """Approximate token count via a chars-per-token-~4 heuristic.
-
-    This is not an exact tokenizer count -- no live tokenizer endpoint is available
-    inside mcp_servers/mdq without adding a new network dependency. Consistent in
-    spirit with shared/token_estimation.py's own ratio-based approach, but without
-    its chat-category/network dependencies.
-    """
-    return max(1, len(text) // 4)
-
-
 def _rollback_quietly(conn: sqlite3.Connection) -> None:
     """Roll back an open transaction, ignoring a second failure."""
     try:
         conn.execute("ROLLBACK")
     except sqlite3.Error:
         pass
-
-
-def _write_document_chunks(
-    conn: sqlite3.Connection,
-    service: MdqService,
-    path: Path,
-    sections: list[ParsedSection],
-    tags_json: str,
-) -> None:
-    """Replace one document's rows in a single BEGIN IMMEDIATE transaction.
-
-    The caller owns the connection: it rolls back on a sqlite3.Error and closes it.
-    """
-    doc_id = hashlib.sha256(str(path).encode()).hexdigest()
-    now = path.stat().st_mtime_ns
-    indexed_at = time.time()
-    normalized_path = path.resolve().as_posix()
-    file_content_hash = hashlib.sha256((str(path) + str(now)).encode()).hexdigest()
-
-    conn.execute("BEGIN IMMEDIATE")
-    # Delete old chunks and upsert document atomically
-    conn.execute("DELETE FROM chunks WHERE doc_id = ?", (doc_id,))
-    conn.execute(
-        "INSERT OR REPLACE INTO documents (doc_id, source_path, mtime_ns, size_bytes, content_hash, indexed_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (
-            doc_id,
-            str(path),
-            now,
-            path.stat().st_size,
-            file_content_hash,
-            indexed_at,
-        ),
-    )
-
-    for section in sections:
-        if len(section["content"]) > service.max_chunk_chars:
-            section["content"] = section["content"][: service.max_chunk_chars]
-        content_hash = hashlib.sha256(section["content"].encode()).hexdigest()
-        normalized_content = " ".join(section["content"].split())
-        char_count = len(section["content"])
-        token_count = _estimate_token_count(section["content"])
-        chunk_id = generate_chunk_id(
-            normalized_path,
-            section.get("heading_path", ""),
-            section.get("ordinal", 0),
-            content_hash,
-        )
-
-        # Insert chunk with new schema
-        conn.execute(
-            "INSERT INTO chunks (chunk_id, doc_id, source_path, heading, heading_path, heading_level, ordinal, content, normalized_content, start_line, end_line, char_count, token_count, content_hash, tags_json, indexed_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            (
-                chunk_id,
-                doc_id,
-                str(path),
-                section["heading"],
-                section.get("heading_path", ""),
-                section.get("heading_level", 0),
-                section.get("ordinal", 0),
-                section["content"],
-                normalized_content,
-                section["start_line"],
-                section["end_line"],
-                char_count,
-                token_count,
-                content_hash,
-                tags_json,
-                indexed_at,
-            ),
-        )
-
-    conn.execute("COMMIT")
 
 
 async def _index_single_file(service: MdqService, path: Path) -> None:
@@ -245,7 +147,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
 
     conn = service._get_db_connection()
     try:
-        _write_document_chunks(conn, service, path, sections, tags_json)
+        write_document_chunks(conn, service, path, sections, tags_json)
     except sqlite3.Error as e:
         _rollback_quietly(conn)
         logger.error("Failed to write chunks for %s: %s", path, e)
@@ -281,15 +183,20 @@ def _is_indexable_path(path: Path) -> bool:
     return (path.is_file() and path.suffix == ".md") or path.is_dir()
 
 
-async def _index_one_path(
+def _validated_indexable_path(
     service: MdqService, path_str: str, tally: _PathTally
-) -> None:
-    """Validate and index one requested path, tallying what it produced."""
+) -> Path | None:
+    """Return the path to process, or None when it is tallied as skipped.
+
+    Shared by index_paths() and both refresh modes so the same input is counted the
+    same way. A path outside allowed_dirs raises instead of being skipped: that is an
+    authorization failure, not an indexable-path failure.
+    """
     p = Path(path_str)
     if not p.exists():
         logger.warning("Path does not exist: %s", path_str)
         tally.skipped += 1
-        return
+        return None
     if not authorize_path(p, service.allowed_dirs):
         raise MdqAuthorizationError(
             f"Access denied: {path_str} is outside allowed directories"
@@ -297,6 +204,16 @@ async def _index_one_path(
     if not _is_indexable_path(p):
         logger.warning(_NON_MARKDOWN_PATH_WARNING, path_str)
         tally.skipped += 1
+        return None
+    return p
+
+
+async def _index_one_path(
+    service: MdqService, path_str: str, tally: _PathTally
+) -> None:
+    """Validate and index one requested path, tallying what it produced."""
+    p = _validated_indexable_path(service, path_str, tally)
+    if p is None:
         return
     if p.is_file():
         await _tally_indexing(_index_single_file(service, p), path_str, tally)
@@ -402,7 +319,8 @@ def _detect_deleted_files(
 async def _reindex_forced(service: MdqService, path: Path, path_str: str) -> int:
     """Force mode: re-index one path regardless of index_state.
 
-    Callers gate on _is_indexable_path(), so path is a Markdown file or a directory here.
+    Callers gate on _validated_indexable_path(), so path is a Markdown file or a
+    directory here.
     Returns how many files were indexed: a directory contributes one per indexable file,
     which is the unit incremental mode counts in.
     """
@@ -509,20 +427,11 @@ async def _refresh_one_path(
     """Validate and refresh one requested path.
 
     A path that does not exist, or that is neither a Markdown file nor a directory, is
-    counted as skipped in both modes, the same way index_paths() counts it.
+    counted as skipped in both modes, the same way index_paths() counts it: both modes
+    go through _validated_indexable_path().
     """
-    p = Path(path_str)
-    if not p.exists():
-        logger.warning("Path does not exist: %s", path_str)
-        tally.skipped += 1
-        return
-    if not authorize_path(p, service.allowed_dirs):
-        raise MdqAuthorizationError(
-            f"Access denied: {path_str} is outside allowed directories"
-        )
-    if not _is_indexable_path(p):
-        logger.warning(_NON_MARKDOWN_PATH_WARNING, path_str)
-        tally.skipped += 1
+    p = _validated_indexable_path(service, path_str, tally)
+    if p is None:
         return
     if force:
         await _reindex_forced_path(service, p, path_str, tally)
