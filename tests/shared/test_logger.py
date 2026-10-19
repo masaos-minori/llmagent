@@ -281,3 +281,51 @@ class TestAttachRedactionFilter:
         output = handler.stream.getvalue()
         assert "super-secret-value-should-not-leak" not in output
         assert "***REDACTED***" in output
+
+
+class TestLogDirOverride:
+    """LLMAGENT_LOG_DIR redirects /opt/llm/logs/ paths; unset leaves paths alone.
+
+    Requests use a non-existent /opt/llm/logs/sub/ directory, so a missing override
+    makes the file handler fail to open instead of creating a production file.
+    """
+
+    @staticmethod
+    def _file_handler(logger: Logger) -> logging.FileHandler:
+        return next(
+            h for h in logger._logger.handlers if isinstance(h, logging.FileHandler)
+        )
+
+    def test_log_dir_override_redirects_production_path(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import uuid
+
+        monkeypatch.setenv("LLMAGENT_LOG_DIR", str(tmp_path / "logs"))
+        logger = Logger(f"override-{uuid.uuid4().hex}", "/opt/llm/logs/sub/x.log")
+        handler = self._file_handler(logger)
+        assert Path(handler.baseFilename) == tmp_path / "logs" / "sub" / "x.log"
+        assert (tmp_path / "logs" / "sub").is_dir()
+        logger._logger.removeHandler(handler)
+        handler.close()
+
+    def test_log_dir_override_leaves_other_paths_unchanged(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        import uuid
+
+        monkeypatch.setenv("LLMAGENT_LOG_DIR", str(tmp_path / "logs"))
+        other = tmp_path / "other.log"
+        logger = Logger(f"other-{uuid.uuid4().hex}", str(other))
+        handler = self._file_handler(logger)
+        assert Path(handler.baseFilename) == other
+        logger._logger.removeHandler(handler)
+        handler.close()
+
+    def test_apply_log_dir_override_is_inactive_without_variable(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        from shared.logger import _apply_log_dir_override
+
+        monkeypatch.delenv("LLMAGENT_LOG_DIR", raising=False)
+        assert _apply_log_dir_override("/opt/llm/logs/x.log") == "/opt/llm/logs/x.log"

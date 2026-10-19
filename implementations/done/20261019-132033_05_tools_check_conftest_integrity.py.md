@@ -53,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the manifest entry | Pending | — | — | |
-| 2 | Run the checker, its test, and the tool validation sequence | Pending | — | — | |
+| 1 | Add the manifest entry | Completed | 20261019-140621 | 20261019-140621 |  |
+| 2 | Run the checker, its test, and the tool validation sequence | Completed | 20261019-140621 | 20261019-140621 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

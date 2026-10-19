@@ -413,7 +413,8 @@ class TestEmbeddingInOnSessionStop:
                 ),
             ),
         ]
-        await svc.on_session_stop(session_id=1, history=history)
+        with patch("agent.memory.ingestion.write_upsert"):
+            await svc.on_session_stop(session_id=1, history=history)
 
 
 # ── EmbeddingClient: timeout and circuit breaker ─────────────────────────────
@@ -792,7 +793,8 @@ class TestStatEmbedSkip:
                 ),
             ),
         ]
-        await svc.on_session_stop(session_id=1, history=history)
+        with patch("agent.memory.ingestion.write_upsert"):
+            await svc.on_session_stop(session_id=1, history=history)
         assert svc.stat_embed_skip == 1
 
     @pytest.mark.asyncio
@@ -835,7 +837,8 @@ class TestStatEmbedSkip:
         svc._embed_client.fetch = AsyncMock(  # type: ignore[method-assign]
             return_value=EmbeddingResult(success=False, error_kind="timeout")
         )
-        await svc.write_semantic(session_id=1, content="important rule")
+        with patch("agent.memory.ingestion.write_upsert"):
+            await svc.write_semantic(session_id=1, content="important rule")
         assert svc.stat_embed_skip == 1
 
     @pytest.mark.asyncio
@@ -867,7 +870,8 @@ class TestStatEmbedSkip:
                 ),
             ),
         ]
-        await svc.on_session_stop(session_id=1, history=history)
+        with patch("agent.memory.ingestion.write_upsert"):
+            await svc.on_session_stop(session_id=1, history=history)
 
         # Check that the summary log was called with embed_skipped count
 

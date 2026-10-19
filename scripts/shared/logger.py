@@ -16,9 +16,11 @@ Structured log (JSON-lines):
 """
 
 import logging
+import os
 import re
 import sys
 from contextvars import ContextVar
+from pathlib import Path
 from typing import Any
 
 from shared.json_utils import dumps as _json_dumps
@@ -30,6 +32,27 @@ if not _fallback_logger.handlers:
 
 _BEARER_RE = re.compile(r"Bearer\s+\S+")
 _SECRET_VALUES: set[str] = set()
+
+# Test-only override: when set, log files requested under the production log
+# directory are written under this directory instead. Production processes never
+# set it, so their behavior is unchanged.
+LOG_DIR_ENV = "LLMAGENT_LOG_DIR"
+_PRODUCTION_LOG_PREFIX = "/opt/llm/logs/"
+
+
+def _apply_log_dir_override(log_file: str) -> str:
+    """Redirect a /opt/llm/logs/ path into LLMAGENT_LOG_DIR when that variable is set.
+
+    Returns ``log_file`` unchanged when the variable is empty or the path is not
+    under the production log directory. Only the test configuration sets the
+    variable.
+    """
+    log_dir = os.environ.get(LOG_DIR_ENV)
+    if not log_dir or not log_file.startswith(_PRODUCTION_LOG_PREFIX):
+        return log_file
+    target = Path(log_dir) / log_file[len(_PRODUCTION_LOG_PREFIX) :]
+    target.parent.mkdir(parents=True, exist_ok=True)
+    return str(target)
 
 
 def register_secret(value: str) -> None:
@@ -128,6 +151,7 @@ class Logger:
         """Initialize the logger with a name, log file path, and optional structured logging mode."""
         _require_str(name, "Logger name")
         _require_str(log_file, "log_file")
+        log_file = _apply_log_dir_override(log_file)
         self._logger = logging.getLogger(name)
         self._filter = _ContextFilter()
         self._configure_logger(log_file, structured_log)

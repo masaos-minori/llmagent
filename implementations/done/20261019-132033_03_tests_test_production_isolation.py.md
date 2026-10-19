@@ -63,9 +63,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the module and run it against the unchanged conftest to see it fail | Pending | — | — | |
-| 2 | Confirm it passes after the logger and conftest changes | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for the test file | Pending | — | — | |
+| 1 | Create the module and run it against the unchanged conftest to see it fail | Completed | 20261019-140621 | 20261019-140621 | before the conftest change: 8 of 9 failed; after: 9 passed. memory_jsonl_dir is a top-level key (corrected during implementation) |
+| 2 | Confirm it passes after the logger and conftest changes | Completed | 20261019-140621 | 20261019-140621 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for the test file | Completed | 20261019-140621 | 20261019-140621 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

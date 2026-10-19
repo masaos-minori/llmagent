@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Wrap the four calls with the patch | Pending | — | — | |
-| 2 | Run the file and the validation sequence (`rules/toolchain.md`) for it | Pending | — | — | |
+| 1 | Wrap the four calls with the patch | Completed | 20261019-140621 | 20261019-140621 | four tests patched; test_on_session_stop_delegates needs no change (facade is mocked) |
+| 2 | Run the file and the validation sequence (`rules/toolchain.md`) for it | Completed | 20261019-140621 | 20261019-140621 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
