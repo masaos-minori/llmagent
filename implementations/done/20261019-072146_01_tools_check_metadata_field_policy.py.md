@@ -140,10 +140,10 @@ Changing the sanctioned field set or the templates, and adding new required fiel
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001..006; UNK-01..03 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-001..006 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-007 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261019-172724 | 20261019-172724 | REQ-001..006; UNK-01..03 |
+| 2 | Add or update tests per Validation plan | Completed | 20261019-172724 | 20261019-172724 | REQ-001..006 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019-172724 | 20261019-172724 | all REQs Adversarial smoke test found missing 'if __package__' sys.path block -> direct-run ModuleNotFoundError; added per check_*.py convention. ruff/mypy/bandit/lint-imports clean; 30/30 tests pass; real-corpus run: No issues found. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261019-172724 | 20261019-172724 | REQ-007 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

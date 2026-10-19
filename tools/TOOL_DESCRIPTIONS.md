@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (46 modules)
+## Index (48 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -35,6 +35,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `check_glossary_term_classification.py` | Consistency checker | Scan the "Compatibility and Lifecycle Terminology" glossary table in `governance_02_documentation-metadata.md` and flag entries whose term is a general/common English word rather than a project-specific identifier at `Warning` (GV-015). Conservative classification treats capitalized terms as project-specific, so the current canonical term set yields zero findings |
 | `check_dependency_graph_cycles.py` | Dependency | Detect cycles in the software runtime dependency graph |
 | `check_known_deviation_sync.py` | ADR | Check that ADR Known Deviations reference the canonical source (`governance_03`) consistently, and detect leaked Resolved items (rule ID `GV-022`) |
+| `check_metadata_field_policy.py` | Consistency checker | GV-016: flag docs front-matter keys and workitem sections outside the sanctioned field set at `Warning` (non-blocking), deriving permitted sets from the front-matter schema and workitem templates |
 | `check_mock_patch_targets.py` | Test | Detect `unittest.mock.patch()` targets that are ineffective |
 | `check_needs_confirmation_inventory.py` | Consistency checker | Verify that every Needs confirmation mention is registered in the central inventory |
 | `check_issue_inventory_conformance.py` | Consistency checker | Validate the vocabulary, template, and reference integrity of the Issue inventory |
@@ -89,6 +90,7 @@ All of these share DocFile/Issue/`discover_md_files` and related helpers from `_
 | `check_docs_content_policy.py` | All of `docs/*.md` (recursive, including subdirectories such as `docs/10_adr/`) | Detects 16 categories of implementation detail that `skills/DESIGN.md` "Docs content policy — remove" and related sections prohibit: ASCII file trees; one-line descriptions embedded in trees/tables; class/function/method index tables; implementation-location mappings; literal port numbers; default values restated outside tables; Field/Type/Default tables; config-file inventory mapping tables; CLI command enumerations; environment-setup command sequences; DDL/schema blocks; TypedDict/DTO field tables; CLI argument tables; exception-handling tables; full JSON examples; comparisons of code fallback values against operational values. Findings are Warnings: report-only by default, `--strict` exits 1 on any warning (CI, blocking). `rules/env.md` is outside `docs/*.md` and therefore not scanned (`GV-018`) |
 | `check_adr_preservation.py` | Changed `docs/10_adr/*.md` vs a Git ref (default `HEAD`; `--base <ref>`; explicit file paths allowed) | Proves an ADR size reduction kept its content. ERROR (exit 1): front matter, H2 sequence, `INV-NN` ids or text, Related ADRs, Implementation References, `path.py::test` citations, or the `Known Deviations` / `Approval` text differ. WARNING: `Decision`, `Failure Policy`, `Data Ownership and Persistence`, or `Invariants` text differs (needs a sentence-level mapping), a `MUST NOT`/`MUST`/`SHOULD`/`MAY` count decreased, or a backtick-quoted path/symbol disappeared. Non-ADR documents (`--dir docs/24_eventbus`) use a generic rule set: ERROR for front matter, `AUTO-GENERATED` block, or unbalanced code fence changes; WARNING for an HTTP `METHOD /path`, status code, or backtick-quoted path/symbol that no longer appears anywhere in the compared set, an H2 sequence change, or a decreased normative-keyword count. Prints per-file and total byte reduction; tokens are not measured |
 | `check_docs_japanese.py` | All of `docs/*.md` | Lists Markdown files containing hiragana, katakana, or kanji (`U+3040`-`U+9FFF`). Used to find violations of the English-only policy for `docs/` in `skills/DESIGN.md` "Output language". Exits with code 1 if any file matches (used by the pre-commit hook `docs-japanese`) |
+| `check_metadata_field_policy.py` | `docs/*.md` front matter + `issues/`, `plans/`, `implementations/` workitems | GV-016: flags metadata/status fields outside the sanctioned set at `Warning` (report-only by default; `--strict` exits 1). Derives the permitted front-matter key set from `schemas/doc_front_matter.json`'s `properties` (ignoring `additionalProperties: true`) and the permitted workitem section set from each template's canonical `## ` sections (unioned with embedded sub-template sections, minus meta/instructional sections); comparison is case-insensitive. Skips `done/` archives. Reuses `tools/_front_matter_schema.py` and `tools/_docs_consistency_lib.py` (`Issue`/`report_and_exit`) |
 
 ## Reference Generators
 

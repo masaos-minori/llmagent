@@ -329,7 +329,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-013 | Software vs Documentation dependency graph separation | Imp | Manual | Human review | PR | Warning | Existing | None |
 | GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Existing | None |
-| GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
+| GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Slash-command removed-name patterns implemented (`/diff`, `/system`, `/audit`, `/workflow`); promote to default-on once the corpus is compliant |
 | GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py --strict` | PR | Blocking | Existing | None |
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |

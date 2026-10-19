@@ -93,10 +93,10 @@ Changing the checker's behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001..006 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-001..006 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-007 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261019-172851 | 20261019-172851 | REQ-001..006 |
+| 2 | Add or update tests per Validation plan | Completed | 20261019-172851 | 20261019-172851 | REQ-001..006 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019-172851 | 20261019-172851 | all REQs |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261019-172851 | 20261019-172851 | REQ-007 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
