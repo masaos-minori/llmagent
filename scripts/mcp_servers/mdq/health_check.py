@@ -110,8 +110,27 @@ def _collect_index_stats(conn: sqlite3.Connection) -> dict[str, object]:
     }
 
 
-def check_health() -> JSONResponse:
-    """Check mdq-mcp health and return appropriate response."""
+def _collect_dependencies() -> tuple[
+    dict[str, str],
+    dict[str, object],
+    dict[str, object],
+    bool,
+    tuple[str, str] | None,
+    bool,
+    Mapping[str, object] | None,
+]:
+    """Load config and probe dependencies for MDQ health/posture.
+
+    Shared by `check_health()` (the /health endpoint) and the import-time
+    security-posture build in `mdq_server.py`. Returns
+    `(deps, details, mdq_cfg, db_file_present, schema_error, schema_checked,
+    index_stats)`. The trailing five values are the contract consumed by
+    `build_mdq_posture()`; `deps` / `details` are returned alongside so the
+    /health body stays byte-for-byte identical after extraction (AC-003). The
+    exception message captured by the `deps["config"]` branch is carried in
+    `deps`, so it cannot be reconstructed from the five values alone — hence
+    the seven-value return (see the plan's Option (b) decision).
+    """
     deps: dict[str, str] = {}
     details: dict[str, object] = {"service": "mdq-mcp"}
     mdq_cfg: dict[str, object] = {}
@@ -150,6 +169,28 @@ def check_health() -> JSONResponse:
     except (FileNotFoundError, PermissionError, KeyError, TypeError) as e:
         deps["config"] = f"check failed: {e}"
 
+    return (
+        deps,
+        details,
+        mdq_cfg,
+        db_file_present,
+        schema_error,
+        schema_checked,
+        index_stats,
+    )
+
+
+def check_health() -> JSONResponse:
+    """Check mdq-mcp health and return appropriate response."""
+    (
+        deps,
+        details,
+        mdq_cfg,
+        db_file_present,
+        schema_error,
+        schema_checked,
+        index_stats,
+    ) = _collect_dependencies()
     posture = build_mdq_posture(
         mdq_cfg, db_file_present, schema_error, schema_checked, index_stats
     )

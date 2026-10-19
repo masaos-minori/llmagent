@@ -24,11 +24,13 @@ from shared.config_loader import ConfigLoader
 from shared.config_utils import get_str
 from shared.formatters import fmt_kvlog
 from shared.logger import Logger
+from shared.security.posture_contract import SecurityPosture
+from shared.security.result_dto import SecurityCheckStatus
 
 from mcp_servers.audit import _audit_log
 from mcp_servers.dispatch import DispatchResult, _to_call_tool_response, dispatch_tool
 from mcp_servers.mdq.audit_target import extract_audit_target
-from mcp_servers.mdq.health_check import check_health
+from mcp_servers.mdq.health_check import _collect_dependencies, check_health
 from mcp_servers.mdq.mdq_models import (
     GetChunkRequest,
     GrepDocsRequest,
@@ -45,6 +47,7 @@ from mcp_servers.mdq.mdq_models import (
     SearchDocsRequest,
     StatsRequest,
 )
+from mcp_servers.mdq.mdq_security_validation import build_mdq_posture
 from mcp_servers.mdq.mdq_service import MdqService
 from mcp_servers.mdq.mdq_tools import TOOL_LIST
 from mcp_servers.models import CallToolRequest, CallToolResponse, McpTool
@@ -77,6 +80,23 @@ def _load_auth_token() -> str:
 
 _AUTH_TOKEN: str = _load_auth_token()
 _service: MdqService = MdqService()
+
+# Build the MDQ security posture once at import (REQ-002). `_collect_dependencies()`
+# swallows config/probe exceptions (it records them under deps["config"] and returns an
+# empty config view), so this never raises at import; the gate below fails closed at
+# startup when the resulting posture is not validated.
+(
+    _deps,
+    _details,
+    _mdq_cfg,
+    _db_file_present,
+    _schema_error,
+    _schema_checked,
+    _index_stats,
+) = _collect_dependencies()
+_security_posture: SecurityPosture = build_mdq_posture(
+    _mdq_cfg, _db_file_present, _schema_error, _schema_checked, _index_stats
+)
 
 
 def _mdq_tool_availability(allowed_dirs: list[str], tool_name: str) -> tuple[bool, str]:
@@ -451,6 +471,27 @@ if not _AUTH_TOKEN:
 attach_auth_middleware(cast(_FastAPIApp, app), _AUTH_TOKEN)
 
 
+def _enforce_posture_gate() -> None:
+    """Refuse HTTP bind when the MDQ posture is not validated (fail-closed, REQ-003).
+
+    Reads only `_security_posture.validated`; the payload `ready` is derived in
+    `make_health_response()` from dependencies plus `validated`, so this module never
+    invents its own Ready rule. Logs failed check ids and reason codes only (no auth
+    tokens or allow-list entries) and raises SystemExit(1) when not validated. Runs in
+    __main__ only, so importing this module in tests never triggers SystemExit.
+    """
+    if _security_posture.validated:
+        return
+    failed = ", ".join(
+        f"{check.check_id}:{check.reason_code}"
+        for check in _security_posture.checks
+        if check.status is SecurityCheckStatus.FAILED
+    )
+    logger.error("mdq-mcp: security posture FAILED (%s) — refusing to bind", failed)
+    raise SystemExit(1)
+
+
 if __name__ == "__main__":
+    _enforce_posture_gate()
     server = MdqMCPServer()
     server.run_http()
