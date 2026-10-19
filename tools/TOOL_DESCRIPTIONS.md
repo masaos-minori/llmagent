@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (50 modules)
+## Index (51 modules)
 
 | File | Category | Purpose |
 |---|---|---|
