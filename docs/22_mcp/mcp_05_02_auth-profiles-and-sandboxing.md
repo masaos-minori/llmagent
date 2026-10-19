@@ -52,7 +52,7 @@ secret in the TOML file — see section 2.5 (MCP Authentication Tokens) of the d
 
 **Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](../23_agent/agent_08_01_configuration-loading-agent-config.md#configuration-file-ownership)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 
-**Config Read Boundary:** The Agent layer no longer reads MCP server configuration files. `agent/security_audit_config.py` was the sole authorized point in the agent layer for importing MCP server configuration models (`mcp_servers.shell.shell_models`, `mcp_servers.git.git_models`, `mcp_servers.github.github_models_config`, `mcp_servers.cicd.cicd_models`); it exposed four loader functions covering four narrow scopes of DTOs (`ShellAuditConfig`, `GitAuditConfig`, `GitHubAuditConfig`, `CicdAuditConfig`) and their respective optional dependencies (`ImportError` → `None`) and config loading failures (`Exception` → `RuntimeError`). That module and the import-linter exemption that allowed its imports were removed together with the startup security audit, so no Agent module imports those models and each server reads only its own config file (see [ADR-002](../10_adr/adr_02_002_config-isolation.md)).
+**Config Read Boundary:** The Agent layer does not read MCP server configuration files and imports no MCP server configuration models. Each server reads only its own config file and validates it at startup; the Agent consumes only the security posture each server publishes on `GET /health` (see [ADR-002](../10_adr/adr_02_002_config-isolation.md)).
 
 ---
 

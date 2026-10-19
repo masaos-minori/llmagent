@@ -1,5 +1,5 @@
 ---
-title: "Agent CLI and Commands - Slash Commands: Debug/Audit, Compact"
+title: "Agent CLI and Commands - Slash Commands: Debug, Compact"
 area: agent
 tags:
   - agent
@@ -27,13 +27,13 @@ related:
 
 ## Purpose
 
-Documents the purpose and side effects of slash commands in the Debug/Audit, Git/Diff, and Compact categories.
+Documents the purpose and side effects of slash commands in the Debug and Compact categories.
 
 ## Design Intent
 
-### Debug / Audit Category
+### Debug Category
 
-A group of commands related to debugging and audit logs.
+A group of commands related to debug mode and debug log verbosity.
 
 | Command | Form | Effect |
 |---|---|---|
@@ -49,8 +49,7 @@ RAG search is not provided as a slash command — it is automatically called by 
 
 ## Responsibility Boundary
 
-- **Debug/Audit**: Debug mode and audit logs
-- **Git/Diff**: Displaying file changes within a session
+- **Debug**: Debug mode and debug log verbosity
 - **Compact**: History compression
 
 ## Known Limitations

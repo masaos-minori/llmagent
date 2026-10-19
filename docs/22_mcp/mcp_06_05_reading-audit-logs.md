@@ -104,8 +104,10 @@ The following MCP servers do not write any audit logs:
 | file-read-mcp | No audit functionality implemented |
 | rag-pipeline-mcp | No audit functionality implemented |
 
-`file-write-mcp` and `file-delete-mcp` were added to the audit path in the MCP-006 guard layer: both call
-`mcp_servers.audit._audit_log()` on the rejected and completed paths, so they no longer belong in this table.
+`file-write-mcp` and `file-delete-mcp` are not listed here because both emit audit events: each `call_tool` handler calls
+`mcp_servers.audit._audit_log()` with the session ID, request ID, action, a truncated target, and an `outcome` on every
+rejected path (empty `allowed_dirs`, argument validation failure) and on the completed path. Before/after file state and
+approval correlation are not recorded by these events.
 
 ### Agent-side Audit Logs (Structured Events)
 
