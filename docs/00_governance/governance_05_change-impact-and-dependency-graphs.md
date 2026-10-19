@@ -42,9 +42,9 @@ To determine which documents are affected by a change:
    - Deployment changes: Deployment Management Graph
    - Documentation-only changes: Documentation Reference Graph
    - Governance-policy changes: Governance Applicability Matrix
-   - Configuration or API changes: [Resolution Matrix](governance_01_documentation-policy.md#resolution-matrix), until a dedicated ownership map exists
+   - Configuration or API changes: [Resolution Matrix](governance_01_documentation-policy.md#resolution-matrix)
 
-   Note: owner decision: a Configuration Ownership Map or API Consumer Map is needed for per-key ownership traceability, but building it is separate, unstarted follow-up work — not part of this change.
+   Note: owner decision: a dedicated Configuration Ownership Map or API Consumer Map is not adopted. The Resolution Matrix settles the canonical source per claim type (`production-effective-value`, `configuration-schema`, `api-contract`), and consumers of a changed key or interface are found through step 4's reference search. Reconsider only if that search repeatedly misses affected documents.
 
 3. Map the change to the areas or components covered by the selected graph or matrix.
 
