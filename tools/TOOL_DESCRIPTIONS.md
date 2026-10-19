@@ -64,6 +64,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `mark_procedure_new_symbols.py` | Work item | `list` reports the symbol names `stale_detector.py` reports as missing in one procedure document with the lines of their unmarked backticked occurrences; `mark` inserts the `(new)` marker for the names the operator supplies, and refuses any name `stale_detector.py` does not report as missing |
 | `set_execution_status.py` | Work item | Mark the selected rows of one procedure document's `### Execution Status` table `Completed`, stamp the `Started` and `Completed` columns, and set `Notes` from `--note STEP:TEXT`. `--all` or `--step 1,4` selects rows; a step the table does not contain is refused. Updates the table state `manage_workitem_stage.py close-implementation` gates on |
 | `run_refactor_validation.py` | Validation runner | Runs the per-file refactor gate (`rules/toolchain.md`): ruff format and check, mypy, radon grade gate, targeted tests, coverage plus diff-cover scoped to the changed files |
+| `extract_module_nodes.py` | Refactor helper | Move the exact source ranges of named top-level classes and functions from one module into another (`--src` / `--dest` / repeatable `--name`), for Path C module splits. The moved code is byte-identical: the tool slices original lines and never rewrites them. Import cleanup, renaming, and call/test repointing stay with the operator. Reports post-move line and byte counts |
 
 ## Domain Documentation Consistency Checkers
 
