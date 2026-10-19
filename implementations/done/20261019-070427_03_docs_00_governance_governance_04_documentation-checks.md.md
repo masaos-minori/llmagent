@@ -85,10 +85,10 @@ Any other matrix row, the automation/tool columns, or any other governance rule.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-005 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-005 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-005 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | N/A | — | — | docs-only procedure; tool change is E01 |
+| 2 | Add or update tests per Validation plan | N/A | — | — | docs-only procedure |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | N/A | — | — | docs-only procedure |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | — | — | GV-011 status Partial → Existing, note cleared; check_docs_quality.py / check_docs_structure.py pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

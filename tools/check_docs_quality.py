@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import posixpath
 import re
 import sys
 from collections.abc import Callable
@@ -65,6 +66,22 @@ def discover_md_files(docs_dir: Path) -> list[DocFile]:
 _HISTORICAL_MARKERS: frozenset[str] = frozenset(
     {"legacy", "historical", "archive only", "resolved", "was:", "removed"}
 )
+
+# Canonical-language markers used to scope the absent-canonical-document
+# pattern in `check_stale_patterns`. A Markdown link/reference on a line that
+# carries one of these phrases is treated as a claim about a canonical source;
+# if that target is absent from the corpus the claim is stale (GV-011). Kept
+# deliberately narrow so legitimate cross-domain prose never trips it.
+_CANONICAL_LANGUAGE_MARKERS: frozenset[str] = frozenset(
+    {
+        "canonical source for",
+        "authoritative source for",
+        "normative reference for",
+    }
+)
+
+# Inline Markdown link/reference whose capture group holds the target path.
+_MD_LINK_RE = re.compile(r"\[[^\]]*\]\(\s*(?P<path>[^)\s]+)\s*\)")
 
 # Minimum tokenized-word count for a section to be eligible for cross-file
 # similarity comparison. Empirically justified: full-corpus review found the
@@ -492,27 +509,81 @@ def check_json_not_wrapped(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
     return issues
 
 
+def _resolve_corpus_rel(doc_rel_path: str, target: str) -> str:
+    """Resolve a Markdown link target against a document's directory.
+
+    Bare basenames and slash-prefixed paths are both joined to the document's
+    directory and normalized. Mirrors the resolution used by
+    `check_docs_structure.check_links` so absence checks are consistent across
+    the two checks.
+    """
+    base = posixpath.dirname(doc_rel_path)
+    return posixpath.normpath(posixpath.join(base, target))
+
+
+def _absent_canonical_reference(
+    stripped: str, doc_rel_path: str, corpus_paths: set[str]
+) -> bool:
+    """True when `stripped` references an absent canonical document.
+
+    Fires only when all hold: the line carries a canonical-language marker,
+    contains an inline Markdown link/reference, and the resolved target is not
+    present in the corpus. Fails safe (returns False) otherwise so legitimate
+    cross-domain prose and valid references never trip it (REQ-003/004).
+    """
+    lowered = stripped.lower()
+    if not any(marker in lowered for marker in _CANONICAL_LANGUAGE_MARKERS):
+        return False
+    match = _MD_LINK_RE.search(stripped)
+    if not match:
+        return False
+    target = match.group("path").split("#", 1)[0].strip()
+    if not target or target.startswith(("http://", "https://", "mailto:")):
+        return False
+    return _resolve_corpus_rel(doc_rel_path, target) not in corpus_paths
+
+
 @register_core_check("stale_patterns", "Stale artifact paths / non-canonical commands")
 def check_stale_patterns(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
     issues: list[Issue] = []
-    # Default stale patterns — can be overridden by custom rules
-    default_patterns: dict[str, str] = {}
+    # Default stale patterns: pattern_name -> (regex, severity). Per-pattern
+    # severity lets the absent-canonical-reference pattern warn while any
+    # future pattern keeps its own level. Can be overridden by custom rules.
+    default_patterns: dict[str, tuple[str, str]] = {
+        # Inline Markdown link/reference whose target may be absent from the
+        # corpus. Existence + canonical-language gating happen per-match in the
+        # loop below; this regex only identifies candidate link syntax.
+        "absent_canonical_reference": (
+            r"\[[^\]]*\]\([^)]*\)",
+            "WARNING",
+        ),
+    }
+    compiled_patterns = {
+        name: (re.compile(rx), severity)
+        for name, (rx, severity) in default_patterns.items()
+    }
+    corpus_paths: set[str] = {doc.rel_path for doc in files}
     for doc in files:
         for i, line in enumerate(doc.lines, 1):
             stripped = line.strip()
             is_historical = any(
                 m.lower() in stripped.lower() for m in _HISTORICAL_MARKERS
             )
-            for pattern_name, pattern in default_patterns.items():
-                if re.search(pattern, stripped) and not is_historical:
-                    issues.append(
-                        Issue(
-                            doc.rel_path,
-                            i,
-                            "ERROR",
-                            f"stale reference: '{pattern_name}'",
-                        )
+            for pattern_name, (pattern, severity) in compiled_patterns.items():
+                if not pattern.search(stripped) or is_historical:
+                    continue
+                if pattern_name == "absent_canonical_reference" and not (
+                    _absent_canonical_reference(stripped, doc.rel_path, corpus_paths)
+                ):
+                    continue
+                issues.append(
+                    Issue(
+                        doc.rel_path,
+                        i,
+                        severity,
+                        f"stale reference: '{pattern_name}'",
                     )
+                )
     return issues
 
 

@@ -137,10 +137,10 @@ Changing `check_docs_structure.py` link-reachability behavior and other `stale_p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001/002/003; UNK-01/02/03 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-001/002/003/004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-005 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | — | — | REQ-001/002/003; UNK-01/02/03; per-pattern severity added; corpus-absence gating via `_absent_canonical_reference` |
+| 2 | Add or update tests per Validation plan | Done | — | — | 12 new tests (67 total); passing + failing paths |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | — | — | ruff/mypy/bandit/lint-imports clean; corpus "No issues found", exit 0 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-19 | 2026-10-19 | REQ-005 (E03): GV-011 Partial→Existing, note cleared (see _03); check_docs_quality.py / check_docs_structure.py pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

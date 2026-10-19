@@ -324,7 +324,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-008 | Needs Confirmation assignment, review metadata, priority, and resolution target (`Assigned To`, `Last Reviewed`, `Priority`, `Resolution Target`, and Status/Blocking consistency) | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Existing | None |
 | GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Existing | None |
 | GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Existing | None |
-| GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
+| GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Existing | None |
 | GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
 | GV-013 | Software vs Documentation dependency graph separation | Imp | Manual | Human review | PR | Warning | Existing | None |
 | GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Partial | Automate auto-check implementation audit (currently manual) |

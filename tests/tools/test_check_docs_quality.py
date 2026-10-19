@@ -568,3 +568,121 @@ class TestBrokenHeadingsFenceAware:
 
     def test_malformed_heading_outside_fence_is_reported(self) -> None:
         assert len(self._issues(["#Title"])) == 1
+
+
+# ---------------------------------------------------------------------------
+# Tests for check_stale_patterns — absent-canonical-document references (GV-011)
+# ---------------------------------------------------------------------------
+
+
+def _doc(rel_path: str, *lines: str) -> cdq.DocFile:
+    return cdq.DocFile(path=_ROOT_DIR / rel_path, rel_path=rel_path, lines=list(lines))
+
+
+class TestResolveCorpusRel:
+    def test_bare_basename_resolves_to_same_dir(self) -> None:
+        assert cdq._resolve_corpus_rel("22_mcp/foo.md", "bar.md") == "22_mcp/bar.md"
+
+    def test_slash_path_joins_doc_dir(self) -> None:
+        assert cdq._resolve_corpus_rel("22_mcp/foo.md", "../other/x.md") == "other/x.md"
+
+
+class TestAbsentCanonicalReference:
+    def test_canonical_marker_with_absent_target_is_true_positive(self) -> None:
+        doc = _doc(
+            "22_mcp/foo.md",
+            "The canonical source for schemas is [missing.md](missing.md).",
+        )
+        assert (
+            cdq._absent_canonical_reference(
+                doc.lines[0], doc.rel_path, {"22_mcp/foo.md"}
+            )
+            is True
+        )
+
+    def test_canonical_marker_with_present_target_is_not_absent(self) -> None:
+        doc = _doc(
+            "22_mcp/foo.md",
+            "The canonical source for schemas is [present.md](present.md).",
+        )
+        assert (
+            cdq._absent_canonical_reference(
+                doc.lines[0], doc.rel_path, {"22_mcp/foo.md", "22_mcp/present.md"}
+            )
+            is False
+        )
+
+    def test_no_canonical_marker_is_not_absent(self) -> None:
+        doc = _doc("22_mcp/foo.md", "See [missing.md](missing.md) for details.")
+        assert (
+            cdq._absent_canonical_reference(
+                doc.lines[0], doc.rel_path, {"22_mcp/foo.md"}
+            )
+            is False
+        )
+
+    def test_canonical_marker_without_link_is_not_absent(self) -> None:
+        doc = _doc("22_mcp/foo.md", "The canonical source for schemas is the registry.")
+        assert (
+            cdq._absent_canonical_reference(
+                doc.lines[0], doc.rel_path, {"22_mcp/foo.md"}
+            )
+            is False
+        )
+
+    def test_http_target_is_not_absent(self) -> None:
+        doc = _doc(
+            "22_mcp/foo.md", "The canonical source for X is [ext](https://example.com)."
+        )
+        assert (
+            cdq._absent_canonical_reference(
+                doc.lines[0], doc.rel_path, {"22_mcp/foo.md"}
+            )
+            is False
+        )
+
+
+class TestCheckStalePatterns:
+    def test_absent_canonical_reference_emitted_at_warning(self) -> None:
+        doc = _doc(
+            "22_mcp/foo.md",
+            "The canonical source for schemas is [missing.md](missing.md).",
+        )
+        issues = cdq.check_stale_patterns(_DOCS_DIR, [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "absent_canonical_reference" in issues[0].message
+
+    def test_present_canonical_reference_not_flagged(self) -> None:
+        foo = _doc(
+            "22_mcp/foo.md",
+            "The canonical source for schemas is [present.md](present.md).",
+        )
+        present = _doc("22_mcp/present.md", "Body.")
+        assert cdq.check_stale_patterns(_DOCS_DIR, [foo, present]) == []
+
+    def test_non_canonical_dangling_link_not_flagged(self) -> None:
+        # Dangling link without canonical language stays with check_links, not here.
+        doc = _doc("22_mcp/foo.md", "See [missing.md](missing.md) for details.")
+        assert cdq.check_stale_patterns(_DOCS_DIR, [doc]) == []
+
+    def test_historical_context_skips_absent_canonical_reference(self) -> None:
+        doc = _doc(
+            "22_mcp/foo.md",
+            "Legacy: the canonical source for schemas was [missing.md](missing.md).",
+        )
+        assert cdq.check_stale_patterns(_DOCS_DIR, [doc]) == []
+
+    def test_true_positive_and_negative_together(self) -> None:
+        good = _doc(
+            "22_mcp/good.md",
+            "The canonical source for schemas is [present.md](present.md).",
+        )
+        bad = _doc(
+            "22_mcp/bad.md",
+            "The canonical source for provisioning is [gone.md](gone.md).",
+        )
+        present = _doc("22_mcp/present.md", "Body.")
+        issues = cdq.check_stale_patterns(_DOCS_DIR, [good, bad, present])
+        assert len(issues) == 1
+        assert issues[0].file == "22_mcp/bad.md"
