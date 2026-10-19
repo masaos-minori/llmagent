@@ -1,16 +1,26 @@
 #!/usr/bin/env python3
 """tools/extract_module_nodes.py — Move top-level class/function nodes between modules verbatim.
 
-Moves the exact source ranges of named top-level classes and functions from one Python
-module into another (appended to the destination file, created when absent). The moved
-code is byte-identical to the original: the tool slices original lines, never rewrites
-them. Import cleanup, formatting, and call/test repointing stay with the caller.
+Moves the exact source ranges of named top-level classes and functions, or explicit line
+spans, from one Python module into another (appended to the destination file, created when
+absent). The moved code is the original text: the tool slices original lines and never
+rewrites them, and `--dedent` is the one mechanical change it can make so a method becomes
+a module-level function. Import cleanup, formatting, and call/test repointing stay with the
+caller.
 
 Usage:
     uv run python tools/extract_module_nodes.py \
         --src scripts/mcp_servers/mdq/indexer.py \
         --dest scripts/mcp_servers/mdq/index_refresh.py \
         --name RefreshSummary --name _load_index_state ...
+        --range 159-252 --dedent
+
+`--name` selects a top-level node. `--range START-END` selects a 1-based inclusive line
+span, which is how a method inside a class is moved out as a span. `--dedent` removes one
+4-space indent level from every moved line, so a moved method becomes a module-level
+function; it refuses to run when a moved line is not indented by at least 4 spaces.
+Removing a `self` parameter and repointing imports, call sites and tests stay with the
+caller.
 
 Reports moved names, destination order, and post-move line/byte counts. Exit 1 when a
 name is not a top-level class or function of --src.
@@ -35,35 +45,82 @@ def _node_index(tree: ast.Module) -> dict[str, tuple[int, int]]:
     return index
 
 
-def _extract_lines(src: pathlib.Path, names: list[str]) -> tuple[list[str], list[str]]:
+def _parse_range(raw: str) -> tuple[int, int]:
+    """Parse a `START-END` 1-based inclusive line span."""
+    try:
+        start_raw, end_raw = raw.split("-", 1)
+        start, end = int(start_raw), int(end_raw)
+    except ValueError:
+        raise SystemExit(f"ERROR: --range expects START-END, got {raw!r}") from None
+    if start < 1 or end < start:
+        raise SystemExit(f"ERROR: invalid --range {raw!r}")
+    return start, end
+
+
+def _dedent_segment(segment: str, src: pathlib.Path, start: int) -> str:
+    """Remove one 4-space indent level from every non-blank line of a moved span."""
+    out: list[str] = []
+    for offset, line in enumerate(segment.splitlines(keepends=True)):
+        text = line.rstrip("\r\n")
+        if text.strip() == "":
+            out.append(line)
+            continue
+        if not text.startswith("    ") or text.startswith("\t"):
+            msg = f"{src}:{start + offset}: expected a 4-space indent, got {text!r}"
+            raise SystemExit(f"ERROR: cannot --dedent {msg}")
+        out.append(line[4:])
+    return "".join(out)
+
+
+def _extract_lines(
+    src: pathlib.Path,
+    names: list[str],
+    ranges: list[tuple[int, int]],
+    dedent: bool,
+) -> tuple[list[str], list[str]]:
     """Return (kept_lines, moved_segments): src lines without the moved nodes, and each
-    moved node's exact original lines, in the order requested."""
+    moved span's exact original lines, in the order requested."""
     lines = src.read_text().splitlines(keepends=True)
     index = _node_index(ast.parse(src.read_text()))
     missing = [name for name in names if name not in index]
     if missing:
         msg = ", ".join(missing)
         raise SystemExit(f"ERROR: not top-level nodes of {src}: {msg}")
-    moved_segments = [
-        "".join(lines[index[name][0] - 1 : index[name][1]]) for name in names
-    ]
+    spans = [index[name] for name in names] + list(ranges)
+    moved_segments = []
+    for start, end in spans:
+        segment = "".join(lines[start - 1 : end])
+        moved_segments.append(
+            _dedent_segment(segment, src, start) if dedent else segment
+        )
     drop: set[int] = set()
-    for name in names:
-        start, end = index[name]
+    for start, end in spans:
         drop.update(range(start, end + 1))
     kept_lines = [line for i, line in enumerate(lines, start=1) if i not in drop]
     return kept_lines, moved_segments
 
 
 def main(argv: list[str] | None = None) -> int:
-    """Move the named nodes from --src into --dest; print post-move file sizes."""
+    """Move the named nodes or line spans from --src into --dest; print post-move sizes."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--src", required=True, type=pathlib.Path)
     parser.add_argument("--dest", required=True, type=pathlib.Path)
-    parser.add_argument("--name", action="append", required=True, dest="names")
+    parser.add_argument("--name", action="append", default=[], dest="names")
+    parser.add_argument("--range", action="append", default=[], dest="range_args")
+    parser.add_argument(
+        "--dedent",
+        action="store_true",
+        help="remove one 4-space indent level from the moved lines",
+    )
     args = parser.parse_args(argv)
 
-    kept_lines, moved_segments = _extract_lines(args.src, args.names)
+    if not args.names and not args.range_args:
+        raise SystemExit("ERROR: pass at least one --name or --range")
+    ranges = [_parse_range(raw) for raw in args.range_args]
+
+    kept_lines, moved_segments = _extract_lines(
+        args.src, args.names, ranges, args.dedent
+    )
 
     dest_existing = args.dest.read_text() if args.dest.exists() else ""
     joined = dest_existing.rstrip("\n")
@@ -72,9 +129,10 @@ def main(argv: list[str] | None = None) -> int:
     args.dest.write_text(dest_code)
     args.src.write_text("".join(kept_lines))
 
-    print(f"moved {len(args.names)} nodes -> {args.dest}")
-    for name in args.names:
-        print(f"  {name}")
+    moved = args.names + [f"lines {start}-{end}" for start, end in ranges]
+    print(f"moved {len(moved)} nodes -> {args.dest}")
+    for label in moved:
+        print(f"  {label}")
     for path in (args.src, args.dest):
         print(
             f"{path}: {len(path.read_text().splitlines())} lines, {path.stat().st_size} B"
