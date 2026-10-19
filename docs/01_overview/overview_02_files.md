@@ -159,7 +159,7 @@ See `config/` for the current file layout.
 
 ### Per-Process Config Isolation Policy
 
-Each process reads only its own config file — no cross-process config sharing. This prevents configuration drift between processes and ensures that changes to one process's config do not affect others. The MCP servers read their respective `<key>_mcp_server.toml` files; the agent reads `agent.toml`.
+Each process reads only its own config file — no cross-process config sharing. Enforcement is by `ConfigLoader.restrict_to()`, except for the EventBus, which uses a local invariant instead (see ADR-002 Exceptions). This prevents configuration drift between processes and ensures that changes to one process's config do not affect others. The MCP servers read their respective `<key>_mcp_server.toml` files; the agent reads `agent.toml`.
 
 ### MCP Server Configuration Responsibilities
 

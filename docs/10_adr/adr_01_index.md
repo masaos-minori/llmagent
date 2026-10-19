@@ -145,10 +145,10 @@ A row whose Verification Status is "Not verified" is Non-Blocking, because a gat
 | Pipeline Stage | Invariants Covered |
 |----------------|-------------------|
 | CI (pull request), confirmed | ADR-001 INV-01, INV-08, INV-10 and INV-11; ADR-002 INV-01 and INV-02; ADR-003 INV-02; ADR-004 INV-14; ADR-005 INV-02; ADR-006 INV-02, INV-05, INV-09 and INV-16; ADR-007 INV-06, INV-09, INV-11 and INV-12; ADR-013 INV-02 and INV-07; ADR-015 INV-01; ADR-009 INV-07 and INV-10; ADR-010 INV-03 and INV-04; ADR-012 INV-01, INV-02, INV-03 and INV-04; ADR-014 INV-02 |
-| CI (pull request), partial or not verified | ADR-004 INV-07, INV-10 (partial) and INV-15, INV-16 (manual audit only) |
+| CI (pull request), partial or not verified | ADR-004 INV-07, INV-10 (partial) |
 | Startup validation | ADR-004 INV-01, INV-02, INV-07 (partial), INV-08, INV-09, INV-10 (partial) and INV-14; ADR-002 INV-01 and INV-02 through the Security Posture contract |
 | Pre-deployment validation | ADR-008 INV-01 to INV-05 (also enforced in CI) |
-| Manual Review (code review) | ADR-014 INV-01 and INV-03 |
+| Manual Review (code review) | ADR-004 INV-15 and INV-16 (release-review fallback audit); ADR-014 INV-01 and INV-03 |
 
 ## Keywords
 

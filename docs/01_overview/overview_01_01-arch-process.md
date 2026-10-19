@@ -71,7 +71,7 @@ Each MCP server runs as a separate process because:
 
 **Reason for per-process configuration separation:**
 
-Each process reads only its own configuration file. Common parameters (DB paths, external service URLs) are described individually in each process's configuration rather than shared across files. This ensures that changing one process's configuration never inadvertently affects another: each process owns its own configuration and is isolated from the others. See [ADR-002](../10_adr/adr_02_002_config-isolation.md).
+Each process reads only its own configuration file. Enforcement is by `ConfigLoader.restrict_to()`, except for the EventBus, which does not call `restrict_to()` and relies on a local invariant instead; the set of readable files is the same. See [ADR-002](../10_adr/adr_02_002_config-isolation.md) Exceptions. Common parameters (DB paths, external service URLs) are described individually in each process's configuration rather than shared across files. This ensures that changing one process's configuration never inadvertently affects another: each process owns its own configuration and is isolated from the others. See [ADR-002](../10_adr/adr_02_002_config-isolation.md).
 
 #### Implementation Notes
 

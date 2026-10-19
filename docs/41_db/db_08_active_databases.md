@@ -62,6 +62,7 @@ Each database is owned by a single component (see the **Owner** line of each sec
 - **Schema authority**: `scripts/mcp_servers/mdq/db_schema.py`
 - **Busy timeout**: `sqlite_busy_timeout` in the MDQ server configuration
 - **Lifecycle**: Created on first MDQ use; persists until deleted
+- **Rebuild**: derived store, rebuildable from the Markdown sources; backup and rotation helpers do not cover it. To rebuild, stop the `mdq-mcp` server, delete the `db_path` file if a clean index is required, start the server (it recreates the file and tables), re-run `index_paths` over the `allowed_dirs` roots, then confirm with `stats`. See [MDQ tools](../22_mcp/mcp_04_04_mdq.md) and [ADR-008](../10_adr/adr_02_008_sqlite-4db-separation.md) (Derived Stores Outside the Four Domains)
 
 ## Related ADRs
 

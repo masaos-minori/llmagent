@@ -192,14 +192,15 @@ Guaranteeing Offset monotonicity prevents offsets from moving backward through a
 
 - When a SQLite write fails (persistence failure)
 - When ACK persistence fails (risk of breaking idempotency)
-- When the offset would move backward
+- When an offset update fails to persist, the whole ACK transaction (delivery state and offset) is rolled back and the request fails; an ACK whose `seq` is not above the current offset is not a failure, it is accepted with delivery state updated and the offset left unchanged (Decision 11a, INV-09)
 - When a second concurrent `GET /subscribe` uses a Consumer ID that is already connected (rejected with HTTP 409)
 
 ### Fail-Open or Degraded Conditions
 
-- None: ADR-004 defines a single common failure-handling policy, and no environment-specific downgrade to warnings exists
-- A JSONL archive write failure produces only a WARNING log and a failure metric (the Event is already committed to SQLite)
-- A broker notification failure after the commit is logged and counted; the Event stays persisted and is delivered by Replay (Explicit in code — `scripts/eventbus/publish_route.py` `publish()`)
+- No environment-specific downgrade exists: ADR-004 defines a single common failure-handling policy, and a failed SQLite write is never downgraded
+- Permitted degradation after the SQLite commit has succeeded: a failure of a secondary path does not fail the request or roll back the Event; the Event stays persisted in SQLite (System of Record) and is delivered by Replay. This is not a Fallback
+  - A JSONL archive write failure produces only a WARNING log and a failure metric
+  - A broker notification failure is logged and counted (Explicit in code — `scripts/eventbus/publish_route.py` `publish()`)
 
 ### Retry Policy
 
