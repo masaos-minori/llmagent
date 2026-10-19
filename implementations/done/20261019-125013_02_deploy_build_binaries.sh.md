@@ -56,8 +56,8 @@ N/A: revert the commit; operators can also set `UV_SYSTEM_CERTS=false` without r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the comment and the overridable export | Pending | — | — | |
-| 2 | Run `bash -n` and the stub test, then the validation sequence (`rules/toolchain.md`) for the changed script and test | Pending | — | — | |
+| 1 | Add the comment and the overridable export | Completed | 20261019-125830 | 20261019-125830 |  |
+| 2 | Run `bash -n` and the stub test, then the validation sequence (`rules/toolchain.md`) for the changed script and test | Completed | 20261019-125830 | 20261019-125830 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

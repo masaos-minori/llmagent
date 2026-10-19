@@ -111,6 +111,11 @@ NUTKA_FALLBACK_CMD=( uv run --with "nuitka[onefile]==${NUTKA_VERSION}" nuitka )
 # dev 依存 (mypy 等) を build 環境に入れない。Nuitka が辿るファイルが約4割減り時間が半減する。
 export UV_NO_DEV="${UV_NO_DEV:-1}"
 
+# uv は既定で内蔵の証明書バンドルを使うため、システムの証明書ストアにしか証明書がない
+# 環境では PyPI から nuitka を取得できず UnknownIssuer で失敗する。他の deploy スクリプト
+# と同様に既定でシステムの証明書ストアを使う (UV_SYSTEM_CERTS=false で無効化できる)。
+export UV_SYSTEM_CERTS="${UV_SYSTEM_CERTS:-true}"
+
 # ── エントリ表 (モジュールパス : 出力バイナリ名 : サーバークラス) ──────────────
 # 計11件 (エージェント1 + MCP サーバー10)。出力名は config/agent.toml の
 # [mcp_servers.<key>] セクション名 に準拠 (例: mcp_servers.shell -> mcp_shell)。

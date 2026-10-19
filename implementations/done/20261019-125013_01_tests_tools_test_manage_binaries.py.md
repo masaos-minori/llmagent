@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the helper and the two tests, and run them against the unchanged script | Pending | — | — | |
-| 2 | Confirm they pass after the script change and run the validation sequence (`rules/toolchain.md`) for the test file | Pending | — | — | |
+| 1 | Add the helper and the two tests, and run them against the unchanged script | Completed | 20261019-125830 | 20261019-125830 | before the script change: default test failed (recorded value empty), override test passed; after: 21 passed in the file |
+| 2 | Confirm they pass after the script change and run the validation sequence (`rules/toolchain.md`) for the test file | Completed | 20261019-125830 | 20261019-125830 | tests/tools: all passed; the full suite was not run (change is limited to one script line, one test pair, one doc sentence) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

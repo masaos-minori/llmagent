@@ -358,3 +358,48 @@ def test_build_binaries_rollback_option(tmp_path: Path) -> None:
     )
     assert result.returncode == 0, result.stderr
     assert (bin_dir / "agent").read_bytes().endswith(b"old")
+
+
+def _run_build_with_stub_uv(
+    tmp_path: Path, extra_env: dict[str, str]
+) -> tuple[int, set[str], bool]:
+    """Run build_binaries.sh with a stub uv that records UV_SYSTEM_CERTS and fails.
+
+    Returns the return code, the values the stub recorded, and whether OUTPUT_DIR
+    was created. The script stops at its nuitka resolution, so neither Nuitka nor
+    the network is reached.
+    """
+    stub_dir = tmp_path / "stub"
+    stub_dir.mkdir()
+    seen = tmp_path / "seen"
+    stub = stub_dir / "uv"
+    stub.write_text(f'#!/bin/sh\necho "$UV_SYSTEM_CERTS" >> "{seen}"\nexit 1\n')
+    stub.chmod(0o755)
+    output_dir = tmp_path / "dist"
+    result = subprocess.run(
+        ["bash", str(REPO_ROOT / "deploy" / "build_binaries.sh")],
+        capture_output=True,
+        text=True,
+        check=False,
+        env={
+            "PATH": f"{stub_dir}:/usr/bin:/bin",
+            "BIN_DIR": str(tmp_path / "bin"),
+            "OUTPUT_DIR": str(output_dir),
+            **extra_env,
+        },
+    )
+    values = set(seen.read_text().splitlines()) if seen.exists() else set()
+    return result.returncode, values, output_dir.exists()
+
+
+def test_build_binaries_exports_system_certs_by_default(tmp_path: Path) -> None:
+    code, values, created = _run_build_with_stub_uv(tmp_path, {})
+    assert code != 0
+    assert values == {"true"}
+    assert not created
+
+
+def test_build_binaries_keeps_explicit_system_certs(tmp_path: Path) -> None:
+    code, values, _ = _run_build_with_stub_uv(tmp_path, {"UV_SYSTEM_CERTS": "false"})
+    assert code != 0
+    assert values == {"false"}

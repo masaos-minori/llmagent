@@ -66,6 +66,9 @@ failed build leaves the previous binaries in place. The previous set stays in `/
 An empty `STALE` means nothing needs rebuilding (do not run the build with an empty `BUILD_ONLY`, which
 builds all 11). The Event Bus and ingestion run from the deployed `scripts/` source and have no binary.
 
+The build exports `UV_SYSTEM_CERTS=true` by default so `uv` can fetch nuitka on hosts whose certificates are only in the
+system store; set `UV_SYSTEM_CERTS=false` to turn it off.
+
 **Completed when**: `check` lists no stale or unknown binary.
 **Stop and report to the user when**: a build fails; do not retry the same build a third time (`AGENTS.md`
 Loop Prevention > Attempt Limit). The build host must have the Nuitka prerequisites described in
