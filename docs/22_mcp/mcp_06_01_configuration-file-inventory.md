@@ -7,7 +7,7 @@ tags:
   - defaults
 related:
   - mcp_00_document-guide.md
-  - adr_02_002_config-isolation.md
+  - adr_02_01_002_platform-config-isolation.md
   - shared_03_01_runtime_and_execution-config-and-logging.md
   - mcp_06_07_mcp-failure-diagnosis.md
   - agent_10_01_operations-and-observability-startup-and-health.md
@@ -25,7 +25,7 @@ Each MCP server is an independent process and **only reads its own configuration
 
 `MCPServer.run_http()` calls `ConfigLoader.restrict_to(own_config_file)` before starting uvicorn to enforce this rule at runtime. A `ConfigPermissionError` is raised upon violation.
 
-→ Details: [ADR-002](../10_adr/adr_02_002_config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
+→ Details: [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
 ## Layer 1 — Agent Process Configuration (`config/agent.toml`)
 

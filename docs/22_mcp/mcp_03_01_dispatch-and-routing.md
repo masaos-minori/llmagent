@@ -13,7 +13,7 @@ related:
   - mcp_03_05_lifecycle-and-new-server.md
   - mcp_01_system_overview.md
   - mcp_03_06_tool-runtime-availability-metadata.md
-  - adr_02_003_runtime-tool-registry-routing-authority.md
+  - adr_02_02_003_agent-runtime-tool-registry-routing-authority.md
   - mcp_06_07_mcp-failure-diagnosis.md
   - agent_12_reference-api.md
   - governance_03_issue-and-uncertainty-management.md
@@ -102,7 +102,7 @@ There is a single data source for scheduling metadata today: a tool's `/v1/tools
 
 ## ToolRouteResolver (`shared/route_resolver.py`)
 
-Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](../10_adr/adr_02_003_runtime-tool-registry-routing-authority.md) for rationale and invariants.
+Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](../10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 | Static tool group (`shared/tool_constants.py`) | Owning server key |
 |---|---|
@@ -177,13 +177,13 @@ Parallel/serial determination relies solely on `PreparedToolCall.spec.is_write`.
 
 ## Reliable Sources for Routing
 
-See [ADR-003](../10_adr/adr_02_003_runtime-tool-registry-routing-authority.md) for rationale and invariants.
+See [ADR-003](../10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 ---
 
 ## Tool Registry (`shared/tool_registry.py`)
 
-Drift detection only; not used for routing. See [ADR-003](../10_adr/adr_02_003_runtime-tool-registry-routing-authority.md) for the distinction between routing authority and drift detection.
+Drift detection only; not used for routing. See [ADR-003](../10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md) for the distinction between routing authority and drift detection.
 
 ## Keywords
 

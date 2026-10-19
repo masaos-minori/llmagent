@@ -8,26 +8,26 @@ related:
   - overview_00_document-guide.md
   - governance_01_documentation-policy.md
   - rag_05_01-configuration-reference.md
-  - adr_02_010_rag-fallback.md
-  - adr_02_005_rag-source-derived-index-relationships.md
-  - adr_02_004_environment-failure-handling-policy.md
-  - adr_02_003_runtime-tool-registry-routing-authority.md
+  - adr_02_06_010_rag-fallback.md
+  - adr_02_06_005_rag-source-derived-index-relationships.md
+  - adr_02_01_004_platform-environment-failure-handling-policy.md
+  - adr_02_02_003_agent-runtime-tool-registry-routing-authority.md
   - mcp_03_01_dispatch-and-routing.md
   - agent_10_01_operations-and-observability-startup-and-health.md
   - agent_09_01_data-layer-session-db.md
   - agent_04_02_state-and-persistence-history-compression.md
   - agent_07_10_cli-and-commands-slash-commands-memory-other.md
-  - adr_02_001_workflow-engine-mandatory.md
-  - adr_02_002_config-isolation.md
+  - adr_02_02_001_agent-workflow-engine-mandatory.md
+  - adr_02_01_002_platform-config-isolation.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
-  - adr_02_007_http-mcp-adoption-and-stdio-non-support.md
+  - adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md
   - security_01_architecture-and-trust-boundaries.md
   - mcp_02_02_startup-modes-and-health.md
   - deployment_01_deployment.md
-  - adr_02_013_eventbus-authentication-authorization.md
-  - adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md
+  - adr_02_04_013_eventbus-authentication-authorization.md
+  - adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md
   - db_03_architecture_and_schema-migration-and-scaling.md
-  - adr_02_008_sqlite-4db-separation.md
+  - adr_02_05_008_db-sqlite-4db-separation.md
   - overview_02_files.md
   - eventbus_07_configuration-and-operations.md
   - governance_05_change-impact-and-dependency-graphs.md

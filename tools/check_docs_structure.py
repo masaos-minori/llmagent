@@ -87,18 +87,23 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # the ADR files were renamed to `adr_02_NNN_*.md`, which lengthened self-references),
     # so further growth fails.
     # Raised to 26592 for the write-classification note, test entry and reference (2026-10-13).
-    "adr_02_003_runtime-tool-registry-routing-authority.md": 26592,
+    # Re-recorded after the grouped rename (`adr_02_<GG>_<NNN>_*.md`): the longer names in
+    # the body and front matter raised the size to 26602.
+    "adr_02_02_003_agent-runtime-tool-registry-routing-authority.md": 26602,
     # ADR-004 grew by the audit Owner assignment and the spawn-failure Exceptions
     # section (2026-10-13), the security-posture Decision and Automated Tests rows
     # (2026-10-17), and the by-phase failure-class verification evidence (2026-10-17);
     # the ceiling equals the size reached.
-    "adr_02_004_environment-failure-handling-policy.md": 32280,
-    "adr_02_008_sqlite-4db-separation.md": 33647,
+    # Re-recorded after the grouped rename: 32305.
+    "adr_02_01_004_platform-environment-failure-handling-policy.md": 32305,
+    # ADR-007 reached 24596 after the grouped rename (default limit 24576).
+    "adr_02_03_007_mcp-http-adoption-and-stdio-non-support.md": 24596,
+    "adr_02_05_008_db-sqlite-4db-separation.md": 33647,
     # ADR-006 grew past MAX_SIZE by the EVENTBUS-008 resolution follow-up (2026-10-14):
     # the empty-mapping gap was resolved to deny-all and the superuser residual deviation
     # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
     # pushes it over. The ceiling equals the accepted size, so further growth fails.
-    "adr_02_006_eventbus-sqlite-persistence-and-sse-delivery.md": 24726,
+    "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 24726,
 }
 
 
@@ -288,7 +293,7 @@ def check_links(
     return issues
 
 
-ADR_ID_RE = re.compile(r"^adr_02_(\d+)_")
+ADR_ID_RE = re.compile(r"^adr_02_\d{2}_(\d{3})_")
 
 
 def check_unique_adr_ids(files: list[Path]) -> list[str]:

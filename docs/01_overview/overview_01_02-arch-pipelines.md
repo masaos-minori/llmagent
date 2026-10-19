@@ -17,9 +17,9 @@ related:
   - rag_02_01_ingestion_pipeline-overview.md
   - rag_03_01_query_pipeline-overview.md
   - agent_03_02_turn-processing-flow-llm-tool-loop.md
-  - adr_02_001_workflow-engine-mandatory.md
+  - adr_02_02_001_agent-workflow-engine-mandatory.md
   - agent_03_03_turn-processing-flow-workflow-engine.md
-  - adr_02_004_environment-failure-handling-policy.md
+  - adr_02_01_004_platform-environment-failure-handling-policy.md
 ---
 
 # Overview & Architecture
@@ -76,7 +76,7 @@ Messages with flags are removed during the system prompt synchronization process
 
 **Workflows are Always Required (No Mode Setting)**
 
-See [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md) for rationale and invariants.
+See [ADR-001](../10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md) for rationale and invariants.
 
 **No Approval Stage:**
 The workflow has no approval stage. Human approval is decided before a Tool executes, by the tool-level approval described in [Approval Layers](../23_agent/agent_06_04_tool-execution-and-approval-canonical.md). A workflow definition file (`config/workflows/*.json`) that contains the `require_approval` key is rejected at load time, and Agent startup is aborted. (Source: `agent/workflow/workflow_loader.py`)
@@ -95,7 +95,7 @@ The `startup_mode` of each MCP server is set per `[mcp_servers.*]` entry in `con
 
 ### Implementation Note: Behavior on Server Startup Failure
 
-See [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
+See [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md) for rationale, tradeoffs, and invariants.
 
 ## Keywords
 

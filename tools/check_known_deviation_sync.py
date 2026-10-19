@@ -84,7 +84,7 @@ _PART_BOUNDARY_RE = re.compile(r"^## Part 2\b")
 # Bullet-list form, e.g. "- **Status**: resolved" (04_mcp_90, 05_agent_90, and
 # the consolidated governance document, which also uses this form).
 _CANONICAL_BULLET_STATUS_RE = re.compile(r"^-\s+\*\*Status\*\*:\s*(\S+)")
-# "- **Target**: `docs/10_adr/adr_02_004_....md`" -- only ADR targets matter for
+# "- **Target**: `docs/10_adr/adr_02_01_004_....md`" -- only ADR targets matter for
 # the reverse (ledger -> ADR) check.
 _CANONICAL_TARGET_RE = re.compile(r"^-\s+\*\*Target\*\*:\s*(.*)$")
 _ADR_TARGET_PATH_RE = re.compile(r"docs/10_adr/([\w.\-]+\.md)")

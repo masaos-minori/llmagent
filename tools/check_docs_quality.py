@@ -141,7 +141,7 @@ _GUIDE_SUFFIX = "_00_document-guide.md"
 
 
 def _is_adr_document(name: str) -> bool:
-    """True for a document in the ADR set (`adr_NN_*.md`, e.g. `adr_02_NNN_*.md`)."""
+    """True for a document in the ADR set (`adr_NN_*.md`, e.g. `adr_02_GG_NNN_*.md`)."""
     return re.match(r"adr_\d\d_", name) is not None
 
 

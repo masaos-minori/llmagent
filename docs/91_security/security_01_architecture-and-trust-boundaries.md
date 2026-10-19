@@ -28,7 +28,7 @@ related:
   - mcp_04_01_web-search-file-read-github.md
   - mcp_05_02_auth-profiles-and-sandboxing.md
   - agent_06_02_tool-execution-and-approval-approval.md
-  - adr_02_013_eventbus-authentication-authorization.md
+  - adr_02_04_013_eventbus-authentication-authorization.md
 ---
 
 # System Security Architecture and Trust Boundaries
@@ -196,7 +196,7 @@ Prompt injection responsibility is distributed across layers:
 | `persistent` | `/health` endpoint | 503 on degraded; no automatic recovery by the agent | Operator restarts external server |
 | `subprocess` | On-demand check at tool dispatch (`ensure_ready()`); no background watchdog | Start/restart on the next tool dispatch; a failed start triggers a cooldown during which dispatch is rejected | Wait for cooldown, or restart manually; use external process monitoring for liveness |
 
-MCP startup failure handling follows [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md), which applies one policy to every environment; an environment name never relaxes a safety or integrity requirement. The outcome depends on the failure class and the server's classification:
+MCP startup failure handling follows [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md), which applies one policy to every environment; an environment name never relaxes a safety or integrity requirement. The outcome depends on the failure class and the server's classification:
 
 | Case | Startup result |
 |---|---|
@@ -278,7 +278,7 @@ The EventBus API enforces authentication and authorization as a fail-closed secu
 All EventBus routes require Bearer-token authentication. Requests without a valid
 `Authorization: Bearer <token>` header receive HTTP 401 Unauthorized.
 
-See [ADR-013-eventbus-authentication-authorization](../10_adr/adr_02_013_eventbus-authentication-authorization.md)
+See [ADR-013-eventbus-authentication-authorization](../10_adr/adr_02_04_013_eventbus-authentication-authorization.md)
 for the authentication mechanism decision and configuration details.
 
 ### Authorization
@@ -299,7 +299,7 @@ a caller cannot act as another consumer or access unauthorized topics.
 DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay
 (`/replay`) require operator permission.
 
-See [ADR-013-eventbus-authentication-authorization](../10_adr/adr_02_013_eventbus-authentication-authorization.md)
+See [ADR-013-eventbus-authentication-authorization](../10_adr/adr_02_04_013_eventbus-authentication-authorization.md)
 for the authorization model decision and role definitions.
 
 ### Loopback-only Binding

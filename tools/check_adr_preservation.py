@@ -36,7 +36,7 @@ computed (no tokenizer is bundled); report them as unmeasured.
 Usage:
     python tools/check_adr_preservation.py                 # changed ADRs vs HEAD
     python tools/check_adr_preservation.py --base <ref>    # compare against another ref
-    python tools/check_adr_preservation.py docs/10_adr/adr_02_008_sqlite-4db-separation.md
+    python tools/check_adr_preservation.py docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md
     python tools/check_adr_preservation.py --dir docs/24_eventbus
 """
 

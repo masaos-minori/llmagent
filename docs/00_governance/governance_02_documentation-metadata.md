@@ -11,7 +11,7 @@ related:
   - db_03_architecture_and_schema-migration-and-scaling.md
   - mcp_03_01_dispatch-and-routing.md
   - rag_00_document-guide.md
-  - adr_02_001_workflow-engine-mandatory.md
+  - adr_02_02_001_agent-workflow-engine-mandatory.md
 ---
 
 # Documentation Metadata
@@ -141,7 +141,7 @@ When referencing other documents:
 
 Same area: `[Documentation Policy](governance_01_documentation-policy.md)`
 Cross area: `[RAG Guide](../21_rag/rag_00_document-guide.md)`
-ADR: `[ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md)`
+ADR: `[ADR-001](../10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md)`
 Internal anchor: `[Section](governance_01_documentation-policy.md#review-rule)`
 
 ## Markdown Syntax Rules

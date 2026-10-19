@@ -33,7 +33,7 @@ related:
 
 ### Startup Security Validation
 
-Each MCP server validates its own security settings when its process starts and publishes the result as the `security` block of its `/health` response (see [mcp_02_02_startup-modes-and-health.md](./mcp_02_02_startup-modes-and-health.md)). The Agent reads that block during startup readiness and MCP tool discovery; a `failed` check blocks Agent startup whatever the server's `required` classification says (see [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md)). There is no Agent-side audit pass over server config files.
+Each MCP server validates its own security settings when its process starts and publishes the result as the `security` block of its `/health` response (see [mcp_02_02_startup-modes-and-health.md](./mcp_02_02_startup-modes-and-health.md)). The Agent reads that block during startup readiness and MCP tool discovery; a `failed` check blocks Agent startup whatever the server's `required` classification says (see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md)). There is no Agent-side audit pass over server config files.
 
 | Setting | Server | Check id | Result when the setting is unsafe |
 |---|---|---|---|

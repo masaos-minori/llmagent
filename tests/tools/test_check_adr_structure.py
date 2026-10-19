@@ -14,6 +14,7 @@ from pathlib import Path
 
 from tools._docs_consistency_lib import DocFile
 from tools.check_adr_structure import (
+    _ADR_FILE_RE,
     _HEADING_ORDER,
     _REQUIRED_HEADINGS,
     check_known_deviations_heading,
@@ -25,8 +26,8 @@ from tools.check_adr_structure import (
 
 def _doc(*lines: str) -> DocFile:
     return DocFile(
-        path=Path("adr_02_999_test.md"),
-        rel_path="adr_02_999_test.md",
+        path=Path("adr_02_99_999_test.md"),
+        rel_path="adr_02_99_999_test.md",
         lines=list(lines),
     )
 
@@ -43,7 +44,7 @@ class TestCheckKnownDeviationsHeading:
         issues = check_known_deviations_heading([doc])
         assert len(issues) == 1
         assert issues[0].severity == "ERROR"
-        assert issues[0].file == "adr_02_999_test.md"
+        assert issues[0].file == "adr_02_99_999_test.md"
         assert "Known Deviations" in issues[0].message
 
     def test_present_known_deviations_heading_not_flagged(self) -> None:
@@ -75,7 +76,7 @@ class TestCheckNotesReferencesDrift:
         issues = check_notes_references_drift([doc])
         assert len(issues) == 1
         assert issues[0].severity == "WARNING"
-        assert issues[0].file == "adr_02_999_test.md"
+        assert issues[0].file == "adr_02_99_999_test.md"
         assert "scripts/foo.py" in issues[0].message
 
     def test_notes_path_present_in_references_not_flagged(self) -> None:
@@ -171,3 +172,19 @@ class TestCheckTemplateResidue:
 
     def test_local_invariant_id_is_accepted(self) -> None:
         assert check_template_residue([_doc("See ADR-014 INV-02.")]) == []
+
+
+class TestAdrFileNamePattern:
+    def test_every_real_adr_file_matches(self) -> None:
+        adr_dir = Path(__file__).resolve().parents[2] / "docs" / "10_adr"
+        names = sorted(p.name for p in adr_dir.glob("adr_02_*.md"))
+        assert len(names) == 14
+        assert [n for n in names if not _ADR_FILE_RE.match(n)] == []
+
+    def test_old_shape_does_not_match(self) -> None:
+        assert _ADR_FILE_RE.match("adr_02_001_x.md") is None
+
+    def test_missing_heading_in_new_shape_fixture_is_reported(self) -> None:
+        doc = _doc("# ADR-999", "", "## Context")
+        issues = check_section_headings([doc])
+        assert issues, "check_section_headings skipped a new-shape ADR file"

@@ -15,7 +15,7 @@ related:
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - governance_03_issue-and-uncertainty-management.md
   - mcp_03_06_tool-runtime-availability-metadata.md
-  - adr_02_012_git-mcp-server-side-write-enforcement.md
+  - adr_02_03_012_mcp-git-server-side-write-enforcement.md
 ---
 
 # MCP Server Catalog: git-mcp
@@ -118,7 +118,7 @@ Agent-side approval confirms user intent; it does not verify that a `git_checkou
 
 ### Command-specific guard status
 
-Git MCP enforces command-specific guards for `git_checkout`, `git_pull` and `git_push` independently of Agent-side approval (see ADR-012 in `docs/10_adr/adr_02_012_git-mcp-server-side-write-enforcement.md`).
+Git MCP enforces command-specific guards for `git_checkout`, `git_pull` and `git_push` independently of Agent-side approval (see ADR-012 in `docs/10_adr/adr_02_03_012_mcp-git-server-side-write-enforcement.md`).
 
 - **Protected branch**: the decision is made on the operation destination, not on the current branch (see Protected branch authority). `git_ref_validation.validate_protected()` rejects early, and `RepositoryState.verify_authorization()` is the authoritative check.
 - **Ref validation**: write tools validate `branch` with `git_ref_validation.validate_ref_allowlist()`, an allow-list equivalent to `git check-ref-format --branch`. It rejects `+`, `:`, `^`, `~`, `?`, `*`, `[`, backslash, `..`, `@{`, whitespace, control characters, values starting with `refs/`, and `HEAD`. Read tools (`git_log` `branch`, `git_diff` `commit`, `git_show` `ref`) use `git_ref_validation.validate_ref()`, which rejects only a leading `-`, so `git_show`'s default `ref="HEAD"` and tag refs keep working.

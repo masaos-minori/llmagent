@@ -11,7 +11,7 @@ related:
   - agent_08_03_configuration-tools-memory.md
   - agent_09_01_data-layer-session-db.md
   - agent_10_01_operations-and-observability-startup-and-health.md
-  - adr_02_002_config-isolation.md
+  - adr_02_01_002_platform-config-isolation.md
   - mcp_05_03_fail-open-fail-closed-and-risk-tiers.md
   - mcp_01_tool_ownership_matrix.md
 ---
@@ -70,7 +70,7 @@ this table, per ADR-004 Decision Group 3 item 13.
 
 #### Process Isolation
 
-Each MCP server is an independent process that only reads its own configuration file. → [ADR-002](../10_adr/adr_02_002_config-isolation.md)
+Each MCP server is an independent process that only reads its own configuration file. → [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md)
 
 ### Approval Configuration
 

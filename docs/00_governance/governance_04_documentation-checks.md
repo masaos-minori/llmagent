@@ -12,7 +12,7 @@ related:
   - governance_05_change-impact-and-dependency-graphs.md
   - governance_02_documentation-metadata.md
   - rag_00_document-guide.md
-  - adr_02_001_workflow-engine-mandatory.md
+  - adr_02_02_001_agent-workflow-engine-mandatory.md
 ---
 
 # Documentation Checks

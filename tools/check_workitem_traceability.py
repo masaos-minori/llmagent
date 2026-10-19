@@ -330,7 +330,7 @@ def _resolve_doc_mention(mention: str) -> Path | None:
         if adr_match is None:
             return None
         candidates = sorted(
-            ROOT_DIR.glob(f"docs/10_adr/adr_02_{adr_match.group(1)}_*.md")
+            ROOT_DIR.glob(f"docs/10_adr/adr_02_??_{adr_match.group(1)}_*.md")
         )
         return candidates[0] if candidates else None
 

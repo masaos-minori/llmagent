@@ -9,7 +9,7 @@ related:
   - mcp_00_document-guide.md
   - mcp_03_03_transport-and-health.md
   - mcp_06_11_new-tool-registration-procedure.md
-  - adr_02_003_runtime-tool-registry-routing-authority.md
+  - adr_02_02_003_agent-runtime-tool-registry-routing-authority.md
 ---
 # Process Introspection and Adding a New MCP Server
 
@@ -36,7 +36,7 @@ These methods only perform `proc.poll()` or read cached states; they do not term
 When adding a new tool, follow the standard procedure in [mcp_06_11_new-tool-registration-procedure.md](mcp_06_11_new-tool-registration-procedure.md).
 
 Key points:
-1. **Declare the tool in the owning server's `GET /v1/tools` response (its `TOOL_LIST` entry), with the schema-2.0 fields [REQUIRED]** — Live discovery of `/v1/tools` is the sole basis for routing: `RuntimeToolRegistry` is built from it at startup. A tool that is missing from `/v1/tools`, or whose entry fails schema-2.0 validation, is excluded from the registry and is not routable (see [ADR-003](../10_adr/adr_02_003_runtime-tool-registry-routing-authority.md)).
+1. **Declare the tool in the owning server's `GET /v1/tools` response (its `TOOL_LIST` entry), with the schema-2.0 fields [REQUIRED]** — Live discovery of `/v1/tools` is the sole basis for routing: `RuntimeToolRegistry` is built from it at startup. A tool that is missing from `/v1/tools`, or whose entry fails schema-2.0 validation, is excluded from the registry and is not routable (see [ADR-003](../10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md)).
 2. **Add the tool name to the frozenset in `shared/tool_constants.py` [REQUIRED for the static ownership seed — not a routing input]** — The static `ToolRegistry` built from these frozensets is used only as drift-detection input (compared against live `/v1/tools` and the configured `tool_names`) and for static classification; it never decides routing.
 3. **Add `tool_names` to the server configuration [OPTIONAL]** — Only serves as a hint for drift validation; not required for routing.
 4. **Add the LLM schema to `[[tool_definitions]]` in `config/agent.toml` [REQUIRED if you want the tool visible to the LLM]**
@@ -51,7 +51,7 @@ tool_names = ["my_tool_a", "my_tool_b"]
 
 ### Summary of Routing Precedence
 
-See [ADR-003](../10_adr/adr_02_003_runtime-tool-registry-routing-authority.md) for rationale and invariants.
+See [ADR-003](../10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
 ### New Server/Tool Registration Checklist
 

@@ -11,7 +11,7 @@ related:
   - agent_00_document-guide.md
   - eventbus_00_document-guide.md
   - agent_02_runtime-architecture.md
-  - adr_02_001_workflow-engine-mandatory.md
+  - adr_02_02_001_agent-workflow-engine-mandatory.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
 ---
 # Agent Turn Processing Flow - Workflow Engine Integration & Turn-by-turn State Changes
@@ -26,7 +26,7 @@ To document the partial completion model, workflow engine integration, and state
 
 ### Mandatory Workflow Execution
 
-See [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md) for rationale, alternatives, tradeoffs, and invariants.
+See [ADR-001](../10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md) for rationale, alternatives, tradeoffs, and invariants.
 
 ### Workflow State Semantics
 

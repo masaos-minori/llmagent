@@ -9,7 +9,7 @@ related:
   - db_01_architecture_and_schema-overview-and-config.md
   - shared_00_document-guide.md
   - db_04_api_and_operations-module-boundaries-and-helper.md
-  - adr_02_008_sqlite-4db-separation.md
+  - adr_02_05_008_db-sqlite-4db-separation.md
   - eventbus_06_persistence_schema_and_replay.md
 ---
 # DB Architecture and Schema
@@ -55,7 +55,7 @@ Initialized by `create_workflow_schema()`, used by `agent/workflow/state_store.p
 
 ## 7a. eventbus.sqlite Schema
 
-Independent persistence domain per [ADR-008](../10_adr/adr_02_008_sqlite-4db-separation.md) INV-04: `eventbus.sqlite` is the system of record for Event, Offset, Delivery, and DLQ state. Schema source: `scripts/eventbus/schema.sql` is the only DDL definition; `scripts/db/schema_sql.py::build_eventbus_schema_sql()` reads that file for the bootstrap via `create_schema()`, and the service creates the schema from the same file when the `events` table is missing (Decision Target `eventbus.persistence-schema.bootstrap-ddl`) and `scripts/eventbus/schema.py::_migrate()` (incremental migration at service startup, reached via `open_db()` in `scripts/eventbus/db_conn.py`; Decision Target `eventbus.persistence-schema.incremental-migration`). Table/column detail: [eventbus_06_persistence_schema_and_replay.md](../24_eventbus/eventbus_06_persistence_schema_and_replay.md).
+Independent persistence domain per [ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md) INV-04: `eventbus.sqlite` is the system of record for Event, Offset, Delivery, and DLQ state. Schema source: `scripts/eventbus/schema.sql` is the only DDL definition; `scripts/db/schema_sql.py::build_eventbus_schema_sql()` reads that file for the bootstrap via `create_schema()`, and the service creates the schema from the same file when the `events` table is missing (Decision Target `eventbus.persistence-schema.bootstrap-ddl`) and `scripts/eventbus/schema.py::_migrate()` (incremental migration at service startup, reached via `open_db()` in `scripts/eventbus/db_conn.py`; Decision Target `eventbus.persistence-schema.incremental-migration`). Table/column detail: [eventbus_06_persistence_schema_and_replay.md](../24_eventbus/eventbus_06_persistence_schema_and_replay.md).
 
 ---
 

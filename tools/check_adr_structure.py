@@ -15,7 +15,7 @@ Four checks, all operating over docs/10_adr/*.md:
     expected, correct end state after Notes has been reduced to a plain
     pointer sentence, not a violation.
 
-(c) Section headings of each `adr_02_NNN_*.md` (ERROR): only the headings of the
+(c) Section headings of each `adr_02_GG_NNN_*.md` (ERROR): only the headings of the
     "ADR Section Header Standardization" list in
     docs/00_governance/governance_01_documentation-policy.md are allowed, in that
     order; every non-conditional heading is required.
@@ -171,7 +171,7 @@ _TEMPLATE_RESIDUE_RE = re.compile(
     r"Record any discrepancy between this ADR|Register any Invariant without",
 )
 _GLOBAL_INV_RE = re.compile(r"\bINV-\d{3}\b")
-_ADR_FILE_RE = re.compile(r"^adr_02_\d{3}_.*\.md$")
+_ADR_FILE_RE = re.compile(r"^adr_02_\d{2}_\d{3}_.*\.md$")
 
 
 def _top_level_headings(lines: list[str]) -> list[tuple[int, str]]:

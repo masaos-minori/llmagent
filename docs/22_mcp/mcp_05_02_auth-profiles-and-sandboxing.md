@@ -52,7 +52,7 @@ secret in the TOML file — see section 2.5 (MCP Authentication Tokens) of the d
 
 **Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](../23_agent/agent_08_01_configuration-loading-agent-config.md#configuration-file-ownership)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 
-**Config Read Boundary:** The Agent layer does not read MCP server configuration files and imports no MCP server configuration models. Each server reads only its own config file and validates it at startup; the Agent consumes only the security posture each server publishes on `GET /health` (see [ADR-002](../10_adr/adr_02_002_config-isolation.md)).
+**Config Read Boundary:** The Agent layer does not read MCP server configuration files and imports no MCP server configuration models. Each server reads only its own config file and validates it at startup; the Agent consumes only the security posture each server publishes on `GET /health` (see [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md)).
 
 ---
 

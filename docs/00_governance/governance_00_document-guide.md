@@ -7,7 +7,7 @@ tags:
 related:
   - 00_index.md
   - overview_00_document-guide.md
-  - adr_02_015_reference-document-class-disposition.md
+  - adr_02_07_015_docs-reference-document-class-disposition.md
   - governance_01_documentation-policy.md
   - governance_02_documentation-metadata.md
   - governance_03_issue-and-uncertainty-management.md

@@ -13,7 +13,7 @@ related:
   - rag_04_dto-models-types.md
   - rag_05_01-configuration-reference.md
   - rag_03_06_query_pipeline-helpers-and-cache.md
-  - adr_02_009_rag-fts5-text-separation.md
+  - adr_02_06_009_rag-fts5-text-separation.md
 ---
 
 # RAG Query Pipeline - Augment Stages
@@ -51,7 +51,7 @@ No constructor (inherits from `PipelineStage`).
 - Sanitizes content using `rag.utils.sanitize_document(c.content)` before formatting
 - If `reranked` is empty, returns `[RAG_CONTEXT_START]\n\n[RAG_CONTEXT_END]`
 
-**Content-only Invariance Rule:** AugmentStage only formats `content` and never uses `normalized_content`. Meaning: AugmentStage formats and outputs only the raw `content` field, never the search-normalized `normalized_content` field. Rationale: FTS5 indexes `COALESCE(normalized_content, content)`, so `content` alone is always a complete, valid representation, while `normalized_content` is a lossy, non-reconstructible derivative (per ADR-009). Scope: This rule applies specifically to AugmentStage's output formatting, not to the search/indexing layer, which does use `normalized_content` when present. Limitation: For Japanese content, the LLM-facing output does not benefit from Sudachi normalization (stopword removal, etc.) since only the raw `content` is shown. See [ADR-009](../10_adr/adr_02_009_rag-fts5-text-separation.md) for rationale, alternatives, and tradeoffs.
+**Content-only Invariance Rule:** AugmentStage only formats `content` and never uses `normalized_content`. Meaning: AugmentStage formats and outputs only the raw `content` field, never the search-normalized `normalized_content` field. Rationale: FTS5 indexes `COALESCE(normalized_content, content)`, so `content` alone is always a complete, valid representation, while `normalized_content` is a lossy, non-reconstructible derivative (per ADR-009). Scope: This rule applies specifically to AugmentStage's output formatting, not to the search/indexing layer, which does use `normalized_content` when present. Limitation: For Japanese content, the LLM-facing output does not benefit from Sudachi normalization (stopword removal, etc.) since only the raw `content` is shown. See [ADR-009](../10_adr/adr_02_06_009_rag-fts5-text-separation.md) for rationale, alternatives, and tradeoffs.
 
 **sanitize_document() Contract:** Content sanitization applied before formatting.
 

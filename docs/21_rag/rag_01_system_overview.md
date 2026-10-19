@@ -15,8 +15,8 @@ related:
   - rag_05_01-configuration-reference.md
   - governance_03_issue-and-uncertainty-management.md
   - mcp_05_04_mdq-rag-boundary.md
-  - adr_02_005_rag-source-derived-index-relationships.md
-  - adr_02_002_config-isolation.md
+  - adr_02_06_005_rag-source-derived-index-relationships.md
+  - adr_02_01_002_platform-config-isolation.md
   - rag_03_02_query_pipeline-rag-pipeline-class.md
   - rag_03_05_query_pipeline-augment-stages.md
   - mcp_02_02_startup-modes-and-health.md
@@ -69,7 +69,7 @@ Each ingestion stage is a separate script that exchanges data with the next stag
 
 #### Why SQLite (`rag.sqlite`) owns the vector store layer
 
-Per ADR-005, SQLite's `documents`/`chunks` tables are the canonical data and `chunks_fts`/`chunks_vec` are derived indexes. ADR-005's Rationale rests on three points: (1) Data Integrity — separating canonical from derived data prevents canonical data from being updated through a derived index; (2) Operability — the deletion-order invariant (`chunks_vec` before `documents`) prevents orphan records, and unified consistency checks and repair procedures leave operators without ambiguity; (3) Portability — because the indexes can be rebuilt from `documents` and `chunks`, FTS5 or the vector engine can be replaced. See [ADR-005](../10_adr/adr_02_005_rag-source-derived-index-relationships.md).
+Per ADR-005, SQLite's `documents`/`chunks` tables are the canonical data and `chunks_fts`/`chunks_vec` are derived indexes. ADR-005's Rationale rests on three points: (1) Data Integrity — separating canonical from derived data prevents canonical data from being updated through a derived index; (2) Operability — the deletion-order invariant (`chunks_vec` before `documents`) prevents orphan records, and unified consistency checks and repair procedures leave operators without ambiguity; (3) Portability — because the indexes can be rebuilt from `documents` and `chunks`, FTS5 or the vector engine can be replaced. See [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md).
 
 #### How ownership affects modification rights
 
@@ -114,7 +114,7 @@ config/crawler.toml [target_urls]
 
 > **Implementation Note:** Configuration consists of three separate files per script:
 > (`config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml`). Each script loads only its own configuration using `ConfigLoader().load("<script>.toml")` and restricts access to other files using `ConfigLoader.restrict_to("<script>.toml")` (verified in `scripts/rag/ingestion/crawler.py` and `ingester.py`).
-> Per [ADR-002](../10_adr/adr_02_002_config-isolation.md) Decision Details #3 to #5 and #9 (Explicit in code).
+> Per [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md) Decision Details #3 to #5 and #9 (Explicit in code).
 
 ---
 

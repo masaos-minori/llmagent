@@ -36,7 +36,7 @@ related:
   - eventbus_01_system-overview.md
   - eventbus_03_dlq_operations.md
   - eventbus_06_persistence_schema_and_replay.md
-  - adr_02_013_eventbus-authentication-authorization.md
+  - adr_02_04_013_eventbus-authentication-authorization.md
   - eventbus_05_dlq_offsets_and_delivery_semantics.md
 ---
 
@@ -59,7 +59,7 @@ covers connection/storage settings (`port`, `db_path`, `storage_dir`, `offsets_d
 `subscriber_count`), and the fields listed individually below, each of which carries
 additional constraints or operational notes not captured by the dataclass alone. See
 that dataclass's `__post_init__()` for the exact validation rules enforced at startup,
-and `docs/10_adr/adr_02_013_eventbus-authentication-authorization.md` for the authorization
+and `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` for the authorization
 model the token fields below implement.
 
 - `publish_rate` — Maximum publish rate in events/sec before backpressure applies
@@ -82,7 +82,7 @@ Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_ini
 
 ### Token Distribution
 
-`auth_token` and `admin_token` hold only the control-plane roles and no PUBLISHER or CONSUMER role (`docs/10_adr/adr_02_013_eventbus-authentication-authorization.md`), so they cannot publish, subscribe, ACK, or NACK even if a caller receives one. Give each caller only its own token:
+`auth_token` and `admin_token` hold only the control-plane roles and no PUBLISHER or CONSUMER role (`docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`), so they cannot publish, subscribe, ACK, or NACK even if a caller receives one. Give each caller only its own token:
 
 | Caller | Token to give it | Never give it |
 |---|---|---|

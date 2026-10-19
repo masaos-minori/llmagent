@@ -19,7 +19,7 @@ eventbus) stay physically and logically separated:
   5. Cross-DB access in code: no `ATTACH` statement and no schema-qualified
      `FROM`/`JOIN` (`rag.`, `session.`, `workflow.`, `eventbus.`) in `scripts/`.
 
-Rule: ADR-008 INV-01 to INV-05 and INV-08 (docs/10_adr/adr_02_008_sqlite-4db-separation.md).
+Rule: ADR-008 INV-01 to INV-05 and INV-08 (docs/10_adr/adr_02_05_008_db-sqlite-4db-separation.md).
 
 Usage:
     uv run python tools/check_db_separation.py

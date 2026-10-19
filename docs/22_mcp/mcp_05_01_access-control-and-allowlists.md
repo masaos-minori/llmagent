@@ -225,7 +225,7 @@ The empty-allowlist condition is reported by the cicd-mcp server process, and it
 
 - **cicd-mcp Server Layer (cicd-mcp server process)**: In `scripts/mcp_servers/cicd/cicd_service_guards.py::CiCdGuards.__init__`, if `workflow_allowlist` is empty, a warning is recorded to the server log stream via the `mcp_servers.cicd.cicd_service_guards` logger.
   Message: `cicd-mcp: workflow_allowlist is empty — all workflow triggers will be denied`
-- **Security Posture (same process)**: `scripts/mcp_servers/cicd/cicd_service_guards.py::validate_cicd_security()` reports `server.workflow_allowlist` as `failed` with reason `allowlist_empty`, so cicd-mcp refuses to bind its HTTP port and Agent startup aborts. The Agent-side audit pass that used to add this to the REPL startup warning list was removed; each server now validates its own settings (see [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md)).
+- **Security Posture (same process)**: `scripts/mcp_servers/cicd/cicd_service_guards.py::validate_cicd_security()` reports `server.workflow_allowlist` as `failed` with reason `allowlist_empty`, so cicd-mcp refuses to bind its HTTP port and Agent startup aborts. The Agent-side audit pass that used to add this to the REPL startup warning list was removed; each server now validates its own settings (see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md)).
 
 ## Keywords
 

@@ -21,7 +21,7 @@ related:
   - governance_03_issue-and-uncertainty-management.md
   - mcp_06_14_mcp-authentication-setup.md
   - agent_10_04_operations-and-observability-validation-and-troubleshooting.md
-  - adr_02_001_workflow-engine-mandatory.md
+  - adr_02_02_001_agent-workflow-engine-mandatory.md
 ---
 
 # Deployment Guide
@@ -279,7 +279,7 @@ key in `agent.toml` or falls back to `DbConfig`'s Python-level default
 
 Default paths are not stated here: the DB Path Reference below shows which keys are set in `agent.toml` and which fall back to a Python-level default.
 
-`mdq.sqlite` is a derived index owned by the MDQ server, outside the four platform databases ([ADR-008](../10_adr/adr_02_008_sqlite-4db-separation.md), Derived Stores Outside the Four Domains; [active databases](../41_db/db_08_active_databases.md)). `init_db.sh` does not create it: `deploy.sh` provisions the DB directory, and the MDQ service creates the file and its tables when it starts, recreating a legacy chunk schema as described in [DB migration and scaling](../41_db/db_03_architecture_and_schema-migration-and-scaling.md) (section 8d). Recovery is by re-indexing the Markdown files; the backup and rotation helpers do not cover it. The MDQ health check reports a missing database file or an unhealthy schema as degraded.
+`mdq.sqlite` is a derived index owned by the MDQ server, outside the four platform databases ([ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md), Derived Stores Outside the Four Domains; [active databases](../41_db/db_08_active_databases.md)). `init_db.sh` does not create it: `deploy.sh` provisions the DB directory, and the MDQ service creates the file and its tables when it starts, recreating a legacy chunk schema as described in [DB migration and scaling](../41_db/db_03_architecture_and_schema-migration-and-scaling.md) (section 8d). Recovery is by re-indexing the Markdown files; the backup and rotation helpers do not cover it. The MDQ health check reports a missing database file or an unhealthy schema as degraded.
 
 Schema details: `db_01_architecture_and_schema-overview-and-config.md`
 
@@ -332,7 +332,7 @@ Sessions, messages, and diagnostics are not recovered; past sessions can no long
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 
-Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of workflow state), see [ADR-001](../10_adr/adr_02_001_workflow-engine-mandatory.md).
+Regarding why these deployment requirements are mandatory (design decisions for auditing, recovery, and persistence of workflow state), see [ADR-001](../10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md).
 
 ### DB Path Reference (auto-generated)
 

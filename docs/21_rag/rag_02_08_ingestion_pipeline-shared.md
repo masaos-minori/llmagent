@@ -16,7 +16,7 @@ related:
   - rag_02_09_ingestion_pipeline-shared-utilities.md
   - rag_03_06_query_pipeline-helpers-and-cache.md
   - rag_05_01-configuration-reference.md
-  - adr_02_009_rag-fts5-text-separation.md
+  - adr_02_06_009_rag-fts5-text-separation.md
 ---
 
 
@@ -58,7 +58,7 @@ for the functions it currently uses.
 
 ## 11. Note on FTS5 Implementation
 
-- FTS5 / LLM content separation (`chunks.content` vs `chunks.normalized_content`, the FTS5 triggers, and the invariants): see [ADR-009](../10_adr/adr_02_009_rag-fts5-text-separation.md).
+- FTS5 / LLM content separation (`chunks.content` vs `chunks.normalized_content`, the FTS5 triggers, and the invariants): see [ADR-009](../10_adr/adr_02_06_009_rag-fts5-text-separation.md).
 - Japanese chunk normalization at ingestion: see [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
 - FTS5 query tokenization and the query token limit: see the Japanese FTS5 Tokenization part of [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md).
 

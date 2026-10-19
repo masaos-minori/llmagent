@@ -17,6 +17,7 @@ import yaml
 
 from tools._front_matter_schema import load_front_matter_schema
 from tools.check_docs_structure import (
+    ADR_ID_RE,
     MAX_SIZE,
     SIZE_EXCEPTIONS,
     _build_basename_index,
@@ -288,19 +289,48 @@ class TestValidateFileSchemaOptIn:
 
 class TestCheckUniqueAdrIds:
     def test_no_duplicate_adr_ids_passes(self, tmp_path: Path) -> None:
-        adr1 = _write(tmp_path / "adr_02_001_example.md", "# ADR-001\n")
-        adr2 = _write(tmp_path / "adr_02_002_example.md", "# ADR-002\n")
+        adr1 = _write(tmp_path / "adr_02_02_001_example.md", "# ADR-001\n")
+        adr2 = _write(tmp_path / "adr_02_01_002_example.md", "# ADR-002\n")
         issues = check_unique_adr_ids([adr1, adr2])
         assert issues == []
 
     def test_duplicate_adr_id_is_flagged(self, tmp_path: Path) -> None:
-        adr1 = _write(tmp_path / "adr_02_001_first.md", "# ADR-001\n")
-        adr2 = _write(tmp_path / "adr_02_001_second.md", "# ADR-001\n")
+        adr1 = _write(tmp_path / "adr_02_02_001_first.md", "# ADR-001\n")
+        adr2 = _write(tmp_path / "adr_02_02_001_second.md", "# ADR-001\n")
         issues = check_unique_adr_ids([adr1, adr2])
         assert len(issues) == 1
         assert "ADR-001" in issues[0]
         assert "first.md" in issues[0]
         assert "second.md" in issues[0]
+
+    def test_same_adr_id_in_different_groups_is_flagged(self, tmp_path: Path) -> None:
+        adr1 = _write(tmp_path / "adr_02_01_002_first.md", "# ADR-002\n")
+        adr2 = _write(tmp_path / "adr_02_02_002_second.md", "# ADR-002\n")
+        issues = check_unique_adr_ids([adr1, adr2])
+        assert len(issues) == 1
+        assert "ADR-002" in issues[0]
+
+    def test_distinct_adr_ids_in_one_group_pass(self, tmp_path: Path) -> None:
+        adr1 = _write(tmp_path / "adr_02_01_002_first.md", "# ADR-002\n")
+        adr2 = _write(tmp_path / "adr_02_01_004_second.md", "# ADR-004\n")
+        assert check_unique_adr_ids([adr1, adr2]) == []
+
+    def test_adr_id_re_captures_adr_id_not_group(self) -> None:
+        m = ADR_ID_RE.match("adr_02_01_002_platform-config-isolation.md")
+        assert m is not None
+        assert m.group(1) == "002"
+
+    def test_old_shape_is_not_recognised_as_adr(self) -> None:
+        assert ADR_ID_RE.match("adr_02_001_x.md") is None
+
+    def test_real_adr_files_give_unique_ids(self) -> None:
+        adr_dir = Path(__file__).resolve().parents[2] / "docs" / "10_adr"
+        files = sorted(adr_dir.glob("adr_02_*.md"))
+        assert len(files) == 14
+        ids = [m.group(1) for f in files if (m := ADR_ID_RE.match(f.name))]
+        assert len(ids) == 14
+        assert len(set(ids)) == 14
+        assert check_unique_adr_ids(files) == []
 
     def test_non_adr_files_are_ignored(self, tmp_path: Path) -> None:
         other1 = _write(tmp_path / "other1.md", "# Other\n")
@@ -309,7 +339,7 @@ class TestCheckUniqueAdrIds:
         assert issues == []
 
     def test_mixed_adr_and_non_adr_files(self, tmp_path: Path) -> None:
-        adr = _write(tmp_path / "adr_02_001_example.md", "# ADR-001\n")
+        adr = _write(tmp_path / "adr_02_02_001_example.md", "# ADR-001\n")
         other = _write(tmp_path / "other.md", "# Other\n")
         issues = check_unique_adr_ids([adr, other])
         assert issues == []
@@ -640,17 +670,17 @@ def _adr_content(related: str) -> str:
 
 class TestRelatedSectionRules:
     def test_adr_without_related_documents_is_reported(self, tmp_path: Path) -> None:
-        adr = tmp_path / "10_adr" / "adr_02_001_x.md"
+        adr = tmp_path / "10_adr" / "adr_02_02_001_x.md"
         issues = check_tail_sections(adr, "# ADR\n\n## Related ADRs\n\n## Keywords\n")
         assert issues == []
 
     def test_adr_without_related_adrs_is_reported(self, tmp_path: Path) -> None:
-        adr = tmp_path / "10_adr" / "adr_02_001_x.md"
+        adr = tmp_path / "10_adr" / "adr_02_02_001_x.md"
         issues = check_tail_sections(adr, "# ADR\n\n## Keywords\n")
-        assert issues == ["adr_02_001_x.md: missing '## Related ADRs' section"]
+        assert issues == ["adr_02_02_001_x.md: missing '## Related ADRs' section"]
 
     def test_adr_related_documents_is_reported(self, tmp_path: Path) -> None:
-        adr = tmp_path / "10_adr" / "adr_02_001_x.md"
+        adr = tmp_path / "10_adr" / "adr_02_02_001_x.md"
         content = "# ADR\n\n## Related Documents\n\n- `a.md`\n\n## Related ADRs\n\n## Keywords\n"
         issues = check_tail_sections(adr, content)
         assert len(issues) == 1
@@ -689,22 +719,22 @@ class TestRelatedSectionRules:
 
 class TestAdrRelatedCoverage:
     def _index(self, tmp_path: Path) -> dict[str, Path]:
-        return {n: tmp_path / n for n in ("a.md", "b.md", "adr_02_001_x.md")}
+        return {n: tmp_path / n for n in ("a.md", "b.md", "adr_02_02_001_x.md")}
 
     def test_missing_body_reference_is_reported(self, tmp_path: Path) -> None:
-        adr = tmp_path / "10_adr" / "adr_02_001_x.md"
+        adr = tmp_path / "10_adr" / "adr_02_02_001_x.md"
         issues = check_adr_related_coverage(
             adr, _adr_content("\n  - a.md"), self._index(tmp_path)
         )
         assert issues == [
-            "adr_02_001_x.md: front matter 'related:' lacks body-referenced "
+            "adr_02_02_001_x.md: front matter 'related:' lacks body-referenced "
             "document 'b.md'"
         ]
 
     def test_covered_adr_passes_and_unresolved_target_is_not_reported(
         self, tmp_path: Path
     ) -> None:
-        adr = tmp_path / "10_adr" / "adr_02_001_x.md"
+        adr = tmp_path / "10_adr" / "adr_02_02_001_x.md"
         content = _adr_content("\n  - a.md\n  - ../b.md")
         assert check_adr_related_coverage(adr, content, self._index(tmp_path)) == []
 
@@ -718,7 +748,7 @@ class TestAdrRelatedCoverage:
     def test_adr_without_front_matter_or_with_bad_yaml_is_skipped(
         self, tmp_path: Path
     ) -> None:
-        adr = tmp_path / "10_adr" / "adr_02_001_x.md"
+        adr = tmp_path / "10_adr" / "adr_02_02_001_x.md"
         index = self._index(tmp_path)
         assert check_adr_related_coverage(adr, "# no front matter\n", index) == []
         assert check_adr_related_coverage(adr, "---\ntitle: T\n", index) == []
@@ -726,7 +756,7 @@ class TestAdrRelatedCoverage:
 
     def test_validate_file_reports_adr_coverage_gap(self, tmp_path: Path) -> None:
         adr = _write(
-            tmp_path / "10_adr" / "adr_02_001_x.md", _adr_content("\n  - a.md")
+            tmp_path / "10_adr" / "adr_02_02_001_x.md", _adr_content("\n  - a.md")
         )
         _write(tmp_path / "a.md", _COMPLIANT_DOC)
         _write(tmp_path / "b.md", _COMPLIANT_DOC)
@@ -767,7 +797,7 @@ class TestCheckTailSectionsAnyLevel:
 
     def test_adr_related_adrs_required(self) -> None:
         content = "# Some ADR\n\n## Keywords\n\nx\n"
-        issues = check_tail_sections(Path("docs/10_adr/adr_02_001_test.md"), content)
+        issues = check_tail_sections(Path("docs/10_adr/adr_02_02_001_test.md"), content)
         assert len(issues) == 1
         assert "missing '## Related ADRs' section" in issues[0]
 

@@ -78,7 +78,7 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 }
 ```
 
-The Agent reads this block during startup readiness and MCP tool discovery. A `failed` check blocks Agent startup regardless of the server's `required` classification; see [ADR-004](../10_adr/adr_02_004_environment-failure-handling-policy.md). A server whose posture is not validated refuses to bind its HTTP port.
+The Agent reads this block during startup readiness and MCP tool discovery. A `failed` check blocks Agent startup regardless of the server's `required` classification; see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md). A server whose posture is not validated refuses to bind its HTTP port.
 
 **HTTP Status Codes**:
 - `200` if `status="ok"` and `ready=true` (fully healthy)
