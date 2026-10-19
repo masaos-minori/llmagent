@@ -35,6 +35,8 @@ jobs:
         run: uv run python tools/generate_reference_table.py --check
       - name: Module docstring format check
         run: uv run python tools/check_docstrings.py
+      - name: Module size check
+        run: uv run python tools/check_module_size.py
       - name: Pre-commit
         run: uv run pre-commit run --all-files
       - name: Run cited ADR invariant tests

@@ -133,6 +133,7 @@ uv sync --dev --system-certs   # create .venv/ and install all deps (first time)
 
 ```bash
 uv run radon cc scripts/ -s -n C                   # cyclomatic complexity — grade C or worse
+uv run python tools/check_module_size.py --top 5   # module byte-size gate (16384 B, baseline-gated, also pre-commit + CI)
 uv run vulture scripts/ --min-confidence 80        # dead code detection
 uv run semgrep --config=p/python scripts/          # semantic pattern enforcement
 uv run pip-audit                                   # dependency vulnerability scan

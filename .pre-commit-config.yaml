@@ -111,3 +111,9 @@ repos:
         language: system
         pass_filenames: false
         files: ^(scripts/.*\.py|tools/check_docstrings(_baseline\.txt|\.py))$
+      - id: check-module-size
+        name: Check scripts/ module size (baseline-gated)
+        entry: python -m tools.check_module_size
+        language: system
+        pass_filenames: false
+        files: ^(scripts/.*\.py|tools/check_module_size(_baseline\.txt|\.py))$
