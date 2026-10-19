@@ -17,6 +17,10 @@ from unittest.mock import AsyncMock, MagicMock
 import httpx
 import pytest
 from agent.services.mcp_tool_discovery import DiscoveryResult, McpToolDiscoveryService
+from agent.services.mcp_tool_discovery_registry import (
+    _build_runtime_tools,
+    _dedupe_and_build,
+)
 from agent.shared.health_models import (
     HealthCheckResult,
     ServiceWarning,
@@ -2253,3 +2257,55 @@ class TestToolDiscoveryAuthHeader:
         assert tool_calls, "expected a /v1/tools probe"
         _, kwargs = tool_calls[-1]
         assert kwargs["headers"] == {"Authorization": "Bearer secret-token"}
+
+
+# ── registry-building layer (mcp_tool_discovery_registry.py) ─────────────────
+
+_ENTRY_SCHEMA: dict[str, object] = {
+    "inputSchema": {"type": "object", "properties": {}},
+    "is_write": False,
+    "requires_serial": False,
+    "resource_scope_kind": "",
+    "resource_scope_keys": [],
+}
+
+
+class TestRegistryBuildingLayer:
+    """Calls the module the service delegates registry building to, directly.
+
+    Locks the boundary the same way `discover_all()` exercises it: the unavailable-server
+    filter is the branch no `discover_all()` test can reach, because an unreachable server
+    contributes no entries at all.
+    """
+
+    @staticmethod
+    def _entry(name: str) -> dict[str, object]:
+        """One entry shaped exactly like `_normalize_entries()` output."""
+        return {"name": name, **_ENTRY_SCHEMA}
+
+    def test_unavailable_server_entries_never_reach_the_registry(self) -> None:
+        entries: list[tuple[str, str, dict[str, object]]] = [
+            ("live", "http://127.0.0.1:9000", self._entry("read_file")),
+            ("down", "http://127.0.0.1:9001", self._entry("grep")),
+        ]
+
+        registry = _build_runtime_tools(entries, frozenset({"down"}))
+
+        assert registry.resolve("read_file") == "live"
+        assert registry.resolve("grep") is None
+
+    def test_dedupe_and_build_excludes_a_duplicated_name_and_reports_it_fatal(
+        self,
+    ) -> None:
+        entries: list[tuple[str, str, dict[str, object]]] = [
+            ("a", "http://127.0.0.1:9000", self._entry("read_file")),
+            ("a", "http://127.0.0.1:9000", self._entry("grep")),
+            ("b", "http://127.0.0.1:9001", self._entry("grep")),
+        ]
+
+        registry, findings = _dedupe_and_build(entries, frozenset())
+
+        assert registry.resolve("read_file") == "a"
+        assert registry.resolve("grep") is None
+        assert [finding.status for finding in findings] == [StartupCheckStatus.FATAL]
+        assert "duplicate tool name 'grep'" in findings[0].message

@@ -43,7 +43,6 @@ DEFAULT_ALLOWLIST = {
     ROOT_DIR / "scripts" / "agent" / "commands" / "registry.py",
     ROOT_DIR / "scripts" / "agent" / "commands" / "session_title.py",
     ROOT_DIR / "scripts" / "agent" / "http_lifecycle.py",
-    ROOT_DIR / "scripts" / "agent" / "services" / "mcp_tool_discovery.py",
     ROOT_DIR / "scripts" / "db" / "helper.py",
     ROOT_DIR / "scripts" / "eventbus" / "ack_route.py",
     ROOT_DIR / "scripts" / "eventbus" / "app.py",
