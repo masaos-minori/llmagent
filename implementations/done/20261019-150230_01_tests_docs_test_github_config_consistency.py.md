@@ -64,9 +64,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the parametrized helper tests and confirm they fail | Pending | — | — | |
-| 2 | Add the helper and rewrite the failing test | Pending | — | — | |
-| 3 | Run the file's tests and the validation sequence (`rules/toolchain.md`) for it | Pending | — | — | |
+| 1 | Add the parametrized helper tests and confirm they fail | Completed | 20261019-151040 | 20261019-151040 | before the helper: 4 new cases failed with NameError; after: 9 passed in the file; real config disabled -> no problems, same config enabled -> 1 problem |
+| 2 | Add the helper and rewrite the failing test | Completed | 20261019-151040 | 20261019-151040 |  |
+| 3 | Run the file's tests and the validation sequence (`rules/toolchain.md`) for it | Completed | 20261019-151040 | 20261019-151040 | tests/docs 20 passed; production snapshot identical; the full suite was not rerun (test-only change confined to this file) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
