@@ -102,8 +102,9 @@ Enforced automatically by `tools/check_dependency_graph_cycles.py` (see
 `docs/00_governance/governance_04_documentation-checks.md` "18. Area Dependency Graph
 Validation").
 
-Confirmed edges (direct source evidence: `scripts/agent/services/mcp_tool_discovery.py`
-fetches every MCP server's `/v1/tools` over HTTP; the import statements under
+Confirmed edges (direct source evidence: `scripts/agent/services/mcp_tool_discovery_fetch.py`
+(the `/v1/tools` fetch layer of `scripts/agent/services/mcp_tool_discovery.py`) fetches every
+MCP server's `/v1/tools` over HTTP; the import statements under
 `scripts/agent/`, `scripts/mcp_servers/`, `scripts/rag/` and `scripts/eventbus/` show
 the Shared/DB dependencies; `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`
 imports `rag.pipeline`):
