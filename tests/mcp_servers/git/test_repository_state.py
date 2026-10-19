@@ -760,8 +760,8 @@ class TestStage3DestinationProtection:
         from mcp_servers.git.write_protection_pipeline import WriteProtectionPipeline
 
         # HEAD is on master (unprotected); call the pipeline directly so the
-        # git_service pre-pipeline _validate_protected() never runs. A protected
-        # *destination* (requested_branch) is still rejected at Stage 3.
+        # pre-pipeline validate_protected() in git_ref_validation.py never runs. A
+        # protected *destination* (requested_branch) is still rejected at Stage 3.
         state = RepositoryState.snapshot(working_repo, protected_branches=["main"])
         pipeline = WriteProtectionPipeline(state)
 

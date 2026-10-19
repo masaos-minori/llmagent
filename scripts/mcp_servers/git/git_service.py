@@ -6,6 +6,7 @@ GitService: local git operations via GitPython with repo-path allowlist and read
 Dependency direction: git_models -> git_security -> service
 Split layout:
   git_security.py — GitSecurityGuards mixin (repo-path + read-only guards)
+  git_ref_validation.py — ref/remote/protected-branch argument guards
   service.py      — GitService class + dispatch table factory + build_service
 """
 
@@ -13,7 +14,6 @@ from __future__ import annotations
 
 import asyncio
 import logging
-import re
 from collections.abc import Awaitable, Callable
 
 import git
@@ -33,6 +33,12 @@ from mcp_servers.git.git_models import (
     GitPushRequest,
     GitShowRequest,
     GitStatusRequest,
+)
+from mcp_servers.git.git_ref_validation import (
+    require_branch_refs,
+    require_ok,
+    validate_ref,
+    validate_remote,
 )
 from mcp_servers.git.git_security import is_within_allowed_paths
 from mcp_servers.git.repository_state import RepositoryState
@@ -62,41 +68,6 @@ logger = logging.getLogger(__name__)
 _WRITE_TOOLS: frozenset[str] = frozenset(
     {"git_add", "git_commit", "git_checkout", "git_pull", "git_push"},
 )
-
-# Structural tokens and forms the write-ref allowlist rejects: force-push syntax,
-# refspec and revision ranges, and full ref names. Models `git check-ref-format
-# --branch` for the values handed to GitPython by the write pipeline.
-_REF_FORBIDDEN_TOKENS: tuple[str, ...] = (
-    "+",
-    ":",
-    "^",
-    "~",
-    "?",
-    "*",
-    "[",
-    "\\",
-    "..",
-    "@{",
-)
-
-
-def _has_forbidden_char(ref: str) -> bool:
-    """Return True when *ref* carries whitespace or a control character."""
-    return any(ch.isspace() or ord(ch) < 32 for ch in ref)
-
-
-def _is_simple_ref_name(ref: str) -> bool:
-    """Return True when *ref* is a simple branch name.
-
-    Rejects structural tokens (`+ : ^ ~ ? * [`), the `..` and `@{` range forms,
-    whitespace and control characters, `refs/` prefixes, and `HEAD`. An empty ref
-    is simple here; the empty-branch case is denied by the protected-branch guard.
-    """
-    if any(tok in ref for tok in _REF_FORBIDDEN_TOKENS):
-        return False
-    if _has_forbidden_char(ref):
-        return False
-    return not ref.startswith("refs/") and ref != "HEAD"
 
 
 class GitService:
@@ -133,56 +104,6 @@ class GitService:
         if tool_name in _WRITE_TOOLS and self._read_only:
             return False, "[DENIED] git-mcp is configured with read_only=true"
         return True, ""
-
-    def _validate_ref(self, ref: str) -> tuple[bool, str]:
-        """Check if a ref is safe (not an option)."""
-        if not ref:
-            return True, ""
-        if ref.startswith("-"):
-            return False, f"[DENIED] Ref {ref!r} looks like a CLI option"
-        return True, ""
-
-    def _validate_ref_allowlist(self, ref: str) -> tuple[bool, str]:
-        """Check if a write branch/remote ref is an allowed simple name.
-
-        The form rules live in `_is_simple_ref_name`. An empty ref passes here and
-        is caught by `_validate_protected` (branch must not be empty), preserving
-        the prior `_validate_ref("")` -> pass behavior.
-        """
-        if _is_simple_ref_name(ref):
-            return True, ""
-        return False, f"[DENIED] Ref {ref!r} is not a valid simple branch name"
-
-    def _validate_remote(self, remote: str) -> tuple[bool, str]:
-        """Check if a remote name is a safe simple name (no CLI-option injection)."""
-        if remote.startswith("-"):
-            return False, f"[DENIED] Remote {remote!r} looks like a CLI option"
-        if re.fullmatch(r"[A-Za-z0-9._-]+", remote):
-            return True, ""
-        return False, f"[DENIED] Remote {remote!r} is not a valid remote name"
-
-    def _validate_protected(self, branch: str) -> tuple[bool, str]:
-        """Check if a branch is protected."""
-        if not branch:
-            return False, "[DENIED] branch must not be empty"
-        if branch in self._protected_branches:
-            return False, f"[DENIED] {branch!r} is a protected branch"
-        return True, ""
-
-    def _require_ok(self, result: tuple[bool, str]) -> None:
-        """Turn a rejected validation result into the ValueError the dispatch table reads.
-
-        Every git_* handler reports a validation or policy rejection this way, so a
-        denial never reaches the caller as a successful result string.
-        """
-        ok, err = result
-        if not ok:
-            raise ValueError(err)
-
-    def _require_branch_refs(self, branch: str) -> None:
-        """Write-tool branch guards, in the established order: form, then protected."""
-        self._require_ok(self._validate_ref_allowlist(branch))
-        self._require_ok(self._validate_protected(branch))
 
     # ── Shared execution helpers ──────────────────────────────────────────────
 
@@ -299,7 +220,7 @@ class GitService:
             max_entries=args.get("max_entries", 20),
             branch=args.get("branch", ""),
         )
-        self._require_ok(self._validate_ref(req.branch))
+        require_ok(validate_ref(req.branch))
         return await self._run_tool(
             "git_log",
             req.repo_path,
@@ -313,7 +234,7 @@ class GitService:
             staged=args.get("staged", False),
             commit=args.get("commit", ""),
         )
-        self._require_ok(self._validate_ref(req.commit))
+        require_ok(validate_ref(req.commit))
         return await self._run_tool(
             "git_diff", req.repo_path, lambda repo, _state: format_diff(repo, req)
         )
@@ -331,7 +252,7 @@ class GitService:
             repo_path=args["repo_path"],
             ref=args.get("ref", "HEAD"),
         )
-        self._require_ok(self._validate_ref(req.ref))
+        require_ok(validate_ref(req.ref))
         return await self._run_tool(
             "git_show", req.repo_path, lambda repo, _state: format_show(repo, req)
         )
@@ -374,7 +295,7 @@ class GitService:
             create=args.get("create", False),
             dry_run=args.get("dry_run", False),
         )
-        self._require_branch_refs(req.branch)
+        require_branch_refs(req.branch, self._protected_branches)
 
         def _checkout_op(repo: git.Repo, state: RepositoryState) -> str:
             return format_checkout(
@@ -398,8 +319,8 @@ class GitService:
             branch=args.get("branch", ""),
             dry_run=args.get("dry_run", False),
         )
-        self._require_branch_refs(req.branch)
-        self._require_ok(self._validate_remote(req.remote))
+        require_branch_refs(req.branch, self._protected_branches)
+        require_ok(validate_remote(req.remote))
 
         def _pull_op(repo: git.Repo, state: RepositoryState) -> str:
             return format_pull(state, req, self._require_config("git_pull"))
@@ -421,8 +342,8 @@ class GitService:
             branch=args.get("branch", ""),
             dry_run=args.get("dry_run", False),
         )
-        self._require_branch_refs(req.branch)
-        self._require_ok(self._validate_remote(req.remote))
+        require_branch_refs(req.branch, self._protected_branches)
+        require_ok(validate_remote(req.remote))
 
         def _push_op(repo: git.Repo, state: RepositoryState) -> str:
             return format_push(state, req, self._require_config("git_push"))

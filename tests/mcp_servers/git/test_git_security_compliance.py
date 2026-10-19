@@ -11,6 +11,7 @@ import git
 import pytest
 from fastapi.testclient import TestClient
 from mcp_servers.git.git_models import GitConfig
+from mcp_servers.git.git_ref_validation import validate_protected, validate_ref
 from mcp_servers.git.git_security import _resolve_repo_path, is_within_allowed_paths
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.repository_state import RepositoryState
@@ -71,19 +72,19 @@ class TestGitSecurityCompliance:
         )
 
     def test_is_safe_ref(self, svc: GitService) -> None:
-        assert svc._validate_ref("main")[0] is True
-        assert svc._validate_ref("feature/abc")[0] is True
-        assert svc._validate_ref("-force")[0] is False
-        assert svc._validate_ref("--help")[0] is False
+        assert validate_ref("main")[0] is True
+        assert validate_ref("feature/abc")[0] is True
+        assert validate_ref("-force")[0] is False
+        assert validate_ref("--help")[0] is False
 
     def test_check_protected_branch(self, svc: GitService) -> None:
-        assert svc._validate_protected("main")[0] is False
+        assert validate_protected("main", svc._protected_branches)[0] is False
         assert (
-            svc._validate_protected("main")[1]
+            validate_protected("main", svc._protected_branches)[1]
             == "[DENIED] 'main' is a protected branch"
         )
-        assert svc._validate_protected("develop")[0] is True
-        assert svc._validate_protected("develop")[1] == ""
+        assert validate_protected("develop", svc._protected_branches)[0] is True
+        assert validate_protected("develop", svc._protected_branches)[1] == ""
 
     @pytest.mark.asyncio
     async def test_git_checkout_protected_branch(self, svc: GitService) -> None:
@@ -1971,7 +1972,7 @@ class TestRemoteAuthorizationViaHTTP:
         (d / "README.md").write_text("# test")
         repo.index.add(["README.md"])
         repo.index.commit("initial")
-        # GitService._validate_protected() rejects an empty branch outright
+        # git_ref_validation.validate_protected() rejects an empty branch outright
         # (pre-existing behavior, unrelated to this row) and the default init
         # branch ("master") is itself protected — use a non-empty, non-protected
         # branch so pull/push reach this row's remote-authorization check.

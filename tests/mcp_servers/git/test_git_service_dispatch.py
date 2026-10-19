@@ -20,6 +20,7 @@ import git
 import pytest
 from mcp_servers.git.errors import GitServiceError
 from mcp_servers.git.git_models import GitConfig, GitPullRequest, GitPushRequest
+from mcp_servers.git.git_ref_validation import validate_ref_allowlist, validate_remote
 from mcp_servers.git.git_service import GitService, build_service
 from mcp_servers.git.repository_state import RepositoryState
 from pydantic import ValidationError
@@ -687,29 +688,25 @@ class TestWriteRefAllowlist:
         ],
     )
     def test_rejected_branch_forms(self, bad) -> None:
-        svc = _svc(allowed=["/opt/repos"])
-        ok, msg = svc._validate_ref_allowlist(bad)
+        ok, msg = validate_ref_allowlist(bad)
         assert ok is False
         assert msg.startswith("[DENIED]")
 
     @pytest.mark.parametrize("good", ["main", "feature/x", "develop-1", "a.b"])
     def test_simple_names_pass(self, good) -> None:
-        svc = _svc(allowed=["/opt/repos"])
-        ok, msg = svc._validate_ref_allowlist(good)
+        ok, msg = validate_ref_allowlist(good)
         assert ok is True
         assert msg == ""
 
     @pytest.mark.parametrize("bad", ["../evil", "a:b", "-x", "has space"])
     def test_rejected_remote_forms(self, bad) -> None:
-        svc = _svc(allowed=["/opt/repos"])
-        ok, msg = svc._validate_remote(bad)
+        ok, msg = validate_remote(bad)
         assert ok is False
         assert msg.startswith("[DENIED]")
 
     @pytest.mark.parametrize("good", ["origin", "remote-1", "upstream"])
     def test_valid_remote_forms(self, good) -> None:
-        svc = _svc(allowed=["/opt/repos"])
-        ok, msg = svc._validate_remote(good)
+        ok, msg = validate_remote(good)
         assert ok is True
         assert msg == ""
 
@@ -1183,8 +1180,7 @@ class TestWriteRefAllowlistEmptyRefCharacterization:
     """Characterization: an empty ref passes the allowlist and is denied later."""
 
     def test_empty_ref_passes_allowlist(self) -> None:
-        svc = _svc(allowed=["/opt/repos"])
-        ok, msg = svc._validate_ref_allowlist("")
+        ok, msg = validate_ref_allowlist("")
         assert ok is True
         assert msg == ""
 
@@ -1225,3 +1221,84 @@ class TestPathGuardMessageCharacterization:
         ok, err = asyncio.run(svc._validate_repo("", "git_status"))
         assert ok is False
         assert err == "repo_path is empty"
+
+
+# ── Characterization: ref / remote / protected-branch argument policy ────────
+#
+# Locked at the handler boundary ahead of extracting the validation cluster out
+# of git_service.py. Every case asserts the exact denial message and the order of
+# the checks, so the move is verifiable without touching these tests.
+
+
+class TestArgumentPolicyCharacterization:
+    """Characterization: exact denial messages and check order via public handlers."""
+
+    @pytest.mark.asyncio
+    async def test_git_log_rejects_option_like_branch(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        with pytest.raises(ValueError) as excinfo:
+            await svc.git_log({"repo_path": "/opt/repos/proj", "branch": "-n"})
+        assert str(excinfo.value) == "[DENIED] Ref '-n' looks like a CLI option"
+
+    @pytest.mark.asyncio
+    async def test_git_diff_rejects_option_like_commit(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        with pytest.raises(ValueError) as excinfo:
+            await svc.git_diff({"repo_path": "/opt/repos/proj", "commit": "--help"})
+        assert str(excinfo.value) == "[DENIED] Ref '--help' looks like a CLI option"
+
+    @pytest.mark.asyncio
+    async def test_git_show_rejects_option_like_ref(self) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        with pytest.raises(ValueError) as excinfo:
+            await svc.git_show({"repo_path": "/opt/repos/proj", "ref": "-x"})
+        assert str(excinfo.value) == "[DENIED] Ref '-x' looks like a CLI option"
+
+    @pytest.mark.asyncio
+    async def test_git_checkout_checks_ref_form_before_protected_branch(self) -> None:
+        """A branch that is both malformed and protected reports the form denial."""
+        svc = _svc(allowed=["/opt/repos"])
+        svc._protected_branches = ["main"]
+        with pytest.raises(ValueError) as excinfo:
+            await svc.git_checkout({"repo_path": "/opt/repos/proj", "branch": "main.."})
+        assert (
+            str(excinfo.value)
+            == "[DENIED] Ref 'main..' is not a valid simple branch name"
+        )
+
+    @pytest.mark.asyncio
+    async def test_git_checkout_reports_protected_branch_after_the_form_check(
+        self,
+    ) -> None:
+        svc = _svc(allowed=["/opt/repos"])
+        svc._protected_branches = ["main"]
+        with pytest.raises(ValueError) as excinfo:
+            await svc.git_checkout({"repo_path": "/opt/repos/proj", "branch": "main"})
+        assert str(excinfo.value) == "[DENIED] 'main' is a protected branch"
+
+    @pytest.mark.asyncio
+    async def test_git_pull_rejects_option_like_remote(self) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        with pytest.raises(ValueError) as excinfo:
+            await svc.git_pull(
+                {"repo_path": "/opt/repos/proj", "branch": "develop", "remote": "-u"}
+            )
+        assert str(excinfo.value) == "[DENIED] Remote '-u' looks like a CLI option"
+
+    @pytest.mark.asyncio
+    async def test_git_push_rejects_non_simple_remote(self) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        with pytest.raises(ValueError) as excinfo:
+            await svc.git_push(
+                {"repo_path": "/opt/repos/proj", "branch": "develop", "remote": "a:b"}
+            )
+        assert str(excinfo.value) == "[DENIED] Remote 'a:b' is not a valid remote name"
+
+    @pytest.mark.asyncio
+    async def test_git_pull_rejects_empty_branch_with_the_protected_guard_message(
+        self,
+    ) -> None:
+        svc = _svc(allowed=["/opt/repos"], read_only=False)
+        with pytest.raises(ValueError) as excinfo:
+            await svc.git_pull({"repo_path": "/opt/repos/proj", "branch": ""})
+        assert str(excinfo.value) == "[DENIED] branch must not be empty"
