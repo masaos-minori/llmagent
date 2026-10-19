@@ -107,9 +107,9 @@ Changing the validator's behavior, adding tests for other RAG fields, and any `d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: Add prompt-template type validation to `RagConfigValidator.validate` | Pending | — | — | REQ-001; AC-1, AC-3 |
-| 2 | Phase 2: Add unit + integration tests | Pending | — | — | REQ-001/002; T1/T2 |
-| 3 | Phase 3: Run ruff / mypy / bandit / affected tests | Pending | — | — | all REQs |
+| 1 | Phase 1: Add prompt-template type validation to `RagConfigValidator.validate` | Completed | — | — | REQ-001; AC-1, AC-3 |
+| 2 | Phase 2: Add unit + integration tests | Completed | — | — | REQ-001/002; T1/T2 |
+| 3 | Phase 3: Run ruff / mypy / bandit / affected tests | Completed | — | — | all REQs |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

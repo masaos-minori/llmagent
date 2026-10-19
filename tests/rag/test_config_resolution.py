@@ -150,3 +150,29 @@ def test_validation_error_raises(mock_validator):
     mock_validator.validate.return_value.errors = ["invalid field"]
     with pytest.raises(ValueError, match="RAG config validation failed"):
         resolve_rag_config({})
+
+
+def test_non_string_template_raises():
+    """A non-string prompt template fails fast via the real validator."""
+    with pytest.raises(ValueError, match="RAG config validation failed"):
+        resolve_rag_config(
+            {
+                "use_search": False,
+                "mqe_prompt_template": 123,
+                "rerank_prompt_template": "Rerank results for: {query}",
+            }
+        )
+
+
+def test_valid_string_templates_resolve():
+    """Valid string templates resolve normally through the real validator."""
+    result = resolve_rag_config(
+        {
+            "use_search": False,
+            "mqe_prompt_template": "Expand query: {query}",
+            "rerank_prompt_template": "Rerank results for: {query}",
+        }
+    )
+    assert isinstance(result, RagConfigImpl)
+    assert result.mqe_prompt_template == "Expand query: {query}"
+    assert result.rerank_prompt_template == "Rerank results for: {query}"

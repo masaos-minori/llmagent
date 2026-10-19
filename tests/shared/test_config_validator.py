@@ -121,6 +121,52 @@ class TestRagConfigValidator:
         assert "semantic_cache_threshold" in result.errors[0]
         assert "semantic_cache_max_size" in result.errors[0]
 
+    def test_mqe_prompt_template_non_string_error(self) -> None:
+        result = self.validator.validate({"mqe_prompt_template": 123})
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert "mqe_prompt_template" in result.errors[0]
+
+    def test_rerank_prompt_template_non_string_error(self) -> None:
+        result = self.validator.validate({"rerank_prompt_template": True})
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert "rerank_prompt_template" in result.errors[0]
+
+    def test_prompt_template_string_passes(self) -> None:
+        result = self.validator.validate(
+            {"mqe_prompt_template": "Expand query: {query}"}
+        )
+        assert result.ok is True
+        assert len(result.errors) == 0
+
+    def test_missing_prompt_templates_do_not_error(self) -> None:
+        result = self.validator.validate({})
+        assert result.ok is True
+        assert len(result.errors) == 0
+
+    def test_non_string_mqe_prompt_template_rejected(self) -> None:
+        result = self.validator.validate(
+            {
+                "mqe_prompt_template": 123,
+                "rerank_prompt_template": "Rerank results for: {query}",
+            }
+        )
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert "mqe_prompt_template" in result.errors[0]
+
+    def test_non_string_rerank_prompt_template_rejected(self) -> None:
+        result = self.validator.validate(
+            {
+                "mqe_prompt_template": "Expand query: {query}",
+                "rerank_prompt_template": True,
+            }
+        )
+        assert result.ok is False
+        assert len(result.errors) == 1
+        assert "rerank_prompt_template" in result.errors[0]
+
 
 @pytest.mark.integration
 def test_integration_rag_validator_real_config() -> None:

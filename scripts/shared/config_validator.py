@@ -37,6 +37,10 @@ class RagConfigValidator:
         if removed_key_error is not None:
             errors.append(removed_key_error)
 
+        template_type_error = self._check_prompt_template_types(rag)
+        if template_type_error is not None:
+            errors.append(template_type_error)
+
         return ConfigValidationResult(errors=errors, warnings=warnings)
 
     @staticmethod
@@ -76,4 +80,23 @@ class RagConfigValidator:
                 " and issues/done/20260902-150341_semcachedocs_replace_semanticcache_tests_and_docs_with_no_cache_design.md); "
                 f"remove {keys_str} from your configuration."
             )
+        return None
+
+    @staticmethod
+    def _check_prompt_template_types(rag: Mapping[str, Any]) -> str | None:
+        """Return an error message when a prompt template is present but not a str.
+
+        Missing keys are left alone: ``resolve_rag_config`` fills both defaults
+        before validating, so a missing template never reaches production.
+        A ``bool`` is rejected (it is not a ``str``).
+        """
+        for key in ("mqe_prompt_template", "rerank_prompt_template"):
+            if key not in rag:
+                continue
+            value = rag[key]
+            if not isinstance(value, str):
+                return (
+                    f"Configuration key {key!r} must be a string, got "
+                    f"{type(value).__name__}"
+                )
         return None
