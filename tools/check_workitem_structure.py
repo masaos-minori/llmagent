@@ -116,7 +116,13 @@ def discover_documents(kinds: set[str], include_done: bool) -> list[tuple[str, P
 
 def find_missing_sections(doc_path: Path, spec: TemplateSpec) -> list[dict[str, str]]:
     text = doc_path.read_text(encoding="utf-8")
-    doc_headings = set(_HEADING_RE.findall(text))
+    # Compare case-insensitively. `_HEADING_RE` matches headings regardless of
+    # case, but the captured groups retain their original casing, so a plain
+    # set-membership test would falsely report a section as missing whenever a
+    # document (or a sibling template) uses different casing than the canonical
+    # one. Lowercasing both sides keeps detection robust to such casing
+    # differences instead of erroring on them.
+    doc_headings = {h.lower() for h in _HEADING_RE.findall(text)}
     rel_path = doc_path.relative_to(ROOT_DIR).as_posix()
     return [
         {
@@ -125,7 +131,7 @@ def find_missing_sections(doc_path: Path, spec: TemplateSpec) -> list[dict[str, 
             "detail": f"missing required section: ## {required}",
         }
         for required in spec.required_headings
-        if required not in doc_headings
+        if required.lower() not in doc_headings
     ]
 
 

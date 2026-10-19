@@ -43,7 +43,7 @@ to the item.
 
 ## Completion criteria
 
-## Out of scope
+## Out of Scope
 
 ## Execution Status
 

@@ -22,10 +22,10 @@ High / Medium / Low
 ## Problem
 [The concrete problem being solved]
 
-## Reason for change
+## Reason for Change
 [Why this change is needed now]
 
-## Implementation intent
+## Implementation Intent
 [High-level approach, without prescribing exact code]
 
 ## Requirements
@@ -66,7 +66,7 @@ glob patterns, components, file groups, or vague phrases.
 |---|---|---|
 | | | |
 
-## Acceptance criteria
+## Acceptance Criteria
 [Verifiable completion criteria, each referencing a Requirement ID]
 
 ## Tests
