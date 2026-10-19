@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (49 modules)
+## Index (50 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -66,6 +66,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `run_refactor_validation.py` | Validation runner | Runs the per-file refactor gate (`rules/toolchain.md`): ruff format and check, mypy, radon grade gate, targeted tests, coverage plus diff-cover scoped to the changed files |
 | `extract_module_nodes.py` | Refactor helper | Move the exact source ranges of named top-level classes and functions (`--name`) or explicit line spans (`--range START-END`) from one module into another (`--src` / `--dest`, both repeatable), for Path C module splits. `--dedent` removes one indent level so a moved method becomes a module-level function. The tool slices original lines and never rewrites them. Import cleanup, renaming, and call/test repointing stay with the operator. Reports post-move line and byte counts |
 | `measure_module_nodes.py` | Refactor helper | Report the 1-based line span and encoded byte size of every top-level node in a module (`--min N` drops small nodes, `--json` machine-readable), so a size-gated file is split by measured cluster size and the split is confirmed by the same measurement after extraction. Read-only |
+| `compare_moved_nodes.py` | Refactor helper | Verify a Path C module extraction moved its functions unchanged: compares each named function in the destination file against the same function in the source file at a git revision, after normalizing the allowed transformations (`self` removed, a private name made public, a `self._attr` read turned into an injected parameter, docstrings re-indented). Reports `identical`/`DIFFERS` per function with the parameter-list change, and exits 1 on any difference. Read-only |
 
 ## Domain Documentation Consistency Checkers
 
