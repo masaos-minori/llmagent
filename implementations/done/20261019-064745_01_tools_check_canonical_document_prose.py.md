@@ -58,7 +58,7 @@ registration process, and emits only non-blocking WARNING findings.
 
 ### Target file
 
-`tools/check_canonical_document_prose.py`
+`tools/check_canonical_document_prose.py` (new)
 
 ### Procedure
 
@@ -162,10 +162,10 @@ Changing the registry schema, changing `check_canonical_source_registry.py` /
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001/002/003; UNK-01/02/03 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-001/002/003/004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-005 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261019-110020 | 20261019-110020 | REQ-001/002/003; UNK-01/02/03 |
+| 2 | Add or update tests per Validation plan | Completed | 20261019-110020 | 20261019-110020 | REQ-001/002/003/004 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019-110020 | 20261019-110020 | all REQs |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261019-110020 | 20261019-110020 | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

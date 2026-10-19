@@ -92,10 +92,10 @@ Any other matrix row, the automation/tool columns, or any other governance rule.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-005 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-005 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-005 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261019-110410 | 20261019-110410 | REQ-005 GV-009 status Partial->Existing, note cleared |
+| 2 | Add or update tests per Validation plan | Completed | 20261019-110410 | 20261019-110410 | REQ-005 docs structure+quality checks passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019-110410 | 20261019-110410 | all REQs validation passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261019-110410 | 20261019-110410 | REQ-005 matrix row updated (in scope) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

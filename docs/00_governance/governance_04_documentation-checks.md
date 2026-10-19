@@ -322,8 +322,8 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-006 | Duplicate Related Link prohibition (Metadata Related Rules) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-007 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | None |
 | GV-008 | Needs Confirmation assignment, review metadata, priority, and resolution target (`Assigned To`, `Last Reviewed`, `Priority`, `Resolution Target`, and Status/Blocking consistency) | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Partial | The tool checks `Assigned To` and `Resolution Target`; `Last Reviewed`, `Priority`, and Status/Blocking consistency are manual review |
-| GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Partial | Registered claims are checked by `GV-019`; automate detection for unregistered prose (currently manual) |
-| GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Partial | Registered claims are checked by `GV-019`; automate detection for unregistered prose (currently manual) |
+| GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Existing | None |
+| GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Existing | None |
 | GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Partial | Extend stale_patterns config |
 | GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | Optional: run cited tests in CI, not just verify path existence |
 | GV-013 | Software vs Documentation dependency graph separation | Imp | Manual | Human review | PR | Warning | Existing | None |
