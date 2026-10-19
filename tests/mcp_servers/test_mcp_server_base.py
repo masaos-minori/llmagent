@@ -5,8 +5,10 @@ __list_tools__ introspection protocol, and attach_auth_middleware.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
 import re
+from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
@@ -515,3 +517,205 @@ class TestAppModuleImportability:
             "The following app_module paths are not importable:\n"
             + "\n".join(f"  {m}" for m in missing)
         )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# _LoopbackVerifyingServer.startup() override (lifespan failure / loopback bind)
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class _FakeSocket:
+    """Stand-in for a bound socket reporting a fixed peer address."""
+
+    def __init__(self, bound_host: str) -> None:
+        self._bound_host = bound_host
+
+    def getsockname(self) -> tuple[str, int]:
+        return (self._bound_host, 0)
+
+
+class _FakeServer:
+    """Stand-in for an asyncio.Server whose bound socket reports a fixed address."""
+
+    def __init__(self, bound_host: str) -> None:
+        self.sockets = [_FakeSocket(bound_host)]
+
+    def close(self) -> None:  # pragma: no cover - shutdown() calls this
+        pass
+
+    async def wait_closed(self) -> None:  # pragma: no cover - shutdown() calls this
+        pass
+
+
+class TestStartupOverride:
+    """REQ-002 / REQ-003: drive the real _LoopbackVerifyingServer.startup()
+    override through run_http() for the failing-lifespan and normal-loopback cases.
+
+    The override is a local class inside run_http(), so the only way to exercise
+    it is to replace uvicorn.Server.run() with a driver over the real _serve()
+    and stub main_loop / capture_signals so it returns after startup().
+
+    ``loop.create_server`` is replaced on the running loop instance (not the class)
+    because ``asyncio.SelectorEventLoop`` defines its own ``create_server`` that
+    shadows ``AbstractEventLoop``; an instance attribute shadows both regardless of
+    platform.
+    """
+
+    @staticmethod
+    async def _noop_main_loop(self: object) -> None:
+        """Stub uvicorn.Server.main_loop so _serve() returns after startup()."""
+
+    @staticmethod
+    def _null_capture(self: object) -> contextlib.AbstractContextManager[None]:
+        """Stub uvicorn.Server.capture_signals to avoid installing signal handlers."""
+        return contextlib.nullcontext()
+
+    def _install_real_run_driver(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        bound_host: str,
+        create_calls: list[int] | None = None,
+    ) -> None:
+        import asyncio
+
+        import uvicorn
+
+        def _real_run(srv: object) -> None:
+            async def _drive() -> None:
+                loop = asyncio.get_running_loop()
+                original_create_server = loop.create_server
+
+                async def fake_create_server(
+                    protocol_factory: object, **kwargs: object
+                ) -> _FakeServer:
+                    if create_calls is not None:
+                        create_calls.append(1)
+                    return _FakeServer(bound_host)
+
+                # Instance attribute shadows the class method (no implicit self).
+                loop.create_server = fake_create_server  # type: ignore[assignment] — instance attr shadows the class method (no implicit self)
+                try:
+                    await srv.serve(sockets=None)  # type: ignore[attr-defined] — srv is a real uvicorn.Server at runtime (typed object for monkeypatch)
+                finally:
+                    loop.create_server = original_create_server  # type: ignore[method-assign] — restoring the instance attribute set above
+
+            asyncio.run(_drive())
+
+        monkeypatch.setattr(uvicorn.Server, "run", _real_run)
+        monkeypatch.setattr(uvicorn.Server, "main_loop", self._noop_main_loop)
+        monkeypatch.setattr(uvicorn.Server, "capture_signals", self._null_capture)
+
+    def _patch_restrict_to(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(
+            "shared.config_loader.ConfigLoader.restrict_to", lambda x: None
+        )
+
+    @contextlib.contextmanager
+    def _uvicorn_error_logs(self) -> Iterator[list[str]]:
+        """Collect messages emitted on ``uvicorn.error``.
+
+        ``Config.configure_logging()`` runs ``logging.config.dictConfig`` with no
+        ``handlers`` entry for ``uvicorn.error``, which wipes any handler already
+        attached to that logger. The test patches ``configure_logging`` to a no-op so
+        the handler (and the default ``propagate = True``) survive, then capture here.
+        """
+        import logging
+
+        captured: list[str] = []
+
+        class _ListHandler(logging.Handler):
+            def emit(self, record: logging.LogRecord) -> None:
+                captured.append(record.getMessage())
+
+        handler = _ListHandler(level=logging.DEBUG)
+        logger = logging.getLogger("uvicorn.error")
+        logger.addHandler(handler)
+        try:
+            yield captured
+        finally:
+            logger.removeHandler(handler)
+
+    def test_failing_lifespan_exits_cleanly_without_attributeerror(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """REQ-002: a lifespan that raises reaches sys.exit(1) without AttributeError."""
+
+        class _FailingServer(MCPServer):
+            server_name = "failing-lifespan-mcp"
+            server_version = "1.0"
+            http_host = "127.0.0.1"
+            http_port = 9991
+            app_module = "tests.mcp_servers.lifespan_fixtures:failing_lifespan_app"
+            own_config_file = "failing_lifespan_mcp_server.toml"
+            mcp_tools = []
+
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                raise NotImplementedError
+
+        self._install_real_run_driver(monkeypatch, "127.0.0.1")
+        self._patch_restrict_to(monkeypatch)
+        monkeypatch.setattr(
+            "uvicorn.config.Config.configure_logging", lambda self: None
+        )
+
+        with self._uvicorn_error_logs() as captured:
+            with pytest.raises(SystemExit) as excinfo:
+                _FailingServer().run_http()
+
+        assert excinfo.value.code == 1
+        assert any(
+            "Application startup failed. Exiting." in message for message in captured
+        ), "uvicorn's own startup-failure diagnostic must surface, not AttributeError"
+        assert "AttributeError" not in "\n".join(captured)
+
+    def test_normal_loopback_start_verifies_bound_socket(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """REQ-003: a healthy lifespan reaches the normal start path and verifies
+        the loopback bind without raising."""
+
+        class _HealthyServer(MCPServer):
+            server_name = "healthy-lifespan-mcp"
+            server_version = "1.0"
+            http_host = "127.0.0.1"
+            http_port = 9990
+            app_module = "tests.mcp_servers.lifespan_fixtures:healthy_lifespan_app"
+            own_config_file = "healthy_lifespan_mcp_server.toml"
+            mcp_tools = []
+
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                raise NotImplementedError
+
+        create_calls: list[int] = []
+        self._install_real_run_driver(monkeypatch, "127.0.0.1", create_calls)
+        self._patch_restrict_to(monkeypatch)
+
+        # No exception: the override completed the loopback verification.
+        _HealthyServer().run_http()
+        assert len(create_calls) == 1, (
+            "the normal start path must reach loop.create_server()"
+        )
+
+    def test_non_loopback_bind_raises_runtime_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """REQ-003: a non-loopback bound socket raises RuntimeError from the override."""
+
+        class _NonLoopbackServer(MCPServer):
+            server_name = "nonloopback-bind-mcp"
+            server_version = "1.0"
+            http_host = "127.0.0.1"
+            http_port = 9989
+            app_module = "tests.mcp_servers.lifespan_fixtures:healthy_lifespan_app"
+            own_config_file = "nonloopback_bind_mcp_server.toml"
+            mcp_tools = []
+
+            async def dispatch(self, name: str, args: dict) -> DispatchResult:
+                raise NotImplementedError
+
+        self._install_real_run_driver(monkeypatch, "192.168.1.100")
+        self._patch_restrict_to(monkeypatch)
+
+        with pytest.raises(RuntimeError, match="not loopback"):
+            _NonLoopbackServer().run_http()

@@ -141,10 +141,10 @@ procedure document).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261019-193849 | Created tests/mcp_servers/lifespan_fixtures.py with failing_lifespan_app (raises before yield) and healthy_lifespan_app (yields immediately). |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261019-193849 | N/A: fixture module only; consumed via app_module by procedure 092908_02. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261019-193849 | Fixtures resolve via uvicorn import_string(app_module); REQ-002/REQ-003 tests pass. ruff clean. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261019-193849 | No doc changes. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

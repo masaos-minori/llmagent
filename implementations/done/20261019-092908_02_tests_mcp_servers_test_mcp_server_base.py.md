@@ -155,10 +155,10 @@ module (each has its own procedure document).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261019-193849 | Added TestStartupOverride (3 tests) driving the real _LoopbackVerifyingServer.startup() override through run_http(): failing-lifespan, normal-loopback, non-loopback-bind. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261019-193849 | Three tests added per Validation plan covering AC-001/AC-002/AC-003. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261019-193849 | pytest tests/mcp_servers/test_mcp_server_base.py: 39 pass. ruff format/check clean; mypy clean in code range. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261019-193849 | No doc changes. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

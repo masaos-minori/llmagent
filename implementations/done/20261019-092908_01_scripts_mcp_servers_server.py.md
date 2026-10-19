@@ -142,10 +142,10 @@ the override guard, or modifying `rag_pipeline_server.py` or any other server.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261019-193849 | Guard inserted at server.py lines 262-264: `if self.should_exit or not getattr(self, "servers", None): return` before the `for srv in self.servers:` loop. Skips verification on the failing path; normal-path loopback verification preserved. |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261019-193849 | Regression tests added in sibling procedure 092908_02 (TestStartupOverride: failing-lifespan REQ-002, normal-loopback REQ-003, non-loopback-bind REQ-003). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261019-193849 | ruff format/check clean; mypy success; bandit no issues; lint-imports 6/6 kept. TestStartupOverride 3/3 pass; full mcp_servers suite 2388 pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261019-193849 | No doc changes in scope. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -260,6 +260,8 @@ class MCPServer:
 
             async def startup(self, sockets: list[Any] | None = None) -> None:
                 await super().startup(sockets=sockets)
+                if self.should_exit or not getattr(self, "servers", None):
+                    return
                 for srv in self.servers:
                     for sock in srv.sockets or []:
                         bound_host = sock.getsockname()[0]
