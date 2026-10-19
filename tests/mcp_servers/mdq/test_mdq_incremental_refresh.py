@@ -6,6 +6,7 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import logging
+import os
 import sqlite3
 import time
 from collections.abc import Awaitable, Callable
@@ -364,7 +365,12 @@ class TestRefreshIncrementalBranches:
         recorded_before = _index_state_keys(service)
         assert state_key in recorded_before
 
+        first_mtime_ns = target.stat().st_mtime_ns
         target.write_text("# A\n\nTwo")
+        # Coarse filesystem timestamps can tie with the first write, and the refresh
+        # compares mtimes only, so force a strictly newer one.
+        later_ns = first_mtime_ns + 1_000_000_000
+        os.utime(target, ns=(later_ns, later_ns))
         monkeypatch.setattr(indexer, "_index_single_file", _always_fail)
         result = asyncio.run(
             _refresh_paths(service, RefreshIndexRequest(paths=[str(target)]))

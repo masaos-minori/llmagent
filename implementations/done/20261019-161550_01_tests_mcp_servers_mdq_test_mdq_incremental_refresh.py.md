@@ -62,9 +62,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `import os` and the `os.utime` step to the test | Pending | — | — | |
-| 2 | Run the module's tests and the validation sequence (`rules/toolchain.md`) for it | Pending | — | — | |
-| 3 | Run the single test 200 times with partial CPU load and confirm 0 failures | Pending | — | — | |
+| 1 | Add `import os` and the `os.utime` step to the test | Completed | 20261019-164714 | 20261019-164714 |  |
+| 2 | Run the module's tests and the validation sequence (`rules/toolchain.md`) for it | Completed | 20261019-164714 | 20261019-164714 | file: 34 passed; tests/mcp_servers/mdq passed; production snapshot identical; the full suite was not rerun (test-only change confined to this file) |
+| 3 | Run the single test 200 times with partial CPU load and confirm 0 failures | Completed | 20261019-164714 | 20261019-164714 | 200 consecutive runs, 0 failures: 100 under CPU load (4 busy loops on 8 cores) and 100 idle; a first attempt aborted because pkill -f matched its own shell, and was rerun with PID-managed load |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
