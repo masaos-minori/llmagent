@@ -9,13 +9,18 @@ tests/tools/test_check_known_deviation_sync.py's tmp_path-fixture pattern.
 from __future__ import annotations
 
 from pathlib import Path
+from types import SimpleNamespace
 
 from tools._docs_consistency_lib import discover_md_files
 from tools.check_needs_confirmation_inventory import (
     _GOVERNANCE_META_DOCS,
     INVENTORY_DOC_PATH,
     NcEntry,
+    _parse_inventory_entries,
+    check_blocking_reference,
+    check_last_reviewed,
     check_missing_nc_fields,
+    check_priority_valid,
     check_untracked_inline_markers,
 )
 
@@ -233,3 +238,126 @@ class TestExitCodeBehavior:
         finally:
             mod.DOCS_DIR = orig_docs_dir
             mod.INVENTORY_DOC_PATH = orig_inv_path
+
+
+class TestParseInventoryMarkers:
+    """The extended parser reads the Last Reviewed / Priority / Blocking markers."""
+
+    def test_three_markers_are_parsed(self) -> None:
+        lines = [
+            "## Part 2:",
+            "#### NC-1",
+            "**Status:** open",
+            "**Source File:** `example.md`",
+            "**Assigned To:** alice",
+            "**Resolution Target:** 2026-12-01",
+            "**Last Reviewed:** 2026-01-15",
+            "**Priority:** High",
+            "**Blocking:** NC-2",
+            "#### NC-2",
+            "**Status:** open",
+        ]
+        entries = _parse_inventory_entries(SimpleNamespace(lines=lines))
+        assert len(entries) == 2
+        nc1 = entries[0]
+        assert nc1.last_reviewed == "2026-01-15"
+        assert nc1.priority == "High"
+        assert nc1.blocking == "NC-2"
+
+    def test_absent_markers_map_to_none(self) -> None:
+        lines = ["## Part 2:", "#### NC-1", "**Status:** open"]
+        entries = _parse_inventory_entries(SimpleNamespace(lines=lines))
+        assert len(entries) == 1
+        nc1 = entries[0]
+        assert nc1.last_reviewed is None
+        assert nc1.priority is None
+        assert nc1.blocking is None
+
+
+class TestCheckLastReviewed:
+    """check_last_reviewed enforces presence + ISO YYYY-MM-DD well-formedness."""
+
+    def test_valid_iso_date_passes(self) -> None:
+        entry = NcEntry(
+            "NC-1", "example.md", "open", "alice", "2026-12-01", "2026-01-15"
+        )
+        assert check_last_reviewed([entry]) == []
+
+    def test_missing_last_reviewed_is_flagged(self) -> None:
+        entry = NcEntry("NC-1", "example.md", "open", "alice", "2026-12-01")
+        issues = check_last_reviewed([entry])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "Last Reviewed" in issues[0].message
+
+    def test_malformed_date_is_flagged(self) -> None:
+        entry = NcEntry(
+            "NC-1", "example.md", "open", "alice", "2026-12-01", "01/15/2026"
+        )
+        issues = check_last_reviewed([entry])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "ISO" in issues[0].message
+
+    def test_non_open_entry_is_excluded(self) -> None:
+        entry = NcEntry("NC-1", "example.md", "resolved", None, None, None)
+        assert check_last_reviewed([entry]) == []
+
+
+class TestCheckPriorityValid:
+    """check_priority_valid enforces case-insensitive High/Medium/Low membership."""
+
+    def test_valid_priority_passes(self) -> None:
+        entry = NcEntry(
+            "NC-1", "example.md", "open", "alice", "2026-12-01", priority="High"
+        )
+        assert check_priority_valid([entry]) == []
+
+    def test_case_insensitive_priority_passes(self) -> None:
+        entry = NcEntry(
+            "NC-1", "example.md", "open", "alice", "2026-12-01", priority="low"
+        )
+        assert check_priority_valid([entry]) == []
+
+    def test_missing_priority_is_flagged(self) -> None:
+        entry = NcEntry("NC-1", "example.md", "open", "alice", "2026-12-01")
+        issues = check_priority_valid([entry])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+
+    def test_invalid_priority_is_flagged(self) -> None:
+        entry = NcEntry(
+            "NC-1", "example.md", "open", "alice", "2026-12-01", priority="Urgent"
+        )
+        issues = check_priority_valid([entry])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+
+    def test_non_open_entry_is_excluded(self) -> None:
+        entry = NcEntry("NC-1", "example.md", "resolved", None, None, priority="Urgent")
+        assert check_priority_valid([entry]) == []
+
+
+class TestCheckBlockingReference:
+    """check_blocking_reference validates that Blocking names a real NC id."""
+
+    def test_valid_blocking_reference_passes(self) -> None:
+        e1 = NcEntry("NC-1", "example.md", "open", blocking="NC-2")
+        e2 = NcEntry("NC-2", "example.md", "open")
+        assert check_blocking_reference([e1, e2]) == []
+
+    def test_invalid_blocking_reference_is_flagged(self) -> None:
+        e1 = NcEntry("NC-1", "example.md", "open", blocking="NC-99")
+        e2 = NcEntry("NC-2", "example.md", "open")
+        issues = check_blocking_reference([e1, e2])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "Blocking" in issues[0].message
+
+    def test_unset_blocking_produces_no_issue(self) -> None:
+        e1 = NcEntry("NC-1", "example.md", "open")
+        assert check_blocking_reference([e1]) == []
+
+    def test_non_open_entry_is_excluded(self) -> None:
+        e1 = NcEntry("NC-1", "example.md", "resolved", blocking="NC-99")
+        assert check_blocking_reference([e1]) == []

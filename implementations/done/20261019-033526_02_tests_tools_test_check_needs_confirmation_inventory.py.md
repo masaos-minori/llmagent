@@ -114,8 +114,8 @@ Any change to the tool's exit-code behavior or to checks outside this Plan.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add unit tests for the three new checks + parser extension | Pending | — | — | REQ-001/002/003 |
-| 2 | Run the tool test suite; confirm existing 14 tests pass | Pending | — | — | all REQs |
+| 1 | Add unit tests for the three new checks + parser extension | Done | — | — | REQ-001/002/003; 15 new tests (29 total) |
+| 2 | Run the tool test suite; confirm existing 14 tests pass | Done | — | — | all 29 pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

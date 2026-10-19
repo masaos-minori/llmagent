@@ -59,21 +59,23 @@ id) — and wire them into `main()`'s aggregation.
 
 ### Method
 
-- Add three module-level regexes following the existing marker convention
-  (`_ASSIGNED_TO_RE`, `_RESOLUTION_TARGET_RE`), allowing the optional trailing `*`
-  before the colon so both `**Priority:**` and `**Priority:` parse:
+- Add three module-level regexes matching the inventory's canonical marker format
+  (`**Field:**` == `**Field:` + closing `**`, confirmed against the fifteen-field
+  schema in `governance_03`):
 
   ```python
-  _LAST_REVIEWED_RE = re.compile(
-      r"(?:\*\*Last Reviewed:\*\*|\*\*Last Reviewed:\*):\s*(.+)$"
-  )
-  _PRIORITY_RE = re.compile(
-      r"(?:\*\*Priority:\*\*|\*\*Priority:\*):\s*(.+)$"
-  )
-  _BLOCKING_RE = re.compile(
-      r"(?:\*\*Blocking:\*\*|\*\*Blocking:\*):\s*(.+)$"
-  )
+  _LAST_REVIEWED_RE = re.compile(r"\*\*Last Reviewed:\*\*\s*(.+)$")
+  _PRIORITY_RE = re.compile(r"\*\*Priority:\*\*\s*(.+)$")
+  _BLOCKING_RE = re.compile(r"\*\*Blocking:\*\*\s*(.+)$")
   ```
+
+  > **Adversarial-verification correction (was a blocker).** The originally
+  > specified regexes used a second alternative `\*\*Field:\*` (single trailing
+  > star) which matched neither the canonical `**Field:**` (colon inside bold) nor
+  > the alternate `**Field**:` (colon outside bold) spelling. The live inventory
+  > uses the colon-inside form (verified against the archived schema doc). The
+  > regexes were simplified to a single pattern per field that matches the
+  > canonical marker and captures the value. This is recorded in the Blocker Log.
 
 - In `_parse_inventory_entries`, add `current_last_reviewed`, `current_priority`,
   `current_blocking` locals (initialized `None`), reset them in the `_NC_ENTRY_RE`
@@ -145,14 +147,14 @@ Recency-threshold enforcement, field serialization, and any other governance rul
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `NcEntry` + `_parse_inventory_entries` for the three markers | Pending | — | — | REQ-001/002/003 |
-| 2 | Add `check_last_reviewed` / `check_priority_valid` / `check_blocking_reference` and wire into `main()` | Pending | — | — | REQ-001/002/003 |
-| 3 | Run the tool test suite + corpus run | Pending | — | — | all REQs |
+| 1 | Extend `NcEntry` + `_parse_inventory_entries` for the three markers | Done | — | — | REQ-001/002/003; regex corrected (see Blocker Log) |
+| 2 | Add `check_last_reviewed` / `check_priority_valid` / `check_blocking_reference` and wire into `main()` | Done | — | — | REQ-001/002/003; all gated on `open`, WARNING severity |
+| 3 | Run the tool test suite + corpus run | Done | — | — | 29 tests pass; corpus "No issues found", exit 0 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Procedure-specified regexes used a second alternative `\*\*Field:\*` (single trailing star) that matched neither the canonical `**Field:**` (colon inside bold) nor the alternate `**Field**:` (colon outside bold). Live inventory uses colon-inside (verified against archived `governance_03` schema). | Yes | 20261019 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

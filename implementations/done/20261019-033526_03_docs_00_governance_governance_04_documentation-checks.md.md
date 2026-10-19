@@ -86,8 +86,8 @@ Any other matrix row or governance rule.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update GV-008 row status `Partial` → `Existing` and clear follow-up note | Pending | — | — | REQ-004 |
-| 2 | Run the docs checker and confirm the matrix edit is well-formed | Pending | — | — | REQ-004 |
+| 1 | Update GV-008 row status `Partial` → `Existing` and clear follow-up note | Done | — | — | REQ-004 |
+| 2 | Run the docs checker and confirm the matrix edit is well-formed | Done | — | — | check_docs_quality.py / check_docs_structure.py pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

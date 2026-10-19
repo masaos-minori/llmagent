@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 if __package__ in (None, ""):
@@ -88,6 +89,9 @@ _ASSIGNED_TO_RE = re.compile(r"(?:\*\*Assigned To:\*\*|\*\*Assigned To\*\*:)\s*(
 _RESOLUTION_TARGET_RE = re.compile(
     r"(?:\*\*Resolution Target:\*\*|\*\*Resolution Target\*\*:)\s*(.+)$"
 )
+_LAST_REVIEWED_RE = re.compile(r"\*\*Last Reviewed:\*\*\s*(.+)$")
+_PRIORITY_RE = re.compile(r"\*\*Priority:\*\*\s*(.+)$")
+_BLOCKING_RE = re.compile(r"\*\*Blocking:\*\*\s*(.+)$")
 
 _DEFINITIONAL_PHRASES = [
     r"(?:defines|refers\s+to|see|indicates|means|describes)\s+(?:the\s+)?(?:label|term|phrase|concept)",
@@ -164,12 +168,18 @@ class NcEntry:
         status: str | None,
         assigned_to: str | None = None,
         resolution_target: str | None = None,
+        last_reviewed: str | None = None,
+        priority: str | None = None,
+        blocking: str | None = None,
     ):
         self.nc_id = nc_id
         self.source_file = source_file
         self.status = status
         self.assigned_to = assigned_to
         self.resolution_target = resolution_target
+        self.last_reviewed = last_reviewed
+        self.priority = priority
+        self.blocking = blocking
 
 
 def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
@@ -180,6 +190,9 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
     current_status: str | None = None
     current_assigned_to: str | None = None
     current_resolution_target: str | None = None
+    current_last_reviewed: str | None = None
+    current_priority: str | None = None
+    current_blocking: str | None = None
     in_part2 = False
 
     def flush() -> None:
@@ -191,6 +204,9 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
                     current_status,
                     current_assigned_to,
                     current_resolution_target,
+                    current_last_reviewed,
+                    current_priority,
+                    current_blocking,
                 )
             )
 
@@ -210,6 +226,9 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
             current_status = None
             current_assigned_to = None
             current_resolution_target = None
+            current_last_reviewed = None
+            current_priority = None
+            current_blocking = None
             continue
         if current_id is None:
             continue
@@ -225,6 +244,15 @@ def _parse_inventory_entries(inventory: DocFile) -> list[NcEntry]:
         resolution_match = _RESOLUTION_TARGET_RE.search(line)
         if resolution_match:
             current_resolution_target = resolution_match.group(1)
+        last_reviewed_match = _LAST_REVIEWED_RE.search(line)
+        if last_reviewed_match:
+            current_last_reviewed = last_reviewed_match.group(1)
+        priority_match = _PRIORITY_RE.search(line)
+        if priority_match:
+            current_priority = priority_match.group(1)
+        blocking_match = _BLOCKING_RE.search(line)
+        if blocking_match:
+            current_blocking = blocking_match.group(1)
     flush()
     return entries
 
@@ -360,6 +388,100 @@ def check_missing_nc_fields(entries: list[NcEntry]) -> list[Issue]:
     return issues
 
 
+def check_last_reviewed(entries: list[NcEntry]) -> list[Issue]:
+    """Flag active NC items whose 'Last Reviewed' is missing or not an ISO date.
+
+    Presence + well-formedness only; recency is intentionally not enforced
+    (no policy defines a threshold). Malformed or missing -> WARNING.
+    """
+    issues: list[Issue] = []
+    for entry in entries:
+        if entry.status != "open":
+            continue
+        value = entry.last_reviewed
+        if not value:
+            issues.append(
+                Issue(
+                    file=INVENTORY_DOC_NAME,
+                    line_no=0,
+                    severity="WARNING",
+                    message=f"{entry.nc_id}: missing required field 'Last Reviewed'",
+                )
+            )
+            continue
+        try:
+            datetime.strptime(value.strip(), "%Y-%m-%d")
+        except ValueError:
+            issues.append(
+                Issue(
+                    file=INVENTORY_DOC_NAME,
+                    line_no=0,
+                    severity="WARNING",
+                    message=(
+                        f"{entry.nc_id}: 'Last Reviewed' value '{value.strip()}' "
+                        f"is not an ISO YYYY-MM-DD date"
+                    ),
+                )
+            )
+    return issues
+
+
+def check_priority_valid(entries: list[NcEntry]) -> list[Issue]:
+    """Flag active NC items whose 'Priority' is missing or outside the enum.
+
+    Case-insensitive membership against the governance_03 Priority Values
+    (High/Medium/Low). Anything outside that set -> WARNING.
+    """
+    valid = {"high", "medium", "low"}
+    issues: list[Issue] = []
+    for entry in entries:
+        if entry.status != "open":
+            continue
+        priority = entry.priority
+        if not priority or priority.strip().lower() not in valid:
+            issues.append(
+                Issue(
+                    file=INVENTORY_DOC_NAME,
+                    line_no=0,
+                    severity="WARNING",
+                    message=(
+                        f"{entry.nc_id}: 'Priority' value '{priority}' is not one "
+                        f"of High/Medium/Low"
+                    ),
+                )
+            )
+    return issues
+
+
+def check_blocking_reference(entries: list[NcEntry]) -> list[Issue]:
+    """Flag active NC items whose 'Blocking' references a non-existent NC id.
+
+    Validates the Blocking field (not a 'Blocked' status, which does not exist
+    in governance_03's Status Values). An unset/empty Blocking produces no issue.
+    """
+    known_ids = {e.nc_id for e in entries}
+    issues: list[Issue] = []
+    for entry in entries:
+        if entry.status != "open":
+            continue
+        blocking = entry.blocking
+        if not blocking or not blocking.strip():
+            continue
+        if blocking.strip() not in known_ids:
+            issues.append(
+                Issue(
+                    file=INVENTORY_DOC_NAME,
+                    line_no=0,
+                    severity="WARNING",
+                    message=(
+                        f"{entry.nc_id}: 'Blocking' value '{blocking.strip()}' "
+                        f"does not reference a known NC id"
+                    ),
+                )
+            )
+    return issues
+
+
 def main() -> int:
     inventory = None
     try:
@@ -394,6 +516,9 @@ def main() -> int:
     all_issues += check_untracked_inline_markers(DOCS_DIR, all_files, entries)
     all_issues += check_declared_field_count(DOCS_DIR, all_files)
     all_issues += check_missing_nc_fields(entries)
+    all_issues += check_last_reviewed(entries)
+    all_issues += check_priority_valid(entries)
+    all_issues += check_blocking_reference(entries)
 
     return report_and_exit(all_issues)
 
