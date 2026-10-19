@@ -84,10 +84,10 @@ Any other matrix row, the automation/tool columns, the status cell, or any other
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-006 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-006 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-006 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-19 | 2026-10-19 | REQ-006. GV-012 trailing optional follow-up note cleared to `None`; status cell left `Existing`. |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-19 | 2026-10-19 | REQ-006. Markdown matrix edit; covered by `check_docs_quality.py`/`check_docs_structure.py` (both clean). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-19 | 2026-10-19 | check_docs_quality clean, check_docs_structure clean, pre-commit --all-files all Passed. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-19 | 2026-10-19 | Cleared the same optional work from the "Follow-up Work Needed" list (GV-012 item removed, list renumbered) so the matrix and the follow-up list stay consistent. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

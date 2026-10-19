@@ -37,6 +37,8 @@ jobs:
         run: uv run python tools/check_docstrings.py
       - name: Pre-commit
         run: uv run pre-commit run --all-files
+      - name: Run cited ADR invariant tests
+        run: uv run python .github/run_cited_adr_tests.py
 
   test:
     runs-on: ubuntu-latest

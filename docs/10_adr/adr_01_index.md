@@ -104,7 +104,7 @@ A row whose Verification Status is "Not verified" is Non-Blocking, because a gat
 
 | Invariant | Statement | Type | Timing | Gate | Verification Status |
 |-----------|-----------|------|--------|------|---------------------|
-| ADR-001 INV-01 | Workflow definition mandatory; a missing or invalid workflow raises RuntimeError | Unit Test | CI | Blocking | Confirmed (`tests/agent/test_startup_workflow_preflight.py::test_aborts_on_missing_workflow_definition`; `tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal`, passing) |
+| ADR-001 INV-01 | Workflow definition mandatory; a missing or invalid workflow raises RuntimeError | Unit Test | CI | Blocking | Confirmed (`tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_missing_workflow_definition`; `tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal`, passing) |
 | ADR-001 INV-08 | Stage execution is idempotent via a `{task_id}:{stage_id}:{attempt}` deterministic key; duplicate start within the same attempt is rejected by `begin_stage_if_new()` | Unit Test | CI | Blocking | Confirmed (`tests/agent/workflow/test_workflow_stage_persistence.py::test_begin_stage_if_new_idempotent`, passing) |
 | ADR-001 INV-10 | A workflow definition that contains the `require_approval` key is rejected at load time (the workflow has no approval stage) | Unit Test | CI | Blocking | Confirmed (`tests/agent/workflow/test_workflow_loader.py::TestRequireApprovalKeyRejected`, passing) |
 | ADR-001 INV-11 | Every tool-level approval decision is recorded as a `tool_approval` audit event with the `workflow_id` and the turn ID in `task_id` | Unit Test | CI | Blocking | Confirmed (`tests/agent/test_tool_audit.py::TestAuditApprovalInv11`, passing) |
