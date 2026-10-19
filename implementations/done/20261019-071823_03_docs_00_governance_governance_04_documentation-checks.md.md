@@ -39,6 +39,10 @@ N/A: a one-row matrix edit is the minimal, reviewable change.
 2. Change its status cell (8th column) from `Partial` to `Existing`.
 3. Clear the trailing follow-up note ("Automate glossary term classification validation (currently
    manual)") — replace with `None`, consistent with other fully-automated rows.
+4. Remove the now-stale follow-up list item for GV-015 from the "Follow-up Work Needed" list
+   (it was item #3, between GV-011 and GV-016) and renumber the remaining items so the list stays
+   contiguous. This mirrors the GV-014 precedent (item #2 in the same list is already retired):
+   leaving a retired item would contradict the matrix, which no longer marks GV-015 as `Partial`.
 
 ### Method
 
@@ -90,10 +94,10 @@ Any other matrix row, the automation/tool columns, or any other governance rule.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-005 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-005 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-005 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261019-151054 | 20261019-151054 | REQ-005 |
+| 2 | Add or update tests per Validation plan | Completed | 20261019-151054 | 20261019-151054 | REQ-005 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019-151054 | 20261019-151054 | all REQs |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261019-151054 | 20261019-151054 | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

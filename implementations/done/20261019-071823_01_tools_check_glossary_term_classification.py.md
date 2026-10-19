@@ -45,7 +45,7 @@ This closes the documented `Partial` gap for GV-015.
 
 ### Target file
 
-`tools/check_glossary_term_classification.py`
+`tools/check_glossary_term_classification.py` (new)
 
 ### Procedure
 
@@ -130,10 +130,10 @@ to other tables.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001/002/003; UNK-01/02 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-001/002/003/004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-005 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261019-150425 | 20261019-150425 | REQ-001/002/003; UNK-01/02 |
+| 2 | Add or update tests per Validation plan | Completed | 20261019-150425 | 20261019-150425 | REQ-001/002/003/004 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019-150425 | 20261019-150425 | all REQs |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261019-150425 | 20261019-150425 | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

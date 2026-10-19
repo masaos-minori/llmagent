@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (45 modules)
+## Index (46 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -32,6 +32,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `check_docs_japanese.py` | Docs policy | List Markdown files containing hiragana, katakana, or kanji (exit code 1 if any) |
 | `check_docs_quality.py` | Docs quality | Core checks plus custom rules for documentation quality |
 | `check_docs_structure.py` | Docs structure | Validate structural conventions of `docs/*.md` |
+| `check_glossary_term_classification.py` | Consistency checker | Scan the "Compatibility and Lifecycle Terminology" glossary table in `governance_02_documentation-metadata.md` and flag entries whose term is a general/common English word rather than a project-specific identifier at `Warning` (GV-015). Conservative classification treats capitalized terms as project-specific, so the current canonical term set yields zero findings |
 | `check_dependency_graph_cycles.py` | Dependency | Detect cycles in the software runtime dependency graph |
 | `check_known_deviation_sync.py` | ADR | Check that ADR Known Deviations reference the canonical source (`governance_03`) consistently, and detect leaked Resolved items (rule ID `GV-022`) |
 | `check_mock_patch_targets.py` | Test | Detect `unittest.mock.patch()` targets that are ineffective |
