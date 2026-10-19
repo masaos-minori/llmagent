@@ -327,7 +327,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Existing | None |
 | GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | None |
 | GV-013 | Software vs Documentation dependency graph separation | Imp | Manual | Human review | PR | Warning | Existing | None |
-| GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Partial | Automate auto-check implementation audit (currently manual) |
+| GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Partial | Automate glossary term classification validation (currently manual) |
 | GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Partial | Automate metadata field usage policy enforcement (currently manual) |
 | GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Partial | Slash-command removed-name patterns implemented (`/diff`, `/system`, `/audit`, `/workflow`); promote to default-on once the corpus is compliant |
@@ -344,10 +344,9 @@ Rules marked "Missing" or "Partial" above need new inspection tools or processes
 
 1. **GV-009, GV-010**: Automate conflict detection for unregistered prose across documents (registered claims are already checked by `GV-019`; the rest is manual)
 2. **GV-011**: Extend `stale_patterns` custom rule config to cover canonical document references
-3. **GV-014**: Automate auto-check implementation audit (currently manual)
-4. **GV-015**: Automate glossary term classification validation (currently manual)
-5. **GV-016**: Automate metadata field usage policy enforcement (currently manual)
-6. **GV-017**: Four slash-command removed-name patterns are implemented
+3. **GV-015**: Automate glossary term classification validation (currently manual)
+4. **GV-016**: Automate metadata field usage policy enforcement (currently manual)
+5. **GV-017**: Four slash-command removed-name patterns are implemented
      (`/diff`, `/system`, `/audit`, `/workflow`) via `check_removed_name_reintroduction()`;
      promote `--check-removed-names` from opt-in to default-on once the corpus is
      compliant, per `check_compat_shims.py`'s own "report-only until compliant"

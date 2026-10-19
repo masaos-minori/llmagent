@@ -91,10 +91,10 @@ Any other matrix row, the automation/tool columns, or any other governance rule.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-005 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-005 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-005 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261019 | 20261019 | GV-014 status Partial→Existing; follow-up list item removed and renumbered |
+| 2 | Add or update tests per Validation plan | Completed | 20261019 | 20261019 | N/A (doc edit) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019 | 20261019 | check_docs_quality + check_docs_structure pass; tool-descriptions-sync passes after adding TOOL_DESCRIPTIONS.md index entry |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261019 | 20261019 | Matrix + follow-up list updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

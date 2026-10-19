@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (44 modules)
+## Index (45 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -21,6 +21,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `check_adr_invariant_matrix.py` | ADR | Verify that test node IDs in the ADR Invariant Verification Matrix exist |
 | `check_adr_reference.py` | ADR | Verify source-file references in the ADR Invariant Verification Matrix |
 | `check_adr_structure.py` | ADR | Verify ADR structure: Known Deviations heading, Implementation Notes/References consistency, allowed heading list and order, leftover template instructions and legacy `INV-NNN` IDs |
+| `check_auto_check_inventory.py` | Consistency checker | Cross-check auto-checks documented as `Auto` in governance_04/routing.md against runnable scripts under `tools/` or `scripts/`; flags documented-but-absent or name-drifted entries at `Warning` (GV-014) |
 | `check_canonical_document_prose.py` | Canonical Source | Scan `docs/*.md` for unregistered canonical-document prose assertions |
 | `check_canonical_source_conflicts.py` | Canonical Source | Detect semantic conflicts in the Canonical Source Registry |
 | `check_canonical_source_registry.py` | Canonical Source | Validate the Canonical Source Registry schema |

@@ -46,7 +46,7 @@ the documented `Partial` gap for GV-014.
 
 ### Target file
 
-`tools/check_auto_check_inventory.py`
+`tools/check_auto_check_inventory.py` (new)
 
 ### Procedure
 
@@ -95,6 +95,27 @@ the documented `Partial` gap for GV-014.
 - **UNK-03:** start with exact basename/path match (flag absent); add fuzzy candidate as a
   non-blocking hint.
 
+### Implementation notes (defects found during adversarial verification)
+
+Two runtime/type defects were caught by the unit-test pass and fixed in place before validation
+completed. Both are documented here per memo3 item 2 (correct procedure docs on findings).
+
+- **`_path_tokens` called without `line_no`.** `parse_governance_rows` / `parse_routing_rows`
+  called `_path_tokens(" ".join(cells))` and passed a stray `line_no` to `findings.extend(...)`.
+  `_path_tokens(line, line_no)` requires both args, so every parser call raised
+  `TypeError` at runtime. Fixed by passing `line_no` into `_path_tokens` and dropping the stray
+  argument from `extend`. Verified by the corpus run, which previously never executed.
+- **`Path.sep` does not exist.** `ToolIndex.discover` used
+  `str(py.relative_to(root)).replace(Path.sep, "/")`; `Path` has no `sep` attribute, so discovery
+  raised `AttributeError`. Replaced with `py.relative_to(root).as_posix()`.
+- **`object` type-hint for parsers.** `audit`/`_default_sources` typed parse functions as
+  `object`, which mypy rejected (`"object" not callable`, operator error not covered by the
+  `# type: ignore`). Replaced with a dedicated `ParseFn = Callable[[str], list[tuple[str, int]]]`
+  alias, removing the suppression and the ruff `UP037` quoted-forward-ref finding on
+  `ToolIndex.discover`'s return annotation.
+- Discovery uses `rglob("*.py")` (recursive) rather than a single-level `iterdir()`, so nested
+  tool paths resolve via `rel_paths` as the corpus test expects.
+
 ## Compatibility considerations
 
 New CLI entry point only; no external callers. `Warning`-only findings preserve the non-blocking
@@ -137,10 +158,10 @@ auto-checks.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-001/002/003; UNK-01/02/03 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-001/002/003/004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | all REQs |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-005 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261019 | 20261019 | REQ-001/002/003; UNK-01/02/03. Two defects fixed during verification (see Implementation notes): `_path_tokens` missing `line_no` arg, `Path.sep` AttributeError. |
+| 2 | Add or update tests per Validation plan | Completed | 20261019 | 20261019 | REQ-001/002/003/004. 17 tests incl. real-corpus zero-finding assertion. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019 | 20261019 | ruff/mypy/bandit/lint-imports clean; targeted + full suite green (1 pre-existing unrelated github failure). diff-cover unmeasurable: coverage config instruments only `scripts/`, not `tools/`. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261019 | 20261019 | Out of scope for this procedure; GV-014 doc update handled by procedure 03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
