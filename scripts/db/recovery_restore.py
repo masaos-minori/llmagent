@@ -3,8 +3,9 @@
 
 Owns the file operations a restore performs: resolve the backup candidate, quarantine
 and stage the -wal/-shm sidecars, archive the corrupt DB, and swap the backup into
-place. Condition classification, the integrity/logical checks, and the RecoveryResult
-policy stay in db.recovery, which calls these helpers.
+place. Condition classification, the physical integrity check, and the RecoveryResult
+policy stay in db.recovery, which calls these helpers; the logical consistency checks
+that run after a restore live in db.recovery_verification.
 
 ADR-008 recovery policy: restore file staging used by db.recovery.recover_corruption().
 """

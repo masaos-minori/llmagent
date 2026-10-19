@@ -1,3 +1,4 @@
+import logging
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -9,6 +10,7 @@ from db.recovery import (
     _restore_from_backup,
     recover_corruption,
 )
+from db.recovery_verification import _run_logical_verification
 
 
 @pytest.fixture
@@ -29,7 +31,17 @@ def mock_db_cfg():
 
 @pytest.fixture
 def mock_sqlite_helper():
-    with patch("db.recovery.SQLiteHelper") as mock_helper_class:
+    """Patch SQLiteHelper in both recovery modules.
+
+    The restore path lives in db.recovery and the logical verification it dispatches
+    to lives in db.recovery_verification, so both modules' helper must be mocked for
+    a restore that reaches verification to stay off the real filesystem.
+    """
+    with (
+        patch("db.recovery.SQLiteHelper") as mock_helper_class,
+        patch("db.recovery_verification.SQLiteHelper") as mock_verification_class,
+    ):
+        mock_verification_class.return_value = mock_helper_class.return_value
         mock_helper_instance = mock_helper_class.return_value.__enter__.return_value
         yield mock_helper_instance
 
@@ -346,7 +358,10 @@ def test_recover_rag_fts_gap(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("db.recovery.check_rag_consistency", return_value=rag_report),
+            patch(
+                "db.recovery_verification.check_rag_consistency",
+                return_value=rag_report,
+            ),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -376,7 +391,10 @@ def test_recover_rag_missing_table(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("db.recovery.check_rag_consistency", return_value=rag_report),
+            patch(
+                "db.recovery_verification.check_rag_consistency",
+                return_value=rag_report,
+            ),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -406,7 +424,10 @@ def test_recover_rag_fts_orphan(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("db.recovery.check_rag_consistency", return_value=rag_report),
+            patch(
+                "db.recovery_verification.check_rag_consistency",
+                return_value=rag_report,
+            ),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -436,7 +457,10 @@ def test_recover_rag_vector_orphan(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("db.recovery.check_rag_consistency", return_value=rag_report),
+            patch(
+                "db.recovery_verification.check_rag_consistency",
+                return_value=rag_report,
+            ),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -467,7 +491,10 @@ def test_recover_rag_read_smoke_test_failed(mock_db_cfg, mock_sqlite_helper):
             patch("pathlib.Path.exists", return_value=True),
             patch("shutil.copy2"),
             patch("os.replace"),
-            patch("db.recovery.check_rag_consistency", return_value=rag_report),
+            patch(
+                "db.recovery_verification.check_rag_consistency",
+                return_value=rag_report,
+            ),
         ):
             result = recover_corruption(backup_path="/tmp/backup.db", target="rag")
 
@@ -812,7 +839,6 @@ from db.models import (
 from db.recovery import (
     _dry_run_integrity_ok,
     _run_integrity_check,
-    _run_logical_verification,
     _vacuum_db,
     _verify_domain_identity,
 )
@@ -820,12 +846,18 @@ from db.recovery import (
 
 @pytest.fixture
 def mock_recovery_db():
-    """Patch db.recovery.SQLiteHelper and yield the object `with ... .open() as db` binds to.
+    """Patch SQLiteHelper in both recovery modules and yield the object `with ... .open() as db` binds to.
 
     `SQLiteHelper.open()` returns self and `__enter__` returns self, so the bound
     name is `SQLiteHelper(...).open().__enter__()`, not the helper instance itself.
+    `db.recovery_verification` is patched with the same class because
+    `_run_logical_verification` now lives there and opens the helper itself.
     """
-    with patch("db.recovery.SQLiteHelper") as helper_class:
+    with (
+        patch("db.recovery.SQLiteHelper") as helper_class,
+        patch("db.recovery_verification.SQLiteHelper") as verification_helper_class,
+    ):
+        verification_helper_class.return_value = helper_class.return_value
         yield helper_class.return_value.open.return_value.__enter__.return_value
 
 
@@ -953,7 +985,9 @@ class TestLogicalVerificationDetailCharacterization:
             url_level_mismatches={"https://example.test/a": {"chunk_count": 1}},
         )
 
-        with patch("db.recovery.check_rag_consistency", return_value=report):
+        with patch(
+            "db.recovery_verification.check_rag_consistency", return_value=report
+        ):
             ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
 
         assert ok is False
@@ -963,7 +997,9 @@ class TestLogicalVerificationDetailCharacterization:
         )
 
     def test_rag_consistent_report_reports_no_detail(self, mock_recovery_db) -> None:
-        with patch("db.recovery.check_rag_consistency", return_value=_rag_report()):
+        with patch(
+            "db.recovery_verification.check_rag_consistency", return_value=_rag_report()
+        ):
             ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
 
         assert (ok, detail) == (True, None)
@@ -973,7 +1009,7 @@ class TestLogicalVerificationDetailCharacterization:
     ) -> None:
         """`is_consistent` checks read_smoke_test_ok, but the detail builder does not."""
         with patch(
-            "db.recovery.check_rag_consistency",
+            "db.recovery_verification.check_rag_consistency",
             return_value=_rag_report(read_smoke_test_ok=False),
         ):
             ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
@@ -985,7 +1021,8 @@ class TestLogicalVerificationDetailCharacterization:
         self, mock_recovery_db
     ) -> None:
         with patch(
-            "db.recovery.check_session_consistency", return_value=_session_report()
+            "db.recovery_verification.check_session_consistency",
+            return_value=_session_report(),
         ):
             ok, detail = _run_logical_verification(Path("/tmp/session.db"), "session")
 
@@ -1003,7 +1040,9 @@ class TestLogicalVerificationDetailCharacterization:
             diagnostic_errors=("boom", "bang"),
         )
 
-        with patch("db.recovery.check_session_consistency", return_value=report):
+        with patch(
+            "db.recovery_verification.check_session_consistency", return_value=report
+        ):
             ok, detail = _run_logical_verification(Path("/tmp/session.db"), "session")
 
         assert ok is False
@@ -1018,7 +1057,23 @@ class TestLogicalVerificationDetailCharacterization:
         """`write_smoke_test_ok is False` is the trigger; None means "not run"."""
         report = _session_report(orphaned_message_count=1, write_smoke_test_ok=None)
 
-        with patch("db.recovery.check_session_consistency", return_value=report):
+        with patch(
+            "db.recovery_verification.check_session_consistency", return_value=report
+        ):
+            ok, detail = _run_logical_verification(Path("/tmp/session.db"), "session")
+
+        assert ok is False
+        assert detail == "orphan_msgs=1"
+
+    def test_session_write_smoke_pass_is_not_reported_as_a_failure(
+        self, mock_recovery_db
+    ) -> None:
+        """A passed write smoke test never contributes the `write_smoke_fail` entry."""
+        report = _session_report(orphaned_message_count=1, write_smoke_test_ok=True)
+
+        with patch(
+            "db.recovery_verification.check_session_consistency", return_value=report
+        ):
             ok, detail = _run_logical_verification(Path("/tmp/session.db"), "session")
 
         assert ok is False
@@ -1031,15 +1086,18 @@ class TestLogicalVerificationDetailCharacterization:
         )
 
     def test_an_unopenable_database_is_treated_as_consistent(
-        self, mock_recovery_db
+        self, mock_recovery_db, caplog
     ) -> None:
-        with patch(
-            "db.recovery.check_rag_consistency",
-            side_effect=_sqlite3.OperationalError("no such table: chunks"),
-        ):
-            ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
+        with caplog.at_level(logging.WARNING, logger="db.recovery_verification"):
+            with patch(
+                "db.recovery_verification.check_rag_consistency",
+                side_effect=_sqlite3.OperationalError("no such table: chunks"),
+            ):
+                ok, detail = _run_logical_verification(Path("/tmp/rag.db"), "rag")
 
         assert (ok, detail) == (True, None)
+        # The tolerated gap is logged: silent tolerance would hide a verification gap.
+        assert any("could not open DB" in msg for msg in caplog.messages)
 
 
 class TestVacuumDbCharacterization:
