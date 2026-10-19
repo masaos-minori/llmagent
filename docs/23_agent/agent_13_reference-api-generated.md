@@ -91,6 +91,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 | `scripts/agent/http_lifecycle_process_terminator.py` | `ProcessTerminator` | `class ProcessTerminator` | Manages process termination with SIGTERM → SIGKILL escalation. |
 | `scripts/agent/http_lifecycle_shutdown_coordinator.py` | `ShutdownCoordinator` | `class ShutdownCoordinator` | Coordinates shutdown of HTTP server process and associated resources. |
 | `scripts/agent/http_lifecycle_stderr_log_manager.py` | `StderrLogManager` | `class StderrLogManager` | Manages stderr log files for HTTP subprocess MCP servers. |
+| `scripts/agent/http_lifecycle_subprocess_launcher.py` | `SubprocessLauncher` | `class SubprocessLauncher` | Creates and validates HTTP MCP subprocesses, releasing resources on failure. |
 | `scripts/agent/lifecycle.py` | `LifecycleState` | `class LifecycleState` | Transport state for HTTP MCP servers. |
 |  | `assert_valid_transition` | `def assert_valid_transition(from_state, to_state) -> None` | Raise ValueError when the transition from_state -> to_state is not legal. |
 | `scripts/agent/lifecycle_protocol.py` | `LifecycleManagerProtocol` | `class LifecycleManagerProtocol` | Protocol for MCP server lifecycle managers. |

@@ -12,6 +12,7 @@ import subprocess
 from unittest.mock import AsyncMock, MagicMock, Mock, patch
 
 import agent.http_lifecycle as hl_module
+import agent.http_lifecycle_subprocess_launcher as launcher_module
 import httpx
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager
@@ -60,7 +61,7 @@ class TestGetPgidFailureTracking:
                 "terminate_with_timeout",
                 AsyncMock(return_value=True),
             ),
-            patch.object(hl_module, "logger") as mock_logger,
+            patch.object(launcher_module, "logger") as mock_logger,
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start("test", cfg)
@@ -93,7 +94,7 @@ class TestGetPgidFailureTracking:
                 "terminate_with_timeout",
                 AsyncMock(side_effect=RuntimeError("kill failed")),
             ),
-            patch.object(hl_module, "logger") as mock_logger,
+            patch.object(launcher_module, "logger") as mock_logger,
         ):
             caught: BaseException | None = None
             try:
@@ -167,7 +168,7 @@ class TestStartupFailureCleanupCharacterization:
                 "terminate_with_timeout",
                 AsyncMock(return_value=True),
             ),
-            patch.object(hl_module, "logger") as mock_logger,
+            patch.object(launcher_module, "logger") as mock_logger,
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start("test", cfg)
@@ -181,6 +182,63 @@ class TestStartupFailureCleanupCharacterization:
         assert mgr._http_procs.get("test") is None
         assert mgr._http_pgids.get("test") is None
         stderr_fh.close.assert_called_once()
+
+
+class TestSubprocessSpawnCharacterization:
+    """Characterization tests for the spawn/validate step of subprocess startup."""
+
+    @pytest.mark.asyncio
+    async def test_empty_command_raises_before_spawn(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """An empty cmd is a startup failure raised before command validation or Popen.
+
+        The stderr handle opened for the attempt is left open and its tracking entry is
+        left in place on this path; the lock records that as current behavior.
+        """
+        cfg = _make_cfg(cmd=[""])
+        stderr_fh = MagicMock()
+
+        with (
+            patch.object(mgr._stderr_log_manager, "open_log", return_value=stderr_fh),
+            patch.object(mgr._command_validator, "validate") as mock_validate,
+            patch.object(subprocess, "Popen") as mock_popen,
+        ):
+            with pytest.raises(HttpStartupError) as exc_info:
+                await mgr.start("test", cfg)
+
+        assert exc_info.value.failure.reason == "Empty command configuration"
+        assert exc_info.value.failure.server_key == "test"
+        mock_validate.assert_not_called()
+        mock_popen.assert_not_called()
+        stderr_fh.close.assert_not_called()
+        assert mgr._stderr_files.get("test") is stderr_fh
+        assert "test" not in mgr._http_procs
+        assert "test" not in mgr._http_pgids
+
+    @pytest.mark.asyncio
+    async def test_cfg_fields_reach_popen_kwargs(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """cfg.fields are merged into the Popen kwargs on top of the manager defaults."""
+        cfg = _make_cfg(startup_timeout_sec=0, fields={"cwd": "/tmp/opencode"})
+        proc_mock = Mock(pid=4242, poll=Mock(return_value=None))
+        stderr_fh = MagicMock()
+
+        with (
+            patch.object(mgr._stderr_log_manager, "open_log", return_value=stderr_fh),
+            patch.object(subprocess, "Popen", return_value=proc_mock) as mock_popen,
+            patch.object(os, "getpgid", return_value=4242) as mock_getpgid,
+        ):
+            await mgr.start("test", cfg)
+
+        kwargs = mock_popen.call_args.kwargs
+        assert kwargs["stderr"] is stderr_fh
+        assert kwargs["start_new_session"] is True
+        assert kwargs["cwd"] == "/tmp/opencode"
+        mock_getpgid.assert_called_once_with(4242)
+        assert mgr._http_procs["test"] is proc_mock
+        assert mgr._http_pgids["test"] == 4242
 
 
 class TestHealthAndRestartTrackingCharacterization:

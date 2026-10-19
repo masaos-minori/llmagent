@@ -145,7 +145,7 @@ class TestEnsureReadySubprocess:
             patch(
                 "agent.http_lifecycle.subprocess.Popen", return_value=_make_mock_proc()
             ),
-            patch("agent.http_lifecycle.os.getpgid", return_value=9999),
+            patch("os.getpgid", return_value=9999),
         ):
             mgr._subprocess_mgr._http_mgr.verify_running_async = AsyncMock(
                 return_value=True
@@ -193,10 +193,10 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
         ):
             _wire_http_client(MockClient, status_code=200)
             await mgr.start_http_subprocess("s", cfg)
@@ -228,10 +228,10 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
             pytest.raises(RuntimeError, match="exited early"),
         ):
             _wire_http_client(MockClient, status_code=503)
@@ -249,10 +249,10 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
             pytest.raises(RuntimeError, match="did not become healthy"),
         ):
             client_instance, mock_resp = _wire_http_client(MockClient)
@@ -273,10 +273,10 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
             patch.object(
                 mgr._subprocess_mgr._http_mgr._process_terminator,
                 "terminate_with_timeout",
@@ -305,10 +305,10 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.asyncio.sleep", new=AsyncMock()),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
         ):
             client_instance, _ = _wire_http_client(MockClient)
             client_instance.get = AsyncMock(side_effect=[fail_resp, ok_resp])
@@ -336,10 +336,10 @@ class TestStartHttpSubprocess:
             patch("agent.http_lifecycle.time.monotonic", side_effect=monotonic_values),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
             patch.object(
                 mgr._subprocess_mgr._http_mgr._process_terminator,
                 "terminate_with_timeout",
@@ -368,10 +368,10 @@ class TestStartHttpSubprocess:
             ) as mock_popen,
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
         ):
             client_instance, mock_resp = _wire_http_client(MockClient, status_code=200)
             client_instance.get = AsyncMock(return_value=mock_resp)
@@ -394,13 +394,13 @@ class TestStartHttpSubprocess:
                 "agent.http_lifecycle.subprocess.Popen", return_value=_make_mock_proc()
             ),
             patch(
-                "agent.http_lifecycle.os.path.realpath",
+                "os.path.realpath",
                 return_value="/usr/bin/malicious",
             ),
-            patch("agent.http_lifecycle.os.path.isfile", return_value=True),
+            patch("os.path.isfile", return_value=True),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
-            patch("agent.http_lifecycle.os.getpgid", return_value=9999),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.getpgid", return_value=9999),
+            patch("os.killpg"),
         ):
             _wire_http_client(MockClient, status_code=200)
             with pytest.raises(
@@ -435,7 +435,7 @@ class TestStartHttpSubprocess:
                 "agent.http_lifecycle_command_validator.shutil.which",
                 return_value="/usr/bin/nonexistent_cmd",
             ),
-            patch("agent.http_lifecycle.os.path.isfile", return_value=False),
+            patch("os.path.isfile", return_value=False),
         ):
             with pytest.raises(HttpStartupError, match="not a regular file"):
                 await mgr.start_http_subprocess("s", cfg)
@@ -455,12 +455,10 @@ class TestStartHttpSubprocess:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 side_effect=OSError("no such process"),
             ),
-            patch(
-                "agent.http_lifecycle.os.killpg", side_effect=OSError("no such process")
-            ),
+            patch("os.killpg", side_effect=OSError("no such process")),
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
@@ -487,12 +485,10 @@ class TestStartHttpSubprocess:
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 side_effect=OSError("no such process"),
             ),
-            patch(
-                "agent.http_lifecycle.os.killpg", side_effect=OSError("no such process")
-            ),
+            patch("os.killpg", side_effect=OSError("no such process")),
         ):
             with pytest.raises(OSError, match="no such process"):
                 await mgr.start_http_subprocess("s", cfg)
@@ -537,11 +533,10 @@ class TestHttpManagerRestart:
     async def test_restart_pgid_still_present_during_terminate(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
-        from agent import http_lifecycle as mod
 
         _patch_open_to_tmp(monkeypatch, tmp_path)
-        monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
-        monkeypatch.setattr(mod.os, "killpg", MagicMock())
+        monkeypatch.setattr(os, "getpgid", lambda pid: 9999)
+        monkeypatch.setattr(os, "killpg", MagicMock())
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
@@ -766,10 +761,10 @@ class TestHttpLifecycleStderrLog:
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
             pytest.raises(HttpStartupError) as exc_info,
         ):
             client_instance, _ = _wire_http_client(MockClient)
@@ -798,10 +793,10 @@ class TestHttpLifecycleStderrLog:
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
             patch(
-                "agent.http_lifecycle.os.getpgid",
+                "os.getpgid",
                 return_value=9999,
             ),
-            patch("agent.http_lifecycle.os.killpg"),
+            patch("os.killpg"),
             pytest.raises(HttpStartupError) as exc_info,
         ):
             client_instance, _ = _wire_http_client(MockClient)
@@ -813,7 +808,6 @@ class TestHttpLifecycleStderrLog:
     async def test_start_timeout_stderr_from_log(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from agent import http_lifecycle as mod
 
         _patch_open_to_tmp(monkeypatch, tmp_path)
         stderr_path = tmp_path / "test_server.stderr.log"
@@ -828,8 +822,8 @@ class TestHttpLifecycleStderrLog:
             startup_timeout_sec=1,
         )
         mock_proc = _make_mock_proc(exit_code=None)  # stays alive
-        monkeypatch.setattr(mod.os, "killpg", MagicMock())
-        monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
+        monkeypatch.setattr(os, "killpg", MagicMock())
+        monkeypatch.setattr(os, "getpgid", lambda pid: 9999)
         with (
             patch("agent.http_lifecycle.subprocess.Popen", return_value=mock_proc),
             patch("agent.http_lifecycle.httpx.AsyncClient") as MockClient,
@@ -989,13 +983,9 @@ class TestProcessGroupShutdown:
     ) -> None:
         import signal as _signal
 
-        from agent import http_lifecycle as mod
-
         killed: list[tuple[int, int]] = []
-        monkeypatch.setattr(
-            mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
-        )
-        monkeypatch.setattr(mod.os, "getpgid", lambda pid: pid)
+        monkeypatch.setattr(os, "killpg", lambda pgid, sig: killed.append((pgid, sig)))
+        monkeypatch.setattr(os, "getpgid", lambda pid: pid)
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
@@ -1014,13 +1004,12 @@ class TestProcessGroupShutdown:
     async def test_terminate_fallback_on_process_lookup_error(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
-        from agent import http_lifecycle as mod
 
         def raise_lookup(pgid: int, sig: int) -> None:
             raise ProcessLookupError("no such process")
 
-        monkeypatch.setattr(mod.os, "killpg", raise_lookup)
-        monkeypatch.setattr(mod.os, "getpgid", lambda pid: pid)
+        monkeypatch.setattr(os, "killpg", raise_lookup)
+        monkeypatch.setattr(os, "getpgid", lambda pid: pid)
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=42)
@@ -1039,13 +1028,9 @@ class TestProcessGroupShutdown:
     ) -> None:
         import signal as _signal
 
-        from agent import http_lifecycle as mod
-
         killed: list[tuple[int, int]] = []
-        monkeypatch.setattr(
-            mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
-        )
-        monkeypatch.setattr(mod.os, "getpgid", lambda pid: pid)
+        monkeypatch.setattr(os, "killpg", lambda pgid, sig: killed.append((pgid, sig)))
+        monkeypatch.setattr(os, "getpgid", lambda pid: pid)
 
         mgr = HttpServerLifecycleManager()
         proc = _make_running_proc(pid=55)
@@ -1076,10 +1061,8 @@ class TestProcessGroupShutdown:
         from agent import http_lifecycle as mod
 
         killed: list[tuple[int, int]] = []
-        monkeypatch.setattr(
-            mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
-        )
-        monkeypatch.setattr(mod.os, "getpgid", lambda pid: pid)
+        monkeypatch.setattr(os, "killpg", lambda pgid, sig: killed.append((pgid, sig)))
+        monkeypatch.setattr(os, "getpgid", lambda pid: pid)
         monkeypatch.setattr(
             mod.asyncio,
             "to_thread",
@@ -1107,12 +1090,9 @@ class TestProcessGroupShutdown:
         os.getpgid(proc.pid) on a reaped pid can resolve to a completely
         different process that has since reused the same pid.
         """
-        from agent import http_lifecycle as mod
 
         killed: list[tuple[int, int]] = []
-        monkeypatch.setattr(
-            mod.os, "killpg", lambda pgid, sig: killed.append((pgid, sig))
-        )
+        monkeypatch.setattr(os, "killpg", lambda pgid, sig: killed.append((pgid, sig)))
 
         mgr = HttpServerLifecycleManager()
         proc = _make_mock_proc(exit_code=0)  # already exited
@@ -1137,11 +1117,10 @@ class TestProcessGroupShutdown:
         then waits on, hanging the whole test process for up to the process's
         lifetime instead of just this test's timeout.
         """
-        from agent import http_lifecycle as mod
 
         killpg_mock = MagicMock()
-        monkeypatch.setattr(mod.os, "getpgid", lambda pid: 9999)
-        monkeypatch.setattr(mod.os, "killpg", killpg_mock)
+        monkeypatch.setattr(os, "getpgid", lambda pid: 9999)
+        monkeypatch.setattr(os, "killpg", killpg_mock)
         _patch_open_to_tmp(monkeypatch, tmp_path)
 
         mock_proc = _make_mock_proc(exit_code=None)

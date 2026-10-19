@@ -6,33 +6,36 @@ Extracted from lifecycle.py. _ServerLifecycleRouter in lifecycle_router.py deleg
 to HttpServerLifecycleManager for all HTTP subprocess operations.
 
 Refactored: HttpServerLifecycleManager is a composition facade that delegates
-concern-specific work to five modules:
+concern-specific work to six modules:
 - CommandValidator: command allowlist and symlink resolution checks
 - StderrLogManager: stderr log file creation, appending, and tail retrieval
 - ProcessTerminator: graceful and forced process termination
 - HealthChecker: HTTP health check polling, including the startup readiness poll loop
 - ShutdownCoordinator: coordinated shutdown of all managed processes
+- SubprocessLauncher: subprocess spawn, pgid capture, and startup failure cleanup
 
 Two methods delegate with arguments rather than forwarding the call unchanged:
 shutdown_all passes the manager to ShutdownCoordinator, and
 _health_poll_until_ready passes the manager and this module's poll timings to
-HealthChecker.poll_until_ready.
+HealthChecker.poll_until_ready. SubprocessLauncher is instead constructed with this
+class's components and tracking dicts, which it holds by reference.
 
 Custom logic retained in this class:
 - MCPSERVER_HEALTH_TIMEOUT: global constant for httpx.AsyncClient timeout
 - process info snapshots: _build_snapshot and the snapshot accessors
+- startup failure reporting: _raise_startup_failure and the start() orchestration
+  that combines SubprocessLauncher with the health poll
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
-import os
 import subprocess  # nosec B404 — used to launch admin-controlled MCP server processes
 import time
 from collections.abc import Iterator
 from dataclasses import asdict
-from typing import IO, Any, NoReturn, cast
+from typing import IO, NoReturn
 
 import httpx
 from shared.mcp_config import McpServerConfig
@@ -45,6 +48,7 @@ from .http_lifecycle_health_checker import HEALTH_RECHECK_INTERVAL_SEC, HealthCh
 from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 from .http_lifecycle_stderr_log_manager import StderrLogManager
+from .http_lifecycle_subprocess_launcher import SubprocessLauncher
 
 logger = logging.getLogger(__name__)
 
@@ -75,6 +79,7 @@ class HttpServerLifecycleManager:
         process_terminator: ProcessTerminator | None = None,
         health_checker: HealthChecker | None = None,
         shutdown_coordinator: ShutdownCoordinator | None = None,
+        subprocess_launcher: SubprocessLauncher | None = None,
     ) -> None:
         """Initialize HttpServerLifecycleManager with injected components."""
         self._command_validator = command_validator or CommandValidator(
@@ -88,6 +93,15 @@ class HttpServerLifecycleManager:
         self._http_pgids: dict[str, int] = {}
         self._stderr_files: dict[str, IO[bytes]] = {}
         self._last_health_check: dict[str, float] = {}
+        self._subprocess_launcher = subprocess_launcher or SubprocessLauncher(
+            command_validator=self._command_validator,
+            stderr_log_manager=self._stderr_log_manager,
+            process_terminator=self._process_terminator,
+            http_procs=self._http_procs,
+            http_pgids=self._http_pgids,
+            stderr_files=self._stderr_files,
+            terminate_timeout_sec=TERMINATE_TIMEOUT_SEC,
+        )
 
     def verify_running(self, server_key: str) -> bool:
         """Return True if the HTTP subprocess server is running, False if missing or exited."""
@@ -222,123 +236,6 @@ class HttpServerLifecycleManager:
         """
         yield from self._http_procs.items()
 
-    async def _create_and_validate_proc(
-        self,
-        server_key: str,
-        cfg: McpServerConfig,
-    ) -> tuple[subprocess.Popen[bytes], IO[bytes]]:
-        """Create and validate subprocess for the given server configuration.
-
-        Validates the command, filters environment variables, creates the subprocess,
-        and handles getpgid failure with resource cleanup.
-
-        Returns:
-            A tuple of (proc, stderr_fh) on success.
-
-        Raises:
-            HttpStartupError: If command validation fails or getpgid fails.
-        """
-        env = self._command_validator.filter_env(cfg.env)
-        stderr_fh = self._stderr_log_manager.open_log(server_key, cfg)
-        self._stderr_files[server_key] = stderr_fh
-        if not cfg.cmd or not cfg.cmd[0]:
-            raise HttpStartupError(
-                StartupFailure(
-                    server_key=server_key,
-                    reason="Empty command configuration",
-                    stderr_full="",
-                )
-            )
-
-        # Validate command using CommandValidator
-        try:
-            self._command_validator.validate(server_key, cfg.cmd[0])
-        except ValueError as e:
-            self._close_stderr_log(server_key, stderr_fh)
-            raise HttpStartupError(
-                StartupFailure(
-                    server_key=server_key,
-                    reason=str(e),
-                    stderr_full="",
-                )
-            ) from e
-
-        try:
-            popen_kwargs: dict[str, Any] = {
-                "stdout": subprocess.DEVNULL,
-                "stderr": stderr_fh,
-                "env": env,
-                "start_new_session": True,
-            }
-            if cfg.fields:
-                popen_kwargs.update(cfg.fields)
-            proc = cast(
-                subprocess.Popen[bytes],
-                subprocess.Popen(  # nosec B603 — cmd comes from admin-controlled config, not user input  # noqa: S603
-                    cfg.cmd, **popen_kwargs
-                ),
-            )
-        except Exception:
-            self._close_stderr_log(server_key, stderr_fh)
-            raise
-        try:
-            self._http_pgids[server_key] = os.getpgid(proc.pid)
-        except OSError as e:
-            await self._handle_getpgid_failure(server_key, proc, stderr_fh, e)
-        self._http_procs[server_key] = proc
-        return proc, stderr_fh
-
-    def _close_stderr_log(self, server_key: str, stderr_fh: IO[bytes]) -> None:
-        """Close a startup-attempt stderr handle and drop its log tracking entries."""
-        stderr_fh.close()
-        self._stderr_files.pop(server_key, None)
-        self._stderr_log_manager.forget(server_key)
-
-    async def _handle_getpgid_failure(
-        self,
-        server_key: str,
-        proc: subprocess.Popen[bytes],
-        stderr_fh: IO[bytes],
-        error: OSError,
-    ) -> NoReturn:
-        """Terminate a process whose pgid could not be resolved, then re-raise *error*.
-
-        Tracking entries are removed only after a confirmed exit so a failed
-        termination keeps them available for a subsequent manual-cleanup attempt.
-        Stderr resources are always released regardless of the termination outcome.
-        """
-        logger.warning(
-            "Lifecycle: getpgid() failed for %r pid=%d; cleaning up",
-            server_key,
-            proc.pid,
-        )
-        try:
-            await self._process_terminator.terminate_with_timeout(
-                proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
-            )
-            poll_result = proc.poll()
-            if poll_result is not None and poll_result != 0:
-                logger.info(
-                    "Lifecycle: subprocess %r (pid=%d) terminated with exit code %d",
-                    server_key,
-                    proc.pid,
-                    poll_result,
-                )
-            self._http_procs.pop(server_key, None)
-            self._http_pgids.pop(server_key, None)
-        except Exception as term_err:
-            logger.error(
-                "Lifecycle: getpgid() failed AND termination failed for %r (pid=%d): %s. "
-                "Tracking entry retained for manual cleanup.",
-                server_key,
-                proc.pid,
-                term_err,
-            )
-            raise
-        finally:
-            self._close_stderr_log(server_key, stderr_fh)
-        raise error
-
     def _raise_startup_failure(
         self, server_key: str, reason: str, stderr_full: str
     ) -> NoReturn:
@@ -413,7 +310,9 @@ class HttpServerLifecycleManager:
             server_key,
             cfg.cmd,
         )
-        proc, stderr_fh = await self._create_and_validate_proc(server_key, cfg)
+        proc, stderr_fh = await self._subprocess_launcher.create_and_validate_proc(
+            server_key, cfg
+        )
 
         if cfg.startup_timeout_sec > 0:
             deadline = time.monotonic() + cfg.startup_timeout_sec
