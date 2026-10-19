@@ -56,8 +56,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the real-subprocess tests and observe the first two fail against the current terminator | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) after the terminator change | Pending | — | — | |
+| 1 | Add the real-subprocess tests and observe the first two fail against the current terminator | Completed | 20261019-222216 | 20261019-222216 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) after the terminator change | Completed | 20261019-222216 | 20261019-222216 | Stale clean. 3 real-child tests added; the first two failed on the old terminator (10 s wait then SIGKILL) and pass after the fix. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

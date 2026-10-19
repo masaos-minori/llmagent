@@ -1,4 +1,8 @@
+import os
 import signal
+import subprocess
+import sys
+import time
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -195,3 +199,79 @@ class TestProcessTerminatorPgidResolution:
                 )
 
             assert mock_os.killpg.call_args_list[0][0] == (777, signal.SIGTERM)
+
+
+def _spawn(code: str) -> subprocess.Popen[bytes]:
+    """Start a real child as its own session leader and wait until it is ready."""
+    proc = subprocess.Popen(  # nosec B603 — fixed argv built from this test's own constants, no user input
+        [sys.executable, "-c", code],
+        start_new_session=True,
+        stdout=subprocess.PIPE,
+    )
+    assert proc.stdout is not None
+    assert proc.stdout.readline().strip() == b"ready"
+    return proc
+
+
+def _cleanup(proc: subprocess.Popen[bytes]) -> None:
+    if proc.poll() is None:
+        os.killpg(proc.pid, signal.SIGKILL)
+        proc.wait()
+    if proc.stdout is not None:
+        proc.stdout.close()
+
+
+_EXIT_ON_SIGTERM = "import time; print('ready', flush=True); time.sleep(60)"
+_IGNORE_SIGTERM = (
+    "import signal, time; signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+    "print('ready', flush=True); time.sleep(60)"
+)
+
+
+class TestProcessTerminatorRealChild:
+    """REQ-005: real-subprocess coverage of REQ-001 and REQ-004."""
+
+    @pytest.mark.asyncio
+    async def test_child_exiting_on_sigterm_is_detected_promptly(self):
+        """REQ-001: an exited, unreaped child must not be waited on until timeout."""
+        proc = _spawn(_EXIT_ON_SIGTERM)
+        try:
+            start = time.monotonic()
+            result = await ProcessTerminator().terminate_with_timeout(
+                proc, "test-server", timeout=10.0
+            )
+            elapsed = time.monotonic() - start
+
+            assert result is True
+            assert proc.poll() is not None
+            assert elapsed < 5.0
+        finally:
+            _cleanup(proc)
+
+    @pytest.mark.asyncio
+    async def test_wait_exited_detects_an_exited_unreaped_child(self):
+        """REQ-001: wait_exited shares the same liveness probe and the same flaw."""
+        proc = _spawn(_EXIT_ON_SIGTERM)
+        try:
+            os.killpg(proc.pid, signal.SIGTERM)
+            exited = await ProcessTerminator().wait_exited(
+                proc, "test-server", timeout=5.0
+            )
+
+            assert exited is True
+        finally:
+            _cleanup(proc)
+
+    @pytest.mark.asyncio
+    async def test_child_ignoring_sigterm_is_killed_after_timeout(self):
+        """REQ-004: the SIGKILL backstop still removes a child that ignores SIGTERM."""
+        proc = _spawn(_IGNORE_SIGTERM)
+        try:
+            result = await ProcessTerminator().terminate_with_timeout(
+                proc, "test-server", timeout=1.0
+            )
+
+            assert result is True
+            assert proc.wait(timeout=5) == -signal.SIGKILL
+        finally:
+            _cleanup(proc)

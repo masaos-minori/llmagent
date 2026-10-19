@@ -8,6 +8,7 @@ methods (cleanup_server_key, clear_all_health_checks, process_terminator).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import signal
@@ -50,6 +51,31 @@ class ShutdownCoordinator:
 
     _absorb_sigint_during_shutdown = staticmethod(_absorb_sigint_during_shutdown)
 
+    @staticmethod
+    async def _terminate_one(
+        manager: HttpServerLifecycleManager,
+        terminator: ProcessTerminator,
+        server_key: str,
+        proc: subprocess.Popen[bytes],
+        terminate_kwargs: dict[str, Any],
+    ) -> None:
+        """Terminate one server and settle its tracking entry."""
+        logger.info("Shutting down %s...", server_key)
+        try:
+            await terminator.terminate_with_timeout(
+                proc, server_key, **terminate_kwargs
+            )
+            # Process terminated successfully — safe to remove tracking
+            manager.cleanup_server_key(server_key)
+        except (OSError, TimeoutError) as e:
+            # Termination failed — keep tracking entries for manual intervention
+            logger.error(
+                "Lifecycle: error terminating %r (%s); "
+                "tracking entry retained for manual cleanup.",
+                server_key,
+                e,
+            )
+
     async def shutdown_all(
         self,
         manager: HttpServerLifecycleManager,
@@ -85,6 +111,10 @@ class ShutdownCoordinator:
 
         try:
             terminator = terminator or manager.process_terminator
+            terminate_kwargs: dict[str, Any] = {"timeout": _SHUTDOWN_TIMEOUT_SEC}
+            if fields:
+                terminate_kwargs.update(fields)
+            running: list[tuple[str, subprocess.Popen[bytes]]] = []
             for server_key, proc in list(manager.iter_processes()):
                 if proc is None:
                     continue
@@ -96,26 +126,17 @@ class ShutdownCoordinator:
                     )
                     manager.cleanup_server_key(server_key)
                     continue
-                logger.info("Shutting down %s...", server_key)
-                terminate_kwargs: dict[str, Any] = {
-                    "timeout": _SHUTDOWN_TIMEOUT_SEC,
-                }
-                if fields:
-                    terminate_kwargs.update(fields)
-                try:
-                    await terminator.terminate_with_timeout(
-                        proc, server_key, **terminate_kwargs
+                running.append((server_key, proc))
+            # Terminate together so total time is bounded by one timeout and every
+            # server is signalled before any wait begins.
+            await asyncio.gather(
+                *(
+                    ShutdownCoordinator._terminate_one(
+                        manager, terminator, server_key, proc, terminate_kwargs
                     )
-                    # Process terminated successfully — safe to remove tracking
-                    manager.cleanup_server_key(server_key)
-                except (OSError, TimeoutError) as e:
-                    # Termination failed — keep tracking entries for manual intervention
-                    logger.error(
-                        "Lifecycle: error terminating %r (%s); "
-                        "tracking entry retained for manual cleanup.",
-                        server_key,
-                        e,
-                    )
+                    for server_key, proc in running
+                )
+            )
             manager.clear_all_health_checks()
         finally:
             if old_sigint is not None:

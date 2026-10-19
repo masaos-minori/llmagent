@@ -60,8 +60,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Restructure `shutdown_all` into a collection pass and a concurrent termination pass with `_terminate_one` (new) | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) including the lifecycle and resource-shutdown tests | Pending | — | — | |
+| 1 | Restructure `shutdown_all` into a collection pass and a concurrent termination pass with `_terminate_one` (new) | Completed | 20261019-222219 | 20261019-222219 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) including the lifecycle and resource-shutdown tests | Completed | 20261019-222219 | 20261019-222219 | Stale clean. _terminate_one added; shutdown_all collects then gathers. ruff/mypy/lint-imports/bandit ok; complexity C(12) unchanged; targeted 59 passed; full suite 9584 passed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

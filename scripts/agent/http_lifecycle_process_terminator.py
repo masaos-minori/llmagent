@@ -51,6 +51,21 @@ def _already_exited(proc: object) -> bool:
         return False
 
 
+def _reap(proc: object) -> None:
+    """Reap *proc* if it has exited so the group liveness probe stops seeing a zombie.
+
+    ``os.killpg(pgid, 0)`` succeeds while an exited child is still unreaped, so a wait
+    loop that only probes the group would run until its timeout.
+    """
+    poll = getattr(proc, "poll", None)
+    if poll is None:
+        return
+    try:
+        poll()
+    except (OSError, AttributeError, TypeError):
+        pass
+
+
 class ProcessTerminator:
     """Manages process termination with SIGTERM → SIGKILL escalation."""
 
@@ -89,6 +104,7 @@ class ProcessTerminator:
 
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            _reap(proc)
             try:
                 os.killpg(pgid, 0)  # Check if process exists
                 await asyncio.sleep(poll_interval)
@@ -173,6 +189,7 @@ class ProcessTerminator:
         # Wait with timeout
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
+            _reap(proc)
             try:
                 os.killpg(pgid, 0)  # Check if process exists
                 await asyncio.sleep(self._terminate_poll_interval_sec)

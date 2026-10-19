@@ -58,8 +58,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the multi-server tests and observe the concurrency and signal-order tests fail against the current loop | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) after the coordinator change | Pending | — | — | |
+| 1 | Add the multi-server tests and observe the concurrency and signal-order tests fail against the current loop | Completed | 20261019-222218 | 20261019-222218 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) after the coordinator change | Completed | 20261019-222218 | 20261019-222218 | Stale clean. 4 multi-server tests added; concurrency, signal-order and cancellation tests failed on the sequential loop and pass after the change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

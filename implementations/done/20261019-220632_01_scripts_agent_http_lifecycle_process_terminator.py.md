@@ -59,8 +59,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `_reap` (new) helper and use it in `terminate_with_timeout` and `wait_exited` | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) including the caller regression tests | Pending | — | — | |
+| 1 | Add the `_reap` (new) helper and use it in `terminate_with_timeout` and `wait_exited` | Completed | 20261019-222217 | 20261019-222217 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) including the caller regression tests | Completed | 20261019-222217 | 20261019-222217 | Stale clean. _reap added; reaps in terminate_with_timeout and wait_exited. ruff/mypy/lint-imports/bandit ok; complexity C(18) unchanged; targeted 79 passed; full suite 9584 passed, 22 skipped; /opt/llm snapshot identical. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

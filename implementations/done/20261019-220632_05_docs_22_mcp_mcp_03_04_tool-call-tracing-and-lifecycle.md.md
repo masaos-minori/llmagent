@@ -52,8 +52,8 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the shutdown termination note to the lifecycle document | Pending | — | — | |
-| 2 | Run the documentation checkers named in Validation plan | Pending | — | — | |
+| 1 | Add the shutdown termination note to the lifecycle document | Completed | 20261019-222220 | 20261019-222220 |  |
+| 2 | Run the documentation checkers named in Validation plan | Completed | 20261019-222220 | 20261019-222220 | Stale clean. Shutdown Termination note added; quality, structure, japanese, content_policy --strict, consistency (mcp, agent) pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
