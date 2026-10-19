@@ -164,8 +164,8 @@ class McpServerConfig:
             raise ValueError(
                 f"{key_prefix}: cmd must not be empty when startup_mode='subprocess'"
             )
-        # ADR-004 Exceptions: the spawn path ignores `required`, so a non-required
-        # subprocess server would still abort startup on a spawn failure.
+        # ADR-004 Exceptions: non-required subprocess servers are disallowed because a
+        # subprocess server that fails to spawn must fail closed (cannot degrade gracefully).
         if self.startup_mode == StartupMode.SUBPROCESS and not self.required:
             raise ValueError(
                 f"{key_prefix}: required=false is not supported when "
