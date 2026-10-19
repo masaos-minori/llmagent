@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TYPE_CHECKING
 
 from agent.commands.output_port import OutputPort
 from agent.context import AgentContext
+from agent.memory.config_path import resolve_memory_jsonl_dir
 from agent.memory.pin_ops import pin as pin_mem
 from agent.memory.pin_ops import unpin as unpin_mem
 from agent.memory.types import MemoryEntry, MemoryQuery
@@ -25,20 +27,15 @@ def _summary_preview(entry: MemoryEntry, max_chars: int = 60) -> str:
 
 
 def _emit_prune_event(memory_id: str) -> None:
-    """Append a 'delete' change event after a prune removes one memory (REQ-005).
+    """Append a 'delete' change event after a prune removes one memory.
 
     Mirrors ``write_ops._emit_delete_event``: SQLite-first, so the archive append
     runs after the commit. A failed append propagates so the caller can surface
     M-07.
     """
-    from pathlib import Path
-
-    from shared.config_loader import ConfigLoader
-
     from agent.memory.jsonl_store import JsonlMemoryStore
 
-    cfg = ConfigLoader().load("agent.toml")
-    store = JsonlMemoryStore(Path(cfg["memory"]["memory_jsonl_dir"]) / "memories.jsonl")
+    store = JsonlMemoryStore(Path(resolve_memory_jsonl_dir()) / "memories.jsonl")
     store.append_event("delete", memory_id)
 
 

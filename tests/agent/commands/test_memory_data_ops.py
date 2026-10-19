@@ -9,12 +9,17 @@ behavior before extracting the shared summary-preview formatting logic.
 
 from __future__ import annotations
 
+import json
+import sqlite3
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
 
+import pytest
 from agent.commands.memory_data_ops import MemoryDataOps
+from db.helper import SQLiteHelper
 from db.maintenance import MaintenanceMode, MaintenanceResult
+from shared.config_loader import ConfigLoader
 
 
 def _make_entry(
@@ -413,9 +418,126 @@ class TestEmitPruneEvent:
                 return_value=fake_store,
             ) as store_cls,
         ):
-            cl.return_value.load.return_value = {
-                "memory": {"memory_jsonl_dir": "/tmp/mem"}
-            }
+            # Flat real shape: resolve_memory_jsonl_dir reads cfg["memory_jsonl_dir"].
+            cl.return_value.load.return_value = {"memory_jsonl_dir": "/tmp/mem"}
             _emit_prune_event("id-xyz")
         store_cls.assert_called_once_with(Path("/tmp/mem") / "memories.jsonl")
         fake_store.append_event.assert_called_once_with("delete", "id-xyz")
+
+    def test_real_loader_writes_prune_event_under_temp_root(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Real resolver + real JsonlMemoryStore, no mocks (REQ-005).
+
+        Fails if the nested ``{"memory": {"memory_jsonl_dir": ...}}`` shape is
+        reintroduced: the real resolver would then miss the flat key and fall
+        back to ``/opt/llm/memory``, which the autouse guard rejects.
+        """
+        from agent.commands.memory_data_ops import _emit_prune_event
+
+        archive_dir = tmp_path / "archive"
+        (tmp_path / "agent.toml").write_text(f'memory_jsonl_dir = "{archive_dir}"\n')
+        monkeypatch.setattr(
+            "shared.config_loader.resolve_config_dir",
+            lambda config_dir=None: tmp_path,
+        )
+        monkeypatch.setattr(ConfigLoader, "_allowed_files", None)
+
+        _emit_prune_event("id-xyz")
+
+        # Read the resolved dir back from the real loader, then assert the event
+        # landed under the isolated temp root (never /opt/llm).
+        cfg = ConfigLoader().load("agent.toml")
+        memory_dir = Path(cfg["memory_jsonl_dir"])
+        assert str(memory_dir).startswith(str(tmp_path))
+        archive_file = memory_dir / "memories.jsonl"
+        lines = [
+            ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
+        ]
+        events = [json.loads(ln) for ln in lines]
+        assert any(
+            e["event"] == "delete" and e["memory_id"] == "id-xyz" for e in events
+        )
+
+
+class TestMemoryPruneRealLoader:
+    """Exercise the real resolver + JSONL append through ``memory_prune`` (REQ-004).
+
+    Isolates ``ConfigLoader`` to a temp root whose flat ``memory_jsonl_dir`` points
+    under ``tmp_path``, and backs ``SQLiteHelper`` with a temp-file DB so
+    ``prune_old_memories`` runs for real. Asserts one ``delete`` event per pruned id
+    lands under the isolated archive and the success line prints.
+    """
+
+    _SCHEMA_SQL = """
+    CREATE TABLE memories (
+        memory_id   TEXT PRIMARY KEY,
+        memory_type TEXT NOT NULL,
+        updated_at  TEXT NOT NULL DEFAULT (datetime('now')),
+        pinned      INTEGER NOT NULL DEFAULT 0
+    );
+    CREATE VIRTUAL TABLE memories_fts USING fts5(memory_id UNINDEXED, content);
+    CREATE TABLE memories_vec (memory_id TEXT PRIMARY KEY, embedding BLOB);
+    CREATE TABLE memory_links (src_id TEXT, dst_id TEXT);
+    """
+
+    def _isolate_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        archive_dir = tmp_path / "archive"
+        (tmp_path / "agent.toml").write_text(f'memory_jsonl_dir = "{archive_dir}"\n')
+        monkeypatch.setattr(
+            "shared.config_loader.resolve_config_dir",
+            lambda config_dir=None: tmp_path,
+        )
+        monkeypatch.setattr(ConfigLoader, "_allowed_files", None)
+        return archive_dir
+
+    def test_prune_appends_delete_event_per_id(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        archive_dir = self._isolate_config(tmp_path, monkeypatch)
+        conn = sqlite3.connect(tmp_path / "session.db")
+        conn.executescript(self._SCHEMA_SQL)
+        conn.executemany(
+            "INSERT INTO memories (memory_id, memory_type, updated_at) VALUES (?, ?, ?)",
+            [
+                ("old-1", "semantic", "2025-01-01T00:00:00"),
+                ("old-2", "episodic", "2025-01-01T00:00:00"),
+                ("recent-1", "semantic", "2026-10-19T00:00:00"),
+            ],
+        )
+        conn.commit()
+        # Real SQLiteHelper bound to the temp-file DB; db_path bypasses build_db_config.
+        helper = SQLiteHelper("session", db_path=str(tmp_path / "session.db"))
+        ops, out = _make_ops()
+        ctx = SimpleNamespace(
+            cfg=SimpleNamespace(memory=SimpleNamespace(memory_retention_days=30)),
+            services_required=SimpleNamespace(audit_logger=None),
+        )
+        with (
+            patch(  # mock-patch-ok: memory_prune binds SQLiteHelper via a local import (line 357); real temp-file DB backs prune_old_memories
+                "db.helper.SQLiteHelper", return_value=helper
+            ),
+            patch("builtins.input", return_value="y"),
+        ):
+            ops.memory_prune(MagicMock(), ctx, ["--days", "14"])
+
+        # One delete event per pruned id lands under the resolved archive.
+        archive_file = archive_dir / "memories.jsonl"
+        lines = [
+            ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
+        ]
+        assert len(lines) == 2
+        events = sorted(json.loads(ln)["memory_id"] for ln in lines)
+        assert events == ["old-1", "old-2"]
+
+        # Success line printed after the archive append.
+        success_lines = [c.args[0] for c in out.write_success.call_args_list]
+        assert any("Pruned 2 entries" in s for s in success_lines)
+
+        # Rows actually deleted from the DB by the real prune_old_memories.
+        remaining = conn.execute("SELECT count(*) FROM memories").fetchone()[0]
+        assert remaining == 1

@@ -8,10 +8,12 @@ SQLiteHelper is patched with _FakeSQLiteHelper backed by in-memory SQLite.
 from __future__ import annotations
 
 import dataclasses
+import json
 import os
 import sqlite3
 from collections.abc import Generator
 from contextlib import contextmanager
+from pathlib import Path
 from unittest.mock import MagicMock, Mock, patch
 
 import pytest
@@ -25,6 +27,7 @@ from agent.memory.pin_ops import pin, unpin
 from agent.memory.store import MemoryStore
 from agent.memory.types import MemoryEntry
 from agent.memory.write_ops import add, delete, upsert
+from shared.config_loader import ConfigLoader
 
 # ── Schema ────────────────────────────────────────────────────────────────────
 
@@ -331,6 +334,114 @@ class TestDelete:
     ) -> None:
         delete("no-such-id")
         emit.assert_not_called()
+
+
+class TestDeleteArchiveRealLoader:
+    """Exercise the real resolver + JSONL append (no ``_emit_delete_event`` mock).
+
+    Isolates ``ConfigLoader`` to a temp root whose ``memory_jsonl_dir`` points under
+    ``tmp_path`` so the ``delete`` change event lands on a throwaway archive instead
+    of raising ``KeyError('memory')`` from the old nested-key read.
+    """
+
+    def _isolate_config(self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
+        archive_dir = tmp_path / "archive"
+        (tmp_path / "agent.toml").write_text(f'memory_jsonl_dir = "{archive_dir}"\n')
+        monkeypatch.setattr(
+            "shared.config_loader.resolve_config_dir",
+            lambda config_dir=None: tmp_path,
+        )
+        monkeypatch.setattr(ConfigLoader, "_allowed_files", None)
+        return archive_dir
+
+    def test_delete_appends_event_to_resolved_archive(
+        self,
+        store: MemoryStore,
+        db_conn: sqlite3.Connection,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        archive_dir = self._isolate_config(tmp_path, monkeypatch)
+        entry = _make_entry()
+        add(entry)
+        # Real resolver resolves the archive path; no KeyError on the flat config.
+        assert delete(entry.memory_id) is True
+        archive_file = archive_dir / "memories.jsonl"
+        lines = [
+            ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
+        ]
+        assert len(lines) == 1
+        payload = json.loads(lines[0])
+        assert payload["event"] == "delete"
+        assert payload["memory_id"] == entry.memory_id
+
+    def test_pin_appends_event_to_resolved_archive(
+        self,
+        store: MemoryStore,
+        db_conn: sqlite3.Connection,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        archive_dir = self._isolate_config(tmp_path, monkeypatch)
+        fake = _FakeSQLiteHelper(db_conn)
+        with patch(  # mock-patch-ok: SQLiteHelper imported at call time by pin_ops._set_pinned
+            "db.helper.SQLiteHelper", return_value=fake
+        ):
+            entry = _make_entry()
+            add(entry)
+            # Real resolver resolves the archive path; no KeyError on the flat config.
+            assert pin(entry.memory_id) is True
+            archive_file = archive_dir / "memories.jsonl"
+            lines = [
+                ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
+            ]
+            assert len(lines) == 1
+            payload = json.loads(lines[0])
+            assert payload["event"] == "pin"
+            assert payload["memory_id"] == entry.memory_id
+
+    def test_unpin_appends_event_to_resolved_archive(
+        self,
+        store: MemoryStore,
+        db_conn: sqlite3.Connection,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        archive_dir = self._isolate_config(tmp_path, monkeypatch)
+        fake = _FakeSQLiteHelper(db_conn)
+        with patch(  # mock-patch-ok: SQLiteHelper imported at call time by pin_ops._set_pinned
+            "db.helper.SQLiteHelper", return_value=fake
+        ):
+            entry = _make_entry()
+            add(entry)
+            assert unpin(entry.memory_id) is True
+            archive_file = archive_dir / "memories.jsonl"
+            lines = [
+                ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
+            ]
+            assert len(lines) == 1
+            payload = json.loads(lines[0])
+            assert payload["event"] == "unpin"
+            assert payload["memory_id"] == entry.memory_id
+
+    def test_prune_emit_writes_real_event(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from agent.commands.memory_data_ops import _emit_prune_event
+
+        archive_dir = self._isolate_config(tmp_path, monkeypatch)
+        # Real resolver resolves the archive path; no KeyError on the flat config.
+        _emit_prune_event("prune-id-xyz")
+        archive_file = archive_dir / "memories.jsonl"
+        lines = [
+            ln for ln in archive_file.read_text().strip().splitlines() if ln.strip()
+        ]
+        assert len(lines) == 1
+        payload = json.loads(lines[0])
+        assert payload["event"] == "delete"
+        assert payload["memory_id"] == "prune-id-xyz"
 
 
 # ── search_by_type() ─────────────────────────────────────────────────────────

@@ -38,6 +38,7 @@ Generated from `scripts/agent/memory/*.py` top-level public classes and function
 
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|
+| `scripts/agent/memory/config_path.py` | `resolve_memory_jsonl_dir` | `def resolve_memory_jsonl_dir() -> str` | Return the flat ``memory_jsonl_dir`` path using the builder default. |
 | `scripts/agent/memory/count_ops.py` | `count_by_type` | `def count_by_type() -> dict[str, int]` | Return {memory_type: count} for all rows in memories. Diagnostic use only. |
 |  | `count_by_source_type` | `def count_by_source_type() -> dict[str, int]` | Return {source_type: count} for all rows in memories. Diagnostic use only. |
 |  | `count_vec` | `def count_vec() -> int` | Return total entry count in memories_vec. Raises sqlite3.OperationalError if unavailable. |

@@ -6,8 +6,9 @@ from __future__ import annotations
 import sqlite3
 from pathlib import Path
 
-from shared.config_loader import ConfigLoader
 from shared.json_utils import now_iso
+
+from agent.memory.config_path import resolve_memory_jsonl_dir
 
 
 def _set_pinned(
@@ -67,6 +68,5 @@ def _emit_event(event: str, memory_id: str) -> None:
     """
     from agent.memory.jsonl_store import JsonlMemoryStore
 
-    cfg = ConfigLoader().load("agent.toml")
-    store = JsonlMemoryStore(Path(cfg["memory"]["memory_jsonl_dir"]) / "memories.jsonl")
+    store = JsonlMemoryStore(Path(resolve_memory_jsonl_dir()) / "memories.jsonl")
     store.append_event(event, memory_id)
