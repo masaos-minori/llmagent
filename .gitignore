@@ -235,3 +235,19 @@ mutants/
 
 # Nuitka build diagnostics
 nuitka-crash-report.xml
+
+# Databases and logs produced by tests and local runs (*.log is ignored above)
+*.sqlite
+*.sqlite-wal
+*.sqlite-shm
+*.sqlite-journal
+*.db
+*.db-wal
+*.db-shm
+*.db-journal
+logs/
+
+# Test tool state (pytest-testmon, pytest-benchmark)
+.testmondata
+.testmondata-*
+.benchmarks/
