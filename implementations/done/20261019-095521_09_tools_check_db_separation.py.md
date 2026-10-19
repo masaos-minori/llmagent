@@ -61,9 +61,9 @@ Revert the commit together with the helper change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the default-load regex, its message, and the module docstring text | Pending | — | — | |
-| 2 | Add or update tests (separate procedure for `tests/tools/test_check_db_separation.py`) | Pending | — | — | |
-| 3 | Run the `routing.md` tool validation sequence and the smoke run | Pending | — | — | |
+| 1 | Replace the default-load regex, its message, and the module docstring text | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Add or update tests (separate procedure for `tests/tools/test_check_db_separation.py`) | Completed | 20261019-101422 | 20261019-101422 |  |
+| 3 | Run the `routing.md` tool validation sequence and the smoke run | Completed | 20261019-101422 | 20261019-101422 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

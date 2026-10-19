@@ -59,9 +59,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `apply_session_schema` (new) and use it in `corrupt_wal_db` | Pending | — | — | |
-| 2 | Run the recovery tests with the extension present and, by temporarily using a path that does not exist, without it | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for the file | Pending | — | — | |
+| 1 | Add `apply_session_schema` (new) and use it in `corrupt_wal_db` | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Run the recovery tests with the extension present and, by temporarily using a path that does not exist, without it | Completed | 20261019-101422 | 20261019-101422 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for the file | Completed | 20261019-101422 | 20261019-101422 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

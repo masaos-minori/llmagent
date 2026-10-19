@@ -53,7 +53,7 @@ Frozen dataclass for DB configuration. `rag_db_path` (path to `rag.sqlite`), `se
 
 `open()` accepts the following in addition to the `write_mode` / `row_factory` mentioned in the text:
 
-- `load_vec: bool | None = None` — If `None`, follows the instance default (`True` for the `rag` target; with an explicit `db_path`, `True` only when `sqlite_vec_so` is non-empty; `False` otherwise). The extension is loaded only when the resolved flag is `True` and `sqlite_vec_so` is non-empty. Passing `True` or `False` explicitly overrides the default.
+- `load_vec: bool | None = None` — If `None`, follows the instance default (`True` for the `rag` and `session` targets; `False` for `workflow` and `eventbus`; with an explicit `db_path`, `True` only when `sqlite_vec_so` is non-empty; `False` otherwise). The extension is loaded only when the resolved flag is `True` and `sqlite_vec_so` is non-empty. Passing `True` or `False` explicitly overrides the default. When `sqlite_vec_so` is empty the extension is not loaded even if the resolved flag is `True`, so a later access to a vec0 table fails with `sqlite3.OperationalError` instead of being skipped; a load error raises at open time. This is the same for `rag` and `session`.
 - `reuse_connection: bool = False` — If `True` and an existing `self.conn` is present, reconnection is skipped. In this case, `close()` is not called in `__exit__` (allowing connection reuse).
 
 ### 4c. Transaction helpers (Explicit in code)

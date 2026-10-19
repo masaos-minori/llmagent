@@ -13,7 +13,8 @@ eventbus) stay physically and logically separated:
      files named after their database (`rag.sqlite`, ...), and every `*_db_path`
      key under `config/*.toml` points to the file named after its key.
   4. sqlite-vec scope: `vec0` virtual tables exist only where the inventory
-     registers them, `SQLiteHelper` loads the extension by default only for `rag`,
+     registers them, `SQLiteHelper` loads the extension by default only for `rag`
+     and `session` (the databases that own a vec0 table),
      and an explicit `load_vec=True` appears only in sanctioned call sites.
   5. Cross-DB access in code: no `ATTACH` statement and no schema-qualified
      `FROM`/`JOIN` (`rag.`, `session.`, `workflow.`, `eventbus.`) in `scripts/`.
@@ -97,7 +98,8 @@ _QUALIFIED_RE = re.compile(
 )
 _LOAD_VEC_TRUE_RE = re.compile(r"\bload_vec\s*=\s*True\b")
 _DEFAULT_LOAD_VEC_RE = re.compile(
-    r"self\._default_load_vec\s*=\s*resolved\s*==\s*[\"']rag[\"']"
+    r"self\._default_load_vec\s*=\s*resolved\s+in\s*"
+    r"\(\s*[\"']rag[\"']\s*,\s*[\"']session[\"']\s*\)"
 )
 _DB_PATH_KEY_RE = re.compile(r"^(?P<db>rag|session|workflow|eventbus)_db_path$")
 
@@ -235,7 +237,7 @@ def check_vec_loading() -> list[str]:
     if not _DEFAULT_LOAD_VEC_RE.search(helper.read_text(encoding="utf-8")):
         problems.append(
             "[vec-scope] scripts/db/helper.py no longer sets "
-            '`self._default_load_vec = resolved == "rag"`'
+            '`self._default_load_vec = resolved in ("rag", "session")`'
         )
     for py in sorted(SCRIPTS_DIR.rglob("*.py")):
         rel = py.relative_to(REPO_ROOT).as_posix()

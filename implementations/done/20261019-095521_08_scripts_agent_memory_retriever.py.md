@@ -62,9 +62,9 @@ Revert the commit; KNN then raises `OperationalError` again and retrieval degrad
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the KNN SQL and parameter order in `knn_search` | Pending | — | — | |
-| 2 | Confirm the real-DB KNN and hybrid tests pass and the mocked retriever tests are unchanged | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rewrite the KNN SQL and parameter order in `knn_search` | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Confirm the real-DB KNN and hybrid tests pass and the mocked retriever tests are unchanged | Completed | 20261019-101422 | 20261019-101422 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261019-101422 | 20261019-101422 | full suite: 9354 passed, 20 skipped; tests/docs/test_github_config_consistency.py::test_github_tools_in_tools_definitions fails on the unchanged tree too (pre-existing) and was deselected |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

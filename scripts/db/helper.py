@@ -95,7 +95,7 @@ class SQLiteHelper:
                 f"target must be 'rag', 'session', 'workflow', or 'eventbus', got: {target!r}"
             )
         self._target = resolved
-        self._default_load_vec = resolved == "rag"
+        self._default_load_vec = resolved in ("rag", "session")
         try:
             db_cfg = build_db_config()
         except ValueError as e:
@@ -173,7 +173,8 @@ class SQLiteHelper:
     ) -> "SQLiteHelper":
         """Open a connection with optional vec extension and WAL pragmas.
 
-        load_vec: None = use instance default (True for rag, False for session).
+        load_vec: None = use instance default (True for rag and session, False for
+            workflow and eventbus).
         write_mode: enforce FK constraints.
         row_factory: enable column-name access on result rows.
         reuse_connection: skip reconnect if already connected; skip close in __exit__.

@@ -27,7 +27,7 @@ from unittest.mock import patch
 
 import pytest
 
-from tests.integration.conftest import hold_write_lock
+from tests.integration.conftest import apply_session_schema, hold_write_lock
 
 
 def _patch_db_config(
@@ -146,15 +146,11 @@ def test_e05_concurrent_session_start_under_exclusive_lock(
     real class, not just raw SQL.
     """
     from agent.session import AgentSession
-    from db.schema_sql import build_session_schema_sql
 
     db_path = str(tmp_path / "e05.sqlite")
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA journal_mode=WAL")
-    try:
-        conn.executescript(build_session_schema_sql(4))
-    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
-        pass  # memories_vec may be unavailable without sqlite-vec; ignore
+    apply_session_schema(conn)
     conn.commit()
     conn.close()
 
@@ -211,10 +207,7 @@ def _make_partial_session_db(tmp_path: Path, table_to_drop: str | None = None) -
         for tbl in tables_to_drop:
             schema = schema.replace(f"\nCREATE TABLE IF NOT EXISTS {tbl}", "")
             schema = schema.replace(f"\nCREATE INDEX IF NOT EXISTS idx_{tbl}", "")
-    try:
-        conn.executescript(schema)
-    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
-        pass
+    apply_session_schema(conn, schema)
     conn.commit()
     conn.close()
     return db_path
@@ -222,15 +215,11 @@ def _make_partial_session_db(tmp_path: Path, table_to_drop: str | None = None) -
 
 def _make_orphaned_message_db(tmp_path: Path) -> str:
     """Create a session.sqlite with an orphaned messages row, return path."""
-    from db.schema_sql import build_session_schema_sql
 
     db_path = str(tmp_path / "orphan_msg.sqlite")
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA journal_mode=WAL")
-    try:
-        conn.executescript(build_session_schema_sql(4))
-    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
-        pass
+    apply_session_schema(conn)
     conn.execute(
         "INSERT INTO sessions(session_id, created_at) VALUES (1, '2026-01-01T00:00:00Z')"
     )
@@ -244,15 +233,11 @@ def _make_orphaned_message_db(tmp_path: Path) -> str:
 
 def _make_orphaned_memory_link_db(tmp_path: Path) -> str:
     """Create a session.sqlite with an orphaned memory_links row, return path."""
-    from db.schema_sql import build_session_schema_sql
 
     db_path = str(tmp_path / "orphan_memlink.sqlite")
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA journal_mode=WAL")
-    try:
-        conn.executescript(build_session_schema_sql(4))
-    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
-        pass
+    apply_session_schema(conn)
     conn.execute(
         "INSERT OR IGNORE INTO memories(memory_id, memory_type, content, summary) VALUES ('valid_src', 'semantic', 'src_content', 'src')"
     )

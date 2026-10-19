@@ -65,10 +65,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the module with the skip guard and the fixture | Pending | — | — | |
-| 2 | Add the tests and run them to confirm the expected failure before the code change | Pending | — | — | |
-| 3 | Confirm they pass after the helper and retriever changes | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) for the test file | Pending | — | — | |
+| 1 | Create the module with the skip guard and the fixture | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Add the tests and run them to confirm the expected failure before the code change | Completed | 20261019-101422 | 20261019-101422 | before the helper change: 7 errors, no such module: vec0; after: 7 passed |
+| 3 | Confirm they pass after the helper and retriever changes | Completed | 20261019-101422 | 20261019-101422 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) for the test file | Completed | 20261019-101422 | 20261019-101422 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

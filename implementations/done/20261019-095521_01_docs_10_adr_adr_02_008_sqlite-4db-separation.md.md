@@ -68,10 +68,10 @@ N/A: revert the commit together with the `SQLiteHelper` default change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit Constraints, Decision 9, Consequences, INV-08, Implementation Notes, Review Triggers | Pending | — | — | |
-| 2 | Replace the INV-08 Verification row after the cited tests exist | Pending | — | — | |
-| 3 | Update the Approval Record sentence | Pending | — | — | |
-| 4 | Run the documentation checkers and `tools/check_adr_preservation.py` (INV-08 error expected) | Pending | — | — | |
+| 1 | Edit Constraints, Decision 9, Consequences, INV-08, Implementation Notes, Review Triggers | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Replace the INV-08 Verification row after the cited tests exist | Completed | 20261019-101422 | 20261019-101422 |  |
+| 3 | Update the Approval Record sentence | Completed | 20261019-101422 | 20261019-101422 |  |
+| 4 | Run the documentation checkers and `tools/check_adr_preservation.py` (INV-08 error expected) | Completed | 20261019-101422 | 20261019-101422 | tools/check_adr_preservation.py reports the expected ERRORs for the approved INV-08 amendment, changed test citations, and the Approval text (Plan UNK-03); no pre-commit hook runs it |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

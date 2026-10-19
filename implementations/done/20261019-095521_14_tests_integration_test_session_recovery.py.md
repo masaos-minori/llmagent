@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the four swallowed-exception blocks with the shared helper | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the file | Pending | — | — | |
+| 1 | Replace the four swallowed-exception blocks with the shared helper | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the file | Completed | 20261019-101422 | 20261019-101422 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -128,7 +128,7 @@ Critical constraint: `orjson.dumps()` returns `bytes` (`not str`). If a `str` is
 | `eventbus.sqlite` | Event Bus event/offset/delivery/DLQ state |
 | `mdq.sqlite` | MDQ index; owned by `mdq-mcp`, not one of the four platform databases (see `db_08_active_databases.md`) |
 
-All of the four platform databases above use WAL mode and `busy_timeout`. `sqlite-vec` is loaded only for `rag.sqlite` (target=`"rag"`). See [ADR-008](../10_adr/adr_02_008_sqlite-4db-separation.md) for the rationale behind the separation.
+All of the four platform databases above use WAL mode and `busy_timeout`. `sqlite-vec` is loaded by default only for the databases that own a vec0 table: `rag.sqlite` (target=`"rag"`) and `session.sqlite` (target=`"session"`). See [ADR-008](../10_adr/adr_02_008_sqlite-4db-separation.md) for the rationale behind the separation.
 
 ---
 

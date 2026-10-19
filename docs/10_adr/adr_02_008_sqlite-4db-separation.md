@@ -53,7 +53,7 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 
 - Single host with multiple processes execution
 - Each DB file existence confirmed before startup in the deployment environment
-- sqlite-vec extension loaded only into `rag.sqlite`
+- sqlite-vec extension loaded only into the databases that own a vec0 table (`rag.sqlite`, `session.sqlite`)
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
@@ -115,7 +115,7 @@ Future persistence domains: default policy is fail-closed—no automatic restore
 6. Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 7. Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
 8. Cross-DB consistency is guaranteed by idempotent processing and state reconciliation. No runtime component publishes to or consumes from the EventBus, so Events are not a consistency mechanism.
-9. sqlite-vec is loaded only into `rag.sqlite`.
+9. sqlite-vec is loaded by default only into the databases that own a vec0 table: `rag.sqlite` and `session.sqlite`.
 10. Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period.
 11. RAG: rebuildability; Session: history retention; Workflow: resumption and auditing; EventBus: unprocessed Events and Offsets.
 12. A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
@@ -215,7 +215,7 @@ A recovery mechanism that cannot distinguish corruption from a temporary lock is
 - The failure scope is localized
 - Backups become easier
 - Retention periods can be managed individually
-- The scope of sqlite-vec is limited
+- The scope of sqlite-vec is limited to the two databases that own a vec0 table
 - physical-recovery operations become auditable against an explicitly documented safety contract
 - Backup corruption or a partial restore is detected before it replaces a live DB (even a corrupted one)
 
@@ -248,7 +248,7 @@ A recovery mechanism that cannot distinguish corruption from a temporary lock is
 - INV-05: Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed.
 - INV-06: Logical IDs such as Session ID, Workflow ID, and Event ID are used to relate data across DBs.
 - INV-07: Cross-DB consistency is guaranteed by idempotent processing and state reconciliation; Events are not relied on for it.
-- INV-08: sqlite-vec is loaded only into `rag.sqlite`.
+- INV-08: sqlite-vec is loaded by default only into the databases that own a vec0 table: `rag.sqlite` and `session.sqlite`; it is not loaded into `workflow.sqlite` or `eventbus.sqlite`.
 - INV-09: Each DB defines its own Backup, Recovery, WAL Checkpoint, Health Check, and retention period.
 - INV-10: A persistence failure in Workflow or EventBus is not treated as success with only a log entry.
 - INV-11: Corruption of one DB does not require initialization or recovery of the other DBs.
@@ -302,7 +302,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 |---|---|---|---|---|
 | Each DB has its own schema creation and its own recovery target path | INV-01, INV-02, INV-03, INV-04 | Integration | Yes | `tests/db/test_create_schema.py::TestCreateSchemaWrapper::test_calls_all_four_in_order`, `tests/db/test_db_recovery.py::test_recover_workflow_uses_correct_db_path`, `tests/db/test_db_recovery.py::test_recover_eventbus_uses_correct_db_path` |
 | The four-database boundary holds: each table is created only in its owning database, no DDL foreign key crosses databases, the four database paths are distinct files, and no `ATTACH` or schema-qualified `FROM`/`JOIN` exists in `scripts/` SQL | INV-01, INV-02, INV-03, INV-04, INV-05 | Static check | Yes | `tools/check_db_separation.py` (CI `lint` job and the deploy pre-deploy check), `tests/tools/test_check_db_separation.py::test_live_repository_has_no_violations`, `tests/tools/test_check_db_separation.py::test_detects_table_in_wrong_database`, `tests/tools/test_check_db_separation.py::test_detects_cross_db_foreign_key`, `tests/tools/test_check_db_separation.py::test_detects_shared_physical_path`, `tests/tools/test_check_db_separation.py::test_detects_attach_and_qualified_access` |
-| sqlite-vec is not loaded into anything other than `rag.sqlite` | INV-08 | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperTargetValidation::test_dbtarget_enum_member_resolves_to_value` (asserts the `rag` default only; the non-`rag` default is set in `SQLiteHelper.__init__()`) |
+| sqlite-vec is loaded by default only for `rag` and `session`, never for `workflow` or `eventbus` | INV-08 | Regression | Yes | `tests/db/test_sqlite_helper.py::TestSQLiteHelperVecDefault::test_default_load_vec_per_target`, `tests/tools/test_check_db_separation.py::test_default_load_vec_rule_rejects_extra_target`, `tests/agent/memory/test_memory_vec_session.py::test_session_default_connection_loads_vec` |
 | Lock Contention and Permission Failure are not classified as physical corruption | INV-13 | Regression | Yes | `tests/db/test_db_recovery.py::test_recover_lock_contention`, `tests/db/test_db_recovery.py::test_recover_permission_failure`, `tests/db/test_db_recovery.py::test_classify_error_lock_contention_via_sqlite_errorcode` |
 | Dry Run does not vacuum, restore, or otherwise act on the target DB for the covered classification results | INV-16 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_dry_run_healthy`, `tests/db/test_db_recovery.py::test_recover_dry_run_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_dry_run_eventbus_prohibited` (no test asserts byte-identity of a corrupt DB under Dry Run) |
 | A `recover_corruption()` call specifying `workflow`/`eventbus` does not perform an automatic restore | INV-18 | Integration | Yes | `tests/db/test_db_recovery.py::test_recover_corrupt_workflow_prohibited`, `tests/db/test_db_recovery.py::test_recover_healthy_eventbus_prohibited` |
@@ -335,7 +335,7 @@ Not applicable (no Fallback exists: a failed restore or an unclassifiable failur
 
 ## Implementation Notes
 
-- `SQLiteHelper` resolves one of four targets (`rag`, `session`, `workflow`, `eventbus`) to its configured file path and loads the sqlite-vec extension by default only for `rag`.
+- `SQLiteHelper` resolves one of four targets (`rag`, `session`, `workflow`, `eventbus`) to its configured file path and loads the sqlite-vec extension by default only for `rag` and `session`, never for `workflow` or `eventbus`; an explicit `load_vec` overrides the default.
 - `recover_corruption()` rejects `workflow` and `eventbus` with `no_recovery_allowed` before any integrity check, classifies the other targets through `_run_integrity_check()` and `_classify_error()`, and restores from a verified backup through `_restore_from_backup()`.
 
 See Implementation References for the current file/symbol list.
@@ -353,7 +353,7 @@ Not applicable
 - An external protocol or adopted library is changed or discontinued
 - Failure history shows that the assumptions or the Failure Policy are no longer valid
 - The reasons for rejecting an alternative no longer hold
-- sqlite-vec is needed in a database other than `rag.sqlite`
+- sqlite-vec is needed in a database other than `rag.sqlite` and `session.sqlite`
 - A store that is a system of record is added outside the four domains, mdq.sqlite starts holding data that cannot be rebuilt, or two domains are merged (a recovery policy must then be defined for it)
 - Persistent storage moves to something other than files
 - A migration mechanism or a replicated storage foundation is introduced
@@ -376,7 +376,7 @@ Not applicable
 - **Approved By**: Task-level approval decision (repository owner; individual reviewer names are not recorded)
 - **Approval Date**: Not recorded (individual approval dates are not recorded for a task-level approval decision)
 - **Approval Reference**: `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard
-- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-15; individual reviewer names are not recorded.
+- **Current Decision Approval**: Task-level approval decision (repository owner instruction) covers the current decision text as of 2026-10-19, including the amendment of the sqlite-vec scope to `rag.sqlite` and `session.sqlite`; individual reviewer names are not recorded.
 
 This ADR's `Accepted` status uses the task-level approval decision defined by the governance document above as its acceptance evidence. No formal Approval Record with individual reviewer names and approval dates has been created.
 

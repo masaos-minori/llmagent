@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the helper and three tests | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the test file | Pending | — | — | |
+| 1 | Add the helper and three tests | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the test file | Completed | 20261019-101422 | 20261019-101422 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

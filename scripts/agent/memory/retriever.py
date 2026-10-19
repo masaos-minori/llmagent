@@ -158,15 +158,23 @@ class VectorRetriever:
         params, type_filter, branch_filter = _build_query_params(
             _floats_to_blob(embedding), limit, memory_type, branch
         )
+        # vec0 requires the KNN bound (k = ?) on the vec0 scan itself, so the KNN runs
+        # in a subquery and memories is joined afterward; the filters therefore apply
+        # after the bound and can return fewer than `limit` rows.
+        params.insert(1, limit)
 
         sql = f"""
             SELECT m.memory_id, m.memory_type, m.source_type, m.session_id, m.turn_id,
                    m.project, m.repo, m.branch, m.content, m.summary, m.tags,
                    m.importance, m.pinned, m.created_at, m.updated_at,
                    mv.distance
-            FROM memories_vec mv
+            FROM (
+                SELECT memory_id, distance
+                FROM memories_vec
+                WHERE embedding MATCH ? AND k = ?
+            ) mv
             JOIN memories m ON m.memory_id = mv.memory_id
-            WHERE mv.embedding MATCH ?
+            WHERE 1 = 1
             {type_filter}
             {branch_filter}
             ORDER BY mv.distance

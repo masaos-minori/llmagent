@@ -58,7 +58,7 @@ Refer to `overview_02_files.md` for the file structure.
 
 **Scope of sqlite-vec Extension Application**
 
-`SQLiteHelper` in `db/helper.py` loads the `sqlite-vec` extension (`vec0.so`) only when `target="rag"`. It is NOT applied to `session`, `workflow`, or `eventbus` databases. This intentional separation restricts vector operations to the RAG database. (Explicit in code — `db/helper.py`)
+`SQLiteHelper` in `db/helper.py` loads the `sqlite-vec` extension (`vec0.so`) by default only for the databases that own a vec0 table: `rag` (`chunks_vec`) and `session` (`memories_vec`). It is NOT applied to `workflow` or `eventbus` databases, and an explicit `load_vec` argument overrides the default. This intentional separation restricts vector operations to the two databases that own vector tables. (Explicit in code — `db/helper.py`)
 
 **Diagnostic Storage upon Session Termination**
 

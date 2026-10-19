@@ -109,6 +109,32 @@ def _has_table(conn: sqlite3.Connection, name: str) -> bool:
     return row is not None
 
 
+_VEC_SO = "/opt/llm/sqlite-vec/vec0.so"
+_MEMORIES_VEC_DDL = "CREATE VIRTUAL TABLE IF NOT EXISTS memories_vec"
+
+
+def apply_session_schema(
+    conn: sqlite3.Connection, schema: str | None = None, dims: int = 4
+) -> None:
+    """Create the session schema on a raw connection, with or without sqlite-vec.
+
+    When the extension file exists it is loaded so the full schema (including the
+    ``memories_vec`` vec0 table) is created. Otherwise the schema is created up to,
+    and excluding, the ``memories_vec`` statement: recovery tests do not depend on
+    the vec table, and CI has no extension installed.
+    """
+    from db.schema_sql import build_session_schema_sql
+
+    script = build_session_schema_sql(dims) if schema is None else schema
+    if Path(_VEC_SO).exists():
+        conn.enable_load_extension(True)
+        conn.load_extension(_VEC_SO)
+        conn.enable_load_extension(False)
+    else:
+        script = script.split(_MEMORIES_VEC_DDL)[0]
+    conn.executescript(script)
+
+
 @pytest.fixture
 def corrupt_wal_db(tmp_path: Path) -> str:
     """A WAL-mode session-schema SQLite DB, byte-truncated to fail
@@ -117,15 +143,10 @@ def corrupt_wal_db(tmp_path: Path) -> str:
 
     Used by tests/integration/test_session_recovery.py.
     """
-    from db.schema_sql import build_session_schema_sql
-
     db_path = str(tmp_path / "corrupt.sqlite")
     conn = sqlite3.connect(db_path)
     conn.execute("PRAGMA journal_mode=WAL")
-    try:
-        conn.executescript(build_session_schema_sql(4))
-    except Exception:  # noqa: BLE001 — memories_vec may be unavailable without sqlite-vec; ignore
-        pass  # memories_vec may be unavailable without sqlite-vec; ignore
+    apply_session_schema(conn)
     if _has_table(conn, "sessions"):
         conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
     conn.commit()

@@ -57,8 +57,8 @@ N/A: revert the commit (documents and the `SQLiteHelper` default must be reverte
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the passage with the new wording | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools (docs quality, structure, content policy, consistency for the touched domain) | Pending | — | — | |
+| 1 | Replace the passage with the new wording | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools (docs quality, structure, content policy, consistency for the touched domain) | Completed | 20261019-101422 | 20261019-101422 | N/A: no tests; docs checkers passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

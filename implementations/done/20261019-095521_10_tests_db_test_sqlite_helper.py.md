@@ -57,8 +57,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the new test class | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) for the test file | Pending | — | — | |
+| 1 | Append the new test class | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Run the validation sequence (`rules/toolchain.md`) for the test file | Completed | 20261019-101422 | 20261019-101422 | override test uses explicit db_path helpers for both directions instead of named targets; per-target default test covers the targets |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

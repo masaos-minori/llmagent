@@ -272,3 +272,47 @@ class TestReuseConnection:
             pass
         assert helper.conn is not None
         helper.conn.execute("SELECT 1")
+
+
+class TestSQLiteHelperVecDefault:
+    """The sqlite-vec default follows ownership of vec0 tables: rag and session."""
+
+    @pytest.mark.parametrize(
+        ("target", "expected"),
+        [
+            ("rag", True),
+            ("session", True),
+            ("workflow", False),
+            ("eventbus", False),
+        ],
+    )
+    def test_default_load_vec_per_target(self, target: str, expected: bool) -> None:
+        from unittest.mock import patch
+
+        from db.config import DbConfig
+
+        cfg = DbConfig(
+            rag_db_path="/tmp/rag.sqlite",
+            session_db_path="/tmp/session.sqlite",
+            workflow_db_path="/tmp/workflow.sqlite",
+            eventbus_db_path="/tmp/eventbus.sqlite",
+        )
+        with patch("db.helper.build_db_config", return_value=cfg):
+            assert SQLiteHelper(target)._default_load_vec is expected
+
+    def test_explicit_load_vec_overrides_default(self, tmp_path: Path) -> None:
+        from unittest.mock import patch
+
+        # Default True (sqlite_vec_so set): explicit False skips the load.
+        on = SQLiteHelper(db_path=str(tmp_path / "on.sqlite"), sqlite_vec_so="/x.so")
+        with patch.object(on, "_load_vec_extension") as load:
+            with on.open(load_vec=False):
+                pass
+            load.assert_not_called()
+        # Default False (no sqlite_vec_so): explicit True loads once a path is set.
+        off = SQLiteHelper(db_path=str(tmp_path / "off.sqlite"))
+        off._vec_so = "/x.so"
+        with patch.object(off, "_load_vec_extension") as load:
+            with off.open(load_vec=True):
+                pass
+            load.assert_called_once()

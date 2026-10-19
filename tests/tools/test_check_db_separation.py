@@ -84,3 +84,49 @@ def test_detects_attach_and_qualified_access(
     assert any("ATTACH statement" in p for p in problems)
     assert any("schema-qualified" in p for p in problems)
     assert len(problems) == 2
+
+
+_HELPER_RAG_SESSION = (
+    "class H:\n"
+    "    def __init__(self, resolved: str) -> None:\n"
+    '        self._default_load_vec = resolved in ("rag", "session")\n'
+)
+
+
+def _fake_scripts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, helper_source: str
+) -> None:
+    db_dir = tmp_path / "scripts" / "db"
+    db_dir.mkdir(parents=True)
+    (db_dir / "helper.py").write_text(helper_source, encoding="utf-8")
+    monkeypatch.setattr(mod, "SCRIPTS_DIR", tmp_path / "scripts")
+    monkeypatch.setattr(mod, "REPO_ROOT", tmp_path)
+
+
+def test_default_load_vec_rule_accepts_rag_and_session(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _fake_scripts(tmp_path, monkeypatch, _HELPER_RAG_SESSION)
+    assert mod.check_vec_loading() == []
+
+
+def test_default_load_vec_rule_rejects_rag_only(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    old = _HELPER_RAG_SESSION.replace(
+        'resolved in ("rag", "session")', 'resolved == "rag"'
+    )
+    _fake_scripts(tmp_path, monkeypatch, old)
+    problems = mod.check_vec_loading()
+    assert any("[vec-scope]" in p and "_default_load_vec" in p for p in problems)
+
+
+def test_default_load_vec_rule_rejects_extra_target(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    wide = _HELPER_RAG_SESSION.replace(
+        '("rag", "session")', '("rag", "session", "workflow")'
+    )
+    _fake_scripts(tmp_path, monkeypatch, wide)
+    problems = mod.check_vec_loading()
+    assert any("[vec-scope]" in p and "_default_load_vec" in p for p in problems)

@@ -1,8 +1,8 @@
 ## Goal
-Align the helper `open()` default description with the amended rule (`REQ-002`).
+Align the overview's "Scope of sqlite-vec Extension Application" paragraph with the amended rule (`REQ-002`).
 
 ## Scope
-- The parenthesis after "`load_vec=None` uses the instance default" in the `open()` description.
+- The one paragraph under the heading "Scope of sqlite-vec Extension Application".
 
 ## Assumptions
 - The scope rule is the one in the amended ADR-008 (sqlite-vec loaded by default for `rag` and `session`).
@@ -15,15 +15,15 @@ N/A: wording change only.
 
 ## Implementation
 ### Target file
-`docs/41_db/db_04_api_and_operations-module-boundaries-and-helper.md`
+`docs/01_overview/overview_01_03-arch-features.md`
 
 ### Procedure
 1. Replace the passage below with the new wording using Edit.
 2. Run the documentation checkers.
 
 ### Method
-- Old text (exact): "(`rag` → `True`, `session`/`workflow`/`eventbus` → `False`; with an explicit `db_path`, `True` only when `sqlite_vec_so` is non-empty)"
-- New text: "(`rag`/`session` → `True`, `workflow`/`eventbus` → `False`; with an explicit `db_path`, `True` only when `sqlite_vec_so` is non-empty)"
+- Old text (exact): "`SQLiteHelper` in `db/helper.py` loads the `sqlite-vec` extension (`vec0.so`) only when `target=\"rag\"`. It is NOT applied to `session`, `workflow`, or `eventbus` databases. This intentional separation restricts vector operations to the RAG database. (Explicit in code — `db/helper.py`)"
+- New text: "`SQLiteHelper` in `db/helper.py` loads the `sqlite-vec` extension (`vec0.so`) by default only for the databases that own a vec0 table: `rag` (`chunks_vec`) and `session` (`memories_vec`). It is NOT applied to `workflow` or `eventbus` databases, and an explicit `load_vec` argument overrides the default. This intentional separation restricts vector operations to the two databases that own vector tables. (Explicit in code — `db/helper.py`)"
 
 ### Details
 - Write in English; no line numbers or concrete configuration values (`skills/DESIGN.md`).
@@ -57,8 +57,8 @@ N/A: revert the commit (documents and the `SQLiteHelper` default must be reverte
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the passage with the new wording | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools (docs quality, structure, content policy, consistency for the touched domain) | Pending | — | — | |
+| 1 | Replace the passage with the new wording | Completed | 20261019-101422 | 20261019-101422 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools (docs quality, structure, content policy, consistency for the touched domain) | Completed | 20261019-101422 | 20261019-101422 | N/A: no tests; docs checkers passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -72,10 +72,10 @@ N/A: revert the commit (documents and the `SQLiteHelper` default must be reverte
 
 ## Traceability
 - **Workflow phase**: plan-to-implementation-procedure
-- **Requirement ID**: `REQ-002` (align the helper `open()` description)
+- **Requirement ID**: `REQ-002` (align the overview)
 - **Source issue**: issues/20261019-092704_mem001_session-sqlite-vec-not-loaded-at-runtime.md
 - **Source requirement**: N/A: no standalone requirement document is generated
 - **Source plan**: plans/20261019-094625_plan.md
 - **Source implementation procedure**: N/A: this document is the generated implementation procedure
 - **Generated at**: 20261019-095521
-- **Related target files**: docs/41_db/db_04_api_and_operations-module-boundaries-and-helper.md
+- **Related target files**: docs/01_overview/overview_01_03-arch-features.md
