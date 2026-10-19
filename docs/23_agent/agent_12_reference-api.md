@@ -194,7 +194,7 @@ Full details: [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-sess
 ## AgentConfig (`agent/config_dataclasses.py`)
 
 - **Role:** Configuration container. Supports hot-reloading via `/reload`.
-- **Primary API:** `build_agent_config(cfg_override=None) -> AgentConfig` (defined in `agent/config_builders.py`; the `AgentConfig` dataclass lives in `agent/config_dataclasses.py`)
+- **Primary API:** `build_agent_config(cfg_override=None) -> AgentConfig` (defined in `agent/config_builders.py`; the per-section builders it delegates to live in `agent/config_section_builders.py`; the `AgentConfig` dataclass lives in `agent/config_dataclasses.py`)
 - **Caller:** Session initialization, config reloading
 - **Callee:** `ConfigLoader.load_all()`
 - **Configuration:** `config/agent.toml`

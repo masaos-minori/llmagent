@@ -1,5 +1,5 @@
 """tests/test_config_builders.py
-Unit tests for agent/config_builders.py:
+Unit tests for agent/config_builders.py and agent/config_section_builders.py:
 _build_llm_config, _build_rag_config, _build_approval_config, _build_memory_config,
 _build_tool_config, build_agent_config, and load_config error handling.
 """
@@ -12,6 +12,11 @@ from unittest.mock import MagicMock, patch
 import pytest
 from agent.config_builders import (
     ConfigLoadError,
+    build_agent_config,
+    load_config,
+)
+from agent.config_dataclasses import AgentConfig
+from agent.config_section_builders import (
     _build_approval_config,
     _build_diagnostics_config,
     _build_llm_config,
@@ -21,10 +26,7 @@ from agent.config_builders import (
     _get_or_default,
     _get_str_or_default,
     _validate_dry_run_tools,
-    build_agent_config,
-    load_config,
 )
-from agent.config_dataclasses import AgentConfig
 from agent.services.exceptions import ConfigReloadValidationError
 from agent.services.typed_validators import _get_int, _get_str
 from shared.mcp_config import SecurityProfile

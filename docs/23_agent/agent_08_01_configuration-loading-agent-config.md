@@ -31,6 +31,11 @@ Documents the `AgentConfig` structure, configuration file ownership, and classif
 
 **Fail-closed behavior:** When `agent.toml` is missing, `ConfigLoader.load_all()` raises `ConfigMissingError` (inherits `ValueError`). In `load_config()`, this is caught and re-raised as `ConfigLoadError` (inherits `RuntimeError`). Execution aborts before `security_profile_val = SecurityProfile(cfg.get("security_profile", "production"))` is computed (`agent/config_builders.py`), preventing any production config validation from running on incomplete configuration.
 
+**Module responsibility boundaries:**
+
+- `agent/config_builders.py` — loading and assembly: `load_config()`, `resolved_config_dir()`, production validation, and `build_agent_config()`. It owns no per-section key reading.
+- `agent/config_section_builders.py` — per-section construction: the `_get_or_default` / `_get_str_or_default` default-resolution helpers and the `_build_llm_config()`, `_build_rag_config()`, `_build_tool_config()`, `_build_memory_config()`, `_build_approval_config()`, `_build_diagnostics_config()` builders that `build_agent_config()` delegates to.
+
 ### Configuration File Ownership
 
 | File | Responsibility | Hot-Reloadable |
