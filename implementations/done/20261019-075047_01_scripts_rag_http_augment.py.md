@@ -140,9 +140,9 @@ fail-closed behavior, the `None`/`in_process_fallback` and `None`/`auth_error` b
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read reference files to confirm terminal-empty contract | Pending | — | — | REQ-001 |
-| 2 | Rewrite `HttpAugment.run` docstring `""` bullet in `scripts/rag/http_augment.py` | Pending | — | — | REQ-001 |
-| 3 | Run ruff/mypy and affected tests to confirm no regression | Pending | — | — | REQ-002; AC3 |
+| 1 | Read reference files to confirm terminal-empty contract | Completed | — | 20261019-190157 | REQ-001 Pure docstring rewrite of the HttpAugment.run '' bullet: now states '' is a valid empty remote response returned as the final augment result with no in-process fallback, matching pipeline_service.py ('empty' = 'Not a failure') and pipeline.py (str/'' (final)). Identity-vs-truthiness note and None bullets untouched. ruff/mypy clean; test_remote_empty_does_not_trigger_in_process passes. Zero runtime effect. |
+| 2 | Rewrite `HttpAugment.run` docstring `""` bullet in `scripts/rag/http_augment.py` | Completed | — | 20261019-190157 | REQ-001 Pure docstring rewrite of the HttpAugment.run '' bullet: now states '' is a valid empty remote response returned as the final augment result with no in-process fallback, matching pipeline_service.py ('empty' = 'Not a failure') and pipeline.py (str/'' (final)). Identity-vs-truthiness note and None bullets untouched. ruff/mypy clean; test_remote_empty_does_not_trigger_in_process passes. Zero runtime effect. |
+| 3 | Run ruff/mypy and affected tests to confirm no regression | Completed | — | 20261019-190157 | REQ-002; AC3 Pure docstring rewrite of the HttpAugment.run '' bullet: now states '' is a valid empty remote response returned as the final augment result with no in-process fallback, matching pipeline_service.py ('empty' = 'Not a failure') and pipeline.py (str/'' (final)). Identity-vs-truthiness note and None bullets untouched. ruff/mypy clean; test_remote_empty_does_not_trigger_in_process passes. Zero runtime effect. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

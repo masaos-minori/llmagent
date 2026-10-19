@@ -102,8 +102,8 @@ class HttpAugment:
 
         Return value contract (``HttpAugmentResult.result`` / ``http_result_kind``):
           - ``str`` (non-empty): valid augmented result
-          - ``""`` (empty string): valid but empty result; caller should fall back
-            to in-process search
+          - ``""`` (empty string): valid empty remote response; returned as the final
+            augment result with no in-process fallback
           - ``None`` with ``http_result_kind == "in_process_fallback"``: augmentation
             failed; caller may use in-process search
           - ``None`` with ``http_result_kind == "auth_error"``: HTTP 401/403; caller
