@@ -7,7 +7,6 @@ Indexing logic for Markdown files — writes to SQLite documents/chunks tables.
 from __future__ import annotations
 
 import dataclasses
-import fnmatch
 import logging
 import sqlite3
 import time
@@ -19,6 +18,7 @@ from shared.json_utils import dumps as _json_dumps
 
 from mcp_servers.mdq.auth import authorize_path
 from mcp_servers.mdq.index_delete import delete_file_from_index
+from mcp_servers.mdq.index_scan import iter_indexable_files
 from mcp_servers.mdq.index_write import write_document_chunks
 from mcp_servers.mdq.mdq_models import (
     IndexPathsMetadata,
@@ -37,51 +37,6 @@ logger = logging.getLogger(__name__)
 # One wording for "this requested path is not something the indexer can read", shared by
 # index_paths() and both refresh modes so the same input reports the same way.
 _NON_MARKDOWN_PATH_WARNING = "Skipping non-Markdown path: %s"
-
-
-def _matches_any_glob(rel_posix: str, patterns: list[str]) -> bool:
-    """Return True if rel_posix matches any of patterns, at any path depth.
-
-    pathlib.Path.match() was tried first and rejected: it right-aligns only
-    as many path segments as the pattern has, so ".git/**" (2 segments) does
-    not match ".git/objects/pack/file.pack" (4 segments) -- verified
-    empirically against this module's default exclude_globs value
-    ([".git/**", "__pycache__/**"]) on a real directory tree before choosing
-    this implementation.
-
-    fnmatch against the full relative path handles root-anchored occurrences
-    (e.g. ".git/objects/pack/file.pack" against ".git/**") but still misses
-    nested occurrences that don't start at the path root (e.g.
-    "src/__pycache__/nested/a.pyc" against "__pycache__/**"). To catch both,
-    fnmatch is applied against every path suffix (the substring starting at
-    each path component), not just the full path.
-    """
-    parts = rel_posix.split("/")
-    for i in range(len(parts)):
-        suffix = "/".join(parts[i:])
-        if any(fnmatch.fnmatch(suffix, pattern) for pattern in patterns):
-            return True
-    return False
-
-
-def _iter_indexable_files(service: MdqService, directory: Path) -> list[Path]:
-    """Return indexable files under directory per service.include_globs/exclude_globs.
-
-    Replaces hardcoded rglob("*.md") call sites so indexing honors the
-    configured include_globs / exclude_globs (config/mdq_mcp_server.toml).
-    """
-    include_globs = service.include_globs
-    exclude_globs = service.exclude_globs
-    matched: dict[str, Path] = {}
-    for pattern in include_globs:
-        for f in directory.rglob(pattern):
-            if not f.is_file():
-                continue
-            rel_posix = f.relative_to(directory).as_posix()
-            if _matches_any_glob(rel_posix, exclude_globs):
-                continue
-            matched[str(f)] = f
-    return sorted(matched.values())
 
 
 class RefreshSummary(TypedDict):
@@ -157,7 +112,7 @@ async def _index_single_file(service: MdqService, path: Path) -> None:
 
 async def _index_directory(service: MdqService, path: Path) -> None:
     """Recursively index all indexable files under a directory."""
-    for child in _iter_indexable_files(service, path):
+    for child in iter_indexable_files(service, path):
         await _index_single_file(service, child)
 
 
@@ -288,7 +243,7 @@ def _delete_stale_entries(
     was deleted" apart from "the scan did not run".
     """
     try:
-        current_md_files = {str(f) for f in _iter_indexable_files(service, dir_path)}
+        current_md_files = {str(f) for f in iter_indexable_files(service, dir_path)}
         for path_str_key in list(current_state):
             if not _is_stale_index_key(path_str_key, current_md_files, dir_path):
                 continue
@@ -327,7 +282,7 @@ async def _reindex_forced(service: MdqService, path: Path, path_str: str) -> int
     if path.is_file():
         await _index_single_file(service, path)
         return 1
-    indexable_files = _iter_indexable_files(service, path)
+    indexable_files = iter_indexable_files(service, path)
     if not indexable_files:
         logger.info("No indexable files found in directory: %s", path_str)
         return 0
@@ -405,7 +360,7 @@ async def _refresh_directory_path(
     files in this directory while keeping the counts already recorded for them.
     """
     try:
-        for md_file in _iter_indexable_files(service, path):
+        for md_file in iter_indexable_files(service, path):
             if await _refresh_changed_file(service, conn, current_state, md_file):
                 tally.indexed += 1
             else:

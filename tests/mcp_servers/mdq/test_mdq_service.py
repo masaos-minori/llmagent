@@ -11,11 +11,11 @@ from tempfile import mkstemp
 from unittest.mock import patch
 
 import pytest
+from mcp_servers.mdq.index_scan import iter_indexable_files
 from mcp_servers.mdq.index_write import generate_chunk_id
 from mcp_servers.mdq.indexer import (
     _index_directory,
     _index_single_file,
-    _iter_indexable_files,
     index_paths,
 )
 from mcp_servers.mdq.mdq_models import (
@@ -81,7 +81,7 @@ class TestIterIndexableFiles:
         (tmp_path / ".git" / "config.md").write_text("# git config", encoding="utf-8")
         (tmp_path / "keep.md").write_text("# Keep", encoding="utf-8")
 
-        files = _iter_indexable_files(service, tmp_path)
+        files = iter_indexable_files(service, tmp_path)
         names = {f.name for f in files}
         assert "keep.md" in names
         assert "config.md" not in names
@@ -95,7 +95,7 @@ class TestIterIndexableFiles:
         (tmp_path / "src" / "keep.md").write_text("# Keep", encoding="utf-8")
         (nested / "ignored.md").write_text("# Ignored", encoding="utf-8")
 
-        files = _iter_indexable_files(service, tmp_path)
+        files = iter_indexable_files(service, tmp_path)
         names = {f.name for f in files}
         assert "keep.md" in names
         assert "ignored.md" not in names
@@ -108,7 +108,7 @@ class TestIterIndexableFiles:
         (tmp_path / "notes.txt").write_text("plain text notes", encoding="utf-8")
         (tmp_path / "ignored.md").write_text("# Ignored", encoding="utf-8")
 
-        files = _iter_indexable_files(service, tmp_path)
+        files = iter_indexable_files(service, tmp_path)
         names = {f.name for f in files}
         assert "notes.txt" in names
         assert "ignored.md" not in names

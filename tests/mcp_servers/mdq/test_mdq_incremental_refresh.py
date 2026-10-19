@@ -458,7 +458,7 @@ class TestRefreshFailureCounters:
         def _scan_fails(service: MdqService, directory: Path) -> list[Path]:
             raise RuntimeError("scan failed")
 
-        monkeypatch.setattr(indexer, "_iter_indexable_files", _scan_fails)
+        monkeypatch.setattr(indexer, "iter_indexable_files", _scan_fails)
         result = asyncio.run(
             _refresh_paths(service, RefreshIndexRequest(paths=[str(sub / "b.md")]))
         )
@@ -715,14 +715,14 @@ class TestDeletedFileDetectionFailureIsolation:
         (first / "a.md").unlink()
         (second / "a.md").unlink()
 
-        original_scan = indexer._iter_indexable_files
+        original_scan = indexer.iter_indexable_files
 
         def _scan(service: MdqService, directory: Path) -> list[Path]:
             if directory == first:
                 raise RuntimeError("scan failed")
             return original_scan(service, directory)
 
-        monkeypatch.setattr(indexer, "_iter_indexable_files", _scan)
+        monkeypatch.setattr(indexer, "iter_indexable_files", _scan)
         caplog.set_level(logging.ERROR, logger="mcp_servers.mdq.indexer")
 
         result = asyncio.run(
