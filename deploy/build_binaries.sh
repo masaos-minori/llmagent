@@ -20,6 +20,13 @@
 #   BIN_DIR=/opt/llm/bin OUTPUT_DIR=/data/nuitka_dist bash deploy/build_binaries.sh
 #   # 一部のバイナリのみ再ビルド (空白区切りの出力名):
 #   BUILD_ONLY="agent" bash deploy/build_binaries.sh
+#   # 直前の swap 前のバイナリ一式へ戻す (Nuitka 不要。${BIN_DIR}.prev から復元):
+#   bash deploy/build_binaries.sh --rollback
+#
+# ビルドは ${OUTPUT_DIR}/stage に出力し、要求した全バイナリが成功した後にだけ
+# tools/manage_binaries.py swap で ${BIN_DIR} へ入れ替える。各バイナリの横に
+# <name>.build-info.json (ビルド元 commit・checksum) を記録し、入れ替え前の一式は
+# ${BIN_DIR}.prev に残す。
 #
 # nuitka4.x に関する注記:
 #   --onefile（スタンドアロン実行可能）と --module（インポート用拡張モジュール）は
@@ -37,6 +44,11 @@ OUTPUT_DIR="${OUTPUT_DIR:-/opt/llm/dist}"
 # nuitka が対象モジュールを解析できるように PYTHONPATH に scripts/ を追加する。
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PYTHONPATH="${REPO_ROOT}/scripts${PYTHONPATH:+:${PYTHONPATH}}"
+
+# 直前のバイナリ一式へ戻す。Nuitka や uv の事前チェックより前に処理する。
+if [[ "${1:-}" == "--rollback" ]]; then
+    exec python3 "${REPO_ROOT}/tools/manage_binaries.py" rollback --bin-dir "${BIN_DIR}"
+fi
 
 # 既定の Nuitka フラグ (サイズ最小化重視)。
 #   --onefile            : 単一バイナリ (payload は既定で圧縮される。--onefile-no-compression は使わない)
@@ -201,6 +213,11 @@ fi
 
 # 生成するランチャを置く一時ディレクトリ（ビルド後に削除）。
 LAUNCHER_DIR="${OUTPUT_DIR}/.launchers"
+# ビルド済みバイナリの一時置き場。全件成功後に swap で BIN_DIR へ入れ替える。
+STAGE_DIR="${OUTPUT_DIR}/stage"
+mkdir -p "${STAGE_DIR}"
+find "${STAGE_DIR}" -mindepth 1 -delete
+BUILT_NAMES=()
 mkdir -p "${LAUNCHER_DIR}"
 cleanup_launchers() { rm -rf "${LAUNCHER_DIR}"; }
 trap cleanup_launchers EXIT
@@ -283,13 +300,16 @@ build_one() {
         exit 1
     fi
 
-    mkdir -p "${BIN_DIR}"
-    mv "${produced}" "${BIN_DIR}/${final_name}"
-    chmod 0755 "${BIN_DIR}/${final_name}"
+    mv "${produced}" "${STAGE_DIR}/${final_name}"
+    chmod 0755 "${STAGE_DIR}/${final_name}"
+    python3 "${REPO_ROOT}/tools/manage_binaries.py" write-info \
+        --binary "${STAGE_DIR}/${final_name}" --module "${module}" \
+        --repo "${REPO_ROOT}" > /dev/null
+    BUILT_NAMES+=("${final_name}")
 
     local size_bytes size_h
-    size_bytes="$(du -sb "${BIN_DIR}/${final_name}" | cut -f1)"
-    size_h="$(du -h "${BIN_DIR}/${final_name}" | cut -f1)"
+    size_bytes="$(du -sb "${STAGE_DIR}/${final_name}" | cut -f1)"
+    size_h="$(du -h "${STAGE_DIR}/${final_name}" | cut -f1)"
     total_bytes=$(( total_bytes + size_bytes ))
     total_seconds=$(( total_seconds + elapsed ))
 
@@ -324,6 +344,15 @@ if (( built == 0 )); then
     exit 1
 fi
 
+# 要求した全バイナリが成功した後にだけ BIN_DIR へ入れ替える (途中失敗では BIN_DIR は不変)。
+echo "--- swap: ${STAGE_DIR} -> ${BIN_DIR} ---"
+if ! python3 "${REPO_ROOT}/tools/manage_binaries.py" swap \
+        --stage-dir "${STAGE_DIR}" --bin-dir "${BIN_DIR}" \
+        --names "${BUILT_NAMES[*]}" --consume; then
+    echo "[FATAL] swap failed; ${BIN_DIR} was left unchanged or restored." >&2
+    exit 1
+fi
+
 echo ""
 echo "=== build_binaries.sh: 完了 (${built} 本) ==="
 # 総ビルド時間 (秒) と総サイズ (人間が読みやすい形式) を出力。Plan の Execution Status 用に利用。
@@ -336,3 +365,4 @@ awk -v secs="${total_seconds}" -v bytes="${total_bytes}" 'BEGIN {
 }'
 echo ""
 echo "配置先: ${BIN_DIR}/"
+echo "入れ替え前の一式: ${BIN_DIR}.prev (戻すには bash deploy/build_binaries.sh --rollback)"

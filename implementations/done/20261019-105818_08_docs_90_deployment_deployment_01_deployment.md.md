@@ -58,8 +58,8 @@ N/A: revert the commit (documents and the `SQLiteHelper` default must be reverte
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend section 2.6 and the `deploy.sh` description, and add the component table | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools (docs quality, structure, content policy, consistency for the touched domain) | Pending | — | — | |
+| 1 | Extend section 2.6 and the `deploy.sh` description, and add the component table | Completed | 20261019-112524 | 20261019-112524 |  |
+| 2 | Run the documentation checkers named in `routing.md` Tools (docs quality, structure, content policy, consistency for the touched domain) | Completed | 20261019-112524 | 20261019-112524 | checkers passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

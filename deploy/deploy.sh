@@ -94,18 +94,34 @@ BINARY_NAMES=(
 )
 for b in "${BINARY_NAMES[@]}"; do
   src="${BUILD_OUTPUT_DIR}/${b}"
-  dst="${DEPLOY_BIN}/${b}"
   if [[ ! -f "${src}" ]]; then
     echo "[FATAL] Binary not found: ${src} (BUILD_OUTPUT_DIR をビルド出力先に指定)." >&2
     exit 1
   fi
-  # ローカルビルド同源のコピー元が配置先と同一の場合は不要 (same-file エラー回避)。
-  if [[ "$(realpath "${src}")" != "$(realpath "${dst}")" ]]; then
-    cp "${src}" "${dst}"
-  fi
 done
 chmod 0755 "${DEPLOY_BIN}"
-chmod 0755 "${DEPLOY_BIN}"/*
+# ビルド出力先が配置先と別のときだけ、全件検証後に入れ替える (入れ替え前の一式は
+# ${DEPLOY_BIN}.prev に残る)。ローカルビルド (同一ディレクトリ) では入れ替え不要。
+if [[ "$(realpath "${BUILD_OUTPUT_DIR}")" != "$(realpath "${DEPLOY_BIN}")" ]]; then
+  python3 "${REPO_ROOT}/tools/manage_binaries.py" swap \
+    --stage-dir "${BUILD_OUTPUT_DIR}" --bin-dir "${DEPLOY_BIN}" \
+    --names "${BINARY_NAMES[*]}"
+fi
+for b in "${BINARY_NAMES[@]}"; do
+  chmod 0755 "${DEPLOY_BIN}/${b}"
+done
+# バイナリの鮮度: ビルド元 commit から今回の配備 revision までに、そのバイナリが埋め込む
+# ソースが変わっていないか確認する。既定は警告のみ (整合性エラーは失敗)。
+# DEPLOY_STRICT_BINARIES=1 で stale / unknown も失敗にする。結果は配備完了後に反映する。
+STRICT_ARGS=()
+if [[ "${DEPLOY_STRICT_BINARIES:-0}" == "1" ]]; then
+  STRICT_ARGS=(--strict)
+fi
+echo "--- binary freshness ---"
+FRESHNESS_RC=0
+python3 "${REPO_ROOT}/tools/manage_binaries.py" check \
+  --bin-dir "${DEPLOY_BIN}" --rev auto --repo "${REPO_ROOT}" \
+  "${STRICT_ARGS[@]+"${STRICT_ARGS[@]}"}" || FRESHNESS_RC=$?
 # Sudachi 辞書(~217MB, プラン通り外部配置)。明示ソース > build 出力 > 通常 venv パス。
 dict_src=""
 if [[ -n "${SUDACHI_DICT_SOURCE:-}" && -f "${SUDACHI_DICT_SOURCE}" ]]; then
@@ -188,6 +204,11 @@ echo "--- start_agent.sh → /opt/llm/ ---"
 cp "${REPO_ROOT}/deploy/start_agent.sh" "/opt/llm/"
 chmod +x /opt/llm/start_agent.sh
 
+# 配備した revision を記録する (どの commit が入っているかを確認できるようにする)。
+echo "--- deployed revision → /opt/llm/DEPLOYED_REV ---"
+python3 "${REPO_ROOT}/tools/manage_binaries.py" record-revision \
+  --root /opt/llm --rev auto --repo "${REPO_ROOT}"
+
 echo "=== deploy.sh: 完了 ==="
 echo ""
 echo "次のステップ:"
@@ -195,3 +216,10 @@ echo "  1. bash deploy/build_sqlite_vec.sh  # sqlite-vec 拡張ビルド (初回
 echo "  2. bash deploy/init_db.sh           # DB スキーマ初期化"
 echo "  3. bash deploy/setup_services.sh    # サブプロセス登録・起動"
 echo "  4. /opt/llm/start_agent.sh          # AgentREPL 起動"
+echo ""
+echo "stale / unknown のバイナリがある場合は deploy/build_binaries.sh で再ビルドする"
+echo "(例: BUILD_ONLY=\"agent\" bash deploy/build_binaries.sh)。"
+if (( FRESHNESS_RC != 0 )); then
+  echo "[FATAL] binary freshness check failed (exit ${FRESHNESS_RC})." >&2
+  exit "${FRESHNESS_RC}"
+fi

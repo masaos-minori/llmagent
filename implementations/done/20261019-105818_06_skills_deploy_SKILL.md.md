@@ -60,8 +60,8 @@ N/A: revert the commit (documents and the `SQLiteHelper` default must be reverte
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the table rows, phase overview, checklist, Scope notes, and Required behavior | Pending | — | — | |
-| 2 | Run the skill reference and heading-cycle checkers | Pending | — | — | |
+| 1 | Edit the table rows, phase overview, checklist, Scope notes, and Required behavior | Completed | 20261019-112524 | 20261019-112524 |  |
+| 2 | Run the skill reference and heading-cycle checkers | Completed | 20261019-112524 | 20261019-112524 | checkers passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -45,6 +45,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `generate_workitem.py` | Work item generation | Generate work item skeletons with placeholders. `--kind implementation-procedure --all-rows` generates every row of the Plan's `Implementation Target Files` table in one run (rows whose file already exists are skipped and processing continues) |
 | `manage_frontmatter.py` | Front Matter management | Detect missing Front Matter, remove duplicates, rename `area`, merge body Related sections into `related:` |
 | `manage_workitem_stage.py` | Work item management | Archive moves, status updates, stale detection |
+| `manage_binaries.py` | Deploy | Write build info for the Nuitka binaries, check their freshness against a source revision, swap a staged set into the bin directory with the previous set saved, roll back, and record the deployed revision |
 | `rename_doc.py` | Rename helper | `git mv` a `docs/*.md` file and update internal links and Front Matter `related:`. Also reports mentions of the old filename in tracked files outside `docs/` (scripts/tools/tests/skills, etc.) |
 | `fix_docstring_blank_line.py` | Formatting helper | Bulk-fix D205 violations (missing blank line after docstring summary) |
 | `fix_docs_section_marks.py` | Formatting helper | Replace the `§` symbol with plain English wording |

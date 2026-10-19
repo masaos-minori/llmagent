@@ -70,10 +70,10 @@ N/A: revert the commit (the file is new and called only by the other procedures'
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the module with the path table and the five subcommands | Pending | — | — | |
-| 2 | Add or update tests (separate procedure) | Pending | — | — | |
-| 3 | Run the `routing.md` tool validation sequence and a smoke run | Pending | — | — | |
-| 4 | Update `tools/TOOL_DESCRIPTIONS.md` (separate procedure) | Pending | — | — | |
+| 1 | Write the module with the path table and the five subcommands | Completed | 20261019-112524 | 20261019-112524 |  |
+| 2 | Add or update tests (separate procedure) | Completed | 20261019-112524 | 20261019-112524 |  |
+| 3 | Run the `routing.md` tool validation sequence and a smoke run | Completed | 20261019-112524 | 20261019-112524 | ruff, mypy, bandit clean (B404/B103 nosec justified); smoke on real data: check against /opt/llm/bin reports all 11 unknown (no build info yet), strict exits 1, --list-stale prints all names |
+| 4 | Update `tools/TOOL_DESCRIPTIONS.md` (separate procedure) | Completed | 20261019-112524 | 20261019-112524 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

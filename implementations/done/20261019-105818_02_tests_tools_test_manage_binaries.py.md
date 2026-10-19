@@ -61,9 +61,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the module with helpers and the tool tests | Pending | — | — | |
-| 2 | Add the drift and shell-script tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for the test file | Pending | — | — | |
+| 1 | Create the module with helpers and the tool tests | Completed | 20261019-112524 | 20261019-112524 |  |
+| 2 | Add the drift and shell-script tests | Completed | 20261019-112524 | 20261019-112524 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for the test file | Completed | 20261019-112524 | 20261019-112524 | full suite: 9396 passed, 20 skipped; tests/docs/test_github_config_consistency.py::test_github_tools_in_tools_definitions fails on the unchanged tree too (pre-existing) and was deselected; before the script change only the rollback-option test failed (uv pre-check) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

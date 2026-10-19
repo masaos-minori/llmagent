@@ -229,7 +229,7 @@ Keep the `.env` file out of version control (it is gitignored) and restrict its 
 
 ### 2.6 Compiled Artifacts (NUITKA `--onefile`)
 
-The agent and its MCP servers are distributed as Nuitka `--onefile` binaries rather than launched through `uv run`. `deploy/build_binaries.sh` builds the 11 binaries (the agent plus one `mcp_<server>` per MCP server) on the build host; `deploy/deploy.sh` copies them into `/opt/llm/bin/`.
+The agent and its MCP servers are distributed as Nuitka `--onefile` binaries rather than launched through `uv run`. `deploy/build_binaries.sh` builds the 11 binaries (the agent plus one `mcp_<server>` per MCP server) on the build host; `deploy/deploy.sh` places them into `/opt/llm/bin/`, checks that they are current, and records the deployed revision. A change under `scripts/` reaches the agent and the MCP servers only after their binaries are rebuilt; `deploy/deploy.sh` never rebuilds them.
 
 Layout on the deployed host:
 
@@ -246,6 +246,17 @@ Layout on the deployed host:
 A missing config directory or dictionary fails startup with an explicit error naming the path.
 
 **MCP server launch.** Each subprocess-mode MCP server's `cmd` in `config/agent.toml` is the single element `/opt/llm/bin/mcp_<server>`. The agent launch in `deploy/start_agent.sh` is a compiled binary independent of those `cmd` entries. `scripts/` stays deployed alongside the binaries.
+
+**Build, freshness, and rollback.** The build writes each binary into a staging directory, records build information next to it (checksum, source commit, whether the tree was dirty, build time), and swaps the whole requested set into `/opt/llm/bin/` only after every binary passes a structural check, so a failed build leaves the previous binaries untouched. The previous set is kept in `/opt/llm/bin.prev/`, and `bash deploy/build_binaries.sh --rollback` restores it without a toolchain. `tools/manage_binaries.py check` reports, per binary, whether it is current: a binary is stale only when source paths it embeds changed since it was built, so documentation-only commits do not mark every binary stale. The table of embedded paths lives in that tool. Integrity problems (a checksum that differs from the build information, a file that is not an executable binary, or a writable bin directory) always fail the deploy; stale or unknown binaries only warn unless `DEPLOY_STRICT_BINARIES=1` is set, which is intended once every binary has build information. After each deploy `/opt/llm/DEPLOYED_REV` records the deployed commit and, per binary, its checksum and the commit it was built from.
+
+**Which components run from binaries.**
+
+| Component | Runs from | After a code change |
+|---|---|---|
+| Agent | `/opt/llm/bin/agent` | Rebuild the binary, then restart the agent |
+| MCP servers | `/opt/llm/bin/mcp_<server>` | Rebuild the binary, then restart that server |
+| Event Bus | Deployed `scripts/` source | Deploy, then restart the process |
+| Ingestion pipeline, `init_db.sh`, and the workflow validation in `deploy/start_agent.sh` | Deployed `scripts/` source | Deploy |
 
 ---
 

@@ -62,9 +62,9 @@ N/A: revert the commit; a real swap is undone with the new `--rollback` option.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `STAGE_DIR` (new), the rollback option, and the staged move with `write-info` | Pending | — | — | |
-| 2 | Add the post-loop `swap` and update the summary | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) for the changed script and tests | Pending | — | — | |
+| 1 | Add `STAGE_DIR` (new), the rollback option, and the staged move with `write-info` | Completed | 20261019-112524 | 20261019-112524 |  |
+| 2 | Add the post-loop `swap` and update the summary | Completed | 20261019-112524 | 20261019-112524 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) for the changed script and tests | Completed | 20261019-112524 | 20261019-112524 | bash -n passed; rollback option tested without Nuitka; a real staged build was not run (needs the operator); Plan Gap: the 2026-10-19 production build needed UV_SYSTEM_CERTS=true, not changed here |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
