@@ -34,4 +34,4 @@ jobs:
       - name: Run backward compatibility check
         run: |
           set -euo pipefail
-          python tools/check_compat_shims.py
+          python tools/check_compat_shims.py --check-removed-names
