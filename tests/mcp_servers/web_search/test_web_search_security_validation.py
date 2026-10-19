@@ -1,7 +1,7 @@
 """tests/mcp_servers/web_search/test_web_search_security_validation.py
 
-Web Search self-validation for scripts/mcp_servers/web_search/web_search_models.py
-(REQ-015, AC-005).
+Web Search self-validation for scripts/mcp_servers/web_search/web_search_security_checks.py
+(REQ-015, AC-005), whose checks read the WebSearchConfig defined in web_search_models.py.
 
 The checks are asserted on the validator output; the posture-level consequences (validated,
 ready, the bind gate) are pinned in tests/mcp_servers/web_search/test_web_search_health_posture.py.
@@ -19,6 +19,8 @@ from mcp_servers.web_search.web_search_models import (
     HARD_SEARCH_TIMEOUT_SEC_LIMIT,
     WEB_SEARCH_OWN_CONFIG_FILE,
     WebSearchConfig,
+)
+from mcp_servers.web_search.web_search_security_checks import (
     _is_hostname_shape,
     validate_web_search_security,
 )

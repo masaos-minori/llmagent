@@ -42,6 +42,8 @@ from mcp_servers.web_search.web_search_models import (
     WebSearchParseError,
     WebSearchTimeoutError,
     WebSearchUpstreamError,
+)
+from mcp_servers.web_search.web_search_security_checks import (
     validate_web_search_security,
 )
 from mcp_servers.web_search.web_search_tools import TOOL_LIST
