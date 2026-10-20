@@ -10,7 +10,9 @@ max_retry = 3
 # Shared token (required). It is a control-plane credential: it holds only the
 # operator, monitoring, and admin roles. It holds no publisher or consumer role,
 # so it cannot publish, subscribe, ACK, or NACK.
-auth_token = ""
+# The value is read from the environment at config load: set EVENTBUS_AUTH_TOKEN
+# in /opt/llm/.env (or <repo>/.env). An unset variable stops the Event Bus at startup.
+auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
 
 # Per-role tokens (optional, for role-based access control).
 # auth_token must always be configured; add the per-role tokens each caller needs.
