@@ -5,13 +5,14 @@ Unit tests for agent/services/session_restore.py.
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.context import ConversationState
 from agent.services.exceptions import SessionNoMessagesError
-from agent.services.session_restore import _boundary_to_index, restore_session
+from agent.services.session_restore import restore_session
 
 
 def _make_ctx(
@@ -20,12 +21,17 @@ def _make_ctx(
     extra_history: list[dict] | None = None,
     session_found: bool = True,
     undo_floor_id: int = 0,
+    count_raises: bool = False,
+    prior_undo_floor: int = 0,
 ) -> MagicMock:
     """Build a minimal AgentContext mock.
 
     ``fetch_messages`` returns the 3-tuple ``(messages, found, undo_floor_id)``
     that the restored service unpacks (rows 02/03). ``undo_floor_id`` defaults
     to 0 (no boundary); set it non-zero to exercise the boundary conversion.
+    ``count_raises`` makes ``count_messages_up_to`` raise ``sqlite3.OperationalError``
+    to exercise the failure path. ``prior_undo_floor`` seeds a pre-existing floor so a
+    half-restore is distinguishable from an untouched session.
     """
     ctx = MagicMock()
     ctx.session.fetch_messages.return_value = (
@@ -33,9 +39,13 @@ def _make_ctx(
         session_found,
         undo_floor_id,
     )
+    if count_raises:
+        ctx.session.count_messages_up_to.side_effect = sqlite3.OperationalError(
+            "disk I/O error"
+        )
     ctx.conv = ConversationState()
     ctx.conv.system_prompt_content = system_prompt_content
-    ctx.conv.undo_floor = 0
+    ctx.conv.undo_floor = prior_undo_floor
     ctx.conv.history = list(extra_history or [])
     ctx.session.session_id = 0
     return ctx
@@ -186,47 +196,85 @@ class TestRestoreSession:
         # index 1 (q1, last snapshot user) is below the floor; index 2 (a1) above.
         assert ctx.conv.history[1]["content"] == "q1"
 
-    async def test_raise_in_count_messages_up_to_leaves_state_unmutated(self):
-        """A raise in count_messages_up_to propagates before any session-state
-        mutation (session_id unchanged, reset_session_stats not called); AC-1."""
-        msgs = [{"role": "user", "content": "hi"}]
-        ctx = _make_ctx(
-            messages=msgs, system_prompt_content="Canonical.", undo_floor_id=1
-        )
-        ctx.session.count_messages_up_to.side_effect = sqlite3.Error("db down")
-        with patch("agent.services.session_restore.reset_session_stats") as mock_reset:
-            with pytest.raises(sqlite3.Error):
-                await restore_session(ctx, session_id=42)
-            mock_reset.assert_not_called()
-        # session_id was not reassigned before the raise; still its _make_ctx default.
-        assert ctx.session.session_id == 0
-
-    async def test_undo_floor_anchors_to_rebuilt_history_after_dropped_row(self):
-        """A content-less restored row is dropped by replace_history(); the undo
-        boundary anchors to the shorter rebuilt history, not the pre-sanitization
-        row count; AC-2."""
-        messages = [
-            {"role": "user"},  # missing content -> dropped by replace_history()
+    async def test_count_failure_leaves_session_state_untouched(self) -> None:
+        """A raised count_messages_up_to() must propagate before any state is mutated."""
+        msgs = [
+            {"role": "system", "content": "[summary]"},
             {"role": "user", "content": "q1"},
-            {"role": "assistant", "content": "a1"},
         ]
         ctx = _make_ctx(
-            messages=messages, system_prompt_content="Canonical.", undo_floor_id=1
+            messages=msgs,
+            system_prompt_content="Canonical.",
+            extra_history=[{"role": "user", "content": "live turn"}],
+            undo_floor_id=2,
+            prior_undo_floor=7,
+            count_raises=True,
         )
-        ctx.session.count_messages_up_to.return_value = 1  # n_snapshot
-        await restore_session(ctx, session_id=7)
-        # The content-less row is dropped; rebuilt history is [canonical sys, q1, a1].
+        with (
+            patch("agent.services.session_restore.reset_session_stats") as mock_reset,
+            pytest.raises(sqlite3.OperationalError),
+        ):
+            await restore_session(ctx, session_id=77)
+        # history not rebuilt, session not switched, prior floor not reset to the
+        # fully-undoable default, stats not zeroed.
+        assert ctx.conv.history == [{"role": "user", "content": "live turn"}]
+        assert ctx.session.session_id == 0
+        assert ctx.conv.undo_floor == 7
+        mock_reset.assert_not_called()
+
+    async def test_undo_floor_clamped_when_snapshot_row_is_dropped(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """A snapshot row dropped by validation must leave undo_floor inside the history."""
+        # Missing "content": validate_message() fails and _sanitize_message() returns
+        # None, so replace_history() drops the row instead of sanitizing it.
+        dropped = {"role": "user", "_memory_injected": True}
+        msgs = [
+            {"role": "system", "content": "[summary]"},
+            dropped,
+            {"role": "assistant", "content": "a1"},
+            {"role": "user", "content": "q2"},
+        ]
+        ctx = _make_ctx(
+            messages=msgs,
+            system_prompt_content="Canonical.",
+            undo_floor_id=4,
+        )
+        ctx.session.count_messages_up_to.return_value = 4  # snapshot covers all 4 rows
+        with caplog.at_level(logging.WARNING, logger="agent.services.session_restore"):
+            await restore_session(ctx, session_id=43)
+        # Unclamped index would be 1 + 4 - 1 = 4 against a 3-element live history.
         assert len(ctx.conv.history) == 3
-        assert all(m.get("content") for m in ctx.conv.history)
-        # Anchored to the rebuilt history, not the 4-row pre-sanitization list.
-        expected = _boundary_to_index(
-            1, ctx.conv.history, system_prompt_set=bool(ctx.conv.system_prompt_content)
+        assert ctx.conv.undo_floor == 3
+        assert ctx.conv.undo_floor <= len(ctx.conv.history)
+        assert any(
+            "undo_floor clamped" in record.getMessage()
+            for record in caplog.records
+            if record.levelno == logging.WARNING
         )
-        assert ctx.conv.undo_floor == expected == 1
-        # Sanity: the pre-sanitization anchor would over-index to 2.
-        stale = _boundary_to_index(
-            1, messages, system_prompt_set=bool(ctx.conv.system_prompt_content)
+
+    async def test_drop_outside_snapshot_leaves_index_unchanged(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """Drops outside the snapshot range must not clamp or warn."""
+        dropped = {"role": "assistant", "_memory_injected": True}
+        msgs = [
+            {"role": "system", "content": "[summary]"},
+            {"role": "user", "content": "q1"},
+            dropped,
+            {"role": "user", "content": "q2"},
+        ]
+        ctx = _make_ctx(
+            messages=msgs,
+            system_prompt_content="Canonical.",
+            undo_floor_id=2,
         )
-        assert ctx.conv.undo_floor != stale
-        # The computed index stays within the live history length.
-        assert 0 <= ctx.conv.undo_floor <= len(ctx.conv.history)
+        ctx.session.count_messages_up_to.return_value = 2  # snapshot is rows 1-2 only
+        with caplog.at_level(logging.WARNING, logger="agent.services.session_restore"):
+            await restore_session(ctx, session_id=44)
+        # 1 + 2 - 1 = 2 against a 3-element live history: no clamp, no warning.
+        assert len(ctx.conv.history) == 3
+        assert ctx.conv.undo_floor == 2
+        assert not any(
+            "undo_floor clamped" in record.getMessage() for record in caplog.records
+        )

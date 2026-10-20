@@ -55,6 +55,17 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
         raise SessionNotFoundError(f"Session {session_id} not found.")
     if not messages:
         raise SessionNoMessagesError(f"Session {session_id} has no messages.")
+    # Compute the persisted boundary index BEFORE any session state is mutated
+    # (REQ-001): a raised count_messages_up_to() must propagate with history,
+    # session_id, and stats all left exactly as they were.
+    boundary_index: int | None = None
+    if undo_floor_id:
+        n_snapshot = ctx.session.count_messages_up_to(session_id, undo_floor_id)
+        boundary_index = _boundary_to_index(
+            n_snapshot,
+            messages,
+            system_prompt_set=bool(ctx.conv.system_prompt_content),
+        )
     if ctx.conv.system_prompt_content:
         system_msgs: list[LLMMessage] = cast(
             "list[LLMMessage]",
@@ -66,16 +77,23 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
         await ctx.conv.replace_history(messages)
     # convert the persisted boundary row ID into a rebuilt-history index
     # (rows 02/04): nothing in the compressed snapshot is undoable after load.
-    # Runs before any session-state mutation so a raise leaves state untouched.
-    if undo_floor_id:
-        n_snapshot = ctx.session.count_messages_up_to(session_id, undo_floor_id)
-        ctx.conv.undo_floor = _boundary_to_index(
-            n_snapshot,
-            ctx.conv.history,
-            system_prompt_set=bool(ctx.conv.system_prompt_content),
-        )
-    else:
+    if boundary_index is None:
         ctx.conv.undo_floor = 0
+    else:
+        live_len = len(ctx.conv.history)
+        if boundary_index > live_len:
+            # replace_history() dropped snapshot rows: clamp to the live history so the
+            # floor can never point past its end. Conservative — /undo loses at most a
+            # few extra turns, and no row below the boundary is ever exposed.
+            logger.warning(
+                "Session %s undo_floor clamped %d -> %d (%d row(s) dropped by validation)",
+                session_id,
+                boundary_index,
+                live_len,
+                boundary_index - live_len,
+            )
+            boundary_index = live_len
+        ctx.conv.undo_floor = boundary_index
     ctx.session.session_id = session_id
     reset_session_stats(ctx)
     logger.info("Session %s loaded: %s messages", session_id, len(messages))
