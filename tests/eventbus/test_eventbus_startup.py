@@ -178,6 +178,7 @@ def test_main_post_start_verification_binds_loopback(tmp_path: Path) -> None:
         [sys.executable, "-m", "eventbus.app"],
         env={
             "EVENTBUS_CONFIG_PATH": str(config_path),
+            "EVENTBUS_SCHEMA_PATH": __import__("os").environ["EVENTBUS_SCHEMA_PATH"],
             "PATH": __import__("os").environ.get("PATH", ""),
         },
         cwd=str(Path(__file__).resolve().parents[2] / "scripts"),
