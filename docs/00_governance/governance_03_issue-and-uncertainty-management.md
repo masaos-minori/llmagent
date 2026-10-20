@@ -123,7 +123,22 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 Each active item is listed with all fifteen Inventory Entry Fields above.
 
-No active Needs Confirmation items remain.
+#### NC-041
+- **ID:** NC-041
+- **Source File:** `agent_08_04_configuration-mcp-approval-obs.md`
+- **Section:** Component Criticality Classification, classification table, `github` row
+- **Line Number:** 61
+- **Question:** Whether `config/agent.toml` setting `[mcp_servers.github]` to `required = false` with `startup_mode = "none"` is an approved reclassification under ADR-004 Decision Group 3 item 13, or a deviation from the approved classification (`github` = required)
+- **Evidence:** `config/agent.toml` `[mcp_servers.github]` sets `startup_mode = "none"` and `required = false` (commit `4e2442a75`, "disable the github MCP server until GITHUB_TOKEN is provisioned"); the classification table records `github` as required; ADR-004 Decision Group 3 item 13 states the `required` field in `config/agent.toml` must match the table and that configuration alone cannot weaken a mandatory component; no owner decision or table update accompanies the configuration change
+- **Impact:** Until resolved, the classification table and the deployed configuration disagree for `github`, and it is unknown whether the Fail-Closed handling of a disabled `github-mcp` has been assessed against Decision Group 3 item 10
+- **Required Action:** Record an owner decision: either update the classification table for `github` (with the item 10 assessment) or restore `required = true` when `GITHUB_TOKEN` is provisioned
+- **Status:** open
+- **Assigned To:** Unknown
+- **Last Reviewed:** 2026-10-20
+- **Priority:** Medium
+- **Related NC:** None
+- **Resolution Target:** Owner decision on the `github` classification; classification table and `config/agent.toml` agree
+- **Blocking:**
 
 ## Part 3: Canonical Source Conflict
 
