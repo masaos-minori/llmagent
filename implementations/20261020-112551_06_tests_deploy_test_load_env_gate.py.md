@@ -185,10 +185,10 @@ the last file in `tests/deploy` leaves the directory behind locally but untracke
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | after seq 03 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs are owned by seq 07, 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261020-130913 | 20261020-130913 | after seq 03 file created (creates tests/deploy); helpers and eight cases per Details |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261020-130913 | this document is the test target this document is the test target: 8 cases green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-130913 | ruff format/check and mypy clean; revert-and-bite: library absent -> 8 failed, restored -> 8 passed; stale_detector pre-implementation reported only new_target_dir_missing, post-implementation only new_target_exists, both the accepted readings recorded in this doc's Validation plan |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-130913 | docs are owned by seq 07, 08 N/A: docs owned by seq 07, 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
