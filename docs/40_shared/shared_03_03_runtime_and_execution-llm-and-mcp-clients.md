@@ -46,7 +46,7 @@ related:
 
 **Error Behavior:** Transport and stream errors raise `LLMTransportError`, classified by kind (HTTP 429/503 are retryable, other HTTP statuses are fatal; connect, read-timeout, heartbeat-timeout, malformed-frame and premature-EOF kinds are distinguished). SSE heartbeat timeouts trigger retries if enabled; malformed chunks are retried up to `sse_malformed_retry` times before raising `MALFORMED_SSE_FRAME`. Retry exhaustion raises `LLMTransportError` with `partial_text` containing accumulated output.
 
-**Retries:** Exponential backoff starting from `retry_base_delay`; limit `max_retries` for non-streaming requests; streaming reconnection uses a separate counter `sse_reconnect_max`.
+**Retries:** `LLMClient` only streams. Reconnection uses exponential backoff starting from `retry_base_delay` and is bounded by `sse_reconnect_max`; there is no separate retry limit for non-streaming requests.
 
 **Statistics (Instance-level):** the instance counts reconnects, heartbeat timeouts and parse errors. Partial completions are not accumulated: `LlmReconnectHandler.stream()` returns them but `LLMClient.stream()` discards them.
 

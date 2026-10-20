@@ -45,6 +45,8 @@ This test suite verifies that the key operational characteristics of the RAG que
 **Execution Command:**
 `uv run pytest tests/rag/test_rag_quality_regression.py -v`
 
+**Gate:** The suite is collected by the repository-wide `pytest` run of the `ci.yml` test step (`testpaths = ["tests"]`; no marker excludes it), so a failure fails that CI step. Whether the step is a required status check is a repository setting, not defined here.
+
 ### 8.2 References
 
 This section is limited to the deterministic quality regression suite. Individual stages and the `pipeline_service`/MCP service layers are covered by separate tests under `tests/rag/` and `tests/mcp_servers/rag_pipeline/`.
