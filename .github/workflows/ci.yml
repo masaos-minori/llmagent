@@ -60,6 +60,9 @@ jobs:
         run: |
           sudo mkdir -p /opt/llm
           sudo chown "$USER" /opt/llm
+          # Directories that MCP server postures check on their real deployment path
+          # (mdq allowed_dirs, file-delete audit log).
+          mkdir -p /opt/llm/docs /opt/llm/logs
           bash deploy/build_sqlite_vec.sh
       - name: Run tests
         run: uv run pytest -v
