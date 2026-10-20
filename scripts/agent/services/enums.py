@@ -34,7 +34,6 @@ class ConversationActionType(StrEnum):
     """Types of conversation-level actions that can be performed."""
 
     CLEAR = "clear"
-    SWITCH_PROMPT = "switch_prompt"
 
 
 class ExportFormat(StrEnum):
