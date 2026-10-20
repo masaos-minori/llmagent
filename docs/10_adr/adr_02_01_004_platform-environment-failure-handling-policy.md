@@ -302,7 +302,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 
 - For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale section of this document.
 - Retry policy for an unreachable MCP server: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry; subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). Subprocess readiness is polled by `HttpServerLifecycleManager._health_poll_until_ready`.
-- When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required`; the `McpServerStarter` branch that would call `disable_server()` for a non-required server is never reached (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). This is the spawn-failure exception listed in Exceptions.
+- When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required` (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). This is the spawn-failure exception listed in Exceptions.
 
 ## Known Deviations
 

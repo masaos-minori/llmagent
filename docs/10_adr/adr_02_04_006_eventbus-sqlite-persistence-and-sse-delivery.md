@@ -85,7 +85,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 
 ### Scope
 
-- **Target components**: `EventBroker`, `EventPublisher`, `EventSubscriber`, `OffsetManager`, `DlqService`
+- **Target components**: `EventBroker`, the publish, subscribe and ACK/NACK routes, offset handling (`offsets.py`), and DLQ handling (`dlq.py`, `dlq_repo.py`, `dlq_route.py`)
 - **Target processes**: the EventBus process
 - **Target data**: the `events` table, the `consumer_delivery` and `consumer_offsets` tables, DLQ state (`events.dlq_at` and deadletter files)
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
