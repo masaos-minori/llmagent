@@ -16,6 +16,9 @@ UV_PROD_FLAGS=(--frozen --no-dev)
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# .env パースと必須環境変数ゲートの共有ライブラリ（sourcing 専用。set オプションは本スクリプトの責任）
+source "${REPO_ROOT}/deploy/load_env.sh"
+
 # Workflow: pre-flight definition + schema check (see docs/02_deployment.md §2.3)
 echo "--- Pre-flight: workflow definition and schema check ---"
 
@@ -130,17 +133,38 @@ echo "OK: remote LLM services healthy (embed-llm=${HEALTH_URL_EMBED}, agent-llm=
 
 # ── Event Bus (port 8015) ──────────────────────────────────────────────────────
 echo "--- Event Bus 起動 ---"
-PYTHONPATH=/opt/llm/scripts \
-    python -m eventbus.app \
+
+ENV_FILE=""
+if [[ -f "/opt/llm/.env" ]]; then
+    ENV_FILE="/opt/llm/.env"
+elif [[ -f "${REPO_ROOT}/.env" ]]; then
+    ENV_FILE="${REPO_ROOT}/.env"
+fi
+if [[ -n "${ENV_FILE}" ]]; then
+    parse_env_file "${ENV_FILE}"
+fi
+
+EVENTBUS_CONFIG=""
+if [[ -f "/opt/llm/config/eventbus.toml" ]]; then
+    EVENTBUS_CONFIG="/opt/llm/config/eventbus.toml"
+elif [[ -f "${REPO_ROOT}/config/eventbus.toml" ]]; then
+    EVENTBUS_CONFIG="${REPO_ROOT}/config/eventbus.toml"
+fi
+require_env_vars "Event Bus" "bash deploy/setup_services.sh" "${EVENTBUS_CONFIG}"
+
+EB_AUTH_HEADER="Authorization: Bearer ${EVENTBUS_AUTH_TOKEN:-}"
+
+PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true \
+    uv run "${UV_PROD_FLAGS[@]}" python -m eventbus.app \
     >> /opt/llm/logs/eventbus.log 2>&1 &
 echo "  Event Bus PID: $!"
-echo "  Health: $(sleep 2 && curl -s http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
+echo "  Health: $(sleep 2 && curl -s -H "${EB_AUTH_HEADER}" http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
 
 # ── ヘルスチェック ────────────────────────────────────────────────────────────
 echo "--- ヘルスチェック (モデルロードに数十秒かかる場合があります) ---"
 echo "  embed-llm      : ${HEALTH_URL_EMBED} (上記ゲートで確認済み)"
 echo "  agent-llm      : ${HEALTH_URL_LLM} (上記ゲートで確認済み)"
-echo "  eventbus       (:8015): $(curl -s http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
+echo "  eventbus       (:8015): $(curl -s -H "${EB_AUTH_HEADER}" http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
 echo ""
 echo "  ※ MCP サーバ (ports 8004-8014) はエージェント起動時に自動起動します"
 echo "     llama-agent 起動後に /mcp status で確認してください"

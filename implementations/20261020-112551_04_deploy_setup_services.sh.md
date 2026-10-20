@@ -153,7 +153,7 @@ it.
 |---|---|---|
 | Syntax | `bash -n deploy/setup_services.sh` | no output, exit 0 |
 | Static | `grep -n 'uv run' deploy/setup_services.sh` | the Event Bus launch line appears with `UV_SYSTEM_CERTS=true` and `"${UV_PROD_FLAGS[@]}"` |
-| Static | `grep -c 'Authorization: Bearer' deploy/setup_services.sh` | 2 (both probes) |
+| Static | `grep -c 'curl -s -H "${EB_AUTH_HEADER}"' deploy/setup_services.sh` | 2 (both probes reuse the one header variable) |
 | Gate | `uv run pytest tests/deploy/test_load_env_gate.py -q -p no:randomly` | green (seq 06 exercises the library the script sources) |
 
 ## Completion criteria
@@ -171,10 +171,10 @@ it.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | tests are owned by seq 06 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs are owned by seq 07, 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261020-131116 | 20261020-131116 | four edits applied at :17 and the Event Bus section; all Before anchors matched source |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261020-131116 | tests are owned by seq 06 N/A here: gate behavior executed by the seq 06 cases (8 green) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-131116 | bash -n clean; launch line now carries UV_SYSTEM_CERTS=true and the UV_PROD_FLAGS array; probe-count grep = 2; the doc's original grep -c 'Authorization: Bearer' pattern was wrong (probes reference the variable, literal appears once) and the Validation row was corrected |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-131116 | docs are owned by seq 07, 08 N/A: docs owned by seq 07, 08; end-to-end run of this script stays blocked by ebops002 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
