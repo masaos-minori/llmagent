@@ -20,6 +20,9 @@ class SchemaMissingError(RuntimeError):
     """Raised when required SQLite schema tables are missing."""
 
 
+SESSION_TITLE_MAX_CHARS = 32
+
+
 class AgentSession:
     """Manages REPL session and message persistence in SQLite.
 
@@ -158,14 +161,14 @@ class AgentSession:
         self._title_pending = pending
 
     def set_title(self, title: str) -> None:
-        """Set the session title using the first user input (truncated to 50 chars). Raises sqlite3.Error on failure."""
+        """Set the session title using the first user input (truncated to 32 chars). Raises sqlite3.Error on failure."""
         self._title_pending = False
         if self.session_id is None:
             return
         with SQLiteHelper("session").open(write_mode=True) as db:
             db.execute(
                 "UPDATE sessions SET title = ? WHERE session_id = ?",
-                (title[:50], self.session_id),
+                (title[:SESSION_TITLE_MAX_CHARS], self.session_id),
             )
             db.commit()
 

@@ -198,8 +198,12 @@ class _SessionMixin(MixinBase):
             if not title:
                 self._out.write_validation_error("/session rename <title>")
                 return
+            from agent.commands.session_title import SESSION_TITLE_MAX_CHARS
+
             self._ctx.session.set_title(title)
-            self._out.write_success(f"Session renamed: {title[:50]!r}")
+            self._out.write_success(
+                f"Session renamed: {title[:SESSION_TITLE_MAX_CHARS]!r}"
+            )
             return
 
         if sub == "delete":

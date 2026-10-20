@@ -354,12 +354,14 @@ class TestSetTitle:
         rows = session.list_sessions()
         assert any(r["title"] == "My Session" for r in rows)
 
-    def test_truncates_to_50_chars(self, session: AgentSession) -> None:
+    def test_stores_at_max_chars(self, session: AgentSession) -> None:
         session.start()
         session.set_title("A" * 100)
         rows = session.list_sessions()
-        # title is stored at max 50 chars
-        assert any(len(r["title"] or "") == 50 for r in rows)
+        # title is stored at the canonical max (32) chars
+        assert any(len(r["title"] or "") == 32 for r in rows)
+        stored = next(r["title"] for r in rows if r["title"])
+        assert len(stored) == 32
 
     def test_no_op_when_session_id_none(self, session: AgentSession) -> None:
         session.set_title("ghost")  # should not raise

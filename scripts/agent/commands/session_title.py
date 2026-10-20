@@ -8,10 +8,10 @@ from agent.commands.output_port import OutputPort
 from agent.context import AgentContext
 from agent.services.exceptions import SessionTitleGenerationError
 from agent.services.session_title import SessionTitleService
+from agent.session import SESSION_TITLE_MAX_CHARS
 
 logger = logging.getLogger(__name__)
 
-SESSION_TITLE_MAX_CHARS = 32
 SESSION_TITLE_TRUNCATE_AT = SESSION_TITLE_MAX_CHARS - 3
 
 
