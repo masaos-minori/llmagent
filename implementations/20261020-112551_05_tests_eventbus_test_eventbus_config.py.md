@@ -128,10 +128,10 @@ removing them cannot affect production behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs are owned by seq 07, 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261020-131830 | 20261020-131830 | six cases appended after test_monitoring_only_deployment_succeeds; Before anchor matched the file end |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261020-131830 | this document is the test target this document is the test target: 37 green (31 existing + 6 new) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-131830 | ruff format/check and mypy clean; revert-and-bite for seq 01: config.py reverted to e683a8814 -> all 6 new cases failed, restored -> 37 green; note appended to seq 01 Step 2 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-131830 | docs are owned by seq 07, 08 N/A: docs owned by seq 07, 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -573,3 +573,130 @@ monitoring_token = "test-monitoring-token"
     cfg = load_config(config_file)
     assert cfg.monitoring_token == "test-monitoring-token"
     assert cfg.auth_token == "test-auth-token"
+
+
+def test_load_config_resolves_shared_token_env_reference(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-002: a "${ENV:...}" auth_token resolves to the variable's value."""
+    monkeypatch.setenv("EVENTBUS_AUTH_TOKEN", "resolved-shared-token")
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
+""")
+    cfg = load_config(config_file)
+    assert cfg.auth_token == "resolved-shared-token"
+    assert "${ENV:" not in cfg.auth_token
+
+
+def test_load_config_shared_token_env_reference_unset_names_the_variable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-002 fail-closed: an unset referenced variable stops the load, naming it."""
+    monkeypatch.delenv("EVENTBUS_AUTH_TOKEN", raising=False)
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
+""")
+    with pytest.raises(ValueError, match="EVENTBUS_AUTH_TOKEN"):
+        load_config(config_file)
+
+
+def test_load_config_shared_token_env_reference_empty_hits_non_empty_check(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-002: an empty referenced value falls through to the non-empty check."""
+    monkeypatch.setenv("EVENTBUS_AUTH_TOKEN", "")
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"
+""")
+    with pytest.raises(ValueError, match="must not be empty"):
+        load_config(config_file)
+
+
+def test_load_config_resolves_per_role_token_env_reference(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-002: the resolution applies to the per-role token keys as well."""
+    monkeypatch.setenv("EVENTBUS_MONITORING_TOKEN", "resolved-monitoring-token")
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-auth-token"
+monitoring_token = "${ENV:EVENTBUS_MONITORING_TOKEN}"
+""")
+    cfg = load_config(config_file)
+    assert cfg.monitoring_token == "resolved-monitoring-token"
+
+
+def test_load_config_per_role_token_env_reference_unset_names_the_variable(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-002 fail-closed: an unset per-role reference names its own variable."""
+    monkeypatch.delenv("EVENTBUS_MONITORING_TOKEN", raising=False)
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-auth-token"
+monitoring_token = "${ENV:EVENTBUS_MONITORING_TOKEN}"
+""")
+    with pytest.raises(ValueError, match="EVENTBUS_MONITORING_TOKEN"):
+        load_config(config_file)
+
+
+def test_load_config_keeps_literal_tokens_supported_beside_references(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """REQ-006: literal token configuration keeps working beside a resolved reference."""
+    monkeypatch.setenv("EVENTBUS_MONITORING_TOKEN", "resolved-monitoring-token")
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-auth-token"
+monitoring_token = "${ENV:EVENTBUS_MONITORING_TOKEN}"
+publisher_token = "test-publisher-token"
+""")
+    cfg = load_config(config_file)
+    assert cfg.auth_token == "test-auth-token"
+    assert cfg.publisher_token == "test-publisher-token"
+    assert cfg.monitoring_token == "resolved-monitoring-token"
