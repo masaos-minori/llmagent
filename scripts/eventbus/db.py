@@ -11,7 +11,7 @@ from eventbus.delivery_repo import (
     get_resume_position,
     nack_event,
 )
-from eventbus.dlq_repo import redeliver_event, requeue_event
+from eventbus.dlq_repo import redeliver_event
 from eventbus.event_repo import (
     count_dlq,
     fetch_dlq,
@@ -39,7 +39,6 @@ __all__ = [
     "get_resume_position",
     "NackResult",
     # DLQ repository
-    "requeue_event",
     "redeliver_event",
     # Offset migrator
     "migrate_legacy_offsets",
