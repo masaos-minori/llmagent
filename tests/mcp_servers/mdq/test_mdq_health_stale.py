@@ -1,8 +1,7 @@
 """tests/test_mdq_health_stale.py
 Unit tests for mdq-mcp /health stale_document_count field.
 
-Superseded by tests/test_mdq_health_endpoint.py which covers the new chunks/documents schema.
-Kept for backward compatibility with legacy sections schema references.
+Covers the chunks/documents schema; see also tests/mcp_servers/mdq/test_mdq_health_endpoint.py.
 """
 
 from __future__ import annotations
@@ -10,117 +9,6 @@ from __future__ import annotations
 import sqlite3
 import time
 from pathlib import Path
-
-import pytest
-
-
-def _create_test_db(path: str) -> None:
-    """Create a test database with documents, chunks, and chunks_fts tables."""
-    conn = sqlite3.connect(path)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute(
-        """CREATE TABLE documents (
-            doc_id TEXT PRIMARY KEY,
-            source_path TEXT NOT NULL,
-            mtime_ns INTEGER NOT NULL
-        )"""
-    )
-    conn.execute(
-        """CREATE TABLE chunks (
-            seq INTEGER PRIMARY KEY,
-            doc_id TEXT NOT NULL,
-            heading_path TEXT NOT NULL,
-            ordinal INTEGER NOT NULL,
-            content TEXT NOT NULL,
-            source_path TEXT NOT NULL
-        )"""
-    )
-    conn.execute(
-        """CREATE VIRTUAL TABLE chunks_fts USING fts5(
-            doc_id, heading_path, ordinal, content,
-            content=chunks, content_rowid=seq
-        )"""
-    )
-    conn.execute(
-        "CREATE TRIGGER chunks_ai AFTER INSERT ON chunks BEGIN "
-        "INSERT INTO chunks_fts(rowid, doc_id, heading_path, ordinal, content) "
-        "VALUES(new.seq, new.doc_id, new.heading_path, new.ordinal, new.content); END"
-    )
-    conn.execute(
-        "CREATE TRIGGER chunks_ad AFTER DELETE ON chunks BEGIN "
-        "INSERT INTO chunks_fts(chunks_fts, rowid, doc_id, heading_path, ordinal, content) "
-        "VALUES('delete', old.seq, old.doc_id, old.heading_path, old.ordinal, old.content); END"
-    )
-    conn.execute(
-        "CREATE TRIGGER chunks_au AFTER UPDATE ON chunks BEGIN "
-        "INSERT INTO chunks_fts(chunks_fts, rowid, doc_id, heading_path, ordinal, content) "
-        "VALUES('delete', old.seq, old.doc_id, old.heading_path, old.ordinal, old.content); "
-        "INSERT INTO chunks_fts(rowid, doc_id, heading_path, ordinal, content) "
-        "VALUES(new.seq, new.doc_id, new.heading_path, new.ordinal, new.content); END"
-    )
-    conn.commit()
-    conn.close()
-
-
-@pytest.fixture
-def db_path(tmp_path: Path) -> str:
-    """Create a test database with sections and sections_fts tables.
-
-    NOTE: This fixture is for legacy schema testing only. The current production
-    schema uses chunks/documents/index_state tables (see service.py:_init_db).
-    """
-    path = str(tmp_path / "mdq_test.sqlite")
-    _create_test_db(path)
-    return path
-
-
-def _insert_sections(db_path: str, rows: list[tuple[int, str, float]]) -> None:
-    """Insert section rows into the test database.
-
-    NOTE: Legacy sections schema fixture — superseded by chunks/documents schema.
-    """
-    conn = sqlite3.connect(db_path)
-    try:
-        for doc_id, source_path, mtime_ns in rows:
-            conn.execute(
-                "INSERT INTO documents (doc_id, source_path, mtime_ns) VALUES (?, ?, ?)",
-                (str(doc_id), source_path, mtime_ns),
-            )
-        conn.commit()
-    finally:
-        conn.close()
-
-
-class TestStaleDocumentCount:
-    """Verify stale_document_count field in /health response.
-
-    NOTE: These tests verify legacy sections schema behavior. The production
-    _check_stale_documents() now uses documents table with mtime_ns/indexed_at.
-    """
-
-    @pytest.mark.skip(
-        reason="Legacy test with broken variable refs (ref_mtime_ns undefined). "
-        "Production uses mtime_ns > CAST(indexed_at * 1e9 AS INTEGER) — see TestStaleDocumentCountNewSchema."
-    )
-    def test_stale_document_count_zero_when_fresh(self, db_path: str) -> None:
-        """When file_mtime matches current mtime, stale count should be 0."""
-        pass
-
-    @pytest.mark.skip(
-        reason="Legacy test with broken variable refs (ref_ns undefined). "
-        "Production uses mtime_ns > CAST(indexed_at * 1e9 AS INTEGER) — see TestStaleDocumentCountNewSchema."
-    )
-    def test_stale_document_count_positive_when_outdated(self, db_path: str) -> None:
-        """When file_mtime is older than current mtime, stale count should be > 0."""
-        pass
-
-    @pytest.mark.skip(
-        reason="Legacy test with broken variable refs (old_ns, ref_ns, stale_count undefined). "
-        "Production uses mtime_ns > CAST(indexed_at * 1e9 AS INTEGER) — see TestStaleDocumentCountNewSchema."
-    )
-    def test_stale_document_count_mixed(self, db_path: str) -> None:
-        """When some files are fresh and some are stale, count only stale."""
-        pass
 
 
 class TestStaleDocumentCountNewSchema:

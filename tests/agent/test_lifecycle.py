@@ -511,18 +511,6 @@ class TestRestart:
         # Must log warning and return without raising
         await mgr.restart("srv")
 
-    @pytest.mark.asyncio
-    async def test_restart_terminates_running_proc(self) -> None:
-        pytest.skip("source code cfg.cmd removed; skip until source fix")
-
-    @pytest.mark.asyncio
-    async def test_restart_no_existing_proc_still_starts(self) -> None:
-        pytest.skip("source code cfg.cmd removed; skip until source fix")
-
-    @pytest.mark.asyncio
-    async def test_restart_force_kills_on_terminate_timeout(self) -> None:
-        pytest.skip("source code cfg.cmd removed; skip until source fix")
-
 
 class TestHttpManagerRestart:
     """HttpServerLifecycleManager.restart() must keep the pgid available to
