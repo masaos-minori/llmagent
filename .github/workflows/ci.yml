@@ -56,6 +56,11 @@ jobs:
         run: uv sync --dev
       - name: Install ripgrep
         run: sudo apt-get update && sudo apt-get install -y ripgrep
+      - name: Build sqlite-vec extension
+        run: |
+          sudo mkdir -p /opt/llm
+          sudo chown "$USER" /opt/llm
+          bash deploy/build_sqlite_vec.sh
       - name: Run tests
         run: uv run pytest -v
       - name: Coverage report
