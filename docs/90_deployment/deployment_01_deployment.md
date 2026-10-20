@@ -156,7 +156,7 @@ Create `agent-llm` the same way. Verify both with the `curl` commands in section
 
 ### 2.3 Starting Services
 
-`deploy/setup_services.sh` runs the workflow pre-flight checks and starts the Event Bus. It does not start LLM services — it validates their remote `/health` endpoints (read from `config/agent.toml`) and blocks until both are healthy before proceeding, rather than spawning them — or MCP servers. Start the LLM services first (section 2.2a).
+`deploy/setup_services.sh` runs the workflow pre-flight checks, verifies the Event Bus credential, and starts the Event Bus. It does not start LLM services — it validates their remote `/health` endpoints (read from `config/agent.toml`) and blocks until both are healthy before proceeding, rather than spawning them — or MCP servers. Start the LLM services first (section 2.2a).
 
 MCP servers (ports defined per server in `config/agent.toml`) auto-start as agent-managed subprocesses on agent startup.
 
@@ -164,6 +164,7 @@ MCP servers (ports defined per server in `config/agent.toml`) auto-start as agen
 - Re-checks that the deployed workflow definition (`config/workflows/default.json` under the production install root) exists and re-validates it
 - Re-checks that `workflow.sqlite` exists with all required tables and a matching schema version
 - The Event Bus is started **only if** all workflow checks pass — a failure here aborts before any service is spawned
+- The Event Bus credential is checked against the variables its configuration references; a missing or empty one aborts with a `[FATAL]` list before the process is spawned
 
 ```bash
 bash deploy/setup_services.sh
@@ -207,7 +208,7 @@ Every enabled `[mcp_servers.*]` entry in `config/agent.toml` holds an `"${ENV:VA
 - Production: `<install-root>/.env` (the production install root used by `deploy/deploy.sh`)
 - Development: `<repo-root>/.env`
 
-The loader reads only simple `KEY=value` lines; comment lines (starting with `#`) and blank lines are ignored, and variables already set in the shell are never overridden. Before launching, the startup script validates that every variable referenced by the deployed configuration (`${ENV:...}` entries in `config/agent.toml` and the per-server `*_mcp_server.toml` files) is set and non-empty. Any missing variable aborts startup with a `[FATAL]` message that lists exactly which variables are unset, instead of producing a deep traceback later.
+The loader reads only simple `KEY=value` lines; comment lines (starting with `#`) and blank lines are ignored, and variables already set in the shell are never overridden. Before launching, the startup script validates that every variable referenced by the deployed configuration (`${ENV:...}` entries in `config/agent.toml` and the per-server `*_mcp_server.toml` files) is set and non-empty. Any missing variable aborts startup with a `[FATAL]` message that lists exactly which variables are unset, instead of producing a deep traceback later. `deploy/setup_services.sh` reads the same file before it starts the Event Bus, through the shared `deploy/load_env.sh`, and gates on the variables the Event Bus configuration references; the shipped file references EVENTBUS_AUTH_TOKEN for its control-plane credential. `deploy/start_agent.sh` still carries its own inline copy of these rules (Explicit in code — `deploy/start_agent.sh`, `deploy/load_env.sh`, `deploy/setup_services.sh`, `config/eventbus.toml`).
 
 Create the file with one secret per line. Replace the placeholder values below with real secrets:
 
@@ -223,6 +224,7 @@ MCP_GITHUB_AUTH_TOKEN=
 MCP_CICD_AUTH_TOKEN=
 MCP_RAG_PIPELINE_AUTH_TOKEN=
 MCP_MDQ_AUTH_TOKEN=
+EVENTBUS_AUTH_TOKEN=
 ```
 
 Keep the `.env` file out of version control (it is gitignored) and restrict its permissions with `chmod 600`. (Explicit in code — `deploy/start_agent.sh`, `.gitignore`)
@@ -321,6 +323,7 @@ Sessions, messages, and diagnostics are not recovered; past sessions can no long
 - [ ] `deploy.sh` finished successfully (no [FATAL] errors)
 - [ ] `init_db.sh` reported all mandatory tables and correct schema version
 - [ ] `setup_services.sh` passed pre-flight checks
+- [ ] `setup_services.sh` reported no `[FATAL]` Event Bus credential error, meaning EVENTBUS_AUTH_TOKEN is set in the environment file or shell
 - [ ] Each Event Bus publisher and consumer process is configured with its own per-role token, and every consumer token has explicit `consumer_authorization` (`eventbus_07_configuration-and-operations.md`, Token Distribution)
 
 ### 3.3 Failure Modes

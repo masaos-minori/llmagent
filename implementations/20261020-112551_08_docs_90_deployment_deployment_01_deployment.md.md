@@ -69,7 +69,7 @@ Edit 2:
 - The Event Bus is started **only if** all workflow checks pass — a failure here aborts before any service is spawned
 # After:
 - The Event Bus is started **only if** all workflow checks pass — a failure here aborts before any service is spawned
-- The Event Bus credential is checked against the variables its deployed configuration references; a missing or empty one aborts with a `[FATAL]` list before the process is spawned
+- The Event Bus credential is checked against the variables its configuration references; a missing or empty one aborts with a `[FATAL]` list before the process is spawned
 ```
 
 Edit 3:
@@ -78,7 +78,7 @@ Edit 3:
 # Before:
 Before launching, the startup script validates that every variable referenced by the deployed configuration (`${ENV:...}` entries in `config/agent.toml` and the per-server `*_mcp_server.toml` files) is set and non-empty. Any missing variable aborts startup with a `[FATAL]` message that lists exactly which variables are unset, instead of producing a deep traceback later.
 # After:
-Before launching, the startup script validates that every variable referenced by the deployed configuration (`${ENV:...}` entries in `config/agent.toml` and the per-server `*_mcp_server.toml` files) is set and non-empty. Any missing variable aborts startup with a `[FATAL]` message that lists exactly which variables are unset, instead of producing a deep traceback later. `deploy/setup_services.sh` reads the same file before it starts the Event Bus, through the shared helper `deploy/load_env.sh`, and gates on the variables the Event Bus configuration references — the shipped file references the EVENTBUS_AUTH_TOKEN variable for its control-plane credential. `deploy/start_agent.sh` still carries its own inline copy of these rules (Explicit in code — `deploy/start_agent.sh`, `deploy/load_env.sh`, `deploy/setup_services.sh`, `config/eventbus.toml`).
+Before launching, the startup script validates that every variable referenced by the deployed configuration (`${ENV:...}` entries in `config/agent.toml` and the per-server `*_mcp_server.toml` files) is set and non-empty. Any missing variable aborts startup with a `[FATAL]` message that lists exactly which variables are unset, instead of producing a deep traceback later. `deploy/setup_services.sh` reads the same file before it starts the Event Bus, through the shared `deploy/load_env.sh`, and gates on the variables the Event Bus configuration references; the shipped file references EVENTBUS_AUTH_TOKEN for its control-plane credential. `deploy/start_agent.sh` still carries its own inline copy of these rules (Explicit in code — `deploy/start_agent.sh`, `deploy/load_env.sh`, `deploy/setup_services.sh`, `config/eventbus.toml`).
 ```
 
 Edit 4 (the last two lines of the sample block; the Event Bus line is appended after them):
@@ -100,7 +100,7 @@ Edit 5:
 - [ ] `setup_services.sh` passed pre-flight checks
 # After:
 - [ ] `setup_services.sh` passed pre-flight checks
-- [ ] `setup_services.sh` reported no `[FATAL]` Event Bus credential error, meaning EVENTBUS_AUTH_TOKEN is set in the environment file or the shell
+- [ ] `setup_services.sh` reported no `[FATAL]` Event Bus credential error, meaning EVENTBUS_AUTH_TOKEN is set in the environment file or shell
 ```
 
 ## Compatibility considerations
@@ -150,10 +150,10 @@ Single-path revert: `git checkout HEAD -- docs/90_deployment/deployment_01_deplo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | write after seq 03, 04 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | n/a: documentation target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs checker family |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this document is the documentation target |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261020-132438 | 20261020-132438 | write after seq 03, 04 five edits applied after seq 03, 04 landed; all five Before anchors matched source at :157, :164, :208, :222-223, :320 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261020-132438 | n/a: documentation target n/a: documentation target |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-132438 | docs checker family docs checker family green including check_docs_consistency --domain deployment (exit 0, no issues); first pass measured 24400 B (margin 176, below the 200 B completion criterion), so three added sentences were trimmed 36 B to 24364 B (margin 212) and the trimmed wording was mirrored into this doc's After blocks |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-132438 | this document is the documentation target this document is the documentation target; docs/ redeploy + mdq index rebuild happen in the cycle-end deploy step |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
