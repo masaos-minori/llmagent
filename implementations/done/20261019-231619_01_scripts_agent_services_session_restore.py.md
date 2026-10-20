@@ -1,3 +1,12 @@
+> **Superseded**: sess001 was implemented with the clamp approach instead —
+> `undo_floor` clamped to the live rebuilt history length with a warning naming the
+> drift, per `plans/done/20261019-210940_plan.md` REQ-002. Canonical procedures:
+> `implementations/done/20261020-093004_01_scripts_agent_services_session_restore.py.md`
+> and its seq 02 test procedure. The anchor approach described here was not
+> adopted: `_boundary_to_index` derives the index from the DB `COUNT(*)` in
+> `count_messages_up_to()` (`scripts/agent/session_message_repo.py`), not from the
+> list passed in, so swapping `messages` for `ctx.conv.history` does not satisfy AC-2.
+
 ## Goal
 
 Make `restore_session` in `scripts/agent/services/session_restore.py` compute the `/undo` compression boundary (`ctx.conv.undo_floor`) correctly and safely (REQ-001, REQ-002): compute it before mutating any session state so a failure never leaves the session half-restored with `undo_floor == 0`, and anchor the boundary index to the post-sanitization rebuilt history so a dropped snapshot row cannot misalign `/undo`.

@@ -1,3 +1,9 @@
+> **Superseded**: the anchor-path tests described here were not adopted; the clamp
+> fix replaced the anchor approach. Canonical test procedure:
+> `implementations/done/20261020-093004_02_tests_agent_test_session_restore.py.md`.
+> See the superseded note in `20261019-231619_01_scripts_agent_services_session_restore.py.md`
+> for the reason.
+
 ## Goal
 
 Add unit tests to `tests/agent/test_session_restore.py` covering the two previously-uncovered `/undo` boundary paths introduced by `plans/20261019-210940_plan.md` (REQ-003): (a) the `count_messages_up_to` raise path, and (b) the dropped-snapshot-row path.
