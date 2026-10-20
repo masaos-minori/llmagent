@@ -18,6 +18,7 @@ from typing import cast
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.commands.registry import CommandRegistry
 from agent.repl import AgentREPL
 from agent.startup_banner import StartupBanner
 
@@ -192,6 +193,28 @@ class TestReplLoop:
         msg = repl._view.write_warning.call_args[0][0]
         assert "Unknown command" in msg
         assert "/unknown_cmd" in msg
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "removed_name", ["/diff", "/system", "/audit", "/workflow"]
+    )
+    async def test_removed_slash_command_gets_standard_unknown_hint(
+        self, removed_name: str
+    ) -> None:
+        repl = _make_bare_repl()
+        # The real registry, not a mock: the removed names must reach the unknown-command path.
+        repl._ctx.cfg.tool.tool_definitions = []
+        repl._ctx.cfg.llm.llm_url = "http://localhost/v1"
+        repl._cmds = CommandRegistry(repl._ctx, MagicMock())
+        repl._input_loop._cmds = repl._cmds
+        mock_banner = MagicMock()
+        mock_persister = AsyncMock()
+        with patch("builtins.input", side_effect=[removed_name, "/exit"]):
+            await repl._input_loop.run(mock_banner, mock_persister)
+        repl._view.write_warning.assert_called_once()
+        msg = repl._view.write_warning.call_args[0][0]
+        assert msg.startswith(f"Unknown command: {removed_name}")
+        repl._orchestrator.handle_turn.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_regular_text_dispatched_to_orchestrator(self) -> None:

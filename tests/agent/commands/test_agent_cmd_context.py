@@ -14,6 +14,7 @@ from agent.commands.command_defs_list import _COMMANDS
 from agent.commands.output_port import CliOutputPort
 from agent.commands.registry import CommandRegistry
 from agent.commands.token_display import _token_source_label
+from agent.repl import completion_command_names
 from agent.services.context_view import _build_budget, _format_memory_status
 from agent.services.context_view import budget_breakdown as _budget_breakdown
 from agent.services.models import UndoResult
@@ -298,6 +299,29 @@ def test_removed_names_absent_from_command_defs(removed_name: str) -> None:
 async def test_removed_names_dispatch_fails_like_unknown(removed_name: str) -> None:
     registry = CommandRegistry(_registry_ctx(), None)
     assert await registry.dispatch(removed_name) is False
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("removed_name", _REMOVED_COMMAND_NAMES)
+async def test_removed_names_dispatch_changes_no_state(removed_name: str) -> None:
+    ctx = _registry_ctx()
+    out = MagicMock()
+    registry = CommandRegistry(ctx, out)
+    ctx.reset_mock()
+    out.reset_mock()
+
+    assert await registry.dispatch(removed_name) is False
+    assert await registry.dispatch(f"{removed_name} some argument") is False
+
+    # No handler ran: the context was neither read through a service nor written, and
+    # nothing was printed (the Unknown-command hint belongs to the REPL input loop).
+    assert ctx.mock_calls == []
+    assert out.mock_calls == []
+
+
+@pytest.mark.parametrize("removed_name", _REMOVED_COMMAND_NAMES)
+def test_removed_names_absent_from_completion(removed_name: str) -> None:
+    assert removed_name not in completion_command_names()
 
 
 @pytest.mark.parametrize("removed_name", _REMOVED_COMMAND_NAMES)
