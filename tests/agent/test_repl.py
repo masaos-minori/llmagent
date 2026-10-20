@@ -932,14 +932,18 @@ class TestCloseResourcesWALCheckpoint:
         mock_db.execute.assert_any_call("PRAGMA database_list")
 
     @pytest.mark.asyncio
-    async def test_pragma_database_list_reads_db_path_from_column_index_2(self) -> None:
+    async def test_pragma_database_list_reads_db_path_from_column_index_2(
+        self, tmp_path
+    ) -> None:
         """db_path is read from index [2] (file path) of PRAGMA database_list, not [1]
         (the database name), when the backup stage runs."""
         repl = _make_bare_repl()
+        db_path = str(tmp_path / "session.db")
+        repl._ctx.cfg.approval.allowed_root = str(tmp_path)
         mock_db = MagicMock()
         mock_db.execute.return_value.fetchone.side_effect = [
             ("wal",),
-            (0, "main", "/opt/llm/db/session.db"),
+            (0, "main", db_path),
         ]
         mock_db.checkpoint.side_effect = sqlite3.Error("locked")
         mock_ctx_manager = MagicMock()
@@ -954,7 +958,7 @@ class TestCloseResourcesWALCheckpoint:
             await repl._shutdown.close_resources()
         mock_copy2.assert_called_once()
         args, _ = mock_copy2.call_args
-        assert args[0] == "/opt/llm/db/session.db-wal"
+        assert args[0] == f"{db_path}-wal"
 
     @pytest.mark.asyncio
     async def test_checkpoint_completes_before_pending_task_cancelled(self) -> None:
