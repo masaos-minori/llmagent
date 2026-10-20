@@ -144,6 +144,17 @@ class TestBindGate:
     def test_validated_posture_does_not_block_bind(self) -> None:
         cicd_server._enforce_posture_gate()
 
+    def test_empty_auth_token_is_a_warning_and_stays_validated(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Documented design: the server keeps the empty-token accept-all path and only
+        # reports common.auth_token as a warning; Agent startup is what rejects it.
+        posture = _posture_with(monkeypatch, auth_token="")
+
+        assert posture.validated is True
+        statuses = {check.check_id: check.status.value for check in posture.checks}
+        assert statuses["common.auth_token"] == "warning"
+
     def test_empty_repo_allowlist_makes_the_posture_unvalidated(
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:

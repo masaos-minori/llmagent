@@ -173,6 +173,17 @@ class TestBindGate:
 
         assert _failed_checks(posture)["server.top_k_bounds"] == "config_invalid"
 
+    def test_empty_auth_token_is_a_warning_and_stays_validated(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        # Documented design: the server keeps the empty-token accept-all path and only
+        # reports common.auth_token as a warning; Agent startup is what rejects it.
+        posture = _posture_with(monkeypatch, auth_token="")
+
+        assert posture.validated is True
+        statuses = {check.check_id: check.status.value for check in posture.checks}
+        assert statuses["common.auth_token"] == "warning"
+
     def test_gate_refuses_bind_and_logs_reason_codes(
         self,
         monkeypatch: pytest.MonkeyPatch,
