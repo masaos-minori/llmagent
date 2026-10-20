@@ -329,7 +329,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-013 | Software vs Documentation dependency graph separation | Imp | Manual | Human review | PR | Warning | Existing | None |
 | GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Existing | None |
-| GV-016 | No unnecessary Metadata or Status fields added | Meta | Manual | Human review | Periodic | Warning | Existing | None |
+| GV-016 | No unnecessary Metadata or Status fields added | Meta | Auto | `check_metadata_field_policy.py` | Periodic | Warning | Existing | Not run by CI or pre-commit |
 | GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Existing | None |
 | GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py --strict` | PR | Blocking | Existing | None |
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
@@ -340,16 +340,15 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 
 ### Follow-up Work Needed
 
-Rules marked "Missing" or "Partial" above need new inspection tools or processes:
+Rules whose enforcement is not yet fully automated or defaulted on:
 
 1. **GV-009, GV-010**: Automate conflict detection for unregistered prose across documents (registered claims are already checked by `GV-019`; the rest is manual)
 2. **GV-011**: Extend `stale_patterns` custom rule config to cover canonical document references
-3. **GV-016**: Automate metadata field usage policy enforcement (currently manual)
-4. **GV-017**: Four slash-command removed-name patterns are implemented
+3. **GV-017**: Four slash-command removed-name patterns are implemented
      (`/diff`, `/system`, `/audit`, `/workflow`) via `check_removed_name_reintroduction()`;
-     promote `--check-removed-names` from opt-in to default-on once the corpus is
-     compliant, per `check_compat_shims.py`'s own "report-only until compliant"
-     convention. The retired identifier patterns and historical-context markers are
+     `--check-removed-names` remains opt-in (the backward-compatibility CI workflow passes it
+     explicitly) and the corpus currently passes it, so promoting it to default-on follows
+     `check_compat_shims.py`'s own "report-only until compliant" convention. The retired identifier patterns and historical-context markers are
      defined in `tools/check_compat_shims.py` (`_REMOVED_NAME_PATTERNS`,
      `_HISTORICAL_CONTEXT_MARKERS`).
 
