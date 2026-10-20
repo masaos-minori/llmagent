@@ -4,6 +4,7 @@ Error-path unit tests for SessionTitleService.
 
 from __future__ import annotations
 
+import sqlite3
 from unittest.mock import AsyncMock, MagicMock
 
 import httpx
@@ -105,3 +106,24 @@ async def test_generate_success_returns_title() -> None:
     assert isinstance(result, SessionTitleResult)
     assert result.title == "My Session Title"
     ctx.session.set_title.assert_called_once_with("My Session Title")
+
+
+@pytest.mark.asyncio
+async def test_generate_sqlite_error_wrapped_as_title_error() -> None:
+    from agent.services.exceptions import SessionTitleGenerationError
+    from agent.services.session_title import SessionTitleService
+
+    ctx = MagicMock()
+    # Succeed the HTTP path so generate reaches ctx.session.set_title(...).
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.content = orjson.dumps(
+        {"choices": [{"message": {"content": "My Session Title"}}]}
+    )
+    ctx.services_required.http.post = AsyncMock(return_value=mock_resp)
+    # Fail the DB write performed by set_title.
+    ctx.session.set_title.side_effect = sqlite3.Error("disk I/O error")
+    with pytest.raises(SessionTitleGenerationError) as exc_info:
+        await SessionTitleService().generate(ctx, "hello")
+    # The DB error must be converted AND chained from the original cause.
+    assert isinstance(exc_info.value.__cause__, sqlite3.Error)

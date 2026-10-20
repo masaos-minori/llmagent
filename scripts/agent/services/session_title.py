@@ -9,6 +9,7 @@ can be tested independently of the REPL.
 from __future__ import annotations
 
 import logging
+import sqlite3
 from typing import TYPE_CHECKING
 
 import httpx
@@ -64,5 +65,7 @@ class SessionTitleService:
             raise SessionTitleGenerationError(str(e)) from e
         except ValueError as e:
             raise SessionTitleGenerationError(f"Response parse error: {e}") from e
+        except sqlite3.Error as e:
+            raise SessionTitleGenerationError(f"DB error: {e}") from e
         except (RuntimeError, OSError) as e:
             raise SessionTitleGenerationError(f"Unexpected error: {e}") from e
