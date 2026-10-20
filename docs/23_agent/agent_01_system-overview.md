@@ -82,7 +82,7 @@ MCP servers are called via HTTP POST `/v1/call_tool`.
 
 ### Workflow Engine Execution
 
-Every user turn runs as three workflow stages (plan/execute/verify) through the workflow engine; the tool-calling model above corresponds to the LLM turn inside the execute stage. The workflow definition is loaded at startup, and a load failure stops startup (no direct-execution fallback). See `agent_03` (turn processing flow) for details.
+Every user turn runs as three workflow stages (plan/execute/verify) through the workflow engine; the tool-calling model above corresponds to the LLM turn inside the execute stage. The workflow definition is loaded at startup, and a load failure stops startup. See `agent_03` (turn processing flow) for details.
 
 ### Session, SSE, and History Compression
 
