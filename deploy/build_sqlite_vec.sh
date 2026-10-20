@@ -7,22 +7,35 @@
 #
 # 使用例:
 #   bash deploy/build_sqlite_vec.sh
+#   SQLITE_VEC_REF=v0.1.10-alpha.4 bash deploy/build_sqlite_vec.sh  # タグ/コミットを固定
+#
+# SQLITE_VEC_REF を指定すると、その ref を checkout してビルドする (再現性が必要な
+# CI 向け)。未指定の場合は従来どおり既定ブランチの最新を取得する。
 
 set -euo pipefail
 
 SQLITE_VEC_DIR="/opt/llm/sqlite-vec"
 VEC_SO_DEST="${SQLITE_VEC_DIR}/vec0.so"
 REPO_URL="https://github.com/asg017/sqlite-vec.git"
+SQLITE_VEC_REF="${SQLITE_VEC_REF:-}"
 
 echo "=== build_sqlite_vec.sh: sqlite-vec ビルド開始 ==="
 
 # ── リポジトリの取得 ──────────────────────────────────────────────────────────
 if [ -d "${SQLITE_VEC_DIR}/.git" ]; then
-    echo "--- 既存リポジトリを更新 (git pull) ---"
-    git -C "${SQLITE_VEC_DIR}" pull --ff-only
+    if [ -n "${SQLITE_VEC_REF}" ]; then
+        echo "--- 既存リポジトリを更新 (fetch + checkout ${SQLITE_VEC_REF}) ---"
+        git -C "${SQLITE_VEC_DIR}" fetch --tags origin
+    else
+        echo "--- 既存リポジトリを更新 (git pull) ---"
+        git -C "${SQLITE_VEC_DIR}" pull --ff-only
+    fi
 else
     echo "--- リポジトリをクローン ---"
     git clone "${REPO_URL}" "${SQLITE_VEC_DIR}"
+fi
+if [ -n "${SQLITE_VEC_REF}" ]; then
+    git -C "${SQLITE_VEC_DIR}" checkout --detach "${SQLITE_VEC_REF}"
 fi
 
 # ── ビルド ────────────────────────────────────────────────────────────────────

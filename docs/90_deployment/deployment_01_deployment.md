@@ -86,6 +86,8 @@ bash deploy/build_sqlite_vec.sh
 
 The build output path must match `sqlite_vec_so` in `config/agent.toml`.
 
+By default the script builds the latest default branch. Set `SQLITE_VEC_REF` to a tag or commit to build that exact revision instead; CI pins it so the extension matches the release production runs.
+
 ### 2.2 Deploying scripts
 
 `deploy/deploy.sh` performs bulk copying of scripts, config files, and SQL files.

@@ -63,7 +63,8 @@ jobs:
           # Directories that MCP server postures check on their real deployment path
           # (mdq allowed_dirs, file-delete audit log).
           mkdir -p /opt/llm/docs /opt/llm/logs
-          bash deploy/build_sqlite_vec.sh
+          # Pinned to the release production runs, so the extension does not drift.
+          SQLITE_VEC_REF=v0.1.10-alpha.4 bash deploy/build_sqlite_vec.sh
       - name: Run tests
         run: uv run pytest -v
       - name: Coverage report
