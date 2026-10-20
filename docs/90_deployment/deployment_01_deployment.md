@@ -156,7 +156,7 @@ Create `agent-llm` the same way. Verify both with the `curl` commands in section
 
 ### 2.3 Starting Services
 
-`deploy/setup_services.sh` runs the workflow pre-flight checks, verifies the Event Bus credential, and starts the Event Bus. It does not start LLM services — it validates their remote `/health` endpoints (read from `config/agent.toml`) and blocks until both are healthy before proceeding, rather than spawning them — or MCP servers. Start the LLM services first (section 2.2a).
+`deploy/setup_services.sh` runs the workflow pre-flight checks, verifies the Event Bus credential, and starts the Event Bus. It does not start LLM services — it validates their remote `/health` endpoints (read from `config/agent.toml`), waiting for them rather than spawning them — or MCP servers. An unhealthy `agent-llm` aborts the script; an unreachable `embed-llm` only warns and the Event Bus still starts, unless `LLM_GATE_STRICT=1` requires both. Start the LLM services first (section 2.2a).
 
 MCP servers (ports defined per server in `config/agent.toml`) auto-start as agent-managed subprocesses on agent startup.
 
@@ -335,6 +335,7 @@ Sessions, messages, and diagnostics are not recovered; past sessions can no long
 | `[FATAL] Deployed workflow definition checksum does not match source; deployment corrupted.` | deploy.sh | Re-run `deploy.sh`, check filesystem integrity |
 | `[FATAL] Workflow database schema is missing or incomplete.` | init_db.sh / setup_services.sh | Re-run `init_db.sh` |
 | `[FATAL] Workflow schema version mismatch: expected <X>, found <Y>.` | setup_services.sh | Apply migrations via `init_db.sh` |
+| `[FATAL] LLM services did not become ready within <N> attempts` | setup_services.sh | Start `agent-llm` (or `embed-llm` under `LLM_GATE_STRICT=1`); an unreachable `embed-llm` alone only warns |
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).
 

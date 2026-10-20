@@ -84,6 +84,9 @@ echo "--- LLM サービスのヘルスチェック ---"
 # 環境変数で上書き可能（デプロイ時の調整用）。
 LLM_HEALTH_RETRIES="${LLM_HEALTH_RETRIES:-30}"
 LLM_HEALTH_INTERVAL="${LLM_HEALTH_INTERVAL:-5}"
+# agent-llm は必須（未達で abort）。embed-llm は任意（既定は警告のみ）。
+# LLM_GATE_STRICT=1 で embed-llm も必須にする（どちらか未達で abort）。
+LLM_GATE_STRICT="${LLM_GATE_STRICT:-0}"
 
 read_llm_base() {
     # config/agent.toml から指定キー(base URL)を uv run python で読み取る。
@@ -108,28 +111,46 @@ fi
 HEALTH_URL_EMBED="${EMBED_URL}/health"
 HEALTH_URL_LLM="${LLM_URL}/health"
 
+gate_fail() {
+    echo "[FATAL] LLM services did not become ready within ${LLM_HEALTH_RETRIES} attempts (~$((LLM_HEALTH_RETRIES * LLM_HEALTH_INTERVAL))s)." >&2
+    echo "  embed-llm (${HEALTH_URL_EMBED}): last status ${code_embed:-unreachable}" >&2
+    echo "  agent-llm (${HEALTH_URL_LLM}): last status ${code_llm:-unreachable}" >&2
+    exit 1
+}
+
 code_embed=""
 code_llm=""
-ready=0
+embed_ok=0
+llm_ok=0
 for (( attempt=1; attempt<=LLM_HEALTH_RETRIES; attempt++ )); do
     code_embed=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 "${HEALTH_URL_EMBED}" 2>/dev/null || true)
     code_llm=$(curl -fsS -o /dev/null -w '%{http_code}' --max-time 5 "${HEALTH_URL_LLM}" 2>/dev/null || true)
-    if [ "${code_embed}" = "200" ] && [ "${code_llm}" = "200" ]; then
-        ready=1
+    embed_ok=0
+    llm_ok=0
+    if [ "${code_embed}" = "200" ]; then embed_ok=1; fi
+    if [ "${code_llm}" = "200" ]; then llm_ok=1; fi
+    if [ "${embed_ok}" -eq 1 ] && [ "${llm_ok}" -eq 1 ]; then
         break
     fi
     echo "  ...待機 (${attempt}/${LLM_HEALTH_RETRIES}): embed-llm=${code_embed:---}, agent-llm=${code_llm:---}"
     sleep "${LLM_HEALTH_INTERVAL}"
 done
 
-if [ "${ready}" -ne 1 ]; then
-    echo "[FATAL] LLM services did not become ready within ${LLM_HEALTH_RETRIES} attempts (~$((LLM_HEALTH_RETRIES * LLM_HEALTH_INTERVAL))s)." >&2
-    echo "  embed-llm (${HEALTH_URL_EMBED}): last status ${code_embed:-unreachable}" >&2
-    echo "  agent-llm (${HEALTH_URL_LLM}): last status ${code_llm:-unreachable}" >&2
-    exit 1
+if [ "${llm_ok}" -ne 1 ]; then
+    gate_fail
 fi
 
-echo "OK: remote LLM services healthy (embed-llm=${HEALTH_URL_EMBED}, agent-llm=${HEALTH_URL_LLM})"
+LLM_STATE="healthy"
+EMBED_STATE="healthy"
+if [ "${embed_ok}" -ne 1 ]; then
+    if [ "${LLM_GATE_STRICT}" = "1" ]; then
+        gate_fail
+    fi
+    EMBED_STATE="UNREACHABLE (last status ${code_embed:-unreachable}) - degraded, non-fatal"
+    echo "[WARN] embed-llm unreachable at ${HEALTH_URL_EMBED} (last status ${code_embed:-unreachable}); continuing. Embedding-dependent features are degraded." >&2
+else
+    echo "OK: remote LLM services healthy (embed-llm=${HEALTH_URL_EMBED}, agent-llm=${HEALTH_URL_LLM})"
+fi
 
 # ── Event Bus (port 8015) ──────────────────────────────────────────────────────
 echo "--- Event Bus 起動 ---"
@@ -157,17 +178,24 @@ EB_AUTH_HEADER="Authorization: Bearer ${EVENTBUS_AUTH_TOKEN:-}"
 PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true \
     uv run "${UV_PROD_FLAGS[@]}" python -m eventbus.app \
     >> /opt/llm/logs/eventbus.log 2>&1 &
-echo "  Event Bus PID: $!"
+EB_PID=$!
+echo "  Event Bus PID: ${EB_PID}"
 echo "  Health: $(sleep 2 && curl -s -H "${EB_AUTH_HEADER}" http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
 
 # ── ヘルスチェック ────────────────────────────────────────────────────────────
 echo "--- ヘルスチェック (モデルロードに数十秒かかる場合があります) ---"
-echo "  embed-llm      : ${HEALTH_URL_EMBED} (上記ゲートで確認済み)"
-echo "  agent-llm      : ${HEALTH_URL_LLM} (上記ゲートで確認済み)"
+echo "  embed-llm      : ${HEALTH_URL_EMBED} (${EMBED_STATE})"
+echo "  agent-llm      : ${HEALTH_URL_LLM} (${LLM_STATE})"
 echo "  eventbus       (:8015): $(curl -s -H "${EB_AUTH_HEADER}" http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
 echo ""
 echo "  ※ MCP サーバ (ports 8004-8014) はエージェント起動時に自動起動します"
 echo "     llama-agent 起動後に /mcp status で確認してください"
+
+echo ""
+echo "--- サービス状況サマリ ---"
+echo "  Event Bus (:8015, PID ${EB_PID}): started"
+echo "  agent-llm (${HEALTH_URL_LLM}): ${LLM_STATE}"
+echo "  embed-llm (${HEALTH_URL_EMBED}): ${EMBED_STATE}"
 
 echo ""
 echo "=== setup_services.sh: 完了 ==="

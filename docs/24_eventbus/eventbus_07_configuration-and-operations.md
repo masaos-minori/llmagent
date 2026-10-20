@@ -109,6 +109,8 @@ EVENTBUS_CONFIG_PATH=<path-to-eventbus.toml> python -m eventbus.app
 
 Do not start the server with `uvicorn` directly. Starting through `python -m eventbus.app` is required because it runs the post-start loopback verification, which a direct `uvicorn` invocation bypasses (see `eventbus_06_persistence_schema_and_replay.md`).
 
+The Event Bus process has no dependency on the remote LLM services (`embed-llm`, `agent-llm`). `deploy/setup_services.sh` withholds its launch only when `agent-llm` fails the health gate, or when either service fails under `LLM_GATE_STRICT=1`; an unreachable `embed-llm` alone does not prevent it.
+
 The shipped `config/eventbus.toml` stores the shared control-plane credential as an environment reference. Configuration loading aborts with a `ValueError` naming the variable when it is unset, and the deployment script reports the same missing variable in its `[FATAL]` list before launching the process. (Explicit in code — `scripts/eventbus/config.py`, `config/eventbus.toml`, `deploy/setup_services.sh`)
 
 ---
