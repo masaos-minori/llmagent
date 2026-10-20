@@ -17,6 +17,8 @@ UV_PROD_FLAGS=(--frozen --no-dev)
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
 # .env パースと必須環境変数ゲートの共有ライブラリ（sourcing 専用。set オプションは本スクリプトの責任）
+# The library is shellchecked as its own file; the job does not pass -x, so it is not followed here.
+# shellcheck disable=SC1091
 source "${REPO_ROOT}/deploy/load_env.sh"
 
 # Workflow: pre-flight definition + schema check (see docs/02_deployment.md §2.3)
