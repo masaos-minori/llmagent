@@ -267,19 +267,10 @@ module only gains helpers and cases; production code is untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 2 | Add or update tests per Validation plan | Completed | — | 20261020-130356 | this document is the test target 3 new cases appended; 6 fast cases green, 2 integration gates green |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-130356 | ruff format/check, mypy clean; negative control: temporarily adding the token to _DEFAULT_ALLOWED_ENV_VARS failed both new cases, then git checkout restored the validator (diff empty); stale_detector green post-implementation |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-130356 | no docs row applies to this target N/A: docs owned by seq 07, 08 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-130356 | ruff format/check, mypy clean; negative control: temporarily adding the token to _DEFAULT_ALLOWED_ENV_VARS failed both new cases, then git checkout restored the validator (diff empty); stale_detector green post-implementation |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-130356 | no docs row applies to this target N/A: docs owned by seq 07, 08 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-130356 | no docs row applies to this target N/A: docs owned by seq 07, 08 |
 | 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261020-130356 | 20261020-130356 | after seq 02 five edits applied; all Before anchors matched source; one extra 'assert filtered is not None' line added for mypy (filter_env returns dict|None) and mirrored into this doc's Details |
-| 2 | Add or update tests per Validation plan | Pending | — | — | this document is the test target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — |  |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | no docs row applies to this target |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261020-130356 | this document is the test target; 3 new cases appended; 6 fast cases green, 2 integration gates green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-130356 | ruff format/check, mypy clean; negative control: temporarily adding the token to _DEFAULT_ALLOWED_ENV_VARS failed both new cases, then git checkout restored the validator (diff empty); stale_detector green post-implementation |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-130356 | no docs row applies to this target; N/A: docs owned by seq 07, 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
