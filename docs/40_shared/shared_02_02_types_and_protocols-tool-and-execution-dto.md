@@ -81,7 +81,7 @@ Immutable tool definition — each tool belongs to exactly one MCP server.
 
 ## 9. `ShellPolicy` (`shared/protocols/shell.py`)
 
-An immutable `frozen=True` dataclass — has no dependencies on FastAPI, MCP, or agents (depends only on `shared` → external). Used by `mcp_servers/shell/service.py` (`ShellService`) as its configuration object.
+An immutable `frozen=True` dataclass — has no dependencies on FastAPI, MCP, or agents (depends only on `shared` → external). Used by `mcp_servers/shell/shell_service.py` (`ShellService`) as its configuration object.
 
 **Failure Intent:** `__post_init__` raises `ValueError` for an unknown `kill_policy` or `sandbox_backend` and for out-of-range timeout, output, memory or grace limits, so an invalid policy cannot be constructed.
 

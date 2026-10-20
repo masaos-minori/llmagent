@@ -84,7 +84,7 @@ Each step is independently guarded so that if one fails, others still execute. W
 
 ### SIGINT/SIGTERM Interruption During Startup
 
-If SIGINT/SIGTERM is received during the startup sequence, a `ShutdownInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event.
+If SIGINT/SIGTERM is received during the startup sequence, a `StartupInterrupted` exception is raised, triggering a rollback. The HTTP subprocess health polling loop is also immediately interrupted by the shutdown event.
 
 ### Secret Masking in MCP Subprocess Failure Reports
 
