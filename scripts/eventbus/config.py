@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from shared.config_loader import ConfigLoader
+from shared.config_utils import resolve_env_ref
 
 _DEFAULT_CONFIG_PATH = Path("/opt/llm/config/eventbus.toml")
 _DEFAULT_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
@@ -259,6 +260,18 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
     "publish_rate": float,
 }
 
+# Token keys whose value may be a "${ENV:VAR_NAME}" reference. Resolved in
+# load_config() before any value is validated, so a reference can never be used
+# as a literal token and an unset variable fails the load.
+_TOKEN_CONFIG_KEYS: tuple[str, ...] = (
+    "auth_token",
+    "publisher_token",
+    "consumer_token",
+    "operator_token",
+    "monitoring_token",
+    "admin_token",
+)
+
 
 def load_config(path: Path | None = None) -> EventBusConfig:
     """Load and validate the EventBus TOML configuration file.
@@ -303,6 +316,12 @@ def load_config(path: Path | None = None) -> EventBusConfig:
                     f"eventbus config key '{key}' has type {type(value).__name__}, "
                     f"expected {expected_type.__name__}."
                 )
+
+    # Resolve "${ENV:VAR_NAME}" references before validating any token value
+    for key in _TOKEN_CONFIG_KEYS:
+        value = data.get(key)
+        if isinstance(value, str):
+            data[key] = resolve_env_ref(value)
 
     # Validate auth_token is non-empty
     if not data["auth_token"]:

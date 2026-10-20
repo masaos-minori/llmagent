@@ -146,10 +146,10 @@ depends on the new behavior.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | tests are owned by seq 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | docs are owned by seq 07, 08 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261020-124854 | 20261020-125657 | three edits applied; verified against source at :10, :259-260, :307-308 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261020-125657 | tests are owned by seq 05 N/A here: tests owned by seq 05; existing tests/eventbus suite green (360 passed, 1 skipped); revert-and-bite deferred to seq 05 per Validation plan |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-125657 | ruff format/check, mypy, lint-imports (6 kept), check_module_size (OK), bandit clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-125657 | docs are owned by seq 07, 08 N/A: docs owned by seq 07, 08 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
