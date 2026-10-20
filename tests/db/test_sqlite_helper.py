@@ -316,3 +316,64 @@ class TestSQLiteHelperVecDefault:
             with off.open(load_vec=True):
                 pass
             load.assert_called_once()
+
+
+class TestSQLiteHelperVecExtensionLoading:
+    """Real-connection behavior of the sqlite-vec load policy (docs/41_db, 4b)."""
+
+    @staticmethod
+    def _config(tmp_path: Path, vec_so: str) -> object:
+        from db.config import DbConfig
+
+        return DbConfig(
+            rag_db_path=str(tmp_path / "rag.sqlite"),
+            session_db_path=str(tmp_path / "session.sqlite"),
+            workflow_db_path=str(tmp_path / "workflow.sqlite"),
+            eventbus_db_path=str(tmp_path / "eventbus.sqlite"),
+            sqlite_vec_so=vec_so,
+        )
+
+    @pytest.mark.parametrize("target", ["rag", "session"])
+    def test_empty_vec_so_opens_without_the_extension(
+        self, tmp_path: Path, target: str
+    ) -> None:
+        """Empty sqlite_vec_so skips the load; a later vec0 access fails visibly."""
+        from unittest.mock import patch
+
+        cfg = self._config(tmp_path, "")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            with SQLiteHelper(target).open(write_mode=True) as db:
+                assert db.conn is not None
+                loaded = db.conn.execute(
+                    "SELECT count(*) FROM pragma_module_list WHERE name = 'vec0'"
+                ).fetchone()[0]
+                assert loaded == 0
+                with pytest.raises(sqlite3.OperationalError):
+                    db.conn.execute(
+                        "CREATE VIRTUAL TABLE v USING vec0(embedding float[4])"
+                    )
+
+    @pytest.mark.parametrize("target", ["rag", "session"])
+    def test_unloadable_vec_so_raises_at_open(
+        self, tmp_path: Path, target: str
+    ) -> None:
+        """A configured but unloadable extension fails at open, not on first use."""
+        from unittest.mock import patch
+
+        cfg = self._config(tmp_path, str(tmp_path / "missing" / "vec0.so"))
+        with patch("db.helper.build_db_config", return_value=cfg):
+            helper = SQLiteHelper(target)
+            with pytest.raises(sqlite3.OperationalError):
+                helper.open()
+            assert helper.conn is None
+
+    def test_workflow_ignores_a_configured_unloadable_vec_so(
+        self, tmp_path: Path
+    ) -> None:
+        """Targets that own no vec0 table never attempt the load."""
+        from unittest.mock import patch
+
+        cfg = self._config(tmp_path, str(tmp_path / "missing" / "vec0.so"))
+        with patch("db.helper.build_db_config", return_value=cfg):
+            with SQLiteHelper("workflow").open() as db:
+                assert db.conn is not None
