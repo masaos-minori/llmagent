@@ -10,6 +10,8 @@ from __future__ import annotations
 import logging
 import os
 import sqlite3
+import subprocess
+import sys
 import uuid
 from pathlib import Path
 
@@ -106,3 +108,30 @@ def test_collection_check_flags_production_handler(tmp_path: Path) -> None:
     finally:
         logger.removeHandler(handler)
         handler.close()
+
+
+def test_conftest_imports_on_host_without_production_db_dir() -> None:
+    """The isolation setup must not need /opt/llm/db to exist (CI runner case).
+
+    Runs conftest in a child process with only that directory hidden from
+    Path.exists, so DbConfig's parent-directory check sees what a runner sees.
+    """
+    repo = Path(__file__).resolve().parent.parent
+    code = (
+        "import os, pathlib, runpy\n"
+        "orig = pathlib.Path.exists\n"
+        "pathlib.Path.exists = lambda self, *a, **k: (\n"
+        "    False if str(self) == '/opt/llm/db' else orig(self, *a, **k)\n"
+        ")\n"
+        "os.environ.pop('LLMAGENT_TEST_ROOT', None)\n"
+        "runpy.run_path('tests/conftest.py', run_name='conftest_probe')\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-I", "-c", code],
+        cwd=repo,
+        capture_output=True,
+        text=True,
+        timeout=120,
+        check=False,
+    )
+    assert result.returncode == 0, result.stderr[-800:]

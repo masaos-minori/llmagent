@@ -116,23 +116,34 @@ def _isolate_db_config_default(root: Path) -> None:
     """Point build_db_config()'s code-level workflow default into the isolation root.
 
     agent.toml does not set workflow_db_path (the production config validator rejects
-    the key), so build_db_config() falls back to a production default in code. Wrap it
-    at its origin and in the already-imported db modules; later importers get the
-    wrapper from db.config.
+    the key), so build_db_config() falls back to a production default in code, and
+    DbConfig refuses to be built when that path's parent directory is missing (a host
+    without /opt/llm/db, such as the CI runner). The default is therefore supplied
+    through the config mapping that db.config reads, before DbConfig is constructed,
+    and only for build_db_config() calls: other ConfigLoader users still see the
+    unmodified agent.toml. Wrap it at its origin and in the already-imported db
+    modules; later importers get the wrapper from db.config.
     """
-    import dataclasses
-
     import db.config as db_config
+    from shared.config_loader import ConfigLoader
 
     original = db_config.build_db_config
-    production_default = "/opt/llm/db/workflow.sqlite"
     isolated = str(root / "db" / "workflow.sqlite")
 
+    class _IsolatedConfigLoader(ConfigLoader):
+        def load(self, *names: str) -> dict[str, Any]:
+            data = super().load(*names)
+            if names == ("agent.toml",):
+                data = {"workflow_db_path": isolated, **data}
+            return data
+
     def build_db_config_isolated() -> Any:
-        cfg = original()
-        if cfg.workflow_db_path == production_default:
-            return dataclasses.replace(cfg, workflow_db_path=isolated)
-        return cfg
+        saved = db_config.ConfigLoader
+        db_config.ConfigLoader = _IsolatedConfigLoader  # type: ignore[misc] — scoped swap of the loader class for one call
+        try:
+            return original()
+        finally:
+            db_config.ConfigLoader = saved  # type: ignore[misc] — restore the loader class swapped above
 
     db_config.build_db_config = build_db_config_isolated
     # Importing db.config runs db/__init__.py, which already bound the original in the
