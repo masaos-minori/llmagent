@@ -42,6 +42,21 @@ _ENV_REF_RE = re.compile(r"\$\{ENV:([A-Za-z_][A-Za-z0-9_]*)\}")
 # future allowlist pattern cannot admit them by accident.
 _LOADER_ENV_VARS = ("LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH")
 
+# Configuration files whose `${ENV:...}` references a subprocess server actually reads: the
+# servers load agent.toml plus their own *_mcp_server.toml, and the rag_pipeline server imports
+# scripts/rag/ingestion, which reads the three ingestion files below.
+_SUBPROCESS_REACHABLE_CONFIGS: frozenset[str] = frozenset(
+    {"agent.toml", "crawler.toml", "chunk_splitter.toml", "ingester.toml"}
+)
+_SUBPROCESS_REACHABLE_PATTERNS: tuple[str, ...] = ("*_mcp_server.toml",)
+
+# Configuration files no subprocess server reads: eventbus.toml is read by eventbus.app, which
+# deploy/setup_services.sh starts directly, and documentation_canonical_sources.toml is read only
+# by tools/. Their references must not widen what a child process is given.
+_OTHER_PROCESS_CONFIGS: frozenset[str] = frozenset(
+    {"eventbus.toml", "documentation_canonical_sources.toml"}
+)
+
 # Entry module for each `startup_mode = "subprocess"` server in config/agent.toml.
 # The repository holds no binary-name to module build manifest (the binaries are built
 # on the deployment host), so this table is the mapping, and
@@ -77,12 +92,46 @@ def _subprocess_servers() -> dict[str, Any]:
     }
 
 
-def _config_env_refs() -> set[str]:
-    """Every `${ENV:VAR}` variable name referenced by the shipped config."""
+def _shipped_config_files() -> list[Path]:
+    """Every shipped configuration file under config/."""
+    return sorted(_CONFIG_DIR.glob("*.toml"))
+
+
+def _is_subprocess_reachable(name: str) -> bool:
+    """Whether a configuration file is one an agent subprocess server reads."""
+    return name in _SUBPROCESS_REACHABLE_CONFIGS or any(
+        fnmatch.fnmatch(name, pattern) for pattern in _SUBPROCESS_REACHABLE_PATTERNS
+    )
+
+
+def _config_files_by_class() -> tuple[list[Path], list[Path]]:
+    """Shipped configuration files split into (subprocess-reachable, other-process)."""
+    reachable: list[Path] = []
+    other: list[Path] = []
+    for path in _shipped_config_files():
+        if _is_subprocess_reachable(path.name):
+            reachable.append(path)
+        else:
+            other.append(path)
+    return reachable, other
+
+
+def _env_refs_in(paths: list[Path]) -> set[str]:
+    """`${ENV:VAR}` variable names referenced by the given files."""
     refs: set[str] = set()
-    for path in sorted(_CONFIG_DIR.glob("*.toml")):
+    for path in paths:
         refs.update(_ENV_REF_RE.findall(path.read_text(encoding="utf-8")))
     return refs
+
+
+def _config_env_refs() -> set[str]:
+    """`${ENV:VAR}` names in the configurations an agent subprocess server reads."""
+    return _env_refs_in(_config_files_by_class()[0])
+
+
+def _all_config_env_refs() -> set[str]:
+    """`${ENV:VAR}` names in every shipped configuration file."""
+    return _env_refs_in(_shipped_config_files())
 
 
 def _is_allowed(name: str) -> bool:
@@ -100,7 +149,9 @@ def _parent_env(*, with_tokens: bool) -> dict[str, str]:
         "HOME": os.environ.get("HOME", "/root"),
     }
     if with_tokens:
-        parent.update({name: "integration-test-token" for name in _config_env_refs()})
+        parent.update(
+            {name: "integration-test-token" for name in _all_config_env_refs()}
+        )
     return parent
 
 
@@ -130,7 +181,9 @@ class TestAllowlistCoversShippedConfig:
 
     def test_config_env_refs_are_all_allowlisted(self) -> None:
         refs = _config_env_refs()
-        assert refs, "no ${ENV:...} reference found in config/*.toml"
+        assert refs, (
+            "no ${ENV:...} reference found in the config files a subprocess server reads"
+        )
         uncovered = sorted(name for name in refs if not _is_allowed(name))
         assert not uncovered, (
             "config references ${ENV:...} variables the allowlist does not admit: "
@@ -189,3 +242,56 @@ class TestFilteredEnvironmentStartsEveryServer:
             "the gate no longer detects a missing allowlist entry"
         )
         assert "MCP_SHELL_AUTH_TOKEN" in (result.stderr or "")
+
+
+class TestSubprocessConfigClassification:
+    """What the allowlist must cover, and what it must never be asked to cover."""
+
+    def test_every_shipped_config_is_in_exactly_one_class(self) -> None:
+        files = _shipped_config_files()
+        assert files, "no configuration files found under config/"
+        reachable, other = _config_files_by_class()
+        assert {path.name for path in reachable}.isdisjoint(
+            {path.name for path in other}
+        )
+        unclassified = sorted(
+            path.name
+            for path in files
+            if not _is_subprocess_reachable(path.name)
+            and path.name not in _OTHER_PROCESS_CONFIGS
+        )
+        assert not unclassified, (
+            "config/*.toml files in neither class; adding a configuration is a decision "
+            "about whether a subprocess server reads it: " + ", ".join(unclassified)
+        )
+        for name in sorted(_SUBPROCESS_REACHABLE_CONFIGS | _OTHER_PROCESS_CONFIGS):
+            assert (_CONFIG_DIR / name).is_file(), (
+                f"classified configuration does not exist: {name}"
+            )
+
+    def test_other_process_references_are_not_allowlisted(self) -> None:
+        refs = _env_refs_in(_config_files_by_class()[1])
+        assert refs, "the other-process configurations reference no ${ENV:...} variable"
+        admitted = sorted(name for name in refs if _is_allowed(name))
+        assert not admitted, (
+            "the subprocess allowlist admits variables no subprocess server reads: "
+            + ", ".join(admitted)
+        )
+
+    def test_filter_env_keeps_other_process_tokens_out_of_the_child(self) -> None:
+        reachable_refs = _config_env_refs()
+        other_refs = _env_refs_in(_config_files_by_class()[1])
+        assert reachable_refs and other_refs, "classification produced an empty set"
+        with patch.dict(os.environ, _parent_env(with_tokens=True), clear=True):
+            filtered = CommandValidator().filter_env({})
+        assert filtered is not None
+        leaked = sorted(name for name in other_refs if name in filtered)
+        assert not leaked, (
+            "the filtered child environment carries a credential only another process reads: "
+            + ", ".join(leaked)
+        )
+        missing = sorted(name for name in reachable_refs if name not in filtered)
+        assert not missing, (
+            "the filtered child environment lost a credential a server reads: "
+            + ", ".join(missing)
+        )
