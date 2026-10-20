@@ -201,10 +201,10 @@ Also add `from typing import cast` to the import block if `typing` is not alread
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `_make_ctx()` with `count_raises` and `prior_undo_floor` | Pending | — | — | additive defaults only |
-| 2 | Add the three tests to `TestRestoreSession` | Pending | — | — | confirm the red state before seq 01 lands |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest, ruff, mypy, mock-target checker |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only row |
+| 1 | Extend `_make_ctx()` with `count_raises` and `prior_undo_floor` | Completed | — | 20261020-095800 | additive defaults only helper gained count_raises and prior_undo_floor (additive defaults) |
+| 2 | Add the three tests to `TestRestoreSession` | Completed | — | 20261020-095800 | confirm the red state before seq 01 lands 3 tests added; 2 fail against the pre-fix source (undo_floor 4 out of range; history already replaced) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-095800 | pytest, ruff, mypy, mock-target checker 16 passed; ruff/format clean; check_mock_patch_targets no findings |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-095800 | N/A: test-only row N/A: test-only row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -207,10 +207,10 @@ Replace the region from L58 through L79 with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | boundary block split + clamp |
-| 2 | Run the new raise-path and dropped-row tests from seq 02 against this file | Pending | — | — | `tests/agent/test_session_restore.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | targeted pytest, ruff, mypy, lint-imports, module-size gate |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | expected N/A — confirm with `rg -l "undo_floor" docs/` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | — | 20261020-095800 | boundary block split + clamp clamp + pre-mutation boundary block committed in 5aca07409 |
+| 2 | Run the new raise-path and dropped-row tests from seq 02 against this file | Completed | — | 20261020-095800 | `tests/agent/test_session_restore.py` 16 passed in tests/agent/test_session_restore.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-095800 | targeted pytest, ruff, mypy, lint-imports, module-size gate ruff/format clean; mypy clean; lint-imports 6 kept; module-size gate rc 0; tests/agent 3451 passed, 10 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-095800 | expected N/A — confirm with `rg -l "undo_floor" docs/` N/A: rg -l undo_floor docs/ returns 5 files, none states the restore boundary derivation this change alters; no docs/00_index.md task-scope mapping applies |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
