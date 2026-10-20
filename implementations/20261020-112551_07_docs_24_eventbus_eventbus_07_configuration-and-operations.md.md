@@ -141,10 +141,10 @@ depends on the wording.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | write after seq 01, 02 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | n/a: documentation target |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs checker family |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this document is the documentation target |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261020-132038 | 20261020-132038 | write after seq 01, 02 four edits applied after seq 01-06 landed; all four Before anchors matched source at :67, :81, :95, :122-126 |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261020-132038 | n/a: documentation target n/a: documentation target |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261020-132038 | docs checker family docs checker family green: structure, quality, content policy --strict, japanese, needs-confirmation inventory; stale_detector reports the procedure is not stale |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261020-132038 | this document is the documentation target this document is the documentation target; docs/ redeploy + mdq index rebuild happen in the cycle-end deploy step |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -55,7 +55,7 @@ Loaded from a TOML file (default path defined in `scripts/eventbus/config.py`).
 The schema and defaults are defined in `scripts/eventbus/config.py::EventBusConfig`; `__post_init__()` holds the validation rules enforced at startup. The authorization model that the token fields implement is in `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`. Operational constraints:
 
 - `host` must be a loopback address (see Bind Address below).
-- `auth_token` is required (startup fails if empty). It is a control-plane credential holding only the operator, monitoring, and admin roles.
+- `auth_token` is required (startup fails if empty). It is a control-plane credential holding only the operator, monitoring, and admin roles. The shipped `config/eventbus.toml` stores it as an environment reference, so the credential comes from the operator environment at load time rather than from the deployed file (Explicit in code — `config/eventbus.toml`, `scripts/eventbus/config.py`). A token key written as `"${ENV:VAR_NAME}"` is resolved when the configuration is loaded: the value must be present in the environment, and an unset variable raises `ValueError` naming it, so a reference that resolves to nothing never reaches a running server. A reference that resolves to an empty string is rejected by the same non-empty rule as a literal empty value.
 - `publisher_token`, `consumer_token`, `operator_token` and `monitoring_token` each grant exactly their own role when set. `admin_token` grants the operator, monitoring, and admin roles (`/admin/*`, DLQ, replay, health) and has no publisher or consumer role.
 - `consumer_authorization` (`consumer_id` -> topics) and `topic_authorization` (topic -> `consumer_id`) are allowlists applied to the consumer-role token only.
 - `slow_consumer_threshold` must be strictly less than `subscriber_queue_maxsize`, and `backlog_health_threshold` must be less than or equal to it. Invalid combinations fail startup with error messages naming both conflicting values.
@@ -74,7 +74,7 @@ The schema and defaults are defined in `scripts/eventbus/config.py::EventBusConf
 | Operator (DLQ, replay) | `operator_token` | — |
 | Administrator | `admin_token` | — |
 
-Before deploying a publisher or consumer process, confirm that the token it is configured with (its environment or configuration file; the variable names are operator choices) is its own per-role token and differs from the `auth_token` and `admin_token` values in the Event Bus configuration file. A Consumer process needs its own `consumer_token` with explicit `consumer_authorization` (and optionally `topic_authorization`) mappings; an administrator who operates on Consumer state also needs a separate Consumer-scoped credential.
+Before deploying a publisher or consumer process, confirm that the token it is configured with (its environment or configuration file; the variable names are operator choices) is its own per-role token and differs from the `auth_token` and `admin_token` values in the Event Bus configuration file. For the shared control-plane credential, the shipped configuration (`config/eventbus.toml`) references one environment variable, so the supported way to change it is to change that variable in the operator environment file and restart; a hand-edited copy of the deployed configuration file is replaced by the next run of `deploy/deploy.sh`. (Explicit in code — `config/eventbus.toml`, `deploy/deploy.sh`) A Consumer process needs its own `consumer_token` with explicit `consumer_authorization` (and optionally `topic_authorization`) mappings; an administrator who operates on Consumer state also needs a separate Consumer-scoped credential.
 
 ### Unsupported Keys
 
@@ -102,10 +102,14 @@ above.
 ### Start Command
 
 ```bash
+# Token references in the configuration are resolved when it is loaded, so the referenced
+# variable must already be present in the environment before this command runs.
 EVENTBUS_CONFIG_PATH=<path-to-eventbus.toml> python -m eventbus.app
 ```
 
 Do not start the server with `uvicorn` directly. Starting through `python -m eventbus.app` is required because it runs the post-start loopback verification, which a direct `uvicorn` invocation bypasses (see `eventbus_06_persistence_schema_and_replay.md`).
+
+The shipped `config/eventbus.toml` stores the shared control-plane credential as an environment reference. Configuration loading aborts with a `ValueError` naming the variable when it is unset, and the deployment script reports the same missing variable in its `[FATAL]` list before launching the process. (Explicit in code — `scripts/eventbus/config.py`, `config/eventbus.toml`, `deploy/setup_services.sh`)
 
 ---
 
