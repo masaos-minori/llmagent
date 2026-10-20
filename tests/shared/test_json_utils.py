@@ -11,6 +11,7 @@ from typing import Any
 
 import orjson
 import pytest
+from freezegun import freeze_time
 from shared.json_utils import (
     dumps,
     extract_llm_content,
@@ -400,17 +401,19 @@ class TestNowIso:
         assert isinstance(result, str)
 
     def test_now_iso_time_changes_over_time(self) -> None:
-        import time
-
-        t1 = now_iso()
-        time.sleep(1.1)
-        t2 = now_iso()
+        with freeze_time("2026-10-20 10:22:49.000") as frozen:
+            t1 = now_iso()
+            frozen.tick(delta=datetime.timedelta(seconds=1.1))
+            t2 = now_iso()
         assert t1 != t2
 
     def test_now_iso_date_changes_at_midnight(self) -> None:
-        result = now_iso()
-        today = datetime.datetime.now(datetime.UTC).date().strftime("%Y-%m-%d")
-        assert result.startswith(today)
+        with freeze_time("2026-10-20 23:59:59.999") as frozen:
+            before = now_iso()
+            frozen.tick(delta=datetime.timedelta(milliseconds=2))
+            after = now_iso()
+        assert before.startswith("2026-10-20T")
+        assert after.startswith("2026-10-21T")
 
     def test_now_iso_utc_timezone(self) -> None:
         result = now_iso()
@@ -423,12 +426,20 @@ class TestNowIso:
         assert len(time_part) == 9
 
     def test_now_iso_consistent_across_calls_same_second(self) -> None:
-        import time
+        with freeze_time("2026-10-20 10:22:49.100") as frozen:
+            t1 = now_iso()
+            frozen.tick(delta=datetime.timedelta(milliseconds=10))
+            t2 = now_iso()
+        assert t1 == t2 == "2026-10-20T10:22:49Z"
 
-        t1 = now_iso()
-        time.sleep(0.01)
-        t2 = now_iso()
-        assert t1 == t2
+    def test_now_iso_changes_across_a_second_boundary(self) -> None:
+        with freeze_time("2026-10-20 10:22:49.995") as frozen:
+            t1 = now_iso()
+            frozen.tick(delta=datetime.timedelta(milliseconds=10))
+            t2 = now_iso()
+        assert t1 == "2026-10-20T10:22:49Z"
+        assert t2 == "2026-10-20T10:22:50Z"
+        assert t1 != t2
 
     def test_now_iso_end_of_day(self) -> None:
         result = now_iso()
@@ -459,11 +470,10 @@ class TestNowIsoRaw:
         assert isinstance(result, str)
 
     def test_now_iso_raw_time_changes_over_time(self) -> None:
-        import time
-
-        t1 = now_iso_raw()
-        time.sleep(1.1)
-        t2 = now_iso_raw()
+        with freeze_time("2026-10-20 10:22:49.000") as frozen:
+            t1 = now_iso_raw()
+            frozen.tick(delta=datetime.timedelta(seconds=1.1))
+            t2 = now_iso_raw()
         assert t1 != t2
 
     def test_now_iso_raw_different_from_now_iso(self) -> None:
@@ -477,13 +487,20 @@ class TestNowIsoRaw:
         assert "+00:00" in result
 
     def test_now_iso_raw_consistent_across_calls_same_second(self) -> None:
-        import time
+        with freeze_time("2026-10-20 10:22:49.100") as frozen:
+            t1 = now_iso_raw()
+            frozen.tick(delta=datetime.timedelta(milliseconds=10))
+            t2 = now_iso_raw()
+        assert t1[:19] == t2[:19] == "2026-10-20T10:22:49"
 
-        t1 = now_iso_raw()
-        time.sleep(0.01)
-        t2 = now_iso_raw()
-        # Same second should produce same result
-        assert t1[:19] == t2[:19]
+    def test_now_iso_raw_prefix_changes_across_a_second_boundary(self) -> None:
+        with freeze_time("2026-10-20 10:22:49.995") as frozen:
+            t1 = now_iso_raw()
+            frozen.tick(delta=datetime.timedelta(milliseconds=10))
+            t2 = now_iso_raw()
+        assert t1[:19] == "2026-10-20T10:22:49"
+        assert t2[:19] == "2026-10-20T10:22:50"
+        assert t1[:19] != t2[:19]
 
     def test_now_iso_raw_microseconds_included(self) -> None:
         result = now_iso_raw()
