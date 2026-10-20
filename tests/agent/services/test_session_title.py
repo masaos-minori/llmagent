@@ -91,6 +91,26 @@ async def test_generate_unexpected_exception_wrapped_as_title_error() -> None:
 
 
 @pytest.mark.asyncio
+async def test_generate_db_error_on_set_title_wrapped_as_title_error() -> None:
+    from agent.services.exceptions import SessionTitleGenerationError
+    from agent.services.session_title import SessionTitleService
+
+    ctx = MagicMock()
+    mock_resp = MagicMock()
+    mock_resp.raise_for_status = MagicMock()
+    mock_resp.content = orjson.dumps(
+        {"choices": [{"message": {"content": "My Session Title"}}]}
+    )
+    ctx.services_required.http.post = AsyncMock(return_value=mock_resp)
+    cause = sqlite3.OperationalError("disk I/O error")
+    ctx.session.set_title.side_effect = cause
+    with pytest.raises(SessionTitleGenerationError, match="DB error") as excinfo:
+        await SessionTitleService().generate(ctx, "hello world")
+    # The DB failure is converted, and the original error stays reachable as the cause.
+    assert excinfo.value.__cause__ is cause
+
+
+@pytest.mark.asyncio
 async def test_generate_success_returns_title() -> None:
     from agent.services.models import SessionTitleResult
     from agent.services.session_title import SessionTitleService
