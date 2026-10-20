@@ -59,7 +59,7 @@ Application settings specific to each MCP server: allowlists and denylists (`all
 
 Ports are configured per server in `config/agent.toml` (`mcp_servers`). Configuration, tools, security settings, and operational notes per server → [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
 
-All servers use HTTP transport and are started in `subprocess` mode by default configuration.
+All servers use HTTP transport. Each server's `startup_mode` is set in `config/agent.toml`; the default configuration starts a server in `subprocess` mode unless it is disabled with `startup_mode = "none"`.
 
 | Server | Role |
 |---|---|

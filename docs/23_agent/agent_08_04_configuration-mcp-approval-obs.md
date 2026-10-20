@@ -48,7 +48,7 @@ disabled-state observability, other required components stay safe, any fallback
 defined by an Accepted ADR) — undefined or unassessed criticality must not be
 assumed non-required (Decision Group 3 item 12).
 
-Every server in `config/agent.toml` is classified required: none has been assessed as satisfying Decision Group 3 item 10, so the status-quo default applies.
+The classification of each server is its `required` value in `config/agent.toml` (default `true`, the status-quo default).
 
 Subprocess servers must stay required (ADR-004 Exceptions; `McpServerConfig` rejects `required = false` with `startup_mode = "subprocess"`). A non-required reclassification requires an explicit owner decision recorded per ADR-004 Decision Group 3 item 13.
 
