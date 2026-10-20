@@ -112,47 +112,37 @@ def _provision_databases() -> None:
                 conn.close()
 
 
-def _isolate_db_config_default(root: Path) -> None:
-    """Point build_db_config()'s code-level workflow default into the isolation root.
+def _isolate_db_config(root: Path) -> None:
+    """Point every production DB path that DbConfig receives into the isolation root.
 
     agent.toml does not set workflow_db_path (the production config validator rejects
     the key), so build_db_config() falls back to a production default in code, and
-    DbConfig refuses to be built when that path's parent directory is missing (a host
-    without /opt/llm/db, such as the CI runner). The default is therefore supplied
-    through the config mapping that db.config reads, before DbConfig is constructed,
-    and only for build_db_config() calls: other ConfigLoader users still see the
-    unmodified agent.toml. Wrap it at its origin and in the already-imported db
-    modules; later importers get the wrapper from db.config.
+    tests build DbConfig directly with some paths left at their defaults. DbConfig
+    refuses to be built when a path's parent directory is missing, which is the case
+    on a host without /opt/llm/db (such as the CI runner). The rewrite therefore runs
+    inside DbConfig.__post_init__, before that validation, and covers both routes.
     """
     import db.config as db_config
-    from shared.config_loader import ConfigLoader
 
-    original = db_config.build_db_config
-    isolated = str(root / "db" / "workflow.sqlite")
+    production_db_dir = "/opt/llm/db/"
+    isolated_db_dir = f"{root}/db/"
+    original_post_init = db_config.DbConfig.__post_init__
 
-    class _IsolatedConfigLoader(ConfigLoader):
-        def load(self, *names: str) -> dict[str, Any]:
-            data = super().load(*names)
-            if names == ("agent.toml",):
-                data = {"workflow_db_path": isolated, **data}
-            return data
-
-    def build_db_config_isolated() -> Any:
-        saved = db_config.ConfigLoader
-        db_config.ConfigLoader = _IsolatedConfigLoader  # type: ignore[misc] — scoped swap of the loader class for one call
-        try:
-            return original()
-        finally:
-            db_config.ConfigLoader = saved  # type: ignore[misc] — restore the loader class swapped above
-
-    db_config.build_db_config = build_db_config_isolated
-    # Importing db.config runs db/__init__.py, which already bound the original in the
-    # package and its submodules; replace those bindings too.
-    for name, module in list(sys.modules.items()):
-        if (name == "db" or name.startswith("db.")) and (
-            getattr(module, "build_db_config", None) is original
+    def post_init_isolated(self: Any) -> None:
+        for field in (
+            "rag_db_path",
+            "session_db_path",
+            "workflow_db_path",
+            "eventbus_db_path",
         ):
-            module.build_db_config = build_db_config_isolated  # type: ignore[attr-defined] — rebind the imported name to the isolated wrapper
+            value = getattr(self, field)
+            if isinstance(value, str) and value.startswith(production_db_dir):
+                object.__setattr__(
+                    self, field, isolated_db_dir + value[len(production_db_dir) :]
+                )
+        original_post_init(self)
+
+    setattr(db_config.DbConfig, "__post_init__", post_init_isolated)
 
 
 def _setup_isolation() -> Path:
@@ -171,7 +161,7 @@ def _setup_isolation() -> Path:
     os.environ["EVENTBUS_CONFIG_PATH"] = str(root / "config" / "eventbus.toml")
     os.environ["EVENTBUS_SCHEMA_PATH"] = str(root / "schemas" / "event_envelope.json")
     os.environ["LLMAGENT_LOG_DIR"] = str(root / "logs")
-    _isolate_db_config_default(root)
+    _isolate_db_config(root)
     if created:
         _provision_databases()
     return root

@@ -125,6 +125,9 @@ def test_conftest_imports_on_host_without_production_db_dir() -> None:
         ")\n"
         "os.environ.pop('LLMAGENT_TEST_ROOT', None)\n"
         "runpy.run_path('tests/conftest.py', run_name='conftest_probe')\n"
+        "from db.config import DbConfig\n"
+        "cfg = DbConfig(rag_db_path='/opt/llm/db/rag.sqlite', session_db_path='/tmp/s')\n"
+        "print(cfg.rag_db_path, cfg.workflow_db_path, cfg.eventbus_db_path)\n"
     )
     result = subprocess.run(
         [sys.executable, "-I", "-c", code],
@@ -135,3 +138,5 @@ def test_conftest_imports_on_host_without_production_db_dir() -> None:
         check=False,
     )
     assert result.returncode == 0, result.stderr[-800:]
+    # A DbConfig built directly with production defaults is redirected as well.
+    assert "/opt/llm" not in result.stdout, result.stdout
