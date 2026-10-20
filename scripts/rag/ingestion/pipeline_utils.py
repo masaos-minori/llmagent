@@ -7,7 +7,7 @@ Shared I/O utilities for the RAG ingestion pipeline.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any, NotRequired, TypedDict, cast
+from typing import Any, NotRequired, TypedDict
 
 import orjson
 from rag.exceptions import ChunkFormatError
@@ -237,100 +237,6 @@ class ChunkJsonRaw(TypedDict):
     ]  # ingestion-pipeline metadata only; not persisted to DB
     schema_version: NotRequired[str]
     created_by: NotRequired[str]
-
-
-def _read_chunk_json_raw(path: Path) -> ChunkJsonRaw | None:
-    """Read and parse a chunk JSON file as a raw dict; returns None on any failure."""
-    try:
-        raw = path.read_bytes()
-    except OSError as e:
-        logger.warning("skip chunk %s: %s", path.name, e)
-        return None
-    try:
-        data = orjson.loads(raw)
-    except orjson.JSONDecodeError as e:
-        logger.warning("skip chunk %s: JSON parse error: %s", path.name, e)
-        return None
-    if not isinstance(data, dict):
-        logger.warning(
-            "skip chunk %s: expected JSON object, got %s",
-            path.name,
-            type(data).__name__,
-        )
-        return None
-    url = data.get("url")
-    content = data.get("content")
-    if not isinstance(url, str) or not url:
-        logger.warning("skip chunk %s: missing or invalid 'url'", path.name)
-        return None
-    if not isinstance(content, str) or not content:
-        logger.warning("skip chunk %s: missing or invalid 'content'", path.name)
-        return None
-    return cast(ChunkJsonRaw, data)
-
-
-def read_json_file(path: Path) -> ChunkDocument:
-    """Read and parse a JSON file; return ChunkDocument. Raises on failure."""
-    data = _read_chunk_json_raw(path)
-    if data is None:
-        raise ChunkFormatError(f"Failed to read chunk file: {path}")
-    title = _get_str(data, "title") or ""
-    lang = _get_str(data, "lang") or "en"
-    code_blocks = _get_list(data, "code_blocks") or []
-    etag = _get_str(data, "etag")
-    last_modified = _get_str(data, "last_modified")
-    chunking_strategy = _get_str_with_default(data, "chunking_strategy", "text")
-    normalized_content = _get_str(data, "normalized_content")
-    chunk_index = _get_int_with_default(data, "chunk_index", 0)
-    source_file = _get_str(data, "source_file") or ""
-    chunk_type = _get_str(data, "chunk_type") or ""
-    fetched_at = _get_str(data, "fetched_at")
-    if fetched_at is None:
-        raise ChunkFormatError("chunk: missing or invalid 'fetched_at'")
-    return ChunkDocument(
-        url=data["url"],
-        title=title,
-        lang=lang,
-        content=data["content"],
-        code_blocks=code_blocks,
-        etag=etag,
-        last_modified=last_modified,
-        chunking_strategy=chunking_strategy,
-        normalized_content=normalized_content,
-        chunk_index=chunk_index,
-        source_file=source_file,
-        chunk_type=chunk_type,
-        fetched_at=fetched_at,
-    )
-
-
-def _get_str(data: ChunkJsonRaw, key: str) -> str | None:
-    """Get a string value from data."""
-    val = data.get(key)
-    return val if isinstance(val, str) else None
-
-
-def _get_list(data: ChunkJsonRaw, key: str) -> list[str] | None:
-    """Get a list value from data."""
-    val = data.get(key)
-    return list(val) if isinstance(val, list) else None
-
-
-def _get_str_with_default(data: ChunkJsonRaw, key: str, default: str) -> str:
-    """Get a string value with default fallback."""
-    val = data.get(key)
-    return val if isinstance(val, str) else default
-
-
-def _get_int_with_default(data: ChunkJsonRaw, key: str, default: int) -> int:
-    """Get an integer value with default fallback."""
-    val = data.get(key)
-    if val is None:
-        return default
-    try:
-        return int(val)  # type: ignore[call-overload, no-any-return]
-    except (ValueError, TypeError):
-        return default
 
 
 def collect_source_files(
