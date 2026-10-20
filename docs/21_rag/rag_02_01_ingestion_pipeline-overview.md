@@ -25,44 +25,7 @@ related:
 
 ## 1. Execution Guide
 
-### Prerequisites
-
-```bash
-curl -s http://127.0.0.1:<PORT>/health
-```
-
-### Step 1: Crawling
-
-```bash
-# Crawl all URLs from crawler.toml
-uv run python scripts/rag/ingestion/crawler.py
-
-# Crawl a single URL
-uv run python scripts/rag/ingestion/crawler.py --url "https://example.com/" --lang en
-```
-
-- `--lang`: `auto` for automatic language detection, or specify `en`/`ja`.
-- `--targets-file PATH`: Load target URLs from a TOML file.
-
-### Step 2: Chunk Splitting
-
-```bash
-# Batch split unprocessed files
-uv run python scripts/rag/ingestion/chunk_splitter.py
-
-# Regenerate existing chunks
-uv run python scripts/rag/ingestion/chunk_splitter.py --force
-```
-
-### Step 3: Embedding and Storage
-
-```bash
-# Embed and save to DB
-uv run python scripts/rag/ingestion/ingester.py
-
-# Force re-registration
-uv run python scripts/rag/ingestion/ingester.py --force
-```
+The ingestion pipeline runs as three separate scripts (crawl, chunk split, embed and store) that hand off through files. For the commands, prerequisites, and `--force` semantics, see [rag_05_02-execution-guide.md](rag_05_02-execution-guide.md); for the current argument list, run each script with `--help`.
 
 ### File Lifecycle
 
@@ -74,21 +37,10 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 > **Retention:** No retention or cleanup setting exists for `rag-src/registered/`. See "Retention of `registered/`" in [rag_01_system_overview.md](rag_01_system_overview.md).
 >
-> **JSON verification:** Parse crawl/chunk artifacts with `orjson.loads()` (the ingestion pipeline uses `orjson.dumps()` for writing and `orjson.loads()` for reading). Example — verify a crawl artifact:
->
-> ```bash
-> python -c "import orjson; print(orjson.loads(open('{rag_src_dir}/{timestamp}-{slug}.json', 'rb').read()))"
-> ```
->
-> Use the artifact path format from the table above (e.g., `{rag_src_dir}/<timestamp>-example.json`). The `'rb'` (binary read) mode is required because `orjson.loads()` accepts `bytes` input directly, matching how `read_crawl_json()`/`read_chunk_json()` read files via `path.read_bytes()` before passing to `orjson.loads()`. `orjson` is used instead of the standard `json` module for its performance characteristics (Rust-backed, significantly faster). Expected output: a Python `dict` printed to stdout, or an `orjson.JSONDecodeError` if the file is not valid JSON.
->
-> **Crawl artifact keys:** `url`, `content`, `title`, `lang`, `code_blocks`, `etag`, `last_modified`, `fetched_at`
->
-> **Chunk artifact keys:** additionally includes `normalized_content`, `chunk_index`, `source_file`, `chunk_type`, `chunking_strategy`
+> **Artifact format:** Crawl and chunk artifacts are JSON written and read with `orjson`. The required keys and their Required/Nullable/Conditional classification are owned by the canonical field-contract table in [rag_02_03_ingestion_pipeline-chunksplitter.md](rag_02_03_ingestion_pipeline-chunksplitter.md).
 
 `rag_src_dir` is set in the ingestion config files (see [Configuration Reference](rag_05_01-configuration-reference.md)).
 
----
 
 ## Keywords
 

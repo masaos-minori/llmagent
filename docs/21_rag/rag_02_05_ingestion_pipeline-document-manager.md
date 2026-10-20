@@ -27,7 +27,7 @@ related:
 
 ## 4.8 DocumentManager (`scripts/rag/ingestion/document_manager.py`)
 
-`DocumentManager` manages the lifecycle of documents for `RagIngester`: detection of existing documents, ETag refresh, document deletion, and post-ingestion consistency reporting. (Explicit in code — `scripts/rag/ingestion/document_manager.py`)
+`DocumentManager` manages the lifecycle of documents for `RagIngester`: detection of existing documents, ETag refresh, document deletion, and post-ingestion consistency reporting.
 
 **Existing-document handling (`handle_existing_document()`):** returns the document id together with a skip flag and a replace-chunks flag.
 
@@ -39,12 +39,6 @@ related:
 **Deletion:** `delete_existing_document()` and the module-level `delete_document_chain()` delete the `chunks_vec` rows of the document first and then the `documents` row; the cascade removes `chunks`. This order is the invariant defined by [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md).
 
 **Post-ingestion consistency check (`check_consistency()`):** runs the RAG consistency check and logs each issue as a warning without failing the ingestion run. If the check itself raises a database or value error, the failure is logged and `None` is returned. The optional completion callback is invoked afterwards; an exception raised by the callback is logged and not re-raised. See [rag_05_07](rag_05_07-rag-index-consistency-checks.md).
-
-**CLI Entrypoint:**
-
-```bash
-uv run python scripts/rag/ingestion/ingester.py --force
-```
 
 ---
 

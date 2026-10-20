@@ -23,16 +23,12 @@ related:
 
 ## 8. Schema Generation and Migration Policy
 
-```python
-# Initialize all schemas (rag + session + workflow + eventbus)
-from db.create_schema import create_schema
-create_schema()
-```
+`create_schema()` (`db/create_schema.py`) initializes all four schemas (rag, session, workflow, eventbus).
 
 - For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
 - **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8d) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
 - `create_schema()` is a wrapper that calls the four per-database initializers in order, and the responsibilities differ per database: `create_rag_schema()` and `create_session_schema()` run create-only DDL (idempotent, no migration); `create_workflow_schema()` runs the DDL, then applies the incremental migrations and records the schema version (section 8a); `create_eventbus_schema()` runs the DDL read from `scripts/eventbus/schema.sql`, then applies the incremental migration list (section 8b). Against an existing file the rag and session initializers change nothing, while the workflow and eventbus initializers migrate it.
-- Embedding dimension is a fixed code-level constant returned by `scripts/db/store_protocols.py::get_embedding_dims()`, not a config key.
+- The embedding dimension is a fixed code-level constant (`get_embedding_dims()`), not a config key.
 
 ### Recreating `session.sqlite`: Session and Memory Recovery
 
@@ -43,48 +39,36 @@ Recreating `session.sqlite` physically removes both sessions and memories, but t
 3. Recover memory only, from the JSONL archive, with `/memory rebuild`.
 4. Past session history is not restored into the database; `/memory rebuild` does not recover sessions and `/session export` output is for human reference only.
 
-### 8a. Incremental Migrations for `workflow.sqlite` Only (Explicit in code)
+### 8a. Incremental Migrations for `workflow.sqlite` Only
 
 The principle that "rag/session do not support backward-compatible migrations" applies only to those two databases. `workflow.sqlite` is an exception, as `db/schema_sql.py` implements a dedicated incremental migration mechanism.
 
-- `db/schema_sql.py` maintains a migration list in `list[tuple[str, str]]` format (ID + SQL statement pairs) and applies them sequentially using `apply_workflow_migrations()`.
-- It catches `sqlite3.OperationalError` containing `"duplicate column name"` (treating it as already applied) while re-raising others.
-- `create_workflow_schema()` creates base tables, then applies migrations, and finally records the version.
+- `db/schema_sql.py` maintains an ordered list of (ID, SQL statement) pairs applied by `apply_workflow_migrations()`. A `"duplicate column name"` `sqlite3.OperationalError` is treated as already applied; other errors are re-raised.
+- `create_workflow_schema()` creates base tables, then applies migrations, and finally records the schema version.
 - Each list entry holds exactly one SQL statement: `conn.execute` rejects several statements in one entry, which would abort startup.
-- The column-addition migrations are no-ops for new databases, since base schemas already contain the required columns, and function as incremental column additions for existing databases. Two entries remove the post-execution approval stage from existing databases, in this order: one marks tasks left waiting in that stage as failed, and one drops the `approvals` table. Both are idempotent, and neither changes a new database. `WORKFLOW_SCHEMA_VERSION` is `1.1.0` after them.
+- Column-addition migrations are no-ops for new databases (the base schema already has the columns) and incremental additions for existing ones. Two entries remove the post-execution approval stage from existing databases, in this order: one marks tasks left waiting in that stage as failed, and one drops the `approvals` table. Both are idempotent and neither changes a new database.
 
 Incremental migration mechanisms like this do not exist for `rag.sqlite` or `session.sqlite`.
 
-### 8b. Incremental Migration for `eventbus.sqlite` (Explicit in code)
+### 8b. Incremental Migration for `eventbus.sqlite`
 
-`scripts/eventbus/schema.py::_migrate()` performs incremental, additive schema
-evolution on `eventbus.sqlite` at every EventBus service startup, called from
-`_init_schema()` when the `events` table already exists. The base schema for
-`events`, `consumer_delivery`, and `consumer_offsets` is defined in
-`scripts/eventbus/schema.sql`, the only DDL definition; `create_schema()` reads that file through `build_eventbus_schema_sql()`. See `scripts/eventbus/schema.py` for the additive
-migration logic that creates `consumer_delivery`/`consumer_offsets` on existing
-databases.
+`scripts/eventbus/schema.py::_migrate()` performs incremental, additive schema evolution on `eventbus.sqlite` at every EventBus service startup, called from `_init_schema()` when the `events` table already exists. The base schema for `events`, `consumer_delivery` and `consumer_offsets` is defined in `scripts/eventbus/schema.sql`, the only DDL definition; `create_schema()` reads it through `build_eventbus_schema_sql()`. Table roles: `eventbus_06_persistence_schema_and_replay.md`.
 
-`events.published_at` has a `DEFAULT` expression in `schema.sql`. SQLite cannot change a column default without rebuilding the table, so existing databases created before the default was added are not rebuilt; the difference has no effect because every insert path (`POST /publish` and the DLQ requeue) supplies `published_at` explicitly. `_migrate()` also creates the `consumer_delivery(consumer_id, acked)` index on existing databases. `consumer_delivery.acked` is newer than the databases that now carry it; see the conversion bullet below.
+`events.published_at` has a `DEFAULT` expression in `schema.sql`. SQLite cannot change a column default without rebuilding the table, so existing databases created before the default was added are not rebuilt; the difference has no effect because every insert path (`POST /publish` and the DLQ requeue) supplies `published_at` explicitly.
 
-Each table serves a distinct purpose:
-- `events`: Stores all published events with auto-incrementing sequence numbers.
-- `consumer_delivery`: Tracks which events each consumer has acknowledged, enabling per-consumer delivery semantics.
-- `consumer_offsets`: Stores the last-committed sequence offset for each consumer, enabling resume-after-restart.
+Migration rules (all idempotent; duplicate-column, duplicate-index and missing-column errors are caught and ignored):
 
-- **Additive columns:** `delivery_failure_count` and `dlq_requeue_count` (both `INTEGER NOT NULL DEFAULT 0`) are added via `ALTER TABLE events ADD COLUMN`; duplicate-column errors are caught and ignored.
-- **Column removal:** a retired `retry_count` column, if present, is dropped via `ALTER TABLE events DROP COLUMN retry_count`; "no such column" errors are caught and ignored.
-- **Column conversion:** `consumer_delivery.acked_at` (a timestamp, `NULL` = not acked) predates the boolean `acked` column. `_migrate()` gates the conversion on `acked_at` being present, so a current database never rebuilds its index: it drops the stale `idx_consumer_delivery_consumer_ack` index that referenced `acked_at` (SQLite refuses to drop a column an index still references), adds `acked INTEGER NOT NULL DEFAULT 0`, converts `acked_at IS NOT NULL` to `1`, drops `acked_at`, commits (the conversion is DML, so the DDL's implicit commit does not cover it), and recreates the index on `(consumer_id, acked)`.
-- **Additive indexes:** `idx_events_dlq_at ON events(dlq_at)` and `idx_events_dlq_seq ON events(dlq_at, seq)` are created with `CREATE INDEX IF NOT EXISTS`; duplicate-index errors are caught and ignored.
-- **New tables:** `_migrate()` additionally creates the `consumer_delivery` and `consumer_offsets` tables via the same idempotent `CREATE TABLE IF NOT EXISTS` pattern used for column/index additions.
+- **Additive changes:** missing columns, indexes, and the `consumer_delivery` and `consumer_offsets` tables are added to existing databases.
+- **Column removal:** a retired `retry_count` column, if present, is dropped.
+- **Column conversion:** `consumer_delivery.acked_at` (a timestamp, `NULL` = not acked) predates the boolean `acked` column. `_migrate()` gates the conversion on `acked_at` being present, so a current database never rebuilds its index. The conversion drops the stale `idx_consumer_delivery_consumer_ack` index (SQLite refuses to drop a column an index still references), adds `acked INTEGER NOT NULL DEFAULT 0`, converts `acked_at IS NOT NULL` to `1`, drops `acked_at`, commits (the conversion is DML, so the DDL's implicit commit does not cover it), and recreates the index on `(consumer_id, acked)`.
 - **Separate data seeding:** `migrate_legacy_offsets()` (see Schema Evolution below) is distinct from `_migrate()`'s schema-DDL role.
 - **Two initialization paths:** `create_schema()` bootstrap (`apply_eventbus_migrations()` in `scripts/db/schema_sql.py` runs first, then the DDL read from `scripts/eventbus/schema.sql` via `build_eventbus_schema_sql()`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`), which applies its own incremental ALTER TABLE operations. Migrations must precede the bootstrap DDL because `idx_consumer_delivery_consumer_ack` in `schema.sql` references `consumer_delivery.acked`, and a database still carrying `acked_at` aborts that DDL. `apply_eventbus_migrations()` swallows `sqlite3.OperationalError` for duplicate-column, missing-column, and missing-table scenarios — the last because a fresh database has no table to migrate before the DDL creates it — and re-raises the rest. `_EVENTBUS_MIGRATIONS` carries the same conversion statements as `_migrate()`; the two cannot share code because the `eventbus-is-isolated` import contract forbids `eventbus` from importing `db`. A reader must distinguish them — each path migrates an existing database, but they are separate code paths.
 
-### 8c. RAG Consistency Verification (Explicit in code)
+### 8c. RAG Consistency Verification
 
 `db/rag_consistency.py::check_rag_consistency()` is a read-only verification function that compares row counts of `chunks`, `chunks_fts`, and `chunks_vec`, returning a `RagConsistencyReport` (`db/models.py`). See code for details on consistency conditions and error message generation logic.
 
-### 8d. Automatic Legacy Schema Detection for `mdq.sqlite` Only (Explicit in code)
+### 8d. Automatic Legacy Schema Detection for `mdq.sqlite` Only
 
 `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` is a third pattern of schema update, distinct from rag/session/eventbus and workflow, which runs automatically upon MDQ service startup.
 
@@ -105,12 +89,6 @@ Schema evolution rules per database are defined in sections 8 through 8d. For `e
 ### Offset Seeding
 
 `scripts/eventbus/offset_migrator.py::migrate_legacy_offsets()` is called at EventBus startup (`scripts/eventbus/app.py`). It seeds the `consumer_offsets` table from files under `offsets_dir`. It reads each `.map` companion file to recover the original `consumer_id` (falling back to the sanitized filename when no companion exists, with a warning), then inserts the offset using `INSERT OR IGNORE` (idempotent). It does not modify or delete the offset files.
-
----
-
-## 9a. AI Reference Guide
-
-rag.sqlite schema location: db_02 section 5; session.sqlite schema location: db_02 section 6; SQLiteHelper supports workflow.sqlite: yes (target="workflow"; see section 8a); embedding dimension fixed by `scripts/db/store_protocols.py::get_embedding_dims()`; schema initializer: `create_schema()` — idempotent wrapper over the four per-database initializers: rag and session are create-only DDL, workflow and eventbus also apply incremental migrations (section 8); DB triggers documented: `chunks_fts` auto-sync triggers (db_02 section 5), `memories_fts` auto-sync triggers (db_02 section 6).
 
 ---
 

@@ -23,7 +23,7 @@ related:
 |---|---|---|
 | `allowed_dirs` (file-read/write/delete-mcp) | Fail-closed | All access denied |
 | `allowed_dirs` (mdq-mcp) | Fail-closed | Denies all tools that accept paths (`MdqAuthorizationError`) |
-| `allowed_repos` (github-mcp) | Fail-closed | All writes denied (no mode switch exists; `_assert_allowed_repo` in `scripts/mcp_servers/github/github_service_security.py`) |
+| `allowed_repos` (github-mcp) | Fail-closed | All writes denied (no mode switch exists; `_assert_allowed_repo`) |
 | `allowed_repo_paths` (git-mcp) | Fail-closed | All access denied |
 | `repo_allowlist` (cicd-mcp) | Fail-closed | All repositories denied |
 | `workflow_allowlist` (cicd-mcp) | **Fail-closed** | All workflows denied |
@@ -50,21 +50,13 @@ Each MCP server validates its own security settings when its process starts and 
 
 An empty capability-gating allowlist is a posture failure, not a warning: the server refuses to bind its HTTP port and the Agent refuses to start. Fail-open settings are reported as `not_applicable` instead of being omitted, so a missing restriction is visible in the posture rather than silently absent.
 
-Runtime denial is enforced independently by each server, so a running server keeps its fail-closed behavior for whatever its allowlists permit. An empty fail-closed setting is an intended safe default (access is denied); an empty fail-open setting allows unrestricted access and is now surfaced as `not_applicable` in the posture.
+Runtime denial is enforced independently by each server, so a running server keeps its fail-closed behavior for whatever its allowlists permit. An empty fail-closed setting is an intended safe default (access is denied); an empty fail-open setting allows unrestricted access and is surfaced as `not_applicable` in the posture.
 
 ---
 
 ## Dry-Run Support
 
-Tools supporting `dry_run=True` (previewing side-effect-free execution):
-
-| Server | Tools Supporting `dry_run` |
-|---|---|
-| file-write-mcp | `write_file`, `edit_file`, `create_directory`, `move_file` |
-| file-delete-mcp | `delete_file`, `delete_directory` |
-| shell-mcp | `shell_run` (arg: `dry_run`) |
-| git-mcp | `git_add`, `git_commit`, `git_checkout`, `git_pull`, `git_push` |
-| cicd-mcp | `trigger_workflow` |
+`dry_run=True` previews a call without side effects. It is supported by the file-write tools, the file-delete tools, `shell_run`, the five git write tools, and cicd-mcp `trigger_workflow`; see each server in the Server Catalog.
 
 **Note on cicd-mcp:** Repository and workflow allowlist checks are executed before the `dry_run` bypass inside `handle_trigger_workflow`. Requests subject to denial are always rejected even with `dry_run=True`.
 
@@ -74,7 +66,7 @@ At the agent level: `config/agent.toml`'s `approval_dry_run_tools` lists tools w
 
 ## Risk Tier Classification
 
-Safety tiers (from `config/agent.toml::tool_safety_tiers`) supply a default approval risk (`none`/`medium`/`high`); an explicit `config/agent.toml::approval_risk_rules` entry takes precedence (Explicit in code — `agent/tool_policy.py::classify_risk`, `_TIER_TO_RISK`). The approval method follows the effective risk, not the tier name alone:
+Safety tiers (from `config/agent.toml::tool_safety_tiers`) supply a default approval risk (`none`/`medium`/`high`); an explicit `config/agent.toml::approval_risk_rules` entry takes precedence (`classify_risk` in `agent/tool_policy.py`). The approval method follows the effective risk, not the tier name alone:
 
 | Tier | Default risk | Approval Method | Examples |
 |---|---|---|---|
@@ -96,17 +88,11 @@ Both checks are performed via `ProductionConfigValidator.validate()`, which inte
 
 ## Notes for AI Systems
 
-1. **Do not assume write access to GitHub.** An empty `allowed_repos` (the code default) denies all writes (fail-closed); the checked-in configuration lists repositories explicitly. Verify `allowed_repos` is configured before attempting GitHub writes.
+1. **Do not assume write access or execution rights.** Every capability-gating allowlist is fail-closed when empty: `allowed_repos` (GitHub writes), `command_allowlist` (`shell_run`), `allowed_repo_paths` (all git tools), `repo_allowlist` and `workflow_allowlist` (CI/CD). Verify the relevant allowlist is configured before calling the tool; the checked-in configuration lists values explicitly.
 
-2. **Do not assume shell commands can be executed.** `command_allowlist` is empty by default. Verify the allowlist before calling `shell_run`.
+2. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
 
-3. **Empty `allowed_repo_paths` = Git access denied.** Configure this before using git-mcp tools.
-
-4. **`workflow_allowlist` is fail-closed** (similar to `repo_allowlist`). An empty list denies all workflow triggers. Explicitly enumerate allowed workflows in `cicd_mcp_server.toml`.
-
-5. **mdq-mcp is production-ready.** FTS5 indexing and searching is implemented. For production RAG workloads, use `rag-pipeline-mcp`. See [mcp_05 MDQ vs RAG Boundary](./mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary) for guidelines.
-
-6. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for registered tools before displaying a user prompt.
+3. **Preview with `dry_run=True` before destructive operations.** The agent's approval flow automatically injects `dry_run=True` for registered tools before displaying a user prompt.
 
 ## Keywords
 

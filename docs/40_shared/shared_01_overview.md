@@ -145,17 +145,7 @@ Constraints not already covered above (import direction, JSON library, HTTP clie
 
 ## 9. Summary
 
-`shared/` is the lowest dependency layer, providing configuration, logging, types, routing, plugin support, and DTOs. Code within `shared/` must not import higher-level layers.
-
-`db/` provides typed, WAL-enabled SQLite access with FTS5 and sqlite-vec integration. It is the canonical source for schema definitions. `db/` depends only on `shared/`.
-
-All persistent data resides in SQLite files: `rag.sqlite` (RAG index), `session.sqlite` (conversation + memory), `workflow.sqlite` (task tracking), `eventbus.sqlite` (event delivery state), and the `mdq-mcp`-owned `mdq.sqlite`.
-
----
-
-## 10. AI Reference Guide
-
-Identify the corresponding document by topic: types and DTOs → [shared_02_01](shared_02_01_types_and_protocols-core-types.md); ConfigLoader and logging → [shared_03_01](shared_03_01_runtime_and_execution-config-and-logging.md); SQLite schema → [db_01](../41_db/db_01_architecture_and_schema-overview-and-config.md) and [db_02](../41_db/db_02_architecture_and_schema-schema-reference.md); SQLiteHelper and store APIs → [db_04](../41_db/db_04_api_and_operations-module-boundaries-and-helper.md) and [db_05](../41_db/db_05_api_and_operations-protocol-and-backend.md); known issues → [Issue and Uncertainty Management](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: Shared/DB).
+`shared/` is the lowest dependency layer and `db/` depends only on `shared/`; `db/` is the canonical source for schema definitions. All persistent data resides in SQLite files (see Persistent Data Overview).
 
 ## Keywords
 

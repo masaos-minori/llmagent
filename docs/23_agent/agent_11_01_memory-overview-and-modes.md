@@ -85,7 +85,7 @@ Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.
 
 - Set `memory_local_only = true` if data must not leave the machine.
 - Current mode can be checked with `/memory status` (Hybrid / FTS-only / Degraded / Disabled).
-- JSONL records memory entries and change events (delete, pin, unpin); `rebuild` replays them. `/memory rebuild` is a dry run by default; `--confirm` applies it, `--allow-loss` is required when memories exist only in SQLite, and a backup of the current `memories` rows is written first. Deletes and pin changes made before change events were recorded are not reproduced.
+- JSONL records memory entries and change events (delete, pin, unpin) and `/memory rebuild` replays them. Rebuild safety rules (dry run by default, `--confirm`, `--allow-loss`, pre-rebuild backup) are defined in [agent_07_10](agent_07_10_cli-and-commands-slash-commands-memory-other.md).
 
 ## Known Limitations / Unresolved Issues
 

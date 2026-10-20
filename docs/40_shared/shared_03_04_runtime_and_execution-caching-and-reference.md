@@ -16,49 +16,37 @@ related:
 
 - Overview → [shared_00_document-guide.md](shared_00_document-guide.md)
 
-## 16. `ToolSpec` (`shared/tool_spec.py`)
-
-`ToolSpec` is the DAG scheduling metadata dataclass. Its fields and construction are described in [shared_02_02](shared_02_02_types_and_protocols-tool-and-execution-dto.md#7a-toolspec-sharedtool_specpy).
-
----
-
 ## 17. `McpServerHealthState` / `McpServerHealthRegistry` (`shared/mcp_health.py`)
 
 An enum for MCP server health states: `HEALTHY` (normal operation), `DEGRADED` (failing but not yet unavailable), `UNAVAILABLE` (circuit breaker open), `HALF_OPEN` (experimental probe after cooldown), and `UNKNOWN` (unregistered keys return `HEALTHY` default; `UNKNOWN` is never observed in practice).
 
-Per-server health tracking for `ToolExecutor` dispatch gating. Constructor accepts `failure_threshold` (consecutive failures → `UNAVAILABLE`) and `half_open_cooldown_sec`. Methods: `record_failure()` transitions `HEALTHY` → `DEGRADED` → `UNAVAILABLE`; `record_success()` resets state to `HEALTHY` and clears the failure count and the unavailable timestamp; `get_state()` returns current state; `is_unavailable()` handles `UNAVAILABLE` → `HALF_OPEN` transition upon cooldown expiry.
+Per-server health tracking for `ToolExecutor` dispatch gating, configured by a consecutive-failure threshold (`failure_threshold`) and a cooldown (`half_open_cooldown_sec`). A success resets the state to `HEALTHY` and clears the failure count and unavailable timestamp, which prevents an immediate re-`UNAVAILABLE` from stale counts.
 
 **State Transitions:** `HEALTHY` → `DEGRADED` on first failure; `DEGRADED` → `UNAVAILABLE` on `failure_threshold` consecutive failures;  `UNAVAILABLE` → `HALF_OPEN` after `half_open_cooldown_sec` (experimental probe); `HALF_OPEN` → `UNAVAILABLE` on probe failure (cooldown resets); `HALF_OPEN` → `HEALTHY` on probe success; any state → `HEALTHY` on successful response.
 
-**Implementation Notes:** `get_state()` returns `HEALTHY` default for unregistered keys (`UNKNOWN` is never observed). The registry stores no degraded reason. `record_success()` resets `_failure_counts` and `_unavailable_since` (prevents immediate re-`UNAVAILABLE` due to stale counts).
+Unregistered keys report `HEALTHY` (`UNKNOWN` is never observed). The registry stores no degraded reason.
 
 ---
 
 ## 18. `LlmPayloadHandler` (`shared/llm_payload.py`)
 
-All methods are `@staticmethod`. `parse_response()` accepts raw parsed JSON dict (not `httpx.Response`), validates `choices`/`message` structure, raises `ValueError` on invalid input, and delegates usage parsing to `LlmSseHelpers.parse_usage()`.
-
-The `on_usage` parameter is a `Callable[[int, int], None] | None`, called from `LlmSseHelpers.parse_usage()` as `on_usage(prompt_tokens, completion_tokens)`. The only production caller is `scripts/agent/factory.py`'s `_on_llm_usage`.
+`parse_response()` accepts the raw parsed JSON dict (not `httpx.Response`), validates the `choices`/`message` structure, raises `ValueError` on invalid input and delegates usage parsing to `LlmSseHelpers.parse_usage()`, which invokes the optional `on_usage(prompt_tokens, completion_tokens)` callback.
 
 ---
 
 ## 19. `LlmHotConfigHandler` (`shared/llm_hot_config.py`)
 
-Manages hot-reloadable config fields for `LLMClient`. `HOT_CONFIG_FIELDS` is a tuple of `(instance_attr_name, kwarg_name)` pairs covering these fields: `temperature`, `max_tokens`, `max_retries`, `retry_base_delay`, `sse_heartbeat_timeout`, `sse_malformed_retry`, `sse_reconnect_max`, `stream_retry_on_heartbeat_timeout`, and `stream_retry_on_malformed_chunk`. `apply_one()` sets a single field via `setattr`. `apply_config()` accepts keyword-only arguments and applies only non-`None` values (partial update; unspecified items remain unchanged).
+Manages hot-reloadable config fields for `LLMClient`; `apply_config()` is a partial update that applies only non-`None` values. The hot-reloadable field set is defined by `HOT_CONFIG_FIELDS` in `shared/llm_hot_config.py`; see `shared_03_03` (Configuration).
 
 ---
 
-## 20. AI Reference Guide
+## 20. Reference Notes
 
-| Question | Answer |
-|---|---|
-| How to load configuration files? | `ConfigLoader().load("filename.toml")` or `load_all()` |
-| Where is the configuration ownership table? | **See [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)** — Official reference for process isolation policies and per-process config files |
-| Does `load_all()` include `agent.toml`? | **Yes (it is the only one)** — `_BASE_CONFIG_FILES = ("agent.toml",)` contains only one entry; other configs (`crawler.toml`, etc.) are loaded individually by their respective processes (See [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)) |
-| Does `ToolExecutor` cache results? | No. There is no tool-result cache. |
-| Is `git_helper.get_repo_info()` reliable? | Returns `RepoInfoResult`; verify `.success` and `.failure_reason` (FailureReason enum) |
-| How to get accurate token counts? | `await get_token_count(history, tokenize_url, http)` |
-| What are the health gate state transitions? | HEALTHY → DEGRADED → UNAVAILABLE → HALF_OPEN → HEALTHY/UNAVAILABLE (see the `McpServerHealthState` section above) |
+- `load_all()` reads `agent.toml` only; other process configs are loaded individually by their own processes (see [Process Separation Policy](shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy), the ownership reference).
+- `ToolExecutor` does not cache tool results; there is no tool-result cache.
+- `git_helper.get_repo_info()` returns `RepoInfoResult`; callers must check `.success` and `.failure_reason`.
+- Exact token counts come from the tokenizer endpoint with a category-based estimate fallback (see `token_counter` in `shared_03_02`).
+- Health gate state transitions are described in the `McpServerHealthState` section above.
 
 ## Keywords
 

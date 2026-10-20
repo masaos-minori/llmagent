@@ -32,12 +32,12 @@ related:
 
 ### 5.1 Module Overview
 
-`crawler_utils.py` — A collection of pure function utilities for `WebCrawler`: URL helpers, content extraction, language detection, and parsing target URLs. Extracted to keep the `WebCrawler` class under 400 lines.
+`crawler_utils.py` — A collection of pure function utilities for `WebCrawler`: URL helpers, content extraction, language detection, and parsing target URLs.
 
-For exhaustive signature and constant detail, see `scripts/rag/ingestion/crawler_utils.py` (crawler utils), `scripts/rag/ingestion/chunk_english.py` (chunk English mixin), and `scripts/rag/ingestion/chunk_utils.py` (chunk utils).
+For exhaustive signature and constant detail, see `crawler_utils.py`, `chunk_english.py`, and `chunk_utils.py` under `scripts/rag/ingestion/`.
 
 **Implementation Notes:**
-- `parse_targets_file` uses module functions for URL validation. Unlike `rag.utils.validate_url` (which is limited to http/https), it allows the `file://` scheme because it is used for the `--targets-file` crawl path (per `crawler_utils.py` docstring). Conversely, `parse_target_urls` (the one that parses `target_urls` within `ingester.toml`) uses `rag.utils.validate_url` and therefore does NOT accept `file://`. While both functions appear to perform the same role of parsing a list of `(url, lang)`, they differ in allowed URL schemes based on their intended input source (TOML `--targets-file` vs config list). (Explicit in code)
+- `parse_targets_file` uses module functions for URL validation. Unlike `rag.utils.validate_url` (which is limited to http/https), it allows the `file://` scheme because it is used for the `--targets-file` crawl path (per `crawler_utils.py` docstring). Conversely, `parse_target_urls` (the one that parses `target_urls` within `ingester.toml`) uses `rag.utils.validate_url` and therefore does NOT accept `file://`. While both functions appear to perform the same role of parsing a list of `(url, lang)`, they differ in allowed URL schemes based on their intended input source (TOML `--targets-file` vs config list).
 
 ---
 
@@ -53,9 +53,7 @@ For exhaustive signature and constant detail, see `scripts/rag/ingestion/crawler
 
 ### 7.1 Module Overview
 
-`chunk_utils.py` — Buffer helpers imported individually by `ChunkEnglishMixin` and `ChunkSplitter`. Provides management of trailing duplicate buffers and accumulation of items subject to min/max chunk size constraints. **`ChunkJapaneseMixin` does NOT import this module and uses its own implementation instead** (designed as a shared helper but currently unshared — refactoring incomplete).
-
-For exhaustive signature and constant detail, see `scripts/rag/ingestion/crawler_utils.py` (crawler utils), `scripts/rag/ingestion/chunk_english.py` (chunk English mixin), and `scripts/rag/ingestion/chunk_utils.py` (chunk utils).
+`chunk_utils.py` — Buffer helpers imported individually by `ChunkEnglishMixin` and `ChunkSplitter`. Provides management of trailing duplicate buffers and accumulation of items subject to min/max chunk size constraints. `ChunkJapaneseMixin` does not use it and keeps its own buffering implementation.
 
 ---
 

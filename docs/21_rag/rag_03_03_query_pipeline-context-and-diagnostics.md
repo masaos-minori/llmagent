@@ -24,10 +24,6 @@ related:
 
 ## 4. PipelineContext Dataclass (`scripts/rag/stage.py`)
 
-```python
-ctx = PipelineContext(query="search query", history_context="conversation history")
-```
-
 Fields and defaults are defined in `scripts/rag/stage.py::PipelineContext`. Each
 stage-populated field is written by a specific pipeline stage:
 
@@ -44,58 +40,24 @@ stage-populated field is written by a specific pipeline stage:
 
 ### 4.2 SearchDiagnostics (`scripts/rag/models_result.py`)
 
-```python
-from rag.models_result import SearchDiagnostics, ResultSource, HttpResultKind
-```
-
-For detailed field lists, and types, see <a href="rag_04_dto-models-types.md">rag_04_dto-models-types.md</a>. This section describes boundary conditions and ownership specifically in HTTP mode.
+Field definitions: `SearchDiagnostics`, `ResultSource`, and `HttpResultKind` in `scripts/rag/models_result.py` (summary in [rag_04_dto-models-types.md](rag_04_dto-models-types.md)). This section describes boundary conditions and ownership specifically in HTTP mode.
 
 #### Boundary Conditions (Boundary and ownership)
 
-Note that the name `http_result_kind` is used in two different value systems; do not confuse them (Explicit in code).
+Note that the name `http_result_kind` is used in two different value systems; do not confuse them.
 
 - `SearchDiagnostics.http_result_kind` (this section, `HttpResultKind` enum in `rag/models_result.py`) has these members: `SUCCESS` / `EMPTY` / `ERROR` / `NOT_USED` / `AUTH_ERROR`. It is set within the HTTP augment execution in `pipeline.py` as either `HttpResultKind.SUCCESS` (non-empty), `HttpResultKind.EMPTY` (`""`), `HttpResultKind.ERROR` (`None`), or `HttpResultKind.AUTH_ERROR` (authentication failure) via the `RagPipeline.get_diagnostics()` method.
 - `get_diagnostics()["http_result_kind"]` (via `HttpAugment.run()`) also carries an `HttpResultKind` enum value; the four string literals (`"remote_nonempty"` / `"remote_empty"` / `"in_process_fallback"` / `"auth_error"`) exist only as an internal implementation detail inside `HttpAugment`: `HttpAugment._http_result_kind` stores these literals, but `_map_http_result_kind()` converts them to the `HttpResultKind` enum before either public field is set — the string literals never reach a caller reading either field.
 
 ### 4.3 get_diagnostics() Return Value (`RagPipeline.get_diagnostics()`)
 
-```python
-pipeline.get_diagnostics() -> dict
-```
+`RagPipeline.get_diagnostics()` returns a dict that groups: per-stage results and timings (`stage_results`, `timings`), the fetch result (`fetch_result`), the fusion mode (`fusion_mode`: `"rrf"` or `"dedup_only"`), the HTTP classification (`http_result_kind`, always an `HttpResultKind` enum value, never a raw string literal), fallback counters (`fallback_count`, `fallback_reasons`), refiner counters (see [rag_03_05_query_pipeline-augment-stages.md](rag_03_05_query_pipeline-augment-stages.md)), `hit_counts`, and the `search_diagnostics` summary including `degraded`. The authoritative key set is the method itself.
 
-Returns structured diagnostic information with the following keys:
-
-| Key | Type | Description |
-|---|---|---|
-| `stage_results` | `list[dict]` | Results per stage (same as `last_stage_results`) |
-| `timings` | `dict[str, float]` | Actual duration in seconds for each stage (same as `last_timings`) |
-| `fetch_result` | `dict \| None` | Fetch result: `{hits: int, min_score_applied: float}` or `None` |
-| `fusion_mode` | `str` | `"rrf"` or `"dedup_only"` |
-| `http_result_kind` | `HttpResultKind` | Classification for HTTP mode (enum value from `HttpResultKind`, never raw string literal) |
-| `fallback_count` | `int` | Number of stages where fallback occurred |
-| `fallback_reasons` | `list[str]` | List of fallback reasons for all stages |
-| `refiner_fallback_count` | `int` | Number of times the refiner fell back |
-| `refiner_returned_empty` | `int` | Number of times the refiner returned empty content |
-| `refiner_exception_count` | `int` | Number of exceptions caught in the refiner |
-| `refiner_exception` | `bool` | `True` if any exception occurred in the refiner |
-| `hit_counts` | `dict[str, int]` | `{merged: int}` — Hits after merging |
-| `search_diagnostics` | `dict` | `{embed_ok, embed_failed, fts_errors, degraded}` |
-
-> **Note:** In HTTP mode, `fetch_result` is populated only when the response body carries a non-empty `selected_hits` list. The `POST /v1/call_tool` result of the rag-pipeline MCP server has only `result` and `is_error`, so a call through that endpoint leaves `fetch_result` unchanged; the structured `selected_hits` field exists only on the direct `POST /rag_run_pipeline` response (see `mcp_04_03_rag-pipeline-and-cicd.md`). `fetch_result` may also be stale when the HTTP call succeeds but returns zero hits (`selected_hits` is empty). In that case `_forward_fetch_result()` skips the callback invocation (augment.py: `if selected_hits:` guard), so `last_fetch_result` retains its prior value. On normal HTTP success with non-empty hits, the callback chain is: `HttpAugment` → `AugmentRefiner._forward_fetch_result(selected_hits)` → `RagPipeline.__init__`'s `set_fetch_result` callback → `setattr(self, "last_fetch_result", fetch_result)`.
+> **Note:** In HTTP mode, `fetch_result` is populated only when the response body carries a non-empty `selected_hits` list. The `POST /v1/call_tool` result of the rag-pipeline MCP server has only `result` and `is_error`, so a call through that endpoint leaves `fetch_result` unchanged; the structured `selected_hits` field exists only on the direct `POST /rag_run_pipeline` response (see `mcp_04_03_rag-pipeline-and-cicd.md`). `fetch_result` may also be stale when the HTTP call succeeds but returns zero hits (`selected_hits` is empty). In that case `_forward_fetch_result()` skips the callback invocation (`augment.py`), so `last_fetch_result` retains its prior value.
 
 **Safe to call before `run()` / `augment()`** — returns empty/zero values. Callers should serialize using `orjson.dumps(pipeline.get_diagnostics())`.
 
-``` text
-StageResult = TypedDict with keys:
-  stage_name: str         — class name of the stage
-  status: str             — "success" | "fallback" | "failure"
-  elapsed_seconds: float  — wall-clock seconds for the stage
-  fallback_reason: str | None — reason when status is "failure" or "fallback"; None on success
-```
-
-`RagPipeline.run()` records a `StageResult` for each stage and makes the full list available via `pipeline.last_stage_results: list[StageResult]`. The same list is also stored in `PipelineContext.stage_results` for debugging and inspection.
-
----
+`RagPipeline.run()` records a `StageResult` (`stage_name`, `status`, `elapsed_seconds`, `fallback_reason`) for each stage; `status` is `"success"`, `"fallback"`, or `"failure"`, and `fallback_reason` is set only for the latter two. The full list is available as `pipeline.last_stage_results` and is also stored in `PipelineContext.stage_results` for debugging and inspection.
 
 ## Keywords
 

@@ -29,7 +29,7 @@ Rationale:
 
 A publish operation succeeds when the database commit completes successfully. Post-commit operations (JSONL append, broker notification) are best-effort side effects.
 
-The publish flow in `publish_route.py`:
+The publish flow:
 1. Validate envelope schema against request body.
 2. Execute `run_with_db_lock(_insert)` — this performs the SQLite INSERT OR IGNORE under the DB lock.
 3. If `status == "conflict"`: return HTTP 409.
@@ -45,12 +45,9 @@ Step 2 is the **only** step that determines publish success. Steps 4-5 are best-
 
 When the JSONL append fails after a successful database commit:
 - **Event status**: Published (DB commit succeeded).
-- **Observable signal**: the warning log line below is the operator-visible signal. The in-process Prometheus Counter `eventbus_jsonl_append_failure_total` increments, but no endpoint exposes it (the service serves no Prometheus scrape endpoint and `/health` does not return this counter; see [eventbus_07](eventbus_07_configuration-and-operations.md)). (Explicit in code — `scripts/eventbus/publish_route.py`, `scripts/eventbus/health_route.py`)
+- **Observable signal**: the warning log line below is the operator-visible signal. The in-process Prometheus Counter `eventbus_jsonl_append_failure_total` increments, but no endpoint exposes it (the service serves no Prometheus scrape endpoint and `/health` does not return this counter; see [eventbus_07](eventbus_07_configuration-and-operations.md)).
 - **Log output**: Structured warning: `"eventbus: JSONL append failed (event still committed): {exc}"`.
 - **Recovery**: None automated. SQLite remains complete; the JSONL archive is missing the affected line.
-
-Affected file paths:
-- `config/eventbus.toml` → `storage_dir` key defines the JSONL file location.
 
 ### Broker Notification Failure
 
@@ -79,16 +76,9 @@ Same as disk-full — DB commit succeeds, JSONL append fails. No retry attempt (
 
 No reconcile or rebuild script exists in the repository. A failed JSONL append is not retried and is not backfilled, so the JSONL archive can diverge from SQLite. Because SQLite is the canonical store, recovery of event data means reading from SQLite (via `/subscribe` with `since_seq`, or `/replay` with the operator role), not from JSONL. Any rebuild of the JSONL archive from SQLite must be done manually.
 
-## Metrics Reference
+## Metrics
 
-These counters are registered in-process only; the service exposes no scrape endpoint and `/health` does not report them.
-
-| Metric Name | Type | Description |
-|-------------|------|-------------|
-| `eventbus_jsonl_append_failure_total` | Counter | Number of JSONL append failures after successful database commit |
-| `eventbus_broker_notify_failure_total` | Counter | Number of broker notification failures after successful database commit |
-| `eventbus_broker_publish_failure_total` | Counter | Number of broker publish failures to individual subscribers |
-| `eventbus_slow_consumer_total` | Counter | Number of slow consumer events detected (existing) |
+The failure counters (`eventbus_jsonl_append_failure_total`, `eventbus_broker_notify_failure_total`, `eventbus_broker_publish_failure_total`) and `eventbus_slow_consumer_total` are registered in-process only; the service exposes no scrape endpoint and `/health` does not report them.
 
 ## Keywords
 

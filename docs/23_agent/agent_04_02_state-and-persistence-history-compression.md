@@ -46,10 +46,7 @@ Triggered during each turn if either of the following conditions is met:
 
 ### Compression Results
 
-- Selected old turns → Replaced with a single LLM summary message
-- `CompressResult.compressed_count` = Number of messages replaced
-- `CompressResult.protected_count` = Number of messages skipped (protected)
-- `stat_compress_count` is incremented
+Selected old turns are replaced with a single LLM summary message, and the compress counter is incremented. The result reports how many messages were replaced and how many were protected.
 
 ### Fallback Decision on Failure
 
@@ -69,8 +66,8 @@ Key behaviors:
 - The summarized `[Conversation summary]` system message is persisted as a row with `role=system`.
 - Fallback truncation (discarding without summarization) also triggers persistence to maintain database consistency.
 - The in-memory `ctx.conv.history` remains the source of truth for the current session; database persistence serves as a backup for reloads.
-- `/history` and `/session export` continue to operate against `ctx.conv.history`; no changes required.
-- `stat_turns` counter and other in-memory statistics are reset upon reload (existing behavior).
+- `/history` and `/session export` operate against `ctx.conv.history`.
+- In-memory statistics such as `stat_turns` are reset upon reload.
 - Each compression updates the undo boundary (`sessions.undo_floor_message_id`) in the same transaction as the snapshot. Messages at or before the boundary, including the summary and the protected recent turns, cannot be undone.
 
 ## Responsibility Boundary

@@ -186,7 +186,7 @@ bash deploy/start_agent.sh
 > - GitHub Operations: Export `GITHUB_TOKEN` in shell or source `conf.d/github-mcp` before startup
 > - CI/CD: `conf.d/cicd-mcp` holds `GITHUB_TOKEN` for `cicd-mcp`
 >
-> `conf.d/` contains environment files only for the `cicd-mcp`, `git-mcp`, `github-mcp` and `web-search-mcp` servers; `git-mcp` defines no variables there (comments only). `deploy/deploy.sh` does not copy `conf.d/`. The MCP authentication tokens (`MCP_<SERVER_KEY>_AUTH_TOKEN`) are not part of `conf.d/`; they are set as environment variables (see Section 2.5). (Explicit in code — `conf.d/`, `deploy/deploy.sh`, `config/agent.toml`)
+> `conf.d/` contains environment files only for the `cicd-mcp`, `git-mcp`, `github-mcp` and `web-search-mcp` servers; `git-mcp` defines no variables there (comments only). `deploy/deploy.sh` does not copy `conf.d/`. The MCP authentication tokens (`MCP_<SERVER_KEY>_AUTH_TOKEN`) are not part of `conf.d/`; they are set as environment variables (see Section 2.5). (Explicit in code — `conf.d/`)
 
 ### 2.4 Verifying MCP Servers
 
@@ -225,7 +225,7 @@ MCP_MDQ_AUTH_TOKEN=
 
 Keep the `.env` file out of version control (it is gitignored) and restrict its permissions with `chmod 600`. (Explicit in code — `deploy/start_agent.sh`, `.gitignore`)
 
-> **Note:** web-search authenticates with the same shared `MCP_WEB_SEARCH_AUTH_TOKEN` as its `agent.toml` entry. The former separate browser token was retired; an environment file that still defines `MCP_WEB_SEARCH_BROWSER_AUTH_TOKEN` can drop it. (Explicit in code — `config/web_search_mcp_server.toml`, `scripts/mcp_servers/web_search/web_search_server.py`)
+> **Note:** web-search authenticates with the same shared `MCP_WEB_SEARCH_AUTH_TOKEN` as its `agent.toml` entry; no separate browser token exists. (Explicit in code — `config/web_search_mcp_server.toml`)
 
 ### 2.6 Compiled Artifacts (NUITKA `--onefile`)
 
@@ -269,13 +269,13 @@ key in `agent.toml` or falls back to `DbConfig`'s Python-level default
 (`scripts/db/config.py`); see the auto-generated DB Path Reference below for which.
 `mdq.sqlite` is the exception: its path is set in the MDQ server's own configuration.
 
-| DB | Config key | Purpose |
-|---|---|---|
-| `rag.sqlite` | `rag_db_path` | RAG documents, chunks, embeddings |
-| `session.sqlite` | `session_db_path` | Agent sessions, messages |
-| `workflow.sqlite` | `workflow_db_path` | Task tracking, event processing |
-| `eventbus.sqlite` | `eventbus_db_path` | Event Bus records |
-| `mdq.sqlite` | `db_path` in `config/mdq_mcp_server.toml` | Markdown index of the MDQ server (derived store, not a platform database) |
+| DB | Purpose |
+|---|---|
+| `rag.sqlite` | RAG documents, chunks, embeddings |
+| `session.sqlite` | Agent sessions, messages |
+| `workflow.sqlite` | Task tracking, event processing |
+| `eventbus.sqlite` | Event Bus records |
+| `mdq.sqlite` | Markdown index of the MDQ server (derived store, not a platform database; path is `db_path` in `config/mdq_mcp_server.toml`) |
 
 Default paths are not stated here: the DB Path Reference below shows which keys are set in `agent.toml` and which fall back to a Python-level default.
 
@@ -295,10 +295,11 @@ bash deploy/init_db.sh
 - Applies the incremental migrations of `workflow.sqlite` and `eventbus.sqlite` (idempotent); `rag.sqlite` and `session.sqlite` are create-only and are not migrated
 - Verifies all mandatory tables exist; aborts if any are missing
 
-**Upgrade note (workflow schema 1.1.0):** `init_db.sh` migrates an existing `workflow.sqlite`: tasks that were waiting for the removed approval stage are marked failed and the `approvals` table is dropped. Back up `workflow.sqlite` first, run `init_db.sh` before `setup_services.sh` (which rejects a schema-version mismatch), and make sure the workflow definition no longer contains `require_approval` (the loader rejects the key).
 - Records the schema version
 
-**Upgrade note (`/undo` compression boundary):** the `/undo` compression boundary adds `sessions.undo_floor_message_id`. `session.sqlite` has no incremental migration, so the release that introduces the column requires recreating `session.sqlite`; the recreated file is empty, and the memory tables recover separately.
+Run `init_db.sh` before `setup_services.sh`, which rejects a schema-version mismatch. Back up `workflow.sqlite` before running it against an existing file, because the migrations are applied in place. The migrations mark tasks that wait for the removed approval stage as failed and drop the `approvals` table. The workflow definition must not contain `require_approval`; the loader rejects the key.
+
+**Recreating `session.sqlite`.** `session.sqlite` has no incremental migration, so a schema change to it (for example the `sessions.undo_floor_message_id` column of the `/undo` compression boundary) requires recreating the file. The recreated file is empty, and the memory tables recover separately.
 
 | Step | Action |
 |---|---|
@@ -308,7 +309,7 @@ bash deploy/init_db.sh
 | 4. Delete | Delete only `session.sqlite` (`session_db_path` in `agent.toml`) |
 | 5. Create | Run only `create_session_schema()`; do not touch other DBs |
 | 6. Recover memory | Start the agent and run `/memory rebuild` (dry run first, then `--confirm`; add `--allow-loss` if memories exist only in SQLite). Deletes and pins recorded as change events are reproduced; earlier ones are not |
-| 7. Verify | Confirm `undo_floor_message_id` with `PRAGMA table_info(sessions)` |
+| 7. Verify | Confirm the new column with `PRAGMA table_info(sessions)` |
 
 Sessions, messages, and diagnostics are not recovered; past sessions can no longer be loaded.
 

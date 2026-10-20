@@ -27,22 +27,12 @@ related:
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 
----
 
 ## 2. WebCrawler (`scripts/rag/ingestion/crawler.py`)
 
 ### 2.1 Class Overview
 
-`WebCrawler` performs a BFS crawl from a starting URL within the same origin up to `max_depth` levels and saves each page as a JSON file in `rag-src/`. It supports Conditional GET (ETag/Last-Modified), local files, and automatic language detection by CJK ratio per page (`--lang auto`). Concurrency is controlled using `asyncio.Semaphore`.
-
-**Typed dict**
-
-See `CrawlJsonPayload` in `scripts/rag/ingestion/pipeline_utils.py` for the exact
-TypedDict field set used for crawl output JSON files.
-
-**Public Methods** — See `scripts/rag/ingestion/crawler.py` for details.
-
-**Module-level Utilities** — See `scripts/rag/ingestion/crawler.py` for details.
+`WebCrawler` performs a BFS crawl from a starting URL within the same origin up to `max_depth` levels and saves each page as a JSON file in `rag-src/`. It supports Conditional GET (ETag/Last-Modified), local files, and automatic language detection by CJK ratio per page (`--lang auto`). Concurrency is bounded by an `asyncio.Semaphore`. The crawl output payload shape is defined by `CrawlJsonPayload` in `scripts/rag/ingestion/pipeline_utils.py`.
 
 ### 2.1.1 Configuration Parameters
 
@@ -55,30 +45,26 @@ own inline comment states these are unvalidated heuristics.
 `skip_nofollow` controls whether nofollow-marked links are excluded from
 the BFS queue.
 
-> For a full list of parameters, see [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md).
-
 ### 2.1.2 `crawl_file` Behavior
 
 `crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur. Python files (.py) are stored as code blocks and subject to code-specific chunking. Other file types store their content directly in the `content` field.
 
-`crawl_file` accepts `en`, `ja`, and `auto`. For `lang == "auto"`, the language is resolved by CJK-ratio detection on the file content (`ja` when the CJK ratio is at or above the detection threshold, otherwise `en`), matching the resolution used for crawled web pages (see Language Detection below). An unsupported value other than `en`, `ja`, and `auto` is rejected (a warning is logged and nothing is written).
+`crawl_file` accepts `en`, `ja`, and `auto`. For `lang == "auto"`, the language is resolved by CJK-ratio detection on the file content, matching the resolution used for crawled web pages (see Language Detection below). An unsupported value other than `en`, `ja`, and `auto` is rejected (a warning is logged and nothing is written).
 
 ### 2.2 Detailed Behavior
 
-- **Text Extraction:** Uses `crawler_utils.extract_text()` for body text and BeautifulSoup4's `<pre>` for code blocks.
-- **Language Detection:** If CJK ratio (Hiragana + Katakana + CJK Unified Ideographs at or above the threshold) is detected → `ja`; otherwise `en`. Pages shorter than the minimum detection length use the hint language. `--lang auto` always performs automatic detection, with `en` as fallback.
+- **Text Extraction:** Body text via `crawler_utils.extract_text()`; code blocks from BeautifulSoup4 `<pre>` elements.
+- **Language Detection:** If the CJK ratio (Hiragana + Katakana + CJK Unified Ideographs) is at or above the threshold → `ja`; otherwise `en`. Pages shorter than the minimum detection length use the hint language. `--lang auto` always performs automatic detection, with `en` as fallback.
 - **Idempotency:** A `visited` set prevents duplicate fetching of the same URL within a single execution.
 - **Conditional GET:** Reads `documents.etag` / `documents.last_modified` from SQLite and sends `If-None-Match` / `If-Modified-Since`. If a 304 response is received, saving the file is skipped.
 
 #### Local File Injection
 
-`crawl_file(path, lang)` reads a local file and writes the crawl JSON to `rag-src/`. Unlike web URLs, no HTTP round-trips occur.
-
 ##### Generating Freshness Data (Note on Responsibility Boundaries)
 
 `crawl_file()` only calculates the mtime (ISO string) and SHA-256 hash of the file content and stores them in the `last_modified` and `etag` fields of the crawl payload; it does not perform any skip/decision logic. The JSON payload is always output unconditionally. The URL is stored as `file://{absolute_path}`.
 
-Decisions on whether to skip or re-ingest are made by `DocumentManager._is_file_unchanged()`/`handle_existing_document()` in `scripts/rag/ingestion/document_manager.py`, NOT by `WebCrawler`.
+Decisions on whether to skip or re-ingest are made by `DocumentManager` (`handle_existing_document()`, `scripts/rag/ingestion/document_manager.py`), NOT by `WebCrawler`.
 
 | Condition | Decision (`DocumentManager` performs) |
 |---|---|
@@ -86,11 +72,9 @@ Decisions on whether to skip or re-ingest are made by `DocumentManager._is_file_
 | `etag` is different | Automatic re-ingestion (deletes old record and re-embeds) |
 | No `etag` in DB | Re-ingestion (conservative decision) |
 
-For local files, the `etag` column contains the hex digest of the SHA-256. Since `file://` URLs do not have HTTP ETags, collisions do not occur. Using `--force` bypasses the hash check and always triggers re-ingestion.
+For local files, the `etag` column contains the hex digest of the SHA-256. Since `file://` URLs do not have HTTP ETags, collisions do not occur. Using `--force` bypasses the hash check and always triggers re-ingestion. For the operator-facing procedure, see [rag_05_06-local-file-re-ingestion.md](rag_05_06-local-file-re-ingestion.md).
 
-Log messages: `"file:// unchanged (sha256 match)"` or `"file:// changed — auto re-ingesting"`.
-
-This separation exists for two reasons: (1) **separation of concerns** — `crawl_file()` / `CrawlPersister.save()` handles I/O and metadata calculation (mtime, SHA-256), while `DocumentManager._is_file_unchanged()` handles business-logic decisions based on those values; (2) **testability** — each concern can be tested independently (calculation logic without a database, decision logic without file I/O), and the freshness-decision policy can evolve (e.g. changing the skip/re-ingest rule) without touching crawl-time file reading.
+This separation exists for two reasons: (1) **separation of concerns** — `crawl_file()` / `CrawlPersister.save()` handles I/O and metadata calculation (mtime, SHA-256), while `DocumentManager` handles business-logic decisions based on those values; (2) **testability** — each concern can be tested independently (calculation logic without a database, decision logic without file I/O), and the freshness-decision policy can evolve (e.g. changing the skip/re-ingest rule) without touching crawl-time file reading.
 
 #### Comparison: Web vs. Local Injection
 
@@ -99,7 +83,6 @@ This separation exists for two reasons: (1) **separation of concerns** — `craw
 | Freshness Basis | ETag / Last-Modified Header | File mtime / SHA-256 |
 | Skipping Mechanism | 304 Not Modified | Comparison of saved mtime or hash |
 | Forced Re-indexing | `--force` flag | `--force` flag |
-| Current Status | Implemented | Implemented (SHA-256 hash comparison) |
 
 ### 2.3 CLI Arguments
 
@@ -109,10 +92,8 @@ list.
 ### 2.4 Output JSON Format
 
 `read_crawl_json()` (`scripts/rag/ingestion/pipeline_utils.py`) is the canonical
-reader for crawl-stage JSON artifacts; `ChunkSplitter`
-(`scripts/rag/ingestion/chunk_splitter.py`) is its sole caller. A crawl artifact
-requires exactly this key set (`url`, `content`, `title`, `lang`, `code_blocks`, `etag`,
-`last_modified`, `fetched_at`) — a missing key or an invalid field type raises
+reader for crawl-stage JSON artifacts. A crawl artifact requires exactly its
+defined key set — a missing key or an invalid field type raises
 `ChunkFormatError` (see [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md)).
 For the full Required/Nullable/Conditional classification of these fields, see the
 canonical crawl/chunk artifact-field contract table in
@@ -135,7 +116,6 @@ See [rag_05_03-logging.md](rag_05_03-logging.md) for details.
 
 See [rag_05_01-configuration-reference.md, `config/crawler.toml`](rag_05_01-configuration-reference.md).
 
----
 
 ## Keywords
 

@@ -56,16 +56,6 @@ uv run python scripts/rag/ingestion/crawler.py --targets-file /path/to/targets.t
 uv run python scripts/rag/ingestion/ingester.py --force
 ```
 
-## Comparison: Local Files vs. Web URLs
-
-| Aspect | Web URL | Local File (file://) |
-|---|---|---|
-| Skipping when unchanged | Yes (ETag/304) | Yes (SHA-256 hash) |
-| Forced re-indexing | `--force` | `--force` |
-
----
-
-
 ## Keywords
 
 - configuration

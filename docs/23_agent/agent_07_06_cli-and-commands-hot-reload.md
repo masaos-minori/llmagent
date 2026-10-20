@@ -34,10 +34,6 @@ Documents the scope of the reload subcommand and the classification of configura
 
 The reload subcommand reads the base configuration files and applies changes as much as possible. Settings that are only loaded at startup are detected but not applied.
 
-### Configuration Files
-
-`_BASE_CONFIG_FILES` in `config_loader.py` contains only one item: `("agent.toml",)`. Agent process settings are centralized in `config/agent.toml`.
-
 ### Change Classification
 
 | Category | Output Tag | Description |
@@ -47,12 +43,6 @@ The reload subcommand reads the base configuration files and applies changes as 
 | Startup-only | `[STARTUP-ONLY]` | Loaded only once at startup. Ignored by reload subcommand even if changed |
 | Skipped | `[SKIP]` | Changes intentionally ignored |
 | Always live | `[LIVE]` | Always effective without reload |
-
-### Output Messages
-
-- No changes: `No changes detected.`
-- All applied: `Config reloaded — all changes applied`
-- I/O error: `Reload failed (I/O error): <message>`
 
 ## Responsibility Boundary
 

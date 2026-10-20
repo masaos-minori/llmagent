@@ -50,47 +50,11 @@ data:{json_event}
 
 The SSE stream covers only the requested page (`limit`/`offset`); it closes after the page is streamed and does not wait for new events. When no events exist after `since_seq`, the connection closes without sending any event.
 
-#### Example SSE Response
-
-```
-id:42
-data:{"event_id":"evt-abc","topic":"orders","payload":{"order_id":"123"},"seq":42}
-
-id:43
-data:{"event_id":"evt-def","topic":"users","payload":{"user_id":"456"},"seq":43}
-
-```
-
 ### JSON Format
 
 **HTTP 200 OK** with `Content-Type: application/json`
 
-#### Response Schema
-
-```json
-{
-  "total": 1000,
-  "limit": 100,
-  "offset": 0,
-  "items": [
-    {
-      "event_id": "evt-abc",
-      "topic": "orders",
-      "payload": {"order_id": "123"},
-      "seq": 42
-    }
-  ]
-}
-```
-
-#### Field Descriptions
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `total` | integer | Total number of events available since `since_seq` |
-| `limit` | integer | Requested page size |
-| `offset` | integer | Requested offset |
-| `items` | array[object] | Array of event objects with `seq`, `event_id`, `topic`, `payload`, `producer`, and `published_at` (examples below omit `producer` and `published_at` for brevity) |
+A pagination envelope (`total`, `limit`, `offset`) plus an `items` array of event objects. `total` counts all events after `since_seq`, and is available only in this format.
 
 When no events exist after `since_seq`, the JSON response has `total: 0` and an empty `items` array.
 
@@ -102,24 +66,6 @@ When no events exist after `since_seq`, the JSON response has `total: 0` and an 
 ## Ordering and Consistency
 
 Events are ordered by `seq` ascending (insertion order). The page and the total count are fetched under the global DB lock in a single acquisition, so the returned events and `total` form a consistent snapshot; concurrent writes do not affect the result set.
-
-## Example Requests
-
-### SSE Replay
-
-```bash
-curl -N -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
-  "http://<eventbus-host>:<port>/replay?since_seq=42&format=sse"
-```
-
-### JSON Replay
-
-```bash
-curl -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
-  "http://<eventbus-host>:<port>/replay?since_seq=42&format=json&limit=50&offset=0"
-```
-
-The response follows the JSON Response Schema above.
 
 ## Keywords
 

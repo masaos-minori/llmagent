@@ -19,7 +19,7 @@ related:
 ## Example Failure Path (Transport Error)
 
 ``` text
-1-2. Same as above.
+1-2. Same as the success path in [mcp_03_03](mcp_03_03_transport-and-health.md#example-success-path).
 
 3. MCP server unreachable (timeout / 5xx):
    HttpTransport raises TransportError.
@@ -90,11 +90,11 @@ AgentREPL.run()
 
 ### Implementation Note (Double SIGINT Guard)
 
-`HttpServerLifecycleManager.shutdown_all()` (`agent/http_lifecycle.py`) temporarily swaps the signal handler to `_absorb_sigint_during_shutdown()` during cleanup, absorbing subsequent SIGINTs as WARNING logs (since calling `signal.signal()` from outside the main thread would raise a `ValueError`, it continues without guards). This is intended to prevent orphan subprocesses if a user presses Ctrl-C twice while waiting for connections to close. The original handler is restored once cleanup is complete. (Explicit in code)
+`HttpServerLifecycleManager.shutdown_all()` (`agent/http_lifecycle.py`) temporarily swaps the signal handler to `_absorb_sigint_during_shutdown()` during cleanup, absorbing subsequent SIGINTs as WARNING logs (since calling `signal.signal()` from outside the main thread would raise a `ValueError`, it continues without guards). This is intended to prevent orphan subprocesses if a user presses Ctrl-C twice while waiting for connections to close. The original handler is restored once cleanup is complete.
 
 ### Implementation Note (Shutdown Termination)
 
-During `shutdown_all()`, every HTTP subprocess server is sent SIGTERM at the start and the servers are awaited together, so total shutdown time is bounded by one termination timeout (30 seconds) rather than the sum over servers (`agent/http_lifecycle_shutdown_coordinator.py`). Exit is detected by reaping the child while waiting, so a server that exits promptly on SIGTERM returns immediately; only a server that ignores SIGTERM is escalated to SIGKILL. A termination failure keeps that server's tracking entry for manual cleanup and does not affect the other servers. (Explicit in code)
+During `shutdown_all()`, every HTTP subprocess server is sent SIGTERM at the start and the servers are awaited together, so total shutdown time is bounded by one termination timeout (30 seconds) rather than the sum over servers (`agent/http_lifecycle_shutdown_coordinator.py`). Exit is detected by reaping the child while waiting, so a server that exits promptly on SIGTERM returns immediately; only a server that ignores SIGTERM is escalated to SIGKILL. A termination failure keeps that server's tracking entry for manual cleanup and does not affect the other servers.
 
 ## Keywords
 

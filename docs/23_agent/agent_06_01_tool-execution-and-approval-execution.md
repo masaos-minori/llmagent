@@ -34,12 +34,7 @@ Dispatch path of `ToolExecutor.execute(tool_name, args)` (single path, no fallba
 
 ### Parallel vs Sequential Execution
 
-`execute_all_tool_calls()` always delegates processing to `agent/tool_runner.py::_execute_with_dag()` (a single execution path). `ctx.cfg.tool.serial_tool_calls` is not a flag to select an execution engine; it is passed as the `force_serial` input to `agent/tool_scheduler.py::build_execution_groups()`:
-
-| Condition | Execution |
-|---|---|
-| `serial_tool_calls=False` | DAG Scheduling (Phase construction + conflict graph) |
-| `serial_tool_calls=True` | `force_serial=True` — Bypasses phase/conflict graph construction entirely and generates individual serial phases in calling order |
+`execute_all_tool_calls()` always delegates to a single execution path (`agent/tool_runner.py::_execute_with_dag()`). `ctx.cfg.tool.serial_tool_calls` does not select an engine; it is passed as the `force_serial` input to `agent/tool_scheduler.py::build_execution_groups()`, so `True` yields individual serial phases in calling order and `False` uses phase construction plus the conflict graph.
 
 ### DAG Tool Scheduler Design Decisions
 
@@ -53,13 +48,9 @@ Dispatch path of `ToolExecutor.execute(tool_name, args)` (single path, no fallba
 
 Grouping is performed by `agent/tool_scheduler.py::build_execution_groups()` using `call_id` as the key for each `ToolSpec` (constructed per call via `agent/tool_runner.py::_execute_with_dag()`'s `RuntimeToolRegistry.tool_spec_for_call()`) — not on a per-tool-name basis. Even different calls to the same tool name can be executed in parallel within the same batch if their `resource_scopes` do not overlap.
 
-#### ExecutionPlan Structure (batches / ScheduledGroup)
+#### Execution Order
 
-`build_execution_groups()` returns a single `ExecutionPlan` (`batches: tuple[ScheduledBatch, ...], serialization_events: tuple[SerializationEvent, ...]`).
-
-- Each **batch** is executed sequentially relative to other batches.
-- Within a **batch**, `ScheduledGroup`s are executed in parallel via `asyncio.gather()`; if a group's `sequential` flag is `True`, calls within that group are executed in order.
-- `scheduling_mode`: `"dag_concurrent"` / `"dag_sequential"`
+`build_execution_groups()` returns an execution plan of batches plus serialization events. Batches run sequentially; groups within a batch run in parallel, and calls within a `sequential` group run in order.
 
 ### Argument Validation
 
@@ -85,8 +76,7 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 
 ## Key Constraints
 
-- `_execute_with_dag()` is the only execution path. `serial_tool_calls=True` does not switch to a different engine or branch to a different function; it acts as the `force_serial` input to `build_execution_groups()` and executes all calls sequentially through the single scheduler.
-- Multiple calls to write tools with overlapping `resource_scopes` are serialized within the same group.
+- `_execute_with_dag()` is the only execution path; `serial_tool_calls=True` only changes the scheduler input and never selects another engine.
 - Preparation phase is fail-closed: if any issue exists (missing id, invalid JSON, unregistered tool, registry disconnected, schema violation, metadata construction failure), it is rejected before reaching approval, execution, or scheduling.
 
 ## Known Limitations

@@ -53,67 +53,43 @@ for the full explanation.
 
 **`cmd` target invariant:** for every `[mcp_servers.<name>]` entry with
 `startup_mode = "subprocess"`, the last element of `cmd` must point to a valid
-launch target — `ConfigLoader`/`_build_mcp_servers()` do not verify this at
-load time, so a stale or renamed path silently loads without error until the
-subprocess is spawned. In the current layout the target is the compiled binary
-`/opt/llm/bin/mcp_<server key>`. Those binaries are build-host artifacts that
-do not exist in the development environment, so
-`tests/agent/test_mcp_server_cmd_paths.py` loads the real `config/agent.toml`
-via `build_agent_config()` and asserts the binary naming convention rather than
-file existence. The test also accepts the legacy layout, a script under
-`/opt/llm/scripts/`, and then asserts that the script exists on disk. Any other
-target fails the test.
+launch target. `ConfigLoader` does not verify this at load time, so a stale or
+renamed path loads silently and fails only when the subprocess is spawned. The
+production target is the compiled binary `/opt/llm/bin/mcp_<server key>`; binaries
+are build-host artifacts absent from the development environment, so the guarding
+test (`tests/agent/test_mcp_server_cmd_paths.py`) asserts the binary naming
+convention against the real `config/agent.toml` instead of file existence.
 
 ## Layer 2 — MCP Server Local Application Configuration (`config/*_mcp_server.toml`)
 
-| Server | Config file |
-|---|---|
-| web-search-mcp | `config/web_search_mcp_server.toml` (no API keys needed) |
-| file-read-mcp | `config/file_read_mcp_server.toml` |
-| file-write-mcp | `config/file_write_mcp_server.toml` |
-| file-delete-mcp | `config/file_delete_mcp_server.toml` |
-| github-mcp | `config/github_mcp_server.toml` |
-| shell-mcp | `config/shell_mcp_server.toml` |
-| rag-pipeline-mcp | `config/rag_pipeline_mcp_server.toml` |
-| cicd-mcp | `config/cicd_mcp_server.toml` |
-| mdq-mcp | `config/mdq_mcp_server.toml` |
-| git-mcp | `config/git_mcp_server.toml` |
+Each server owns exactly one `config/<key>_mcp_server.toml`; the file list is the
+`config/` directory itself. Servers do not read `agent.toml`, so values needed on both sides
+(DB paths, external URLs) are duplicated per file by design.
 
-git-mcp, cicd-mcp, and web-search-mcp each also carry their own server-side
-Bearer-token field (`auth_token`) as an `"${ENV:...}"` reference — see each
-file's own comments for the exact environment variable name. These are
-separate credentials from `agent.toml`'s `[mcp_servers.*].auth_token` above
-(client-presented token vs. server-side secret), except that git-mcp,
-cicd-mcp, and web-search-mcp intentionally share the same variable name as their
-`agent.toml` counterpart (`MCP_GIT_AUTH_TOKEN`, `MCP_CICD_AUTH_TOKEN`,
-`MCP_WEB_SEARCH_AUTH_TOKEN`) since both sides must agree on one shared-secret
-value.
+Bearer-token constraint: every HTTP MCP server carries its own server-side `auth_token`
+as an `"${ENV:...}"` reference, and the agent presents the matching token from
+`agent.toml`'s `[mcp_servers.*].auth_token`. Both sides must resolve to one shared-secret
+value, so the agent and the server reference the same environment variable
+(`MCP_<SERVER_KEY>_AUTH_TOKEN`). See [mcp_06_14](mcp_06_14_mcp-authentication-setup.md).
 
 ## API key env files (`conf.d/`)
 
-| File | Key |
-|---|---|
-| `conf.d/github-mcp` | `GITHUB_TOKEN` |
-| `conf.d/cicd-mcp` | `GITHUB_TOKEN` |
-| `conf.d/web-search-mcp` | `BRAVE_API_KEY`, `BING_API_KEY` placeholders; not read by the server code (see `deployment_01_deployment.md`) |
-| `conf.d/git-mcp` | None (comments only) |
+`conf.d/<server>-mcp` files hold server-side secrets (for example `GITHUB_TOKEN` for
+github-mcp and cicd-mcp). The web-search placeholders (`BRAVE_API_KEY`, `BING_API_KEY`) are
+not read by the server code (see `deployment_01_deployment.md`).
 
-## Major Default Values
+## Configuration Value Ownership
 
-| Parameter | Meaning | Defined in |
-|---|---|---|
-| `call_timeout_sec` | Per-call timeout for tool calls | `McpServerConfig.call_timeout_sec` (`shared/mcp_config.py`) |
-| Health registry threshold | Consecutive failures before a server is marked unhealthy | Hardcoded in `shared/mcp_health.py` (`McpServerHealthRegistry.__init__`'s `failure_threshold` argument); `shared/mcp_config.py` only re-exports said class (Explicit in code) |
-| `startup_timeout_sec` | Wait limit for subprocess server readiness | `McpServerConfig.startup_timeout_sec` (`shared/mcp_config.py`) |
-| GitHub `default_per_page` | Page size used when the caller omits `per_page` (module constant `DEFAULT_PER_PAGE`, `github_models_config.py`) | Hardcoded; not a configuration key (Details: [mcp_04_01](mcp_04_01_web-search-file-read-github.md)) |
-| GitHub `max_per_page` | Upper clamp for `per_page` (active setting) | `config/github_mcp_server.toml` |
-| Shell `max_timeout_sec` | Upper limit for a shell command timeout | `config/shell_mcp_server.toml` |
-| Shell `sandbox_backend` | Sandbox backend selection (`none` = sandbox disabled) | `config/shell_mcp_server.toml` |
-| Git `max_log_entries` | Upper limit on log entries returned | `config/git_mcp_server.toml` |
+Default values live in the config models and config files, not in this document
+(`McpServerConfig` in `shared/mcp_config.py` for transport timeouts; `McpServerHealthRegistry`
+in `shared/mcp_health.py` for the consecutive-failure threshold, which is a code constant and
+not a configuration key). Per-server limits (GitHub `max_per_page`, shell `max_timeout_sec`,
+git `max_log_entries`) are set in the owning `config/*_mcp_server.toml`.
 
-Current default values are defined in the config files and code symbols listed above.
-
-**Note:** Comments within `config/shell_mcp_server.toml` include operational guidance stating: "In production environments, set `shell_sandbox_backend = \"firejail\"` and ensure the `firejail` binary is available in your PATH" (if the `firejail` binary is not found while `"firejail"` is configured, a `RuntimeError` occurs: `scripts/mcp_servers/shell/shell_service_static_helpers.py`). However, this value is a config file parameter and does not automatically switch based on the `security_profile` (Explicit in code).
+**Sandbox note:** `shell_sandbox_backend` in `config/shell_mcp_server.toml` is a plain config
+parameter and does not switch automatically with `security_profile`. Production requires
+`"firejail"` explicitly. If `"firejail"` is configured and the binary is not on `PATH`, the
+server raises `RuntimeError` (`scripts/mcp_servers/shell/shell_service_static_helpers.py`).
 
 ## Keywords
 

@@ -39,19 +39,17 @@ Each `POST /v1/call_tool` invocation on a server that writes the shared audit lo
 | `canonical_target` | Resolved canonical repository path; emitted by git-mcp only | No | Omitted |
 | `pre_condition` | Serialized repository state before the operation; emitted by git-mcp only | No | Omitted |
 | `post_condition` | Serialized repository state after the operation; emitted by git-mcp only | No | Omitted |
-| `requested_target` | Redacted caller-supplied target captured before canonical path resolution; emitted only when the caller supplies it, mirroring the `canonical_target` pattern | No | Omitted |
 
 **Note:** github-mcp, shell-mcp, and file-delete-mcp write to both the shared and a dedicated audit log; file-write-mcp writes only the shared audit log. file-read-mcp and rag-pipeline-mcp do not write audit logs. Dedicated audit logs for github-mcp, shell-mcp, and file-delete-mcp use ISO8601 timestamps + op=<operation> + path/repo/command. These do not have X-Session-Id or X-Request-Id correlation fields. Correlation between logs should be based on the agent-side audit logs.
 
 ### Approval correlation
 
-The shared `mcp_tool_exec` record correlates with the Agent-side audit events through shared keys rather than a server-side approval check. The Agent writes a `tool_approval` event (`scripts/agent/tool_audit.py`) carrying `session_id` and `task_id`, then a `tool_exec` event carrying the same `session_id`/`task_id` plus `mcp_request_id`. The server echoes `session_id` and `request_id` into the `mcp_tool_exec` record, where `request_id` equals the Agent-side `tool_exec.mcp_request_id`. Joining on `session_id` (plus `task_id`, and `request_id` = `mcp_request_id`) reconstructs the `tool_approval` -> `tool_exec` -> `mcp_tool_exec` path end to end. No MCP server performs an approval check itself: the servers read only `x-session-id`, `x-request-id`, and `x-idempotency-key`, and the Agent sends no approval identifier server-side (see `scripts/mcp_servers/server.py`). Correlation across the dedicated (non-shared) audit logs therefore relies on these agent-side keys.
+The shared `mcp_tool_exec` record correlates with Agent-side audit events through shared keys; no MCP server performs an approval check itself (servers read only `x-session-id`, `x-request-id`, and `x-idempotency-key`, and the Agent sends no approval identifier to the server).
 
-Audit log functions are implemented within each server's dispatch handler.
-
-### Approval correlation
-
-`session_id` and `request_id` are the join keys from a shared `mcp_tool_exec` record to the agent-side `tool_exec` record: the agent writes the server's request id into `tool_exec.mcp_request_id` (`scripts/agent/tool_audit.py`), and both records carry the same `session_id`. A call rejected by a server-side guard is joined the same way as an accepted one, because the join uses those keys and not `outcome`. The agent-side `tool_approval` record joins to `tool_exec` on `session_id` and `task_id`. The dedicated plain-text logs carry no correlation fields, so correlating a server-side rejection with the approval that preceded it runs through the shared JSON-lines audit log and the agent-side `tool_exec` / `tool_approval` records.
+- The Agent writes a `tool_approval` event carrying `session_id` and `task_id`, then a `tool_exec` event carrying the same keys plus `mcp_request_id` (`scripts/agent/tool_audit.py`).
+- The server echoes `session_id` and `request_id` into `mcp_tool_exec`; `request_id` equals the Agent-side `tool_exec.mcp_request_id`.
+- Joining on `session_id` (plus `task_id`, and `request_id` = `mcp_request_id`) reconstructs `tool_approval` -> `tool_exec` -> `mcp_tool_exec`. A call rejected by a server-side guard joins the same way as an accepted one, because the join does not use `outcome`.
+- The dedicated plain-text audit logs carry no correlation fields, so correlating a server-side rejection with the approval that preceded it runs through the shared JSON-lines audit log and the Agent-side records.
 
 ---
 
@@ -76,30 +74,18 @@ HTTP transport errors (4xx/5xx) are caught by `HttpTransport.call()`, which rais
 - **Rejected by preflight health check**: `record_failure()` is not called — because the attempt itself was not made.
 - **Retry Behavior**: Only the final result is recorded in McpServerHealthRegistry (Success, or TransportError after all retries exhausted). Intermediate retry attempts are not counted.
 
-### Error Classification Table
-
-The exact HTTP-status/retryability classification for each transport failure kind is
-determined by `scripts/shared/mcp_health.py::McpServerHealthRegistry.record_failure()` and its
-callers in the transport-error-handling path — see that module for the current
-mapping.
-
-For all transport failures, `request_id=""` is set because the request did not complete normally. For tool-level errors (HTTP 200 and `is_error=True`), the actual `request_id` from the server response is used, and `record_success()` is called.
+The HTTP-status and retryability classification per transport failure kind is owned by `McpServerHealthRegistry.record_failure()` and its callers (`scripts/shared/mcp_health.py`). For all transport failures `request_id=""` is set because the request did not complete normally. For tool-level errors (HTTP 200 and `is_error=True`), the actual server `request_id` is used and `record_success()` is called.
 
 ---
 
 ## dispatch_tool helper (`scripts/mcp_servers/dispatch.py`)
 
-```python
-from mcp_servers.dispatch import ToolArgs, dispatch_tool
+Servers route calls through the shared `dispatch_tool(dispatch_table, name, args)` helper (`scripts/mcp_servers/dispatch.py`), which returns `DispatchResult(output, is_error)`:
 
-result = await dispatch_tool(dispatch_table, name, args)
-# Returns DispatchResult(output, is_error)
-```
-
-- Empty string/whitespace `name` → `("Tool name must be a non-empty string", True)`
-- Unknown `name` → `("Unknown tool: <name>", True)`
-- `ValueError` from handler → `("Validation error: <e>", True)`
-- Other exceptions are propagated to the caller
+- Empty or whitespace `name` -> `"Tool name must be a non-empty string"`, `is_error=True`
+- Unknown `name` -> `"Unknown tool: <name>"`, `is_error=True`
+- `ValueError` from a handler -> `"Validation error: <e>"`, `is_error=True`
+- Other exceptions propagate to the caller
 
 **Disabled call handling:** When a tool is disabled, the MCP server returns a response with `is_error=True` and includes the concrete reason in the result field. This follows the standard error response format but specifically indicates the tool is disabled rather than encountering a runtime error.
 

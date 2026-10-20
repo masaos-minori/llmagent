@@ -48,66 +48,21 @@ grep '"event":"mcp_tool_exec"' <log_dir>/audit.log
 
 > **Note:** `cicd-mcp`, `git-mcp`, and `mdq-mcp` use the shared audit log only (no dedicated audit log files). They record via `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format. Only git-mcp emits the optional `canonical_target`, `pre_condition`, and `post_condition` fields (see `mcp_02_03_audit-logging-and-errors.md`). Outcome values are `"ok"` (operation succeeded), `"error"` (operation failed with an exception), or `"rejected"` (operation rejected by a policy guard before execution).
 
-## Server-specific Log Files
+## Server-specific Log Files and Audit Layers
 
-| Server | Log Path | Notes |
-|---|---|---|
-| web-search-mcp | `<log_dir>/web-search-mcp.log` | Dedicated application log |
-| file-read-mcp | `<log_dir>/file-read-mcp.log` | Dedicated application log |
-| file-write-mcp | `<log_dir>/file-write-mcp.log` | Dedicated application log |
-| file-delete-mcp | `<log_dir>/file-delete-mcp.log` | Dedicated application log |
-| github-mcp | `<log_dir>/github-mcp.log` | Dedicated application log |
-| shell-mcp | `<log_dir>/shell-mcp.log` | Dedicated application log |
-| mdq-mcp | `<log_dir>/mdq-mcp.log` | Dedicated application log |
-| rag-pipeline-mcp | `rag-mcp.log` (in the log directory) | Dedicated application log |
-| cicd-mcp | No dedicated log file | Uses `logging.getLogger(__name__)` |
-| git-mcp | No dedicated log file | Uses `logging.getLogger(__name__)`. `audit_log_path` is reserved but unimplemented |
+Each server with a dedicated application log writes `<log_dir>/<server>-mcp.log` (rag-pipeline-mcp writes `rag-mcp.log`); cicd-mcp and git-mcp have no dedicated log file and use the standard logger. Audit layers:
 
-## Server-specific Audit Log Layers
+- Layer 1 (agent-side `tool_exec`): every server.
+- Layer 2 (shared `mcp_tool_exec` in `<log_dir>/audit.log`): all servers except file-read-mcp and rag-pipeline-mcp.
+- Layer 3 (dedicated audit file): file-delete-mcp (`delete_audit.log`, `ISO8601 op= path= user=llm-agent`), github-mcp (`github_audit.log`), shell-mcp (`shell_audit.log`).
+- file-write-mcp and file-delete-mcp also record the `_audit_log()` payload in their dedicated application logs.
+- Dedicated audit files carry no `X-Session-Id` / `X-Request-Id`; correlate through the agent-side log.
 
-| Server | Layer1: Agent/MCP Shared | Layer2: Shared MCP | Layer3: Dedicated |
-|---|---|---|---|
-| web-search-mcp | tool_exec | mcp_tool_exec | None |
-| file-read-mcp | tool_exec | None | None |
-| file-write-mcp | tool_exec | mcp_tool_exec | None |
-| file-delete-mcp | tool_exec | mcp_tool_exec | delete_audit.log |
-| github-mcp | tool_exec | mcp_tool_exec | github_audit.log |
-| shell-mcp | tool_exec | mcp_tool_exec | shell_audit.log |
-| mdq-mcp | tool_exec | mcp_tool_exec | None |
-| rag-pipeline-mcp | tool_exec | None | None |
-| cicd-mcp | tool_exec | mcp_tool_exec | None |
-| git-mcp | tool_exec | mcp_tool_exec | None |
-
-### Server-specific Audit Log Files
-
-| Server | Audit Log Path | Format |
-|---|---|---|
-| web-search-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (MCP server audit) |
-| file-read-mcp | None | No audit functionality implemented |
-| file-write-mcp | `<log_dir>/file-write-mcp.log` | `_audit_log()` payload in the dedicated application log (JSON object after the standard log-line prefix) |
-| file-delete-mcp | `<log_dir>/file-delete-mcp.log` + `<log_dir>/delete_audit.log` | `_audit_log()` payload in the dedicated application log, plus `DeleteFileService._write_audit_log()` appending `ISO8601 op= path= user=llm-agent` to `delete_audit.log` |
-| github-mcp | `<log_dir>/github_audit.log` | Structured (ISO8601 + op + repo + user). Also used with shared audit log |
-| shell-mcp | `<log_dir>/shell_audit.log` | Structured (ISO8601 + op + command + user). Also used with shared audit log |
-| mdq-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (`_audit_log()`) |
-| rag-pipeline-mcp | None | No audit functionality implemented |
-| cicd-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (`_audit_log()`) |
-| git-mcp | `<log_dir>/audit.log` (shared) | JSON-lines (`_audit_log()`). `audit_log_path` setting is reserved but unimplemented |
-
-**Note:** `mdq-mcp` and `git-mcp` have no effective `audit_log_path` setting (it is not set in `config/mdq_mcp_server.toml` or `config/git_mcp_server.toml`). MDQ audit events are actually recorded via `MdqService`/`server.py`'s `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format. (Explicit in code)
+**Note:** `mdq-mcp` and `git-mcp` have no effective `audit_log_path` setting (reserved, unimplemented); they record only to the shared audit log via `_audit_log()`.
 
 ### MCP Servers without Audit Logging
 
-The following MCP servers do not write any audit logs:
-
-| Server | Reason |
-|---|---|
-| file-read-mcp | No audit functionality implemented |
-| rag-pipeline-mcp | No audit functionality implemented |
-
-`file-write-mcp` and `file-delete-mcp` are not listed here because both emit audit events: each `call_tool` handler calls
-`mcp_servers.audit._audit_log()` with the session ID, request ID, action, a truncated target, and an `outcome` on every
-rejected path (empty `allowed_dirs`, argument validation failure) and on the completed path. Before/after file state and
-approval correlation are not recorded by these events.
+file-read-mcp and rag-pipeline-mcp write no audit logs. file-write-mcp and file-delete-mcp emit audit events through `mcp_servers.audit._audit_log()` (session ID, request ID, action, truncated target, `outcome`) on every rejected path (empty `allowed_dirs`, argument validation failure) and on the completed path. Before/after file state and approval correlation are not recorded.
 
 ### Agent-side Audit Logs (Structured Events)
 

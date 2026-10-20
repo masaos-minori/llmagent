@@ -38,10 +38,10 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 ## Scope
 
 **Included:**
-- Ingestion Pipeline: `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`
-- Query Pipeline: `scripts/rag/pipeline.py`, `scripts/rag/repository.py`, `scripts/rag/llm_client.py`, `scripts/rag/stages/`
+- Ingestion Pipeline: the crawler, chunk splitter, and ingester scripts under `scripts/rag/ingestion/`
+- Query Pipeline: `scripts/rag/` (pipeline, repository, LLM client, stages)
 - Utilities: `scripts/rag/utils.py`
-- MCP Wrapper: `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`
+- MCP Wrapper: `scripts/mcp_servers/rag_pipeline/`
 
 **Not Included:**
 - MDQ (Markdown Context Compression Engine) — A separate service. For boundary definitions, see [mcp_05 MDQ vs RAG Boundary](../22_mcp/mcp_05_04_mdq-rag-boundary.md#mdq-vs-rag-boundary)
@@ -55,28 +55,18 @@ Provides document retrieval augmentation for LLM agents by crawling web pages an
 - **Component Responsibilities**:
   - Ingestion: Admin/Operator initiates crawling via `crawler.py`; `WebCrawler` performs BFS crawl of same-origin URLs producing `{yyyymmddhhmmss}-{slug}.json` artifacts; `ChunkSplitter` splits crawled content using language-aware strategies (JA: Sudachi / EN: sentence / code: blank-line); `RagIngester` generates embeddings via embed-llm and upserts into SQLite; processed chunks are moved to `rag-src/registered/`.
   - Query: the Agent calls the `rag_run_pipeline` MCP tool; `RagPipelineMCPService` calls `RagPipeline.augment(query)`; RagPipeline executes the MQE → Search → Fusion → Rerank → Augment stages, followed by the optional Refiner; KNN + BM25 search operates over `rag.sqlite`.
-- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns post-ingestion staging area (No automated retention or cleanup exists; cleanup mechanism design is out of scope — requires separate design decision.). RagPipeline owns the query execution lifecycle; SQLite (`rag.sqlite`) owns the vector store layer.
-- **Ownership rationale**: `rag` layer's authority over query execution derives from the repository's layered-architecture rule (`rules/env.md`); SQLite's ownership of the vector store layer derives from `ADR-005` (canonical-source/derived-index relationship) and `ADR-010` (in-process fallback model).
+- **Owned State**: `crawler.py` owns crawled JSON artifacts; `chunk_splitter.py` owns chunked JSON artifacts; `rag-src/registered/` owns the post-ingestion staging area (see Retention of `registered/` below). RagPipeline owns the query execution lifecycle; SQLite (`rag.sqlite`) owns the vector store layer.
 - **Allowed Dependency Direction**: Ingestion: Admin → crawler.py → chunk_splitter.py → ingester.py → rag-src/registered/. Query: Agent → MCP → RagPipeline → KNN + BM25 → SQLite. No circular dependencies among pipeline stages.
-- **Process Separation**: Each ingestion stage (`crawler.py`, `chunk_splitter.py`, `ingester.py`) is a separate script with its own `main()` entry point and its own configuration file, and the stages hand off work through files (crawled JSON, chunked JSON, `rag-src/registered/`) rather than in-process calls, so each stage can be run, re-run or restarted on its own. (Explicit in code — `scripts/rag/ingestion/crawler.py`, `chunk_splitter.py`, `ingester.py`) In the Query Pipeline, the MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
-- **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes.
+- **Process Separation**: Each ingestion stage (`crawler.py`, `chunk_splitter.py`, `ingester.py`) is a separate script with its own `main()` entry point and its own configuration file, and the stages hand off work through files (crawled JSON, chunked JSON, `rag-src/registered/`) rather than in-process calls, so each stage can be run, re-run or restarted on its own. In the Query Pipeline, the MCP server operates independently of the agent lifecycle; each stage can be updated or restarted without affecting the entire system.
+- **Design Boundaries Requiring Joint Review**: Architecture decisions affecting multiple subsystems require joint review; cross-component state transitions require coordinated testing when any component's contract changes. Modifications to one component's owned state must consider downstream impact on dependent components.
 
 ### Ownership Rationale
 
-#### Why each component owns its stated state
-
-Each ingestion stage is a separate script that exchanges data with the next stage through files, so a stage can be re-run or restarted without re-running the others (Process Separation). In the Query Pipeline, the MCP server operates independently of the agent lifecycle, and each stage can be updated or restarted without affecting the entire system.
+`rag` layer's authority over query execution derives from the repository's layered-architecture rule (`rules/env.md`).
 
 #### Why SQLite (`rag.sqlite`) owns the vector store layer
 
-Per ADR-005, SQLite's `documents`/`chunks` tables are the canonical data and `chunks_fts`/`chunks_vec` are derived indexes. ADR-005's Rationale rests on three points: (1) Data Integrity — separating canonical from derived data prevents canonical data from being updated through a derived index; (2) Operability — the deletion-order invariant (`chunks_vec` before `documents`) prevents orphan records, and unified consistency checks and repair procedures leave operators without ambiguity; (3) Portability — because the indexes can be rebuilt from `documents` and `chunks`, FTS5 or the vector engine can be replaced. See [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md).
-
-#### How ownership affects modification rights
-
-Architecture decisions affecting multiple subsystems require joint review; cross-component
-state transitions require coordinated testing when any component's contract changes
-(Design Boundaries Requiring Joint Review). This means modifications to one component's
-owned state must consider downstream impact on dependent components.
+Per ADR-005, SQLite's `documents`/`chunks` tables are the canonical data and `chunks_fts`/`chunks_vec` are derived indexes; the in-process fallback model is defined by ADR-010. ADR-005's Rationale rests on three points: (1) Data Integrity — separating canonical from derived data prevents canonical data from being updated through a derived index; (2) Operability — the deletion-order invariant (`chunks_vec` before `documents`) prevents orphan records, and unified consistency checks and repair procedures leave operators without ambiguity; (3) Portability — because the indexes can be rebuilt from `documents` and `chunks`, FTS5 or the vector engine can be replaced. See [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md).
 
 #### Retention of `registered/`
 
@@ -112,9 +102,7 @@ config/crawler.toml [target_urls]
                 → rag-src/registered/
 ```
 
-> **Implementation Note:** Configuration consists of three separate files per script:
-> (`config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml`). Each script loads only its own configuration using `ConfigLoader().load("<script>.toml")` and restricts access to other files using `ConfigLoader.restrict_to("<script>.toml")` (verified in `scripts/rag/ingestion/crawler.py` and `ingester.py`).
-> Per [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md) Decision Details #3 to #5 and #9 (Explicit in code).
+> **Configuration isolation:** Each script has its own configuration file (`config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml`), loads only that file, and is restricted from reading the others. Per [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md) Decision Details #3 to #5 and #9.
 
 ---
 
@@ -131,7 +119,7 @@ Stages: MQE → Search → Fusion → Rerank → Augment, followed by the option
 - **Augment**: Context formatting — formats retrieved chunks into a prompt-ready block with URL/title metadata and sanitizes injection patterns.
 
 **Entrypoint:** `RagPipeline.augment(query) -> str`
-**Caller:** `RagPipelineMCPService.run_pipeline()` in `scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`, reached by the Agent through the `rag_run_pipeline` MCP tool
+**Caller:** `RagPipelineMCPService.run_pipeline()` (`scripts/mcp_servers/rag_pipeline/rag_pipeline_service.py`), reached by the Agent through the `rag_run_pipeline` MCP tool
 
 ### Semantic Cache
 
@@ -148,81 +136,51 @@ The RAG pipeline has no semantic cache; a configuration source that carries sema
 | Configuration files exist | `config/crawler.toml`, `config/chunk_splitter.toml`, `config/ingester.toml` |
 | Target URLs or files specified | `--url` in CLI, or `target_urls` in config |
 
-**Embedding server health check:** The embedding server (`embed-llm`) is a `llama-server` process external to this repository. The curl command above is the check used by `deploy/setup_services.sh`; the response body is defined by `llama-server`, not by repository code, so this document does not specify it. (Explicit in code — `deploy/setup_services.sh`)
+**Embedding server health check:** The embedding server (`embed-llm`) is a `llama-server` process external to this repository. The curl command above is the check used by `deploy/setup_services.sh`; the response body is defined by `llama-server`, not by repository code, so this document does not specify it.
 
-**RAG pipeline MCP server health check:** The `rag-pipeline-mcp` server answers `/health` with the common MCP health response, in which `liveness` is a boolean, `ready` is true only when no dependency check fails, and HTTP 503 is returned when it is not ready (`dependencies.embed_url` is `"not configured"` when no embedding URL is configured). (Explicit in code — `scripts/mcp_servers/health_response.py`, `scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py`) For the response format see [mcp_02_02 Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) and [mcp_04_03](../22_mcp/mcp_04_03_rag-pipeline-and-cicd.md).
+**RAG pipeline MCP server health check:** The `rag-pipeline-mcp` server answers `/health` with the common MCP health response, in which `liveness` is a boolean, `ready` is true only when no dependency check fails, and HTTP 503 is returned when it is not ready (`dependencies.embed_url` is `"not configured"` when no embedding URL is configured). For the response format see [mcp_02_02 Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) and [mcp_04_03](../22_mcp/mcp_04_03_rag-pipeline-and-cicd.md).
 
 Troubleshooting:
 - If the embedding server request times out: verify the embedding server is running and accessible at the specified address
 - If the `rag-pipeline-mcp` `/health` reports `status` `"degraded"` with `dependencies.embed_url` `"not configured"`: verify the embedding server URL is set in the configuration
 - If an HTTP 503 is returned by an MCP server: the service is running but has failed dependency checks; inspect the `dependencies` field
 
-**sqlite-vec extension:** Success criteria: the file at `sqlite_vec_so` (see `config/ingester.toml`) exists. A missing file means the extension cannot be loaded.
+**sqlite-vec extension:** A missing file at `sqlite_vec_so` means the extension cannot be loaded.
 
-**Configuration files:** Success criteria: all listed files exist at the paths listed in the table (for example, `ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml` prints each path without error). Missing files produce "No such file or directory" errors.
+**Configuration files:** Missing files produce "No such file or directory" errors (check with `ls -la config/crawler.toml config/chunk_splitter.toml config/ingester.toml`).
 
-**Target URLs or files:** Success criteria: at least one target is given, either by `--url` on the command line or by `target_urls` in `config/crawler.toml`.
+**Target URLs or files:** At least one target is required, either by `--url` on the command line or by `target_urls` in `config/crawler.toml`.
 
 ---
 
 ## Constraints
 
-| Constraint | Value | Source |
+Chunk-size, chunk-overlap, crawl-depth, and max-pages bounds exist to keep chunks at a useful retrieval granularity and to bound crawl time, storage growth, and external-site load. Current operational values are owned by `config/chunk_splitter.toml` and `config/crawler.toml` (see [Configuration Reference](rag_05_01-configuration-reference.md)); each file's inline comment states the bounds are unvalidated heuristics, and no empirical basis or trade-off analysis is recorded in this repository. If these values are tuned, verify the change against actual retrieval quality and performance for the intended use case — this documentation set provides no quality-impact guidance for any of them.
+
+| Constraint | Behavior when violated | Enforcement |
 |---|---|---|
-| Language Detection | CJK ratio above a threshold → `ja`; otherwise `en`; falls back to the language hint for very short text | `crawler.py` |
-| Chunk Size | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference, `config/chunk_splitter.toml`](rag_05_01-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
-| Chunk Overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference, `config/chunk_splitter.toml`](rag_05_01-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. | `config/chunk_splitter.toml` |
-| Embedding Dimension | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB | `scripts/db/store_protocols.py` |
-| Crawl Depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
-| Max Pages Per Site | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. | `config/crawler.toml` |
-| Database | SQLite single node only | Architecture |
-
-Note: No empirical basis or trade-off analysis for these constraint values is recorded in this repository's code, configuration files, or ADRs. If these values are tuned, verify the change against actual retrieval quality/performance for your intended use case rather than assuming a known-good adjustment — this documentation set does not currently provide quality-impact guidance for any of them.
-
-### Constraint Violation Behavior and Enforcement
-
-Each constraint below states what happens when violated and whether enforcement is programmatic or operational.
-
-**Language Detection** — Enforced programmatically in `detect_lang()` (`crawler_utils.py`): text shorter than the minimum detection length returns `None` (falls back to hint language); a CJK ratio at or above the threshold triggers `ja`, otherwise `en`. No error is raised — the fallback path handles short-text edge cases gracefully.
-
-**Chunk Size** — Enforced programmatically in `chunk_splitter.py`: sub-minimum chunks (below the minimum chunk length) are discarded as noise (confirmed: `if len(section) >= self._min_chunk`); over-maximum sections (above the maximum chunk length) are split further via sentence-level chunking (`self._chunk_english(section)`). See `docs/21_rag/rag_05_01-configuration-reference.md` for the discard-on-noise policy.
-
-**Chunk Overlap** — A configured value applied programmatically via sliding-window logic in `merge_text_items()` (`chunk_splitter.py`). There is no "violation" concept — any config value is accepted and applied without validation.
-
-**Embedding Dimension** — Strictly enforced programmatically via `validate_embedding_blob()` (`store_protocols.py`): raises `TypeError` if blob is not bytes, `ValueError` if blob length does not match expected dimensions. Changing the embedding model requires a corresponding code change (not a config change), since the dimension is a code-level constant defined in `get_embedding_dims()`.
-
-**Crawl Depth / Max Pages Per Site** — Operational limits enforced by stopping BFS traversal at the limit. Neither constitutes a "violation" in the sense of an error — exceeding the limit simply ends the crawl for that site. Values are read from `config/crawler.toml` (`crawler.py`).
-
-**Database** — An architectural assumption per `ADR-008` (Assumptions section: "Target environment: a single host, multiple processes"; Rationale section: Operability/Performance/Data Integrity/Correctness). Not per-request enforced code; reconsidering it requires the ADR's own "Reconsideration Conditions".
+| Language Detection | CJK ratio at or above a threshold → `ja`, otherwise `en`; text shorter than the minimum detection length falls back to the language hint. No error is raised. | Programmatic (`detect_lang()`, `scripts/rag/ingestion/crawler_utils.py`) |
+| Chunk Size | Sub-minimum chunks are discarded as noise; over-maximum sections are split further by sentence-level chunking (discard-on-noise policy: [Configuration Reference](rag_05_01-configuration-reference.md)). | Programmatic (`scripts/rag/ingestion/chunk_splitter.py`) |
+| Chunk Overlap | Any configured value is accepted and applied by sliding window without validation; there is no "violation" concept. | Programmatic |
+| Embedding Dimension | `TypeError` if the blob is not bytes, `ValueError` if its length does not match the expected dimensions. The dimension is a fixed code-level constant (float32 little-endian BLOB), not config-driven, so changing the embedding model requires a code change. | Strict, programmatic (`validate_embedding_blob()`, `scripts/db/store_protocols.py`) |
+| Crawl Depth / Max Pages Per Site | Exceeding the limit ends BFS traversal for that site; not an error. | Operational limit (`scripts/rag/ingestion/crawler.py`) |
+| Database | SQLite single node only. An architectural assumption per `ADR-008` (Assumptions: "Target environment: a single host, multiple processes"); not enforced per request. Reconsidering it requires the ADR's own "Reconsideration Conditions". | Architectural |
 
 ---
 
 ## MCP Server Responsibility Division
 
-For operators who prefer a quick reference without navigating away from this document, here is a concise summary of each component's role:
+- **rag-pipeline MCP server (`rag_pipeline_server.py`)**: HTTP routing and request/response formatting; translates `RagPipelineServiceError` into error responses.
+- **`RagPipelineMCPService` (`rag_pipeline_service.py`)**: pipeline orchestration, lifecycle (start/stop), result formatting for MCP tool responses, and the tool-name dispatch.
+- **`RagPipeline` (`scripts/rag/pipeline.py`)**: core search logic and stage execution, the `augment()` fallback chain (HTTP → search → refiner → raw chunks), and diagnostics collection.
 
-- **`rag_pipeline_server.py`**: HTTP route handling and request/response formatting. This FastAPI application exposes MCP endpoints (`/v1/call_tool`, `/health`, `/rag_run_pipeline`, etc.), builds the tool list, and handles exceptions for `RagPipelineServiceError`.
-
-- **`rag_pipeline_service.py`**: Pipeline orchestration and error handling. The `RagPipelineMCPService` class wraps `RagPipeline`, manages lifecycle (start/stop), formats results for MCP tool responses, and maintains the dispatch table mapping tool names to service methods.
-
-- **`scripts/rag/pipeline.py`**: Core search logic and stage execution. The `RagPipeline` class orchestrates the MQE → Search → Fusion → Rerank → Augment pipeline stages, implements the `augment()` method with its fallback chain (HTTP → search → refiner → raw chunks), and collects diagnostics.
-
-The interaction flow is: MCP client → `rag_pipeline_server.py` (HTTP routing) → `rag_pipeline_service.py` (orchestration) → `scripts/rag/pipeline.py` (search execution).
+The interaction flow is: MCP client → HTTP routing → service orchestration → pipeline execution. For details see `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
 
 Note: The rag-pipeline MCP server reads the corpus database through `rag_db_path` in `config/rag_pipeline_mcp_server.toml`, and the Agent reaches the same database only for admin-only maintenance through `rag_db_path` in `config/agent.toml`. HTTP delegation (`rag_service_url`) is not used in production (ADR-010). Both files are configured with the same path by convention, not by an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
 
-For details on responsibilities of these components, please refer to `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
-
 ## Chapter Map
 
-| Topic | File |
-|---|---|
-| Ingestion Scripts (API, CLI, Config) | [rag_02_01_ingestion_pipeline-overview.md](rag_02_01_ingestion_pipeline-overview.md) |
-| Query Pipeline (API, Stage Details) | [rag_03_01_query_pipeline-overview.md](rag_03_01_query_pipeline-overview.md) |
-| Type Definitions | [rag_04_dto-models-types.md](rag_04_dto-models-types.md) |
-| DB Schema | [db_02_architecture_and_schema-schema-reference.md](../41_db/db_02_architecture_and_schema-schema-reference.md) |
-| Config, Execution Commands, Logs | [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md) |
-| Known Bugs and Inconsistencies | [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG) |
+See the reading order and routing table in [rag_00_document-guide.md](rag_00_document-guide.md). The DB schema is owned by [db_02_architecture_and_schema-schema-reference.md](../41_db/db_02_architecture_and_schema-schema-reference.md), and known bugs and inconsistencies by [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md) (Part 1, Area: RAG).
 
 ## Keywords
 

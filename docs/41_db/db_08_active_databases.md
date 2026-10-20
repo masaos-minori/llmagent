@@ -45,7 +45,6 @@ Each database is owned by a single component (see the **Owner** line of each sec
 - **Config source**: `workflow_db_path` (read by `scripts/db/config.py`; optional key of the `agent.toml` configuration, with a code-level default)
 - **Schema authority**: `scripts/db/schema_sql.py` (`build_workflow_schema_sql()`)
 - **Lifecycle**: Created on first workflow use; persists until deleted
-- **Tables**: tasks, attempts, processed_events, artifacts, workflow_schema_version
 
 ## eventbus.sqlite
 
@@ -53,7 +52,6 @@ Each database is owned by a single component (see the **Owner** line of each sec
 - **Config source**: `eventbus_db_path` in `config/agent.toml` and `db_path` in `config/eventbus.toml` (the values must refer to the same database)
 - **Schema source**: `scripts/eventbus/schema.sql` is the only DDL definition; `scripts/db/schema_sql.py` (`build_eventbus_schema_sql()`) reads it
 - **Lifecycle**: Created on first event bus use; persists until deleted
-- **Tables**: events, consumer_delivery, consumer_offsets
 
 ## mdq.sqlite
 

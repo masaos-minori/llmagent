@@ -22,198 +22,90 @@ related:
 
 ## Purpose
 
-Specifications for each MCP server: purpose, port, tools, I/O, configuration, startup, security, logs, operational notes, and known limitations.
+Per-server design specification: purpose, security boundary, failure behavior, audit, and operational notes. Tool-to-server membership and risk tiers are owned by [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md); ports and tool counts are in its auto-generated table. Health response semantics are common to all servers: [mcp_02_02](mcp_02_02_startup-modes-and-health.md). Availability metadata (`enabled`/`disabled_reason`): [mcp_03_06](mcp_03_06_tool-runtime-availability-metadata.md).
 
-> **Note:** This document is a formal server catalog. For a system-level list of servers including ports and transport types, refer to [mcp_01_system_overview.md Server Catalog](mcp_01_system_overview.md).
+> **Note:** For a system-level list of servers, refer to [mcp_01_system_overview.md Server Catalog](mcp_01_system_overview.md).
 
 ---
 
-## web-search-mcp 
+## web-search-mcp
 
-**Purpose:** Web search via DuckDuckGo (no API key required).
+**Purpose:** Web search via DuckDuckGo (no API key required, `search_web`) and read-only page fetch with text extraction (`browser_fetch`; no interactive operations, no JavaScript execution).
 **Startup Mode:** `subprocess` (HTTP)
-**Configuration:** `config/web_search_mcp_server.toml`
+**Configuration:** `config/web_search_mcp_server.toml` (defaults are owned by this file and `WebSearchConfig`)
 
-**Tools:**
+**Configuration invariants:**
 
-| Tool | Input | Output |
-|---|---|---|
-| `search_web` | `{query: str (non-empty after trim, length-limited), max_results?: int (1 to configured `max_results_limit`, hard limit `HARD_MAX_RESULTS_LIMIT`)}` | Header + N result blocks (title/URL/snippet) |
+- `WebSearchConfig.from_dict()` raises `ValueError` on violation at module import, so an invalid configuration fails process startup: `default_max_results >= 1`, `max_results_limit >= 1`, `default_max_results <= max_results_limit <= HARD_MAX_RESULTS_LIMIT`, and `search_timeout_sec` within `(0, 60.0]`.
+- `search_web` input is normalized: surrounding whitespace is trimmed, and a query that is empty or contains control characters (Unicode category `Cc`, including NUL) after trimming is rejected.
+- The `search_web` `inputSchema` limits come from the same config singleton as the request validation, so a TOML change to `max_results_limit` is reflected in `/v1/tools` only after a server restart.
+- `auth_token` is required on every request to the server (both tools), supplied by the same environment variable as the agent's web-search entry so both sides share one secret.
 
-**Configuration Parameters:**
+**`browser_fetch` security boundary:**
 
-| Key | Description |
-|---|---|
-| `default_max_results` | Default number of results |
-| `max_results_limit` | Server-side limit (must be ≤ `HARD_MAX_RESULTS_LIMIT`) |
-| `search_timeout_sec` | Timeout in seconds for provider calls (range: `(0, 60.0]`) |
+- `browser_allowed_domains` is fail-closed: empty means all domains are denied (exact host match). The tool is then reported disabled with reason `"browser_allowed_domains is empty"`; `search_web` is always enabled. `config_dependent` is `true` for `browser_fetch`.
+- A hostname that is an IP literal in a loopback / link-local / private / reserved / multicast range raises `BrowserAuthorizationError` (HTTP 403) regardless of the allowlist. This is defense-in-depth independent of domain allowlists (`_check_domain` in `search_provider.py`).
+- Only `http`/`https` URLs with a hostname are accepted; otherwise `BrowserValidationError` (HTTP 422).
+- A caller-supplied `max_response_kb` is always clamped to the server setting `browser_max_response_kb`. Truncation is byte-based (encode, then slice) so UTF-8 multibyte characters are not corrupted, and the result carries `truncated=true`.
+- Client-side rendered pages (SPA/React) may yield little or no text. This is accepted current specification.
 
-Current default values are defined in `config/web_search_mcp_server.toml` and the owning config class.
+**Operational notes:**
 
-**Note:** `default_max_results` and `max_results_limit` are directly reflected in `SearchRequest.max_results` in `mcp_servers/web_search/web_search_github_models.py` (Pydantic `Field`'s `ge`/`le`/default value) via `WebSearchConfig.load()` which is loaded during module import (following the existing `_cfg: WebSearchConfig = WebSearchConfig.load()` pattern in `web_search_server.py`).
-
-**Note:** `WebSearchConfig.from_dict()` validates the following invariants and raises `ValueError` on violation (evaluated at module import, so invalid configurations cause fail-fast process startup): `default_max_results >= 1`, `max_results_limit >= 1`, `default_max_results <= max_results_limit`, `max_results_limit <= HARD_MAX_RESULTS_LIMIT`, and `search_timeout_sec` within `(0, 60.0]`. Additionally, `SearchRequest.query` is normalized by field validators: leading/trailing whitespace is trimmed, and requests containing empty strings or control characters (Unicode category `Cc`, including NUL) after trimming are rejected. The `inputSchema` for the `search_web` tool (`TOOL_LIST` in `web_search_tools.py`) retrieves `minLength`/`maxLength`/`minimum`/`maximum` from the same `_cfg` singleton via `get_max_results_limit()`, ensuring TOML changes to `max_results_limit` are only reflected in `/v1/tools` after a server restart, consistent with `_cfg`.
-
-**Note:** Calls to `health.record_success()`/`record_failure()`/`metrics.record_query()` are centralized in the orchestration layer `scripts/mcp_servers/web_search/web_search_service.py` (handles `SearchRequest` construction, `search_provider.search_duckduckgo` invocation, and latency measurement). `formatters.py::fdisp_search_web()` calls `service.search_web()` and formats the result. `web_search_server.py::call_tool()` does not call these update hooks directly; instead, it only handles `outcome`/`error_type` classification for `_audit_log(...)` to avoid double counting health/metrics—only `web_search_service.py` performs `health.record_*`/`metrics.record_query` within the package.
-
-**Note:** The `browser_fetch` tool performs read-only page fetching and text extraction (no interactive operations; no JavaScript execution).
-
-**Tools:**
-
-| Tool | Input | Output |
-|---|---|---|
-| `browser_fetch` | `{url: str (http/https only), max_response_kb?: int}` | Extracted text (with `truncated` flag) |
-
-**Configuration Parameters (Integrated into `config/web_search_mcp_server.toml`):**
-
-| Key | Description |
-|---|---|
-| `browser_allowed_domains` | fail-closed; empty = all domains denied (exact host match) |
-| `browser_max_response_kb` | Limit for extracted text size. If exceeded, text is truncated and `truncated=true` is set. |
-| `browser_timeout_sec` | Timeout for fetch requests |
-| `auth_token` | Bearer token required on every request to the server (both tools), supplied by the same environment variable as the agent's web-search entry so both sides share one secret |
-
-Current default values are defined in `config/web_search_mcp_server.toml` and the owning config class.
-
-**Implementation Details (browser_fetch):**
-
-- If the hostname is an IP literal, it is checked using `ipaddress.ip_address()`; if it falls under loopback / link-local / private / reserved / multicast, a `BrowserAuthorizationError` (HTTP 403) is raised regardless of `allowed_domains` content. This is a defense-in-depth mechanism independent of domain allowlists. (Explicit in code — `search_provider.py::_check_domain`)
-- Only `http`/`https` schemes are allowed for `url`; others or missing hostnames trigger a `BrowserValidationError` (HTTP 422). (Explicit in code)
-- While `max_response_kb` can be specified by the caller, it is always clamped to the server setting `browser_max_response_kb` using `min()`. (Explicit in code)
-- Text truncation is performed by encoding to bytes before slicing (`_truncate`), preventing corruption of UTF-8 multibyte characters that might occur with naive character-based slicing. (Explicit in code)
-- Since it does not execute JavaScript (fetches HTML and extracts visible text via `BeautifulSoup`), meaningful text may be minimal or absent on client-side rendered SPA/React pages. This is intended behavior. (Accepted current specification).
-- `browser_fetch`'s health/metrics are managed by separate singletons from `search_web` (`_browser_*` in `health.py`/`metrics.py`) and are separately reflected in `/health`'s `details`.
-
-### Availability metadata
-
-The web-search server computes `enabled`/`disabled_reason` per tool in `/v1/tools` via `_web_search_tool_availability()`:
-
-- `config_dependent`: `true` for `browser_fetch` — indicates the tool depends on configuration
-- `enabled` / `disabled_reason`: `browser_fetch` is disabled with reason `"browser_allowed_domains is empty"` when no allowed domains are configured; `search_web` is always enabled
-
-#### Enforcement mechanism
-
-`/v1/call_tool` rejects a disabled tool with `Tool disabled: <reason>` (`is_error=True`) before dispatch. When `browser_fetch` is called with a domain not in the allowlist, the server raises `BrowserAuthorizationError`, returned via the `/v1/call_tool` response.
+- Health and metrics recording is centralized in `web_search_service.py`; the server's `call_tool()` only classifies `outcome`/`error_type` for the audit log, to avoid double counting.
+- `browser_fetch` health/metrics use separate singletons from `search_web` and are reported separately in `/health` `details`.
+- `/v1/call_tool` rejects a disabled tool with `Tool disabled: <reason>` (`is_error=True`) before dispatch.
 
 ---
 
-## file-read-mcp 
+## file-read-mcp
 
 **Purpose:** Read-only access to the local filesystem within `allowed_dirs`.
 **Startup Mode:** `subprocess` (HTTP)
-**Configuration:** `config/file_read_mcp_server.toml`
+**Configuration:** `config/file_read_mcp_server.toml` (`allowed_dirs`, size and result limits)
 
-**Tools:** `read_text_file`, `list_directory`, `list_directory_with_sizes`, `directory_tree`, `read_media_file`, `read_multiple_files`, `search_files`, `grep_files`, `get_file_info`
-
-All tools do not require configuration (`config_dependent: false`).
-
-Tool availability (`enabled`/`disabled_reason`) depends on `allowed_dirs` (empty → disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
-
-**Primary Tool Inputs:**
-
-| Tool | Input |
-|---|---|
-| `read_text_file` | `{path, head?, tail?}` |
-| `read_media_file` | `{path, mime_type?}` |
-| `read_multiple_files` | `{paths: list[str]}` |
-| `list_directory` | `{path}` |
-| `list_directory_with_sizes` | `{path}` |
-| `directory_tree` | `{path, depth?}` |
-| `search_files` | `{path, pattern}` |
-| `grep_files` | `{path, pattern, file_pattern?, max_matches?}` |
-| `get_file_info` | `{path}` |
-
-**Configuration Fields:** `allowed_dirs`, `max_read_bytes`, `max_tree_depth`, `max_search_results`
-
-**Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, HTTP 503 when degraded.
-**Error Codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
-**Logs:** `<log_dir>/file-read-mcp.log`
-**Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): None / Layer3 (Dedicated): None — Does not write audit logs
-**Additional Endpoints:** `GET /list_allowed_directories` (Not an MCP tool)
-
-### Implementation Details (file-read-mcp)
-
-- `FileReadConfig.from_dict` (`file/read_models.py`) reads `max_read_bytes` as a byte count and applies it unchanged; `max_file_size_kb` belongs to the GitHub MCP server only. (Explicit in code)
-- Read-only errors are `FileAuthorizationError`(403) / `FileNotFoundError`(404) / `FileValidationError`(400 or 422 as registered in `file/read_server.py`'s validation-error handler) in addition to `read_text_file` rejecting simultaneous `head`/`tail` arguments via Pydantic model validation (ValueError → FastAPI standard 422). (Explicit in code)
+- No tool requires configuration (`config_dependent: false`), but availability depends on `allowed_dirs`: empty means disabled with reason `"allowed_dirs is empty"`.
+- `max_read_bytes` is a byte count applied unchanged; `max_file_size_kb` belongs to github-mcp only.
+- `read_text_file` rejects simultaneous `head` and `tail` through model validation (422).
+- Error mapping: `FileAuthorizationError` 403, `FileNotFoundError` 404, `FileValidationError` 400 or 422 (as registered by the server's validation-error handler).
+- `/health`: `dependencies.filesystem` reports a workspace root that is not a directory; HTTP 200 when ready, 503 when degraded.
+- `GET /list_allowed_directories` is an auxiliary endpoint, not an MCP tool.
+- Logs: `<log_dir>/file-read-mcp.log`. Audit: file-read-mcp writes no audit log (no shared or dedicated layer).
 
 ---
 
-## github-mcp 
+## github-mcp
 
-See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool.
+See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool. Agent-side approval confirms user intent only; it is not a bypass for any guard below.
 
 **Purpose:** GitHub API via PyGithub. Performs reads and writes to GitHub repositories.
 **Startup Mode:** `subprocess` (HTTP)
 **Configuration:** `config/github_mcp_server.toml`
-**Authentication:** `GITHUB_TOKEN` environment variable (PAT). If unset, every tool is reported disabled (`GITHUB_TOKEN is not set`) and `/v1/call_tool` rejects every call with `Tool disabled: GITHUB_TOKEN is not set`; there is no usable anonymous mode through the MCP tools. (Explicit in code — `scripts/mcp_servers/github/github_server.py`)
+**Authentication:** `GITHUB_TOKEN` environment variable (PAT). If unset, every tool is reported disabled (`GITHUB_TOKEN is not set`) and `/v1/call_tool` rejects every call with `Tool disabled: GITHUB_TOKEN is not set`; there is no usable anonymous mode through the MCP tools. The process still starts with an unauthenticated client (startup warning about the API rate limit) and reports `degraded` health, but the disabled-tool gate prevents any tool from using that client. All tools are `config_dependent: true`.
 
-**Tools:** All prefixed with `github_`: `github_search_repositories`, `github_get_file_contents`, `github_push_files`, `github_delete_file`, `github_list_branches`, `github_get_commit`, `github_list_issues`, `github_get_issue`, `github_create_issue`, `github_search_issues`, `github_list_pull_requests`, `github_get_pull_request`, `github_search_pull_requests`, `github_update_pull_request`, `github_merge_pull_request`, `github_list_commits`, `github_search_code`, `github_create_pull_request`, `github_create_branch`, `github_create_or_update_file`, `github_add_issue_comment`
+**Security controls (`config/github_mcp_server.toml`):**
 
-All tools require configuration (`config_dependent: true`).
+- `allowed_repos`: fail-closed; an empty list denies every repository. Every write operation (branch, file, issue, comment, pull request create/update/merge, delete, push) is subject to it.
+- `protected_branches` and `path_denylist` (fnmatch patterns) reject matching branches and paths.
+- `max_file_size_kb` (0 = unlimited) rejects larger content.
+- `allow_force_push` is disabled unless `true`; it only gates `merge_pull_request` by rejecting `merge_method="rebase"` and does not block other force-push equivalents.
+- `require_pr_review` is on unless `false`; `merge_pull_request` then requires at least one `APPROVED` review.
+- `max_per_page` clamps requested `per_page`; the default listing size is a module constant, not a configuration key.
 
-The calculation logic for `enabled`/`disabled_reason` for the GitHub MCP server is computed by `_github_tool_availability()` (disabled with reason `"GITHUB_TOKEN is not set"` when the token is missing). Refer [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for current contract.
+**Guard coverage (layered protection):**
 
-**Write Operations are subject to repository allowlist:**
-`github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`
+- **Agent approval:** not applicable server-side; github enforces only its own technical constraints.
+- **Common guard:** `call_tool` rejects a disabled tool first; every operation naming a repository asserts it against `allowed_repos` (`_assert_allowed_repo`, `github_service_security.py`), raising `GitHubAuthorizationError` outside the allowlist.
+- **Command-specific guard:** per-operation asserts for path, branch, file size, and `per_page` clamping run before each mutating call (`github_service_security.py`).
+- **Postcondition verification:** not applicable in the current plan, because the GitHub API response carries the resulting state and no local before/after comparison is performed. `push_files` returns the new commit SHA without inspecting the ref update result, so it does not confirm that the ref moved; confirming ref movement without an extra API call is a follow-up (Plan UNK-02).
+- **Audit:** `call_tool` writes one shared `mcp_tool_exec` record per dispatched call (`server_key="github"`, `target` = `repo={owner}/{repo}`); a disabled-tool rejection returns before the audit call and writes no record. The service also writes the dedicated `github_audit.log`, and a failure to write it raises `GitHubAuditError` (HTTP 500) instead of being ignored. Before/after state snapshots are not applicable.
 
-**Configuration Fields:** `max_per_page`, `allowed_repos`, `protected_branches` (fnmatch pattern), `path_denylist` (fnmatch pattern), `max_file_size_kb`, `allow_force_push`, `require_pr_review`, `audit_log_path`
+**Error mapping:** PyGithub `GithubException` is converted to domain exceptions by status (404 NotFound, 403 Authorization, 409 Conflict, 400/422 Validation, others Upstream 502); `GitHubAuditError` is 500. Mapping is registered in `exception_handlers.py`.
 
-**Note:** `default_per_page` is not a configuration key of `config/github_mcp_server.toml`. The default count for listing endpoints is module constant `DEFAULT_PER_PAGE` (`github_models_config.py`) which each request model references directly (not configurable). `max_per_page` is used as `self._max_per_page` for clamping `per_page` values and is a valid configuration.
-
-**Security Control:**
-- `allowed_repos` (fail-closed; empty list = all denied)
-- `protected_branches` (fnmatch pattern)
-- `path_denylist` (fnmatch pattern)
-- `max_file_size_kb` (0 = unlimited)
-- `allow_force_push` (disabled unless set to `true`, which allows force-push and rebase merges)
-- `require_pr_review` (review required unless set to `false`, which allows merging without review)
-
-**Domain Exceptions** (defined in `scripts/mcp_servers/github/github_models_config.py`, re-exported in `github_models.py`): `GitHubNotFoundError` (404), `GitHubAuthorizationError` (403), `GitHubConflictError` (409), `GitHubValidationError` (400), `GitHubUpstreamError` (502), `GitHubAuditError` (500)
-
-**Health:** Token configured: `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`; Unset: `{"status":"degraded","ready":false,"dependencies":{"github_token":"not_set"}}` — HTTP 200 when ready, HTTP 503 when degraded.
+**Health:** `dependencies.github_token="not_set"` when the token is missing (`degraded`, HTTP 503); otherwise `ok`.
 **Logs:** `<log_dir>/github-mcp.log`
-**Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): `github_audit.log`
-
-### Guard and postcondition coverage
-
-See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) Layered protection model for the general framework this section instantiates. Agent-side approval confirms user intent only; it is not a bypass for any check below.
-
-#### Common guard
-
-`github_server.py::call_tool` rejects a disabled tool (reason `GITHUB_TOKEN is not set`) before anything else. Every operation that names a repository asserts it against `allowed_repos` through `_assert_allowed_repo()`, which raises `GitHubAuthorizationError` for a repository outside the allowlist. (Explicit in code — `scripts/mcp_servers/github/github_server.py`, `scripts/mcp_servers/github/github_service_security.py`)
-
-#### Command-specific guard status
-
-Implemented per operation in `github_service_security.py`: `_assert_allowed_path()` rejects a path matching a `path_denylist` glob pattern, `_assert_allowed_branch()` rejects a branch matching a `protected_branches` fnmatch pattern, `_assert_max_file_size()` rejects content above `max_file_size_kb`, and `_clamp_per_page()` clamps a requested `per_page` to `max_per_page`. `allow_force_push` and `require_pr_review` gate `merge_pull_request` (see above). (Explicit in code — `scripts/mcp_servers/github/github_service_security.py`)
-
-#### Postcondition verification
-
-Not applicable in this Plan: the GitHub API response carries the resulting state, so no local before/after state comparison is performed. `push_files` returns the new commit SHA without checking the value PyGithub returns when it moves the branch ref, so it does not confirm that the ref actually moved; confirming ref movement without an extra API call is a follow-up (Plan UNK-02). (Explicit in code — `scripts/mcp_servers/github/github_service_file.py`)
-
-#### Audit
-
-`github_server.py::call_tool` writes one shared `mcp_tool_exec` record per dispatched call, with `target` set to `repo={owner}/{repo}` and `outcome` taken from the dispatch result; a disabled-tool rejection returns before the audit call and writes no record. The service also writes the dedicated `github_audit.log`, and a failure to write it raises `GitHubAuditError` (HTTP 500) rather than being logged and ignored. Before/after state snapshots are not applicable. (Explicit in code — `scripts/mcp_servers/github/github_server.py`, `scripts/mcp_servers/audit.py`)
-
-### Implementation Details (github-mcp)
-
-- Domain exception HTTP status mapping (`exception_handlers.py`): `GitHubAuthorizationError` → 403, `GitHubNotFoundError` → 404, `GitHubValidationError` → 400, `GitHubConflictError` → 409, `GitHubUpstreamError` → 502, `GitHubAuditError` → 500. (Explicit in code)
-- PyGithub's `GithubException` is converted to domain exceptions in `service_security.py` based on status codes (404 → NotFound, 403 → Authorization, 409 → Conflict, 400/422 → Validation, others → Upstream). (Explicit in code)
-- `allow_force_push=false` only applies by rejecting `merge_method="rebase"` in `merge_pull_request` (it does not directly block other force-push equivalent operations). (Explicit in code)
-- `require_pr_review=true` ensures at least one `APPROVED` review exists when executing `merge_pull_request`. (Explicit in code)
-- When `GITHUB_TOKEN` is unset, the process still starts and constructs an unauthenticated `Github()` client (with a startup warning about the unauthenticated API rate limit) and reports `degraded` health, but the disabled-tool gate in `/v1/call_tool` prevents any tool from using that client (`github_service_init.py`, `github_server.py`). (Explicit in code)
+**Audit layers:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): `github_audit.log`
 
 ---
-
-## Layered protection coverage
-
-github-mcp is a high-risk category (write operations gated by a repository allowlist) performing
-reads and writes against the GitHub API. The five Layered protection layers stand as follows.
-
-- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; github enforces only its own technical constraints (`GITHUB_TOKEN`, repository / path / branch allowlists).
-- **Common guard** — Implemented. `allowed_repos` fail-closed authorization (`_assert_allowed_repo`); an empty list denies every repository. (Explicit in code — `scripts/mcp_servers/github/github_service_security.py::_assert_allowed_repo`)
-- **Command-specific guard** — Implemented. Per-operation asserts applied before each mutating call: `_assert_allowed_path` (`path_denylist` fnmatch), `_assert_allowed_branch` (`protected_branches`), `_clamp_per_page`, and `_assert_max_file_size` (`max_file_size_kb`). (Explicit in code — `scripts/mcp_servers/github/github_service_security.py`)
-- **Postcondition verification** — Not applicable in this Plan. The GitHub API response carries the resulting state; `push_files` moves the branch ref with `branch_ref.edit(new_commit.sha)` (`scripts/mcp_servers/github/github_service_file.py:140`) without inspecting the returned ref object to confirm movement, so a no-cost resulting-state verification does not exist. Recorded as not applicable; a follow-up may add an explicit verification call. (Code review — `scripts/mcp_servers/github/github_service_file.py::push_files`)
-- **Audit** — Implemented. Shared `mcp_tool_exec` emitted from `call_tool` (`server_key="github"`), plus a dedicated plain-text log via `_write_github_audit_log`. (Explicit in code — `scripts/mcp_servers/github/github_server.py`, `scripts/mcp_servers/github/github_service_security.py::_write_github_audit_log`)
 
 ## Keywords
 

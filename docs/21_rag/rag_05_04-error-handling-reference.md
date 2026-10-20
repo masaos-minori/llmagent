@@ -51,7 +51,7 @@ either reader.
 | `chunk_index` is `bool`, non-`int`, or negative (`_validate_int_non_negative`; `bool` explicitly rejected before the `int` check) | `ChunkFormatError` |
 | Crawl artifact only: `content` is empty and `code_blocks` is also empty (cross-field rule) | `ChunkFormatError` |
 
-**Catch guidance**: Callers should catch `ChunkFormatError` specifically, not the broader `RagLayerError` base class. This matches every actual catch site in the codebase — `chunk_grouping.py`, `chunk_splitter.py` (as part of `(FileNotFoundError, ChunkFormatError)`), `file_routing.py`, and `ingester.py`.
+**Catch guidance**: Callers should catch `ChunkFormatError` specifically, not the broader `RagLayerError` base class (see Catch-site pattern below).
 
 For the full per-field Required/Nullable/Conditional classification referenced above,
 see the canonical table in
@@ -62,32 +62,18 @@ see the canonical table in
 #### Hierarchy position
 
 `ChunkFormatError` is defined in `scripts/rag/exceptions.py` as a subclass of both
-`RagLayerError` (the rag-layer base class) and `ValueError`. Its five sibling classes
-under `RagLayerError` are:
-
-| Class | Docstring-derived purpose |
-|---|---|
-| `EmbeddingSchemaError` | Raised when an embedding service response does not match expected schema |
-| `PipelineValidationError` | Raised when a pipeline stage receives invalid configuration or input |
-| `SearchQueryError` | Raised when a search query cannot be executed |
-| `TokenizationError` | Raised when a tokenization step fails |
-| `UnknownMetadataError` | Raised when metadata field has an unexpected value |
-
-Each class should be raised when its docstring condition applies — e.g., use
+`RagLayerError` (the rag-layer base class) and `ValueError`. Its sibling classes under
+`RagLayerError` (`EmbeddingSchemaError`, `PipelineValidationError`, `SearchQueryError`,
+`TokenizationError`, `UnknownMetadataError`) each cover a distinct condition described in
+their docstrings. Raise each class only when its docstring condition applies — e.g., use
 `SearchQueryError` for an unexecutable search query, not a malformed chunk document.
 
 #### Catch-site pattern
 
-Every current caller in the repository catches `ChunkFormatError` specifically rather
-than `RagLayerError` or `ValueError`:
-
-- `scripts/rag/ingestion/chunk_splitter.py` — `except (FileNotFoundError, ChunkFormatError)`
-- `scripts/rag/ingestion/file_routing.py` — `except ChunkFormatError`
-- `scripts/rag/ingestion/ingester.py` — `except ChunkFormatError`
-- `scripts/rag/ingestion/chunk_grouping.py` — `except ChunkFormatError`
-
-New code should follow the same pattern: catch `ChunkFormatError` specifically, not its
-base classes.
+Every current caller (the chunk splitter, file routing, ingester, and chunk grouping
+modules under `scripts/rag/ingestion/`) catches `ChunkFormatError` specifically rather
+than `RagLayerError` or `ValueError`. New code should follow the same pattern: catch
+`ChunkFormatError` specifically, not its base classes.
 
 #### Exception hierarchy
 

@@ -61,13 +61,9 @@ If a workflow fails after some steps are completed, the workflow engine records 
 - Partial completion is not automatically resumed
 - Automatic execution (planning/verification phases, low-risk tools) does not require human approval
 
-## Operational Notes
-
-- Tool-level approval configures risk classification via `ApprovalConfig.approval_risk_rules`
-
 ## Known Limitations
 
-- Tool-level approval can be configured individually via `approval_risk_rules`, but a tool without a rule falls back to its safety-tier default (`READ_ONLY`/`WRITE_SAFE` → `none`, `WRITE_DANGEROUS` → `medium`, `ADMIN` → `high`)
+- A tool without an `approval_risk_rules` entry falls back to its safety-tier default (see [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md))
 - Partial completion is not automatically resumed — manual user intervention is required
 
 ## Keywords

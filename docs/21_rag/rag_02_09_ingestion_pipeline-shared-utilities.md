@@ -27,18 +27,7 @@ related:
 
 ## Shared Utilities Detail (`scripts/rag/utils.py`)
 
-```python
-from rag.utils import (
-    cosine_sim,
-    floats_to_blob,
-    normalize_unicode,
-    sanitize_document,
-    sanitize_document_full,
-    validate_url,
-)
-```
-
-This module provides stateless helpers shared by ingestion and query code. (Explicit in code — `scripts/rag/utils.py`)
+This module provides stateless helpers shared by ingestion and query code.
 
 **Vectors**
 
@@ -57,11 +46,6 @@ This module provides stateless helpers shared by ingestion and query code. (Expl
 **URL validation**
 
 - `validate_url()` returns true only for an http or https URL with a non-empty host.
-
-**Language detection and logging keys**
-
-- A module constant defines the minimum text length for language detection; shorter text is not classified and falls back to the language hint (Explicit in code — `scripts/rag/ingestion/crawler_utils.py`).
-- Module constants define the structured log keys (url, doc_id, chunk_id, source_type, stage_name) used to trace the RAG lifecycle.
 
 The module is a library module: it attaches no log handler, and the caller controls log routing.
 

@@ -15,7 +15,7 @@ related:
 
 ## Overview
 
-This directory contains the API reference documentation for the EventBus HTTP service. Each endpoint group has its own document with request/response schemas, authentication requirements, and examples.
+This directory contains the API reference documentation for the EventBus HTTP service. Each endpoint group has its own document with its contract, authentication requirements and failure semantics.
 
 ## Endpoint Groups
 
@@ -49,43 +49,10 @@ Each per-role token grants only its own role. The shared `auth_token` and the `a
 
 ## Common Patterns
 
-### Error Response Format
+- Error responses use the FastAPI standard `{"detail": "..."}` body.
+- List endpoints paginate with `limit` (bounded by the route definition) and `offset` (`>= 0`) and return an envelope of `total`, `limit`, `offset` and `items`.
 
-All error responses use the FastAPI standard format:
-
-```json
-{
-  "detail": "Error description"
-}
-```
-
-### Pagination
-
-List endpoints support pagination via `limit` and `offset` query parameters:
-
-```
-GET /dlq?limit=50&offset=0
-```
-
-| Parameter | Default | Constraints |
-|-----------|---------|-------------|
-| `limit` | route default | bounded (see route definition) |
-| `offset` | 0 | >= 0 |
-
-### Response Schema
-
-Paginated list responses follow this pattern:
-
-```json
-{
-  "total": 1000,
-  "limit": 50,
-  "offset": 0,
-  "items": [...]
-}
-```
-
-### Security Notes
+## Security Notes
 
 - All examples use placeholder values (e.g., `"Bearer ${TOKEN}"`) — no real credentials or secrets.
 - Consumer authorization requires the caller's principal to include the requested `consumer_id` in `allowed_consumer_ids`.

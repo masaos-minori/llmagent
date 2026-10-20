@@ -48,24 +48,24 @@ LLM returns tool_call
              → return ToolCallResult(output, is_error, request_id, server_key)
 ```
 
-### Implementation Notes (Current behavior)
+### Dispatch Gate Behavior
 
-- Tool calls to a server with `startup_mode=none` return an error immediately before attempting health checks or lifecycle activation. (Explicit in code)
-- If the health registry returns a `HALF_OPEN` state, the block by `is_unavailable` is skipped to allow exactly one in-flight trial dispatch (circuit breaker half-open attempt). While that trial is in flight, further concurrent calls are rejected with an `"unavailable"` error result; the trial flag is released on success, failure, or cancellation so the slot never leaks. (Explicit in code — `scripts/shared/mcp_health.py::McpServerHealthRegistry.acquire_trial`, `scripts/shared/tool_transport_invoker.py::_check_health`)
-- `ToolTransportInvoker.invoke()` exists as a separate general-purpose method providing health checks, lifecycle activation, and semaphore control similar to internal dispatch, and runs the same pre-call gates as `ToolExecutor.execute()`, including the `startup_mode=none` check. (Explicit in code — `scripts/shared/tool_transport_invoker.py::_run_precall_gates`)
+- Tool calls to a server with `startup_mode=none` return an error immediately before attempting health checks or lifecycle activation.
+- If the health registry returns a `HALF_OPEN` state, the block by `is_unavailable` is skipped to allow exactly one in-flight trial dispatch (circuit breaker half-open attempt). While that trial is in flight, further concurrent calls are rejected with an `"unavailable"` error result; the trial flag is released on success, failure, or cancellation so the slot never leaks. (`McpServerHealthRegistry.acquire_trial` in `scripts/shared/mcp_health.py`)
+- `ToolTransportInvoker.invoke()` exists as a separate general-purpose method providing health checks, lifecycle activation, and semaphore control similar to internal dispatch, and runs the same pre-call gates as `ToolExecutor.execute()`, including the `startup_mode=none` check.
 
 ### Idempotency and retry
 
 The `X-Idempotency-Key` request header gives a logical call a stable identity on the server: it drives server-side de-duplication of state-mutating calls and lets the Agent reuse one key across that call's retries.
 
-- **Key ownership:** the caller/Agent generates one idempotency key per logical call. `HttpTransport.call()` emits it as the `X-Idempotency-Key` header and reuses the same value on every retry of that call, so a re-sent write keeps a single identity. (Explicit in code)
-- **Empty-key rule:** a call with no key (empty or `None`) is never de-duplicated — it always executes and is never stored. The guard applies to side-effecting tools. (Explicit in code)
-- **Cache keying:** a successful result is stored keyed by the idempotency key plus the resolved tool name plus a normalized hash of the arguments. Reusing a key with different tool or argument content is rejected as an error rather than served. (Explicit in code)
-- **TTL and eviction:** cached results carry a fixed time-to-live; the cache is bounded to a maximum entry count and evicts oldest-first past that bound, dropping expired entries first. (Explicit in code)
-- **Error and dry-run results are never cached**, so a failed or dry-run call always re-executes. (Explicit in code)
-- **Write-tool retry:** a write-tool post-send retry is gated on idempotency-key presence (a blind write retry without a dedup key risks double execution); read-tool retry is unchanged. `call()` always emits a per-call key, so write retries carry a stable key. (Explicit in code)
+- **Key ownership:** the caller/Agent generates one idempotency key per logical call. `HttpTransport.call()` emits it as the `X-Idempotency-Key` header and reuses the same value on every retry of that call, so a re-sent write keeps a single identity.
+- **Empty-key rule:** a call with no key (empty or `None`) is never de-duplicated — it always executes and is never stored. The guard applies to side-effecting tools.
+- **Cache keying:** a successful result is stored keyed by the idempotency key plus the resolved tool name plus a normalized hash of the arguments. Reusing a key with different tool or argument content is rejected as an error rather than served.
+- **TTL and eviction:** cached results carry a fixed time-to-live; the cache is bounded to a maximum entry count and evicts oldest-first past that bound, dropping expired entries first.
+- **Error and dry-run results are never cached**, so a failed or dry-run call always re-executes.
+- **Write-tool retry:** a write-tool post-send retry is gated on idempotency-key presence (a blind write retry without a dedup key risks double execution); read-tool retry is unchanged. `call()` always emits a per-call key, so write retries carry a stable key.
 
-Authoritative implementation: `dispatch.py::dispatch_tool()` with its `_duplicate_cache` (server-side dedup) and `http_transport.py::call()` (per-call key generation and retry).
+Enforcement points: `dispatch_tool()` in `scripts/mcp_servers/dispatch.py` (server-side dedup) and `HttpTransport.call()` (key generation and retry).
 
 ---
 
@@ -104,45 +104,11 @@ There is a single data source for scheduling metadata today: a tool's `/v1/tools
 
 Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](../10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
-| Static tool group (`shared/tool_constants.py`) | Owning server key |
-|---|---|
-| `READ_TOOLS` | `file_read` |
-| `WRITE_TOOLS` | `file_write` |
-| `DELETE_TOOLS` | `file_delete` |
-| `SHELL_TOOLS` | `shell` |
-| `WEB_SEARCH_TOOLS` | `web_search` |
-| `GITHUB_TOOLS` (`GITHUB_READ_TOOLS`, `GITHUB_WRITE_TOOLS`, `GITHUB_DANGEROUS_TOOLS`) | `github` |
-| `GIT_TOOLS` (`GIT_READ_TOOLS`, `GIT_WRITE_TOOLS`) | `git` |
-| `RAG_TOOLS` (`RAG_READ_TOOLS`, `RAG_WRITE_TOOLS`) | `rag_pipeline` |
-| `CICD_TOOLS` (`CICD_READ_TOOLS`, `CICD_WRITE_TOOLS`) | `cicd` |
-| `MDQ_TOOLS` (`MDQ_WRITE_TOOLS` is its write subset) | `mdq` |
-| No Match | `ValueError` |
+Tool names are grouped by owning server in the static frozensets of `shared/tool_constants.py`; these groups seed drift detection and operation-type classification, not routing. A tool name that `RuntimeToolRegistry` cannot resolve raises `ValueError`. For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_07_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
 
-For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_07_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
+**Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver` takes no server configuration (see [Agent Reference API](../23_agent/agent_12_reference-api.md) for its parameters). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
 
-```python
-resolver = ToolRouteResolver()
-resolver.set_runtime_registry(registry)
-server_key = resolver.resolve("read_text_file")  # → "file_read"
-```
-
-**Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver`'s constructor has no `server_configs` parameter — it accepts only `warn_on_missing`, `strict_mode`, and `runtime_registry` (see [Agent Reference API](../23_agent/agent_12_reference-api.md) for the full parameter list). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
-
-**Four-layer responsibility of MDQ tool definitions:** MDQ (`mdq`) tool definitions are spread across four independent files, each having a single responsibility. Changing any one of them requires updating the other three synchronously (`tests/test_mdq_tool_layer_consistency.py` verifies this consistency).
-
-| Layer | File/Symbol | Responsibility |
-|---|---|---|
-| Schema Definition | `scripts/mcp_servers/mdq/mdq_tools.py::TOOL_LIST` | Tool names, input schemas, and status exposed to LLM |
-| Runtime Dispatch | `scripts/mcp_servers/mdq/mdq_server.py::_DISPATCH_TABLE` | Mapping of tool name → handler function |
-| Registry Registration | `shared/tool_constants.py::MDQ_TOOLS` | Canonical set for registering tools in `ToolRegistry` |
-| Deployment Allowlist | `[mcp_servers.mdq].tool_names` in `config/agent.toml` | List of tools actually allowed to start and be used |
-
-**Generalization to all MCP servers:** The above 4-layer consistency guardrails were specific to MDQ, but `tests/test_tool_server_layer_consistency.py` generalizes this verification to all MCP servers (mdq, github, shell, git, cicd, rag_pipeline, file[read/write/delete], web_search). Dispatch table implementations follow two patterns:
-
-| Dispatch Pattern | Applicable Servers |
-|---|---|
-| Module-level dictionary (`_DISPATCH_TABLE` equivalent) | `mdq` (`mdq_server.py::_DISPATCH_TABLE`), `web_search` (`formatters.py::_WEB_DISPATCH`) |
-| Service instance's `get_dispatch_table()` | `github`, `shell`, `git`, `cicd`, `rag_pipeline`, `file_read`, `file_write`, `file_delete` |
+**Per-server tool definition layers:** every MCP server spreads one tool's definition across four independently owned places: the schema (`TOOL_LIST`, what the LLM sees), the runtime dispatch table (name to handler), the registry registration (`shared/tool_constants.py` frozensets, for drift detection), and the deployment allowlist (`tool_names` in `config/agent.toml`). Changing any one requires updating the other three in the same change. `tests/mcp_servers/cicd/test_tool_server_layer_consistency.py` verifies this for all MCP servers (`tests/mcp_servers/mdq/test_mdq_tool_layer_consistency.py` for mdq).
 
 ---
 
@@ -159,7 +125,7 @@ Every MCP tool passes through these layers consistently from invocation to audit
 ⑥ Audit Logging           `agent/tool_audit.py` — Records `classify_operation_type()` result as `operation_type`
 ```
 
-**Layers ③–⑤ reference different sources.** ③ is registry registration (ownership; drift detection only), ④ is batch execution parallel/serial control (`RuntimeToolRegistry` `is_write`), and ⑤ is approval risk assessment and audit classification. Missing a reference can cause each layer to drift individually. `agent/tool_policy.py::classify_operation_type()` evaluates in this order: (1) the `shared/tool_constants.py` frozensets `WRITE_TOOLS`, `MDQ_WRITE_TOOLS`, `RAG_WRITE_TOOLS`, `CICD_WRITE_TOOLS`, `GIT_WRITE_TOOLS` give WRITE; (2) `DELETE_TOOLS` gives DELETE; (3) the shell execution tool set gives EXECUTE; (4) `GITHUB_WRITE_TOOLS` and `GITHUB_DANGEROUS_TOOLS` give API_WRITE; (5) any other tool is looked up in `RuntimeToolRegistry`: a registered tool whose `RuntimeTool` is a write tool gives WRITE, any other registered tool gives READ, and an unregistered tool or a missing registry gives UNKNOWN (fail closed, no static-registry fallback; ADR-003 Decision Detail #6/#8). (Explicit in code — `scripts/agent/tool_policy.py::classify_operation_type`) `tests/test_tool_policy_comprehensive.py` and `tests/test_tool_approval_risk.py` verify this classification.  Startup validation reports any tool whose `RuntimeTool` write attribute disagrees with the static sets (ADR-003 INV-03).
+**Layers ③–⑤ reference different sources.** ③ is registry registration (ownership; drift detection only), ④ is batch execution parallel/serial control (`RuntimeToolRegistry` `is_write`), and ⑤ is approval risk assessment and audit classification. Missing a reference can cause each layer to drift individually. `agent/tool_policy.py::classify_operation_type()` evaluates in this order: (1) the `shared/tool_constants.py` frozensets `WRITE_TOOLS`, `MDQ_WRITE_TOOLS`, `RAG_WRITE_TOOLS`, `CICD_WRITE_TOOLS`, `GIT_WRITE_TOOLS` give WRITE; (2) `DELETE_TOOLS` gives DELETE; (3) the shell execution tool set gives EXECUTE; (4) `GITHUB_WRITE_TOOLS` and `GITHUB_DANGEROUS_TOOLS` give API_WRITE; (5) any other tool is looked up in `RuntimeToolRegistry`: a registered tool whose `RuntimeTool` is a write tool gives WRITE, any other registered tool gives READ, and an unregistered tool or a missing registry gives UNKNOWN (fail closed, no static-registry fallback; ADR-003 Decision Detail #6/#8). Startup validation reports any tool whose `RuntimeTool` write attribute disagrees with the static sets (ADR-003 INV-03).
 
 ### Serialization mechanism integrated into a single scheduler
 

@@ -11,206 +11,79 @@ related:
 ---
 # MCP Server Catalog: file-write-mcp / file-delete-mcp / shell-mcp
 
-## file-write-mcp 
+Tool membership and risk tiers: [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md). Health response semantics common to all servers: [mcp_02_02](mcp_02_02_startup-modes-and-health.md). Availability metadata: [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md). Each server is a high-risk category tool; the cross-cutting policy is [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) (Layered protection model). Agent-side approval confirms user intent only; it is not a bypass for any check below, and none of these servers performs an approval check itself.
 
-**Purpose:** Write operations to the local filesystem. All tools support `dry_run=True`.
+## file-write-mcp
+
+**Purpose:** Write operations to the local filesystem. All tools support `dry_run=True`, which returns the diff or feasibility information and performs no write.
 **Startup Mode:** `subprocess` (HTTP)
-**Configuration:** `config/file_write_mcp_server.toml`
+**Configuration:** `config/file_write_mcp_server.toml` (`allowed_dirs`, `max_write_bytes`)
 
-**Tools:** `write_file`, `edit_file`, `create_directory`, `move_file`
-
-All tools do not require configuration (`config_dependent: false`).
-
-The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty → disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
-
-**Configuration Fields:** `allowed_dirs`, `max_write_bytes`
-
-| Tool | Input | `dry_run` Behavior |
-|---|---|---|
-| `write_file` | `{path, content, dry_run?}` | Returns only diff; no writing |
-| `edit_file` | `{path, edits: [{old_text, new_text}], dry_run?}` | Returns diff; no writing |
-| `create_directory` | `{path, dry_run?}` | Returns directory info (exists/to be created); no creation |
-| `move_file` | `{source, destination, dry_run?}` | Returns whether movement is possible |
-
-**Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, 503 when degraded.
-**Configuration:** `max_write_bytes` (enforced as UTF-8 byte count)
-**Error Codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
-**Logs:** `<log_dir>/file-write-mcp.log`
-**Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): None — no dedicated audit log; the shared record is written for every call (see Guard and postcondition coverage below)
+- No tool requires configuration (`config_dependent: false`); availability depends on `allowed_dirs` (empty means disabled, reason `"allowed_dirs is empty"`).
+- `max_write_bytes` is enforced as a UTF-8 byte count by a manual check in the service (not Pydantic constraints): `write_file` on the content, `edit_file` on the text after the edits are applied. Exceeding it raises `FileValidationError`.
+- Error mapping: 403 `FileAuthorizationError`, 404 `FileNotFoundError`, 422 `FileValidationError`.
+- `/health`: `dependencies.filesystem` reports a workspace root that is not a directory; HTTP 200 when ready, 503 when degraded.
+- Logs: `<log_dir>/file-write-mcp.log`. Audit: Layer1 (Agent/MCP shared) `tool_exec`, Layer2 (Shared MCP) `mcp_tool_exec`, Layer3 (Dedicated) none.
 
 ### Guard and postcondition coverage
 
-See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) Layered protection model for the general framework this section instantiates. Agent-side approval confirms user intent only; it is not a bypass for any check below.
-
-#### Common guard
-
-`write_server.py::call_tool` rejects a disabled tool (reason `allowed_dirs is empty`) before anything else. Every tool then resolves its path through `WriteFileService._resolve_safe()`, which canonicalizes with `Path.resolve()` and requires containment in `allowed_dirs`; traversal and symlink escapes raise `FileAuthorizationError`. `max_write_bytes` is enforced as a UTF-8 byte count. (Explicit in code — `scripts/mcp_servers/file/write_server.py`, `scripts/mcp_servers/file/write_service.py`)
-
-#### Command-specific guard status
-
-`write_file` and `edit_file` reject content whose UTF-8 byte count exceeds `max_write_bytes`. `edit_file` additionally rejects a file that cannot be decoded as UTF-8 and an `old_text` that is not present in the file. `move_file` rejects a missing source. `create_directory` is idempotent: an existing path returns `created=false`. Dangerous-option rejection is not applicable — the tool surface is a fixed, named dispatch table with no free-form argument that reaches a shell. (Explicit in code — `scripts/mcp_servers/file/write_service.py`)
-
-#### Postcondition verification
-
-`write_file` and `edit_file` write through `_atomic_write()` (a `.tmp_<name>` file plus `os.replace`) and then `_verify_written_size()` compares the resulting file size with the requested byte count; a mismatch raises `FileValidationError`. `move_file` runs `_verify_moved()`, which rejects a destination that does not exist or a source that still exists. A write or move whose resulting state does not match is reported as a failure rather than as success. (Explicit in code — `scripts/mcp_servers/file/write_service.py`)
-
-#### Audit
-
-`write_server.py::call_tool` calls `_audit_log()` once per call: the dispatched call is recorded with the outcome taken from the dispatch result (`"ok"` or `"error"`), and the disabled-`allowed_dirs` and argument-validation early returns each record one entry with `outcome="rejected"`. `target` is the caller-supplied path truncated to 80 characters and `server_key` is `file_write`; this server supplies neither `requested_target` nor `canonical_target`, so the requested path appears in `target`. (Explicit in code — `scripts/mcp_servers/file/write_server.py`, `scripts/mcp_servers/audit.py`)
-
-### Implementation Notes (file-write-mcp)
-
-- Enforcement of `max_write_bytes` is implemented via manual check in `write_service.py::WriteFileService` rather than Pydantic field constraints: `write_file` checks `len(content.encode("utf-8"))` and `edit_file` checks the byte count of the text after the edits are applied (both raise `FileValidationError` if exceeded). (Explicit in code)
-- `write_file` and `edit_file` perform atomic writes by writing to a temporary file (`.tmp_<name>`) first and then replacing it using `os.replace`. If the write fails, the temporary file is deleted before returning an error. (Explicit in code)
-- After an applied write, `_verify_written_size()` compares the resulting file size with the requested byte count, and `move_file` runs `_verify_moved()`; a mismatch raises `FileValidationError` instead of reporting success. (Explicit in code)
+- **Common guard:** `call_tool` rejects a disabled tool first. Every tool resolves its path through `WriteFileService._resolve_safe()`, which canonicalizes with `Path.resolve()` and requires containment in `allowed_dirs`; traversal and symlink escapes raise `FileAuthorizationError`. An empty `allowed_dirs` denies every path.
+- **Command-specific guard:** `edit_file` rejects a file that cannot be decoded as UTF-8 and an `old_text` not present in the file. `move_file` rejects a missing source. `create_directory` is idempotent (an existing path returns `created=false`). Dangerous-option rejection is not applicable: the tool surface is a fixed, named dispatch table with no free-form argument that reaches a shell.
+- **Postcondition verification:** `write_file` and `edit_file` write atomically (a `.tmp_<name>` file plus `os.replace`; the temporary file is deleted if the write fails) and then compare the resulting file size with the requested byte count. `move_file` rejects a destination that does not exist or a source that still exists. A mismatch raises `FileValidationError` and is reported as a failure, never as success.
+- **Audit:** `call_tool` records one `mcp_tool_exec` entry per call: `outcome` is `"ok"` or `"error"` from the dispatch result, and the disabled-`allowed_dirs` and argument-validation early returns record `outcome="rejected"`. `target` is the caller-supplied path truncated to 80 characters and `server_key` is `file_write`; `requested_target` and `canonical_target` are not supplied. No before/after state or approval correlation is recorded.
 
 ---
 
-## file-delete-mcp 
+## file-delete-mcp
 
-**Purpose:** Deletion from the local filesystem. All tools support `dry_run=True`.
+**Purpose:** Deletion from the local filesystem. All tools support `dry_run=True`; `delete_directory` then scans the contents (bounded file count, reported as `"<count>+ files"` past the cap) and deletes nothing.
 **Startup Mode:** `subprocess` (HTTP)
-**Configuration:** `config/file_delete_mcp_server.toml`
+**Configuration:** `config/file_delete_mcp_server.toml` (`allowed_dirs`)
 
-**Tools:** `delete_file`, `delete_directory`
-
-All tools do not require configuration (`config_dependent: false`).
-
-The runtime availability (`enabled`/`disabled_reason`) of these tools depends on `allowed_dirs` (empty → disabled, reason `"allowed_dirs is empty"`). See [mcp_03_06_tool-runtime-availability-metadata.md](mcp_03_06_tool-runtime-availability-metadata.md) for details.
-
-**Configuration Fields:** `allowed_dirs`
-
-| Tool | Input | `dry_run` Behavior |
-|---|---|---|
-| `delete_file` | `{path, dry_run?}` | Returns file information; no deletion |
-| `delete_directory` | `{path, recursive?, dry_run?}` | Scans contents (bounded file count); no deletion |
-
-**Health:** `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{"filesystem":"/workspace is not a directory"/"check failed: <error>"},"details":{}}` — HTTP 200 when ready, 503 when degraded.
-**Deletion Audit Log:** `<log_dir>/delete_audit.log` (ISO8601 UTC + op + path + user)
-**Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): `delete_audit.log`
-**Error Codes:** 403 (FileAuthorizationError), 404 (FileNotFoundError), 422 (FileValidationError)
-**Logs:** `<log_dir>/file-delete-mcp.log`
+- No tool requires configuration (`config_dependent: false`); availability depends on `allowed_dirs` (empty means disabled, reason `"allowed_dirs is empty"`).
+- Error mapping: 403 `FileAuthorizationError`, 404 `FileNotFoundError`, 422 `FileValidationError`. `/health` is the same as file-write-mcp.
+- Logs: `<log_dir>/file-delete-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec`, Layer3 `<log_dir>/delete_audit.log` (ISO8601 UTC + op + path + user). The audit destination is fixed in code, not a configuration key.
+- **Audit write failure policy:** failure to write `delete_audit.log` is logged as an error and does not raise; the deletion still returns as successful. This differs from github-mcp, where `GitHubAuditError` fails the call.
 
 ### Guard and postcondition coverage
 
-See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) Layered protection model for the general framework this section instantiates. Agent-side approval confirms user intent only; it is not a bypass for any check below.
-
-#### Common guard
-
-`delete_server.py::call_tool` rejects a disabled tool (reason `allowed_dirs is empty`) before anything else. Both tools resolve their path through `DeleteFileService._resolve_safe()`, which canonicalizes with `Path.resolve()` and requires containment in `allowed_dirs`; traversal and symlink escapes raise `FileAuthorizationError`. (Explicit in code — `scripts/mcp_servers/file/delete_server.py`, `scripts/mcp_servers/file/delete_service.py`)
-
-#### Command-specific guard status
-
-`delete_file` rejects a path that is not an existing file. `delete_directory` rejects a path that is not a directory and rejects a non-empty directory when `recursive=false`. Both tools reject a target that is itself one of the `allowed_dirs` roots through `_check_not_deleting_allowed_root()`, on the recursive and the non-recursive path alike; the guard runs after the `dry_run` early return, so a `dry_run` call is not subject to it. Dangerous-option rejection is not applicable — the tool surface is a fixed, named dispatch table with no free-form argument that reaches a shell. (Explicit in code — `scripts/mcp_servers/file/delete_service.py`)
-
-#### Postcondition verification
-
-`delete_file` and `delete_directory` run `_verify_deleted()` after the deletion, which raises `FileValidationError` when the target still exists. A delete whose target survives is reported as a failure and is not written to the dedicated deletion audit log. (Explicit in code — `scripts/mcp_servers/file/delete_service.py`)
-
-#### Audit
-
-`delete_server.py::call_tool` calls `_audit_log()` once per call: the dispatched call is recorded with the outcome taken from the dispatch result (`"ok"` or `"error"`), and the disabled-`allowed_dirs` and argument-validation early returns each record one entry with `outcome="rejected"`. `target` is the caller-supplied path truncated to 80 characters and `server_key` is `file_delete`; this server supplies neither `requested_target` nor `canonical_target`, so the requested path appears in `target`. The dedicated `delete_audit.log` entry is written by the service only after post-delete verification passes. (Explicit in code — `scripts/mcp_servers/file/delete_server.py`, `scripts/mcp_servers/file/delete_service.py`)
-
-### Implementation Notes
-
-- `audit_log_path` is not a configuration key of `config/file_delete_mcp_server.toml`: `FileDeleteConfig` does not load it, and `delete_service.py::build_service` fixes the audit log destination in code. (Explicit in code)
-- Even if writing to the audit log fails, no exception is raised; instead, an error is logged and the deletion process itself returns as successful (unlike github-mcp's `GitHubAuditError`, failure to write the audit log does not block the deletion operation in file-delete-mcp). (Explicit in code)
-- `delete_file` and `delete_directory` reject deletion with a `FileAuthorizationError` if the target matches any root directory defined in `allowed_dirs`, on both the recursive and the non-recursive path (it does not prevent deleting individual files/subdirectories within allowed directories). (Explicit in code)
-- A deletion whose target still exists after the operation raises `FileValidationError` from `_verify_deleted()`, and no entry is written to `delete_audit.log` in that case. (Explicit in code)
-- Directory scanning during `dry_run` is capped at `_DRY_RUN_MAX_FILES` (defined in `scripts/mcp_servers/file/delete_service.py`) and reflected in `dir_info` as `"<count>+ files"`. (Explicit in code)
+- **Common guard:** `call_tool` rejects a disabled tool first. Both tools resolve paths through `DeleteFileService._resolve_safe()` (canonicalization plus containment in `allowed_dirs`); traversal and symlink escapes raise `FileAuthorizationError`.
+- **Command-specific guard:** `delete_file` rejects a path that is not an existing file. `delete_directory` rejects a non-directory and rejects a non-empty directory when `recursive=false`. Both reject a target that is itself an `allowed_dirs` root (`FileAuthorizationError`), on the recursive and non-recursive path alike; individual files and subdirectories inside an allowed directory remain deletable. The root guard runs after the `dry_run` early return, so a `dry_run` call is not subject to it. Dangerous-option rejection is not applicable (fixed dispatch table).
+- **Postcondition verification:** after deletion `_verify_deleted()` raises `FileValidationError` if the target still exists. Such a delete is reported as a failure and is not written to `delete_audit.log`; the dedicated entry is written only after verification passes.
+- **Audit:** same `mcp_tool_exec` pattern as file-write-mcp (`server_key` is `file_delete`; `target` is the caller-supplied path truncated to 80 characters; no `requested_target` or `canonical_target`).
 
 ---
 
-## shell-mcp 
+## shell-mcp
 
 **Purpose:** Execution of sandboxed shell commands within the `command_allowlist`.
 **Startup Mode:** `subprocess` (HTTP)
-**Configuration:** `config/shell_mcp_server.toml`
+**Configuration:** `config/shell_mcp_server.toml` (defaults are owned by this file and `ShellConfig`)
 
-**Tools:** `shell_run`
+Security-relevant settings:
 
-| Key | Description |
-|---|---|
-| `command_allowlist` | Allowed command names (base name of `argv[0]`) |
-| `shell_cwd_allowed_dirs` | Allowed CWD paths (empty = all denied) |
-| `max_timeout_sec` | Timeout limit |
-| `max_output_kb` | Output limit |
-| `max_memory_mb` | Memory limit (`RLIMIT_AS`) |
-| `shell_sandbox_backend` | `"firejail"` or `"none"` (see sandbox table below) |
-| `audit_log_path` | Audit log |
-| `default_cwd` | Working directory if no cwd is specified in request |
-| `shell_path` | PATH environment variable for child processes |
-| `env_allowlist` | Allowed environment variable keys in `req.env` (if empty, uses `env_denylist`) |
-| `env_denylist` | Glob patterns for environment variable keys to remove from `req.env` |
-| `execution_user` | OS user to run commands as via setuid (requires `CAP_SETUID`) |
-| `kill_policy` | SIGTERM+SIGKILL for timed-out processes, or `"sigkill_only"` |
-| `kill_grace_sec` | Seconds to wait after SIGTERM before switching to SIGKILL |
+- `command_allowlist` matches the base name of `argv[0]`; empty means disabled (reason `"command_allowlist is empty"`).
+- `shell_cwd_allowed_dirs`: empty means all working directories are denied.
+- `env_allowlist` / `env_denylist` filter `req.env` (default-deny filter; the denylist applies when the allowlist is empty).
+- `max_timeout_sec`, `max_output_kb`, `max_memory_mb` (`RLIMIT_AS`) bound resource use; `kill_policy` / `kill_grace_sec` choose SIGTERM-then-SIGKILL or SIGKILL only for timed-out processes.
+- `execution_user` runs commands as another OS user via setuid and requires `CAP_SETUID`.
+- `audit_log_path` is the dedicated audit log; `shell_sandbox_backend` selects isolation (below).
 
-Current default values are defined in `config/shell_mcp_server.toml`.
+**Sandbox backend:** `"firejail"` isolates the process (`--private --net=none --noroot`) and is the production setting. `"none"` applies only `RLIMIT_*` limits, with no process isolation, and is never permitted.
 
-**Health:** If `sh` is found: `{"status":"ok","ready":true,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{"sandbox_backend":"firejail"/"none"}}`; if not found: `"status":"degraded","ready":false,"dependencies":{"shell":"sh not found in PATH"/"check failed"}}` — HTTP 200 when ready, 503 when degraded.
-**Logs:** `<log_dir>/shell-mcp.log`
-**Audit:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): `shell_audit.log`
-
-| sandbox_backend | Meaning | Use Case |
-|---|---|---|
-| `"none"` | No process isolation; only `RLIMIT_*` limits apply | Never permitted |
-| `"firejail"` | Process isolation via firejail (`--private --net=none --noroot`) | Recommended for production |
-
-> **Security Note — Sandboxing is on by default:** The code default for `shell_sandbox_backend` (`ShellConfig`) and the value in `config/shell_mcp_server.toml` are both `"firejail"`, so a default configuration requires the `firejail` binary in `PATH`; if it is missing, `init_sandbox()` raises `RuntimeError` when the service is built. With `"none"`, commands run with the OS user and privileges of the shell-mcp process, with no container or namespace isolation. You can verify the active backend via the `details.sandbox_backend` field (`"none"` or `"firejail"`) in the `/health` response. (Explicit in code — `scripts/mcp_servers/shell/shell_models.py`, `scripts/mcp_servers/shell/shell_service_static_helpers.py`)
-> **Enforcement:** `shell_sandbox_backend = "none"` is rejected by shell-mcp itself. `init_sandbox()` raises `RuntimeError` when the service is built, and the startup Security Posture check `server.sandbox_backend` reports `failed`, so the posture does not validate and shell-mcp refuses to bind its HTTP port. The Agent reads the same posture from `/health` and aborts startup. Set `shell_sandbox_backend = "firejail"` or disable `shell-mcp`.
+> **Security Note - sandboxing is on by default:** The code default and `config/shell_mcp_server.toml` are both `"firejail"`, so a default configuration requires the `firejail` binary in `PATH`; if it is missing, `init_sandbox()` raises `RuntimeError` when the service is built. With `"none"`, commands would run with the OS user and privileges of the shell-mcp process, with no container or namespace isolation. The active backend is visible as `details.sandbox_backend` in `/health`.
 >
-> > **Note**: Enforcement lives in shell-mcp's own startup validation (`scripts/mcp_servers/shell/shell_service_static_helpers.py::validate_shell_security()` plus the posture gate in `scripts/mcp_servers/shell/shell_server.py`), not in a separate Agent-side audit. A shell-mcp process started independently of the Agent startup path still refuses to bind when its posture fails. See [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md).
+> **Enforcement:** `shell_sandbox_backend = "none"` is rejected by shell-mcp itself: the startup Security Posture check `server.sandbox_backend` reports `failed`, so the posture does not validate and shell-mcp refuses to bind its HTTP port. The Agent reads the same posture from `/health` and aborts startup. Set `shell_sandbox_backend = "firejail"` or disable `shell-mcp`. Enforcement lives in shell-mcp's own startup validation (`validate_shell_security()` in `scripts/mcp_servers/shell/shell_service_static_helpers.py`), not in a separate Agent-side audit, so a shell-mcp process started independently of the Agent still refuses to bind when its posture fails. See [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md).
+
+- `/health`: `dependencies.shell` reports `sh` not found; `details.sandbox_backend` is `firejail` or `none`.
+- Logs: `<log_dir>/shell-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec`, Layer3 `shell_audit.log`.
 
 ### Guard and postcondition coverage
 
-See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) Layered protection model for the general framework this section instantiates. Agent-side approval confirms user intent only; it is not a bypass for any check below.
-
-#### Common guard
-
-`shell_server.py::call_tool` rejects a disabled tool (reason `command_allowlist is empty`) before anything else. The service rejects a command whose base name is not in `command_allowlist` and a `cwd` outside `shell_cwd_allowed_dirs`; the sandbox backend, the `RLIMIT_*` limits, and the `env_allowlist`/`env_denylist` filtering are fixed when the service is built. (Explicit in code — `scripts/mcp_servers/shell/shell_server.py`, `scripts/mcp_servers/shell/shell_service_static_helpers.py`)
-
-#### Command-specific guard status
-
-Not applicable as a complete layer: `shell_run` takes a free-form command string, so dangerous-option rejection cannot be exhaustive for an allowed command. The checks that do run before execution are the `command_allowlist` base-name match, the `max_timeout_sec` limit, and the registered `shell_run` argument validator. (Explicit in code — `scripts/mcp_servers/shell/shell_server.py`, `scripts/mcp_servers/tool_validators.py`)
-
-#### Postcondition verification
-
-Not applicable: an arbitrary allowed command has no expected resulting state to compare against. The result checks that do run are exit-code classification, timeout enforcement, and output truncation reporting against `max_output_kb`. (Explicit in code — `scripts/mcp_servers/shell/shell_service.py`)
-
-#### Audit
-
-`shell_server.py::call_tool` writes one shared `mcp_tool_exec` record per dispatched call, with `target` set to the command truncated to 80 characters and `outcome` taken from the dispatch result; a disabled-tool rejection returns before the audit call and writes no record. The service writes the dedicated `shell_audit.log` entry. (Explicit in code — `scripts/mcp_servers/shell/shell_server.py`)
-
----
-
-## Layered protection coverage
-
-file-write-mcp, file-delete-mcp, and shell-mcp are high-risk category tools (path-authorized filesystem mutation and process execution). The five Layered protection layers stand as follows per tool.
-
-### file-write-mcp
-
-- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; file-write enforces only its own technical constraints (`allowed_dirs`, `max_write_bytes`).
-- **Common guard** — Implemented. `allowed_dirs` fail-closed authorization with `..`-traversal and symbolic-link escape blocked by `Path.resolve()` inside `resolve_safe()`; an empty `allowed_dirs` denies every path (see Path Control). (Explicit in code — `scripts/mcp_servers/file/common.py`)
-- **Command-specific guard** — Partially implemented. `max_write_bytes` is enforced via a manual byte-count check in `write_file` (raises `FileValidationError`); `edit_file` performs no byte-limit check and writes non-atomically. (Explicit in code — `scripts/mcp_servers/file/write_service.py::WriteFileService.write_file`, `edit_file`)
-- **Postcondition verification** — Not implemented. `write_file` never compares the written byte length against the intended size; `move_file` reports success without verifying the source is gone and the destination exists; `edit_file` reports `applied=True` without comparing the resulting file against intent. (Code review — `scripts/mcp_servers/file/write_service.py::write_file`, `move_file`, `edit_file`)
-- **Audit** — Partially implemented. `call_tool` emits `mcp_tool_exec` through the shared `_audit_log()` on the rejected and completed paths (session/request id, action, truncated target path, outcome), written to the server's application log. No before/after state or approval correlation is recorded, and no dedicated audit log file exists. (Explicit in code — `scripts/mcp_servers/file/write_server.py::call_tool`)
-
-### file-delete-mcp
-
-- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; file-delete enforces only its own technical constraints (`allowed_dirs`).
-- **Common guard** — Implemented. `allowed_dirs` fail-closed authorization with `..`-traversal and symbolic-link escape blocked by `Path.resolve()` inside `resolve_safe()`. (Explicit in code — `scripts/mcp_servers/file/common.py`)
-- **Command-specific guard** — Partially implemented. The allowed-root protection runs only when `recursive=true`; a non-recursive rmdir() on an empty directory that is itself an allowed root is not rejected. (Explicit in code — `scripts/mcp_servers/file/delete_service.py::delete_directory`)
-- **Postcondition verification** — Not implemented. `delete_file`/`delete_directory` return `deleted=True` without verifying the target is actually gone, and a partial `shutil.rmtree` failure is reported as success. (Code review — `scripts/mcp_servers/file/delete_service.py::delete_file`, `delete_directory`)
-- **Audit** — Partially implemented. `call_tool` emits `mcp_tool_exec` through the shared `_audit_log()` on the rejected and completed paths (session/request id, action, truncated target path, outcome). A dedicated plain-text log (`delete_audit.log`, ISO8601 UTC + op + path + user) is also written after a successful deletion, plus the Agent-side `tool_exec`. No before/after state or approval correlation is recorded. (Explicit in code — `scripts/mcp_servers/file/delete_server.py::call_tool`, `scripts/mcp_servers/file/delete_service.py::_write_audit_log`)
-
-### shell-mcp
-
-- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; shell enforces only its own technical constraints (`command_allowlist`, `shell_cwd_allowed_dirs`, env filter).
-- **Common guard** — Implemented. `command_allowlist`, `shell_cwd_allowed_dirs` (default-deny when empty), and a default-deny environment filter. (Explicit in code — `scripts/mcp_servers/shell/shell_service_static_helpers.py`)
-- **Command-specific guard** — Partially implemented. CWD allowlist, env allowlist, `RLIMIT_*` resource limits, and firejail sandbox backend are enforced; dangerous-option rejection is not applicable because the command surface is free-form. (Explicit in code — `scripts/mcp_servers/shell/shell_service_static_helpers.py`)
-- **Postcondition verification** — Not applicable. An arbitrary command has no expected resulting state; exit-code classification, timeout enforcement, and output truncation reporting are result checks rather than postcondition verification.
-- **Audit** — Implemented. Every call is recorded through the shared `_audit_log()` with `server_key="shell"` (session/request id, action, target command, outcome), plus a dedicated plain-text log (`shell_audit.log`). (Explicit in code — `scripts/mcp_servers/shell/shell_server.py::call_tool`)
+- **Common guard:** `call_tool` rejects a disabled tool first. The service rejects a command whose base name is not in `command_allowlist` and a `cwd` outside `shell_cwd_allowed_dirs`; the sandbox backend, `RLIMIT_*` limits, and env filtering are fixed when the service is built.
+- **Command-specific guard:** not applicable as a complete layer. `shell_run` takes a free-form command string, so dangerous-option rejection cannot be exhaustive for an allowed command. The checks that do run are the allowlist base-name match, the `max_timeout_sec` limit, and the registered `shell_run` argument validator.
+- **Postcondition verification:** not applicable. An arbitrary allowed command has no expected resulting state; exit-code classification, timeout enforcement, and output truncation reporting against `max_output_kb` are result checks only.
+- **Audit:** one shared `mcp_tool_exec` record per dispatched call (`target` is the command truncated to 80 characters); a disabled-tool rejection returns before the audit call and writes no record. The service writes the dedicated `shell_audit.log` entry.
 
 ---
 

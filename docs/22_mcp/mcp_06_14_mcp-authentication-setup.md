@@ -24,13 +24,11 @@ the deployment document.
 - Set non-empty authentication secrets for all HTTP MCP servers
   - For each enabled `[mcp_servers.*]` entry (`startup_mode` other than `none`) in `config/agent.toml`, a non-empty `auth_token` is required, normally an `"${ENV:MCP_<SERVER_KEY>_AUTH_TOKEN}"` reference.
   - Use environment variable injection or secret management (e.g., files under `conf.d/`) instead of hardcoding secrets in configuration files.
-  - mdq-mcp verifies Bearer tokens like every other HTTP MCP server: `MCP_MDQ_AUTH_TOKEN` is resolved both by the agent's `[mcp_servers.mdq].auth_token` and by `auth_token` in `config/mdq_mcp_server.toml`, and the server refuses to start when the value is empty or the variable is unset (see `mcp_05_05_mdq-enforcement-and-lockdown.md`).
-  - web-search uses the single `MCP_WEB_SEARCH_AUTH_TOKEN` variable on both sides: the agent's `[mcp_servers.web_search].auth_token` and the server's `auth_token` in `config/web_search_mcp_server.toml` resolve the same value, as for git and cicd; no second secret is needed. (Explicit in code — `config/web_search_mcp_server.toml`, `scripts/mcp_servers/web_search/web_search_server.py`)
-  - The shell, github, and file servers use one variable on both sides as well: `MCP_SHELL_AUTH_TOKEN`, `MCP_GITHUB_AUTH_TOKEN`, `MCP_FILE_READ_AUTH_TOKEN`, `MCP_FILE_WRITE_AUTH_TOKEN`, and `MCP_FILE_DELETE_AUTH_TOKEN` are resolved both by the agent's `[mcp_servers.*].auth_token` entry and by the server's own `auth_token` in `config/<server>_mcp_server.toml`. These servers refuse to start when the value is empty or the variable is unset; deploy the new binaries and the configuration together.
+  - Every HTTP MCP server (including mdq-mcp and web-search) uses one variable on both sides: the agent's `[mcp_servers.<key>].auth_token` and the server's own `auth_token` in `config/<server>_mcp_server.toml` resolve the same `MCP_<SERVER_KEY>_AUTH_TOKEN` value. A server refuses to start when the value is empty or the variable is unset, so deploy binaries and configuration together (see `mcp_05_05_mdq-enforcement-and-lockdown.md`).
 
 - Restart the agent process (do NOT use `/reload`)
   - `/reload` does not change `[mcp_servers.*]` at runtime — changes to MCP server definitions require a full agent restart.
-  - Automatic restarts of subprocess mode servers (`ensure_ready()` during the next tool dispatch) only use existing startup configurations and do not apply pending `/reload` configuration changes.
+  - Automatic restarts of subprocess-mode servers (`ensure_ready()` on the next tool dispatch) use the existing startup configuration and do not apply pending changes.
 
 - Verify with `/mcp status`
   - Ensure all servers show an `OK` status.
@@ -68,11 +66,9 @@ the deployment document.
 
 #### web-search answers 401 on every request
 
-**Symptom:** The web-search server is running, but tool calls and health probes are rejected with `401`.
+**Cause:** The agent and the server resolved different values for the web-search token (for example a server configuration that predates the shared `MCP_WEB_SEARCH_AUTH_TOKEN`). A configuration that still contains the removed `browser_auth_token` key is rejected at load.
 
-**Cause:** The agent and the server resolved different values for the web-search token, for example a server configuration left from before web-search shared `MCP_WEB_SEARCH_AUTH_TOKEN` with the agent. A configuration that still contains the removed `browser_auth_token` key is rejected when the server loads it. (Explicit in code — `scripts/mcp_servers/web_search/web_search_models.py`)
-
-**Solution:** Set the one `MCP_WEB_SEARCH_AUTH_TOKEN` variable, deploy the configuration and the scripts together, and restart the agent.
+**Solution:** Set the one `MCP_WEB_SEARCH_AUTH_TOKEN` variable, deploy configuration and scripts together, and restart the agent.
 
 #### Difference between `/reload` and full restart
 

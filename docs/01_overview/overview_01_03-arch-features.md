@@ -46,7 +46,7 @@ Refer to `overview_02_files.md` for the file structure.
 
 **Shared State and Dependency Injection**
 
-`AgentContext` (`agent/context.py`) functions as the dependency injection hub for all services. It composes `ConversationState`, `TurnState`, `RuntimeStats`, `WorkflowState`, and `AppServices`, which are all referenced by the same instance across `AgentREPL`, `Orchestrator`, and each command handler. (Explicit in code — `agent/context.py`)
+`AgentContext` (`agent/context.py`) functions as the dependency injection hub for all services. Its state components are shared by the same instance across `AgentREPL`, `Orchestrator`, and each command handler. (Explicit in code — `agent/context.py`)
 
 **Memory Layer Operating Modes**
 

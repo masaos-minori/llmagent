@@ -43,65 +43,15 @@ related:
 | `fallback` | Stage bypassed by a configuration flag (e.g., `use_rrf=False`), or an expected error was handled with a lower-quality result (e.g., `rerank_exception`) |
 | `failure` | An exception escaped the stage (`RuntimeError`, SQLite operational error, HTTP error, or timeout); pipeline continues with degraded output |
 
-### Refiner and HTTP Fallback Stages
+### HTTP Result Classification
 
-When applicable, two additional entries appear in `last_stage_results`.
-
-| stage_name | Appears when | fallback_reason on fallback |
-|---|---|---|
-| `HttpAugment` | `rag_service_url` is configured | The reason string reported by the HTTP call when it produced no result (default `in-process fallback`) |
-| `Refiner` | `use_refiner=True` | `"refiner_returned_empty"` (empty output) or `"refiner_exception: {e}"` (LLM error) |
-
-The HTTP result classification is exposed separately as `get_diagnostics()["http_result_kind"]`, which carries the `HttpResultKind` enum (`success` / `empty` / `error` / `not_used` / `auth_error`); the internal string literals of `HttpAugment` are not part of any external surface (see [rag_03_03](../21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md)). (Explicit in code — `scripts/rag/http_augment.py`, `scripts/rag/pipeline.py`)
+`HttpAugment` (present when `rag_service_url` is configured) and `Refiner` (present when `use_refiner=True`) appear as additional entries in `last_stage_results`. The HTTP result classification is exposed separately as `get_diagnostics()["http_result_kind"]` (`HttpResultKind`: `success` / `empty` / `error` / `not_used` / `auth_error`); the internal string literals of `HttpAugment` are not part of any external surface (see [rag_03_03](../21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md)). (Explicit in code — `scripts/rag/http_augment.py`)
 
 ## RAG Ingestion Diagnostics
 
-The standalone RAG ingestion pipeline outputs progress and a summary line per URL.
-
-``` text
-[ingest] crawling https://example.com/docs (lang=en)...
-[ingest] splitting chunks...
-[ingest] 12 chunks written
-[ingest] ingesting to DB...
-inserted 10/12 chunks: https://example.com/docs/page1
-inserted 8/8 chunks: https://example.com/docs/page2
-inserted 0/5 chunks: https://example.com/docs/page3  <- skipped (already registered)
-=== done: 3 URLs processed (18 success, 0 failed, 1 skipped) ===
-```
-
-| Field | Description |
-|---|---|
-| `inserted N/M chunks: <url>` | N chunks were embedded; M is the total number in the crawl JSON. 0/M means the URL was skipped (already exists in DB without `--force`). |
-| `done: X URLs processed` | Aggregation of all URL groups in this execution |
-| `success` | Chunks successfully embedded and saved |
-| `failed` | Chunks that failed embedding or DB write |
-| `skipped` | URL groups skipped because they already exist in `documents` (use `--force` to re-embed) |
+The standalone ingestion pipeline prints progress and one `inserted N/M chunks: <url>` line per URL, then a `done:` summary of success, failed and skipped counts. `N = 0` means the URL was skipped because it already exists in `documents`; use `--force` to re-embed. `failed` counts chunks whose embedding or DB write failed.
 
 ## Memory Status (`/memory status`)
-
-Example output:
-
-``` text
-Field                   Value
-----------------------  --------------------------------------------------
-Mode                    Hybrid mode (semantic + FTS)
-Memory layer            enabled
-Embedding enabled       Yes
-Local-only              enabled
-Circuit                 closed
-Consecutive failures    0
-FTS fallback count      2
-Last retrieval mode     hybrid
-Entries (total)         142
-  semantic              89
-  episodic              53
-Pinned                  3 / 10
-Embed skip count        8
-  source:RULE           34
-  source:DECISION       22
-  source:FAILURE        15
-  source:CONVERSATION   71
-```
 
 - **Mode** label: `Hybrid mode (semantic + FTS)` | `Memory enabled, embedding disabled (FTS-only)` | `Degraded mode (circuit open, FTS fallback)` | `Memory layer disabled`
 - **Local-only**: `enabled` if `memory_local_only = true` in `config/agent.toml`

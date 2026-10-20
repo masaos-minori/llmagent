@@ -48,37 +48,19 @@ Loaded from a TOML file (default path defined in `scripts/eventbus/config.py`).
 
 ### Environment Variables
 
-- `EVENTBUS_CONFIG_PATH` — Path to the TOML file
-- `EVENTBUS_SCHEMA_PATH` — Path to the event envelope JSON Schema
+`EVENTBUS_CONFIG_PATH` selects the TOML file and `EVENTBUS_SCHEMA_PATH` selects the event envelope JSON Schema.
 
 ### Configuration Fields
 
-Fields and defaults are defined in `scripts/eventbus/config.py::EventBusConfig`. This
-covers connection/storage settings (`port`, `db_path`, `storage_dir`, `offsets_dir`,
-`deadletter_dir`), retry/replay tuning (`max_retry`, `replay_batch_size`,
-`subscriber_count`), and the fields listed individually below, each of which carries
-additional constraints or operational notes not captured by the dataclass alone. See
-that dataclass's `__post_init__()` for the exact validation rules enforced at startup,
-and `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md` for the authorization
-model the token fields below implement.
+The schema and defaults are defined in `scripts/eventbus/config.py::EventBusConfig`; `__post_init__()` holds the validation rules enforced at startup. The authorization model that the token fields implement is in `docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md`. Operational constraints:
 
-- `publish_rate` — Maximum publish rate in events/sec before backpressure applies
-- `host` — Listening address (must be a loopback address — see Bind Address below)
-- `auth_token` — Required (startup fails if empty); a control-plane credential holding only the operator, monitoring, and admin roles
-- `publisher_token` — Grants publish-role access when set
-- `consumer_token` — Grants consume-role access when set
-- `operator_token` — Grants operator-role access when set
-- `monitoring_token` — Grants monitoring-role (health check) access when set
-- `admin_token` — Grants the operator, monitoring, and admin roles (`/admin/*`, DLQ, replay, health) when set; it has no publisher or consumer role
-- `sse_heartbeat_interval` — SSE heartbeat interval in seconds
-- `sse_idle_timeout` — Idle timeout in seconds after which a `/subscribe` connection that received no events is closed
-- `consumer_authorization` — Optional `consumer_id` -> topics allowlist applied to the consumer-role token
-- `topic_authorization` — Optional topic -> `consumer_id` allowlist applied to the consumer-role token
-- `slow_consumer_threshold` — Queue depth at which a subscriber is considered slow
-- `subscriber_queue_maxsize` — Per-subscriber queue capacity
-- `backlog_health_threshold` — Max queue depth before health endpoint reports `broker_queue_backlog_high`
-
-Validation for `port` and `max_retry` is performed in `EventBusConfig.__post_init__()`. Cross-field validation ensures `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`. Invalid combinations fail startup with actionable error messages naming both conflicting values. Startup fails unless `auth_token` is configured; the per-role tokens above are optional additions.
+- `host` must be a loopback address (see Bind Address below).
+- `auth_token` is required (startup fails if empty). It is a control-plane credential holding only the operator, monitoring, and admin roles.
+- `publisher_token`, `consumer_token`, `operator_token` and `monitoring_token` each grant exactly their own role when set. `admin_token` grants the operator, monitoring, and admin roles (`/admin/*`, DLQ, replay, health) and has no publisher or consumer role.
+- `consumer_authorization` (`consumer_id` -> topics) and `topic_authorization` (topic -> `consumer_id`) are allowlists applied to the consumer-role token only.
+- `slow_consumer_threshold` must be strictly less than `subscriber_queue_maxsize`, and `backlog_health_threshold` must be less than or equal to it. Invalid combinations fail startup with error messages naming both conflicting values.
+- `sse_idle_timeout` closes a `/subscribe` connection that received no events within that period; `sse_heartbeat_interval` controls keep-alive comments.
+- `publish_rate`, `subscriber_count` and `replay_batch_size` bound capacity and replay batch size.
 
 ### Token Distribution
 
@@ -141,34 +123,13 @@ HTTP 200 = `ok`, otherwise = HTTP 503 + `status: "degraded"` + component details
 
 Initial replay is performed in bounded, configurable batches rather than a single unbounded `.fetchall()` call. This prevents memory exhaustion during large replays and reduces database lock contention by releasing and reacquiring `_db_lock` between batches.
 
-### Configuration
-
-The following configuration fields control replay behavior:
-
-- `replay_batch_size` — Number of rows fetched per batch
-- `subscriber_count` — Maximum number of concurrent subscribers before capacity limits apply
-
 ### Capacity Limits
 
-Capacity is governed by the configuration fields `subscriber_count` and `publish_rate` described above and in the Configuration section. No replay-size limit or latency objective is defined.
+Capacity is governed by `subscriber_count` and `publish_rate` (see Configuration Fields). No replay-size limit or latency objective is defined.
 
-### Database-Lock Contention Monitoring
+### Metrics
 
-The following Prometheus metrics monitor database-lock contention:
-
-- `eventbus_db_lock_wait_time_seconds` — Histogram of lock wait times
-- `eventbus_db_query_duration_seconds` — Histogram of query durations
-- `eventbus_db_lock_contention_total` — Counter of lock contention events
-
-The health endpoint (`/health`) reports lock wait and query duration averages and the contention total under its `metrics` sub-object. The service does not serve a separate Prometheus scrape endpoint.
-
-### Slow Consumer Metrics
-
-The following Prometheus metrics track slow consumer detection:
-
-- `eventbus_slow_consumer_total` — Counter of slow consumer events
-
-The health endpoint reports `slow_consumers_detected` when a subscriber's queue depth exceeds `slow_consumer_threshold`.
+Database-lock contention (`eventbus_db_lock_*`, `eventbus_db_query_duration_seconds`) and slow-consumer (`eventbus_slow_consumer_total`) metrics are Prometheus in-process metrics. The service does not serve a Prometheus scrape endpoint; `/health` reports lock wait and query duration averages and the contention total under its `metrics` sub-object, and reports `slow_consumers_detected` when a subscriber's queue depth exceeds `slow_consumer_threshold`.
 
 ---
 
@@ -223,7 +184,7 @@ Sweep results are recorded in the logs but are not exposed via the health endpoi
 
 ## Validation
 
-The CI workflow runs lint checks, type checks, and the test suite for `scripts/`, so the health, ACK/NACK, and DLQ tests under `tests/eventbus/` run on every change. (Explicit in code — `.github/workflows/ci.yml`)
+The CI workflow runs lint checks, type checks, and the test suite for `scripts/`, so the health, ACK/NACK, and DLQ tests under `tests/eventbus/` run on every change.
 
 ## Keywords
 

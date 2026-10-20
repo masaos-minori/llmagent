@@ -26,51 +26,27 @@ Documents the structure and constraints of tool and memory configurations.
 
 #### Safety
 
-- `tool_definitions_strict`: Schema mismatch → `RuntimeError` at startup. Required to be `true` in production: `ProductionConfigValidator` treats an absent or `false` value as an error.
-- `routing_drift_strict`: Detects routing drift → `RuntimeError` (aborts startup). Required to be `true` in production, like `tool_definitions_strict`.
-- `plan_blocked_tools`: Tools that are blocked in plan mode in addition to every tool outside the `READ_ONLY` safety tier.
-- `masked_fields`: Argument keys to be masked in console output.
+- `tool_definitions_strict`: a schema mismatch aborts startup with `RuntimeError`. Required to be `true` in production: `ProductionConfigValidator` treats an absent or `false` value as an error.
+- `routing_drift_strict`: detected routing drift aborts startup with `RuntimeError`. Required to be `true` in production, like `tool_definitions_strict`.
+- `plan_blocked_tools` blocks additional tools in plan mode, on top of every tool outside the `READ_ONLY` safety tier.
+- `masked_fields` lists argument keys masked in console output.
+- `allowed_tools` is the session tool whitelist; an empty value means "all allowed" at runtime and is rejected by the production validator.
 
-#### Execution Control
+#### Execution Control and Context Bloat
 
-- `serial_tool_calls`: Serializes tool execution.
-- `max_tool_turns`: Maximum number of tool call turns per message.
-- `tool_cycle_detect_window`: Cycle detection window (number of rounds).
-- `tool_error_max_consecutive`: Number of consecutive error rounds (termination condition for loops).
-- `tool_error_retry_max`: Retry limit for a failed `(name, args)` pair.
-
-#### Context Bloat Prevention
-
-- `tool_result_max_llm_chars`: Maximum characters from tool execution results added to LLM context.
-- `tool_results_turn_max_chars`: Cumulative maximum characters from tool execution results added to LLM context within one turn.
+Loop limits (`max_tool_turns`, cycle-detection window, consecutive-error and per-`(name, args)` retry limits) and context-bloat caps (`tool_result_max_llm_chars` per result, `tool_results_turn_max_chars` per turn) are plain bounds defined by `ToolConfig`. `serial_tool_calls = true` serializes all tool execution and bypasses the conflict graph (`force_serial`).
 
 #### Parallel Execution
 
-- `tool_concurrency_limits`: Server key → Maximum number of concurrent calls. A `0` (or
-  negative) value means "unlimited" — no per-server semaphore is created — consistent with
-  the unconfigured default.
+`tool_concurrency_limits` maps a server key to its maximum concurrent calls. A `0` (or negative) value means "unlimited": no per-server semaphore is created, the same as the unconfigured default.
 
-`resource_scope_kind`/`resource_scope_keys` convention (used throughout the DAG scheduler by `build_execution_groups()`. When `serial_tool_calls=True`, the conflict graph itself is bypassed via `force_serial`).
+Scopes are not defined in `config/agent.toml`; each MCP server declares `resource_scope_kind`/`resource_scope_keys` (Schema 2.0 contract, mandatory fields) via `/v1/tools`, and the scope is resolved per call from the actual invocation arguments (Explicit in code — `shared/resource_scope.py::resolve_resource_scopes()`, `agent/tool_scheduler.py::build_execution_groups()`). Conflict grouping is per call id, not per tool name. Scheduling classes:
 
-Scopes are not defined by default in `config/agent.toml`; they are declared by each MCP server via `/v1/tools`. The `resource_scope_kind`/`resource_scope_keys` (Schema 2.0 contract, mandatory fields) and actual invocation arguments are resolved per call using `shared/resource_scope.py::resolve_resource_scopes()`. The resolution result is passed to `agent/tool_scheduler.py::build_execution_groups()` as `ToolSpec.resource_scopes` (a tuple of strings with `kind` prefix, e.g., `"filesystem:/a/b.txt"`) and grouped into conflict graphs on a per-call-id basis rather than per-tool-name basis.
+- Write tools with a resolvable scope (filesystem, git repo, GitHub repo, CI/CD workflow): calls whose scopes conflict are grouped into one connected component and run in order; non-conflicting groups run as a concurrent batch.
+- Tools with `requires_serial = True` (index/store mutation tools and `shell_run`): serial barrier; `requires_serial` takes precedence over scope.
+- Read and other unscoped tools: `parallel`, concurrent batch.
 
-| Tool type | `resource_scope_kind` (declaration) | `requires_serial` | Scheduling bucket |
-|---|---|---|---|
-| file WRITE_TOOLS / DELETE_TOOLS (`path` arg; `move_file` uses `source`/`destination`) | `"filesystem"` | `False` | resource-scope conflict group (conflicting calls are grouped into a connected component in the conflict graph) → concurrent batch |
-| git write tools (`git_add`/`git_commit`, etc.; `repo_path` arg) | `"git_repo"` | `False` | resource-scope conflict group |
-| github write tools (`owner`/`repo` args) | `"github_repo"` | `False` | resource-scope conflict group |
-| cicd `trigger_workflow` (`repo`/`workflow`/`ref` args) | `"cicd_workflow"` | `False` | resource-scope conflict group |
-| mdq `index_paths`/`refresh_index`, rag `rag_delete_document` | `"mdq_store"` / `"rag_store"` (fixed) | `True` | serial_barrier (`requires_serial` takes precedence over scope) |
-| `shell_run` | `"process"` (no scope key) | `True` | serial_barrier |
-| Read / other unscoped | `""` | `False` | `parallel` → concurrent batch |
-
-Write tools where the `resource_scope_kind` is declared but the actual scope value cannot be resolved from invocation arguments return `("global:write",)` as a fail-closed fallback (it does NOT fall back to tool name or empty tuple).
-
-#### Other Fields
-
-- `tool_definitions`: List of LLM tool schemas derived from `[[tool_definitions]]`.
-- `system_prompts`: Dictionary of system prompt presets.
-- `allowed_tools`: Session tool whitelist (empty = all allowed at runtime; rejected by the production validator).
+A write tool that declares a scope kind but whose scope value cannot be resolved from the arguments returns `("global:write",)` as a fail-closed fallback; it does NOT fall back to the tool name or an empty tuple. The per-tool declarations are canonical in the MCP documents (see [mcp_03_01](../22_mcp/mcp_03_01_dispatch-and-routing.md)).
 
 ### Memory Configuration
 
@@ -85,48 +61,26 @@ Determined by the combination of `use_memory_layer`, `memory_embed_enabled`, and
 | `true` | `true` | open | `degraded` |
 | `true` | `true` | closed | `hybrid` |
 
-#### Injection Parameters
+#### Embedding, Retention and Limits
 
-- `memory_max_inject_semantic`: Number of semantic entries injected at session start.
-- `memory_max_inject_episodic`: Number of episodic entries injected per user prompt.
-- `memory_min_importance`: Minimum importance score required for injection.
+- `memory_local_only` rejects a non-loopback `embed_url` at startup.
+- `memory_embed_enabled` enables embedding and KNN for memory search (startup-only).
+- `memory_retention_days` is only the default for `/memory prune`; memories are never deleted automatically.
+- `memory_max_pinned` caps pinned memories.
+- `memory_max_content_chars` is a per-entry storage limit.
+- The embedding dimension is not a config key: it is a fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`) used identically by `MemoryStore` and the RAG pipeline.
 
-#### Embedding Related
-
-- `memory_embed_enabled`: Enables embedding + KNN for memory search.
-- `memory_embed_timeout_sec`: Timeout for embedding HTTP calls.
-- `memory_local_only`: Rejects non-loopback `embed_url` at startup.
-
-The embedding dimension itself is not a config key — it is a fixed code-level
-constant (`scripts/db/store_protocols.py::get_embedding_dims()`), used
-identically by `MemoryStore` (`agent/factory.py`) and the RAG pipeline.
-
-#### Search & Filtering
-
-- `memory_fts_limit`: Upper limit of FTS5 candidates before re-ranking.
-- `memory_rrf_k`: RRF fusion constant.
-- `memory_recency_days`: Window for recency boost (days).
-- `memory_retention_days`: Default number of days for `/memory prune`. Memories are never deleted automatically.
-- `memory_max_pinned`: Upper limit of pinned memories (default 10).
-
-#### Deduplication
-
-- `memory_dedup_threshold`: L2 distance for deduplication link detection.
-
-#### Content Limits
-
-- `memory_max_content_chars`: Maximum characters stored per memory entry.
+Injection counts, minimum importance, FTS candidate limit, RRF constant, recency window and the deduplication threshold are plain parameters defined by `MemoryConfig`.
 
 ## Responsibility Boundary
 
 - **Canonical Source**: `Tool`/`Memory` sections in `config/agent.toml`.
 - **Validation**: `agent/services/config_validators.py`.
-- **Dataclasses**: `ToolConfig` / `MemoryConfig` in `agent/config_dataclasses.py`.
+- **Schema**: `ToolConfig` / `MemoryConfig` in `agent/config_dataclasses.py`.
 
 ## Key Constraints
 
-- If `tool_definitions_strict=True`, any reachable server schema mismatch causes startup failure.
-- If `routing_drift_strict=True`, routing drift causes startup failure.
+- Under `tool_definitions_strict=True`, any reachable server schema mismatch causes startup failure; under `routing_drift_strict=True`, routing drift does.
 - `allowed_tools=[]` (empty) means "all allowed" at runtime (`check_preflight()` skips the whitelist check); in production `ProductionConfigValidator` records it as a validation error, so an explicit allowlist is required (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`).
 - `memory_embed_enabled=True` → `rag.embed_url` must not be empty.
 

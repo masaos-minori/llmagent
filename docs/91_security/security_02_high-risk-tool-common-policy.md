@@ -104,7 +104,7 @@ The resolved absolute path is then checked against the allowlist using component
 
 This generalizes the path-traversal prevention language currently found only in `mcp_04_04_mdq.md` / `mcp_05_05_mdq-enforcement-and-lockdown.md` to all filesystem-touching high-risk tools (file-write, file-delete, shell, git).
 
-*Source: `mcp_04_04_mdq.md`, `mcp_05_05_mdq-enforcement-and-lockdown.md`; implemented in `scripts/mcp_servers/file/write_service.py`, `delete_service.py`, `common.py`, `read_security.py`*
+*Source: `mcp_04_04_mdq.md`, `mcp_05_05_mdq-enforcement-and-lockdown.md`; representative enforcement point: `scripts/mcp_servers/file/common.py`*
 
 ## Symlink-traversal prevention
 
@@ -172,7 +172,7 @@ The fail-closed posture applies to:
 This policy defines the common baseline. Tool-specific deviations are documented in each tool's own documentation with clear references back to this policy. Examples:
 
 - **GitHub MCP**: `protected_branches` and `path_denylist` are fail-open by design (documented in `mcp_05_01_access-control-and-allowlists.md`).
-- **Git MCP**: `GitConfig.protected_branches` and `git_ref_validation.validate_protected()` enforce a protected-branch policy (tests: `test_git_security_compliance.py::test_check_protected_branch`, `test_git_checkout_protected_branch`, `test_git_push_protected_branch`, `test_is_safe_ref`; `TestLiveCallToolAuthorization`: `test_checkout_protected_branch_denied`, `test_pull_protected_branch_denied`, `test_push_protected_branch_denied`, `test_checkout_non_protected_branch_allowed`, `test_pull_non_protected_branch_allowed`, `test_push_non_protected_branch_allowed`, `test_checkout_implicit_target_denied`, `test_pull_implicit_target_denied`, `test_push_implicit_target_denied`). Force Push is prevented by the write-ref allow-list (`git_ref_validation.validate_ref_allowlist()`), which rejects refspec forms such as a leading `+` or `:` in `branch`, not by the absence of a `force` parameter (ADR-012 Decision Details #2 and #3). Dirty-Worktree/Detached-HEAD guards and postcondition verification are implemented (`TestDryRunAndDetachedHeadLivePath`: `test_dry_run_checkout_skips_dirty_and_detached_precondition`, `test_dry_run_checkout_protected_branch_still_denied`, `test_non_dry_run_detached_head_denied_then_allowed`, `test_dry_run_pull_and_push_skip_dirty_precondition`; `TestPostConditionBypassPrevention`: `test_checkout_postcondition_cannot_be_bypassed`, `test_pull_postcondition_cannot_be_bypassed`, `test_push_postcondition_cannot_be_bypassed`).
+- **Git MCP**: `GitConfig.protected_branches` and `git_ref_validation.validate_protected()` enforce a protected-branch policy for checkout, pull and push, including the implicit-target case. Force Push is prevented by the write-ref allow-list (`git_ref_validation.validate_ref_allowlist()`), which rejects refspec forms such as a leading `+` or `:` in `branch`, not by the absence of a `force` parameter (ADR-012 Decision Details #2 and #3). Dirty-Worktree/Detached-HEAD guards and postcondition verification are implemented, and the postconditions cannot be bypassed. Verification: `test_git_security_compliance.py` (protected-branch denial, dry-run precondition handling, postcondition bypass prevention).
 - **Shell MCP**: `approval_shell_safe_prefixes` allows auto-approval for safe prefixes (documented in `mcp_04_02_file-write-file-delete-shell.md`)
 
 Tool-specific docs must include a "See also: `security_02_high-risk-tool-common-policy.md`" reference.

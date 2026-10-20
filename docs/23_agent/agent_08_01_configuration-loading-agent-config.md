@@ -25,16 +25,11 @@ Documents the `AgentConfig` structure, configuration file ownership, and classif
 
 ### Configuration Loading
 
-`build_agent_config()` calls `ConfigLoader.load_all()`, which merges all configuration files into a dictionary before constructing the `AgentConfig` dataclass.
+`build_agent_config()` merges all configuration files through `ConfigLoader.load_all()` and then constructs the `AgentConfig` dataclass. Loading and assembly (including production validation) are separated from per-section construction, so the loader owns no per-section key reading (Explicit in code — `scripts/agent/config_builders.py`, `scripts/agent/config_section_builders.py`).
 
 **Canonical Configuration File:** `config/agent.toml` (LLM/RAG/DB/Tools/Memory/Observability/Approval/MCP Lifecycle/Diagnostics)
 
-**Fail-closed behavior:** When `agent.toml` is missing, `ConfigLoader.load_all()` raises `ConfigMissingError` (inherits `ValueError`). In `load_config()`, this is caught and re-raised as `ConfigLoadError` (inherits `RuntimeError`). Execution aborts before `security_profile_val = SecurityProfile(cfg.get("security_profile", "production"))` is computed (`agent/config_builders.py`), preventing any production config validation from running on incomplete configuration.
-
-**Module responsibility boundaries:**
-
-- `agent/config_builders.py` — loading and assembly: `load_config()`, `resolved_config_dir()`, production validation, and `build_agent_config()`. It owns no per-section key reading.
-- `agent/config_section_builders.py` — per-section construction: the `_get_or_default` / `_get_str_or_default` default-resolution helpers and the `_build_llm_config()`, `_build_rag_config()`, `_build_tool_config()`, `_build_memory_config()`, `_build_approval_config()`, `_build_diagnostics_config()` builders that `build_agent_config()` delegates to.
+**Fail-closed behavior:** When `agent.toml` is missing, `ConfigLoader.load_all()` raises `ConfigMissingError` (inherits `ValueError`), which `load_config()` re-raises as `ConfigLoadError` (inherits `RuntimeError`). Execution aborts before the security profile is resolved, so production config validation never runs on incomplete configuration.
 
 ### Configuration File Ownership
 
@@ -58,22 +53,16 @@ Documents the `AgentConfig` structure, configuration file ownership, and classif
 
 ### Operational Impact of Changes
 
-Check the following categories in the `ConfigReloadOutcome` output:
-- `[OK]` — Hot-reload applied successfully.
-- `[RESTART]` — Subsystem restart required.
-- `[STARTUP-ONLY]` — Fields that cannot be changed via `/reload`.
-- `[SKIP]` — Changes intentionally ignored.
-- `[LIVE]` — Settings that are always effective without reload.
+Check the `[OK]` / `[RESTART]` / `[STARTUP-ONLY]` / `[SKIP]` / `[LIVE]` categories reported after `/reload`; their meaning is defined in [agent_07_06](agent_07_06_cli-and-commands-hot-reload.md).
 
 ### Security-Related Settings
 
-- Changes to MCP server `auth_token` require a restart.
-- Changes to allowlist/denylist require a restart.
+Changes to MCP server `auth_token` and to allowlists/denylists require a restart.
 
 ## Responsibility Boundary
 
 - **Configuration Files**: `config/agent.toml` is the canonical source.
-- **Field-level Mapping**: Refer to `agent/services/config_reload.py`.
+- **Field-level Mapping**: `agent/services/config_reload.py` is the canonical per-field classification.
 
 ## Keywords
 

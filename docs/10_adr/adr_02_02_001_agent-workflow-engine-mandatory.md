@@ -218,10 +218,8 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 ## Implementation Notes
 
 - Startup preflight checks for the workflow definition file and the workflow DB schema run before `Orchestrator` construction and abort startup on failure (Explicit in code — `scripts/agent/startup_component_init.py`).
-- `Orchestrator` construction raises when the workflow definition fails to load, so no fallback mode exists (Explicit in code — `scripts/agent/orchestrator.py`; verified by `tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal`).
-- `Orchestrator` constructs the `WorkflowEngine` from the loaded workflow definition and routes turns through it (Explicit in code — `scripts/agent/orchestrator.py`).
-
-- The `approvals` table no longer exists in `workflow.sqlite`: an incremental migration marks tasks left in the removed approval stage as failed, because their `execute` stage completed but their `verify` stage never ran, and then drops the table (Explicit in code — `scripts/db/schema_sql.py`).
+- `Orchestrator` construction raises when the workflow definition fails to load, so no fallback mode exists; turns are routed only through the `WorkflowEngine` built from that definition (Explicit in code — `scripts/agent/orchestrator.py`; verified by `tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal`).
+- The workflow has no approval stage and `workflow.sqlite` has no `approvals` table. A task is complete only after its `verify` stage runs (Explicit in code — `scripts/db/schema_sql.py` workflow migrations).
 - The `tool_approval` audit event is written only inside a workflow context, which guarantees INV-11's workflow linkage (Explicit in code — `scripts/agent/tool_audit.py`).
 - Invariant IDs are not contiguous: `INV-04`, `INV-09`, and `INV-12` are absent from the list. The present IDs are stable and referenced by the invariant verification matrix in `adr_01_index.md`; do not renumber them.
 

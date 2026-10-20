@@ -25,57 +25,20 @@ related:
 - System Overview → [rag_01_system_overview.md](rag_01_system_overview.md)
 - Configuration → [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md)
 
----
 
 ## 3. ChunkSplitter (`scripts/rag/ingestion/chunk_splitter.py`)
 
 ### 3.1 Class Overview
 
-`ChunkSplitter` splits `rag-src/*.json` files into chunks based on language and content type, saving them to `rag-src/chunk/`. It is idempotent: if a `{stem}-0000.json` sentinel exists, processing is skipped (can be overwritten with `--force`).
-
-**Module-level Constants**
-
-This module defines the following constants. See source code for details.
-
-**Typed dict**
-
-See `CrawlJsonPayload` and `ChunkJsonRaw` in `scripts/rag/ingestion/pipeline_utils.py`
-for the exact TypedDict field sets used for crawl-stage and chunk-stage JSON payloads,
-and `ChunkMetadata` in the same file for the optional metadata dictionary expanded with
-`**` into the output payload. Note: `_build_chunk_payload()` in `chunk_splitter.py`
-returns `dict[str, object]`, not `ChunkJsonRaw` directly, because its return value
-combines `**metadata` unpacking with additional literal keys, which is incompatible
-with a strict `TypedDict` return annotation under current type-checker support.
-
-**Inheritance**
-
-`ChunkSplitter` uses multiple inheritance from both `ChunkEnglishMixin` and `ChunkJapaneseMixin`.
-Method Resolution Order (MRO): `ChunkSplitter → ChunkEnglishMixin → ChunkJapaneseMixin → object`.
-
-**Public Methods**
-
-This module provides the following public methods. See source code for details.
+`ChunkSplitter` splits `rag-src/*.json` files into chunks based on language and content type, saving them to `rag-src/chunk/`. It is idempotent: if a `{stem}-0000.json` sentinel exists, processing is skipped (can be overwritten with `--force`). Language-specific splitting is composed from `ChunkEnglishMixin` and `ChunkJapaneseMixin`. The JSON payload shapes are defined by `CrawlJsonPayload`, `ChunkJsonRaw`, and `ChunkMetadata` in `scripts/rag/ingestion/pipeline_utils.py`.
 
 ### 3.1.1 Markdown Heading Chunking Configuration
 
-Current values are owned by `config/chunk_splitter.toml`.
-
-| Parameter | Description |
-|---|---|
-| `md_index_enable` | Enables heuristic Markdown detection for non-.md files |
-| `md_snippet_max_chars` | Maximum characters per single Markdown heading section before falling back to sentence-based chunking |
+Current values are owned by `config/chunk_splitter.toml`. `md_index_enable` enables heuristic Markdown detection for non-`.md` sources, and `md_snippet_max_chars` bounds one heading section before it falls back to sentence-based chunking.
 
 ### 3.1.2 Chunking Parameters (Shared with crawler)
 
-| Parameter | Description |
-|---|---|
-| `min_chunk` | Minimum number of characters per chunk. Chunks smaller than this are discarded as noise. |
-| `max_chunk` | Maximum number of characters per chunk. Text exceeding this limit will be split. |
-| `chunk_overlap` | Sliding window chunk overlap (in characters). Adds this many characters from the end of the previous chunk to the beginning of the next; zero disables it. |
-| `en_stopwords` | English stopwords to exclude from chunking (defined in `config/chunk_splitter.toml`). |
-| `ja_stop_pos` | Sudachi part-of-speech categories treated as stopwords in Japanese; see [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md). |
-
-> (Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::__init__` uses `ConfigLoader().load("chunk_splitter.toml")`, and `en_stopwords`/`ja_stop_pos` are defined in `config/chunk_splitter.toml`.)
+`min_chunk` and `max_chunk` bound chunk size in characters: chunks smaller than `min_chunk` are discarded as noise, and text exceeding `max_chunk` is split. `chunk_overlap` prepends that many trailing characters of the previous chunk to the next (zero disables it). `en_stopwords` and `ja_stop_pos` (Sudachi part-of-speech categories) define the stopwords excluded from chunking; see [rag_05_01-configuration-reference.md](rag_05_01-configuration-reference.md).
 
 ### 3.1.3 Markdown Source Detection Behavior
 
@@ -83,15 +46,15 @@ URLs ending in `.md`, `.markdown`, or `.mdx` always use heading chunking regardl
 
 ### 3.1.4 Markdown Heading Chunking Behavior
 
-Text is split by Markdown headings (# through ######) in one pass over the whole text. Each heading-delimited section then takes exactly one of three paths (Explicit in code — `scripts/rag/ingestion/chunk_splitter.py::_chunk_markdown_by_heading`):
+Text is split by Markdown headings (# through ######) in one pass over the whole text. Each heading-delimited section then takes exactly one of three paths:
 
 - **Fits** (`len(section) <= md_snippet_max_chars` and at least `min_chunk` characters): the section becomes one chunk.
-- **Oversized** (`len(section) > md_snippet_max_chars`): the section alone is split by sentence boundaries via `_chunk_english()`. The fallback is decided per section, not for the document as a whole, and runs after heading splitting; the two strategies are never applied in parallel.
+- **Oversized** (`len(section) > md_snippet_max_chars`): the section alone is split by sentence boundaries. The fallback is decided per section, not for the document as a whole, and runs after heading splitting; the two strategies are never applied in parallel.
 - **Undersized** (fits but is smaller than `min_chunk`): the section is silently dropped, with no error or warning.
 
 **Metadata:** Every chunk returned by this path is tagged with the `"text"` chunk-type marker, so no metadata field distinguishes a whole-section chunk from a fallback-split fragment. `chunking_strategy` is `"heading"` for the whole source regardless of which sections fell back.
 
-**Japanese content:** Even when `lang` is `"ja"`, Sudachi morphological analysis is not applied on this path, including the sentence-split fallback portion, and `normalized_content` is not generated (it is stored as null). Japanese text routed through heading chunking therefore bypasses Sudachi normalization. (Explicit in code — `chunk_splitter.py::_build_text_triples`, `_build_chunk_payload`)
+**Japanese content:** Even when `lang` is `"ja"`, Sudachi morphological analysis is not applied on this path, including the sentence-split fallback portion, and `normalized_content` is not generated (it is stored as null). Japanese text routed through heading chunking therefore bypasses Sudachi normalization. FTS5 indexes `COALESCE(normalized_content, content)`, so the original `content` is indexed directly.
 
 ### 3.2 Splitting Strategies
 
@@ -108,8 +71,6 @@ Text is split by Markdown headings (# through ######) in one pass over the whole
 - `chunk_type`: `"text"` or `"code"`
 - `chunking_strategy`: `"text"` or `"heading"`
 
-> (Explicit in code — Heading chunking (`chunking_strategy="heading"`) always sets `normalized_content` to `null` regardless of `lang`. This means Markdown sources in Japanese prioritize heading chunking, skipping Sudachi normalization. FTS5 uses `COALESCE(normalized_content, content)` to index the original text (`content`) directly.)
-
 ### 3.3 CLI Arguments
 
 Run `uv run python scripts/rag/ingestion/chunk_splitter.py --help` for the current
@@ -117,13 +78,7 @@ argument list.
 
 ### 3.4 Output JSON Format
 
-See `ChunkJsonRaw` in `scripts/rag/ingestion/pipeline_utils.py` for the exact output
-JSON shape.
-
-- `chunk_type`: `text` / `code`
-- `chunking_strategy`: `text` / `heading`
-- `normalized_content`: Japanese only (Sudachi normalization), null for English/code
-- `source_file`: Filename of the crawler output, including the `.json` extension (`src_path.name`)
+The exact output JSON shape is `ChunkJsonRaw` in `scripts/rag/ingestion/pipeline_utils.py`; the field contract is in 3.4a. `source_file` holds the filename of the crawler output, including the `.json` extension.
 
 ### 3.4a Canonical Artifact-Field Contract
 
@@ -177,20 +132,13 @@ There is exactly one cross-field validation rule among the crawl/chunk artifact 
 
 For the file-level-failure, existing-chunks and Sudachi-tokenization-error cases, see
 [rag_05_04-error-handling-reference.md](rag_05_04-error-handling-reference.md)'s
-"ChunkSplitter" section. The current code has no try/except at the chunk level: a
-`TokenizationError` (raised in `scripts/rag/ingestion/chunk_japanese.py::_normalize_ja_sentence`)
-propagates to the per-file catch in `scripts/rag/ingestion/chunk_splitter.py::process_all`,
-aborting the **entire file**, not one chunk.
+"ChunkSplitter" section. There is no try/except at the chunk level: a
+`TokenizationError` propagates to the per-file catch in `process_all`
+(`scripts/rag/ingestion/chunk_splitter.py`), aborting the **entire file**, not one chunk.
 
 ### 3.6 Logging
 
-- **File:** chunk log file (path set by the logging setup) + stderr
-- **Format:** `%(asctime)s %(levelname)s [%(funcName)s] %(message)s`
-
-| Level | Timing |
-|---|---|
-| `INFO` | Processed files, generated chunks, skipped files (with URL) |
-| `ERROR` | File read errors, file-level failures including Sudachi tokenization errors (with traceback) |
+See [rag_05_03-logging.md](rag_05_03-logging.md) for the chunk splitter log destination, format, and levels.
 
 ### 3.7 Configuration
 

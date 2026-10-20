@@ -27,25 +27,17 @@ Primary store for all events. WAL mode is enabled to allow concurrent reads. DB 
 
 ## Schema
 
-Key columns: `seq` (PK), `event_id` (UNIQUE), `topic`, `payload` (JSON string), `producer`, `published_at`, `delivery_failure_count`, `cycle_failure_count`, `redelivered_from`, `dlq_requeue_count`, `dlq_at` (when promoted to DLQ), `consumer_id`. The per-consumer failure count and last NACK attempt live in `consumer_delivery`, not in `events`. Column definitions are in `scripts/eventbus/schema.sql`, the only DDL definition; `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` (used by `create_schema()`) reads that file.
+`events` holds one row per event, keyed by a monotonic `seq` with a UNIQUE `event_id`. The per-consumer failure count and last NACK attempt live in `consumer_delivery`, not in `events`. `scripts/eventbus/schema.sql` is the only DDL definition; `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` reads it.
 
 Schema migrations for existing databases are idempotent.
 
 ### Per-consumer delivery state
 
-`consumer_delivery(consumer_id, event_id, acked, consumer_delivery_failure_count, consumer_last_nack_attempt)` — composite PK on `(consumer_id, event_id)`. Tracks per-consumer delivery state; `acked` is a boolean set on the first ACK and never lowered. Idempotent via `INSERT ... ON CONFLICT DO UPDATE`, which keeps the higher of the stored and new `acked` value.
+`consumer_delivery` has a composite key on `(consumer_id, event_id)` and tracks per-consumer delivery state; `acked` is a boolean set on the first ACK and never lowered. Idempotent via `INSERT ... ON CONFLICT DO UPDATE`, which keeps the higher of the stored and new `acked` value.
 
 ### Per-consumer offset
 
-`consumer_offsets(consumer_id, offset)` — PK on `consumer_id`. Tracks last-committed sequence offset per consumer. Monotonic enforcement via ON CONFLICT DO UPDATE WHERE excluded.offset > consumer_offsets.offset.
-
-### Indexes
-
-- `idx_events_topic` — For topic filtering
-- `idx_events_seq` — For replay cursors
-- `idx_events_dlq_at` — For DLQ queries
-- `idx_events_dlq_seq` — For sorting DLQ events by `seq`
-- `idx_consumer_delivery_consumer_ack` — For the low-water-mark query that resumes a consumer; on databases created before `acked` existed it referenced `acked_at` and is rebuilt by the migration described in [Migration and Scaling](../41_db/db_03_architecture_and_schema-migration-and-scaling.md)
+`consumer_offsets` holds the last-committed sequence offset per consumer; the update only applies when the new offset is greater than the stored one (monotonic).
 
 ## JSONL Archive
 

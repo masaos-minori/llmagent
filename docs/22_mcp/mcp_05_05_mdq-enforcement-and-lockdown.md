@@ -13,7 +13,7 @@ related:
 
 ## Boundary Enforcement
 
-Automated pytest checks (`tests/test_mdq_rag_boundary.py`) verify the MDQ/RAG boundary during every CI run. They scan source files for prohibited cross-DB references and unauthorized direct SQLite access within the agent layer.
+Automated pytest checks (`tests/mcp_servers/mdq/test_mdq_rag_boundary.py`) verify the MDQ/RAG boundary during every CI run. They scan source files for prohibited cross-DB references and unauthorized direct SQLite access within the agent layer.
 
 ### Allowed Access Paths
 
@@ -35,19 +35,19 @@ Automated pytest checks (`tests/test_mdq_rag_boundary.py`) verify the MDQ/RAG bo
 
 #### Handling False Positives
 
-If a new administrative maintenance file requires direct access to `rag.sqlite`, add that filename to the `ALLOWED` set in `tests/test_mdq_rag_boundary.py` and document the exception in the Allowed Access Paths table above. Changes to `ALLOWED` require a design review comment in a PR.
+If a new administrative maintenance file requires direct access to `rag.sqlite`, add that filename to the `ALLOWED` set in `tests/mcp_servers/mdq/test_mdq_rag_boundary.py` and document the exception in the Allowed Access Paths table above. Changes to `ALLOWED` require a design review comment in a PR.
 
 ---
 
 ### mdq-mcp `allowed_dirs` Authorization (fail-closed)
 
-Separately from the DB boundaries with other servers, mdq-mcp has a fail-closed allowlist based on file paths. The `allowed_dirs` in `config/mdq_mcp_server.toml` (default `[]`) restricts target directories for reading, and `authorize_path()` in `scripts/mcp_servers/mdq/auth.py` performs the actual authorization (Explicit in code).
+Separately from the DB boundaries with other servers, mdq-mcp has a fail-closed allowlist based on file paths. The `allowed_dirs` in `config/mdq_mcp_server.toml` (default `[]`) restricts target directories for reading, and `authorize_path()` (`scripts/mcp_servers/mdq/auth.py`) performs the actual authorization.
 
-- If `allowed_dirs` is empty, `authorize_path()` always returns `False` — implementing fail-closed behavior where all path access is denied (Explicit in code).
-- Before evaluation, both the target path and the allowed root are normalized using `Path.resolve()` to prevent directory traversal via `../` or escaping the allowlist via symbolic links (Explicit in code).
-- Authorization checks are applied to the following tools: `MdqService.outline()` (`outline` tool), path validation functions (used by `index_paths`/`refresh_index` tools), and `search_docs`, `get_chunk`, and `grep_docs` (these three re-check authorization upon reading, see below). Violations raise `MdqAuthorizationError`, which is converted to HTTP 403 by the error handler in `scripts/mcp_servers/mdq/mdq_server.py` (Explicit in code).
-- For `search_docs`, `get_chunk`, and `grep_docs`, the `source_path` of indexed chunks is re-checked against current `allowed_dirs` using `authorize_path()` before returning results. `search_docs` and `grep_docs` (when `paths` is not specified) silently exclude unauthorized lines and do not count them in totals (fail-closed, ensuring existence of unauthorized results is not leaked). `get_chunk` and `grep_docs` (when `paths` is explicitly specified) reject the entire call with `MdqAuthorizationError` if unauthorized targets are included (Explicit in code).
-- Since `stats` only returns counts and does not include path-level content, it continues to bypass `authorize_path()` (Explicit in code).
+- If `allowed_dirs` is empty, `authorize_path()` always returns `False` — implementing fail-closed behavior where all path access is denied.
+- Before evaluation, both the target path and the allowed root are normalized using `Path.resolve()` to prevent directory traversal via `../` or escaping the allowlist via symbolic links.
+- Authorization checks are applied to the following tools: `MdqService.outline()` (`outline` tool), path validation functions (used by `index_paths`/`refresh_index` tools), and `search_docs`, `get_chunk`, and `grep_docs` (these three re-check authorization upon reading, see below). Violations raise `MdqAuthorizationError`, which is converted to HTTP 403 by the error handler in `scripts/mcp_servers/mdq/mdq_server.py`.
+- For `search_docs`, `get_chunk`, and `grep_docs`, the `source_path` of indexed chunks is re-checked against current `allowed_dirs` using `authorize_path()` before returning results. `search_docs` and `grep_docs` (when `paths` is not specified) silently exclude unauthorized lines and do not count them in totals (fail-closed, ensuring existence of unauthorized results is not leaked). `get_chunk` and `grep_docs` (when `paths` is explicitly specified) reject the entire call with `MdqAuthorizationError` if unauthorized targets are included.
+- Since `stats` only returns counts and does not include path-level content, it continues to bypass `authorize_path()`.
 
 #### HTTP Bearer Authentication Precedes `allowed_dirs` Authorization
 
@@ -65,11 +65,9 @@ Request order: loopback-only network boundary, then Bearer authentication, then 
 
 ### Implementation Notes
 
-- **Search mode:** `search_docs` supports `mode=bm25` only. There is no hybrid or vector search in mdq-mcp; use the RAG pipeline when semantic search is required (Explicit in code).
-- **Tools:** the tools exposed by mdq-mcp are exactly those in its `TOOL_LIST`; no FTS administration tool is exposed (Explicit in code).
-- **Serialization:** `index_paths` and `refresh_index` acquire `MdqService._index_lock` (a lazily initialized `asyncio.Lock`) before execution to prevent concurrent operations, independent of any config value (Explicit in code). This is separate from `requires_serial: True` in `scripts/agent/tool_scheduler.py` (a global barrier for simultaneous tool calls within an agent turn); the two mechanisms are complementary. The serialization is verified by `tests/test_mdq_index_serialization.py`.
-- **Config gates:** `enable_grep` is enforced in `grep_docs()` (raises `MdqValidationError` if `not self.enable_grep`) and tested in `tests/mcp_servers/mdq/test_mdq_service.py::TestGrepDocsConfigGate`. There is no equivalent gate for `refresh_index()` (Explicit in code).
-- **Chunk metadata:** `tags_json` in the `chunks` table stores a JSON array extracted from the YAML frontmatter `tags:` field (list or comma-separated) by `scripts/mcp_servers/mdq/parser.py::parse_markdown()`. `token_count` is an approximation (`len(content) // 4`), not a tokenizer value. `search_docs`'s `tag_filter` matches against `tags_json` via the `LIKE` condition in `scripts/mcp_servers/mdq/search.py` (Explicit in code).
+- **Serialization:** `index_paths` and `refresh_index` acquire `MdqService._index_lock` (an `asyncio.Lock`) before execution to prevent concurrent index operations, independent of any config value. This is separate from `requires_serial: True` (a global barrier for simultaneous tool calls within an agent turn); the two mechanisms are complementary. Verified by `tests/mcp_servers/mdq/test_mdq_index_serialization.py`.
+- **Config gate:** `enable_grep` is enforced in `grep_docs()` (raises `MdqValidationError` when false); there is no equivalent gate for `refresh_index()`.
+- Search mode (`bm25` only), the tool surface, and chunk metadata are specified in [mcp_04_04_mdq.md](mcp_04_04_mdq.md).
 
 ## Keywords
 

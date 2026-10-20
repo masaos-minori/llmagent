@@ -17,136 +17,85 @@ related:
 
 # MCP Server Catalog: mdq-mcp
 
-## mdq-mcp 
+Tool membership and risk tiers: [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md). Health response semantics common to all servers: [mcp_02_02](mcp_02_02_startup-modes-and-health.md). Cross-cutting policy: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) (Layered protection model). Agent-side approval confirms user intent only; it is not a bypass for any check below.
 
-**Purpose:** Indexing Markdown documentation and context compression.
+## mdq-mcp
+
+**Purpose:** Indexing Markdown documentation and context compression. For production RAG search, use `rag-pipeline-mcp`. All tools are production.
 **Startup Mode:** `subprocess` (HTTP)
-**Configuration:** `config/mdq_mcp_server.toml`
+**Configuration:** `config/mdq_mcp_server.toml` (`allowed_dirs`, `db_path`, glob filters, size and result limits, `search_timeout_sec`, grep and outline limits)
+**Scope:** FTS5 (BM25) structural Markdown search only. mdq-mcp has no hybrid or semantic search and no embedding-related configuration; the `mode` parameter of `search_docs` accepts `bm25` only.
 
 **Authentication:** every endpoint requires the Bearer token (`auth_token` in `config/mdq_mcp_server.toml`, the `MCP_MDQ_AUTH_TOKEN` variable); the server refuses to start with an empty value. `allowed_dirs` path authorization applies after authentication (see `mcp_05_05_mdq-enforcement-and-lockdown.md`).
 
-**Tools:** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
-**Tool Status:** All tools are in `production` (`search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`). **Operational Scope:** Supports only FTS5 (BM25) based structural Markdown search. Hybrid/semantic search configuration and code have been removed (see below).
+**Enforced limits:**
 
-**Configuration Fields:** `allowed_dirs`, `db_path`, `include_globs`, `exclude_globs`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars`, `max_results_limit`, `max_chars_per_chunk`, `max_total_result_chars`, `max_outline_items`, `max_grep_matches`, `search_timeout_sec`, `enable_grep`, `max_chars_per_match`, `context_before`, `context_after`, `max_outline_depth`, `sqlite_busy_timeout`
+- `include_globs` / `exclude_globs` apply to all four indexing scans.
+- `max_file_chars`: a larger file is skipped with a warning and is not indexed.
+- `max_chunk_chars`: content is truncated before `content_hash` is calculated, so the hash matches the stored content.
+- `max_snippet_chars` truncates search snippets.
+- `search_timeout_sec`: `search_docs()` raises `MdqConsistencyError` on timeout; the background thread is not forcibly interrupted.
 
-**Enforced keys:** `include_globs`, `exclude_globs`, `max_snippet_chars`, `max_chunk_chars`, `max_file_chars` and `search_timeout_sec` are enforced as follows:
-- `include_globs` / `exclude_globs`: The indexing scan function applies these glob patterns across all four indexing scans.
-- `max_file_chars`: File indexing skip-and-warns if a file exceeds the maximum size (it is not included in the index).
-- `max_chunk_chars`: File indexing truncates content before calculating the `content_hash` for each section (ensuring the hash matches the stored content).
-- `max_snippet_chars`: `search.py` snippet processing truncates snippets using this value.
-- `search_timeout_sec`: `search_docs()` wraps the search in `asyncio.wait_for(asyncio.to_thread(...), timeout=...)` and raises `MdqConsistencyError` upon timeout (note: this does not forcibly interrupt the background thread itself).
+**Stored data:** `chunks.tags_json` holds the YAML frontmatter `tags:` values (list or comma-separated) and is the data `search_docs` `tag_filter` matches against. `token_count` is an approximation (`len(content) // 4`), not an accurate tokenizer.
 
-**Health:** `{"status":"ok"/"degraded","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":bool,"dependencies":{...},"details":{"service":"mdq-mcp",...}}` — returns more fields than the basic response (refer to [mcp_06 Health probes](mcp_06_04_verification-methods.md#health-probes)).
+**Operations:**
 
-**DB Path:** (`config/mdq_mcp_server.toml`: `db_path`)
-**Logs:** `<log_dir>/mdq-mcp.log`
-**Audit:** Layer1 (Agent/MCP shared): tool_exec / Layer2 (Shared MCP): mcp_tool_exec / Layer3 (Dedicated): None — recorded via `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format.
-
-**Note:** mdq-mcp has no dedicated audit log or `audit_log_path` configuration key; audit events are recorded in the shared audit log via `_audit_log()` with `server_key="mdq"`.
-
-**Usage Scenario:** Indexing Markdown documentation and context compression. For production RAG search, use `rag-pipeline-mcp`.
-
-**Note:** The `tags_json` field in the `chunks` table (an array extracted from the YAML frontmatter `tags:` field, accepting both list and comma-separated formats) and `token_count` (an approximation via local heuristic `len(content) // 4`, not an accurate tokenizer) store real data. `search_docs`'s `tag_filter` matches against this real data.
+- `/health` returns more fields than the basic response (refer to [mcp_06 Health probes](mcp_06_04_verification-methods.md#health-probes)).
+- Logs: `<log_dir>/mdq-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec` (shared JSON-lines audit log `<log_dir>/audit.log` via `_audit_log()`, `server_key="mdq"`), Layer3 none. There is no dedicated audit log and no `audit_log_path` key.
 
 ### Path Control
 
-All tools receiving paths enforce fail-closed authorization via `allowed_dirs`.
+All tools receiving paths enforce fail-closed authorization via `allowed_dirs`. Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing tools.
 
 | Tool | Path Input | Authorization |
 |---|---|---|
-| `index_paths` | Directory/File to index | `authorize_path()` — Raises `MdqAuthorizationError` if outside `allowed_dirs` |
-| `refresh_index` | Path to refresh | Path authorization — Raises `MdqAuthorizationError` if any path is denied |
-| `outline` | File to outline | `authorize_path()` — Raises `MdqAuthorizationError` if outside `allowed_dirs` |
+| `index_paths` | Directory/File to index | `authorize_path()` raises `MdqAuthorizationError` if outside `allowed_dirs` |
+| `refresh_index` | Path to refresh | Path authorization; raises `MdqAuthorizationError` if any path is denied |
+| `outline` | File to outline | `authorize_path()` raises `MdqAuthorizationError` if outside `allowed_dirs` |
 | `search_docs` | `source_path` of indexed chunks (re-checked upon reading) | Chunks outside `allowed_dirs` are silently excluded from results (not counted) |
 | `get_chunk` | `source_path` of chunk to retrieve (re-checked upon reading) | Raises `MdqAuthorizationError` if outside `allowed_dirs` |
-| `grep_docs` | Explicitly specified path, or authorized set of all indexed `source_path`s (re-checked upon reading) | If an explicitly specified path is unauthorized, it rejects the entire call with `MdqAuthorizationError`; if no filter is specified, unauthorized paths are silently excluded |
+| `grep_docs` | Explicitly specified path, or the authorized set of all indexed `source_path`s (re-checked upon reading) | An unauthorized explicit path rejects the entire call with `MdqAuthorizationError`; with no filter, unauthorized paths are silently excluded |
 
-- `..` Traversal: Blocked by `Path.resolve()` within `authorize_path()`.
-- Symbolic Link Escape: Blocked by `Path.resolve()` within `authorize_path()`.
-- Empty `allowed_dirs = []` (Default): Denies all path access (fail-closed).
-
-Configure `allowed_dirs` in `config/mdq_mcp_server.toml` before using indexing tools.
+- `..` traversal and symbolic-link escapes are blocked by `Path.resolve()` within `authorize_path()` (`scripts/mcp_servers/mdq/auth.py`).
+- Empty `allowed_dirs = []` (default) denies all path access (fail-closed).
 
 ### Guard and postcondition coverage
 
-See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) Layered protection model for the general framework this section instantiates. Agent-side approval confirms user intent only; it is not a bypass for any check below.
-
-#### Common guard
-
-The Path Control table above is the common guard, and it is the reference implementation the cross-cutting policy measures the other high-risk servers against: `authorize_path()` canonicalizes with `Path.resolve()`, returns false for a path outside `allowed_dirs` — including `..` traversal and symlink escapes — and denies every path when `allowed_dirs` is empty. (Explicit in code — `scripts/mcp_servers/mdq/auth.py`)
-
-#### Command-specific guard status
-
-The read tools re-check the stored `source_path` of each chunk when reading it, so a chunk that left `allowed_dirs` is excluded or rejected at read time rather than at index time. The stale-document check (`is_stale()`, `mtime_ns > indexed_at`) is a reporting guard: `outline` returns a `stale_warning` and `/health` reports `stale_document_count`; neither rejects the call. (Explicit in code — `scripts/mcp_servers/mdq/mdq_service.py`, `scripts/mcp_servers/mdq/health_check.py`, `scripts/mcp_servers/mdq/mdq_models.py`)
-
-#### Postcondition verification
-
-Not applicable per operation. The two mechanisms that do exist are reporting, not comparison: `refresh_paths()` records per-path failures and continues the batch, returning `indexed_count`, `skipped_count`, `deleted_count`, `failed_count`, and `elapsed_seconds`; the Security Posture check `server.index_available` compares document and chunk counts against the FTS row count and reports a warning when documents exist while the FTS index holds no rows. Neither compares one operation's resulting state with an expected state. (Explicit in code — `scripts/mcp_servers/mdq/indexer.py`, `scripts/mcp_servers/mdq/mdq_security_validation.py`)
-
-#### Audit
-
-`mdq_server.py::call_tool` writes one shared `mcp_tool_exec` record per call — one for a tool-level exception with `outcome="error"` and `error_type` set, one for a dispatched call with the outcome taken from the dispatch result — with `target` set by `extract_audit_target()` truncated to 80 characters and `server_key="mdq"`. mdq-mcp has no dedicated audit log, and before/after state snapshots are not applicable. (Explicit in code — `scripts/mcp_servers/mdq/audit_target.py`, `scripts/mcp_servers/mdq/mdq_server.py`, `scripts/mcp_servers/audit.py`)
+- **Agent approval:** not applicable server-side; mdq enforces only its own technical constraints (Bearer token, `allowed_dirs`).
+- **Common guard:** the Path Control table is the common guard and the traversal- and symlink-containment reference implementation the cross-cutting policy measures the other high-risk servers against.
+- **Command-specific guard:** per-tool `authorize_path()` on every path-bearing tool. Read tools re-check the stored `source_path` of each chunk at read time, so a chunk that left `allowed_dirs` is excluded or rejected at read time rather than at index time. The stale-document check (`is_stale()`, `mtime_ns > indexed_at`) is a reporting guard only: `outline` returns a `stale_warning` and `/health` reports `stale_document_count`; neither rejects the call.
+- **Postcondition verification:** not applicable per operation, and no resulting-state verification exists. Two reporting mechanisms exist: `refresh_paths()` records per-path failures, continues the batch, and returns indexed, skipped, deleted, and failed counts; the Security Posture check `server.index_available` warns when documents exist while the FTS index holds no rows. Neither compares a resulting state with an expected state or gates the refresh.
+- **Audit:** `call_tool` writes one shared `mcp_tool_exec` record per call (a tool-level exception records `outcome="error"` with `error_type`; a dispatched call records the dispatch outcome), with `target` from `extract_audit_target()` truncated to 80 characters and `server_key="mdq"`. No dedicated audit log; before/after state snapshots are not applicable.
 
 ### Markdown Compatibility Scope
 
-| Markdown Feature              | Support | Fallback Behavior                                                                                                                                                                                                |
-|---------------------------|---------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| ATX Headings (H1–H6)      | Yes     | —                                                                                                                                                                                                                                               |
-| Fenced Code Blocks        | Yes     | `#` inside fences are not treated as headings. Fence content itself is also excluded from section indexing text and is not searched in `search_docs`/`grep_docs` (because `parser.py` uses `continue` to skip fence lines before adding them to the section body) |
-| YAML Frontmatter          | Yes     | Parsed and removed from the beginning of the file                             |
-| Content before H1         | Yes     | Stored in the `<root>` section                                                                                                                                                                                                                 |
-| Duplicate Headings        | Yes     | Individual chunk IDs are assigned via ordinality                                                                                                                                                                                                 |
-| Setext Headings (===,---) | No      | Treated as plain text                                                                                                                                                                                                                            |
-| HTML Blocks                | No      | Treated as plain text                                                                                                                                                                                                                            |
-| MDX                       | No      | Excluded from indexing (.mdx files are excluded via glob)                                                                                                                                                                                     |
-| GFM Tables                | No      | Stored as plain text within the parent section                                                                                                                                                                                                     |
-| Inline HTML Tags          | No      | Treated as plain text                                                                                                                                                                                                                            |
-
-> Note regarding search support for frontmatter `tags`/`categories`: This table covers heading/structural features only. For details on `tags` real data storage and `search_docs` `tag_filter` support, see the `tags_json` note above.
-
-### Search Modes
-
-| Mode | Description | Configuration |
+| Markdown Feature | Support | Fallback Behavior |
 |---|---|---|
-| FTS5 (BM25) | Full-text search via FTS5; the only supported search mode | `mode` parameter in `search_docs` (`bm25` only) |
+| ATX Headings (H1–H6) | Yes | — |
+| Fenced Code Blocks | Yes | `#` inside fences are not treated as headings. Fence content itself is also excluded from section indexing text and is not searched in `search_docs`/`grep_docs` (because `parser.py` uses `continue` to skip fence lines before adding them to the section body) |
+| YAML Frontmatter | Yes | Parsed and removed from the beginning of the file |
+| Content before H1 | Yes | Stored in the `<root>` section |
+| Duplicate Headings | Yes | Individual chunk IDs are assigned via ordinality |
+| Setext Headings (===,---) | No | Treated as plain text |
+| HTML Blocks | No | Treated as plain text |
+| MDX | No | Excluded from indexing (.mdx files are excluded via glob) |
+| GFM Tables | No | Stored as plain text within the parent section |
+| Inline HTML Tags | No | Treated as plain text |
 
-**Search mode:**
-mdq-mcp has no hybrid or semantic search and no embedding-related configuration; the `mode` parameter in `search_docs` supports `bm25` only.
+> Frontmatter `tags` real-data storage and `search_docs` `tag_filter` support are described under "Stored data" above; this table covers heading/structural features only.
 
-#### Result Count and Limits
+### Search Result Limits
 
-The precedence for `search_docs` result counts and limits is as follows:
+- **Effective SQL limit:** `effective_limit = min(request limit, server max_results_limit)` is applied directly to the SQL `LIMIT` clause, so a large requested `limit` never fetches more rows than the server setting.
+- **Count display:** the response header shows a definitive count ("N found") only when no filtering occurs (match count equals shown count). When filtering occurs it distinguishes "matched" from "shown" and does not claim the limited count is the total.
 
-- **Effective SQL Limit**: `effective_limit = min(request limit, server setting max_results_limit)` is applied directly to the SQL `LIMIT` clause. This ensures that even if a large `limit` is requested, the number of rows fetched from the database will not exceed the server setting.
-- **`max_results_limit` (Request Parameter)**: After the Effective SQL Limit is applied, this acts as a secondary display limit (only meaningful if `effective_limit` is higher).
-- **Count Display**: The response header displays a definitive count (e.g., "N found") only when no filtering occurs (when match count equals shown count). If filtering occurs, it distinguishes between "matched" (the exact number matching the query) and "shown" (the actual number displayed) and does not claim the limited count is the total.
+### Audit `detail` Metadata
 
-#### Structured Metadata for Audit Logs (`detail` field)
+The audit `detail` field is built from structured metadata (a `(text, metadata)` tuple) returned by each `MdqService` method, not by parsing output text, so audit values stay consistent when output wording changes. It carries result, shown, indexed, skipped, deleted, and failed counts and a `truncated=true` flag where applicable; for `get_chunk`, `truncated=true` is derived from the `"[Truncated"` marker in the output text.
 
-The `detail` field in `call_tool()` audit logs (via `_audit_log()`, see "Audit" above) is constructed directly from structured metadata (a `(text, metadata)` tuple) returned by each `MdqService` method, rather than parsing output text with regex/substrings. This ensures audit values remain consistent even if output wording changes.
-
-- `search_docs`: `result_count=`, `shown_count=`, (if filtered) `truncated=true`
-- `grep_docs`: `match_count=`, (if filtered) `truncated=true`
-- `index_paths`: `indexed_count=`, `skipped_count=`, `failed_count=`
-- `refresh_index`: `indexed_count=`, `skipped_count=`, `deleted_count=`, `failed_count=`
-- `get_chunk`: `truncated=true` (based on detecting the `"[Truncated"` substring in output text, unchanged)
-
-Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotFoundError` / `MdqIndexNotReadyError`) and FastAPI exception handlers (`MdqDatabaseError` / `MdqConsistencyError` / `MdqServiceError`) do not embed error types into the `detail` string; instead, they pass the error type as the `error_type=` parameter to `_audit_log()`.
+Tool-level exceptions (`MdqValidationError` / `MdqAuthorizationError` / `MdqNotFoundError` / `MdqIndexNotReadyError`) and FastAPI exception handlers (`MdqDatabaseError` / `MdqConsistencyError` / `MdqServiceError`) are not embedded in `detail`; the error type is passed as `error_type=` to `_audit_log()`.
 
 ---
-
-## Layered protection coverage
-
-mdq-mcp is a high-risk category (path-authorized document access) and serves as the
-traversal- and symlink-containment reference implementation for the common guard. The five
-Layered protection layers stand as follows.
-
-- **Agent approval** — Not applicable server-side. Approval is an Agent-side gate; mdq enforces only its own technical constraints (Bearer token, `allowed_dirs`).
-- **Common guard** — Implemented. `allowed_dirs` fail-closed authorization with `..`-traversal and symbolic-link escape blocked by `Path.resolve()` inside `authorize_path()`; an empty `allowed_dirs` denies every path (see Path Control). (Explicit in code — `scripts/mcp_servers/mdq/auth.py`, `scripts/mcp_servers/mdq/mdq_security_validation.py`)
-- **Command-specific guard** — Implemented. Per-tool `authorize_path()` on every path-bearing tool, plus a stale-index check on the read path. (Explicit in code — `scripts/mcp_servers/mdq/auth.py`, `scripts/mcp_servers/mdq/mdq_service.py`)
-- **Postcondition verification** — Not applicable. `refresh_index()` reports operation counts (indexed/skipped/deleted/failed) but performs no before/after comparison of the resulting index state against an expected state; the `_index_check` posture entry surfaces a "documents exist while the FTS index holds no rows" warning rather than gating the refresh. No resulting-state verification exists to implement. (Code review — `scripts/mcp_servers/mdq/mdq_service.py::refresh_index`, `scripts/mcp_servers/mdq/mdq_security_validation.py::_index_check`)
-- **Audit** — Implemented. Every call is recorded through the shared `_audit_log()` with `server_key="mdq"`; the target is resolved via `extract_audit_target()`. (Explicit in code — `scripts/mcp_servers/mdq/audit_target.py`, `scripts/mcp_servers/audit.py`)
 
 ## Keywords
 

@@ -34,30 +34,16 @@ To document the responsibilities of `CLIView`, which handles only the presentati
 
 ### Callback Injection
 
-| Callback | Injected Into | Trigger Timing |
-|---|---|---|
-| `write_token(token)` | `LLMClient(on_token=...)` | Whenever an SSE token arrives |
-| `write_compress_notice(n)` | `HistoryManager(on_compress=...)` | When history is compressed |
-| `write_turn_start()` | `Orchestrator(on_turn_start=...)` | Before each tool loop turn starts |
-| `write_turn_end()` | `Orchestrator(on_turn_end=...)` | After the final LLM response |
-| `write_llm_error(e)` | `Orchestrator(on_error=...)` | When an LLM request fails |
+Each component that needs terminal output receives a `CLIView` method as an injected callback instead of importing the view: token streaming (`LLMClient`), compression notice (`HistoryManager`), and turn start/end and LLM error reporting (`Orchestrator`). Components therefore depend on callback signatures, not on `CLIView` itself.
 
-### Relationship between Spinner and Tokens
+### Spinner and Tokens
 
-`write_token()` calls `stop_spinner()` immediately before outputting a token, allowing streaming tokens to interrupt the spinner display.
-
-### Startup Banner
-
-`write_startup_banner()` displays the session ID, chunk count, number of tools, memory mode, and workflow state.
+Token output stops the spinner first, so streaming tokens always interrupt the spinner display.
 
 ## Responsibility Boundary
 
 - **Presentation Layer Only**: Does not hold state management or business logic.
 - **Test Protocols**: By defining `Writer` (output operations) and `Reader` (multi-line input) protocols, different implementations can be injected during testing.
-
-## Key Constraints
-
-- `CLIView.__init__(slash_commands)` takes a list of slash commands as a required argument and uses them for tab completion suggestions.
 
 ## Keywords
 

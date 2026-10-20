@@ -15,11 +15,7 @@ related:
 
 ## `read_only` Flag (git-mcp)
 
-```toml
-read_only = true   # default: write tools are disabled
-```
-
-When set to `true`: `git_add`, `git_commit`, `git_checkout`, `git_pull`, and `git_push` are reported as disabled (`disabled_reason` `read_only=true`) and `/v1/call_tool` rejects them with `Tool disabled: read_only=true`; the service-level guard returns `[DENIED] git-mcp is configured with read_only=true` as a second layer. To enable writes, you must explicitly set it to `false`. (Explicit in code — `scripts/mcp_servers/git/git_server.py`, `scripts/mcp_servers/git/git_service.py`)
+Default `true`: write tools are disabled. When `true`: `git_add`, `git_commit`, `git_checkout`, `git_pull`, and `git_push` are reported as disabled (`disabled_reason` `read_only=true`) and `/v1/call_tool` rejects them with `Tool disabled: read_only=true`; the service-level guard returns `[DENIED] git-mcp is configured with read_only=true` as a second layer. To enable writes, you must explicitly set it to `false`.
 
 ---
 
@@ -31,14 +27,7 @@ there is no environment or profile in which an empty token is accepted.
 `ValueError` at config-load time if `auth_token` is empty, unless the server is
 disabled (`startup_mode="none"`).
 
-```toml
-# In server config or McpServerConfig
-auth_token = "${ENV:MCP_SHELL_AUTH_TOKEN}"   # required; non-empty for every HTTP server
-```
-
-The server requires an `Authorization: Bearer <token>` header.
-Missing or mismatched token → HTTP 401.
-Applies to: All HTTP MCP servers, including mdq-mcp (configured per server via `McpServerConfig.auth_token`). Each server verifies the token from its own server-side `auth_token`, resolved from the same environment variable the agent configuration uses; the shell, github, file, and mdq servers additionally refuse to start when that value is empty, so an empty or missing token cannot leave them unauthenticated. mdq-mcp applies its `allowed_dirs` path authorization only after authentication (see `mcp_05_05_mdq-enforcement-and-lockdown.md`).
+The server requires an `Authorization: Bearer <token>` header; a missing or mismatched token returns HTTP 401. Applies to: All HTTP MCP servers, including mdq-mcp (configured per server via `McpServerConfig.auth_token`). Each server verifies the token from its own server-side `auth_token`, resolved from the same environment variable the agent configuration uses; every HTTP MCP server refuses to start when that value is empty, so an empty or missing token cannot leave it unauthenticated. mdq-mcp applies its `allowed_dirs` path authorization only after authentication (see `mcp_05_05_mdq-enforcement-and-lockdown.md`).
 Use environment-variable injection (`"${ENV:VAR_NAME}"`) rather than a literal
 secret in the TOML file — see section 2.5 (MCP Authentication Tokens) of the deployment document for the current setup steps.
 
@@ -48,7 +37,7 @@ secret in the TOML file — see section 2.5 (MCP Authentication Tokens) of the d
 
 `SecurityProfile` has a single `PRODUCTION` member, so `security_profile` does not distinguish environments. The authentication-mandatory behavior described above under [Authentication](#authentication-auth_token) applies unconditionally in every environment; there is no profile value that relaxes it.
 
-**Enforcement Point:** An empty `auth_token` is rejected without branching on `security_profile`: `McpServerConfig` construction itself rejects it, the shell, github, file, and mdq servers refuse to start when their own server-side value is empty, and Agent startup records a FATAL `mcp_auth` outcome for any `[mcp_servers.*]` entry with an empty `auth_token`. Each server also reports `common.auth_token` in its own Security Posture as `warning` when the value is empty, so the gap stays visible on `/health`. `shell_sandbox_backend == "none"` is rejected by shell-mcp's own posture check (see [mcp_04_02_file-write-file-delete-shell.md](./mcp_04_02_file-write-file-delete-shell.md)).
+**Enforcement Point:** An empty `auth_token` is rejected without branching on `security_profile`: `McpServerConfig` construction itself rejects it, each server refuses to start when its own server-side value is empty, and Agent startup records a FATAL `mcp_auth` outcome for any `[mcp_servers.*]` entry with an empty `auth_token`. Each server also reports `common.auth_token` in its own Security Posture as `warning` when the value is empty, so the gap stays visible on `/health`. `shell_sandbox_backend == "none"` is rejected by shell-mcp's own posture check (see [mcp_04_02_file-write-file-delete-shell.md](./mcp_04_02_file-write-file-delete-shell.md)).
 
 **Reload Boundary:** `/reload` does not re-run these checks nor apply `auth_token` changes to running MCP servers — token changes always require a restart (see [Configuration: Hot-reload eligibility](../23_agent/agent_08_01_configuration-loading-agent-config.md#configuration-file-ownership)). Production authentication validation is performed only at startup; there are no runtime paths to weaken or bypass this.
 
@@ -58,47 +47,27 @@ secret in the TOML file — see section 2.5 (MCP Authentication Tokens) of the d
 
 ## Output and Resource Limits
 
-| Limit | Source | Server |
-|---|---|---|
-| Max response bytes | `MCP_MAX_RESPONSE_BYTES` | All servers (truncated) |
-| Max shell output | config (`max_output_kb`) | shell-mcp |
-| Max shell memory | config (`max_memory_mb`, `RLIMIT_AS`) | shell-mcp |
-| Max shell timeout | config (`max_timeout_sec`) | shell-mcp |
-| `git_show` max chars | fixed code limit | git-mcp |
-| cicd log limit | config (`max_log_size_kb`) and fixed job limit | cicd-mcp |
-| Max file read | config (`max_read_bytes`) | file-read-mcp |
-| Max file write | config (`max_write_bytes`) | file-write-mcp |
-| GitHub per_page | config (`max_per_page`) | github-mcp |
+Every limit below is set by the owning server; values are owned by the server config files and fixed code limits.
+
+- All servers: maximum response size (`MCP_MAX_RESPONSE_BYTES`, truncated).
+- shell-mcp: output (`max_output_kb`), memory (`max_memory_mb`, `RLIMIT_AS`), timeout (`max_timeout_sec`).
+- file-read-mcp `max_read_bytes`; file-write-mcp `max_write_bytes`; github-mcp `max_per_page`; cicd-mcp `max_log_size_kb` plus a fixed job limit; git-mcp `git_show` fixed character limit.
 
 ---
 
 ## Sandbox Backend (shell-mcp)
 
-```toml
-# Supported:
-shell_sandbox_backend = "firejail"  # RuntimeError at startup if binary missing
-# Rejected:
-shell_sandbox_backend = "none"      # rejected by Agent startup audit (RuntimeError); no isolation
-```
-
 | Backend | Use Case | Permitted? | Startup Behavior |
 |---|---|---|---|
-| `firejail` | Process isolation, restricted filesystem | Yes | `RuntimeError` if binary is missing |
-| `none` | Not permitted — no isolation | No | Agent startup audit raises `RuntimeError` regardless of environment; shell-mcp itself accepts the value if started independently |
+| `firejail` | Process isolation, restricted filesystem | Yes | `RuntimeError` if the binary is missing |
+| `none` | No isolation | No | Rejected by shell-mcp itself: `init_sandbox()` raises `RuntimeError` and the `server.sandbox_backend` posture check reports `failed`, so shell-mcp refuses to bind and Agent startup aborts, regardless of environment |
 
-- The code default and the checked-in `config/shell_mcp_server.toml` value are both `"firejail"`. (Explicit in code — `scripts/mcp_servers/shell/shell_models.py`)
-- `"firejail"`: Prepends `["firejail", "--private", "--net=none", "--noroot", "--"]` to `argv`.
-- `"none"`: No sandbox; only `RLIMIT_*` resource limits applied.
+- The code default and the checked-in `config/shell_mcp_server.toml` value are both `"firejail"`, which prepends `["firejail", "--private", "--net=none", "--noroot", "--"]` to `argv`. With `"none"` only `RLIMIT_*` resource limits would apply.
+- An unrecognized backend value is also rejected as unsupported by the same posture check.
 
-**Startup Enforcement**:
-- If `backend == "firejail"` and `shutil.which("firejail")` returns `None` → `RuntimeError` at startup.
-- If `backend != "firejail"` and `backend != "none"` → WARNING at startup.
-- If `backend == "none"` → `RuntimeError`, regardless of environment.
+Installing firejail: `sudo apt-get install firejail` (Debian/Ubuntu) or `apk add firejail` (Alpine). Verify: `firejail --version`.
 
-Installing firejail: `sudo apt-get install firejail` (Debian/Ubuntu) or `apk add firejail` (Alpine).
-Verify: `firejail --version`
-
-**Resource Limits** (applied via `preexec_fn`): `RLIMIT_CPU`, `RLIMIT_AS`, `RLIMIT_NOFILE`, `RLIMIT_NPROC`, `RLIMIT_FSIZE`
+**Resource Limits** (applied to the child process before exec): CPU time, address space, open files, process count, and written file size
 
 ## Keywords
 

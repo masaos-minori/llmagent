@@ -15,14 +15,7 @@ related:
 
 ## HTTP Startup Modes
 
-| Aspect | `persistent` Mode | `subprocess` Mode |
-|---|---|---|
-| Process Management | Managed externally (existing process) | Starts uvicorn when the agent starts |
-| Request Format | POST to `/v1/call_tool` | POST to `/v1/call_tool` |
-| Concurrency | uvicorn async | uvicorn async |
-| Session ID Header | `X-Session-Id` | `X-Session-Id` |
-| Tool List Check | `GET /v1/tools` | `GET /v1/tools` |
-| Health Check | `GET /health` | Polls `/health` at startup |
+Both modes use the same wire contract (POST `/v1/call_tool`, `X-Session-Id` header, `GET /v1/tools` for the tool list check, `GET /health`). They differ only in process ownership: `persistent` connects to an externally managed server, while `subprocess` makes the agent start uvicorn and poll `/health` until ready at startup.
 
 ---
 
@@ -38,17 +31,17 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 
 **`restart_recommended`**: Setting this to `true` indicates that restarting the process may resolve the issue; `false` means a restart will not help. No live consumer acts on this field today; it is surfaced read-only via `/mcp status`.
 
-**Note (Current Implementation):** In the current codebase, all 10 MCP server `/health` implementations (those using `scripts/mcp_servers/health_response.py::make_health_response()` and custom implementations for `mdq`/`file-read`/`write-delete`) always return `False` for `restart_recommended`. The base implementation of `MCPServer.health()` also has a fixed `False`. There is no code path that returns `restart_recommended=True` (Explicit in code). Therefore, currently, no automatic restart occurs regardless of this field's value today, while all current implementations return `False` for `restart_recommended` (Explicit in code).
+No health implementation returns `restart_recommended=True` (base class and all 10 servers, `scripts/mcp_servers/health_response.py::make_health_response()` included), so no automatic restart occurs regardless of this field.
 
 **`operator_action_required`**: `true` if human intervention is required (e.g., missing credentials, missing binaries). This field is surfaced via `/mcp status`; no automated action is taken.
 
-**Note:** The `make_health_response()` helper mechanically sets `operator_action_required = not ready` (it is always `True` if `deps` is non-empty). Thus, for servers using this helper, any dependency failure resulting in `ready=False` is treated as `operator_action_required=True`, making them effectively linked (Explicit in code). Conversely, the base implementation of `MCPServer.health()` has `operator_action_required` fixed at `False`.
+The `make_health_response()` helper sets `operator_action_required = not ready`, so any dependency failure that makes a server not ready is also reported as operator action required. The base `MCPServer.health()` fixes it at `False`.
 
 **`dependencies`**: A dictionary mapping dependency names to error messages. Empty if healthy.
 
 **`details`**: Server-specific supplementary information (e.g., `sandbox_backend`, `service`). Empty dict if not applicable.
 
-**`security`**: Security Posture block. Every MCP server validates its own security settings at startup and publishes the result here, so the key is present in all 10 server responses. `ready` requires `security.validated` in addition to an empty `dependencies` dict (Explicit in code). The block carries exactly these keys:
+**`security`**: Security Posture block. Every MCP server validates its own security settings at startup and publishes the result here, so the key is present in all 10 server responses. `ready` requires `security.validated` in addition to an empty `dependencies` dict. The block carries exactly these keys:
 
 | Key | Meaning |
 |---|---|
@@ -62,22 +55,6 @@ All MCP server `/health` endpoints follow consistent semantics for response fiel
 
 `status` is one of `ok`, `warning`, `failed`, `not_applicable`. Only `failed` blocks `validated`. `warning` is reported and the server still binds. `not_applicable` means the check does not apply to that server and is never treated as a failure. Check messages carry setting names and counts, never secrets, allowlist entries, or absolute paths.
 
-`security` block as published by shell-mcp (the `checks` list is server-specific):
-
-```json
-"security": {
-  "contract_version": "1",
-  "server_key": "shell",
-  "policy_version": "1",
-  "validated": true,
-  "ready": true,
-  "fingerprint": "<64 lowercase hex characters>",
-  "checks": [
-    {"id": "server.sandbox_backend", "status": "ok", "reason_code": "ok", "message": "sandbox backend is firejail"}
-  ]
-}
-```
-
 The Agent reads this block during startup readiness and MCP tool discovery. A `failed` check blocks Agent startup regardless of the server's `required` classification; see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md). A server whose posture is not validated refuses to bind its HTTP port.
 
 **HTTP Status Codes**:
@@ -86,42 +63,14 @@ The Agent reads this block during startup readiness and MCP tool discovery. A `f
 
 **Dependency Values**: Any non-empty dependency value (`"not configured"`, `"not_set"`, `"check failed"`, etc.) constitutes a degraded state — a server is not healthy until all dependencies are satisfied. These values are not just informational; they always indicate an actual missing or failed dependency.
 
-**Interpretation in `/mcp status`**: `McpStatusService.probe_all()` (`agent/services/mcp_status.py`) reads the HTTP status code and the `restart_recommended`/`operator_action_required` fields from the body and reflects them in the `health_reason` column of `/mcp status`. This is a display-only operation and does not trigger automatic restarts or change server states (Explicit in code).
+**Interpretation in `/mcp status`**: `McpStatusService.probe_all()` (`agent/services/mcp_status.py`) reads the HTTP status code and the `restart_recommended`/`operator_action_required` fields from the body and reflects them in the `health_reason` column of `/mcp status`. This is display-only and does not trigger automatic restarts or change server states.
 - Reflected in `health_reason` as the body `reason` (fallback `message`) string when present, or as `restart_recommended` when `restart_recommended=true` and no body reason exists.
 - Reflected in `health_reason` as `operator_action_required` if `operator_action_required=true` and no body reason exists.
 - `McpServerHealthRegistry` (`shared/mcp_health.py`) is updated by the tool execution layer through a different path (`record_failure()`/`record_success()` from `ToolTransportInvoker`); it does not store a degraded reason.
 
 There is no automatic restart of MCP servers. For manual recovery procedures, see [mcp_06_07_mcp-failure-diagnosis.md](mcp_06_07_mcp-failure-diagnosis.md).
 
-**Healthy Response Example** (the `security` block is detailed above and is present in every server response):
-```json
-{
-  "status": "ok",
-  "ready": true,
-  "liveness": true,
-  "restart_recommended": false,
-  "operator_action_required": false,
-  "dependencies": {},
-  "details": {},
-  "security": { "contract_version": "1", "server_key": "shell", "policy_version": "1", "validated": true, "ready": true, "fingerprint": "<64 hex>", "checks": [ ... ] }
-}
-```
-
-**Degraded Response Example** (`operator_action_required=true` — missing credentials, no restart):
-```json
-{
-  "status": "degraded",
-  "ready": false,
-  "liveness": true,
-  "restart_recommended": false,
-  "operator_action_required": true,
-  "dependencies": {
-    "github_token": "not_set"
-  },
-  "details": {},
-  "security": { "contract_version": "1", "server_key": "github", "policy_version": "1", "validated": true, "ready": true, "fingerprint": "<64 hex>", "checks": [ ... ] }
-}
-```
+A healthy response has `status="ok"`, `ready=true`, empty `dependencies`, and a validated `security` block. A degraded response (for example github-mcp with `dependencies.github_token="not_set"`) has `status="degraded"`, `ready=false`, and `operator_action_required=true`, with no restart recommended.
 
 ---
 
@@ -129,7 +78,7 @@ There is no automatic restart of MCP servers. For manual recovery procedures, se
 
 Every HTTP MCP server MUST have a non-empty `McpServerConfig.auth_token`; Agent startup rejects an enabled HTTP server whose `auth_token` is empty. This also applies to mdq-mcp, whose server verifies the Bearer token like every other HTTP MCP server (see `mcp_05_05_mdq-enforcement-and-lockdown.md`). With a non-empty token:
 - **Server-side**: `attach_auth_middleware(app, token)` registers middleware and validates `Authorization: Bearer <token>`. Mismatched requests receive an HTTP 401.
-  - The shell, github, file-read, file-write, file-delete, and mdq servers all register this middleware and enforce the configured Bearer token (see `mcp_06_14_mcp-authentication-setup.md`).
+  - Every HTTP MCP server registers this middleware and enforces the configured Bearer token (see `mcp_06_14_mcp-authentication-setup.md`).
 - **Client-side**: `HttpTransport` injects `Authorization: Bearer <token>` into all POST requests.
 - Empty server-side token (a standalone test run only): `attach_auth_middleware()` skips the authentication check and only injects `X-Request-Id`; the shell, github, file, and mdq servers refuse to start with an empty token.
 
@@ -144,28 +93,24 @@ If the result exceeds the response size limit (`MCP_MAX_RESPONSE_BYTES`):
 
 - `total_bytes` = original byte count (before truncation)
 - `actual_visible_bytes` = bytes actually displayed (may be less than the limit if a multi-byte UTF-8 character falls on the truncation boundary)
-- Implemented via the metadata-aware truncation method in `mcp_servers/server.py`
-
-**Note:** The suffix shows the `actual_visible_bytes`, not the set limit. For ASCII text, this is exactly the limit. For UTF-8 text containing multi-byte characters at the boundary, it may be slightly less.
-
-**Important:** The `total_bytes` and `actual_visible_bytes` fields in the HTTP response metadata represent the size of the *original* dispatch output, not the truncated text itself. This allows clients to distinguish between short responses that do not require truncation and long responses that have been truncated.
+- The suffix shows `actual_visible_bytes`, not the configured limit; the two differ only when a multi-byte UTF-8 character straddles the boundary.
+- `total_bytes` and `actual_visible_bytes` in the HTTP response metadata describe the *original* dispatch output, not the truncated text. This allows clients to distinguish between short responses that do not require truncation and long responses that have been truncated.
 
 ---
 
 ## Server-Specific Health Response Fields
 
-| Server | `/health` Override |
+Every server reports unmet prerequisites through `dependencies` (a non-empty value means degraded). Server-specific content:
+
+| Server | `/health` content |
 |---|---|
-| web-search-mcp | `details.provider`, `details.browser_provider` (`browser_fetch` state is reported separately from `search_web`) |
-| github-mcp | `dependencies.github_token` (`"not_set"`) |
-| mdq-mcp | `details.service: "mdq-mcp"`, `details.document_count`, `details.chunk_count`, `details.fts_row_count`, `details.last_indexed`, `details.stale_document_count`; checks `documents`, `chunks`, `chunks_fts` tables and triggers `chunks_ai/ad/au`; stale detection via `documents.mtime_ns` (nanoseconds) |
-| shell-mcp | `dependencies.shell` (`"sh not found in PATH"`/`"check failed"`); `details.sandbox_backend` (`"firejail"` or `"none"`) |
-| file-read-mcp | `dependencies.filesystem` (`"/workspace is not a directory"`/`"check failed: <error>"`) |
-| file-write-mcp | `dependencies.filesystem` (`"/workspace is not a directory"`/`"check failed: <error>"`) |
-| file-delete-mcp | `dependencies.filesystem` (`"/workspace is not a directory"`/`"check failed: <error>"`) |
-| rag-pipeline-mcp | `dependencies` (`embed_url: "not configured"` / `config: "check failed"`) |
-| git-mcp | `dependencies.git` (`"git not found in PATH"`/`"check failed"`) |
-| cicd-mcp | `dependencies` (`github_token: "not_set"` / `config: "check failed"`) |
+| web-search-mcp | `details.provider`, `details.browser_provider`; `browser_fetch` state is reported separately from `search_web` |
+| github-mcp, cicd-mcp | `dependencies.github_token` when the token is missing |
+| mdq-mcp | `details` with document, chunk, and FTS row counts, last indexed time, and stale document count (stale detection via `documents.mtime_ns`); verifies the `documents`, `chunks`, `chunks_fts` tables and their sync triggers |
+| shell-mcp | `dependencies.shell` when `sh` is not found; `details.sandbox_backend` (`firejail` or `none`) |
+| file-read/write/delete-mcp | `dependencies.filesystem` when the workspace root is not a directory |
+| rag-pipeline-mcp | `dependencies` for an unconfigured embedding endpoint or a failed config check |
+| git-mcp | `dependencies.git` when `git` is not found |
 
 ---
 

@@ -31,11 +31,9 @@ related:
 `ETagManager` manages updates for existing document ETags and Last-Modified timestamps. It provides freshness guards: if `new_fetched_at` is older than the stored `fetched_at`, the input data is considered stale and the existing DB values are preserved. There is one update mode:
 - **Freshness Mode:** Overwrites ETag/Last-Modified when freshness is confirmed.
 
-For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager public methods) and `config/ingester.toml` (configuration parameters).
 
 ### 4.9.1 Freshness Comparison: Edge Cases and Error Handling
 
-- **Only update mode:** Freshness Mode (above) is `ETagManager`'s only update mode.
 - **Timestamp format:** both the incoming and stored `fetched_at` are parsed via
   `datetime.fromisoformat()` after replacing a trailing `Z` with `+00:00`; a
   timezone-naive value is accepted and normalized to UTC (`replace(tzinfo=UTC)`).
@@ -43,9 +41,7 @@ For exhaustive detail, see `scripts/rag/ingestion/etag_manager.py` (ETagManager 
   `_is_stale_update()` raises `InvalidIncomingTimestampError(f"Invalid incoming timestamp: {value}")`.
 - **Invalid stored timestamp:** if the stored `fetched_at` fails to parse,
   `_is_stale_update()` raises `InvalidStoredTimestampError(f"Invalid stored timestamp: {value}")`.
-  An invalid incoming `fetched_at` raises `InvalidIncomingTimestampError`; an invalid
-  stored `fetched_at` raises `InvalidStoredTimestampError`. Both subclass
-  `ValueError`; the message text (`Invalid incoming timestamp: …` vs `Invalid stored timestamp: …`) still distinguishes the two at the call site.
+  Both error classes subclass `ValueError`; the message text (`Invalid incoming timestamp: …` vs `Invalid stored timestamp: …`) distinguishes the two at the call site.
 - **Equal timestamps:** the staleness check is a strict `new_dt < stored_dt` — an
   incoming `fetched_at` equal to the stored value is **not** treated as stale, so the
   update proceeds.

@@ -52,25 +52,15 @@ The production configuration validator (`ProductionConfigValidator`) lives in th
 
 ## 3. `Logger` (`shared/logger.py`)
 
-```python
-class Logger:
-    def __init__(self, name: str, log_file: str, *, structured_log: bool = False)
-    def info(self, msg: str, *args, **kwargs) -> None
-    def warning(self, msg: str, *args, **kwargs) -> None
-    def error(self, msg: str, *args, **kwargs) -> None
-    def set_context(self, **kwargs) -> None
-    def clear_context(self) -> None
-```
+`Logger` takes a logger `name` and a `log_file` (both must be non-empty strings, otherwise `ValueError`) and an optional `structured_log` flag.
 
-- The second argument to the constructor is named `log_file` (implementation name).
-- Both `name` and `log_file` must be non-empty strings; otherwise, a `ValueError` is raised (via string validation function).
-- Automatically configures `FileHandler` + `StreamHandler` (prevents duplication by setting `propagate=False`).
-- If a handler is already set for a logger with the same `name`, the initialization returns immediately without doing anything (prevents duplicate registration; safe even if multiple `Logger` instances with the same name are created).
-- `structured_log=True` → Logs are written in JSON Lines format (`_JsonFormatter`; fields include `ts`/`level`/`func`/`msg`, plus `turn_id`/`session_id`/`rag_query_id`/`workflow_id`/`task_id`/`exc` if they contain values).
-- Context injection: Using `set_context(turn_id="T001", session_id=42)`, subsequent log lines will include these fields. Because `_ContextFilter` uses `contextvars.ContextVar`, context does not leak between concurrent asyncio tasks sharing the same logger.
+- Configures a file handler and a stream handler (`propagate=False` prevents duplicate output).
+- If a handler is already set for a logger with the same `name`, initialization is a no-op (safe when several `Logger` instances share a name).
+- `structured_log=True` writes JSON Lines, including the correlation context fields (turn, session, RAG query, workflow, task) when set.
+- Context injection: `set_context(...)` adds correlation fields to subsequent log lines. Because the context filter uses `contextvars.ContextVar`, context does not leak between concurrent asyncio tasks sharing the same logger.
 - File write errors (`OSError`) → A WARNING is logged via the `shared.logger.fallback` logger (displayed on stderr), and execution falls back to `StreamHandler` only; no exception is raised.
 - **Log messages must be in English only** (Japanese is not allowed) — per `rules/coding.md` convention.
-- **Secret redaction:** `register_secret(value)` adds a string to a module-level registry that every configured logger checks via `_RedactionFilter` (applied alongside `_ContextFilter` in `_configure_logger()`). Any `Bearer <token>`-pattern match, or an exact match against a registered value, is redacted from `record.msg` before emission. `shared.mcp_config._build_single_server()` calls `register_secret()` on every resolved MCP `auth_token` immediately after `resolve_env_ref()` resolves it, so a token never reaches a log line even if a caller accidentally logs a raw header or config value.
+- **Secret redaction:** `register_secret(value)` adds a string to a module-level registry that every configured logger checks via `_RedactionFilter` . Any `Bearer <token>`-pattern match, or an exact match against a registered value, is redacted from `record.msg` before emission. `shared.mcp_config._build_single_server()` calls `register_secret()` on every resolved MCP `auth_token` immediately after `resolve_env_ref()` resolves it, so a token never reaches a log line even if a caller accidentally logs a raw header or config value.
 
 ---
 

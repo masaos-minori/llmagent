@@ -19,27 +19,21 @@ related:
 
 ## 5. rag.sqlite Schema
 
-### `documents` table
-
-Document metadata: doc_id (INTEGER PK AUTOINCREMENT), url (TEXT UNIQUE NOT NULL), title (TEXT nullable), lang (TEXT NOT NULL CHECK ja/en), fetched_at (TEXT NOT NULL — ISO-8601 UTC Z-suffix, always provided by callers), etag (TEXT nullable), last_modified (TEXT nullable), chunking_strategy (TEXT NOT NULL DEFAULT 'text'). Timestamps in db/schema_sql.py _RAG_SCHEMA_TEMPLATE use strftime('%Y-%m-%dT%H:%M:%SZ', 'now'); all other tables' timestamp columns (created_at/updated_at etc) unified under same format.
-
-### `chunks` table
-
-Chunk metadata: chunk_id (INTEGER PK AUTOINCREMENT), doc_id (INTEGER NOT NULL FK → documents(doc_id) ON DELETE CASCADE), chunk_index (INTEGER NOT NULL), content (TEXT NOT NULL), normalized_content (TEXT nullable for English/code), chunk_type (TEXT NOT NULL DEFAULT 'text'), source_file (TEXT NOT NULL DEFAULT '').
+`documents` holds document metadata (unique `url`, `lang` constrained to ja/en, fetch/cache validators, chunking strategy); `chunks` holds chunk content keyed by `chunk_id`, with `doc_id` referencing `documents` `ON DELETE CASCADE`. Column definitions: `db/schema_sql.py` (`_RAG_SCHEMA_TEMPLATE`). Timestamp columns use the Z-suffix format (see Timestamp Format Policy); `fetched_at` is always supplied by callers.
 
 ### `chunks_fts` (FTS5 virtual table)
 
-FTS5 virtual table for full-text search on chunk content. Uses COALESCE(new.normalized_content, new.content) for insertion/update triggers. Automatic synchronization via AFTER INSERT/AFTER UPDATE/AFTER DELETE triggers on chunks table. IMPORTANT: Do not manually synchronize chunks_fts after INSERT/UPDATE/DELETE — triggers handle it automatically.
+FTS5 virtual table for full-text search on chunk content, indexing `COALESCE(normalized_content, content)`. It is a derived index of `chunks`, synchronized automatically by AFTER INSERT/UPDATE/DELETE triggers on `chunks`. IMPORTANT: Do not manually synchronize chunks_fts after INSERT/UPDATE/DELETE — triggers handle it automatically.
 
 ### `chunks_vec` (sqlite-vec virtual table)
 
-sqlite-vec virtual table for vector similarity search. Stores float32 little-endian BLOB. chunk_id INTEGER PRIMARY KEY, embedding FLOAT[DIMS] where DIMS is `scripts/db/store_protocols.py::get_embedding_dims()`, a fixed code-level constant (not a config key). `chunks_vec` has no foreign key to `chunks`; rows are written and deleted explicitly by the ingestion and deletion paths, and the `chunks_vec_ad` trigger (AFTER DELETE ON chunks) deletes the matching row as a backstop, including when the delete comes from the `documents` cascade.
+sqlite-vec virtual table for vector similarity search. Stores float32 little-endian embeddings keyed by `chunk_id`; the dimension is `scripts/db/store_protocols.py::get_embedding_dims()`, a fixed code-level constant (not a config key). `chunks_vec` has no foreign key to `chunks`; rows are written and deleted explicitly by the ingestion and deletion paths, and the `chunks_vec_ad` trigger (AFTER DELETE ON chunks) deletes the matching row as a backstop, including when the delete comes from the `documents` cascade.
 
 ---
 
 ## 6. session.sqlite Schema
 
-Tables: sessions, messages, memories, memories_fts, memories_vec, memory_links, session_diagnostics. sessions stores session metadata (PK: session_id, created_at, title, undo_floor_message_id INTEGER NOT NULL DEFAULT 0 — the `/undo` compression boundary: the last `messages` row ID written by the latest compression, 0 when never compressed). messages stores conversation history (FK: session_id → sessions ON DELETE CASCADE; includes tool_calls/tool_call_id for tool-role messages). memories stores semantic/episodic memories (PK: memory_id UUID v4; fields: memory_type, source_type, session_id, turn_id, project/repo/branch, content, summary, tags, importance, pinned, created_at/updated_at). memories_fts is FTS5 virtual table for BM25 search on content/summary/tags (memory_id UNINDEXED). memories_vec is sqlite-vec virtual table for KNN retrieval on an embedding column whose dimension is the fixed code-level constant from `get_embedding_dims()` (see section 5; written only when embed_enabled=True). memory_links is many-to-many deduplication table (src_id/dst_id as composite PK, no FK, uses INSERT OR IGNORE). session_diagnostics tracks system-level events separately from conversation messages (different lifecycle/query patterns; FK: session_id → sessions ON DELETE CASCADE).
+`session.sqlite` holds `sessions` (including `undo_floor_message_id`, the `/undo` compression boundary: the last `messages` row ID written by the latest compression, 0 when never compressed), `messages` (FK to `sessions` `ON DELETE CASCADE`), `memories` (semantic/episodic long-term memory, PK UUID v4), `memories_fts` (FTS5 BM25 index over content/summary/tags), `memories_vec` (sqlite-vec KNN index; dimension from the fixed `get_embedding_dims()` constant, see section 5; written only when `embed_enabled=True`), `memory_links` (many-to-many deduplication table, composite PK, no FK, `INSERT OR IGNORE`) and `session_diagnostics` (system-level events kept apart from conversation messages because of different lifecycle and query patterns; FK to `sessions` `ON DELETE CASCADE`). Column definitions: `db/schema_sql.py`.
 
 `memories.session_id` records the source session of a memory for provenance.
 It does not establish ownership and intentionally has no foreign-key constraint
@@ -49,7 +43,7 @@ to `sessions`. The value is retained after the source session is deleted. The co
 
 ## 7. workflow.sqlite Schema
 
-Initialized by `create_workflow_schema()`, used by `agent/workflow/state_store.py`. Tables: tasks (PK: task_id UUID4; fields include session_id, workflow_id, turn_number, workflow_version, status, idempotency_key, created_at/updated_at), attempts/processed_events/artifacts (DDL in `scripts/db/schema_sql.py`; all use CREATE TABLE IF NOT EXISTS), workflow_schema_version (append-only log: version(TEXT)/applied_at(TEXT); current version = max(applied_at); create_workflow_schema() inserts only when latest version differs from WORKFLOW_SCHEMA_VERSION constant — idempotent). Schema version mismatch: check_workflow_schema() (agent startup) and deploy/pre-flight both compare latest version against WORKFLOW_SCHEMA_VERSION constant, fail with [FATAL]/RuntimeError naming both versions if mismatch (includes case where no row exists yet). Recovery: re-run deploy/init_db.sh or call create_workflow_schema() directly.
+Initialized by `create_workflow_schema()`, used by `agent/workflow/state_store.py`. Task tables (tasks, attempts, processed_events, artifacts) are created with `CREATE TABLE IF NOT EXISTS` (DDL in `scripts/db/schema_sql.py`). `workflow_schema_version` is an append-only log whose current version is the latest row; `create_workflow_schema()` inserts only when the latest version differs from the `WORKFLOW_SCHEMA_VERSION` constant (idempotent). Schema version mismatch: check_workflow_schema() (agent startup) and deploy/pre-flight both compare latest version against WORKFLOW_SCHEMA_VERSION constant, fail with [FATAL]/RuntimeError naming both versions if mismatch (includes case where no row exists yet). Recovery: re-run deploy/init_db.sh or call create_workflow_schema() directly.
 
 ---
 

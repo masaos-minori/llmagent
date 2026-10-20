@@ -36,7 +36,6 @@ related:
 
 `RagIngester` reads chunk files, generates embeddings via `embed-llm`, and upserts them into SQLite (`documents` / `chunks` / `chunks_vec`). Processed chunks are moved to `rag-src/registered/`.
 
-For a complete list of dataclasses and public methods, see `scripts/rag/ingestion/ingester.py`.
 
 `read_chunk_json()` (`scripts/rag/ingestion/pipeline_utils.py`) is the canonical
 reader for chunk-stage JSON artifacts; `RagIngester._read_chunk_json()`
@@ -50,7 +49,7 @@ and the canonical field-contract table in
 
 - **Embedding Input:** The original chunk `content` is embedded as-is; no `passage:` / `query:` prefix is added (`scripts/rag/ingestion/embedding.py`).
 - **Vector Encoding:** Uses `struct.pack(f"<{N}f", *values)` → Little-endian float32 BLOB.
-- **Parallel Embedding:** Uses `ThreadPoolExecutor(embed_workers)` per URL group (`scripts/rag/ingestion/chunk_preparation.py`). Embedding threads perform no DB access (`embed_and_store` returns a `PreparedChunk`).
+- **Parallel Embedding:** Embedding runs in `embed_workers` threads per URL group (`scripts/rag/ingestion/chunk_preparation.py`). Embedding threads perform no DB access; DB writes happen afterwards.
 - **WAL Mode:** Uses `PRAGMA journal_mode=WAL` for concurrent read/write safety.
 - **Upsert (`--force`):** Deletes `chunks_vec` rows explicitly, then `documents` (rows in `chunks` are removed by `ON DELETE CASCADE`), then re-inserts. The original `chunking_strategy` value from the source file is preserved.
 
@@ -72,9 +71,8 @@ chunks_vec (explicitly deleted) → documents (deleting documents triggers casca
 - `DocumentManager.delete_document(url)` (`scripts/mcp_servers/rag_pipeline/document_manager.py`) — MCP tool (`rag_delete_document`) path.
 - Both paths follow the same order to prevent orphaned vector records (see [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md) for details).
 - **Idempotency:** If the URL already exists in `documents`, this storage-layer path skips processing. Whether a changed source is re-ingested is decided earlier by `DocumentManager` through the ETag / Last-Modified (or content hash) comparison described in `rag_02_05`; a changed source reaches this path only after the stale document has been replaced. However, due to the freshness guard described below, `etag`/`last_modified` may still be updated. When skipped, `chunking_strategy` is NOT updated.
-- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). All callers now provide `fetched_at`; there is no fallback path for missing timestamps. For the full set of edge cases (invalid timestamps, equal timestamps, missing stored timestamp) and error conditions, see [rag_02_06_ingestion_pipeline-supporting-components.md section 4.9.1](rag_02_06_ingestion_pipeline-supporting-components.md#491-freshness-comparison-edge-cases-and-error-handling).
-- **Embedding Failure Tracking:** Chunk and embedding results are returned as a tuple. `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
-- **Local File Unchanged Detection:** Compares SHA-256 ETags for `file://` URLs.
+- **Freshness Guard for Skip Path:** Compares the input `fetched_at` (from the chunk payload) with the stored `documents.fetched_at`. If the input is older, the update is skipped (ensures newer crawls take precedence over older ones overwriting metadata). `fetched_at` is always provided by callers; there is no fallback path for missing timestamps. For the full set of edge cases (invalid timestamps, equal timestamps, missing stored timestamp) and error conditions, see [rag_02_06_ingestion_pipeline-supporting-components.md section 4.9.1](rag_02_06_ingestion_pipeline-supporting-components.md#491-freshness-comparison-edge-cases-and-error-handling).
+- **Embedding Failure Tracking:** `n_embed_failed` counts failures specific to embedding, separate from parsing/DB errors.
 
 ### 4.3 CLI Arguments
 

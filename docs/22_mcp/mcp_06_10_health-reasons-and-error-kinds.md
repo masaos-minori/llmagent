@@ -17,12 +17,7 @@ related:
 
 When probing an HTTP MCP server via `/health`, structured fields are returned that determine both LIFECYCLE actions and display reasons.
 
-```python
-# From McpProbeResult model
-restart_recommended: bool       # True if health endpoint says so OR lifecycle_state == FAILED
-operator_action_required: bool  # True only if health endpoint sets this flag
-health_reason: str              # Derived priority: body reason > operator_action > restart_recommended
-```
+`McpProbeResult` carries `restart_recommended` (true if the health endpoint says so, or `lifecycle_state == FAILED`), `operator_action_required` (true only if the health endpoint sets it), and a derived `health_reason`.
 
 Priority for deriving `health_reason`:
 
@@ -40,27 +35,10 @@ The `restart_recommended` field has two different sources with distinct semantic
 
 Both are treated equally at the display level.
 
-### Body Reason Tracking Across Probe Chain
-
-When probing an HTTP MCP server's `/health`, the `body` field propagates as follows:
-
-```python
-# Step 1: Probe returns raw body
-probe_result.body["reason"] or probe_result.body["message"]
-
-# Step 2: Resolved to endpoint string  
-_resolve_endpoint() returns tuple including body_reason
-
-# Step 3: McpServerHealthRegistry receives it via record_failure(server_key)
-# Note: record_failure() does not take a 'reason' argument.
-registry.record_failure(server_key)
-
-# Step 4: Current Status
-# The registry keeps only the state and failure counts per server; the body
-# reason is not stored.
-```
-
 #### Degraded Reasons Are Not Stored
+
+The `/health` body reason is used for display only; `record_failure()` takes no reason argument.
+
 
 `McpServerHealthRegistry` does not store a degraded reason. A server's state changes only through `record_failure()` (`DEGRADED` below the failure threshold, `UNAVAILABLE` at or above it) and `record_success()` (back to `HEALTHY`, clearing the failure count).
 
@@ -77,61 +55,17 @@ Transport errors affect the MCP server's health state (`McpServerHealthRegistry`
 
 #### Error Counter Tracking
 
-`ToolTransportInvoker` maintains both tool error counts (`stat_tool_errors`) and transport error counts (`stat_transport_errors`) in memory per server key. Since `ToolExecutor` inherits from this class, it carries over both counters but does not maintain its own separate ones.
-
-**Note:** Currently, there are no automatic warning logs or threshold checks based on these counters.
-
-**Note (Confusion Prevention):** A similarly named `stat_tool_errors` (`AgentContext.stats.stat_tool_errors`, `scripts/agent/context.py`) exists in the agent session statistics, but this is distinct from the `ToolTransportInvoker` counter described here; it is used for aggregate display at the agent layer, such as in `/stats`.
+Per-server tool and transport error counters are kept in memory by `ToolTransportInvoker` (inherited by `ToolExecutor`) and drive no automatic warning or threshold. The similarly named `AgentContext.stats.stat_tool_errors` is a separate agent-session aggregate for `/stats`.
 
 #### Audit Log Detail Verification
 
-Details regarding tool execution results are outputted in a structured JSON format audit log (`audit_logger`). Each log entry is composed as a `ToolExecEvent` and includes the following fields:
-
-- `"event"`: `"tool_exec"`
-- `"error_type"`: `"tool"`, `"transport"`, or `""` (on success)
-
-These logs can be investigated using `jq` or `grep` to search JSON fields.
-
-```bash
-# Example of extracting specific error types using jq
-cat agent.log | jq 'select(.error_type == "tool")'
-
-# Example of direct JSON string search using grep
-grep '"error_type":"tool"' agent.log
-```
+Each `tool_exec` audit event carries `error_type` of `"tool"`, `"transport"`, or `""` (success); filter with `jq 'select(.error_type == "tool")' <log_dir>/audit.log`.
 
 ---
 
 ### Tool Scheduling and Serialization
 
-An agent executes tool calls grouped by resource scope through a single DAG scheduler. Setting `serial_tool_calls=True` passes `force_serial` to the scheduler, which then runs every call in its own serial phase (see [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md)). Most tools are executed in parallel, but
-
-serialization is forced within a round under certain conditions:
-
-| Condition | Trigger | Log Reason |
-|-----------|---------|------------|
-| Tool has `requires_serial=True` | Any tool with this flag | `requires_serial` |
-| Overlapping `resource_scopes` (at least one write) | Two or more tool calls with matching or hierarchical filesystem scopes | `resource_read_write_conflict` or `resource_write_write_conflict` |
-| Empty `resource_scopes` for a write tool | Any write tool without scope metadata | `global_write_scope` |
-| `serial_tool_calls=True` with at least one write tool | `force_serial` passed to the scheduler; every call runs in its own serial phase | `forced_serial` |
-
-Serialization is an intentional safety measure — to prevent corruption of shared resources due to concurrent writes. This is not an indication of a configuration error.
-
-#### Reading Serialization Log Entries
-
-Each serialization event is logged in the following format:
-
-``` text
-INFO ROUND_SERIALIZATION: triggered by <tool_name> (<reason>)
-     — <N> tools serialized in this round
-```
-
-Example:
-
-``` text
-INFO ROUND_SERIALIZATION: triggered by write_file (global_write_scope)
-     — 2 tools serialized in this round
-```
+An agent executes tool calls grouped by resource scope through a single DAG scheduler. Serialization is an intentional safety measure against concurrent writes to shared resources, not a configuration error. The triggers (`requires_serial`, `forced_serial`, resource read/write and write/write conflicts, `global_write_scope`) and the `ROUND_SERIALIZATION` log format are defined in [mcp_06_06](mcp_06_06_end-to-end-tool-call-tracing.md#serialization-of-side-effects); `serial_tool_calls` is described in [agent_08_03](../23_agent/agent_08_03_configuration-tools-memory.md).
 
 #### Serialization Statistics via `/mcp status`
 

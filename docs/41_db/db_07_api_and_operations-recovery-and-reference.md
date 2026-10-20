@@ -34,7 +34,7 @@ Database recovery exists to restore a usable persistence state after physical co
 - **restore file staging** (`scripts/db/recovery_restore.py`, `_stage_restore()` and its helpers): performs the filesystem steps a restore needs — quarantine the stale `-wal`/`-shm` sidecars, archive the damaged file, copy the backup to a temporary path, and swap it into place. It applies no recovery policy and returns no `RecoveryResult`; `db/recovery.py` decides when and whether staging runs.
 - **logical verification** (`scripts/db/recovery_verification.py`, `_run_logical_verification()` and its verifiers): after a restore, dispatches the target to the consistency contract defined for its domain (`check_rag_consistency`/`check_session_consistency`) and summarizes an inconsistent report as counts/identifiers only. It decides no policy and returns no `RecoveryResult`; a verification gap never blocks a completed physical restore, and `db/recovery.py` turns the outcome into `logical_verify_failed`.
 - **Backup provider**: the caller-supplied `backup_path`. Nothing in the current implementation validates the backup's own integrity before it is used — see 9.4 and 9.5.
-- **Startup orchestration**: no current caller invokes `recover_corruption()` during agent startup (Explicit in code — invocation sites are limited to the manual `/session recover` CLI path via `DbMaintenanceService.recover_session()` and `RagMaintenanceService.recover()`). Startup-time DB failures are handled by a separate, unrelated path (9.8).
+- **Startup orchestration**: no current caller invokes `recover_corruption()` during agent startup (invocation sites are limited to the manual `/session recover` CLI path). Startup-time DB failures are handled by a separate, unrelated path (9.8).
 
 ### 9.3 Integrity-result model
 
@@ -43,20 +43,20 @@ Current implementation produces a structured classification via the `DbCondition
 ### 9.4 Exception policy
 
 - **Current behavior:** `_run_integrity_check()` catches **all** exceptions (`except Exception`) and dispatches them to `_classify_error()` which classifies them into `DbCondition` values. `sqlite3.DatabaseError` — the exception SQLite raises for physical page corruption — is caught and classified as `DbCondition.CORRUPTION`.
-- **Invariants satisfied:**
-  - `sqlite3.DatabaseError` does NOT escape the public recovery boundary as an unclassified failure — it is caught and classified as `DbCondition.CORRUPTION` (Explicit in code).
-  - Catching an exception does NOT automatically trigger backup restoration (Explicit in code).
-  - Lock contention is NOT classified as physical corruption: `sqlite3.OperationalError` with "database is locked" or "busy" is classified as `DbCondition.LOCK_CONTENTION`, and `recover_corruption()` short-circuits to `action="error"` before reaching the restore branch (Explicit in code).
-  - Permission failure is NOT classified as physical corruption: `sqlite3.OperationalError` with "permission denied" or "readonly" is classified as `DbCondition.PERMISSION_FAILURE` (Explicit in code).
-  - Disk I/O or capacity failure does NOT cause the target database to be overwritten (Explicit in code).
-  - Unknown errors preserve the target database and require operator intervention: `_classify_error()` returns `DbCondition.UNKNOWN` for unclassifiable exceptions (Explicit in code).
-- The `action="error"` result value still conflates lock contention, permission errors, and unclassified integrity-check failures into one label; callers do not branch on cause, only on `success`/`action` (Explicit in code — this is a design weakness, not a corruption-misclassification risk).
+- **Invariants satisfied** (enforced by `_classify_error()` and `recover_corruption()` in `scripts/db/recovery.py`):
+  - `sqlite3.DatabaseError` does NOT escape the public recovery boundary as an unclassified failure.
+  - Catching an exception does NOT automatically trigger backup restoration.
+  - Lock contention is NOT classified as physical corruption: "database is locked" or "busy" maps to `DbCondition.LOCK_CONTENTION`, and `recover_corruption()` short-circuits to `action="error"` before reaching the restore branch.
+  - Permission failure is NOT classified as physical corruption: "permission denied" or "readonly" maps to `DbCondition.PERMISSION_FAILURE`.
+  - Disk I/O or capacity failure does NOT cause the target database to be overwritten.
+  - Unknown errors preserve the target database and require operator intervention (`DbCondition.UNKNOWN`).
+- The `action="error"` result value still conflates lock contention, permission errors, and unclassified integrity-check failures into one label; callers do not branch on cause, only on `success`/`action` (a design weakness, not a corruption-misclassification risk).
 
 ### 9.5 Safe restoration sequence
 
 Target sequence: detect and classify → preserve the damaged database → locate a candidate backup → validate the candidate independently → restore to a temporary location → verify the restored copy → atomically replace the target → reopen and verify → return a structured result → gate startup on the persistence-domain policy.
 
-**Current implementation status against this sequence** (Explicit in code — `db/recovery.py::_restore_from_backup`, with the copy/swap steps in `db/recovery_restore.py::_stage_restore`):
+**Current implementation status against this sequence** (`db/recovery.py::_restore_from_backup`, with the copy/swap steps in `db/recovery_restore.py::_stage_restore`):
 
 - The damaged database IS preserved (`shutil.copy2` to a timestamped `_corrupt_` archive) on all recovery paths, including the no-backup path where `_run_integrity_check()` returns a failed-but-parseable result.
 - Backup integrity IS verified before use (`_run_integrity_check(backup, target)`). A corrupted backup is detected and rejected.
@@ -66,25 +66,12 @@ Target sequence: detect and classify → preserve the damaged database → locat
 
 ### 9.5a Automated vs. operator-only breakdown
 
-Checks that run automatically inside `check_rag_consistency()` / `check_session_consistency()`:
-
-- FTS index health (RAG): `fts_health_ok` — detects empty or mismatched FTS tables.
-- Chunk-to-FTS referential integrity (RAG): `chunk_fts_referential_ok` — detects orphaned chunks without FTS rows and vice versa.
-- Table existence (Session): verifies `sessions`, `messages`, `memory_links` tables exist.
-- Orphaned messages detection (Session): `orph_msgs` — detects messages referencing non-existent sessions.
-- Orphaned memory-links detection (Session): `orph_memlinks` — detects links referencing non-existent memories.
-- Write smoke test (both): attempts a lightweight write to confirm the database is writable.
-
-Repair actions the logical-verification stage only **recommends** but does not itself perform (operator-triggered):
-
-- `/session rag-rebuild-fts` — rebuilds the RAG FTS index.
-- `/session rag-rebuild-vec` — rebuilds the RAG vector index.
-- Manual session data repair (operator action required).
+`check_rag_consistency()` / `check_session_consistency()` run automatically after a restore and check FTS index health and chunk-to-FTS referential integrity (RAG), table existence and orphaned messages / memory links (Session), and a write smoke test (both). The logical-verification stage only **recommends** repair and never performs it. Repair is operator-triggered: `/session rag-rebuild-fts`, `/session rag-rebuild-vec`, or manual session data repair.
 
 ### 9.6 Dry Run contract
 
-- `dry_run=True` MUST NOT move, replace, truncate, delete, or rewrite the target database — **current behavior satisfies this on the normal path**: `_result_for_condition()` returns `_dry_run_integrity_ok()` before either `_vacuum_db()` or `_restore_from_backup()` is called (Verified by test — `test_recover_dry_run_healthy`, `test_dry_run_healthy_reports_the_vacuum_preview`).
-- On the physical-corruption path, `sqlite3.DatabaseError` is caught by `_classify_error()` and classified as `DbCondition.CORRUPTION` (9.4); the dry-run branch then returns a `RecoveryResult` without modifying the target file (Explicit in code — dry-run guarantee holds by design, not coincidence).
+- `dry_run=True` MUST NOT move, replace, truncate, delete, or rewrite the target database — **current behavior satisfies this on the normal path**: `_result_for_condition()` returns `_dry_run_integrity_ok()` before either `_vacuum_db()` or `_restore_from_backup()` is called (verified by the dry-run tests in `tests/db/`).
+- On the physical-corruption path, `sqlite3.DatabaseError` is caught by `_classify_error()` and classified as `DbCondition.CORRUPTION` (9.4); the dry-run branch then returns a `RecoveryResult` without modifying the target file (the dry-run guarantee holds by design, not coincidence).
 
 ### 9.7 Persistence-domain policy
 
@@ -96,53 +83,45 @@ Recovery policy differs by data ownership; `recover_corruption()` supports multi
 - **Workflow data** (`workflow.sqlite`): has **no automatic physical-corruption recovery path**. Calling `recover_corruption(target='workflow')` returns `no_recovery_allowed` (ADR-008 Decision Details #20).
 - **Event delivery state** (`eventbus.sqlite`): has **no corruption-recovery path**, but **is included in backup rotation**. Calling `recover_corruption(target='eventbus')` returns `no_recovery_allowed`; `rotate_all_dbs()` archives `eventbus.sqlite` alongside the other three databases (`scripts/db/rotation.py::rotate_eventbus_db()`), but no automated *restoration* path consumes that archive for this domain (ADR-008 Decision Details #20).
 
-Failure to recover required workflow or event-delivery state MUST NOT be silently hidden by automatic reinitialization; neither domain has an automatic reinitialization path, so this invariant holds by design enforcement (Explicit in code — `recover_corruption()` returns `no_recovery_allowed` for `workflow`/`eventbus` targets).
+Failure to recover required workflow or event-delivery state MUST NOT be silently hidden by automatic reinitialization; neither domain has an automatic reinitialization path, so this invariant holds by design enforcement (`recover_corruption()` returns `no_recovery_allowed` for `workflow`/`eventbus` targets).
 
 ### 9.8 Operational considerations
 
-- `recover_corruption()` is never invoked automatically; it is a manual, operator-triggered CLI action. There is no bounded retry loop or retry-count concept in the implementation (Explicit in code).
-- At startup, a `sqlite3.Error` raised while opening the session store is treated as fatal: the REPL reports the failure and re-raises as `RuntimeError`, stopping startup without attempting automatic recovery (Explicit in code — `agent/repl.py`).
-- At startup, a failed RAG *logical* consistency check (unrelated to physical corruption) is treated as a non-critical, skippable finding and does not stop startup (Explicit in code — `agent/startup.py` — comment: "non-critical maintenance check must not abort startup").
-- Log and error-detail fields observed in this code path carry file paths, archive names, and raw SQLite exception text; inspection found no code path that writes row-level DB content (message bodies) into logs; this is not an exhaustive proof (Strongly implied by code).
+- `recover_corruption()` is never invoked automatically; it is a manual, operator-triggered CLI action. There is no bounded retry loop or retry-count concept in the implementation.
+- At startup, a `sqlite3.Error` raised while opening the session store is treated as fatal: the REPL reports the failure and re-raises as `RuntimeError`, stopping startup without attempting automatic recovery (`agent/repl.py`).
+- At startup, a failed RAG *logical* consistency check (unrelated to physical corruption) is treated as a non-critical, skippable finding and does not stop startup (`agent/startup.py`).
+- Log and error-detail fields observed in this code path carry file paths, archive names, and raw SQLite exception text; inspection found no code path that writes row-level DB content (message bodies) into logs (strongly implied by code, not an exhaustive proof).
 
 ### 9.9 Implementation references
 
-- `recover_corruption()`
-- `_run_integrity_check()`
-- `RecoveryResult`
-- `_restore_from_backup()`
-- `RagMaintenanceService`
+Representative enforcement points: `recover_corruption()`, `_run_integrity_check()` and `_restore_from_backup()` in `scripts/db/recovery.py`.
 
 ---
 
 ## 10. Error Handling
 
-`sqlite3.OperationalError` (busy/locked): automatic wait via `PRAGMA busy_timeout` (value from `agent.toml::sqlite_busy_timeout_ms`); `sqlite3.IntegrityError`: propagates to caller; does not occur in upsert paths; `sqlite-vec` load error: `sqlite3.OperationalError` → connection failure; schema DDL failure: exception re-thrown from `executescript()`; `prune_old_memories` failure: `STRICT` — exception propagates; `BEST_EFFORT` — returns `MaintenanceResult(success=False)`; `commit()` error: WARNING logged + `sqlite3.OperationalError` re-thrown; `close()` error: WARNING logged only; no exception thrown.
+Busy/locked `sqlite3.OperationalError` waits automatically via `PRAGMA busy_timeout` (from `agent.toml::sqlite_busy_timeout_ms`). `sqlite3.IntegrityError` propagates to the caller. A `sqlite-vec` load error fails the connection with `sqlite3.OperationalError`. Schema DDL failures are re-thrown from `executescript()`. Maintenance failures follow the `STRICT` (propagate) / `BEST_EFFORT` (return `MaintenanceResult(success=False)`) contract in `db_06`; `commit()` and `close()` error semantics are in `db_04`.
 
-**Integrity check failure:** `_run_integrity_check()` catches all exceptions and dispatches them to `_classify_error()`, which classifies `sqlite3.DatabaseError` (physical corruption) as `DbCondition.CORRUPTION` rather than letting it propagate uncaught; `recover_corruption()` acts on the resulting classification rather than on the raw exception. See [section 9.4 Exception policy](#94-exception-policy).
+**Integrity check failure:** physical corruption is classified as `DbCondition.CORRUPTION` and never propagates uncaught; `recover_corruption()` acts on the classification, not the raw exception. See [section 9.4 Exception policy](#94-exception-policy).
 
 ---
 
 ## 11. DB Recreation Procedure
 
-Schema changes require DB recreation — a migration feature does not exist. **Step 1: Archive** — execute `rotate_all_dbs()` to archive every production DB (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`). **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include the `eventbus_db_path` file if deleting (Explicit in code — `db/create_schema.py`). **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
+Schema changes require DB recreation — a migration feature does not exist. **Step 1: Archive** — execute `rotate_all_dbs()` to archive every production DB (`rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`). **Step 2: Delete** — manually delete DB files; paths are resolved from `agent.toml` `rag_db_path`/`session_db_path`/`workflow_db_path`/`eventbus_db_path` keys (`db/config.py::DbConfig`); `create_schema()` also recreates `eventbus.sqlite`, so include the `eventbus_db_path` file if deleting **Step 3: Recreate** — execute `create_schema()` to initialize empty DBs. 
 
 **Important notes:** 
 - Recreated DBs are empty — existing records are not automatically migrated.
-- `create_schema()` is a wrapper calling `create_rag_schema()` → `create_session_schema()` → `create_workflow_schema()` → `create_eventbus_schema()` unconditionally and sequentially; each schema DDL is protected by `IF NOT EXISTS` so it is idempotent even against existing files (Explicit in code — `db/create_schema.py`).
+- `create_schema()` is a wrapper calling `create_rag_schema()` → `create_session_schema()` → `create_workflow_schema()` → `create_eventbus_schema()` unconditionally and sequentially; each schema DDL is protected by `IF NOT EXISTS` so it is idempotent even against existing files.
 - A condition "initialize only if `eventbus.sqlite` does not exist" does not exist in the implementation; if you only need to recreate one DB, use the individual functions: `create_rag_schema()`, `create_session_schema()`, `create_workflow_schema()`, `create_eventbus_schema()`.
 
 ---
 
 ## 12. Verification Plan
 
-Schema initialization: `pytest tests/db/test_create_schema.py`; DB maintenance: `pytest tests/db/test_db_maintenance.py`; Type check: `mypy scripts/db/`; Full integration: create DB → check all tables exist — `python -c 'from db.create_schema import create_schema; create_schema()'; sqlite3 <rag_db_path> ".tables"; sqlite3 <session_db_path> ".tables"'`, where the paths come from `agent.toml`.
+Schema initialization and DB maintenance are covered by `tests/db/` (`pytest tests/db/`), with `mypy scripts/db/` for type checking. The full integration check is: create the DBs with `create_schema()`, then confirm all expected tables exist with `sqlite3 <db_path> ".tables"` for each database path configured in `agent.toml`.
 
 ---
-
-## 13. AI Reference Guide
-
-Open DB connection: `with SQLiteHelper('rag').open(row_factory=True) as db:`. Write atomically: `open(write_mode=True)` context within `with db.begin_immediate():`. What does `target='workflow'` connect to: `workflow.sqlite` — the task tracking DB. How to validate an embedding BLOB: `db.store.validate_embedding_blob(blob)`. How to purge old sessions: `purge_old_sessions(db, RetentionConfig(...))` — returns `MaintenanceResult`; check `.success`. How to recover from corruption: `recover_corruption(backup_path=..., target='rag')`. Does `prune_old_memories` catch exceptions: `STRICT` (default) — propagates; `BEST_EFFORT` — caught and stored in `MaintenanceResult`. How to use `BEST_EFFORT` mode: pass `mode=MaintenanceMode.BEST_EFFORT` to `vacuum_db`, `purge_old_sessions`, `prune_old_memories`. How to verify RAG consistency: `check_rag_consistency(db)` → `is_consistent(report)` + `summarize_issues(report)`.
 
 ## Keywords
 

@@ -24,7 +24,7 @@ Describes the primary runtime components, their dependencies, and responsibility
 
 ### Component Responsibilities
 
-- **Component Responsibilities**: AgentREPL (UI loop, command dispatching, output display), StartupOrchestrator (startup sequence orchestration), Orchestrator (turn-level facade), AgentContext (per-session DI hub), LLMClient (SSE streaming, retry), ToolExecutor (MCP routing), HistoryManager (char counting, LLM compression), CLIView (readline, progress display), CommandRegistry (built-in command dispatch), LifecycleState (transport state enum), AgentSession (CRUD for sessions/messages), Memory Services (injection, ingestion, store, retriever).
+- **Component Responsibilities**: see Runtime Extension Points, Lifecycle and Shutdown below (one entry per component).
 - **Owned State**: AgentREPL owns the input loop and UI state; AgentContext owns shared mutable state and component references; each service owns its own runtime state.
 - **Allowed Dependency Direction**: AgentREPL depends on StartupOrchestrator, AgentContext, CLIView, Orchestrator; Orchestrator depends on LlmTurnExecutor; AgentContext depends on LLMClient, ToolExecutor, HistoryManager, ServerLifecycleRouter; no circular dependencies among services.
 - **Reason for Process Separation**: Decoupling StartupOrchestrator from AgentREPL allows complexity during startup (service checks, MCP server startup) to be separated from REPL's responsibility, so the REPL focuses solely on UI concerns; decoupling Orchestrator from LlmTurnExecutor separates turn-level coordination from LLM streaming and tool loop execution.
@@ -33,12 +33,12 @@ Describes the primary runtime components, their dependencies, and responsibility
 ### Responsibility Boundary Supplement
 
 - `AgentContext` and `Orchestrator` details → see the AgentContext and Orchestrator entries under Runtime Extension Points, Lifecycle and Shutdown below.
-- The runtime implementation of `AppServices.lifecycle` is `_ServerLifecycleRouter` in `agent/lifecycle_router.py` (constructed by `agent/factory.py`); starting and stopping HTTP subprocesses is delegated to `agent/http_lifecycle.py`.
+- Lifecycle implementation → see Lifecycle Implementation below.
 
 ## Key Constraints
 
-- `Orchestrator.__init__()` loads workflow definitions via `WorkflowLoader().load()`, raising a `RuntimeError` on failure (which stops startup).
-- Parallel/serial determination of tool calls is made by `build_execution_groups()` from `ToolSpec.requires_serial` (in-place serial barrier), overlapping `resource_scopes` where at least one side `is_write` (serial group; a write without scopes uses a synthetic global write scope), and `force_serial` from `serial_tool_calls` (every call in its own serial phase). Each serialization is logged as `ROUND_SERIALIZATION` with a reason (Explicit in code — `scripts/agent/tool_scheduler.py`).
+- Workflow definition load failure in `Orchestrator.__init__()` raises `RuntimeError` and stops startup.
+- Parallel/serial determination of tool calls is made by the scheduler, not by `ToolExecutor`; the rules are canonical in [agent_06_01](agent_06_01_tool-execution-and-approval-execution.md). Each serialization is logged as `ROUND_SERIALIZATION` with a reason (Explicit in code — `scripts/agent/tool_scheduler.py`).
 
 ## Operational Notes
 
@@ -51,39 +51,22 @@ Describes the primary runtime components, their dependencies, and responsibility
 
 ## Preflight Gate Coverage
 
-Document the call sites of `check_preflight()` and their test coverage.
-Because an untested execution path may bypass the gate, every path requires a test or a justification.
+Every non-READ execution path must pass `check_preflight()` before a tool is executed. Because an untested path may bypass the gate, any new path requires a test or a documented exemption.
 
-### Enumerated Call Sites
+### Enforcement Points
 
-| # | Location | Caller Chain | Gate Status | Test Coverage | Exemption |
-|---|---|---|---|---|---|
-| 1 | `scripts/agent/repository_gateway.py` | `RepositoryGateway._gate_write()` → `RepositoryGateway.execute()` | Enforced | Partial (mocked in tests) | None |
-| 3 | `scripts/agent/tool_approval.py` | `check_approval()` → `run_approval_checks()` | Enforced | Partial (existing tests) | None |
+- `RepositoryGateway.execute()` (`scripts/agent/repository_gateway.py`): the primary gate for write/delete/API-write operations.
+- `check_approval()` in `scripts/agent/tool_approval.py`: runs preflight before the approval decision.
+- `execute_one_tool_call()` in `scripts/agent/tool_runner.py`: when no gateway is configured (not expected in production, where `RepositoryGateway` is created unconditionally), non-READ operations still run `check_preflight()` before `tools.execute()`.
 
 ### Exempt Paths
 
-| Path | Justification |
-|---|---|
-| `repository_gateway.py:execute()` (`if op == OperationType.READ` branch) | READ operations are intentionally preflight-exempt per design (direct passthrough for read-only tools). No separate `read_execute()` method exists. |
-| `tool_approval.py:check_approval()` via `ApprovalDecisionType.DRY_RUN` | dry_run execution is preflight-exempt (read-only operation). No separate `build_preview()` method exists; handled via `DryRun` decision type. |
-| `tool_runner.py:execute_one_tool_call()` (`else` branch) | Gateway not configured (not expected in production, where `RepositoryGateway` is created unconditionally). This path bypasses the gateway but runs `check_preflight()` for non-READ operations before `tools.execute()`. |
+- READ operations pass through the gateway without preflight: read-only tools are exempt by design.
+- The dry-run preview executed by tool-level approval is exempt: it is a read-only operation with no separate preview method.
 
-### Gateway-Bypass Gap Analysis
+### Maintenance Rule
 
-Two distinct patterns exist where `tools.execute()` is called directly without going through the gateway:
-
-**Pattern 1: Preflight gate present, gateway bypass** (cmd_context.py)
-- This path has a `check_preflight()` gate but bypasses the gateway.
-- It is partially covered but inconsistent with the gateway-centric enforcement model.
-
-**Pattern 2: Preflight gate present, no gateway** (tool_runner.py)
-- The `else` branch (gateway is `None`) calls `check_preflight()` for non-READ operations before `tools.execute()`.
-- Standardizing all write/delete/API-write operations through the gateway remains the target model.
-
-### Ongoing Maintenance
-
-Coverage map accuracy must be maintained over time. Future changes to gate placement must update this map as part of the acceptance criteria. Any new `check_preflight()` addition requires a corresponding test or documented exception.
+Standardizing all write/delete/API-write operations through the gateway is the target model. A change to gate placement must update this section as part of its acceptance criteria.
 
 ## Runtime Extension Points, Lifecycle and Shutdown
 
@@ -109,7 +92,6 @@ Describes runtime extension points, lifecycle phases, and shutdown policies, cla
 ##### StartupOrchestrator (`agent/startup.py`)
 
 - Encapsulates all startup orchestration processes extracted from `AgentREPL`.
-- Constructed with `(ctx, view)`. `run()` returns `(CommandRegistry, Orchestrator)`.
 - Decouples startup complexity so that `AgentREPL` remains focused on UI concerns.
 
 ##### Orchestrator (`agent/orchestrator.py`)
@@ -121,17 +103,7 @@ Describes runtime extension points, lifecycle phases, and shutdown policies, cla
 
 ##### AgentContext (`agent/context.py`)
 
-The hub for shared mutable state and component references. All services are injected via `factory.build_agent_context()`.
-
-| Sub-structure | Scope | Key contents |
-|---|---|---|
-| `ctx.conv` | Session | `history`, `plan_mode`, `debug_mode`, `system_prompt_content` |
-| `ctx.turn` | Per-turn | `current_turn_id` (UUID4, None between turns) |
-| `ctx.stats` | Cumulative | `stat_turns`, `stat_tool_calls`, `stat_latency`, token counts |
-| `ctx.workflow` | Session | `WorkflowState`: `active`, `current_task_id`, `workflow_id` (transient) |
-| `ctx.cfg` | Hot-reload | `AgentConfig` (composite sub-configs) |
-| `ctx.session` | Session | `AgentSession` (SQLite) |
-| `ctx.services` | Injected | All service instances (LLMClient, ToolExecutor, etc.) |
+The hub for shared mutable state and component references. All services are injected via `factory.build_agent_context()`. State is grouped by lifetime: session-scoped conversation state (`ctx.conv`, including history, plan mode and debug mode), per-turn state (`ctx.turn`, whose turn ID is `None` between turns), cumulative runtime statistics (`ctx.stats`), transient workflow state (`ctx.workflow`), hot-reloadable configuration (`ctx.cfg`), the session handle (`ctx.session`), and the injected service instances (`ctx.services`). Persistence and scope semantics of this state: [agent_04_01](agent_04_01_state-and-persistence-state-model.md) and [agent_04_02](agent_04_02_state-and-persistence-history-compression.md); field definitions: `scripts/agent/context.py`.
 
 ##### LLMClient (`shared/llm_client.py`)
 
@@ -143,7 +115,7 @@ The hub for shared mutable state and component references. All services are inje
 ##### ToolExecutor (`shared/tool_executor.py`)
 
 - MCP routing.
-- MCP call dispatch only; parallel/serial scheduling is not decided here but by `agent/tool_scheduler.py::build_execution_groups()` (see Key Constraints) (Explicit in code — `scripts/agent/tool_scheduler.py`).
+- MCP call dispatch only; parallel/serial scheduling is decided by the scheduler (see Key Constraints).
 - Resolves tool name → server key.
 - Tracks health status per server.
 
@@ -166,15 +138,7 @@ Dispatches built-in commands.
 
 ##### LifecycleState (`agent/lifecycle.py`)
 
-An enum representing transport state shared among lifecycle managers:
-
-| Value | Description |
-|---|---|
-| `STARTING` | Server is starting |
-| `RUNNING` | Server is running |
-| `STOPPED` | Server is stopped |
-| `FAILED` | An error occurred in the server |
-| `UNKNOWN` | Initial/unknown state |
+An enum representing transport state (`STARTING`, `RUNNING`, `STOPPED`, `FAILED`, `UNKNOWN`) shared among lifecycle managers.
 
 Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/STOPPED`, `RUNNING → STOPPED/FAILED/STARTING`, `FAILED → STARTING/STOPPED`, `UNKNOWN → any`.
 
@@ -186,14 +150,7 @@ Valid transitions: `STOPPED → STARTING/FAILED`, `STARTING → RUNNING/FAILED/S
 
 ##### Memory Services (`agent/memory/`)
 
-An optional subsystem enabled when `use_memory_layer=True`. Accessed via `ctx.services.memory`.
-
-| Sub-service | Role |
-|---|---|
-| `injection` | Injects relevant memories at session start and on each user prompt; see [agent_11_01_memory-overview-and-modes.md](agent_11_01_memory-overview-and-modes.md). |
-| `ingestion` | Extracts and persists memories at session end. |
-| `store` | JSONL + SQLite store for memory entries. |
-| `retriever` | FTS5 and optional KNN search. |
+An optional subsystem enabled when `use_memory_layer=True`, accessed via `ctx.services.memory`. It injects relevant memories at session start and on each user prompt (see [agent_11_01](agent_11_01_memory-overview-and-modes.md)), extracts and persists memories at session end, and stores them in JSONL plus SQLite with FTS5 and optional KNN retrieval.
 
 ##### EventBus Client Modules (`agent/eventbus_client.py`, `agent/eventbus_subscriber.py`, `agent/eventbus_topic_admin_client.py`)
 
@@ -213,15 +170,11 @@ Resource closing occurs after WAL checkpointing, and both calls are independent 
 
 Service checks accumulate results in `StartupValidationResult`, and startup is aborted if even one `FATAL` error occurs. MCP subprocesses are rolled back if an exception occurs after they have been started.
 
-#### Lifecycle Implementation Location
+#### Lifecycle Implementation
 
-`LifecycleManagerProtocol` defines `ensure_ready`/`shutdown_all`/`restart`/`shutdown_idle`/`get_transport_state`/`start_http_subprocess`/`get_process_snapshot` using structural subtyping. The production implementation is `_ServerLifecycleRouter` and `_SubprocessLifecycleManager` in `agent/lifecycle_router.py` (constructed by `agent/factory.py`), where HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
+`LifecycleManagerProtocol` (structural subtyping) is the lifecycle contract. The production implementation is `_ServerLifecycleRouter` in `agent/lifecycle_router.py` (constructed by `agent/factory.py`); HTTP subprocess startup, health polling, restart, and termination are delegated to `agent/http_lifecycle.py`.
 
 `ensure_ready`/`start_http_subprocess`/`restart` are guarded against being ignored once shutdown has started.
-
-### Preflight Gate Coverage Map
-
-See [Preflight Gate Coverage](#preflight-gate-coverage) above for the enumerated `check_preflight()` call sites, the exempt paths and the maintenance rule for new gate additions.
 
 ## Keywords
 

@@ -31,15 +31,7 @@ Documents the relationship between session persistence and conversation history 
 
 ### Session Persistence Design Intent
 
-`AgentSession` manages `session.sqlite`. The session lifecycle is as follows:
-
-```text
-AgentREPL.run()
-  → AgentSession.start()              — INSERT into sessions; get session_id
-  → each turn: AgentSession.save()    — INSERT into messages
-   → session subcommand: `load <id>` — fetch_messages() → reconstruct ctx.conv.history
-   → session subcommand: `delete <id>` — DELETE sessions + messages (CASCADE)
-```
+`AgentSession` manages the session and message tables in `session.sqlite`. A session row is created at REPL start, each turn's messages are appended, `/session load <id>` reconstructs `ctx.conv.history` from stored messages, and `/session delete <id>` removes the session together with its messages (cascade).
 
 ### Message Saving Rules
 
@@ -59,10 +51,9 @@ In the first user turn, if session title generation fails, the following fallbac
 
 | Failure case | Fallback title | Log |
 |---|---|---|
-| LLM HTTP/Request error | If `first_input` exceeds the title length limit: truncated prefix + `"..."`, else `first_input` | WARNING |
-| LLM returns empty or invalid response | Same as above | WARNING |
+| LLM request error, or empty/invalid response | `first_input`, truncated with `"..."` when over the title length limit | WARNING |
 | `first_input` is empty | `"(New Session)"` | WARNING |
-| `set_title()` DB write failure | Title is not persisted; error is logged | ERROR |
+| `set_title()` DB write failure | Title is not persisted | ERROR |
 
 All failure cases are non-blocking, and the session continues normally. When a fallback occurs, an audit log entry is issued: `session_title_fallback session_id=<id> fallback=<title> reason=<error>`. `set_title_pending` is reset to `False` in a `finally` block regardless of the result.
 
@@ -122,12 +113,12 @@ All write operations must go through `RepositoryGateway`. Direct calls that bypa
 
 ## Operational Notes
 
-- `replace_history()` is used as defense-in-depth during session restoration. If corrupted/tampered DB rows introduce reserved ephemeral keys, those rows are sanitized or discarded.
+- `replace_history()` is used as defense-in-depth during session restoration: rows that carry reserved ephemeral keys (corrupted or tampered DB rows) are sanitized or discarded.
 - The authorization prompt for `RepositoryGateway` relies on the batch-level gate enforcement.
 
 ## Known Limitations
 
-- While rare, session restoration via `replace_history()` allows for cases where corrupted/tampered DB rows might introduce reserved ephemeral keys.
+- Rare corrupted or tampered DB rows can introduce reserved ephemeral keys during session restoration; `replace_history()` sanitizes or discards them (see Operational Notes).
 
 ## Keywords
 

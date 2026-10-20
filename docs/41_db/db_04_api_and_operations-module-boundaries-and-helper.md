@@ -16,7 +16,7 @@ related:
 
 ## 1. Purpose
 
-To document the `SQLiteHelper` API, the protocol groups and implementations in `db/store.py`, memory-related table operations, maintenance functions, recovery procedures in case of corruption, error handling, and operational verification plans.
+To document the `SQLiteHelper` behavior contract, the protocol groups and implementations in `db/store.py`, memory-related table operations, maintenance functions, recovery procedures in case of corruption, error handling, and operational verification plans.
 
 ---
 
@@ -26,25 +26,20 @@ The DB store layer is split into modules with clear import boundaries. `db/store
 
 ### How to extend the DB store
 
-1. Add a new `Protocol` class to `db/store_protocols.py` (e.g., `class NewStorageProtocol(Protocol): ...`).
-2. Implement the protocol in `db/store_impl.py` (e.g., `class NewStorageImpl(NewStorageProtocol): ...`).
-3. Export it from `db/store.py` — callers should import from `db.store` rather than internal modules.
-
-**Anti-pattern:** Do not import directly from `store_protocols.py` or `store_impl.py` in caller code.
-
-```python
-# BAD — direct import of internal module
-from db.store_impl import NewStorageImpl  # breaks abstraction
-
-# GOOD — import from public API
-from db.store import NewStorageProtocol, NewStorageImpl  # stable contract
-```
+Add the `Protocol` to `db/store_protocols.py`, implement it in `db/store_impl.py`, and export it from `db/store.py`. Caller code imports from `db.store` only; importing `store_protocols.py` or `store_impl.py` directly breaks the abstraction.
 
 ---
 
 ## 2. `SQLiteHelper` (`db/helper.py`)
 
-`SQLiteHelper(target='rag', *, db_path=None, sqlite_vec_so='', sqlite_timeout=..., sqlite_busy_timeout_ms=...)` (the `sqlite_timeout` and `sqlite_busy_timeout_ms` parameters apply only with an explicit `db_path`; their defaults are defined in `db/helper.py`). Targets include `DbTarget.RAG`/`SESSION`/`WORKFLOW`/`EVENTBUS` or string literals (`'rag'` → `rag.sqlite`, `'session'` → `session.sqlite`, `'workflow'` → `workflow.sqlite`, `'eventbus'` → `eventbus.sqlite`); invalid targets raise `ValueError`. `build_db_config()` is called within `__init__()` to resolve all paths and settings; if `db_path` is explicitly passed, `build_db_config()` is fully bypassed and the specified `db_path`/`sqlite_vec_so`/`sqlite_timeout`/`sqlite_busy_timeout_ms` are used directly (allowing MCP servers, etc., to self-contain DB configuration without reading `agent.toml`). The `DB_PATH` property provides read-only access to the resolved DB path for the instance. `open(*, write_mode=False, row_factory=False, load_vec=None, reuse_connection=False)` returns `self` for chaining and sets `self.conn`. `write_mode=True` enables `PRAGMA foreign_keys=ON`; `row_factory=True` sets `conn.row_factory = sqlite3.Row` (enabling column-name access); `load_vec=None` uses the instance default (`rag`/`session` → `True`, `workflow`/`eventbus` → `False`; with an explicit `db_path`, `True` only when `sqlite_vec_so` is non-empty); `load_vec=True` forces the `sqlite-vec` extension to load; `load_vec=False` skips the extension; `reuse_connection=True` skips reconnection if an existing `self.conn` is available and skips `close()` in `__exit__` (allowing connection reuse). Always applied: `vec` loading (if valid), `WAL` mode, `NORMAL` sync, and `busy_timeout`. For more on `reuse_connection`, see [db_01 section 4b](db_01_architecture_and_schema-overview-and-config.md#4b-additional-options-for-open-explicit-in-code). `execute(sql, params=())` → `sqlite3.Cursor`: supports parameter tuples (`?`) or dictionaries (`:name`); raises `RuntimeError` if `conn` is `None`, or `ValueError` if `sql` is empty. `executescript(sql_script)` → `None`: executes multiple SQL statements and commits pending transactions before execution. `executemany(sql, params_seq)` → `sqlite3.Cursor`: performs batch `INSERT`/`UPDATE` using `params_seq` as a list of tuples. `fetchall(sql, params=())` → `list[Any]`: combines `execute` and `fetchall`. `commit()` → `None`: logs `ERROR` then re-raises `sqlite3.OperationalError`. `close()` → `None`: idempotent; a `WARNING` is logged on close errors, but no exception is thrown. `@contextmanager` methods like `begin_immediate()` provide atomic transaction control.
+`SQLiteHelper` resolves its DB file from `target` (`DbTarget` member or string; an invalid target raises `ValueError`). Path and settings come from `build_db_config()` unless `db_path` is passed explicitly, in which case `build_db_config()` is bypassed entirely and `sqlite_vec_so` / `sqlite_timeout` / `sqlite_busy_timeout_ms` are taken from the arguments, so MCP servers can self-contain DB configuration without reading `agent.toml`. Connection options (`write_mode`, `row_factory`, `load_vec`, `reuse_connection`) and the PRAGMAs applied on every open are specified in [db_01 section 4](db_01_architecture_and_schema-overview-and-config.md#4-db-file-structure-and-sqlitehelper); the `load_vec` default depends on the target and `sqlite_vec_so`.
+
+Error semantics:
+- `execute()` raises `RuntimeError` when no connection is open and `ValueError` for an empty `sql`.
+- `executescript()` commits pending transactions before execution.
+- `commit()` logs `ERROR` and re-raises `sqlite3.OperationalError`.
+- `close()` is idempotent; close errors are logged as `WARNING` and not raised.
+- Context-manager methods such as `begin_immediate()` provide atomic transaction control.
 
 ---
 

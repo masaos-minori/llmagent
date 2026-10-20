@@ -35,11 +35,7 @@ Documents the responsibilities of `CommandRegistry`, which handles dispatching a
 
 ### Separation of Responsibilities
 
-| Component | Responsible for | Not responsible for |
-|---|---|---|
-| `command_defs.py` | `CommandDef`, `SubcommandSpec`, `ArgSpec` dataclasses | Command list |
-| `command_defs_list.py` | Built-in command definitions | Dispatch logic |
-| `registry.py` | Dispatch behavior, imports command list from `command_defs_list` | Definition of command list |
+Command definition types, the built-in command list, and dispatch behavior live in separate modules: the registry imports the command list and owns only dispatch. Command implementations are distributed among handler mixins.
 
 ### Built-in Command Index
 

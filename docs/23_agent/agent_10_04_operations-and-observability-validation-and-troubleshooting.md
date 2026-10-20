@@ -110,25 +110,13 @@ Changed MCP server definitions are only applied during a full agent restart.
 
 ## Production Security Regression Suite
 
-`tests/integration/test_production_security_regression.py` is a process/
-integration-level regression suite proving Production-grade policy, MCP
-loopback-only exposure, and MCP authentication. It covers:
+`tests/integration/test_production_security_regression.py` is the process/integration-level regression suite for Production-grade policy, MCP loopback-only exposure, and MCP authentication. It must prove that:
 
-- Production-only policy enforcement (`test_production_only_rejects_local_mode`)
-- Strict configuration validation through the real `ProductionConfigValidator`
-  (`test_strict_configuration_validation_via_real_startup`)
-- MCP server loopback-socket binding, with real socket inspection
-  (`test_mcp_server_socket_is_loopback_only`,
-  `test_mcp_server_wildcard_bind_is_rejected`)
-- Required-vs-optional MCP startup failure handling
-  (`test_required_mcp_failure_aborts_startup`,
-  `test_optional_mcp_failure_disables_only_that_tool`) and disabled-tool
-  LLM-visibility exclusion (`test_disabled_tool_excluded_from_llm_visibility`)
-- MCP Bearer-token authentication and log redaction
-  (`test_mcp_auth_missing_invalid_valid_token`,
-  `test_mcp_auth_token_redacted_in_logs`)
-- External unreachability from outside the loopback interface
-  (`test_external_unreachability_or_manual_fallback`)
+- a non-production mode is rejected and strict configuration validation runs through the real `ProductionConfigValidator`;
+- MCP servers bind only to loopback (verified by real socket inspection) and a wildcard bind is rejected;
+- a failed required MCP server aborts startup, a failed non-required one disables only its own tools, and disabled tools are excluded from LLM visibility;
+- MCP Bearer authentication rejects missing/invalid tokens and the token is redacted in logs;
+- the loopback-bound service is unreachable from outside the loopback interface.
 
 ### Platform-Capability Requirements and Manual Fallback
 
@@ -152,48 +140,25 @@ times out.
 
 ## `/context` Interpretation
 
-``` text
-Context state:
-  Messages        : 12
-  Total chars     : 4,321
-  Compress limit  : <value>
-  Remaining       : 3,679 chars until compression
-  Compress count  : 1
-  System prompt   : default
-  Token estimate  : 1,080 (category-aware estimate)
-  Token limit     : disabled
-  Memory layer    : disabled
-Budget breakdown:
-  system        :    1,234 chars ( 38%)
-   history       :    1,987 chars ( 62%)
-```
-
 - **Remaining:** Distance to `context_char_limit` → trigger for compression.
 - **Token estimate:** Uses category-aware estimation (per-category ratios defined in `shared/token_estimation.py`).
 - **Token limit:** Set to `disabled` if `context_token_limit` is not configured.
 - **Memory layer:** Set to `enabled (entries=N)` if `use_memory_layer=True`.
 
 **Implementation Notes:**
-- The Token estimate in `/context` remains constant based on category-aware estimation; the actual value used by `/tokenize` is only used for history compression decisions in the next turn, not for display in `/context`.
-- Category-aware estimation ratio constants use `RATIO_TEXT`/`RATIO_TOOL_CALL`/`RATIO_SYSTEM` from `shared/token_estimation.py` as the single source. `agent/services/context_view.py::_token_breakdown` imports and uses these and defines no local ratio constants.
+- The `/context` token estimate is always the category-aware estimate; the value returned by `/tokenize` is used only for the next turn's history-compression decision, not for display.
+- The estimation ratios have a single source, `shared/token_estimation.py`; `agent/services/context_view.py` defines no local ratio constants.
 
 ## `/stats` Interpretation
 
-``` text
-Turns: 5 | Tool calls: 12 | Errors: 1
-LLM: reconnects=0, HB timeouts=0, partials=0, parse_errors=0
-Compress: 1
-Input tokens: 2,048 | Output tokens: 512
-Latency (mean/max): llm=1.2s/2.1s, tools=0.3s/0.8s
-```
+`/stats` reports turn, tool-call and error counts, LLM transport counters (reconnects, heartbeat timeouts, partial completions, parse errors), compression count, token totals and latency.
 
 - **Partial completions:** LLM responses interrupted during streaming are recorded. See [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md) for details.
 - **HB timeouts:** SSE heartbeat timeouts (potential LLM overload).
 
 **Implementation Notes:**
-- Actual `/stats` output is key-value format with one item per line, and contains more items than documented here.
-- Conditional lines are added: `Memory inconsist.` if `stat_memory_consistency_failures` is true; `Memory embed: CIRCUIT OPEN [DEGRADED]` if the memory embedding circuit breaker is open; and `Hint: Run /session rag-consistency for index integrity status` if `rag_db_configured` is true.
-- `Latency (mean/max)` aggregates only the sample array of the `"llm"` key from `ctx.stats.stat_latency`; delay rows for tool calls are not included in this aggregation.
+- `/stats` adds conditional lines for a memory consistency failure, an open memory embedding circuit (`[DEGRADED]`), and a hint to run `/session rag-consistency` when a RAG DB is configured.
+- `Latency (mean/max)` aggregates only the `"llm"` samples of `ctx.stats.stat_latency`; tool-call latencies are not included.
 
 ## Keywords
 

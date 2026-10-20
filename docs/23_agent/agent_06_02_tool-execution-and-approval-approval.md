@@ -113,7 +113,6 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 ## Responsibility Boundary
 
 - **Canonical Source**: `agent/tool_policy.py`
-- **Preview Format**: Code reference (omitted due to mechanical details)
 
 ## Key Constraints
 
@@ -130,4 +129,3 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 - approval flow
 - risk classification
 - plan mode
-- tool result cache

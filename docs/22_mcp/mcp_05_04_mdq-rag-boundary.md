@@ -36,7 +36,6 @@ Use MDQ when:
 
 MDQ is optimized for Markdown documents where structural understanding is more critical than semantic embedding quality.
 
-**Tools:** `search_docs`, `get_chunk`, `outline`, `index_paths`, `refresh_index`, `stats`, `grep_docs`
 **Database:** `mdq.sqlite` (separate from `rag.sqlite`)
 **Status:** Production ready
 
@@ -54,8 +53,7 @@ Use RAG when:
 
 RAG is the primary document retrieval system for the agent layer. It supports generic search across all content types.
 
-**Tools:** `rag_run_pipeline` (execute pipeline), `rag_debug_pipeline` (debug execution/intermediate output), `rag_list_documents` (list documents), `rag_delete_document` (delete document) (via `rag-pipeline-mcp`).
-*Note: There is no standalone search-only tool. Search is an inseparable stage within `rag_run_pipeline` or `rag_debug_pipeline`.*
+Served via `rag-pipeline-mcp`. There is no standalone search-only tool: search is an inseparable stage within `rag_run_pipeline` or `rag_debug_pipeline`.
 **Database:** `rag.sqlite`
 **Status:** Production ready
 
@@ -63,10 +61,10 @@ RAG is the primary document retrieval system for the agent layer. It supports ge
 
 ### Data Ownership
 
-| System | Database | Owner | Administrator |
-|---|---|---|---|
-| MDQ | `mdq.sqlite` | MCP Layer (`scripts/mcp_servers/mdq/`) | mdq-mcp server |
-| RAG | `rag.sqlite` | MCP Layer (`scripts/mcp_servers/rag_pipeline/`) | rag-pipeline-mcp server |
+| System | Database | Owner |
+|---|---|---|
+| MDQ | `mdq.sqlite` | mdq-mcp server (MCP layer) |
+| RAG | `rag.sqlite` | rag-pipeline-mcp server (MCP layer) |
 
 Neither system has direct access to the other's database. Each maintains its own schema, indexes, and search logic.
 
@@ -124,13 +122,9 @@ There is no automatic migration path. Migration requires re-ingestion via the RA
 
 ---
 
-### Current State
+### Guidance
 
-- **MDQ:** Production ready. FTS5 search and indexing implemented.
-- **RAG:** Production ready. Full ingestion pipeline, embedding support, and hybrid search (RRF) available.
-
-For production workloads requiring general document search, prioritize `rag-pipeline-mcp`.
-Use `mdq-mcp` only for Markdown-specific structural queries where embedding quality is not critical.
+For production workloads requiring general document search, prioritize `rag-pipeline-mcp`. Use `mdq-mcp` only for Markdown-specific structural queries where embedding quality is not critical. Both systems are production ready (MDQ: FTS5 search and indexing; RAG: ingestion pipeline, embeddings, hybrid search with RRF).
 
 ## Keywords
 

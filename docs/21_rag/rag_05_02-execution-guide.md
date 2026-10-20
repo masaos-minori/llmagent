@@ -61,29 +61,11 @@ uv run python scripts/rag/ingestion/ingester.py --force
 
 ### RAG Consistency Check (`db/rag_consistency.py`)
 
-`check_rag_consistency`, `is_consistent`, and `summarize_issues` are defined in `scripts/db/rag_consistency.py`. (Explicit in code)
-
-Use `check_rag_consistency(db, embed_failed=0)` to detect trigger-based synchronization failures or orphaned records. Run this after bulk ingestion, after a forced re-registration, or during diagnostics.
-
-```python
-from db.rag_consistency import check_rag_consistency, is_consistent, summarize_issues
-from db.models import RagConsistencyReport
-from db.helper import SQLiteHelper
-
-with SQLiteHelper("rag").open() as db:
-    report: RagConsistencyReport = check_rag_consistency(db)
-    if not is_consistent(report):
-        for issue in summarize_issues(report):
-            print(issue)
-```
-
-**`RagConsistencyReport` Fields** (Defined in `db/models.py`):
-
-See `RagConsistencyReport` in `scripts/db/models.py` for exact fields.
+The check is implemented by `check_rag_consistency` in `scripts/db/rag_consistency.py`. Use it to detect trigger-based synchronization failures or orphaned records. Run this after bulk ingestion, after a forced re-registration, or during diagnostics.
 
 **CLI:** `/session rag-consistency` runs the same check from the REPL and displays issues.
 
-**Post-Ingestion Warning:** After `ingest_all()` completes, `ingester.py` runs a non-blocking consistency check via `DocumentManager.check_consistency()` (`scripts/rag/ingestion/document_manager.py`). Warnings are logged, but the ingestion process itself is not interrupted. If the check fails with `sqlite3.OperationalError`, `sqlite3.DatabaseError`, or `ValueError`, it returns `None` and the exception is not re-raised. (Explicit in code)
+**Post-Ingestion Warning:** After `ingest_all()` completes, `ingester.py` runs a non-blocking consistency check via `DocumentManager.check_consistency()` (`scripts/rag/ingestion/document_manager.py`). Warnings are logged, but the ingestion process itself is not interrupted. If the check fails with `sqlite3.OperationalError`, `sqlite3.DatabaseError`, or `ValueError`, it returns `None` and the exception is not re-raised.
 
 **Notes:**
 - `fts` is read from `chunks_fts_docsize` (FTS5 shadow table), not `chunks_fts`. This provides an accurate count of FTS5 indexed documents without depending on joins with the backing table.
@@ -94,7 +76,6 @@ See `RagConsistencyReport` in `scripts/db/models.py` for exact fields.
 ### Additional Options for `crawler.py`
 
 - `--targets-file PATH`: Specifies a TOML file in the `[[url, lang], ...]` format, overriding the `target_urls` in the configuration file (`config/crawler.toml`). Cannot be used with `--url` (exits with `parser.error`).
-  (Explicit in code) — From the `main()` argument definition in `scripts/rag/ingestion/crawler.py`.
 
 ---
 

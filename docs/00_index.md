@@ -139,7 +139,7 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 
 | Task scope | Reference docs |
 |---|---|
-| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/agent_04_01_state-and-persistence-state-model.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` + `23_agent/agent_11_03_memory-module-reference.md` + `23_agent/agent_11_03_memory-module-reference.md` |
+| Memory layer (types / store / retriever / extract / jsonl_store / services.py) | `23_agent/agent_04_01_state-and-persistence-state-model.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` + `23_agent/agent_11_03_memory-module-reference.md` |
 | OTel observability (otel_tracer.py) | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` + `23_agent/agent_08_01_configuration-loading-agent-config.md` |
 | Agent REPL slash commands (`CommandRegistry`) | `23_agent/agent_07_03_cli-and-commands-command-registry.md` |
 | Agent startup / verification / troubleshooting | `23_agent/agent_10_01_operations-and-observability-startup-and-health.md` |

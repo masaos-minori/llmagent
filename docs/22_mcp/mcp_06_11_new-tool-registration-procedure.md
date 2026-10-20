@@ -22,32 +22,7 @@ Before registering a new tool, ensure your MCP server responds to `/v1/tools` re
 
 #### Required fields
 
-- `name`: Unique tool identifier
-- `description`: Human-readable description of the tool
-- `inputSchema`: JSON Schema defining the tool's input parameters
-- `is_write`: Whether the tool performs write operations (schema-2.0 contract)
-- `requires_serial`: Whether the tool requires serialized execution (schema-2.0 contract)
-- `resource_scope_kind`: Scope-kind prefix used for conflict detection, e.g. `"filesystem"`, `"git_repo"`, or `""` for unscoped (schema-2.0 contract)
-- `resource_scope_keys`: Argument-dict keys whose values are resolved into the call's actual scope strings (schema-2.0 contract; each key must exist in `inputSchema.properties`)
-
-These four schema-2.0 fields are validated by `shared/resource_scope.py::validate_tool_schema_v2()`
-and enforced by `agent/services/mcp_tool_discovery.py::McpToolDiscoveryService`. A tool entry
-missing any of them, or failing validation, is rejected and excluded from the built
-`RuntimeToolRegistry` — it is never silently defaulted.
-
-#### Optional fields
-
-- `status`: Tool status (e.g., "available", "degraded")
-- `resource_scope`: legacy singular scope field; type-checked only if present, not required
-- `enabled`: Whether the tool is enabled for LLM use
-- `capabilities`: Tool capabilities object
-- `server_key`: Identifier for the MCP server providing the tool
-- `config_dependent`: Whether the tool depends on configuration
-- `disabled_reason`: Reason why the tool is disabled (if applicable)
-
-#### Query parameters
-
-`/v1/tools` accepts `include_disabled` (opt-in) and `disabled_code`; `disabled_code` is matched against `disabled_reason`. See `mcp_03_06_tool-runtime-availability-metadata.md`.
+`name`, `description`, `inputSchema`, plus four schema-2.0 fields: `is_write`, `requires_serial`, `resource_scope_kind`, `resource_scope_keys` (each key must exist in `inputSchema.properties`). A tool entry missing any of them, or failing validation, is rejected and excluded from the built `RuntimeToolRegistry`; it is never silently defaulted. Enforcement point: `shared/resource_scope.py::validate_tool_schema_v2()` via `agent/services/mcp_tool_discovery.py::McpToolDiscoveryService`. Optional fields and the `include_disabled` / `disabled_code` query parameters are specified in `mcp_03_06_tool-runtime-availability-metadata.md`.
 
 When adding a new tool to an **existing** MCP server:
 
@@ -68,7 +43,7 @@ When adding a new tool to an **existing** MCP server:
 After registration is complete:
 
 ```bash
-uv run pytest tests/test_tool_constants.py tests/test_route_resolver.py -v
+uv run pytest tests/shared/test_tool_constants.py tests/shared/test_route_resolver.py -v
 ```
 
 **Expected results:** All routing tests pass. If `tool_definitions_strict = true`, restart the agent and verify that no `Routing drift` warnings are displayed in the startup logs.

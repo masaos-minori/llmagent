@@ -17,89 +17,75 @@ related:
 
 ## 6. `LLMUsage` / `LLMResponse` (`shared/llm_types.py`)
 
-`LLMUsage` (for token counting: `prompt_tokens`, `completion_tokens`), `LLMResponse` (wraps message, `finish_reason`, usage) — provides token counting + response wrapping. Decoupled from `llm_client.py` so callers can import DTOs without importing the full `LLMClient`. (Explicit in code)
-
-Import: `from shared.llm_types import LLMUsage, LLMResponse`
+`LLMUsage` (token counting) and `LLMResponse` (message, finish reason, usage wrapper). Decoupled from `llm_client.py` so callers can import DTOs without importing the full `LLMClient`.
 
 ---
 
 ## 6a. `ToolCallResult` / `TransportErrorInfo` (`shared/transport_dto.py`)
 
-`ToolCallResult` is the standard result contract for all tool executions (transport) — includes output/error metadata, transport information, and audit info. The `source` field is `"mcp"` for MCP calls and empty on error paths. (Explicit in code — `scripts/shared/transport_dto.py`)
+`ToolCallResult` is the standard result contract for all tool executions (transport) — includes output/error metadata, transport information, and audit info. The `source` field is `"mcp"` for MCP calls and empty on error paths.
 
 `TransportErrorInfo` is used as structured error information for audit logs.
-
-Import: `from shared.transport_dto import ToolCallResult, TransportErrorInfo`
 
 ---
 
 ## 7. `ActionResult` (`shared/action_result.py`)
 
-`ActionType` enum (`continue`/`call_tool`/`retrieve_more_context`/`ask_user`/`fail`/`retry`) and frozen dataclass (`reason`, `required_context`, `payload`, `errors`, `confidence`) — a generic machine-decidable schema for agent action routing. (Explicit in code)
+A generic machine-decidable schema (an `ActionType` enum plus a frozen dataclass) for agent action routing.
 
 ---
 
 ## 7a. `ToolSpec` (`shared/tool_spec.py`)
 
-A frozen dataclass of DAG scheduling metadata. Fields: `call_id` (LLM-assigned tool call id from `tool_calls[].id`), `name` (tool function name), `args` (dict[str, object]), `resource_scopes` (tuple[str, ...] of kind-prefixed resource-scope strings, e.g., `"filesystem:/a/b.txt"`, for conflict detection — resolved per call by `shared/resource_scope.py::resolve_resource_scopes()`), `requires_serial` (forces serialization regardless of parallel mode), and `is_write` (write/delete classification). `agent/tool_runner.py::_execute_with_dag()` builds a call-id-keyed `ToolSpec` for each approved tool call via `RuntimeToolRegistry.tool_spec_for_call()`. Scheduling logic resides in `agent/tool_scheduler.py`. (Explicit in code — `scripts/agent/tool_scheduler.py`)
-
-Import: `from shared.tool_spec import ToolSpec`
+A frozen dataclass of DAG scheduling metadata: the call identity, arguments, kind-prefixed `resource_scopes` for conflict detection (resolved per call by `shared/resource_scope.py::resolve_resource_scopes()`), `requires_serial` (forces serialization regardless of parallel mode) and an `is_write` classification. `agent/tool_runner.py` builds one per approved tool call; scheduling logic resides in `agent/tool_scheduler.py`.
 
 ---
 
 ## 7c. `RuntimeTool` (`shared/runtime_tool.py`)
 
-Represents normalized tool execution metadata in a single type (routing, LLM schema, scheduler metadata, side-effect detection, safety tier, approval requirement, argument validation relaxation flags). `AgentSafetyTier` uses four values (`READ_ONLY`/`WRITE_SAFE`/`WRITE_DANGEROUS`/`ADMIN`) which are defined locally as `Literal` types within this module to avoid circular imports due to `shared-is-leaf` constraints (not imported from `agent.tool_enums`). (Explicit in code)
+Represents normalized tool execution metadata (routing, LLM schema, scheduler metadata, side-effect detection, safety tier, approval requirement, argument validation relaxation) in a single type. `AgentSafetyTier` is defined locally as `Literal` types within this module to avoid circular imports due to `shared-is-leaf` constraints (not imported from `agent.tool_enums`).
 
-`build_runtime_tool()` applies safe defaults to unspecified annotation fields. `allow_extra_fields` is a per-tool flag read during the preparation phase by `agent/tool_preparation.py` (`prepare_tool_calls()`/`_prepare_one()`, executed before approval) and passed to `agent/tool_arg_validator.py`'s `validate_tool_arguments()`. (Explicit in code)
-
-Import: `from shared.runtime_tool import RuntimeTool, build_runtime_tool, AgentSafetyTier`
+`build_runtime_tool()` applies safe defaults to unspecified annotation fields. `allow_extra_fields` is a per-tool flag read during the preparation phase (before approval) and passed to argument validation.
 
 ---
 
 ## 7d. `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`)
 
-An in-memory registry holding `{name: RuntimeTool}`. `resolve()` returns `None` for unregistered names, while `get()` raises `KeyError` — designed to distinguish between "registered but missing annotations" and "non-existent in registry". (Explicit in code)
+An in-memory registry holding `{name: RuntimeTool}`. `resolve()` returns `None` for unregistered names, while `get()` raises `KeyError` — designed to distinguish between "registered but missing annotations" and "non-existent in registry".
 
-`apply_policy()` accepts a plain `tier_map: Mapping[str, AgentSafetyTier]` and `allowed_tools: Sequence[str] = ()` (also due to `shared-is-leaf` constraints). (Explicit in code)
+`apply_policy()` accepts plain mappings and sequences rather than agent-layer types (also due to `shared-is-leaf` constraints).
 
 **MCP Discovery (`McpToolDiscoveryService`) populates the registry with real data, which is then connected via `ToolExecutor.set_runtime_registry()`.**
-
-Import: `from shared.runtime_tool_registry import RuntimeToolRegistry`
 
 ---
 
 ## 7e. `ToolDefinition` (`shared/tool_registry.py`)
 
-Immutable tool definition — each tool belongs to exactly one MCP server. (Explicit in code — `scripts/shared/tool_registry.py` docstring)
+Immutable tool definition — each tool belongs to exactly one MCP server.
 
-**Boundary Conditions:** `description` and `input_schema` are reserved fields; they are not set by default registry initialization functions and are not read by any caller. The authoritative tool schema for LLMs is the `TOOL_LIST` from each server's own `tools.py`, not from this `ToolRegistry`. (Explicit in code)
+**Boundary Conditions:** `description` and `input_schema` are reserved fields; they are not set by default registry initialization functions and are not read by any caller. The authoritative tool schema for LLMs is the `TOOL_LIST` from each server's own `tools.py`, not from this `ToolRegistry`.
 
-`ToolRegistry` only handles tool ownership and routing. Live `/v1/tools` responses are used solely for startup drift validation, not for runtime routing decisions. (Explicit in code)
-
-Import: `from shared.tool_registry import ToolDefinition, ToolRegistry, get_registry`
+`ToolRegistry` only handles tool ownership and routing. Live `/v1/tools` responses are used solely for startup drift validation, not for runtime routing decisions.
 
 ---
 
 ## 8. `ArtifactEvent` / `RetryEvent` (`shared/events.py`)
 
-`ArtifactEvent` (event_type, repo, branch, commit, path, pr_number, session_id, timestamp) — issued when repository artifacts are created/updated. (Explicit in code — `scripts/shared/events.py` module docstring)
+`ArtifactEvent` describes repository artifact creation/updates.
 
 > **Note:** `ArtifactEvent` is a pure data structure (`TypedDict`). No event bus, subscription mechanism, or delivery system exists. It exists solely as a type annotation. Do not assume that instantiating an `ArtifactEvent` triggers any action.
 
-`RetryEvent` (event_type, workflow_id, task_id, attempt_number, max_attempts, error_type, backoff_sec, session_id, timestamp) — issued during retries in the workflow stage.
+`RetryEvent` describes retries in the workflow stage.
 
 ---
 
 ## 9. `ShellPolicy` (`shared/protocols/shell.py`)
 
-An immutable `frozen=True` dataclass — has no dependencies on FastAPI, MCP, or agents (depends only on `shared` → external). Used by `mcp_servers/shell/service.py` (`ShellService`) as its configuration object. (Explicit in code — `scripts/shared/protocols/shell.py`)
+An immutable `frozen=True` dataclass — has no dependencies on FastAPI, MCP, or agents (depends only on `shared` → external). Used by `mcp_servers/shell/service.py` (`ShellService`) as its configuration object.
 
-**Failure Intent:** Validates the following in `__post_init__` and raises `ValueError` if violated: `kill_policy` must be one of `{"sigterm_then_sigkill", "sigkill_only"}`, `sandbox_backend` must be one of `{"firejail", "none"}`, `timeout_sec >= 1`, `max_output_kb >= 1`, `max_memory_mb >= 1`, and `kill_grace_sec >= 0`. (Explicit in code — `scripts/shared/protocols/shell.py`)
+**Failure Intent:** `__post_init__` raises `ValueError` for an unknown `kill_policy` or `sandbox_backend` and for out-of-range timeout, output, memory or grace limits, so an invalid policy cannot be constructed.
 
 Purpose: To decouple shell execution policy from MCP server implementations.
-
-Import: `from shared.protocols.shell import ShellPolicy`
 
 ## Keywords
 

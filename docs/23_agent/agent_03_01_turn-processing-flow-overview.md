@@ -66,7 +66,7 @@ User input (line)
          │         │
          │         └─ Tool Loop (internal, up to max_tool_turns):
          │              → execute_all_tool_calls()
-         │                   → build_execution_groups(): serial phases for requires_serial tools, serial groups for conflicting resource_scopes, otherwise parallel
+         │                   → scheduler decides serial vs parallel groups (agent_06_01)
          │                   → ToolExecutor.execute(tool_name, args)
          │                   → Add tool results to history as "tool" role
          │                        (Denied tool calls are added via extend_messages())
@@ -80,7 +80,7 @@ User input (line)
 
 ### Implementation note: Always goes through the workflow engine
 
-`Orchestrator.__init__` calls `WorkflowLoader().load()`; if it fails, it raises a `RuntimeError` and orchestration construction itself fails. Therefore, when `handle_turn()` is called, the workflow definition is non-None and mandatory. The steps ①–⑥ above are executed as callbacks in the `plan`/`execute`/`verify` stages of `WorkflowEngine.run()`; `plan_fn` is intentionally a no-op. For details on stage composition, see [agent_03_03_turn-processing-flow-workflow-engine.md](agent_03_03_turn-processing-flow-workflow-engine.md).
+A workflow definition load failure makes `Orchestrator` construction fail, so `handle_turn()` always has a definition. Steps ①–⑥ run as the `plan`/`execute`/`verify` stage callbacks; `plan_fn` is intentionally a no-op. For stage composition, see [agent_03_03_turn-processing-flow-workflow-engine.md](agent_03_03_turn-processing-flow-workflow-engine.md).
 
 ### Background Task Failure Threshold Notification and Pausing
 
@@ -91,7 +91,7 @@ The session title generation task scheduled on the first turn manages consecutiv
 - If the constructor opt-in parameter `pause_on_critical_failure` is `True`, the corresponding task type is marked as paused when the threshold is reached. This is per-task-type control, not a global pause flag.
 - `handle_turn()` returns early and notifies the user if any entry in `_bg_pause_state` is `True`.
 - The paused state is held only in process memory and persists until the process restarts.
-- Since `pause_on_critical_failure` defaults to `False`, existing callers are unaffected unless they explicitly opt-in.
+- Pausing is opt-in: it occurs only when `pause_on_critical_failure` is explicitly enabled.
 
 ## Key Constraints
 
@@ -128,7 +128,7 @@ The session title generation task scheduled on the first turn manages consecutiv
 
 ## Known Limitations
 
-- Notification and pause mechanisms when background task failure thresholds are reached are opt-in (disabled by default). The paused state persists until process restart.
+- Background task failure pause is opt-in, and the paused state persists until process restart (see Background Task Failure Threshold Notification and Pausing).
 
 ## Keywords
 

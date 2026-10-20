@@ -31,27 +31,9 @@ Requires `Bearer ${MONITORING_TOKEN}` in the Authorization header.
 
 Returned when all subsystems are healthy.
 
-### Response Schema
+### Response Content
 
-The response body's fields are described in Field Descriptions below; see
-`scripts/eventbus/health_route.py` for the exact JSON schema.
-
-### Field Descriptions
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `status` | string | Overall health: `"ok"` or `"degraded"` |
-| `db` | string | Database status: `"ok"` or `"unavailable"` |
-| `dlq_task` | string | DLQ sweep task status: `"running"` or `"stopped"` |
-| `active_subscribers` | integer | Current number of active SSE subscribers |
-| `max_queue_depth` | integer | Maximum queue depth across all active subscribers |
-| `slow_consumers` | integer | Number of slow consumers detected |
-| `overflow_disconnects` | integer | Count of overflow disconnects |
-| `duplicate_connection_rejections` | integer | Count of duplicate connection rejections |
-| `degraded_reasons` | array[string] | List of degraded reasons (empty when healthy) |
-| `metrics.lock_wait_avg_seconds` | float | Average database lock wait time in seconds |
-| `metrics.query_duration_avg_seconds` | float | Average query duration in seconds |
-| `metrics.lock_contention_total` | integer | Total lock contention count |
+The body reports overall `status` (`"ok"` or `"degraded"`), database and DLQ sweep task state, broker counters (active subscribers, maximum queue depth, slow consumers, overflow disconnects, duplicate connection rejections), `degraded_reasons` (empty when healthy) and lock-contention metrics under `metrics`. The exact schema is in `scripts/eventbus/health_route.py`.
 
 ## Degraded Response
 
@@ -75,24 +57,6 @@ Same as success response, but with `status: "degraded"` and non-empty `degraded_
 | `subscribers_at_capacity` | Active subscribers at configured capacity limit |
 | `lock_wait_high` | Average DB lock wait time exceeds its threshold |
 | `query_duration_high` | Average query duration exceeds its threshold |
-
-## Example Requests
-
-### Successful Health Check
-
-```bash
-curl -H "Authorization: Bearer ${MONITORING_TOKEN}" \
-  http://<eventbus-host>:<port>/health
-```
-
-Returns `status: "ok"` with an empty `degraded_reasons` array when all subsystems are
-healthy — see `scripts/eventbus/health_route.py` for the full response schema.
-
-### Degraded Health Check
-
-The same request returns HTTP 503 with `status: "degraded"` and a non-empty
-`degraded_reasons` array listing which conditions triggered the degraded state (see
-"Possible Degraded Reasons" above).
 
 ## Keywords
 

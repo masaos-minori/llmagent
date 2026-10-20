@@ -36,17 +36,6 @@ See `delete_document()` in `scripts/mcp_servers/rag_pipeline/document_manager.py
 
 This order is necessary because `chunks_vec` does not have a foreign key constraint pointing to `chunks`. Explicit `DELETE` statements for the `chunks` table do not exist in the code (see [ADR-005](../10_adr/adr_02_06_005_rag-source-derived-index-relationships.md) for details).
 
-```python
-# Order matters — chunks_vec before documents (CASCADE removes chunks)
-db.execute(
-    "DELETE FROM chunks_vec"
-    " WHERE chunk_id IN"
-    " (SELECT chunk_id FROM chunks WHERE doc_id = ?)",
-    (doc_id,),
-)
-db.execute("DELETE FROM documents WHERE doc_id = ?", (doc_id,))
-```
-
 Other derivative records (e.g., rows in the `chunks` table) depend on cascading deletes or triggers where applicable.
 
 ---

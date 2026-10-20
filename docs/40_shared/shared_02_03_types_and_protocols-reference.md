@@ -16,45 +16,29 @@ related:
 
 ## 9a. `DbConfig` (`db/config.py`)
 
-```python
-@dataclass(frozen=True)
-class DbConfig:
-    rag_db_path: str
-    session_db_path: str
-    workflow_db_path: str = ...   # defaults: see db/config.py
-    eventbus_db_path: str = ...
-    sqlite_vec_so: str = ""       # empty = vec extension not required
-    sqlite_timeout: int = ...
-    sqlite_busy_timeout_ms: int = ...
-```
+`DbConfig` is a frozen dataclass holding the four platform database paths, the `sqlite-vec` extension path (empty means the vec extension is not required) and the SQLite timeouts.
 
-- Validated in `__post_init__`: the DB paths must be non-empty, each parent directory must exist, and `sqlite_timeout` must be ≥ 1.
-- Constructed by `build_db_config()`, which reads `agent.toml` via `ConfigLoader().load("agent.toml")`.
-- Used by `SQLiteHelper`, `maintenance.py`, and session factories.
+- `__post_init__` rejects empty DB paths, non-existent parent directories and `sqlite_timeout < 1`.
+- `build_db_config()` constructs it from `agent.toml` via `ConfigLoader().load("agent.toml")`.
+- It is consumed by `SQLiteHelper`, `maintenance.py` and session factories. Field defaults: `db/config.py`.
 
 ---
 
 ## 10. Tool Constants (`shared/tool_constants.py`)
 
-All constants are `frozenset[str]`. They serve as seed data for `ToolRegistry` and are used for side-effect classification in `ToolExecutor`. Defined per category: `READ`/`WRITE`/`DELETE`/`RAG`/`CICD`/`MDQ`/`GIT`/`SHELL`/`WEB_SEARCH`, and referenced by both `shared/tool_executor.py` and `agent/tool_runner.py`. (Explicit in code — `scripts/shared/tool_constants.py`)
+The per-category tool-name frozensets serve as seed data for `ToolRegistry` and for side-effect classification in `ToolExecutor`; they are shared by `shared/` and `agent/`.
 
 ---
 
 ## 11. `CallToolRequest` / `CallToolResponse` Reference
 
-Defined in `mcp_servers/models.py` (NOT in `shared/`; the package is named `mcp_servers`, not `mcp`, to avoid collision with the PyPI Model Context Protocol SDK `mcp`). These are Pydantic models used only within MCP servers; code in the `shared/` layer should NOT import from `mcp_servers/`. Do not confuse them with the `ToolCallResult` dataclass in `shared/transport_dto.py`. (Explicit in code — `scripts/mcp_servers/models.py`)
+Defined in `mcp_servers/models.py` (NOT in `shared/`; the package is named `mcp_servers`, not `mcp`, to avoid collision with the PyPI Model Context Protocol SDK `mcp`). These are Pydantic models used only within MCP servers; code in the `shared/` layer should NOT import from `mcp_servers/`. Do not confuse them with the `ToolCallResult` dataclass in `shared/transport_dto.py`.
 
 ---
 
-## 12. Differences between `Protocol`, `TypedDict`, `dataclass`, and DTOs
+## 12. Choosing a Type Kind
 
-| Kind | Examples | Mutability | `isinstance()` | Usage |
-|---|---|---|---|---|
-| `TypedDict` | `LLMMessage`, `ArtifactEvent` | Mutable dict | No (unless `@runtime_checkable`) | Data transport; duck-typed |
-| `Protocol` | `RagConfig` | Depends on impl | Yes (if `@runtime_checkable`) | Structural contract; any object satisfying fields works |
-| frozen `dataclass` | `LLMUsage`, `LLMResponse`, `ActionResult`, `DbConfig`, `ShellPolicy` | Immutable | Yes | Value objects; hashable |
-| `dataclass` (non-frozen) | `McpServerConfig` | Mutable | Yes | Mutable configuration records |
-| Pydantic model | `CallToolRequest`, `CallToolResponse` | Mutable | Yes | MCP HTTP request/response validation |
+`TypedDict` is used for mutable data transport (`LLMMessage`, `ArtifactEvent`), `Protocol` for structural contracts, frozen `dataclass` for immutable value objects, and Pydantic models for MCP HTTP request/response validation.
 
 **AI Guidance:** If a function accepts `RagConfig`, it should accept any object that satisfies the protocol (including `SimpleNamespace`), provided it has the required fields. Do not assume it must be an `AgentConfig`.
 

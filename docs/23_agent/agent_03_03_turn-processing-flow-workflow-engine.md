@@ -62,10 +62,6 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 **Critical Invariant:** Partial content is NEVER added to `ctx.conv.history`. By isolating it to the diagnostic channel, subsequent LLM context is not polluted.
 
-### Mandatory Workflow Execution
-
-`Orchestrator.handle_turn()` is always executed via `WorkflowEngine` (rationale and invariants: ADR-001, linked under Design Intent).
-
 ### Workflow Status
 
 `Orchestrator.workflow_status()` returns a dict with a single key `tracking`:
@@ -95,13 +91,8 @@ All `plan`/`execute`/`verify` stages go through the same retry loop function. St
 
 When loading workflow definitions from `config/workflows/*.json`:
 
-- Required top-level keys: `name`, `version`, `stages`, `retry_policy`
-- `stages` must be a non-empty list
-- Stage IDs must be unique
-- Mandatory stages: `plan`, `execute`, `verify`
-- Each stage must have: `id`, `timeout_sec`, `retryable`
-- `retry_policy.max_attempts` must be ≥ 1
-- `retry_policy.backoff_sec` must be ≥ 0
+- A definition must have a non-empty list of uniquely identified stages, which must include `plan`, `execute`, and `verify`; each stage declares `timeout_sec` and `retryable`
+- `retry_policy.max_attempts` must be ≥ 1 and `retry_policy.backoff_sec` must be ≥ 0
 - The `require_approval` key must not be present: the workflow has no approval stage
 
 See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook) for recovery steps when a rule is violated.
@@ -124,14 +115,7 @@ During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is calle
 
 ## Turn-by-turn State Changes
 
-| Phase | State Modified |
-|---|---|
-| TurnStart | `ctx.turn.current_turn_id` = UUID4 |
-| Memory Injection | System message is added to the beginning of `ctx.conv.history` |
-| User Addition | `ctx.conv.history` += user message; `ctx.stats.stat_turns += 1` |
-| Compression | Oldest turns in `ctx.conv.history` are replaced with summary |
-| LLM + Tool | `ctx.conv.history` += assistant + tool messages; statistics updated |
-| TurnEnd | `ctx.turn.current_turn_id` = None |
+Per-turn state changes follow the step order in [agent_03_01](agent_03_01_turn-processing-flow-overview.md); the persistence and reset semantics of each state field are below.
 
 ### Turn State Mutation Reference
 

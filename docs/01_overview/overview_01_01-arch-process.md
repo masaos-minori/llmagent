@@ -71,7 +71,7 @@ Each MCP server runs as a separate process because:
 
 **Reason for per-process configuration separation:**
 
-Each process reads only its own configuration file. Enforcement is by `ConfigLoader.restrict_to()`, except for the EventBus, which does not call `restrict_to()` and relies on a local invariant instead; the set of readable files is the same. See [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md) Exceptions. Common parameters (DB paths, external service URLs) are described individually in each process's configuration rather than shared across files. This ensures that changing one process's configuration never inadvertently affects another: each process owns its own configuration and is isolated from the others. See [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md).
+Each process reads only its own configuration file, so changing one process's configuration never affects another. Enforcement is by `ConfigLoader.restrict_to()`, except for the EventBus, which relies on a local invariant instead; the set of readable files is the same. Rationale and exceptions: [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md).
 
 #### Implementation Notes
 
@@ -81,7 +81,7 @@ Each process reads only its own configuration file. Enforcement is by `ConfigLoa
 
 #### Configuration File Isolation Policy
 
-Each process (Agent, each MCP server, crawler, ingester, chunk_splitter, EventBus) operates independently and **only reads its own corresponding configuration file**. It does not read configuration files of other processes (including `agent.toml`). If multiple processes require common parameters like DB paths or external service URLs, do not create a shared file; instead, describe them individually in each process's configuration file.
+Each process (Agent, each MCP server, crawler, ingester, chunk_splitter, EventBus) **only reads its own corresponding configuration file** and never the files of other processes (including `agent.toml`). Parameters needed by several processes (DB paths, external service URLs) are described individually in each process's file; no shared file is created.
 
 | Process | Configuration File |
 |---|---|
@@ -94,27 +94,17 @@ Each process (Agent, each MCP server, crawler, ingester, chunk_splitter, EventBu
 
 Details → [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 
-The following table contains representative examples; the exact set and ports of MCP servers are defined in `[mcp_servers.*]` of `config/agent.toml`.
+The set of MCP servers and their ports is defined in `[mcp_servers.*]` of `config/agent.toml`; MCP domains are listed above. Other services:
 
 | Service | Role |
 |---|---|
 | `agent-llm` | Chat/Code Generation LLM (Dual use: MQE & Re-ranking) |
 | `embed-llm` | Text → Vector conversion (dimension: `scripts/db/store_protocols.py::get_embedding_dims()`) |
-| `web-search-mcp` | Web Search MCP Server (DuckDuckGo) |
-| `file-read-mcp` | File Read MCP Server |
-| `github-mcp` | GitHub Operation MCP Server |
-| `file-write-mcp` | File Write MCP Server |
-| `file-delete-mcp` | File Delete MCP Server |
-| `shell-mcp` | Shell Command Execution MCP Server |
-| `rag-pipeline-mcp` | RAG Pipeline MCP Server |
-| `cicd-mcp` | GitHub Actions CI/CD MCP Server |
-| `mdq-mcp` | Markdown Context Compression Engine MCP Server |
-| `git-mcp` | Local Git Operation MCP Server |
 | `eventbus` | Event Delivery Server (Separate process from MCP servers. Details: `eventbus_01_system-overview.md`) |
 
 #### Implementation Notes (LLM Service URL/Port)
 
-The actual connection destinations for `agent-llm`/`embed-llm` are set as individual hosts/ports via `llm.llm_url` / `rag.embed_url` in `config/agent.toml`; the values shown above are representative. Depending on the runtime environment, they may point to different hosts/ports. The MCP server group matches the `[mcp_servers.*].url` in `agent.toml`. (Explicit in code)
+The actual connection destinations for `agent-llm`/`embed-llm` are set as individual hosts/ports via `llm.llm_url` / `rag.embed_url` in `config/agent.toml`; the values are representative. Depending on the runtime environment, they may point to different hosts/ports. The MCP server group matches the `[mcp_servers.*].url` in `agent.toml`.
 
 ### 2.2 Design Boundaries Requiring Joint Review
 

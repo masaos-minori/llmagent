@@ -47,24 +47,11 @@ MCP server configuration is split into two layers.
 
 **Layer 1 — Agent Process Configuration (`config/agent.toml`)**
 
-Configuration for managing the lifecycle and transport of MCP servers on the agent side:
-- `mcp_servers.<key>.startup_mode` — subprocess / persistent / none
-- `mcp_servers.<key>.transport` — http
-- `mcp_servers.<key>.url` — HTTP endpoint
-- `mcp_servers.<key>.cmd` — Subprocess startup command
-
-(HTTP is the only transport, so the health check mode is always derived as `"http"` and is not a configuration key)
+Lifecycle and transport of MCP servers as seen by the agent (`startup_mode`, `transport`, `url`, `cmd` under `mcp_servers.<key>`; field details in `mcp_06_02`). HTTP is the only transport, so the health check mode is always derived as `"http"` and is not a configuration key.
 
 **Layer 2 — MCP Server Local Application Configuration (`config/*_mcp_server.toml`)**
 
-Application settings specific to each MCP server:
-- allowlists / denylists
-- Resource limits
-- Audit paths
-- allowed_repos (GitHub specific)
-- command_allowlist (Shell specific)
-- allowed_dirs (File server specific)
-- auth_token (Secret reference, e.g. `${ENV:...}`)
+Application settings specific to each MCP server: allowlists and denylists (`allowed_dirs`, `allowed_repos`, `command_allowlist`), resource limits, audit paths, and `auth_token` (a secret reference such as `${ENV:...}`). Each process reads only its own layer.
 
 ---
 
@@ -72,18 +59,22 @@ Application settings specific to each MCP server:
 
 Ports are configured per server in `config/agent.toml` (`mcp_servers`). Configuration, tools, security settings, and operational notes per server → [mcp_04_01_web-search-file-read-github.md](mcp_04_01_web-search-file-read-github.md) (the canonical catalog).
 
-| Server | Transport | Startup Mode | Role |
-|---|---|---|---|
-| web-search-mcp | HTTP | subprocess | Web Search (DuckDuckGo) |
-| file-read-mcp | HTTP | subprocess | Local File Reading |
-| github-mcp | HTTP | subprocess | GitHub API |
-| file-write-mcp | HTTP | subprocess | Local File Writing |
-| file-delete-mcp | HTTP | subprocess | Local File Deletion |
-| shell-mcp | HTTP | subprocess | Sandboxed Shell Execution |
-| rag-pipeline-mcp | HTTP | subprocess | RAG Search Pipeline |
-| cicd-mcp | HTTP | subprocess | GitHub Actions CI/CD |
-| mdq-mcp | HTTP | subprocess | Markdown Context Compression |
-| git-mcp | HTTP | subprocess | Local Git Operations |
+All servers use HTTP transport and are started in `subprocess` mode by default configuration.
+
+| Server | Role |
+|---|---|
+| web-search-mcp | Web Search (DuckDuckGo) and browser page fetch |
+| file-read-mcp | Local File Reading |
+| github-mcp | GitHub API |
+| file-write-mcp | Local File Writing |
+| file-delete-mcp | Local File Deletion |
+| shell-mcp | Sandboxed Shell Execution |
+| rag-pipeline-mcp | RAG Search Pipeline |
+| cicd-mcp | GitHub Actions CI/CD |
+| mdq-mcp | Markdown Context Compression (FTS5/BM25 search) |
+| git-mcp | Local Git Operations |
+
+---
 
 ---
 
@@ -98,7 +89,7 @@ Agent ToolExecutor
   ← {"result": "...", "is_error": false}
 ```
 
-HTTP is the only supported transport (Explicit in code — `scripts/shared/mcp_config.py::TransportType`). Servers started with `startup_mode = "subprocess"` run as subprocesses on loopback.
+HTTP is the only supported transport (`TransportType` in `scripts/shared/mcp_config.py`). Servers started with `startup_mode = "subprocess"` run as subprocesses on loopback.
 
 ### Transport Selection Guide
 
@@ -121,37 +112,17 @@ HTTP is the only supported transport (Explicit in code — `scripts/shared/mcp_c
 
 ## Major Components
 
-| Component | File | Responsibility |
-|---|---|---|
-| `MCPServer` | `scripts/mcp_servers/server.py` | Base class: HTTP startup, `/v1/call_tool`, `/v1/tools`, `/health` |
-| `CallToolRequest` / `CallToolResponse` | `scripts/mcp_servers/models.py` | Common Pydantic models for all servers |
-| `ToolExecutor` | `shared/tool_executor.py` | Routing, concurrent execution, health registry |
-| `ToolRouteResolver` | `shared/route_resolver.py` | Resolves tool_name → server_key (references only `RuntimeToolRegistry.resolve()`) |
-| `RuntimeToolRegistry` | `shared/runtime_tool_registry.py` | **Sole routing authority**. Constructed via live `/v1/tools` discovery using McpToolDiscoveryService |
-| `ToolRegistry` | `shared/tool_registry.py` | Seed data for drift detection regarding tool definitions and ownership (constructed at import from frozenset in `tool_constants.py`; not used for routing) |
-| `McpServerConfig` | `shared/mcp_config.py` | Transport settings per server |
-| `McpServerHealthRegistry` | `shared/mcp_health.py` | Server status: HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN (re-exported by `shared/mcp_config.py`) |
-| `HttpTransport` | `shared/http_transport.py` | HTTP POST to MCP servers |
+Responsibilities:
 
-The runtime routing authority is `RuntimeToolRegistry`. The `tool_names` field in `config/agent.toml` is not an input for routing (it is used for observation and drift verification only). See `mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` for details. |
+- `MCPServer` (`scripts/mcp_servers/server.py`) is the base class for all servers: HTTP startup, `/v1/call_tool`, `/v1/tools`, `/health`. Request/response models are shared by all servers.
+- `ToolExecutor` (`shared/tool_executor.py`) owns routing, concurrent execution, and the health registry. It resolves tool names through `ToolRouteResolver` and sends calls through `HttpTransport`.
+- `RuntimeToolRegistry` (`shared/runtime_tool_registry.py`) is the sole routing authority. It is constructed from live `/v1/tools` discovery at startup.
+- `ToolRegistry` (`shared/tool_registry.py`) is seed data for drift detection of tool definitions and ownership, built from the frozensets in `tool_constants.py`. It is not used for routing.
+- `McpServerConfig` (`shared/mcp_config.py`) holds per-server transport settings. `McpServerHealthRegistry` (`shared/mcp_health.py`) tracks HEALTHY/DEGRADED/UNAVAILABLE/HALF_OPEN/UNKNOWN status.
+
+The `tool_names` field in `config/agent.toml` is not an input for routing (observation and drift verification only). See `mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md` for details.
 
 ---
-
-## Relationship between server, protocol, and shared
-
-``` text
-agent/factory.py
-  → builds ToolExecutor (shared/tool_executor.py)
-       → uses ToolRouteResolver (shared/route_resolver.py)
-       → uses HttpTransport (shared/http_transport.py)
-       → uses McpServerConfig (shared/mcp_config.py)
-       → uses McpServerHealthRegistry (shared/mcp_health.py)
-
-MCP server processes (mcp_servers/<name>/<name>_server.py)
-   → inherit MCPServer (scripts/mcp_servers/server.py)
-   → use CallToolRequest / CallToolResponse (scripts/mcp_servers/models.py)
-  → implement dispatch(name, args) → DispatchResult
-```
 
 ---
 

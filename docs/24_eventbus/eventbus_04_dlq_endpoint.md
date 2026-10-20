@@ -26,49 +26,12 @@ Requires `Bearer ${OPERATOR_TOKEN}` in the Authorization header.
 GET /dlq
 ```
 
-### Parameters
+### Behavior
 
-| Parameter | Required | Default | Constraints | Description |
-|-----------|----------|---------|-------------|-------------|
-| `limit` | No | route default | bounded (see `scripts/eventbus/dlq_route.py`) | Maximum entries to return |
-| `offset` | No | `0` | `>= 0` | Offset for pagination |
-
-### Success Response
-
-**HTTP 200 OK**
-
-#### Response Schema
-
-A pagination envelope (`total`, `limit`, `offset`) plus an `items` array; see `scripts/eventbus/dlq_route.py` for the exact schema.
-
-#### Field Descriptions
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `total` | integer | Total DLQ entries (ignoring pagination) |
-| `limit` | integer | Requested page size |
-| `offset` | integer | Requested offset |
-| `items` | array[object] | Paginated DLQ entries; each carries `seq`, `event_id`, `topic`, `producer`, `published_at`, `delivery_failure_count`, `dlq_requeue_count` and `dlq_at` (the time the event was promoted to the DLQ). `delivery_failure_count` is the stored events-level value, a legacy value that NACK does not modify under the per-consumer model; it is not the per-consumer failure count returned by `POST /nack` |
-
-#### Empty Result
-
-When no events are in the DLQ, the response has `total: 0` and an empty `items` array.
-
-#### Invalid Parameters
-
-- Missing `limit` or `offset`: the route's default values apply.
-- `limit` below 1 or above the maximum bound, or `offset` below 0: HTTP 422 (FastAPI validation).
-
-#### Ordering
-
-Items are ordered by event `seq` ascending (oldest event first), not by the time of DLQ promotion.
-
-### Example Request
-
-```bash
-curl -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
-  "http://<eventbus-host>:<port>/dlq?limit=20&offset=0"
-```
+- Query parameters `limit` (bounded; see `scripts/eventbus/dlq_route.py`) and `offset` (`>= 0`) paginate the result. Out-of-range values return HTTP 422.
+- The response is a pagination envelope (`total`, `limit`, `offset`) plus an `items` array. Each item carries event identity, `dlq_at` (the time the event was promoted to the DLQ), `dlq_requeue_count` and `delivery_failure_count`.
+- `delivery_failure_count` is the stored events-level value, a legacy value that NACK does not modify under the per-consumer model; it is not the per-consumer failure count returned by `POST /nack`.
+- Items are ordered by event `seq` ascending (oldest event first), not by the time of DLQ promotion. An empty DLQ returns `total: 0` and an empty `items` array.
 
 ## Requeue DLQ Entry
 
@@ -80,96 +43,18 @@ POST /dlq/{event_id}/requeue
 
 This operation creates a new event row with `redelivered_from` pointing to the original `event_id`. The original row's `dlq_at` is intentionally left set so only one redelivery succeeds per original event (concurrency guard).
 
-### Path Parameters
-
-| Parameter | Required | Description |
-|-----------|----------|-------------|
-| `event_id` | Yes | The event ID to requeue |
-
-### Request Parameters
-
-None — `event_id` is provided as a path parameter only.
-
 ### Success Response
 
-**HTTP 200 OK**
+HTTP 200 with `event_id` (the original), `requeued: true`, `new_event_id` and `new_seq` of the newly inserted row.
 
-#### Response Schema
+### Error Responses
 
-```json
-{
-    "event_id": "<original event ID>",
-    "requeued": true,
-    "new_event_id": "<UUID v4 hex>",
-    "new_seq": <integer>
-}
-```
-
-#### Field Descriptions
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `event_id` | string | Original event ID that was requeued |
-| `requeued` | boolean | Always `true` on success |
-| `new_event_id` | string | UUID v4 hex string of the newly inserted event row |
-| `new_seq` | integer | Integer sequence number of the newly inserted event row (looked up from the newly inserted row) |
-
-### Example Request
-
-```bash
-curl -X POST -H "Authorization: Bearer ${OPERATOR_TOKEN}" \
-  http://<eventbus-host>:<port>/dlq/evt-failed/requeue
-```
-
-### Conflict Response
-
-**HTTP 409 Conflict**
-
-Returned when the event exists but is not currently in the DLQ (for example, `dlq_at IS NULL`), or when it was already requeued.
-
-#### Response Schema
-
-```json
-{
-    "detail": "event is not in DLQ"
-}
-```
-
-### Not Found Response
-
-**HTTP 404 Not Found**
-
-Returned when the event does not exist in the database.
-
-#### Response Schema
-
-```json
-{
-    "detail": "event not found"
-}
-```
-
-### Empty-result behavior
-
-Not applicable — single event; a missing event returns HTTP 404.
-
-### Invalid-parameter behavior
-
-- Missing `event_id` path parameter: Returns HTTP 404 (FastAPI routing) — no route matches without the path segment.
-- Empty `event_id` (`/dlq//requeue`): Returns HTTP 404 (no matching route).
-- Malformed `event_id` (non-string): Returns HTTP 422 (FastAPI validation) if the type converter rejects it.
-
-### Ordering
-
-Not applicable — this endpoint operates on a single event.
+- HTTP 409 (`event is not in DLQ`): the event exists but is not currently in the DLQ (for example `dlq_at IS NULL`), or it was already requeued.
+- HTTP 404 (`event not found`): the event does not exist.
 
 ### Concurrency guarantee
 
 Concurrent requeue attempts on the same event produce exactly one successful redelivery. The `redelivered_from` existence check in `redeliver_event()` serves as a concurrency guard: if another request has already redelivered this event (a row exists with `redelivered_from = event_id`), subsequent requests return HTTP 409.
-
-### Idempotency Note
-
-Requeue uses a lineage model (new row with `redelivered_from`, original `dlq_at` preserved; see the Requeue DLQ Entry endpoint description). Attempting to requeue the same event twice will return HTTP 409 on the second attempt.
 
 ## Keywords
 

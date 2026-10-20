@@ -89,7 +89,7 @@ The threat model covers the following threat vectors:
 | rag-pipeline | HTTP | Bearer token (required) | Tool safety tiers + approval | Search and list tools are `READ_ONLY`; `rag_delete_document` is `WRITE_DANGEROUS` and requires approval; no ingestion tool is exposed |
 | web-search | HTTP | Bearer token (required; server-side key `auth_token`) | `browser_allowed_domains` allowlist (fail-closed; empty disables `browser_fetch`) | `browser_fetch` additionally rejects loopback, link-local, private, reserved, and multicast IP literals regardless of the allowlist; `search_web` fetches no caller-specified URL (see `mcp_04_01_web-search-file-read-github.md`) |
 
-The shell, github, and file servers now register the Bearer-token middleware and enforce the `Authorization` header, matching their "Bearer token (required)" entries above.
+The shell, github, and file servers register the Bearer-token middleware and enforce the `Authorization` header, matching their "Bearer token (required)" entries above.
 
 *Source: `mcp_05_01_access-control-and-allowlists.md`, `mcp_05_02_auth-profiles-and-sandboxing.md`*
 
@@ -97,7 +97,7 @@ The shell, github, and file servers now register the Bearer-token middleware and
 
 Secret lifecycle management covers:
 
-- **Provisioning**: Secrets are provisioned as environment variables; `config/agent.toml` and `config/*_mcp_server.toml` reference them with `${ENV:VAR_NAME}` (resolved by `resolve_env_ref()` in `scripts/shared/config_utils.py`, which raises `ValueError` when the variable is unset); no hardcoded secrets in code (Explicit in code — scripts/shared/config_utils.py)
+- **Provisioning**: Secrets are provisioned as environment variables; `config/agent.toml` and `config/*_mcp_server.toml` reference them with `${ENV:VAR_NAME}` (resolved by `resolve_env_ref()` in `scripts/shared/config_utils.py`, which raises `ValueError` when the variable is unset); no hardcoded secrets in code
 - **Storage**: Secret values live only in the process environment (or the operator's secret management); config files committed to git hold only `${ENV:VAR_NAME}` references, so no secret values enter git history. File permissions on config files are not enforced by application code
 - **Rotation**: Operator replaces the secret value in the environment (or secret source) and restarts affected services; no hot-reload for secrets (per `mcp_06_14_mcp-authentication-setup.md`)
 - **Revocation**: Removing the secret from the environment and restarting services invalidates it immediately; no separate revocation list

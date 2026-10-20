@@ -26,40 +26,13 @@ Documents the structure and constraints of LLM and RAG configurations.
 
 ### LLM Configuration
 
-#### Generation Parameters
+The Agent-owned LLM settings cover generation parameters, HTTP/connection, SSE streaming, token counting, history compression, and the budget warning (schema: `LLMConfig`; values: `config/agent.toml`). The settings below carry semantics that the schema alone does not show:
 
-- `temperature`: Generation temperature (0.0–2.0).
-- `max_tokens`: Maximum number of tokens to generate.
-- For session titles: `title_llm_temperature`, `title_llm_max_tokens` (values: see `config/agent.toml`).
-
-#### HTTP/Connection
-
-- `llm_url`: LLM endpoint URL.
-- `http_timeout`: HTTP timeout (seconds).
-- `llm_retry_base_delay`: Base value for exponential backoff (seconds).
-
-#### SSE Streaming
-
-- `sse_heartbeat_timeout`: SSE idle timeout (0 = disabled).
-- `sse_malformed_retry`: Number of malformed SSE frames allowed.
-- `sse_reconnect_max`: Maximum SSE reconnection attempts on retryable errors.
-- `llm_stream_retry_on_heartbeat_timeout`: Reconnect when `HEARTBEAT_TIMEOUT` occurs.
-- `llm_stream_retry_on_malformed_chunk`: Reconnect when `MALFORMED_SSE_FRAME` occurs.
-
-#### Token Counting
-
-- `tokenize_url`: llamacpp `/tokenize` URL; `""` falls back to the category-aware estimate in `shared/token_estimation.py`.
-
-#### History Compression
-
-- `context_token_limit`: Token-based compression threshold (0 = disabled).
-- `context_char_limit`: Character-count-based compression threshold.
-- `context_compress_turns`: The oldest N turn pairs to compress in one cycle.
-- `history_protect_turns`: The most recent N turn pairs protected from compression.
-
-#### Budget Warning
-
-- `budget_warn_ratio`: Warns when history reaches this ratio of the limit.
+- `tokenize_url = ""` falls back to the category-aware estimate in `shared/token_estimation.py`.
+- `context_token_limit = 0` disables token-based compression; `context_char_limit` is the character-count threshold that remains the fallback-truncation trigger.
+- `sse_heartbeat_timeout = 0` disables the SSE idle timeout.
+- `llm_stream_retry_on_heartbeat_timeout` / `llm_stream_retry_on_malformed_chunk` select whether the corresponding stream error classes reconnect, bounded by `sse_reconnect_max`.
+- `history_protect_turns` protects the most recent turn pairs from compression; `context_compress_turns` is the number of oldest pairs compressed per cycle.
 
 ### RAG Configuration
 
@@ -79,7 +52,7 @@ The refiner is configured in `config/rag_pipeline_mcp_server.toml`; refiner keys
 
 - **Canonical Source**: LLM/RAG sections in `config/agent.toml` for Agent-owned settings; `config/rag_pipeline_mcp_server.toml` for RAG pipeline parameters.
 - **Validation**: `agent/services/config_validators.py`.
-- **Dataclasses**: `LLMConfig` / `RAGConfig` in `agent/config_dataclasses.py`.
+- **Schema**: `LLMConfig` / `RAGConfig` in `agent/config_dataclasses.py`.
 
 ## Key Constraints
 

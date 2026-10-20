@@ -31,10 +31,7 @@ related:
 For the formal partial completion model, see [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md).
 
 **Implementation Notes:**
-- The actual display label for `/stats` is `Partial compl : N` (or `Partial compl : 0` when zero). If there is at least one, it appends `(stored in session_diagnostics)`.
-- The log message for compression is `"History compressed: %s messages summarized"`.
-- The compression threshold key is `context_char_limit`; compression is triggered when the total character count of the history exceeds this value.
-- If the character limit is exceeded without compression occurring, `HistoryManager` performs fallback truncation (deleting low-priority messages) and increments `stat_fallback_truncate_count`. This is displayed as `Fallback trunc: N` in `/stats`. This behavior is a failsafe implemented if compression fails.
+- When the character limit is exceeded and compression fails, `HistoryManager` performs fallback truncation (deleting low-priority messages) as a failsafe and increments `stat_fallback_truncate_count`, shown as `Fallback trunc: N` in `/stats`.
 
 ## Troubleshooting
 
@@ -57,23 +54,11 @@ At the end of a session, a lightweight diagnostic summary is persisted to the `s
 ### Querying Session Diagnostics
 
 ```bash
-# View all diagnostic events (newest first)
-sqlite3 <session_db_path> "SELECT id, session_id, kind, created_at FROM session_diagnostics ORDER BY created_at DESC LIMIT 50;"
-
 # Aggregate by kind
 sqlite3 <session_db_path> "SELECT kind, COUNT(*) AS n FROM session_diagnostics GROUP BY kind ORDER BY n DESC;"
 
-# Diagnostics for a specific session
-sqlite3 <session_db_path> "SELECT id, kind, content, created_at FROM session_diagnostics WHERE session_id = ? ORDER BY created_at DESC;"
-
-# View all session summaries
-sqlite3 <session_db_path> "SELECT kind, json(content) FROM session_diagnostics WHERE kind = 'session_summary' ORDER BY created_at DESC;" | jq .
-
-# Filter sessions with high error rates
-sqlite3 <session_db_path> "SELECT kind, content FROM session_diagnostics WHERE kind = 'session_summary' AND json_extract(content, '$.tool_errors') > 0 ORDER BY created_at DESC LIMIT 10;" | jq -r '.content'
-
-# Cross-session statistical aggregation
-sqlite3 <session_db_path> "SELECT COUNT(*) as total_sessions, AVG(json_extract(content, '$.turns')) as avg_turns, SUM(json_extract(content, '$.tool_errors')) as total_tool_errors FROM session_diagnostics WHERE kind = 'session_summary';"
+# Session summaries with tool errors
+sqlite3 <session_db_path> "SELECT kind, content FROM session_diagnostics WHERE kind = 'session_summary' AND json_extract(content, '$.tool_errors') > 0 ORDER BY created_at DESC LIMIT 10;"
 ```
 
 ### Diagnostic Kinds
@@ -90,34 +75,12 @@ In addition to `session_summary` and `mid_turn_error`, the following `kind` valu
 | `rag_query` | RAG Export Command | Pipeline diagnostics (`stage_results`, etc.) for RAG queries. Aggregated into `rag_query_count`/`rag_stage_outcomes` in `session_summary` |
 
 
-### Session Summary Fields
+### Session Summary
 
-| Field | Description |
-|---|---|
-| `session_id` | SQLite session row ID |
-| `timestamp` | ISO-8601 UTC timestamp of session end |
-| `turns` | Total number of turns processed |
-| `tool_calls` | Total number of tool calls executed |
-| `tool_errors` | Number of tool call failures |
-| `partial_completions` | Number of partial LLM completions (interrupted streams) |
-| `parse_errors` | Number of SSE parse errors |
-| `heartbeat_timeouts` | Number of SSE heartbeat timeouts |
-| `reconnects` | Number of LLM transport reconnections |
-| `input_tokens` | Total input tokens (if available) |
-| `output_tokens` | Total output tokens (if available) |
-| `compress_count` | Number of times history was compressed |
-| `latency_summary` | Average/Max latency per step (ms) |
-| `fallback_truncate_count` | Number of times fallback truncation occurred (deletion of low-priority messages) |
-| `workflow_count` | Number of workflows started during the session |
-| `task_count` | Number of tasks generated during the session |
-| `retry_count` | Number of retries for task execution (`execute` stage) |
-| `artifacts` | List of URIs for artifacts generated during the session |
-| `rag_query_count` | Count of `kind=rag_query` diagnostic entries |
-| `rag_stage_outcomes` | Aggregated stage results (`stage_results`) from RAG query diagnostics |
+`session_summary` is a JSON document of per-session counters: turns, tool calls and errors, LLM transport counters (partial completions, parse errors, heartbeat timeouts, reconnects), token totals, compression and fallback-truncation counts, latency, workflow counts (workflows, tasks, retries, artifact URIs) and RAG query aggregates (`rag_query_count`, `rag_stage_outcomes`). The field set is defined by the summary builder in code, not here.
 
-**Implementation Notes:**
-- `workflow_count`, `task_count`, `retry_count`, and `artifacts` fall back to zero or an empty list if querying the workflow DB fails.
-- If persisting diagnostic information fails, it is logged at DEBUG level; this does not affect the main process (e.g., conversation continuation or session shutdown). `DiagnosticStore.save()` is designed so that failures in saving diagnostics do not block primary operations like conversation continuation or session shutdown.
+- The workflow fields fall back to zero or an empty list if querying the workflow DB fails.
+- A failure to persist diagnostics is logged at DEBUG level and never blocks conversation continuation or session shutdown.
 
 ## Keywords
 

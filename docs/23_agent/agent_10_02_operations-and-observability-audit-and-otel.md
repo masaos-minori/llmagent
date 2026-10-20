@@ -46,18 +46,15 @@ The OTel SDK is treated as an optional dependency; the agent always falls back t
 ## Key Constraints
 
 - Audit logs use JSON-lines format with a structure suitable for later parsing.
-- OTel configuration keys (`otel_enabled`, `otel_endpoint`, `otel_service_name`) are set in `config/agent.toml`.
-- If `otel_endpoint = ""`, spans are written to standard output / `agent.log`.
+- OTel is configured in `config/agent.toml` (see agent_08_04); an empty `otel_endpoint` writes spans to standard output / `agent.log`.
 - Calling writing functions for `tool_approval` / `tool_exec` outside of a workflow context will result in an assertion error.
 
 ## Operational Notes
 
 ### Reading Audit Logs
 
-- `turn_start` / `turn_end` are basic events occurring in all turns.
-- `workflow_start` / `stage_completed` are additional events issued by the workflow engine.
-- The `turn_end` event includes workflow context (`workflow_id`).
-- If no audit logger is configured, none of these events will be issued.
+- `turn_start` / `turn_end` occur in every turn; `turn_end` carries the workflow context (`workflow_id`). Workflow-engine events are additional (see agent_10_03).
+- If no audit logger is configured, none of these events are issued.
 
 ### Reading OTel Spans
 

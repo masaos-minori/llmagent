@@ -51,10 +51,7 @@ These three layers support three use cases: real-time execution monitoring, post
 
 ### Reading Workflow Spans
 
-Expected span names:
-- `workflow.run` — Entire workflow execution
-- `workflow.stage` — Individual stage execution
-- `workflow.retry` — Waiting for retry
+Span names (`workflow.run`, `workflow.stage`, `workflow.retry`) are defined in [agent_10_02](agent_10_02_operations-and-observability-audit-and-otel.md).
 
 ### Troubleshooting Failure
 

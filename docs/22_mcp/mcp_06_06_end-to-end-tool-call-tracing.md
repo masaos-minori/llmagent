@@ -37,32 +37,13 @@ The agent-side audit event includes an `error_type` field distinguishing transpo
 failures from tool-level failures — see `scripts/agent/tool_audit.py` for the exact
 values and their assignment logic.
 
-Example audit log line:
-```json
-{"event":"tool_exec","tool":"shell_run","is_error":true,"error_type":"transport",...}
-```
-
-Filter by error type:
-```bash
-# Transport failures (server issues)
-grep '"error_type":"transport"' <log_dir>/audit.log
-
-# Tool-level failures (business logic errors)
-grep '"error_type":"tool"' <log_dir>/audit.log
-```
+`error_type` is `transport` (server or network issue) or `tool` (tool-level failure); filter with `grep '"error_type":"transport"' <log_dir>/audit.log`.
 
 ## Per-Server Error Counters
 
 `ToolExecutor` maintains per-server error counters, which can be inspected via `ToolExecutor.get_error_counters()`:
 
-```python
-{
-    "shell-mcp": {"transport": 2, "tool": 5},
-    "github-mcp": {"transport": 0, "tool": 1},
-}
-```
-
-These counters are kept in memory only (not persisted) and are reset upon agent restart.
+Counts are split into `transport` and `tool` per server. These counters are kept in memory only (not persisted) and are reset upon agent restart.
 
 ## Detecting Repeated Failures
 
@@ -89,14 +70,7 @@ When a round contains tools with side effects (write operations), the scheduler 
 | `resource_read_write_conflict` / `resource_write_write_conflict` | Multiple tool calls have overlapping `resource_scopes` (exact match, or filesystem scope ancestor/descendant relationship) and at least one is a write | All tool calls in the conflicting component are executed serially |
 | `global_write_scope` | Multiple writes without a specific scope (each is treated as occupying the synthetic `global:write` scope) | The scope-less writes are executed serially |
 
-**Log Format:**
-``` yaml
-ROUND_SERIALIZATION: triggered by shell_run (requires_serial) — 1 tools serialized in this round
-Serialization impact: 3 tools grouped serially (normally would run in parallel)
-```
-
-**How to check statistics:**
-Running `/mcp` displays serialization statistics at the end of the MCP status output.
+**Log Format:** `ROUND_SERIALIZATION: triggered by <tool> (<reason>) — <N> tools serialized in this round`. `/mcp` shows cumulative serialization statistics.
 
 **Why this information is important:**
 While serialization reduces concurrency, it prevents race conditions on shared resources. Before attempting to optimize concurrency, check the serialization logs to identify which tools and scopes are most frequently causing grouping.

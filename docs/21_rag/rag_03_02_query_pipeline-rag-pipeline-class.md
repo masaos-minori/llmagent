@@ -27,24 +27,15 @@ related:
 
 ## 2. RagPipeline Class (`scripts/rag/pipeline.py`)
 
-```python
-from rag.pipeline import RagPipeline, RagPipelineError
-```
-
-> **Note**: `fetch_full_document` is not provided by `rag/pipeline.py`. Its actual implementation is defined in `rag/repository.py` (`from rag.repository import fetch_full_document`). Similarly, `sanitize_document` is a function from `rag/utils.py` and does not exist in `rag.pipeline`. Actual imports in test and implementation code are only `from rag.pipeline import RagPipeline, RagPipelineError`.
-> (Explicit in code — `scripts/rag/pipeline.py` import statements, `fetch_full_document()` function in `scripts/rag/repository.py`)
-
-The constructor of this class is configured by passing `module_cfg`. Please refer to the source code for details.
-
-Refer to the source code for a list of public attributes and methods.
+`RagPipeline` is constructed from a flat `module_cfg` (the `RagConfig` Protocol) and exposes `augment()` and `run()`. See the source for the public attribute and method set.
 
 ### Implementation Note
 
-- `RagPipeline` has no cache invalidation mechanism. This is verified by `tests/rag/test_rag_pipeline_no_cache_freshness.py`.
+- `RagPipeline` has no cache invalidation mechanism because it has no cache; see [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md) section 6.
 
 ### HTTP Mode (`rag_service_url`)
 
-If `rag_service_url` is not empty, `augment()` delegates to an external RAG service via `call_rag_service()` in `scripts/rag/pipeline_service.py` instead of executing the in-process pipeline.
+If `rag_service_url` is not empty, `augment()` delegates to an external RAG service via `call_rag_service()` in `scripts/rag/pipeline_service.py` instead of executing the in-process pipeline. `rag_auth_token` is the outbound Bearer token for that service; an empty value sends no `Authorization` header.
 
 | Behavior | Details |
 |---|---|
@@ -53,25 +44,14 @@ If `rag_service_url` is not empty, `augment()` delegates to an external RAG serv
 | Retries | Bounded retries for 5xx or transport errors with exponential backoff; no retries for 4xx or JSON parsing errors |
 | Fallback | `transient_failure` (HTTP 5xx or transport error after retries, other 4xx, or `is_error` true) → In-process pipeline; `empty` ("" context) → accepted as valid result; `auth_error` (HTTP 401/403) → `RagPipelineError`, no in-process fallback (fail closed) |
 | Prevention of infinite delegation | The MCP adapter hardcodes `rag_service_url=""`, so the in-process `augment()` will not re-delegate |
-| Return value | `call_rag_service()` returns a `CallRagResult(kind, result, status_code, latency_ms)` — `kind` is `success`, `empty`, `auth_error` or `transient_failure`; `status_code` and `latency_ms` can be used for diagnostics |
+| Return value | `call_rag_service()` returns a frozen `CallRagResult(kind, result, status_code, latency_ms)` — `kind` is `success`, `empty`, `auth_error` or `transient_failure`; `result` is the augmented text, `""` for `empty`, or `None` for failures |
 
-`RagConfig` Protocol (`shared/types.py`) configuration fields:
-- `rag_service_url: str` — URL of the remote endpoint; if empty string, HTTP mode is disabled
-- `rag_auth_token: str` — Bearer token sent as `Authorization: Bearer` to the external RAG service; "" = no authentication (default)
-
-#### `call_rag_service()` Function (`scripts/rag/pipeline_service.py`)
-
-`call_rag_service()` is an `async` coroutine. It takes the shared async HTTP client, the RAG service URL, the query and the history context, plus keyword-only options for the auth token and for callbacks that receive the fetched hits and the fallback reason.
-
-Returns a frozen `CallRagResult(kind, result, status_code, latency_ms)`: `kind` is `success`, `empty`, `auth_error` or `transient_failure`; `result` is the augmented text, `""` for `empty`, or `None` for failures; `status_code` is the HTTP response code or `None`; `latency_ms` is total time in milliseconds. HTTP 401/403 yields `auth_error`, which `HttpAugment` maps to `http_result_kind="auth_error"` and `AugmentRefiner.run_http_augment` converts to `RagPipelineError`.
+HTTP 401/403 yields `auth_error`, which `HttpAugment` maps to `http_result_kind="auth_error"` and `AugmentRefiner.run_http_augment` converts to `RagPipelineError`.
 
 The `"remote_empty"` case is NOT a fallback, it is a **SUCCESS**. It means the remote service responded with HTTP 200 but found no relevant context. In this case, the in-process pipeline is not executed. Do not confuse this with actual fallback events; both `remote_nonempty` and `remote_empty` have `fallback_reason = None`.
 
-This classification result can be verified here:
-- `get_diagnostics()["http_result_kind"]`
-
 > **Note**: `get_diagnostics()["http_result_kind"]` and `SearchDiagnostics.http_result_kind` both carry the `rag.models_result.HttpResultKind` enum (`success`/`empty`/`error`/`not_used`/`auth_error`); the strings `remote_nonempty`/`remote_empty`/`in_process_fallback`/`auth_error` are internal to `HttpAugment` and are mapped to the enum before being exposed. See [rag_03_03_query_pipeline-context-and-diagnostics.md](rag_03_03_query_pipeline-context-and-diagnostics.md) section 4.2 for details.
-> (Explicit in code — `HttpAugment` (`scripts/rag/http_augment.py`) and `AugmentRefiner.run_http_augment`)
+> (Explicit in code — `HttpAugment` in `scripts/rag/http_augment.py`)
 
 ## Keywords
 

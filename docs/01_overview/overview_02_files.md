@@ -71,7 +71,7 @@ Startup order: build scripts → deployment → schema initialization → servic
 
 ### Reason for Process Separation
 
-Deployment is split into separate scripts under `deploy/` (`build_sqlite_vec.sh`, `build_binaries.sh`, `deploy.sh`, `init_db.sh`, `setup_services.sh`, `start_agent.sh`), each an independent bash script using `set -euo pipefail`. (Explicit in code — `deploy/*.sh`)
+Deployment is split into separate scripts under `deploy/`, each an independent bash script using `set -euo pipefail`.
 - One-time steps (such as building the sqlite-vec extension) are not repeated on every deployment.
 - Each step can be re-run on its own, for example `start_agent.sh` can be run again without re-running the deployment steps.
 
@@ -121,19 +121,11 @@ Isolated SQLite databases: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `e
 
 ### DB Layer Package (scripts/db/)
 
-Schema initialization, connection management (WAL mode, busy_timeout), and maintenance operations. Protocol abstraction layer defining VectorStore and DocumentStore interfaces with SQLite implementations. Data models for checkpoint counts, purge counts, health metrics, document rows, session rows, and message rows. Consistency checking, rotation, and recovery utilities.
+Schema initialization, connection management (WAL mode, busy_timeout), maintenance operations, and the VectorStore / DocumentStore protocol abstraction with SQLite implementations. Module boundaries: see `db_08_active_databases.md`.
 
 ### Shared Infrastructure Components (scripts/shared/)
 
-**LLM Client/Transport** — SSE streaming, exponential backoff retry, transport error handling, payload handling.
-
-**Tool Routing/Execution** — MCP server routing, tool registry, runtime tool metadata, route resolution.
-
-**Configuration** — TOML/JSON loader, typed value accessors, validators, MCP server configuration dataclasses, health tracking.
-
-**Other Utilities** — Type definitions, action results, events, formatters, git helper, HTTP transport, JSON utilities, logging, OpenTelemetry, token counting.
-
-**protocols/** — ShellPolicy protocol definition.
+Shared by the agent and MCP servers: LLM client and transport (SSE streaming, retry), tool routing and execution, configuration loading and health tracking, and common utilities. See `scripts/shared/` for the module list.
 
 ### Design Intent and Operational Specifications
 
@@ -159,7 +151,7 @@ See `config/` for the current file layout.
 
 ### Per-Process Config Isolation Policy
 
-Each process reads only its own config file — no cross-process config sharing. Enforcement is by `ConfigLoader.restrict_to()`, except for the EventBus, which uses a local invariant instead (see ADR-002 Exceptions). This prevents configuration drift between processes and ensures that changes to one process's config do not affect others. The MCP servers read their respective `<key>_mcp_server.toml` files; the agent reads `agent.toml`.
+Each process reads only its own config file; the MCP servers read their respective `<key>_mcp_server.toml` files and the agent reads `agent.toml`. The policy, its enforcement and exceptions are defined in [overview_01_01-arch-process.md](overview_01_01-arch-process.md) and ADR-002.
 
 ### MCP Server Configuration Responsibilities
 

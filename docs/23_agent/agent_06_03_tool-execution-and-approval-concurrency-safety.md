@@ -28,29 +28,17 @@ Documents responsibility separation for safety controls, design decisions for `T
 
 ### Summary of Safety Controls
 
-| Control | Config field | Behavior |
-|---|---|---|
-| `allowed_tools` | `cfg.tool.allowed_tools` | Whitelist; at runtime (`check_preflight()`) an empty list performs no whitelist check, so all tools are allowed. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error in production (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`) |
-| `allowed_root` | `cfg.approval.allowed_root` | Path jail; if empty, disabled |
-| `approval_github_allowed_repos` | `cfg.approval.*` | GitHub write allowlist; if empty, all are rejected (**Fail-closed**) |
-| `plan_blocked_tools` | `cfg.tool.plan_blocked_tools` | Additional automatic rejection in plan mode (every non-`READ_ONLY` tool is already rejected) |
-| `approval_protected_paths` | `cfg.approval.*` | Escalation to `high` via path prefixes |
-| `approval_high_risk_branches` | `cfg.approval.*` | Escalation to `high` via branch names |
-| `gitops_push_blocked` | `cfg.approval.*` | Globally block all writes to GitHub |
+| Control | Behavior |
+|---|---|
+| `allowed_tools` (`cfg.tool`) | Whitelist; at runtime (`check_preflight()`) an empty list performs no whitelist check, so all tools are allowed. Separately, `ProductionConfigValidator` records `allowed_tools=[]` as a validation error in production (startup exits on validator errors) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/production_config_validator.py`) |
+| `allowed_root` (`cfg.approval`) | Path jail; if empty, disabled |
+| `approval_github_allowed_repos` (`cfg.approval`) | GitHub write allowlist; if empty, all are rejected (**Fail-closed**) |
+
+The remaining controls (`plan_blocked_tools`, `approval_protected_paths`, `approval_high_risk_branches`, `gitops_push_blocked`) are described in [agent_06_02](agent_06_02_tool-execution-and-approval-approval.md).
 
 ### ToolLoopGuard Design Decisions
 
-Controls the internal tool loop within `LlmTurnExecutor`:
-
-| Guard | Config field | Behavior |
-|---|---|---|
-| Deduplication | `tool_dedup_max_repeats` | If the same (name, args) is repeated N or more times → terminate loop |
-| Cycle Detection | `tool_cycle_detect_window` | If the same tool call fingerprint is repeated within the last N rounds → terminate loop |
-| Retry Limit | `tool_error_retry_max` | If an erroring (name, args) is called again → terminate loop |
-| Consecutive Errors | `tool_error_max_consecutive` | If all tools in a round error N times → terminate loop |
-| Empty Result Repeat | `tool_empty_result_max_repeats` (disabled when 0) | If a tool returns empty results N or more times within a turn → terminate loop |
-
-**Distinction from WorkflowEngine retry**: `tool_error_retry_max` is ToolLoopGuard's own in-memory per-turn block — it suppresses retries of the same `(tool, args)` pair within a single turn. It is NOT the same as `WorkflowEngine.retry_policy.max_attempts`, which governs stage-level retries across turns. These are two independent mechanisms at different granularities: ToolLoopGuard operates within a single LLM turn's tool loop, while WorkflowEngine operates across turns at the workflow stage level.
+Controls the internal tool loop within `LlmTurnExecutor`. The guards (deduplication, cycle detection, retry limit, consecutive errors, empty result repeat), their thresholds (config fields: [agent_08](agent_08_03_configuration-tools-memory.md)), and the distinction from `WorkflowEngine` stage-level retry are canonical in [agent_03_02](agent_03_02_turn-processing-flow-llm-tool-loop.md). Every guard terminates the loop when triggered; `tool_empty_result_max_repeats=0` disables the empty-result guard.
 
 **Design judgment**: Guard hints are stored for offline diagnostics only. They are **not injected** into `ctx.conv.history`.
 
@@ -71,7 +59,6 @@ The Orchestrator never falls back directly to unapproved execution if it cannot 
 ## Responsibility Boundary
 
 - **Canonical Source**: `shared/tool_executor.py` (ToolExecutor), `agent/tool_loop_guard.py` (ToolLoopGuard)
-- **Workflow Approval DB**: `workflow.sqlite`
 
 ## Key Constraints
 

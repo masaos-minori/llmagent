@@ -31,96 +31,14 @@ related:
 
 # Event Bus: Reference API
 
-Detailed API specifications (module responsibilities, route handlers, and internal
-classes) for verification purposes. Refer to `eventbus_03_dlq_operations.md` for the
-endpoint contracts (request/response shapes, status codes) — this document covers the
-implementing modules, not the HTTP-level behavior.
+Module-level reference for `scripts/eventbus/`. HTTP-level contracts (request/response shapes, status codes, authorization) are specified once in `eventbus_03_dlq_operations.md`, `eventbus_04_dlq_endpoint.md`, `eventbus_10_health_endpoint.md`, `eventbus_11_replay_endpoint.md` and `eventbus_12_ack_nack_endpoints.md`; this document does not restate them. The signature table below is generated from the source and is the authoritative symbol inventory.
 
-## Core Modules
+## Module Responsibilities
 
-### scripts/eventbus/app.py
-
-Application state and CLI entry point.
-
-### scripts/eventbus/config.py
-
-`EventBusConfig` class and configuration loading functions.
-
-**SSE heartbeat field:** `sse_heartbeat_interval` (float) — interval in seconds between SSE comment heartbeats during live delivery phase. Optional TOML key; absent from TOML uses default. Validated as float type when present.
-
-**Operational thresholds:** `slow_consumer_threshold`, `subscriber_queue_maxsize`, `backlog_health_threshold`. All optional TOML keys; defaults used when absent. Relationship validation enforced: `slow_consumer_threshold < subscriber_queue_maxsize` and `backlog_health_threshold <= subscriber_queue_maxsize`.
-
-### scripts/eventbus/db.py
-
-DB connection and schema initialization.
-
-### scripts/eventbus/dlq.py
-
-DLQ operation functions.
-
-### scripts/eventbus/route_helpers.py
-
-Common route helpers.
-
----
-
-## Route Handlers
-
-### scripts/eventbus/publish_route.py
-
-`publish(request)`: `POST /publish`. JSON Schema validation → DB insertion → JSONL append → Broker notification. JSONL append failure does not surface as an HTTP error (Warning log + 200).
-
-### scripts/eventbus/ack_route.py
-
-`ack_event(request, event_id, consumer_id)`: `POST /events/{event_id}/ack`. `nack(request, event_id, consumer_id)`: `POST /nack`. Both require `consumer_id`. NACK increments the per-consumer failure count and promotes the event to the DLQ only when every attempting consumer has reached `max_retry` and none has ACKed (ADR-006 INV-13); it returns HTTP 409 for an event already in the DLQ. ACK also returns HTTP 409 for an event already in the DLQ.
-
-### scripts/eventbus/dlq_route.py
-
-`dlq_list(request, limit, offset)`: `GET /dlq` (defaults defined in the route signature). `dlq_requeue(request, event_id)`: `POST /dlq/{event_id}/requeue`. The requeue inserts a new event row (lineage model) with a fresh retry budget; DLQ promotion of the new row is gated on per-consumer failure counts, not on the inherited `delivery_failure_count`. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for DLQ semantics.
-
-### scripts/eventbus/replay_route.py
-
-`replay(request, since_seq, fmt, limit, offset)` (defaults defined in the route signature): `GET /replay`. SSE stream or paginated JSON. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for replay semantics.
-
-**Format parameter:** Accepts only `sse` or `json`. Unsupported values return HTTP 422. Default is `sse`.
-
-**Snapshot consistency:** When `fmt=json`, both `total` and `items` represent one internally consistent database snapshot — they are fetched under a single `run_with_db_lock()` acquisition, preventing interleaving with concurrent `/publish` calls.
-
-**Paging behavior:** When `offset` exceeds available results, the response returns an empty `items` array with `total` reflecting the actual count of matching events.
-
-**SSE event IDs:** Each SSE frame includes `id:<seq>` field where `seq` is the event's sequence number, enabling `EventSource`-based clients to auto-reconnect after interruption.
-
-### scripts/eventbus/subscribe_route.py
-
-`subscribe(request, topic=[], since_seq=0, consumer_id="")`: `GET /subscribe`. SSE streaming + replay+push. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` for delivery semantics (ordering guarantees, ACK/NACK rules), offset semantics, and backpressure behavior.
-
-**SSE-standard features:**
-- Heartbeat: During live delivery phase, emits `: heartbeat\n\n` comments at `cfg.sse_heartbeat_interval` intervals to keep idle connections alive through proxies/LBs.
-- Event IDs: Each event frame includes `id:<seq>` field where `seq` is the monotonic sequence number, enabling `EventSource`-based clients to auto-reconnect.
-- Last-Event-ID: Client can send `Last-Event-ID` HTTP header with a sequence number to resume from that point. Precedence: `since_seq` query param > persisted consumer offset > `Last-Event-ID` header.
-- Stale reconnect rejection: If `Last-Event-ID` exceeds current max seq in SQLite, returns HTTP 412 Precondition Failed.
-
-### scripts/eventbus/health_route.py
-
-`health_check(request)`: `GET /health`. See `eventbus_07_configuration-and-operations.md` for monitoring thresholds.
-
-### HTTP Endpoints Summary
-
-`/publish`(POST), `/replay`(GET), `/subscribe`(GET), `/health`(GET), `/dlq`(GET), `/dlq/{id}/requeue`(POST), `/events/{id}/ack`(POST), `/nack`(POST), `/admin/topics/authorization`(POST).
-
----
-
-## Broker and Offsets
-
-### scripts/eventbus/broker.py
-
-`_Subscriber`: Internal data structure holding the queue, topic list, and disconnect signal. `EventBroker`: In-memory pub/sub broker with topic-based fanout.
-
-Methods: `subscribe(topics→_Subscriber, consumer_id=str)`, `unsubscribe(sub→None)`, `publish(event→int)`, `shutdown()`, `subscriber_count()→int`, `max_queue_depth()→int`, `slow_consumer_count()→int`, `overflow_disconnect_count()→int`, `duplicate_rejection_count()→int`.
-
-### scripts/eventbus/offsets.py
-
-Legacy file-based offset store, used only by the one-time startup migration (`offset_migrator.py`); live ACK and subscribe paths use the `consumer_offsets` SQLite table via `db.py` (`ack_event_for_consumer`, `get_consumer_offset`). `read_offset(offsets_dir, consumer_id)→int`: Reads saved offset (returns 0 if not found). `write_offset(offsets_dir, consumer_id, seq)→None`: Only writes to file if `seq` is greater than the current committed offset. Skips and logs a warning if `seq <= current` (ensures monotonicity).
+- Route modules (`publish_route.py`, `subscribe_route.py`, `replay_route.py`, `ack_route.py`, `dlq_route.py`, `health_route.py`, `admin_route.py`) implement the HTTP endpoints; event, delivery and DLQ state changes are implemented in the repository modules (`event_repo.py`, `delivery_repo.py`, `dlq_repo.py`) and `dlq.py`.
+- `broker.py` (`EventBroker`) is the in-memory live-delivery fan-out. It holds no durable state; SQLite is the replay source.
+- `config.py` (`EventBusConfig`) validates configuration at startup, including the unconditional loopback-only bind rule. Configuration semantics are in `eventbus_07_configuration-and-operations.md`.
+- `offsets.py` is a legacy file-based offset store used only by the one-time startup migration (`offset_migrator.py`). Live ACK and subscribe paths use the `consumer_offsets` SQLite table.
 
 ## Module Class/Function Reference (auto-generated)
 

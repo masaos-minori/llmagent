@@ -38,51 +38,17 @@ To track failed or unexpected MCP tool calls, use the following flow:
 
 For correlation analysis across agent, transport, and server logs, see [mcp_03 End-to-End Tool Call Tracing](./mcp_03_03_transport-and-health.md#end-to-end-tool-call-tracing).
 
-## Failure mode: LLM sees tool but execution fails
-
-**Symptoms:**
-- LLM proposes a valid tool call using a known tool name
-- Execution fails with "Unknown tool" error despite the tool name being valid
-
-**Root cause:**
-- `RuntimeToolRegistry` is missing entirely during runtime
-- Tools may exist in MCP server catalogs but are not registered in the runtime registry
-- This creates a mismatch: LLM knows about the tool (from discovery), but the router cannot find it
-
-**Diagnostic steps:**
-1. Check if `RuntimeToolRegistry` was initialized successfully at startup
-2. Verify no errors during tool registration phase
-3. Confirm all expected MCP servers have completed their tool discovery
-4. Review startup logs for any tool registration failures
-
-**Resolution:**
-- Restart the agent process to re-initialize `RuntimeToolRegistry`
-- If persistent, investigate MCP server connection issues that may prevent tool registration
-
-See also: Two-stage tool resolution (LLM visibility vs runtime routability)
-
 ## `ensure_ready` behavior during tool dispatch
 
 When a tool call arrives via the internal dispatch path:
 
-```python
-# In agent/lifecycle_router.py _ServerLifecycleRouter.ensure_ready():
-if _shutting_down: return immediately          # shutdown guard
-cfg.transport != HTTP or cfg.startup_mode != SUBPROCESS: return immediately  # non-subprocess servers skip this check
-not http_mgr.verify_running(server_key):      # subprocess-mode, not running -> start!
-    set_state(LifecycleState.STARTING)         # optimistic state before starting
-    await http_mgr.start(server_key, cfg)       # spawn subprocess, poll /health
-    set_state(LifecycleState.RUNNING)           # success
-except Exception:                               # any startup failure
-    set_state(LifecycleState.FAILED)           # mark as failed for subsequent attempts
-    raise                                       # propagate up so caller sees the failure
-```
+`ensure_ready()` returns immediately during shutdown and for non-subprocess servers. For a subprocess-mode server that is not running, it sets `STARTING`, spawns the subprocess and polls `/health`, then sets `RUNNING`; any startup failure sets `FAILED` and propagates to the caller.
 
 In other words, even if a server repeatedly crashes, individual tool calls that have not yet reached their own circuit-break threshold can attempt recovery through `ensure_ready()`. This is currently the only automatic recovery path; there is no periodic polling or automatic restart loop.
 
 Persistent-mode (non-HTTP-subprocess) MCP servers receive **no** automatic recovery of any kind — `ensure_ready()` returns immediately for them (`cfg.transport != TransportType.HTTP or cfg.startup_mode != StartupMode.SUBPROCESS`) — so recovery for a crashed persistent-mode server depends entirely on external process supervision (see [mcp_06_13_pre-production-fail-open-checklist.md](./mcp_06_13_pre-production-fail-open-checklist.md)'s restart-policy requirement). This explicitly contrasts with subprocess-mode's reactive-on-next-dispatch recovery described above.
 
-**Implementation Note (Explicit in code):** `ensure_ready()` is not in `shared/tool_executor.py`; it is implemented in the `_ServerLifecycleRouter` class in `agent/lifecycle_router.py`. Actual subprocess startup/shutdown is delegated to `HttpServerLifecycleManager` in `agent/http_lifecycle.py`. `ToolExecutor` only calls this router via `LifecycleProtocol` (`shared/tool_lifecycle.py`) and does not hold the startup logic itself.
+**Enforcement point (Explicit in code):** `agent/lifecycle_router.py::_ServerLifecycleRouter.ensure_ready()`; `ToolExecutor` only calls it through `LifecycleProtocol`.
 
 ---
 
@@ -103,7 +69,7 @@ The `[mcp_servers.*].tool_names` does not affect the circuit breaker state or ro
 
 Health checks within the `ToolExecutor` execution process act as a gate before dispatching. (Explicit in code — `shared/mcp_health.py`)
 
-### LLM called a tool, but execution failed with Unknown tool
+## LLM sees a tool but execution fails with "Unknown tool"
 
 **Possible causes:**
 - RuntimeToolRegistry is missing or incomplete
@@ -111,7 +77,7 @@ Health checks within the `ToolExecutor` execution process act as a gate before d
 - Duplicate tool name detection excluded the tool
 - ToolExecutor.set_runtime_registry() was not called
 
-**Diagnosis steps:**
+**Diagnosis steps** (if `RuntimeToolRegistry` is missing or incomplete, restart the agent to re-initialize it, and investigate MCP connection issues if persistent):
 1. Check startup output for `mcp_tool_discovery` outcomes
 2. Check whether discovery was FATAL, WARNING, or SKIPPED
 3. Check whether the owning server's `/v1/tools` response includes the tool
@@ -121,7 +87,7 @@ Health checks within the `ToolExecutor` execution process act as a gate before d
 7. Check whether the tool exists in RuntimeToolRegistry
 8. Do not rely only on config/agent.toml tool_definitions
 
-**Root cause explanation:**
+**Root cause:**
 The "Unknown tool" error originates from `ToolRouteResolver.resolve()` which raises `ValueError` when a tool name is not found in `RuntimeToolRegistry`. This can happen even when the LLM sees the tool via `/v1/tools` because `RuntimeToolRegistry` may be incomplete due to discovery failures.
 
 ## Keywords

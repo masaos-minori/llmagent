@@ -47,31 +47,23 @@ Session messages are persisted only through `SessionMessageRepository` over `SQL
 
 When `use_memory_layer=True`, the memory subsystem uses both JSONL and SQLite:
 
-| Storage | Path | Contents |
-|---|---|---|
-| JSONL | `{memory_jsonl_dir}/memories.jsonl` | Append-only archive for import/export and disaster recovery |
-| SQLite: `memories` | `session.sqlite` | The source of truth for current memory state |
-| SQLite: `memories_fts` | Same DB | FTS5 index for memory content |
-| SQLite: `memory_links` | Same DB | Many-to-many links between memories |
-| SQLite: `memories_vec` | Same DB | KNN embeddings for any vector search |
+- SQLite `memories` (in `session.sqlite`) is the source of truth for current memory state; `memories_fts`, `memories_vec` and `memory_links` live in the same DB, and the FTS and vector tables are derived indexes.
+- The JSONL file (`{memory_jsonl_dir}/memories.jsonl`) is an append-only archive for import/export and disaster recovery.
 
 `memories.session_id` records the source session of a memory for provenance.
 It does not establish ownership and intentionally has no foreign-key constraint
 to `sessions`. The value is retained after the source session is deleted.
 
-**Design judgment:** The SQLite memory tables are the source of truth for the current memory state. JSONL is maintained as an append-only archive for import/export and disaster recovery. Deletes and pin changes are recorded as change events in the JSONL archive and replayed by `/memory rebuild`; those made before change events were recorded are not reproduced.
+**Design judgment:** The SQLite memory tables are the source of truth for the current memory state. JSONL is maintained as an append-only archive for import/export and disaster recovery. Deletes and pin changes are recorded as change events in the JSONL archive and replayed by `/memory rebuild`; a delete or pin change with no change event in the archive is not reproduced.
 
 ### Role of `session_diagnostics`
 
-- Stores diagnostic events (LLM transfer errors, guard hints, partial completions).
-- Separated from the `messages` table and is NOT referenced by `fetch_messages()`.
-- `save()` unconditionally applies `_filter_sensitive_fields()` before insertion to filter sensitive fields.
-- Can be encrypted with `encrypt=True`. `fetch()` decrypts rows with the configured Fernet key. When a row cannot be decrypted (for example after the key was rotated or changed), `fetch()` logs a warning and returns the row with its stored ciphertext in `content`; it does not raise.
+- Stores diagnostic events (LLM transfer errors, guard hints, partial completions). It is separate from `messages` and is NOT referenced by `fetch_messages()`.
+- `save()` unconditionally applies `_filter_sensitive_fields()` before insertion, independent of encryption: filtering stays active even when no encryption key is set.
+- Rows can be encrypted with `encrypt=True`. `fetch()` decrypts with the configured Fernet key; a row that cannot be decrypted (for example after key rotation) is returned with its stored ciphertext in `content` and a warning is logged, never raised.
+- `_purge_old_diagnostics()` applies `retention_days`.
 
-**Design judgment:** Diagnostic rows are operator-facing auxiliary data, not conversation history. A failed decryption must not block reading the remaining rows, so the row is returned as stored and the failure is reported only through the warning log. A caller that needs plaintext must treat a `content` value that starts with the Fernet token prefix as undecryptable. Rotating `encryption_key` makes older encrypted rows unreadable; keep the previous key until those rows pass `retention_days`.
-- `_purge_old_diagnostics()` applies the retention policy (`retention_days`).
-
-**Design judgment:** Sensitive field filtering is applied independently of encryption. Filtering remains active even if no encryption key is set.
+**Design judgment:** Diagnostic rows are operator-facing auxiliary data, not conversation history. A failed decryption must not block reading the remaining rows, so the failure is reported only through the warning log. A caller that needs plaintext must treat a `content` value that starts with the Fernet token prefix as undecryptable. Rotating `encryption_key` makes older encrypted rows unreadable; keep the previous key until those rows pass `retention_days`.
 
 ## Responsibility Boundary
 
@@ -80,8 +72,7 @@ to `sessions`. The value is retained after the source session is deleted.
 
 ## Key Constraints
 
-- Valid roles for the `messages` table: `user` / `assistant` / `tool` / `system` — `diagnostic` is **NOT** a valid role.
-- Diagnostic events are persisted ONLY in the `session_diagnostics` table.
+- Valid roles for the `messages` table: `user` / `assistant` / `tool` / `system`; `diagnostic` is **NOT** a valid role, so diagnostic events are persisted ONLY in `session_diagnostics`.
 - JSONL is an append-only archive of memory lines and change events (delete, pin, unpin); existing lines are never rewritten.
 
 ## Known Limitations

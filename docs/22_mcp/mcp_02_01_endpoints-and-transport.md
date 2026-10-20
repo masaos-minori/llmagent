@@ -51,7 +51,7 @@ X-Session-Id: <session_id>      (injected by ToolExecutor)
 
 `X-Request-Id` is injected as a UUID in the response headers by the server's authentication middleware.
 
-The shell, github, and file servers now register that middleware and enforce the `Authorization` header (see `mcp_06_14_mcp-authentication-setup.md`).
+Every MCP server registers that middleware and enforces the `Authorization` header (see `mcp_06_14_mcp-authentication-setup.md`).
 
 ### Correlation Keys
 
@@ -74,19 +74,9 @@ The shell, github, and file servers now register that middleware and enforce the
 
 ---
 
-## Pydantic Models (`scripts/mcp_servers/models.py`)
+## Request and Response Models
 
-```python
-class CallToolRequest(BaseModel):
-    name: str
-    args: dict = {}
-
-class CallToolResponse(BaseModel):
-    result: str
-    is_error: bool
-```
-
-Shared among all MCP servers. Ensures consistency in request/response structures.
+`CallToolRequest` (`name`, `args`) and `CallToolResponse` (`result`, `is_error`) are shared by all MCP servers so that the request/response structure is identical across servers. Definitions: `scripts/mcp_servers/models.py`.
 
 ---
 
@@ -130,45 +120,15 @@ In case of mismatch → warning log; if `tool_definitions_strict=True` → `Runt
 
 ## MCPServer Base Class (`scripts/mcp_servers/server.py`)
 
-All MCP servers inherit from `MCPServer`.
+All MCP servers inherit from `MCPServer`. Subclasses declare their identity (`server_name`, `server_version`, loopback `http_host`, `http_port`, `app_module`, tool definitions) and implement `dispatch(name, args) -> DispatchResult`, which is abstract. Port numbers are owned by `config/agent.toml`.
 
-### Data Classes
+Contracts owned by the base class:
 
-| Class | Fields | Purpose |
-|---|---|---|
-| `TruncationResult` | `text: str`, `truncated: bool`, `total_bytes: int`, `actual_visible_bytes: int` | Return value of truncation methods with metadata |
-
-### Class Attributes (Declared in Subclasses)
-
-| Attribute | Type | Example |
-|---|---|---|
-| `server_name` | `str` | `"web-search-mcp"` |
-| `server_version` | `str` | `"3.0.0"` |
-| `http_host` | `str` | `"127.0.0.1"` |
-| `http_port` | `int` | Port number (see `config/agent.toml`) |
-| `app_module` | `str` | `"mcp_servers.<name>.<name>_server:app"` (all servers use dotted path convention) |
-| `mcp_tools` | `list[dict]` | Tool definitions list |
-
-### Methods
-
-| Method | Description |
-|---|---|
-| `async dispatch(name, args) -> DispatchResult` | Abstract method. Must be overridden. Returns `DispatchResult(output, is_error)`. |
-| `list_tools() -> list[str]` | Retrieves tool names from `mcp_tools`. Returns `[]` if undefined. |
-| `list_tools_with_server_key() -> list[dict[str, object]]` | Tool metadata including `server_key`. Introspection helper only: no production call site. Every server's `/v1/tools` handler annotates its own `TOOL_LIST` and passes it to `build_tools_response()`. |
-| `health() -> tuple[dict[str, object], int]` | Returns `(health_dict, http_status_code)`. HTTP Status: 200 if `ready=True`, 503 if `ready=False`. Health dict: `{"status": "ok"/"degraded", "ready": bool, "liveness": bool, "restart_recommended": bool, "operator_action_required": bool, "dependencies": dict, "details": dict}`. Overridden by each server (e.g., github adds `github_token` to `dependencies`, mdq adds `service` to `details`). |
-| `run_http() -> None` | Starts uvicorn HTTP server. Raises `ValueError` before binding if `http_host` is not `"127.0.0.1"` or `"::1"` — every internal MCP server binds to loopback only, with no override. Also verifies the actual bound socket address is loopback immediately after startup (defense-in-depth, independent of the pre-bind check). |
-| `attach_auth_middleware(app, token) -> None` | Wires a Starlette middleware that rejects requests without a matching `Authorization: Bearer <token>` header with HTTP 401. An empty `token` disables enforcement (accept-all) at this middleware level, but this is not a supported production configuration: `McpServerConfig`'s own construction-time validation and `agent.startup_validation`'s "MCP authentication check" both reject an empty `auth_token` before the agent ever calls a server with one. |
-
-The base class `health()` implementation has fixed `deps={}` and always returns `status="ok"`, `ready=True`, `restart_recommended=False`, `operator_action_required=False` unless overridden (Explicit in code). In practice, every MCP server implements `/health` individually, building its response with the `mcp_servers/health_response.py` `make_health_response(deps, details)` helper: the file-read/write/delete servers through `mcp_servers/file/common.py::_health`, mdq through `mcp_servers/mdq/health_check.py`, and the others in their own server module (Explicit in code). See [mcp_02_02](./mcp_02_02_startup-modes-and-health.md) for details.
-
-### Entry Point Patterns (All Servers)
-
-```python
-if __name__ == "__main__":
-    server = MyMCPServer()
-    server.run_http()
-```
+- **Health**: `health()` returns `(health_dict, http_status)`; HTTP 200 if `ready=True`, 503 if `ready=False`. The health dict carries `status` (`ok` / `degraded`), `ready`, `liveness`, `restart_recommended`, `operator_action_required`, `dependencies`, and `details`. The base implementation always reports `ok` / ready; every MCP server overrides it and builds its response with `make_health_response(deps, details)` (`mcp_servers/health_response.py`). See [mcp_02_02](./mcp_02_02_startup-modes-and-health.md) for details.
+- **Loopback-only binding**: `run_http()` raises `ValueError` before binding if `http_host` is not `"127.0.0.1"` or `"::1"`. Every internal MCP server binds to loopback only, with no override. The bound socket address is verified to be loopback again immediately after startup (defense-in-depth, independent of the pre-bind check).
+- **Authentication**: `attach_auth_middleware(app, token)` rejects requests without a matching `Authorization: Bearer <token>` header with HTTP 401. An empty `token` makes this middleware accept all requests, which is not a supported production configuration: `McpServerConfig` construction-time validation and `agent.startup_validation`'s "MCP authentication check" both reject an empty `auth_token` before the agent calls a server.
+- **Tool listing**: every server's `/v1/tools` handler annotates its own `TOOL_LIST` and passes it to `build_tools_response()`.
+- **Truncation**: oversized responses are truncated by the base class; the result carries total and visible byte counts so the truncation is observable.
 
 ---
 

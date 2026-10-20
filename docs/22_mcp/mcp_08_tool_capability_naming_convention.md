@@ -81,11 +81,9 @@ Requirement examples:
 - `process.execute`
 - `search.web`
 
-**Note:** The value `("web_fetch",)` has only been observed in test fixtures (`tests/test_runtime_tool_routing_integration.py`); currently, no MCP servers in production environments declare `capabilities` based on this naming convention.
-
 ## Status
 
-This naming convention is optional. Currently, no MCP servers in production environments declare `capabilities` using it.
+This naming convention is optional. No production MCP server currently declares `capabilities` using it.
 
 ## Keywords
 

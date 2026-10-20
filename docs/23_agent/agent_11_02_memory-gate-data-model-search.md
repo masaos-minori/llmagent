@@ -40,7 +40,6 @@ The memory layer is controlled by three independent gates: complete bypass via a
 
 - Current mode can be checked with `/memory status`.
 - If embeddings are unavailable, the system falls back to FTS only (no manual intervention required).
-- `DEDUP_THRESHOLDS` is consumed in `ingestion.py` as deduplication thresholds per `source_type`.
 
 ## Known Limitations
 
@@ -50,23 +49,7 @@ None currently known.
 
 ### MemoryEntry (Stored in JSONL + SQLite)
 
-| Field | Type | Description |
-|---|---|---|
-| `memory_id` | `str` | UUID v4, Primary Key |
-| `memory_type` | `MemoryType` | `"semantic"` \| `"episodic"` |
-| `source_type` | `SourceType` | `"rule"` \| `"conversation"` \| `"decision"` \| `"failure"` |
-| `session_id` | `int \| None` | Parent session ID |
-| `turn_id` | `str \| None` | UUID linking to the originating conversation turn |
-| `project` | `str` | Project name for context filtering |
-| `repo` | `str` | Repository name for context filtering |
-| `branch` | `str` | Git branch for context filtering |
-| `content` | `str` | Full text of the message |
-| `summary` | `str` | Short summary of the content |
-| `tags` | `list[str]` | Keyword tags for classification |
-| `importance` | `float` | 0.0–1.0. Higher means higher search priority |
-| `pinned` | `bool` | If `True`, injected at every session start |
-| `created_at` | `str` | ISO 8601 UTC timestamp. Set by `write_ops.add()` |
-| `updated_at` | `str` | ISO 8601 UTC timestamp |
+A `MemoryEntry` is typed `semantic` / `episodic` and sourced `rule` / `conversation` / `decision` / `failure`. It carries the provenance session/turn, the `project` / `repo` / `branch` context filters, `content` and `summary`, `tags`, an `importance` score (0.0-1.0; higher means higher search priority), a `pinned` flag (pinned entries are injected at every session start) and UTC timestamps (schema: `MemoryEntry` in the memory module).
 
 > **Branch filtering:** When a non-empty branch is specified, search includes ONLY the following via hard SQL filtering:
 > - Memories where `branch = ''` (Global memories, always included)
@@ -74,35 +57,21 @@ None currently known.
 >
 > Memories from other branches are completely excluded (not just deprioritized).
 
-**DB Mapping:** Stored in the `memories` table (SQLite), and one line per entry is written to the JSONL file. The FTS5 index is in `memories_fts`. The vector index is in `memories_vec` (if embeddings are enabled).
+Storage ownership (SQLite as source of truth, FTS/vector as derived indexes, JSONL as archive) is defined in [agent_09_01](agent_09_01_data-layer-session-db.md).
 
 ### MemorySnippet (Injected into LLM Context)
 
-| Field | Type | Description |
-|---|---|---|
-| `text` | `str` | Formatted string with the memory type prefix (e.g., `"[Semantic memory] ..."`) |
-| `source` | `str` | `"semantic"` \| `"episodic"` |
-| `score` | `float` | Relevance score from search (RRF merge rank or FTS5 rank) |
-
----
+A `MemorySnippet` is the formatted text with a memory-type prefix, its `semantic` / `episodic` source, and the relevance score (RRF merge rank or FTS5 rank).
 
 ## JSONL Format
 
-Each line in the JSONL store is a single JSON object serializing all `MemoryEntry` fields.
-
-```json
-{"memory_id": "uuid-here", "memory_type": "semantic", "source_type": "rule", "session_id": 1, "turn_id": null, "project": "myproj", "repo": "myrepo", "branch": "main", "content": "Use orjson for JSON.", "summary": "orjson preference", "tags": [], "importance": 0.7, "pinned": false, "created_at": "2026-06-19T23:00:00Z", "updated_at": "2026-06-19T23:00:00Z"}
-```
+Each line of the JSONL store is one JSON object: either a full serialized `MemoryEntry` or a change event (`delete`, `pin`, `unpin`) carrying an `event` field, `memory_id` and a UTC timestamp.
 
 **Characteristics:**
-- Append-only: Existing lines are never modified or deleted. Memory lines carry the full entry; change events (`delete`, `pin`, `unpin`) are separate lines that carry an `event` field, `memory_id`, and a UTC timestamp. SQLite remains the authoritative source of truth.
-- One entry per line. UTF-8 encoded. Each line is valid JSON.
-- File path is controlled by `memory_jsonl_dir` config (Filename: `memories.jsonl`)
-- Non-authoritative: JSONL is an append-only archive; SQLite is the authoritative source of truth.
+- Append-only: existing lines are never modified or deleted. SQLite remains the authoritative source of truth; JSONL is a non-authoritative archive.
+- One entry per line, UTF-8, each line valid JSON. The path is controlled by `memory_jsonl_dir` (filename `memories.jsonl`).
 
-> **Implementation Note (Explicit in code):** The `jsonl_store.py` docstring explicitly states that SQLite (via `MemoryStore`) is the authoritative source of truth, and JSONL is an append-only archive. `read_all()` is limited to auditing, exporting, and initial import; do NOT use it to rebuild authoritative state. Use `MemoryStore` directly or restore from a SQLite backup. Rebuilding using `import_ops.import_from_jsonl()` is a destructive operation that deletes all rows in `memories` / `memories_fts` / `memories_vec` / `memory_links` before re-inserting the final state computed by replaying the JSONL lines in order (a `delete` event removes the entry unless a later memory line re-adds it; `pin` / `unpin` update `pinned` when the entry exists; unparsable lines are skipped with a warning). Deletes and pin changes made before change events were recorded are not in the archive and are not reproduced. For fixing inconsistencies between FTS/vec and SQLite, use `rebuild_ops.rebuild_fts()` / `rebuild_vec()`.
-
----
+> **Implementation Note (Explicit in code — `scripts/agent/memory/jsonl_store.py`):** `read_all()` is limited to auditing, exporting, and initial import; do NOT use it to rebuild authoritative state. Use `MemoryStore` directly or restore from a SQLite backup. Rebuilding with `import_ops.import_from_jsonl()` is a destructive operation: it deletes all rows in `memories` / `memories_fts` / `memories_vec` / `memory_links` before re-inserting the final state computed by replaying the JSONL lines in order (a `delete` event removes the entry unless a later memory line re-adds it; `pin` / `unpin` update `pinned` when the entry exists; unparsable lines are skipped with a warning). A delete or pin change with no change event in the archive is not reproduced. To fix inconsistencies between FTS/vec and SQLite, use `rebuild_ops.rebuild_fts()` / `rebuild_vec()`.
 
 ## Search Strategies
 
@@ -134,12 +103,8 @@ Each line in the JSONL store is a single JSON object serializing all `MemoryEntr
 
 ## Disabled Behavior
 
-Overview:
-- `use_memory_layer=False` → `ctx.services.memory` becomes `None`, skipping all memory operations.
+- `use_memory_layer=False` → `ctx.services.memory` is `None`, skipping all memory operations.
 - `EmbeddingClient.enabled=False` → `fetch()` returns a `DISABLED` error, falling back to FTS5 search.
-- `cli_view.py` reflects the memory layer status in the startup banner.
-
----
 
 ## Keywords
 

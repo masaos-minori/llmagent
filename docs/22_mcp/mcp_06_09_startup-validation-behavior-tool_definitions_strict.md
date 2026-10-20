@@ -60,11 +60,6 @@ MCP discovery follows the ADR-004 rule: an unavailable required server aborts st
 
 `ProductionConfigValidator` rejects `tool_definitions_strict = false` (Explicit in code — scripts/agent/production_config_validator.py `_REQUIRED_STRICT_KEYS`), so the strict-false rows describe the check's own behavior rather than a supported production setting.
 
-**Key Points:**
-- Tool name mismatches in `strict` mode trigger a `RuntimeError`.
-- If all servers are unreachable in `strict` mode, a `RuntimeError` is raised including the list of unreachable servers. In non-strict mode, validation is skipped with an `INFO` log.
-- Error messages clearly distinguish between mismatches and unreachable servers to facilitate debugging by operators.
-
 **Important:** If discovery is `SKIPPED`, startup continues but the `RuntimeToolRegistry` remains empty or incomplete. Consequently, even if the LLM recognizes a tool, execution will fail at runtime. Operators must treat `SKIPPED` results from `mcp_tool_discovery` with the same severity as `WARNING`.
 
 ---

@@ -38,13 +38,9 @@ Documents the design intent and operational decisions for the REPL input/output 
 - **EOF / Ctrl-D:** Graceful shutdown (REPL input returns `None` and exits the loop)
 - **Ctrl-C:** Caught within input; during input wait, it leads to REPL termination similar to EOF (handled differently from interruption during tool loop execution in current implementation)
 
-### Implementation Details
+### Shutdown Behavior
 
-- The prompt is a property that returns a fixed value `"> "` without session ID; no dynamic string generation is performed. The notation `agent[:#N]>` which embeds the session_id does not exist in the current code.
-- `CLIView.read_multiline()`'s multi-line continuation displays a `... ` prompt, but this is a continuation-specific prompt string inside `read_multiline` and does not change the REPL prompt itself. Once back to normal input, the fixed value `"> "` is used again.
-- A `KeyboardInterrupt` while waiting for input is caught within the input process, outputs `write_turn_end()`, and returns `None`. Since the calling loop breaks upon receiving `None`, **Ctrl-C while waiting for input terminates the REPL similarly to EOF** (it does not just interrupt the current line and return to the prompt).
-- Upon receiving SIGTERM, `shutdown_requested` and `_shutdown_event` are set, and the running turn is waited for up to a bounded grace period (`_GRACEFUL_TIMEOUT_S`) before forced termination (graceful shutdown).
-- `/exit` is determined by `_should_exit()`, which also determines loop termination if `shutdown_requested` is set.
+- On SIGTERM the shutdown flag and event are set, and the running turn is awaited for a bounded grace period (`_GRACEFUL_TIMEOUT_S`) before forced termination. `/exit` and the shutdown flag both end the loop (Explicit in code — `scripts/agent/repl.py`).
 
 ## Responsibility Boundary
 
@@ -52,13 +48,8 @@ Documents the design intent and operational decisions for the REPL input/output 
 
 ## Key Constraints
 
-- The prompt is a fixed string `"> "` and does not dynamically display session ID or status.
+- The prompt is a fixed string `"> "` and does not display session ID or status; the `... ` continuation prompt is specific to multi-line input.
 - Ctrl-C while waiting for input terminates the entire REPL rather than interrupting the current line.
-
-## Operational Notes
-
-- The continuation prompt for multi-line input is `... `, which is different from the REPL prompt.
-- Graceful shutdown is bounded by `_GRACEFUL_TIMEOUT_S`.
 
 ## Keywords
 

@@ -63,11 +63,7 @@ The system overview should answer "what does this agent do" and "how does it fit
 
 ## Key Constraints
 
-| Constraint | Config key (values in `config/agent.toml` and `agent_08`) |
-|---|---|
-| Max tool turns per message | `max_tool_turns` |
-| History compression threshold | `context_char_limit` |
-| HTTP timeout | `http_timeout` |
+The tool-loop turn cap, the history compression threshold, and the HTTP timeout are configuration values; their definitions and defaults are owned by [agent_08](agent_08_01_configuration-loading-agent-config.md) and `config/agent.toml`.
 
 ## Operational Notes
 
@@ -86,7 +82,7 @@ MCP servers are called via HTTP POST `/v1/call_tool`.
 
 ### Workflow Engine Execution
 
-`agent/orchestrator.py`'s `Orchestrator.handle_turn()` uses a `WorkflowDef` loaded at startup via `WorkflowLoader().load()` (equivalent to `config/workflows/default.json`) to execute each user turn as three stages (plan/execute/verify) via `WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)`. The simple pattern diagram above corresponds to the LLM turn processing within `execute_fn` (memory injection → user message addition → history compression → LLM turn). If workflow definition loading fails, `Orchestrator.__init__()` raises `RuntimeError` and startup stops. See `agent_03` (turn processing flow) for details.
+Every user turn runs as three workflow stages (plan/execute/verify) through the workflow engine; the tool-calling model above corresponds to the LLM turn inside the execute stage. The workflow definition is loaded at startup, and a load failure stops startup (no direct-execution fallback). See `agent_03` (turn processing flow) for details.
 
 ### Session, SSE, and History Compression
 

@@ -31,7 +31,7 @@ To document the ownership relationships and responsibility boundaries of the fou
 
 ### Platform Database Ownership
 
-The Agent layer operates across four SQLite databases (`DbTarget` enum in `db/helper.py`: `RAG`, `SESSION`, `WORKFLOW`, `EVENTBUS`):
+The Agent layer operates across four SQLite databases (see `DbTarget` in `scripts/db/helper.py`):
 
 | Database | Purpose | Schema reference |
 |---|---|---|
@@ -40,16 +40,9 @@ The Agent layer operates across four SQLite databases (`DbTarget` enum in `db/he
 | `workflow.sqlite` | Task tracking, event processing | [db_02](../41_db/db_02_architecture_and_schema-schema-reference.md) section 7 |
 | `eventbus.sqlite` | Event Bus (out of scope for this document) | — |
 
-DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `workflow_db_path`, and `eventbus_db_path` (`db/config.py`). `rag_db_path`/`session_db_path` have no default values (raises `ValueError` if not set), while `workflow_db_path`/`eventbus_db_path` have built-in default paths (see `scripts/db/config.py`).
+DB paths are configured in `agent.toml` (schema: `scripts/db/config.py`). The RAG and session paths have no defaults and startup fails if they are unset; the workflow and eventbus paths have built-in defaults.
 
-**DB Ownership:**
-
-| Database | Owner module | Key class |
-|---|---|---|
-| `session.sqlite` | `agent/session.py` | `AgentSession` |
-| `session.sqlite` (Memory) | `agent/memory/store.py` | `MemoryStore` |
-| `workflow.sqlite` | `agent/workflow/state_store.py` | `StateStore` |
-| `rag.sqlite` | `scripts/mcp_servers/rag_pipeline/` | RAG MCP Server |
+**DB Ownership:** `session.sqlite` is owned by `AgentSession` (`agent/session.py`) and, for memory tables, `MemoryStore` (`agent/memory/store.py`); `workflow.sqlite` by `StateStore` (`agent/workflow/state_store.py`); `rag.sqlite` by the RAG MCP server (`scripts/mcp_servers/rag_pipeline/`).
 
 > **Note:** The Memory layer (`MemoryStore` in `agent/memory/store.py`) uses `SQLiteHelper("session")` and persists to `memories`/`memories_fts`/`memories_vec` tables in `session.sqlite`. It is separate from `rag.sqlite` and independent from the RAG document/chunk embedding store. `JsonlMemoryStore` in `agent/memory/jsonl_store.py` separately archives memory to a non-authoritative append-only JSONL file (for backup/audit purposes). `read_all()` returns all entries; no retention filtering is applied at this layer.
 
@@ -61,44 +54,21 @@ DB paths are configured in `agent.toml` via `rag_db_path`, `session_db_path`, `w
 
 ### Service Responsibility Boundaries
 
-| Service | Defined in | DB | Methods |
-|---|---|---|---|
-| `DbMaintenanceService` | `agent/services/db_maintenance_service.py` | session.sqlite | `stats` (sessions/messages), `health`, `checkpoint`, `vacuum`, `purge`, `recover_session` |
-| `RagMaintenanceService` | `agent/services/rag_maintenance_service.py` | rag.sqlite | `stats_rag` (docs/chunks), `rebuild_fts`, `consistency`, `recover`, `rebuild_vec`, `reconcile_url` |
+Maintenance is split by database: `DbMaintenanceService` (`agent/services/db_maintenance_service.py`) covers `session.sqlite` (stats, health, checkpoint, vacuum, purge, session recovery) and `RagMaintenanceService` (`agent/services/rag_maintenance_service.py`) covers `rag.sqlite` (RAG stats, FTS/vector rebuild, consistency, recovery). Both are thin wrappers over `db/maintenance.py`.
 
-Both service classes are wrappers that call low-level functions in `db/maintenance.py` (`checkpoint_wal`, `vacuum_db`, `purge_old_sessions`, etc.), but these classes themselves are not defined in `db/maintenance.py`. While CLI subcommand names like `/session recover` and implementation method names like `recover_session` are asymmetrical, they correspond correctly.
+Boundaries:
 
-`AgentSession` accesses only `session.sqlite` via `SQLiteHelper("session")`.
-
-Verified Boundaries:
-
-- `agent/session.py` imports: `agent.diagnostic_store` (`DiagnosticStore`), `agent.session_message_repo` (`SessionMessageRepository`), `db.helper` (`SQLiteHelper`), and `shared.types`. Diagnostic logs (`session_diagnostics`) are handled by `DiagnosticStore`.
-- `db/maintenance.py` contains maintenance functions (`vacuum_db`, `checkpoint_wal`, `prune_old_memories`, etc.) but has no imports from `rag/`; DB rotation is located in `db/rotation.py`.
-- The `/session` command routes maintenance subcommands: `/session stats|health|checkpoint|vacuum|purge|recover` target `DbMaintenanceService`, while `/session rag-consistency|rag-rebuild-fts|rag-rebuild-vec` target `RagMaintenanceService`.
-- `db/maintenance.py`'s `prune_old_memories()` is not under the jurisdiction of either `DbMaintenanceService` or `RagMaintenanceService`; it is called directly from `agent/commands/memory_data_ops.py` via `/memory` type commands.
-- `agent/repository_gateway.py` is unrelated to DB persistence; it acts as an execution gate for policy review, execution, and auditing of tool calls (it does not issue approval prompts; the batch-level gate in `tool_runner.execute_all_tool_calls()` is enforced once before invocation). It is not involved in DB responsibility boundaries.
+- `AgentSession` accesses only `session.sqlite` and imports nothing from the RAG layer. Diagnostic logs (`session_diagnostics`) are written by `DiagnosticStore`.
+- `db/maintenance.py` has no imports from `rag/`; DB rotation is in `db/rotation.py`.
+- `/session stats|health|checkpoint|vacuum|purge|recover` target `DbMaintenanceService`; `/session rag-consistency|rag-rebuild-fts|rag-rebuild-vec` target `RagMaintenanceService`.
+- `prune_old_memories()` belongs to neither service; it is called from the `/memory` commands.
+- `agent/repository_gateway.py` is a tool-call execution gate and is not part of DB responsibility boundaries.
 
 ## Responsibility Boundary
 
 ### StateStore Responsibility Scope
 
-`StateStore` manages tasks/attempts/artifacts in `workflow.sqlite`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md) for detailed method lists; it also covers the operation modules below (`task_ops.py`, `attempt_ops.py`, `artifact_ops.py`, `idempotency_ops.py`).
-
-### Task CRUD Operations
-
-`task_ops.py` provides CRUD operations for workflow states.
-
-### Attempt Operations
-
-`attempt_ops.py` provides management for attempt records.
-
-### Artifact Operations
-
-`artifact_ops.py` provides recording of artifact references.
-
-### Idempotency Operations
-
-`idempotency_ops.py` provides duplicate detection and atomic attempt initiation.
+`StateStore` manages tasks, attempts, artifact references, and idempotency (duplicate detection and atomic attempt initiation) in `workflow.sqlite`, through the operation modules under `agent/workflow/`. See [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md).
 
 ## Key Constraints
 
@@ -113,8 +83,7 @@ The Memory layer uses `session.sqlite` and is independent of `rag.sqlite`.
 ## Operational Notes
 
 - The `/session` maintenance subcommands handle `session.sqlite` maintenance. No slash command exposes `workflow.sqlite` directly for maintenance — workflow states are managed exclusively via `StateStore` through the `WorkflowEngine`.
-- `finish_attempt`'s `error_kind`/`error_detail` are additional columns in the `attempts` table, providing error classification separate from `error_msg`.
-- `begin_stage_if_new` checks the `event_id` atomically and starts an attempt if new. `begin_immediate` wraps check and insertion in a single transaction without calling `commit()` explicitly.
+- `begin_stage_if_new` checks the `event_id` and starts an attempt atomically (check and insertion in a single transaction), so a stage is not started twice.
 
 ## Keywords
 

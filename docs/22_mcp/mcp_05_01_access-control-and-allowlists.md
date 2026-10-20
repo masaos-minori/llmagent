@@ -46,24 +46,14 @@ To document a common security model across servers. It covers access control, al
 
 ### `allowed_dirs` (File Servers)
 
-```toml
-# config/file_read_mcp_server.toml (illustrative example values)
-allowed_dirs = ["/opt/llm", "/opt/llm/storage"]
-```
-
 - All paths are resolved via `Path.resolve()` before comparison (eliminating `../` and symbolic links).
-- Access outside `allowed_dirs` → HTTP 403.
-- Behavior for empty list: Denies all access (fail-closed).
+- Access outside `allowed_dirs` returns HTTP 403.
+- An empty list denies all access (fail-closed).
 
 ### `allowed_repo_paths` (git-mcp)
 
-```toml
-# config/git_mcp_server.toml (illustrative example values)
-allowed_repo_paths = ["/opt/llm/myrepo"]
-```
-
 - The caller-supplied `repo_path` is resolved with `Path.resolve()` per call and must be contained (component-aware) under a configured entry; a leading `~` in a configured entry is expanded to the server user's home directory when the configuration is loaded, and entries are otherwise compared as written.
-- Empty → Denies all repository access (fail-closed); all git tools are reported disabled with reason `allowed_repo_paths is empty`.
+- Empty denies all repository access (fail-closed); all git tools are reported disabled with reason `allowed_repo_paths is empty`.
 - `read_only` (default true) disables the write tools; `protected_branches` rejects write tools on matching branches; see [mcp_04_05_git.md](./mcp_04_05_git.md).
 
 ---
@@ -72,20 +62,12 @@ allowed_repo_paths = ["/opt/llm/myrepo"]
 
 ### `allowed_repos` (github-mcp)
 
-```toml
-allowed_repos = ["org/myrepo", "org/otherrepo"]
-```
-
-- Empty → Denies all repository access (fail-closed).
-- Not empty → Only allows repositories in the list.
-
-Applies to the following 9 write operations: `github_create_branch`, `github_create_or_update_file`, `github_push_files`, `github_delete_file`, `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`, `github_update_pull_request`, `github_merge_pull_request`.
+- Empty denies all repository access (fail-closed); otherwise only listed repositories are allowed.
+- Applies to every write operation (branch, file, issue, comment, and pull request create/update/merge, plus delete and push). The tool list is owned by [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ownership_matrix.md).
 
 ### `repo_allowlist` (cicd-mcp)
 
-```toml
-repo_allowlist = []   # IMPORTANT: empty = deny all (fail-closed)
-```
+- Empty denies all (fail-closed).
 
 ---
 
@@ -93,103 +75,30 @@ repo_allowlist = []   # IMPORTANT: empty = deny all (fail-closed)
 
 ### `protected_branches`
 
-```toml
-# config/github_mcp_server.toml - protected_branches
-protected_branches = ["main", "master", "release/*"]   # fnmatch patterns
-```
-
-- Applies to write operations targeting specified branches.
-- Empty list (default): Allows all branches.
-- `branch=""` (if omitted): Resolves default branch via API before checking.
-
-**Production Example:**
-
-```toml
-# Protect mainline branches and release branches
-protected_branches = [
-    "main",
-    "master",
-    "release/*",
-    "develop",
-]
-```
-
-In this configuration, write operations targeting `main`, `master`, `release/v1.0`, or `develop` are unconditionally blocked. The `protected_branches` check (`_assert_allowed_branch`) always issues a `GitHubAuthorizationError`, and there is no implementation to override this via an approval flow (the agent-layer approval and github-mcp's `protected_branches` are independent layers).
+- fnmatch patterns (for example `main`, `release/*`); applies to write operations targeting a matching branch. Empty (default) allows all branches. An omitted `branch=""` resolves the default branch via the API before checking.
+- A match always raises `GitHubAuthorizationError` (`_assert_allowed_branch`). No approval flow can override it: Agent-layer approval and github-mcp's `protected_branches` are independent layers.
 
 ### `path_denylist`
 
-```toml
-# config/github_mcp_server.toml - path_denylist
-path_denylist = [".github/**", "Dockerfile*"]   # fnmatch glob patterns
-```
-
-- Applies to `create_or_update_file`, `push_files`, and `github_delete_file`.
-- Empty list (default): Allows all paths.
-
-**Production Example:**
-
-```toml
-# Prevent modifications to CI/CD configs and container definitions
-path_denylist = [
-    ".github/**",           # block changes to GitHub Actions/workflows
-    "Dockerfile*",          # block changes to Docker files
-    "docker-compose*.yml",  # block changes to docker compose configs
-]
-```
-
-With this setting, changes to GitHub Actions workflows or Docker-related files are blocked regardless of approval status.
+- fnmatch glob patterns (for example `.github/**`, `Dockerfile*`); applies to `github_create_or_update_file`, `github_push_files`, and `github_delete_file`. Empty (default) allows all paths.
+- A matching change (for example to GitHub Actions workflows or Docker files) is blocked regardless of approval status.
 
 ### `allow_force_push`
 
-```toml
-# config/github_mcp_server.toml - allow_force_push
-allow_force_push = false   # default: force push disabled
-```
-
-- Only controls whether `merge_method="rebase"` can be used with the `merge_pull_request` tool (`scripts/mcp_servers/github/github_service_pull_requests.py`). If `false`, rebase merges are rejected with a `GitHubAuthorizationError`.
-- **Recommended: Keep as `false` in production.** Rebase merging rewrites history and can disrupt team collaboration.
-- github-mcp does not have a tool to execute a force-push itself; it only interacts with the `protected_branches` protection.
-
-**Production Example:**
-
-```toml
-# NEVER enable force push in production
-allow_force_push = false
-```
-
-If a legitimate force-push (ref update) is required, do not enable this setting; instead, use the GitHub UI directly with appropriate permissions.
+- Default `false`. It only controls whether `merge_method="rebase"` can be used with `merge_pull_request` (`scripts/mcp_servers/github/github_service_pull_requests.py`); if `false`, rebase merges are rejected with `GitHubAuthorizationError`.
+- Keep `false` in production: rebase merging rewrites history and can disrupt team collaboration. github-mcp has no tool that executes a force-push itself. A legitimate force-push (ref update) must not be enabled through this setting; use the GitHub UI with appropriate permissions.
 
 ### `require_pr_review`
 
-```toml
-# config/github_mcp_server.toml - require_pr_review
-require_pr_review = true   # default: merge requires an approved review
-```
-
-- If `true`, `github_merge_pull_request` rejects the merge with `GitHubAuthorizationError` unless the pull request has at least one `APPROVED` review.
-- If `false`, a pull request can be merged without an approved review (subject to other protections).
-- It does not control direct commits: writes targeting a branch matched by `protected_branches` are rejected by `protected_branches`, independent of this setting. (Explicit in code — `scripts/mcp_servers/github/github_service_pull_requests.py`)
-
-**Production Example:**
-
-```toml
-# Require an approved review before any pull request merge
-require_pr_review = true
-```
-
-This ensures that a pull request cannot be merged through github-mcp without an approved review; keeping `main`, `master`, `release/*` out of direct writes is the job of `protected_branches`.
+- Default `true`. `github_merge_pull_request` rejects the merge with `GitHubAuthorizationError` unless the pull request has at least one `APPROVED` review. If `false`, a pull request can be merged without an approved review (subject to other protections).
+- It does not control direct commits: writes targeting a branch matched by `protected_branches` are rejected by `protected_branches`, independent of this setting. Keeping mainline branches out of direct writes is the job of `protected_branches`.
 
 ---
 
 ## Command Allowlist (shell-mcp)
 
-```toml
-command_allowlist = ["ls", "cat", "grep", "git", "python3"]
-```
-
-- Matches against the base name of `argv[0]`.
-- Empty → Denies all commands (fail-closed behavior).
-- If `shell_cwd_allowed_dirs` is empty → Denies all `cwd` values.
+- `command_allowlist` matches the base name of `argv[0]`; empty denies all commands (fail-closed).
+- If `shell_cwd_allowed_dirs` is empty, all `cwd` values are denied.
 
 ### Environment Variable Filtering
 
@@ -203,29 +112,14 @@ both empty               → use req.env as is
 
 ## Workflow Allowlist (cicd-mcp)
 
-```toml
-# config/cicd_mcp_server.toml
-workflow_allowlist = []   # empty = deny all (fail-closed)
-```
+**Policy: fail-closed.** If `workflow_allowlist` is empty, all workflow trigger requests are rejected with a `CicdAuthorizationError`. This is consistent with `repo_allowlist`.
 
-**Policy: fail-closed.** If `workflow_allowlist` is empty, all workflow trigger requests are rejected with a `CicdAuthorizationError`. This behavior is consistent with `repo_allowlist`.
+`trigger_workflow` compares the request's `workflow` value with the entries by exact match, so entries must use the form callers pass: a workflow file name such as `ci.yml` (not a repository path). The checked-in configuration uses this file-name form.
 
-`trigger_workflow` compares the request's `workflow` value with the entries by exact match, so the entries must use the same form that callers pass: a workflow file name such as `ci.yml` (not a repository path). The checked-in configuration uses this file-name form.
+An empty `workflow_allowlist` is reported by the cicd-mcp server process in two ways:
 
-To allow specific workflows:
-
-```toml
-workflow_allowlist = [
-    "deploy.yml",
-    "ci.yml",
-]
-```
-
-The empty-allowlist condition is reported by the cicd-mcp server process, and it is now also a Security Posture failure rather than only a startup warning.
-
-- **cicd-mcp Server Layer (cicd-mcp server process)**: In `scripts/mcp_servers/cicd/cicd_service_guards.py::CiCdGuards.__init__`, if `workflow_allowlist` is empty, a warning is recorded to the server log stream via the `mcp_servers.cicd.cicd_service_guards` logger.
-  Message: `cicd-mcp: workflow_allowlist is empty — all workflow triggers will be denied`
-- **Security Posture (same process)**: `scripts/mcp_servers/cicd/cicd_service_guards.py::validate_cicd_security()` reports `server.workflow_allowlist` as `failed` with reason `allowlist_empty`, so cicd-mcp refuses to bind its HTTP port and Agent startup aborts. The Agent-side audit pass that used to add this to the REPL startup warning list was removed; each server now validates its own settings (see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md)).
+- **Server log:** `CiCdGuards.__init__` (`scripts/mcp_servers/cicd/cicd_service_guards.py`) logs a warning that all workflow triggers will be denied.
+- **Security Posture:** `validate_cicd_security()` reports `server.workflow_allowlist` as `failed` with reason `allowlist_empty`, so cicd-mcp refuses to bind its HTTP port and Agent startup aborts. Each server validates its own settings; the Agent does not audit server configuration (see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md)).
 
 ## Keywords
 

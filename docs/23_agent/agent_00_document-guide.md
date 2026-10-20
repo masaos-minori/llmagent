@@ -33,7 +33,7 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ## Responsibility Boundary
 
-- **In scope**: Chapter structure overview, question-to-chapter navigation mapping, a pointer to the Canonical Source Precedence rule in [governance_01_documentation-policy.md](../00_governance/governance_01_documentation-policy.md#canonical-source-precedence), handling of Known Issues / Deprecated Items here; uncertainty items tracked per [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md).
+- **In scope**: Chapter structure overview, question-to-chapter navigation mapping, a pointer to the Canonical Source Precedence rule in [governance_01_documentation-policy.md](../00_governance/governance_01_documentation-policy.md#canonical-source-precedence), uncertainty items tracked per [governance_03_issue-and-uncertainty-management.md](../00_governance/governance_03_issue-and-uncertainty-management.md).
 - **Out of scope**: Detailed file indexes, keyword lists duplicatable by code search, implementation diff memos ("confirmed at file X line Y").
 
 ## Key Constraints
@@ -72,26 +72,11 @@ The value of this document is navigation logic — human-curated guidance on whi
 
 ### Consistency Checklist
 
-When schema/command references change, verify that `agent_07_cli-and-commands-*.md` matches `scripts/agent/commands/command_defs_list.py` (`_COMMANDS`; no deleted command references), `agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`init_db.sh`, and diagnostic docs reference only `session_diagnostics`.
+When schema/command references change, verify that `agent_07_cli-and-commands-*.md` matches `scripts/agent/commands/command_defs_list.py` (`_COMMANDS`; no deleted command references), `agent_09_data-layer-*.md` matches `scripts/db/schema_sql.py`/`deploy/init_db.sh`, and diagnostic docs reference only `session_diagnostics`.
 
 ### Document Set Chapters
 
-| Chapter | Content |
-|---|---|
-| 00 | This file |
-| 01 | System overview — purpose, tool-calling model, component map |
-| 02 | Runtime architecture — dependency diagram, responsibilities |
-| 03 | Turn processing flow — overview, LLM-tool loop, workflow engine |
-| 04 | State/persistence — state model, history compression, platform databases |
-| 05 | LLM/streaming — LLMClient API, SSE, reconnect |
-| 06 | Tool exec/approval — execution, approval, concurrency safety, canonical |
-| 07 | CLI/commands — CLI reference, CLIView, command registry, purpose, REPL I/O, hot-reload, slash commands |
-| 08 | Configuration — loading agent config, LLM/RAG, tools/memory, MCP/approval/observability |
-| 09 | Data layer — session DB, access patterns, indexing boundaries |
-| 10 | Operations — startup/health, audit/OTel, workflow observability, validation/troubleshooting, monitoring, RAG diagnostics/memory |
-| 11 | Memory — overview/modes, gate/data-model/search, module refs (core/store, retrieval/injection, extraction/facade, ops/scoring) |
-| 12 | Reference API — per-module API: role, callers, callees, config, failure |
-| 13 | Reference API (generated) — class/function index generated from code |
+Chapters 01-12 follow the recommended reading order above (01 overview, 02 runtime architecture, 03 turn flow, 04 state/persistence, 05 LLM/streaming, 06 tool execution/approval, 07 CLI/commands, 08 configuration, 09 data layer, 10 operations/observability, 11 memory, 12 reference API). Chapter 13 is the generated class/function index; it is derived from code and is not a design source. The per-chapter file list is not repeated here; use the directory listing.
 
 ## Keywords
 

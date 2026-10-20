@@ -12,14 +12,16 @@ related:
 
 # Constraints Reference
 
+The chunk-size, chunk-overlap, crawl-depth, and max-pages bounds are unvalidated heuristics (each owning config file's inline comment says so); no rationale or empirical basis for the specific values is recorded in this repository. Current operational values are owned by `config/chunk_splitter.toml` and `config/crawler.toml` (see [Configuration Reference](rag_05_01-configuration-reference.md)).
+
 | Constraint | Value |
 |---|---|
 | Language detection threshold | CJK ratio above a threshold → `ja`; very short pages → use hint language |
-| Chunk size range | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value in [Configuration Reference, `config/chunk_splitter.toml`](rag_05_01-configuration-reference.md). No historical rationale for the specific bounds is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. |
-| Chunk overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value in [Configuration Reference, `config/chunk_splitter.toml`](rag_05_01-configuration-reference.md). No historical rationale for the specific bound is recorded in this repository; `config/chunk_splitter.toml`'s own inline comment states this is an unvalidated heuristic. |
+| Chunk size range | Bounded to keep each chunk within a useful retrieval granularity — not so small it is noise, not so large it dilutes relevance. Current operational value: `config/chunk_splitter.toml`. |
+| Chunk overlap | Preserves context continuity across chunk boundaries by including a trailing slice of the previous chunk. Current operational value: `config/chunk_splitter.toml`. |
 | Embedding dimensions | Fixed code-level constant (`scripts/db/store_protocols.py::get_embedding_dims()`), not config-driven. float32 little-endian BLOB |
-| Crawl depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value in [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. |
-| Max crawl pages | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value in [Configuration Reference, `config/crawler.toml`](rag_05_01-configuration-reference.md). No historical rationale for the specific limit is recorded in this repository; `config/crawler.toml`'s own inline comment states this is an unvalidated heuristic. |
+| Crawl depth | Bounds BFS traversal depth to prevent unbounded crawl time and external-site load. Current operational value: `config/crawler.toml`. |
+| Max crawl pages | Bounds crawl scope per site to prevent unbounded processing time and storage growth. Current operational value: `config/crawler.toml`. |
 | Replication | Single-node SQLite only |
 | `chunk_index` type constraint | Non-negative `int`; `bool` is explicitly rejected before the `int` check (`_validate_int_non_negative`) — no implicit conversion from strings or booleans |
 | `url` non-empty requirement | Required non-empty string for both crawl and chunk artifacts (`_validate_str`); no fallback |

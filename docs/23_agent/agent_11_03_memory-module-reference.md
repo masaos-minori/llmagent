@@ -43,8 +43,7 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 ### Common
 
-- If `use_memory_layer = false` is set, the memory service is not constructed and all memory operations are completely bypassed.
-- `VectorRetriever.knn_search()` raises an `OperationalError` if the `memories_vec` table does not exist (exceptions propagate if embeddings are enabled while tables are uninitialized).
+- Gate behavior (`use_memory_layer = false` bypass, `VectorRetriever.knn_search()` raising `OperationalError` when `memories_vec` is missing) is defined in [agent_11_02](agent_11_02_memory-gate-data-model-search.md).
 
 ### Core and Store
 
@@ -60,10 +59,8 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 ### Extraction and Facade
 
 - When `EmbeddingClient.enabled=False`, `fetch()` returns `EmbeddingResult(success=False, error_kind=DISABLED)` immediately without making an HTTP call.
-- If embedding retrieval fails, processing continues and the entry is saved without embeddings (`stat_embed_skip` counter increases).
 - `JsonlMemoryStore` is an append-only archive of memory lines and change events (`delete`, `pin`, `unpin`); lines without an `event` field are memory lines, and existing lines are never rewritten.
-- Automatic extraction (`on_session_stop`) applies deduplication via `DedupAction.SKIP_NEW`, but manual writes intentionally bypass this deduplication.
-- After retrieving embeddings, KNN nearest neighbors are searched; if an existing entry is found that is closer than the threshold for its `source_type`, the new entry is discarded (SKIP_NEW).
+- Automatic extraction (`on_session_stop`) discards a new entry (`DedupAction.SKIP_NEW`) when an existing entry is closer than the threshold for its `source_type`; manual writes intentionally bypass this deduplication.
 - If writing to JSONL fails with `OSError`, a warning is logged and processing continues (not treated as a fatal error since SQLite is the source of truth).
 
 ### Ops and Scoring
@@ -74,7 +71,6 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 ### Core and Store
 
-- Write operations are in `write_ops.py`; read operations are in `store.py`.
 - There is no session-scoped memory deletion: memory is independent of the source session, so rows are removed only per memory (`delete`) or by retention (`/memory prune`).
 - Retrieval for injection excludes memories whose provenance `session_id` equals the current session, because that session's restored history is already in context.
 - Chunk splitting occurs for content exceeding `memory_max_content_chars`. This is a limit per chunk, not on total content volume.
@@ -89,13 +85,11 @@ Since the memory layer is optional, all public APIs are designed to be safely gu
 
 ### Extraction and Facade
 
-- Current mode can be checked with `/memory status` (Disabled / FTS-only / Degraded / Hybrid).
-- `get_stats()` contains the following keys: total, semantic, episodic, by_source, embed_skip, last_retrieval_mode, fts_fallback_count.
-- If embedding retrieval fails, the `stat_embed_skip` counter increases and is logged in the summary of `on_session_stop()`.
+- Current mode and counters (including embed-skip) are shown by `/memory status`; the embed-skip count is also logged in the `on_session_stop()` summary.
 
 ### Ops and Scoring
 
-- `import_from_jsonl()` replays the JSONL archive in order to compute the final state (memory lines add or overwrite, `delete` removes, `pin` / `unpin` update `pinned`, unparsable lines are skipped with a warning) and imports that state into SQLite.
+- `import_from_jsonl()` replays the JSONL archive to compute and import the final state (replay rules: [agent_11_02](agent_11_02_memory-gate-data-model-search.md)).
 - Use `rebuild_fts()` to rebuild the FTS5 index and `rebuild_vec()` to rebuild the vector index.
 
 ## Known Limitations

@@ -281,8 +281,7 @@ There is no Fallback to the static `ToolRegistry` and no Routing by name inferen
 
 ## Implementation Notes
 
-- `McpToolDiscoveryService` is invoked during startup validation, and the resulting `RuntimeToolRegistry` is connected to `ToolExecutor` through `set_runtime_registry()` (Explicit in code — `scripts/agent/startup_validation.py`, `scripts/agent/services/mcp_tool_discovery.py`).
-- `ToolRouteResolver.resolve()` consults only `RuntimeToolRegistry` (Explicit in code — `scripts/shared/route_resolver.py`).
+- Startup validation runs MCP tool discovery and connects the resulting `RuntimeToolRegistry` to `ToolExecutor`; `ToolRouteResolver.resolve()` consults only that Registry (Explicit in code — `scripts/agent/startup_validation.py`, `scripts/shared/route_resolver.py`).
 - Approval and audit operation types never classify a tool whose `RuntimeTool` is a write tool as READ; startup validation reports a mismatch between the static tool sets and `RuntimeTool` write attributes (FATAL under `tool_definitions_strict`, otherwise WARNING) (Explicit in code — `scripts/agent/tool_policy.py`, `scripts/agent/services/mcp_tool_discovery.py`).
 
 See Implementation References for the file/symbol list.

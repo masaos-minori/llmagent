@@ -16,15 +16,15 @@ related:
 
 ## 4. `ToolExecutor` (`shared/tool_executor.py`, `shared/tool_executor_helpers.py`)
 
-`ToolExecutor` inherits from `ToolTransportInvoker` and accepts an HTTP client, `server_configs`, and optional parameters via its constructor. `apply_config()` enables hot-reloading. The `execute()` method follows this sequence: concurrency protection → health check gate → transport resolution → per-server semaphore execution. `get_error_counters()` returns the error counters.
+`ToolExecutor` inherits from `ToolTransportInvoker`; `apply_config()` enables hot-reloading. Execution follows this sequence: concurrency protection → health check gate → transport resolution → per-server semaphore execution.
 
-Helper functions: parallel/serial determination for tool call batches is delegated by `agent/tool_runner.py::_execute_with_dag()` to `agent/tool_scheduler.py::build_execution_groups()`, which references the `is_write` flag registered in `RuntimeToolRegistry` (via `PreparedToolCall.spec`; see [shared_03_03](shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)). `format_transport_error()` generates `TransportErrorInfo`. `tool_hash_key()` returns an MD5 hash used for failure tracking rather than as a cache key.
+Parallel/serial determination for tool call batches is delegated to `agent/tool_scheduler.py::build_execution_groups()`, which references the `is_write` flag registered in `RuntimeToolRegistry` (see [shared_03_03](shared_03_03_runtime_and_execution-llm-and-mcp-clients.md)). `tool_hash_key()` returns an MD5 hash used for failure tracking, not as a cache key.
 
 ---
 
 ## 4a. `ToolRegistry` / `route_resolver` / `tool_routing_validation` (Tool Ownership and Routing)
 
-**Separation of Concerns (Explicit in code — module docstring):**
+**Separation of Concerns:**
 - `shared/runtime_tool_registry.py`: **Routing Authority** (the sole source of truth). Constructed via `McpToolDiscoveryService` through live `/v1/tools` discovery and connected via `ToolExecutor.set_runtime_registry()`.
 - `shared/tool_registry.py`: **Input for Drift Detection** (not used for routing). Populated at import time by `frozenset` groups from `tool_constants.py`.
 - `shared/route_resolver.py`: `ToolRouteResolver` — resolves `tool_name` → `server_key`. **Refers exclusively to `RuntimeToolRegistry` for resolution; unknown tool names result in an immediate `ValueError`.**
@@ -34,7 +34,7 @@ Helper functions: parallel/serial determination for tool call batches is delegat
 
 `ToolRegistry` registers `ToolDefinition` objects and handles server resolution for tool names, retrieving all tools by server, and validating consistency between config and live tool lists. `get_registry()` returns a global singleton that auto-registers tools from `tool_constants` upon first call.
 
-`ToolDefinition.description` and `input_schema` are currently reserved fields and are unused. The authoritative tool schema for LLMs is the `TOOL_LIST` defined in each server's `tools.py`. Default registration maps `READ_TOOLS`/`WRITE_TOOLS`/`DELETE_TOOLS`/`RAG_TOOLS`/`CICD_TOOLS`/`MDQ_TOOLS`/`GIT_TOOLS`/`SHELL_TOOLS`/`GITHUB_TOOLS`/`WEB_SEARCH_TOOLS` from `tool_constants.py` to their corresponding `server_key`.
+`ToolDefinition.description` and `input_schema` are currently reserved fields and are unused. The authoritative tool schema for LLMs is the `TOOL_LIST` defined in each server's `tools.py`. Default registration maps the `tool_constants.py` category frozensets to their corresponding `server_key`.
 
 ### `ToolRouteResolver` (`shared/route_resolver.py`)
 
@@ -49,12 +49,7 @@ Resolves `tool_name` → `server_key` using `RuntimeToolRegistry` as sole author
 
 ## 4b. `LifecycleProtocol` (`shared/tool_lifecycle.py`)
 
-```python
-@runtime_checkable
-class LifecycleProtocol(Protocol):
-    async def ensure_ready(self, server_key: str) -> None
-```
-- The minimum protocol for lifecycle managers injected into `ToolExecutor`. Implementations reside in the MCP side (see MCP documentation for details).
+`LifecycleProtocol` is the minimum protocol (`ensure_ready(server_key)`) for lifecycle managers injected into `ToolExecutor`. Implementations reside on the MCP side (see MCP documentation).
 
 ---
 
@@ -74,13 +69,13 @@ Category-based estimation improves accuracy for multilingual text and structured
 
 ## 7. `git_helper` (`shared/git_helper.py`)
 
-`get_repo_info` returns `RepoInfoResult(success, data dict with branch/commit(8-char)/message/author, failure_reason)`. It never returns `None` and does not raise for repository errors: on failure it returns `RepoInfoResult(success=False, failure_reason=...)`. A missing GitPython (`ImportError`), `InvalidGitRepositoryError`, `PermissionError`, `GitError`, and `OSError`/`AttributeError`/`ValueError` are each mapped to a distinct `failure_reason`.
+`get_repo_info` never returns `None` and does not raise for repository errors: on failure it returns `RepoInfoResult(success=False, failure_reason=...)`, with a distinct `failure_reason` per failure class (missing GitPython, invalid repository, permission, git and OS errors).
 
 ---
 
 ## 8. `formatters` (`shared/formatters.py`)
 
-`truncate(text, max_chars)` truncates text; `fmt_kvlog(op, **kwargs)` formats key=value log strings; `fmt_size(size)` formats human-readable sizes; `fmt_md_link(text, url)` formats Markdown links; `MAX_SNIPPET_CHARS` is a constant for snippet display limits.
+Small pure text helpers (truncation, key=value log formatting, size and Markdown-link formatting) and the snippet display limit constant. See `shared/formatters.py`.
 
 ## Keywords
 

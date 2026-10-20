@@ -64,13 +64,13 @@ If a transport error occurs during LLM streaming resulting in a partial completi
 
 ### Adding to History
 
-`ctx.conv.append_message()` is a validated method; history must only be modified through this method rather than raw `list.append()` (the method validates the message and, on failure, sanitizes it or drops it; `agent/context.py::append_message`) (Explicit in code).
+`ctx.conv.append_message()` is a validated method; history must only be modified through this method rather than raw `list.append()` (the method validates the message and, on failure, sanitizes it or drops it) (Explicit in code — `scripts/agent/context.py::append_message`).
 
 ### Final Answer Fallback on Guard Trigger
 
 When a guard is triggered, the system attempts to re-invoke the LLM by injecting a temporary system message:
 
-- System Message: "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history."
+- The injected system message instructs the model to answer using only information already in the conversation history.
 - Executes LLM call with `tool_defs=[]`.
 - If `finish_reason != "tool_calls"`: Returns the answer text.
 - If `finish_reason == "tool_calls"`: Returns failure.
@@ -79,14 +79,7 @@ The original unexecuted assistant message is not persisted.
 
 ### Hints on Guard Triggering
 
-Upon each guard trigger, a hint is saved to `session_diagnostics` with `kind='guard_hint'`:
-
-| Guard Type | Hint Content |
-|---|---|
-| cycle | "A cyclic planning pattern was detected: the same set of tool calls is being requested repeatedly across multiple rounds." |
-| dedup | "The same tool was called with identical arguments multiple times." |
-| retry | "A tool call that previously failed is being retried with the same arguments." |
-| empty_result_repeat | "A tool returned empty results repeatedly within a single turn." |
+Upon each guard trigger (cycle, dedup, retry, empty_result_repeat), a hint describing the detected pattern is saved to `session_diagnostics` with `kind='guard_hint'`.
 
 These hints are stored exclusively for offline diagnostics and are NOT injected into `ctx.conv.history`. They are distinct from the short messages displayed to the user at the end of the loop.
 
@@ -109,13 +102,12 @@ Messages constructed by the LLM client's streaming aggregation logic consist onl
 
 ## Operational Notes
 
-- The final answer fallback, incomplete-output inspection via `/stats`, and the `tool_empty_result_max_repeats > 0` requirement are described in Final Answer Fallback on Guard Trigger, Isolation of Incomplete Outputs, and Known Limitations above and below.
+- Guard-trigger fallback, incomplete-output inspection via `/stats`, and the opt-in thresholds are described in Final Answer Fallback on Guard Trigger, Isolation of Incomplete Outputs, and Known Limitations.
 
 ## Known Limitations
 
 - Cycle detection is fingerprint-based, so tool calls that are functionally equivalent but have different orderings might not be detected as the same pattern.
-- Retry suppression is only effective if `tool_error_retry_max > 0`. The effective on/off state is logged once at startup by the tool loop guard (`agent.tool_loop_guard startup diagnostic: retry_suppression=<on|off>(<n>) empty_result_detection=<on|off>(<n>)`). See `scripts/agent/tool_loop_guard.py`.
-- Empty result repeat detection is only effective if `tool_empty_result_max_repeats > 0`. The effective on/off state is logged once at startup by the tool loop guard (`agent.tool_loop_guard startup diagnostic: retry_suppression=<on|off>(<n>) empty_result_detection=<on|off>(<n>)`). See `scripts/agent/tool_loop_guard.py`.
+- Retry suppression is effective only if `tool_error_retry_max > 0`, and empty result repeat detection only if `tool_empty_result_max_repeats > 0`. The tool loop guard logs the effective on/off state of both once at startup (`agent.tool_loop_guard startup diagnostic`). See `scripts/agent/tool_loop_guard.py`.
 
 ## Keywords
 

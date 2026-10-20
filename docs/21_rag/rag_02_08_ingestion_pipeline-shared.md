@@ -33,8 +33,6 @@ related:
 
 `chunk_japanese.py` — `ChunkJapaneseMixin`: Morphological analysis-based chunking for Japanese text using Sudachi SplitMode.C. Includes NFKC normalization, sentence boundary splitting, and buffer-based accumulation with overlap. Mixed into `ChunkSplitter` via multiple inheritance.
 
-**Class: `ChunkJapaneseMixin`**
-
 ---
 
 ## 9. Pipeline Utils (`scripts/rag/ingestion/pipeline_utils.py`)
@@ -50,9 +48,6 @@ For exhaustive signature and constant detail, see `scripts/rag/ingestion/pipelin
 ## 10. Shared Utilities Summary (`scripts/rag/utils.py`)
 
 Stateless helpers shared by ingestion and query code (vectors, Unicode normalization, prompt-injection sanitization, URL validation). Details → [rag_02_09_ingestion_pipeline-shared-utilities.md](rag_02_09_ingestion_pipeline-shared-utilities.md)
-
-**Used by:** See each dependent script's own `from rag.utils import (...)` statement
-for the functions it currently uses.
 
 ---
 
