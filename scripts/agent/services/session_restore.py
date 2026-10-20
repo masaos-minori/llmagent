@@ -64,19 +64,20 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
         await ctx.conv.replace_history(system_msgs + non_system)
     else:
         await ctx.conv.replace_history(messages)
-    ctx.session.session_id = session_id
-    reset_session_stats(ctx)
     # convert the persisted boundary row ID into a rebuilt-history index
     # (rows 02/04): nothing in the compressed snapshot is undoable after load.
+    # Runs before any session-state mutation so a raise leaves state untouched.
     if undo_floor_id:
         n_snapshot = ctx.session.count_messages_up_to(session_id, undo_floor_id)
         ctx.conv.undo_floor = _boundary_to_index(
             n_snapshot,
-            messages,
+            ctx.conv.history,
             system_prompt_set=bool(ctx.conv.system_prompt_content),
         )
     else:
         ctx.conv.undo_floor = 0
+    ctx.session.session_id = session_id
+    reset_session_stats(ctx)
     logger.info("Session %s loaded: %s messages", session_id, len(messages))
     # Note: n_messages reflects the originally fetched row count, not the
     # post-sanitization stored count; a tampered/corrupted persisted row

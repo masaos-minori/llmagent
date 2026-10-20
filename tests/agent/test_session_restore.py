@@ -5,12 +5,13 @@ Unit tests for agent/services/session_restore.py.
 
 from __future__ import annotations
 
-from unittest.mock import MagicMock
+import sqlite3
+from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.context import ConversationState
 from agent.services.exceptions import SessionNoMessagesError
-from agent.services.session_restore import restore_session
+from agent.services.session_restore import _boundary_to_index, restore_session
 
 
 def _make_ctx(
@@ -184,3 +185,48 @@ class TestRestoreSession:
         assert ctx.conv.history[0]["content"] == "Canonical."
         # index 1 (q1, last snapshot user) is below the floor; index 2 (a1) above.
         assert ctx.conv.history[1]["content"] == "q1"
+
+    async def test_raise_in_count_messages_up_to_leaves_state_unmutated(self):
+        """A raise in count_messages_up_to propagates before any session-state
+        mutation (session_id unchanged, reset_session_stats not called); AC-1."""
+        msgs = [{"role": "user", "content": "hi"}]
+        ctx = _make_ctx(
+            messages=msgs, system_prompt_content="Canonical.", undo_floor_id=1
+        )
+        ctx.session.count_messages_up_to.side_effect = sqlite3.Error("db down")
+        with patch("agent.services.session_restore.reset_session_stats") as mock_reset:
+            with pytest.raises(sqlite3.Error):
+                await restore_session(ctx, session_id=42)
+            mock_reset.assert_not_called()
+        # session_id was not reassigned before the raise; still its _make_ctx default.
+        assert ctx.session.session_id == 0
+
+    async def test_undo_floor_anchors_to_rebuilt_history_after_dropped_row(self):
+        """A content-less restored row is dropped by replace_history(); the undo
+        boundary anchors to the shorter rebuilt history, not the pre-sanitization
+        row count; AC-2."""
+        messages = [
+            {"role": "user"},  # missing content -> dropped by replace_history()
+            {"role": "user", "content": "q1"},
+            {"role": "assistant", "content": "a1"},
+        ]
+        ctx = _make_ctx(
+            messages=messages, system_prompt_content="Canonical.", undo_floor_id=1
+        )
+        ctx.session.count_messages_up_to.return_value = 1  # n_snapshot
+        await restore_session(ctx, session_id=7)
+        # The content-less row is dropped; rebuilt history is [canonical sys, q1, a1].
+        assert len(ctx.conv.history) == 3
+        assert all(m.get("content") for m in ctx.conv.history)
+        # Anchored to the rebuilt history, not the 4-row pre-sanitization list.
+        expected = _boundary_to_index(
+            1, ctx.conv.history, system_prompt_set=bool(ctx.conv.system_prompt_content)
+        )
+        assert ctx.conv.undo_floor == expected == 1
+        # Sanity: the pre-sanitization anchor would over-index to 2.
+        stale = _boundary_to_index(
+            1, messages, system_prompt_set=bool(ctx.conv.system_prompt_content)
+        )
+        assert ctx.conv.undo_floor != stale
+        # The computed index stays within the live history length.
+        assert 0 <= ctx.conv.undo_floor <= len(ctx.conv.history)
