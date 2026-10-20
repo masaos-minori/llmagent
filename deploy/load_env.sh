@@ -96,6 +96,8 @@ require_env_vars() {
             echo "Set them in your environment or a .env file, e.g.:" >&2
         fi
         for var in "${missing[@]}"; do
+            # Single quotes are intentional: the example command is printed, not expanded.
+            # shellcheck disable=SC2016
             printf '  %s="$(openssl rand -hex 32)"\n' "${var}" >&2
         done
         echo "Then re-run: ${rerun_command}" >&2

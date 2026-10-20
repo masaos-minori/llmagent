@@ -128,6 +128,8 @@ if (( ${#missing_tokens[@]} > 0 )); then
         echo "Create ${REPO_ROOT}/.env with these variables, e.g.:" >&2
     fi
     for var in "${missing_tokens[@]}"; do
+        # Single quotes are intentional: the example command is printed, not expanded.
+        # shellcheck disable=SC2016
         printf '  %s="$(openssl rand -hex 32)"\n' "${var}" >&2
     done
     echo "Then re-run: bash deploy/start_agent.sh" >&2

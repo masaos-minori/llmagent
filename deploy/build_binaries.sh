@@ -279,7 +279,8 @@ build_one() {
 
     local args=("${BASE_NUTKA_ARGS[@]+"${BASE_NUTKA_ARGS[@]}"}" "${include_args[@]+"${include_args[@]}"}")
     if [[ -n "${NUTKA_EXTRA_FLAGS}" ]]; then
-        # shellcheck disable=SC2086  (意図的に単語分割してフラグを渡す)
+        # 意図的に単語分割してフラグを渡す
+        # shellcheck disable=SC2206
         args+=(${NUTKA_EXTRA_FLAGS})
     fi
     # nuitka4x: --onefile 実行可能はランチャ(.py)を位置引数として対象に。--module は不要。
