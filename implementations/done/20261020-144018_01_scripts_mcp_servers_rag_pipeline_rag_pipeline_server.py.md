@@ -67,7 +67,7 @@ document only calls it.
 1. In `_check_health_deps`, after the presence check passes, run the bounded probe
    for the configured `embed_url` and record `"unreachable"` when it is not
    reachable.
-2. Confirm `GET /health` still forwards `deps` to `make_health_response` unchanged.
+2. Make `_check_health_deps` `async` and `await` it in `GET /health`; confirm `deps` is still forwarded to `make_health_response` unchanged.
 
 ### Method
 
@@ -89,6 +89,9 @@ document only calls it.
       return deps
   ```
 
+- `probe_embed_reachable` is `async`, so `_check_health_deps` becomes `async def` and
+  `GET /health` (already `async def`) calls it as `deps = await _check_health_deps()`.
+  Its only caller is `health()`; no test calls it directly (verified with `rg`).
 - After the `if not embed_url ...` block (i.e. on the success path where
   `embed_url` is a non-empty string), import the probe and call it:
 
@@ -109,9 +112,9 @@ document only calls it.
   `"unreachable"`, or wrap the call so any exception maps to `"unreachable"`. Do
   **not** let a probe failure escape into the `except Exception` branch that sets
   `deps["config"] = "check failed"`.
-- `GET /health` (lines 223-231) needs no structural change: it already calls
-  `_check_health_deps()` and passes the result to `make_health_response`. It now
-  simply carries the new `"unreachable"` value when present.
+- `GET /health` (lines 223-231) changes only by awaiting the now-async
+  `_check_health_deps()`; it still passes the result to `make_health_response`
+  unchanged and simply carries the new `"unreachable"` value when present.
 
 ### Details
 
@@ -187,9 +190,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `_check_health_deps` with the bounded probe and the `"unreachable"` state; wire into `GET /health` | Pending | — | — | REQ-001, REQ-003 |
-| 2 | Add reachable/unreachable/missing-key/timeout/cache unit tests | Pending | — | — | REQ-001, REQ-002 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend `_check_health_deps` with the bounded probe and the `"unreachable"` state; wire into `GET /health` | Completed | 20261020-181626 | 20261020-181626 | REQ-001, REQ-003 changed: scripts/mcp_servers/rag_pipeline/rag_pipeline_server.py; procedure corrected: _check_health_deps made async (user-approved); first attempt reverted on cicd health test failure, reapplied after plan amendment |
+| 2 | Add reachable/unreachable/missing-key/timeout/cache unit tests | Completed | 20261020-181626 | 20261020-181626 | REQ-001, REQ-002 N/A: tests are seq 03/04/09 target files |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261020-181626 | 20261020-181626 | ruff, mypy, lint-imports, bandit, module-size pass; full suite 9652 passed, 14 skipped |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

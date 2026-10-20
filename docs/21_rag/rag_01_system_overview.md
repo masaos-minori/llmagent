@@ -138,11 +138,12 @@ The RAG pipeline has no semantic cache; a configuration source that carries sema
 
 **Embedding server health check:** The embedding server (`embed-llm`) is a `llama-server` process external to this repository. The curl command above is the check used by `deploy/setup_services.sh`; the response body is defined by `llama-server`, not by repository code, so this document does not specify it.
 
-**RAG pipeline MCP server health check:** The `rag-pipeline-mcp` server answers `/health` with the common MCP health response, in which `liveness` is a boolean, `ready` is true only when no dependency check fails, and HTTP 503 is returned when it is not ready (`dependencies.embed_url` is `"not configured"` when no embedding URL is configured). For the response format see [mcp_02_02 Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) and [mcp_04_03](../22_mcp/mcp_04_03_rag-pipeline-and-cicd.md).
+**RAG pipeline MCP server health check:** The `rag-pipeline-mcp` server answers `/health` with the common MCP health response, in which `liveness` is a boolean, `ready` is true only when no dependency check fails, and HTTP 503 is returned when it is not ready (`dependencies.embed_url` is `"not configured"` when no embedding URL is configured, or `"unreachable"` when the embedding URL is configured but the reachability probe cannot confirm it). For the response format see [mcp_02_02 Startup Modes and Health](../22_mcp/mcp_02_02_startup-modes-and-health.md) and [mcp_04_03](../22_mcp/mcp_04_03_rag-pipeline-and-cicd.md).
 
 Troubleshooting:
 - If the embedding server request times out: verify the embedding server is running and accessible at the specified address
 - If the `rag-pipeline-mcp` `/health` reports `status` `"degraded"` with `dependencies.embed_url` `"not configured"`: verify the embedding server URL is set in the configuration
+- If the `rag-pipeline-mcp` `/health` reports `status` `"degraded"` with `dependencies.embed_url` `"unreachable"`: the embedding server URL is set but the server is not reachable (down, wrong port, or network-blocked); verify the embedding server is running and reachable at the configured address. The `/health` probe is bounded by a timeout, so a hung server still returns within that bound.
 - If an HTTP 503 is returned by an MCP server: the service is running but has failed dependency checks; inspect the `dependencies` field
 
 **sqlite-vec extension:** A missing file at `sqlite_vec_so` means the extension cannot be loaded.

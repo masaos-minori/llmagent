@@ -43,7 +43,7 @@ Configuration notes:
 Operations:
 
 - Availability: `rag_run_pipeline` and `rag_debug_pipeline` are disabled with reason `"embed_url is not configured"` when `embed_url` is empty; `/v1/call_tool` rejects them with `Tool disabled: <reason>`.
-- `/health`: `dependencies.embed_url` is `"not configured"` or `dependencies.config` is `"check failed"` (degraded, HTTP 503); otherwise `ok`.
+- `/health`: `dependencies.embed_url` is `"not configured"` (embedding URL unset), `"unreachable"` (embedding URL configured but the reachability probe fails), or `dependencies.config` is `"check failed"` (degraded, HTTP 503); otherwise `ok`.
 - Logs: `rag-mcp.log` in the log directory. Audit: Layer1 `tool_exec` only; no shared or dedicated audit log.
 
 ---

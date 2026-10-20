@@ -265,8 +265,18 @@ class TestRagPipelineServerHealth:
             app as rag_app,
         )
 
+        async def _reachable(embed_url: str, **_kwargs: object) -> str:
+            return "reachable"
+
         cfg = {"embed_url": "http://localhost:11434/api/embeddings"}
-        with patch("shared.config_loader.ConfigLoader.load", return_value=cfg):
+        with (
+            patch("shared.config_loader.ConfigLoader.load", return_value=cfg),
+            patch(
+                "mcp_servers.rag_pipeline.rag_pipeline_health_probe"
+                ".probe_embed_reachable",
+                new=_reachable,
+            ),
+        ):
             client = TestClient(
                 rag_app,
                 raise_server_exceptions=False,

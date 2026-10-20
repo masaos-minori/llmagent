@@ -96,10 +96,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the rag-pipeline-mcp `/health` bullet to include the `"unreachable"` state | Pending | — | — | REQ-004, REQ-005 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-004, REQ-005 |
+| 1 | Update the rag-pipeline-mcp `/health` bullet to include the `"unreachable"` state | Completed | 20261020-182342 | 20261020-182342 | REQ-004, REQ-005 changed: docs/22_mcp/mcp_04_03_rag-pipeline-and-cicd.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261020-182342 | 20261020-182342 | N/A: docs-only N/A: docs-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261020-182342 | 20261020-182342 | docs checkers pass (quality, structure, content-policy --strict, consistency --domain mcp, needs-confirmation, japanese); full suite not re-run: no code change since the last green run |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261020-182342 | 20261020-182342 | REQ-004, REQ-005 REQ-004, REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

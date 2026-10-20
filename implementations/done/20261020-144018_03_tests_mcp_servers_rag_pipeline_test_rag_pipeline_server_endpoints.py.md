@@ -130,8 +130,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add reachable/unreachable/missing-key/non-string/timeout/cache unit tests | Pending | — | — | REQ-001, REQ-002 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add reachable/unreachable/missing-key/non-string/timeout/cache unit tests | Completed | 20261020-182308 | 20261020-182308 | REQ-001, REQ-002 changed: tests/mcp_servers/rag_pipeline/test_rag_pipeline_server_endpoints.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261020-182308 | 20261020-182308 | ruff, mypy, mock-patch pass; targeted 29 passed; full suite 9663 passed, 14 skipped |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

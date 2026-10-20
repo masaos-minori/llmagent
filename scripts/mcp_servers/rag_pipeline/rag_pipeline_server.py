@@ -205,7 +205,7 @@ async def rag_debug_pipeline(req: RagRunRequest) -> RagDebugResponse:
     return result
 
 
-def _check_health_deps() -> dict[str, str]:
+async def _check_health_deps() -> dict[str, str]:
     """Return dependency problems, if any, for the health check."""
     deps: dict[str, str] = {}
     try:
@@ -215,15 +215,29 @@ def _check_health_deps() -> dict[str, str]:
         embed_url = cfg.get("embed_url")
         if not embed_url or not isinstance(embed_url, str):
             deps["embed_url"] = "not configured"
+        elif not await _embed_reachable(embed_url):
+            deps["embed_url"] = "unreachable"
     except Exception:  # noqa: BLE001 — health check must not fail on config errors
         deps["config"] = "check failed"
     return deps
 
 
+async def _embed_reachable(embed_url: str) -> bool:
+    """Return whether the embedding service answers; a probe failure means False."""
+    from mcp_servers.rag_pipeline.rag_pipeline_health_probe import (
+        probe_embed_reachable,
+    )
+
+    try:
+        return await probe_embed_reachable(embed_url) == "reachable"
+    except Exception:  # noqa: BLE001 — a probe fault must not be reported as a config failure
+        return False
+
+
 @app.get("/health")
 async def health() -> JSONResponse:
-    """Health check endpoint. Returns degraded when embed_url is not configured."""
-    deps = _check_health_deps()
+    """Health check endpoint. Returns degraded when embed_url is unusable."""
+    deps = await _check_health_deps()
     details: dict[str, object] = {"service": "rag-pipeline-mcp"}
     result: JSONResponse = make_health_response(
         deps, details, security=_security_posture

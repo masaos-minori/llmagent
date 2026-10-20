@@ -21,7 +21,7 @@ related:
 curl -s -H "Authorization: Bearer ${MCP_<SERVER_KEY>_AUTH_TOKEN}" http://127.0.0.1:<server_port>/health | jq
 ```
 
-Base response shape: `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`. Server-specific unmet conditions appear in `dependencies` (for example `shell`, `github_token`, `embed_url`, `db_file`, `git`, `filesystem`) and server-specific state in `details`.
+Base response shape: `{"status":"ok","ready":bool,"liveness":true,"restart_recommended":false,"operator_action_required":false,"dependencies":{},"details":{}}`. Server-specific unmet conditions appear in `dependencies` (for example `shell`, `github_token`, `embed_url`, `db_file`, `git`, `filesystem`) and server-specific state in `details`. For `rag-pipeline-mcp`, `dependencies.embed_url` is `"not configured"` when no embedding URL is set, or `"unreachable"` when the URL is set but the embedding server cannot be reached.
 
 `/health` is authenticated like every other route: a server answers `401` to a probe without a matching Bearer header, which is an authentication failure, not an unhealthy server. This applies to every HTTP MCP server, including mdq-mcp. Real tokens must never be pasted into shell history or documents; export them from the environment.
 
@@ -34,7 +34,7 @@ The mcp subcommand's `status` action (`McpStatusService.probe_all()`) reads both
 
 ### Degraded responses
 
-A degraded server returns HTTP 503 with `status="degraded"`, `ready=false`, and a server-specific unmet condition in `dependencies` (for example `{"shell": "sh not found in PATH"}` for shell-mcp). The mcp subcommand's `status` action reflects it in `health_reason` as `operator_action_required` (display only; no automatic restart occurs).
+A degraded server returns HTTP 503 with `status="degraded"`, `ready=false`, and a server-specific unmet condition in `dependencies` (for example `{"shell": "sh not found in PATH"}` for shell-mcp, or `{"embed_url": "unreachable"}` for rag-pipeline-mcp when the embedding URL is configured but unreachable). The mcp subcommand's `status` action reflects it in `health_reason` as `operator_action_required` (display only; no automatic restart occurs).
 
 ## Verification via /v1/tools
 

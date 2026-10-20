@@ -38,6 +38,19 @@ def client() -> TestClient:
     return TestClient(rag_pipeline_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
+@pytest.fixture(autouse=True)
+def _stub_embed_probe(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Keep /health network-free: the shipped embed_url points at an unreachable host."""
+
+    async def _reachable(embed_url: str, **_kwargs: object) -> str:
+        return "reachable"
+
+    monkeypatch.setattr(
+        "mcp_servers.rag_pipeline.rag_pipeline_health_probe.probe_embed_reachable",
+        _reachable,
+    )
+
+
 def _security_block(client: TestClient) -> dict[str, Any]:
     """Return the `security` block of a real /health response body."""
     body: dict[str, Any] = client.get("/health").json()
@@ -213,3 +226,24 @@ class TestBindGate:
         assert body["dependencies"] == {}
         assert body["ready"] is False
         assert body["security"]["validated"] is False
+
+
+class TestEmbedOutageDoesNotBlockStartup:
+    """AC-006: an unreachable embedding service does not affect startup posture."""
+
+    def test_unreachable_embed_service_keeps_the_posture_validated(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        async def _unreachable(embed_url: str, **_kwargs: object) -> str:
+            return "unreachable"
+
+        monkeypatch.setattr(
+            "mcp_servers.rag_pipeline.rag_pipeline_health_probe.probe_embed_reachable",
+            _unreachable,
+        )
+        posture = rag_pipeline_server._build_security_posture()
+
+        assert posture.validated is True
+        assert "server.embed_url_configured" not in _failed_checks(posture)
+        rag_pipeline_server._enforce_posture_gate()
+        assert _security_block(client)["validated"] is True

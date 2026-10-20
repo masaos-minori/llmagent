@@ -103,10 +103,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `"unreachable"` value to the health-probe and degraded-response descriptions | Pending | — | — | REQ-004, REQ-005 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | REQ-004, REQ-005 |
+| 1 | Add the `"unreachable"` value to the health-probe and degraded-response descriptions | Completed | 20261020-183059 | 20261020-183059 | REQ-004, REQ-005 changed: docs/22_mcp/mcp_06_04_verification-methods.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261020-183059 | 20261020-183059 | N/A: docs-only N/A: docs-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261020-183059 | 20261020-183059 | docs checkers pass; full suite re-run after all docs edits |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261020-183059 | 20261020-183059 | REQ-004, REQ-005 REQ-004, REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

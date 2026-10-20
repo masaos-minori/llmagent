@@ -61,7 +61,7 @@ The Agent reads this block during startup readiness and MCP tool discovery. A `f
 - `200` if `status="ok"` and `ready=true` (fully healthy)
 - `503` if `status="degraded"` or `ready=false` (dependency failure, or a security posture that did not validate)
 
-**Dependency Values**: Any non-empty dependency value (`"not configured"`, `"not_set"`, `"check failed"`, etc.) constitutes a degraded state — a server is not healthy until all dependencies are satisfied. These values are not just informational; they always indicate an actual missing or failed dependency.
+**Dependency Values**: Any non-empty dependency value (`"not configured"`, `"unreachable"`, `"not_set"`, `"check failed"`, etc.) constitutes a degraded state — a server is not healthy until all dependencies are satisfied. These values are not just informational; they always indicate an actual missing or failed dependency. `"unreachable"` (used by `rag-pipeline-mcp` for `dependencies.embed_url`) means the endpoint is configured but the reachability probe could not confirm it; it carries the same degraded response shape (HTTP 503, `ready:false`, `liveness:true`) as the other values.
 
 **Interpretation in `/mcp status`**: `McpStatusService.probe_all()` (`agent/services/mcp_status.py`) reads the HTTP status code and the `restart_recommended`/`operator_action_required` fields from the body and reflects them in the `health_reason` column of `/mcp status`. This is display-only and does not trigger automatic restarts or change server states.
 - Reflected in `health_reason` as the body `reason` (fallback `message`) string when present, or as `restart_recommended` when `restart_recommended=true` and no body reason exists.
@@ -109,7 +109,7 @@ Every server reports unmet prerequisites through `dependencies` (a non-empty val
 | mdq-mcp | `details` with document, chunk, and FTS row counts, last indexed time, and stale document count (stale detection via `documents.mtime_ns`); verifies the `documents`, `chunks`, `chunks_fts` tables and their sync triggers |
 | shell-mcp | `dependencies.shell` when `sh` is not found; `details.sandbox_backend` (`firejail` or `none`) |
 | file-read/write/delete-mcp | `dependencies.filesystem` when the workspace root is not a directory |
-| rag-pipeline-mcp | `dependencies` for an unconfigured embedding endpoint or a failed config check |
+| rag-pipeline-mcp | `dependencies.embed_url` is `"not configured"` (embedding URL unset), `"unreachable"` (embedding URL configured but the reachability probe fails), or `dependencies.config` is `"check failed"` (failed config check) |
 | git-mcp | `dependencies.git` when `git` is not found |
 
 ---

@@ -48,7 +48,7 @@ and nothing else is required by the plan. It is called only from
 
 1. Create the module with the timeout constant, the injectable bounded caller, and
    the short-TTL cache.
-2. Expose `probe_embed_reachable(embed_url, *, caller=None, timeout=...)`.
+2. Expose `probe_embed_reachable` (new) with signature `(embed_url, *, caller=None, timeout=...)`.
 
 ### Method
 
@@ -131,7 +131,7 @@ N/A: revert the commit (deletes the new file).
 
 ## Completion criteria
 
-- `probe_embed_reachable` returns `"reachable"` / `"unreachable"` correctly.
+- `probe_embed_reachable` (new) returns `"reachable"` / `"unreachable"` correctly.
 - Worst-case latency is bounded by the timeout constant.
 - Repeated calls within the TTL issue at most one probe request.
 
@@ -146,9 +146,9 @@ N/A: revert the commit (deletes the new file).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `rag_pipeline_health_probe.py` (injectable, bounded, cached) | Pending | — | — | REQ-002 |
-| 2 | Add reachable/unreachable/timeout/cache unit tests | Pending | — | — | REQ-002 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create `rag_pipeline_health_probe.py` (injectable, bounded, cached) | Completed | 20261020-161627 | 20261020-161627 | REQ-002 REQ-002; changed: scripts/mcp_servers/rag_pipeline/rag_pipeline_health_probe.py; procedure corrected: (new) marker on probe_embed_reachable (user-approved) |
+| 2 | Add reachable/unreachable/timeout/cache unit tests | Completed | 20261020-161627 | 20261020-161627 | REQ-002 N/A: tests live in seq 03/04 target files; no test file is this row's target |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261020-161627 | 20261020-161627 | ruff, mypy, lint-imports, bandit, module-size, docstring format pass; full suite 9651 passed, 14 skipped |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

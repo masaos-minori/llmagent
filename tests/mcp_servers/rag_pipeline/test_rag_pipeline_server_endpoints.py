@@ -20,11 +20,14 @@ to close the coverage gap on rag_pipeline_server.py's own route/dispatch/lifespa
 
 from __future__ import annotations
 
+import asyncio
+import time
 from typing import Any
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
+from mcp_servers.rag_pipeline import rag_pipeline_health_probe as probe
 from mcp_servers.rag_pipeline import rag_pipeline_server as server
 from mcp_servers.rag_pipeline.rag_pipeline_models import (
     RagDebugResponse,
@@ -54,6 +57,47 @@ def fake_service(monkeypatch: pytest.MonkeyPatch) -> _FakeService:
     svc = _FakeService()
     monkeypatch.setattr(server, "_service", svc)
     return svc
+
+
+_PROBE_TARGET = (
+    "mcp_servers.rag_pipeline.rag_pipeline_health_probe.probe_embed_reachable"
+)
+
+
+def _stub_probe(monkeypatch: pytest.MonkeyPatch, state: str) -> AsyncMock:
+    """Replace the embed probe with a call-recording stub returning `state`."""
+    stub = AsyncMock(return_value=state)
+    monkeypatch.setattr(_PROBE_TARGET, stub)
+    return stub
+
+
+def _stub_config(monkeypatch: pytest.MonkeyPatch, cfg: dict[str, Any]) -> None:
+    """Make ConfigLoader().load(...) return `cfg` for the health check."""
+
+    class _Loader:
+        def load(self, _name: str) -> dict[str, Any]:
+            return cfg
+
+    monkeypatch.setattr("shared.config_loader.ConfigLoader", lambda: _Loader())
+
+
+class _CountingCaller:
+    """Embed transport stub that records each GET and answers with `status_code`."""
+
+    def __init__(self, status_code: int = 200) -> None:
+        self.calls = 0
+        self._status_code = status_code
+
+    async def get(self, _url: str, timeout: float) -> Any:
+        self.calls += 1
+        return type("_Resp", (), {"status_code": self._status_code})()
+
+
+class _HangingCaller:
+    """Embed transport stub that never answers."""
+
+    async def get(self, _url: str, timeout: float) -> Any:
+        await asyncio.Event().wait()
 
 
 @pytest.fixture
@@ -170,10 +214,118 @@ class TestHealthEndpoint:
                 raise RuntimeError("boom")
 
         monkeypatch.setattr("shared.config_loader.ConfigLoader", lambda: _BoomLoader())
+        stub = _stub_probe(monkeypatch, "reachable")
         resp = client.get("/health")
         assert resp.status_code == 503
         body = resp.json()
         assert body["dependencies"] == {"config": "check failed"}
+        stub.assert_not_called()
+
+    def test_reachable_embed_url_reports_ok(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _stub_config(monkeypatch, {"embed_url": "http://embed.invalid:8081"})
+        stub = _stub_probe(monkeypatch, "reachable")
+        resp = client.get("/health")
+        assert resp.status_code == 200
+        body = resp.json()
+        assert body["dependencies"] == {}
+        assert body["ready"] is True
+        stub.assert_awaited_once_with("http://embed.invalid:8081")
+
+    def test_unreachable_embed_url_reports_degraded_but_live(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _stub_config(monkeypatch, {"embed_url": "http://embed.invalid:8081"})
+        _stub_probe(monkeypatch, "unreachable")
+        resp = client.get("/health")
+        assert resp.status_code == 503
+        body = resp.json()
+        assert body["status"] == "degraded"
+        assert body["dependencies"] == {"embed_url": "unreachable"}
+        assert body["ready"] is False
+        assert body["liveness"] is True
+        assert body["restart_recommended"] is False
+        assert body["operator_action_required"] is True
+
+    @pytest.mark.parametrize("cfg", [{}, {"embed_url": 123}, {"embed_url": ""}])
+    def test_absent_or_non_string_embed_url_is_not_probed(
+        self,
+        client: TestClient,
+        monkeypatch: pytest.MonkeyPatch,
+        cfg: dict[str, Any],
+    ) -> None:
+        _stub_config(monkeypatch, cfg)
+        stub = _stub_probe(monkeypatch, "reachable")
+        resp = client.get("/health")
+        assert resp.status_code == 503
+        assert resp.json()["dependencies"] == {"embed_url": "not configured"}
+        stub.assert_not_called()
+
+    def test_probe_fault_is_unreachable_not_config_failure(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        _stub_config(monkeypatch, {"embed_url": "http://embed.invalid:8081"})
+        stub = _stub_probe(monkeypatch, "reachable")
+        stub.side_effect = RuntimeError("boom")
+        resp = client.get("/health")
+        assert resp.status_code == 503
+        assert resp.json()["dependencies"] == {"embed_url": "unreachable"}
+
+
+class TestEmbedProbe:
+    @pytest.fixture(autouse=True)
+    def _fresh_cache(self) -> None:
+        probe.reset_cache()
+
+    def test_ok_answer_is_reachable(self) -> None:
+        caller = _CountingCaller(200)
+        state = asyncio.run(
+            probe.probe_embed_reachable("http://embed.invalid:8081/", caller=caller)
+        )
+        assert state == "reachable"
+
+    def test_non_200_answer_is_unreachable(self) -> None:
+        caller = _CountingCaller(503)
+        state = asyncio.run(
+            probe.probe_embed_reachable("http://embed.invalid:8081", caller=caller)
+        )
+        assert state == "unreachable"
+
+    def test_hanging_transport_resolves_within_the_timeout(self) -> None:
+        started = time.monotonic()
+        state = asyncio.run(
+            probe.probe_embed_reachable(
+                "http://embed.invalid:8081", caller=_HangingCaller(), timeout=0.05
+            )
+        )
+        assert state == "unreachable"
+        assert time.monotonic() - started < 1.0
+
+    def test_repeated_calls_within_the_ttl_issue_one_request(self) -> None:
+        caller = _CountingCaller(200)
+
+        async def _poll() -> list[str]:
+            return [
+                await probe.probe_embed_reachable(
+                    "http://embed.invalid:8081", caller=caller
+                )
+                for _ in range(3)
+            ]
+
+        assert asyncio.run(_poll()) == ["reachable"] * 3
+        assert caller.calls == 1
+
+    def test_reset_cache_forces_a_new_request(self) -> None:
+        caller = _CountingCaller(200)
+        asyncio.run(
+            probe.probe_embed_reachable("http://embed.invalid:8081", caller=caller)
+        )
+        probe.reset_cache()
+        asyncio.run(
+            probe.probe_embed_reachable("http://embed.invalid:8081", caller=caller)
+        )
+        assert caller.calls == 2
 
 
 class TestToolsListEndpoint:
