@@ -78,7 +78,7 @@ Per-server design specification: purpose, security boundary, failure behavior, a
 See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_02_high-risk-tool-common-policy.md) for the cross-cutting canonical policy governing github-mcp as a high-risk tool. Agent-side approval confirms user intent only; it is not a bypass for any guard below.
 
 **Purpose:** GitHub API via PyGithub. Performs reads and writes to GitHub repositories.
-**Startup Mode:** `subprocess` (HTTP)
+**Startup Mode:** `subprocess` (HTTP) in the default configuration. `startup_mode = "none"` in `config/agent.toml` disables the server: the Agent performs no subprocess startup or lifecycle operations for it.
 **Configuration:** `config/github_mcp_server.toml`
 **Authentication:** `GITHUB_TOKEN` environment variable (PAT). If unset, every tool is reported disabled (`GITHUB_TOKEN is not set`) and `/v1/call_tool` rejects every call with `Tool disabled: GITHUB_TOKEN is not set`; there is no usable anonymous mode through the MCP tools. The process still starts with an unauthenticated client (startup warning about the API rate limit) and reports `degraded` health, but the disabled-tool gate prevents any tool from using that client. All tools are `config_dependent: true`.
 
