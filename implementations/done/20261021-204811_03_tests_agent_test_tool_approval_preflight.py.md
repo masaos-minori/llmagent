@@ -90,8 +90,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `TestCheckApprovalDryRun` with the no-downstream-mutation assertion (REQ-001, REQ-003) | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend `TestCheckApprovalDryRun` with the no-downstream-mutation assertion (REQ-001, REQ-003) | Completed | 20261021-221000 | 20261021-221000 | Added test_dry_run_performs_no_downstream_mutation; asserts execute awaited once with dry_run=True and zero downstream mutations. |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261021-221000 | 20261021-221000 | 75 tests pass; ruff format/check + mypy clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

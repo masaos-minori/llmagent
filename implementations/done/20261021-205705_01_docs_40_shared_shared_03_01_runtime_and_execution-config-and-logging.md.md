@@ -110,8 +110,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the Known Limitations subsection to Section 3 (Logger) (REQ-001, REQ-002) | Pending | — | — | |
-| 2 | Run the documentation consistency / quality checkers | Pending | — | — | |
+| 1 | Add the Known Limitations subsection to Section 3 (Logger) (REQ-001, REQ-002) | Completed | 20261021-221500 | 20261021-221500 | Verified source claims: _RedactionFilter rewrites record.msg only (logger.py L69-80); attach at L174; register_secret at mcp_config.py:312, http_transport.py:84; _emit_tool_result at tool_runner.py:246. |
+| 2 | Run the documentation consistency / quality checkers | Completed | 20261021-221500 | 20261021-221500 | check_docs_quality/content_policy/japanese all pass; no new findings. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

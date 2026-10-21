@@ -14,7 +14,7 @@ finds a tool whose server treats `dry_run` as advisory (REQ-002).
 
 ## Assumptions
 
-- The audit confirms all 16 current members honor `dry_run=True` as a hard no-op;
+- The audit confirms all 15 current members honor `dry_run=True` as a hard no-op;
   REQ-002 does not fire and the change is comment-only.
 - `check_approval`'s call order (preview at L172 before prompt at L186) and the
   degradation-to-text-only path (`_build_preview_with_dry_run` L90-94) are preserved.
@@ -39,11 +39,18 @@ finds a tool whose server treats `dry_run` as advisory (REQ-002).
 `scripts/agent/tool_approval.py`
 
 ### Procedure
-1. **Audit (REQ-001)** — Enumerate all 16 members of `_KNOWN_DRY_RUN_CAPABLE_TOOLS`
-   (L53-71). For each, confirm its server honors `dry_run=True` as a hard no-op (no
-   write/delete/network/database side effect). Map the `github_*` tools to their GitHub
-   MCP server via `scripts/shared/mcp_config.py` (reference; do not modify). Record the
-   per-tool result. Resolve UNK-01.
+1. **Audit (REQ-001)** — Enumerate all 15 members of `_KNOWN_DRY_RUN_CAPABLE_TOOLS`
+   (L53-71). The 6 local file tools (`write_file`, `edit_file`, `create_directory`,
+   `delete_file`, `delete_directory`, `move_file`) each short-circuit on
+   `req.dry_run` before any filesystem mutation in
+   `scripts/mcp_servers/file/{write,delete}_service.py` — confirmed no-op in source.
+   The 9 `github_*` members are all in `_GITHUB_MUTATION_TOOLS`, so
+   `tool_policy.check_allowed_repo` denies them at preflight (L157-163) whenever
+   `approval_github_allowed_repos` is empty (the shipped default in
+   `config/agent.toml`); they therefore never reach the dry-run preview today. Their
+   external GitHub MCP server's `dry_run` semantics are not verifiable from this repo,
+   but the preflight gate makes that moot for the shipped config. Record the per-tool
+   result. Resolve UNK-01.
 2. **Contract comment (REQ-003)** — Strengthen the comment at L52
    (`# Only these tools can safely receive dry_run=True during approval preview.`) to
    explicitly assert the no-op contract: membership requires that the tool's server
@@ -64,7 +71,7 @@ finds a tool whose server treats `dry_run` as advisory (REQ-002).
   server and confirm `dry_run` semantics; do not edit that file.
 
 ### Details
-- `_KNOWN_DRY_RUN_CAPABLE_TOOLS` (L53-71) holds 16 tools: `write_file`, `edit_file`,
+- `_KNOWN_DRY_RUN_CAPABLE_TOOLS` (L53-71) holds 15 tools: `write_file`, `edit_file`,
   `create_directory`, `delete_file`, `delete_directory`, `move_file`,
   `github_create_or_update_file`, `github_push_files`, `github_delete_file`,
   `github_create_issue`, `github_add_issue_comment`, `github_create_pull_request`,
@@ -119,10 +126,10 @@ Revert the commit (comment edit; or restore the frozenset if REQ-002 removed a m
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Audit each whitelisted tool's `dry_run` semantics (REQ-001) | Pending | — | — | Read-only; resolve UNK-01 |
-| 2 | Strengthen the whitelist no-op comment (REQ-003) | Pending | — | — | |
-| 3 | Conditionally narrow the frozenset if audit finds advisory dry_run (REQ-002) | Pending | — | — | Comment-only if no tool removed |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Audit each whitelisted tool's `dry_run` semantics (REQ-001) | Completed | 20261021-211611 | 20261021-211611 | Read-only; resolve UNK-01 15 members (procedure said 16, corrected). 6 local verified no-op in source; 9 github members gated at preflight by empty approval_github_allowed_repos. REQ-002 does not fire. |
+| 2 | Strengthen the whitelist no-op comment (REQ-003) | Completed | 20261021-211603 | 20261021-211603 |  |
+| 3 | Conditionally narrow the frozenset if audit finds advisory dry_run (REQ-002) | Completed | 20261021-211603 | 20261021-211603 | Comment-only if no tool removed |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261021-211603 | 20261021-211603 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

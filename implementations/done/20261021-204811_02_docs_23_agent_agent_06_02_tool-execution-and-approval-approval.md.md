@@ -8,7 +8,9 @@ the approval subsystem Known Limitations (REQ-004).
 - Add a Known Limitations subsection to `docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`
   describing: (a) the preview executes the tool before the approval decision, (b)
   whitelist membership requires a guaranteed no-op `dry_run=True`, and (c) the current
-  dormant state (GitHub tools are not in `approval_dry_run_tools` by default).
+  dormant state (GitHub tools ARE in `approval_dry_run_tools`, but the path is dormant
+  because `approval_github_allowed_repos` is empty, so `check_allowed_repo` fails
+  closed at preflight and denies every GitHub write tool before the dry-run preview).
 
 ## Assumptions
 
@@ -36,13 +38,15 @@ the approval subsystem Known Limitations (REQ-004).
 1. Read the "Dry Run Preview" section (L94-97) and "Known Limitations" section (L123-125).
 2. Extend the "Known Limitations" section with bullets documenting:
    - The preview is built by executing the tool with `dry_run=True` **before** the user
-     approves (`check_approval` builds the preview at L172, prompts at L186 in
-     `scripts/agent/tool_approval.py`).
+     approves (`check_approval` builds the preview at L174, emits the prompt at L186
+     and reads the decision at L188 in `scripts/agent/tool_approval.py`).
    - Whitelist membership (`_KNOWN_DRY_RUN_CAPABLE_TOOLS`) requires the tool's server to
      honor `dry_run=True` as a hard no-op (no write/delete/network/database side
      effect); a tool that cannot guarantee this degrades to a text-only preview.
-   - The current dormant state: GitHub tools are not in `approval_dry_run_tools` by
-     default, so this path does not execute them today.
+   - The current dormant state: GitHub write tools ARE in `approval_dry_run_tools`, but
+     the path is dormant because `approval_github_allowed_repos` is empty, so
+     `check_allowed_repo` (in `scripts/agent/tool_policy.py`) fails closed at preflight
+     and denies every GitHub write tool before the dry-run preview runs.
 
 ### Method
 - Locate the sections with `grep -n "Dry Run Preview\|Known Limitations" docs/23_agent/agent_06_02_tool-execution-and-approval-approval.md`.
@@ -55,6 +59,8 @@ the approval subsystem Known Limitations (REQ-004).
   `dry_run=True` before the prompt; `is_error=True` rejects HIGH-risk tools.
 - Current "Known Limitations" (L123-125): single bullet — "Since GitHub tools are not
   included in `approval_dry_run_tools` by default, this path is currently dormant."
+  This statement is inaccurate (GitHub tools ARE in `approval_dry_run_tools`); it is
+  replaced by the corrected dormant-state explanation above.
 
 ## Compatibility considerations
 N/A: documentation-only change; no code, interface, or config impact.
@@ -89,8 +95,8 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the Known Limitations bullets (REQ-004) | Pending | — | — | |
-| 2 | Run the documentation consistency checker | Pending | — | — | |
+| 1 | Add the Known Limitations bullets (REQ-004) | Completed | 20261021-220500 | 20261021-220500 | Corrected dormant-state reason: GitHub tools ARE in approval_dry_run_tools; dormant via empty approval_github_allowed_repos preflight gate (Finding C). Fixed preview line refs L172->L174. |
+| 2 | Run the documentation consistency checker | Completed | 20261021-220500 | 20261021-220500 | check_docs_quality/content_policy/consistency all pass; removed REQ-001 ref (Current-Specification-Only). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

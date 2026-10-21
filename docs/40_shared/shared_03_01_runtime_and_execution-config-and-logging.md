@@ -62,6 +62,12 @@ The production configuration validator (`ProductionConfigValidator`) lives in th
 - **Log messages must be in English only** (Japanese is not allowed) — per `rules/coding.md` convention.
 - **Secret redaction:** `register_secret(value)` adds a string to a module-level registry that every configured logger checks via `_RedactionFilter` . Any `Bearer <token>`-pattern match, or an exact match against a registered value, is redacted from `record.msg` before emission. `shared.mcp_config._build_single_server()` calls `register_secret()` on every resolved MCP `auth_token` immediately after `resolve_env_ref()` resolves it, so a token never reaches a log line even if a caller accidentally logs a raw header or config value.
 
+- **Known Limitations — value-based coverage:** `_RedactionFilter` redacts only `Bearer <token>`-pattern matches and exact matches against values registered via `register_secret()`; it rewrites `record.msg` for those matches and does not parse or scrub arbitrary log bodies. Coverage is therefore limited to Bearer headers and registered secrets.
+- **Tool-result pass-through:** full-text tool results emitted from `tool_runner._emit_tool_result` flow through the same filter unchanged, except for any registered secret that happens to appear in the message. The filter never regex-masks the result body itself.
+- **Residual gap:** an unregistered secret embedded in a tool response body (for example an API key returned in a JSON payload) is written to the log file unmasked. This is an inherent limitation of value-based redaction, not a code defect.
+- **Why tool results are not regex-masked:** tool results must reach the LLM intact, so they cannot be masked in the log path without also corrupting what the LLM sees.
+- **Extending coverage:** registering additional high-value secrets via `register_secret()` extends redaction coverage.
+
 ---
 
 ## Keywords

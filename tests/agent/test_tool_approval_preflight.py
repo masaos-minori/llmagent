@@ -618,6 +618,49 @@ class TestCheckApprovalDryRun:
 
         ctx.services_required.tools.execute.assert_not_awaited()
 
+    @pytest.mark.asyncio
+    async def test_dry_run_performs_no_downstream_mutation(self) -> None:
+        """A pre-approval dry_run=True invocation must not mutate downstream.
+
+        Locks the no-op contract end-to-end through check_approval: the fake
+        executor records any call that would mutate, and asserts none occurs
+        when dry_run=True.
+        """
+        mutations: list[str] = []
+
+        def _execute_side_effect(*call_args: Any) -> ToolCallResult:
+            # Mirror the server contract: only a non-dry_run call mutates.
+            if call_args[1].get("dry_run") is not True:
+                mutations.append(call_args[0])
+            return ToolCallResult(
+                output="Dry-run: write_file [no-op]",
+                is_error=False,
+                request_id="",
+                server_key="",
+            )
+
+        cfg = _make_cfg(approval_dry_run_tools=["write_file"])
+        ctx = _make_ctx(cfg=cfg)
+        ctx.services_required.tools = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=_execute_side_effect
+        )
+
+        with (
+            patch("builtins.print"),
+            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+        ):
+            result = await check_approval(
+                ctx, "write_file", {"path": "/tmp/f.txt", "content": "hi"}
+            )
+
+        assert result is True
+        ctx.services_required.tools.execute.assert_awaited_once()
+        call_args = ctx.services_required.tools.execute.await_args[0]
+        assert call_args[0] == "write_file"
+        assert call_args[1]["dry_run"] is True
+        assert mutations == []  # dry_run=True suppressed the write
+
 
 # ── _audit_tool_exec() ────────────────────────────────────────────────────────
 

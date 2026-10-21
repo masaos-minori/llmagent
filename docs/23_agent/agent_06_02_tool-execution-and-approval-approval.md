@@ -122,7 +122,9 @@ Rejected tools receive `"Tool execution denied by user."` as their execution res
 
 ## Known Limitations
 
-- Since GitHub tools are not included in `approval_dry_run_tools` by default, this path is currently dormant.
+- The dry-run preview is built by executing the tool with `dry_run=True` **before** the user approves. `check_approval` builds the preview in `scripts/agent/tool_approval.py` (L174), then emits the prompt (L186) and reads the decision (L188). A tool therefore runs once before approval; its server must treat `dry_run=True` as a hard no-op (no write/delete/network/database side effect).
+- Whitelist membership (`_KNOWN_DRY_RUN_CAPABLE_TOOLS`) is a per-tool contract: each member's server must guarantee zero write/delete/network/database side effects under `dry_run=True`, verified during the approval subsystem's tool audit. A tool that cannot guarantee a no-op degrades to a text-only preview rather than being blocked.
+- GitHub write tools are listed in `approval_dry_run_tools`, but this path is dormant today: `approval_github_allowed_repos` is empty, so `check_allowed_repo` (in `scripts/agent/tool_policy.py`) fails closed at preflight and denies every GitHub write tool before the dry-run preview runs.
 
 ## Keywords
 

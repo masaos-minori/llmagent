@@ -49,7 +49,9 @@ _GITOPS_BLOCKABLE_TOOLS: frozenset[str] = _GITHUB_MUTATION_TOOLS - {
 }
 
 # Tools that support the dry_run parameter for preview enrichment.
-# Only these tools can safely receive dry_run=True during approval preview.
+# No-op contract (REQ-003): a member's server must perform zero write/delete/network/
+# database side effects under dry_run=True. Do not add a member here unless it meets
+# that guarantee — the pre-preview runs the tool before the user approves.
 _KNOWN_DRY_RUN_CAPABLE_TOOLS: frozenset[str] = frozenset(
     [
         "write_file",
