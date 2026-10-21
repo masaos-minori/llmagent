@@ -89,7 +89,7 @@ N/A: revert the commit.
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | `deployment_01_deployment.md` has 40 B of headroom under the 24576 B limit of `tools/check_docs_structure.py`; the planned subsection does not fit. Needs an owner decision: raise the file's size ceiling, move the check to another operations document (Plan amendment), or free space in this file. | No | — |
+| 1 | `deployment_01_deployment.md` has 40 B of headroom under the 24576 B limit of `tools/check_docs_structure.py`; the planned subsection does not fit. | Yes: superseded by the Plan amendment of 2026-10-21 (owner decision) that moves the check to `docs/41_db/db_07_api_and_operations-recovery-and-reference.md`; see `implementations/20261021-101134_02_docs_41_db_db_07_api_and_operations-recovery-and-reference.md.md` | 2026-10-21 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

@@ -90,7 +90,7 @@ The minimum supported source schema of each database is the schema of the curren
 | `eventbus.sqlite` | The current release schema defined by `scripts/eventbus/schema.sql` | Same | Same | The EventBus service |
 | `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Same; a rebuilt store is recovered by re-indexing the Markdown files | Same | The `mdq-mcp` server |
 
-How to read a database's current schema without changing it: [Deployment Guide](../90_deployment/deployment_01_deployment.md), section 3.1.
+How to read a database's current schema without changing it: [DB API and Operations](db_07_api_and_operations-recovery-and-reference.md#11a-identifying-a-databases-current-schema) (section 11a).
 
 Open decisions (owner in parentheses):
 

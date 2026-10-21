@@ -115,6 +115,34 @@ Schema changes require DB recreation — a migration feature does not exist. **S
 - `create_schema()` is a wrapper calling `create_rag_schema()` → `create_session_schema()` → `create_workflow_schema()` → `create_eventbus_schema()` unconditionally and sequentially; each schema DDL is protected by `IF NOT EXISTS` so it is idempotent even against existing files.
 - A condition "initialize only if `eventbus.sqlite` does not exist" does not exist in the implementation; if you only need to recreate one DB, use the individual functions: `create_rag_schema()`, `create_session_schema()`, `create_workflow_schema()`, `create_eventbus_schema()`.
 
+### 11a. Identifying a Database's Current Schema
+
+To see which schema a database has without changing it, open the file read-only (`mode=ro`). Replace each placeholder with the path from the configuration (`mdq.sqlite`: `db_path` in `config/mdq_mcp_server.toml`). The supported baseline is defined in [DB migration and scaling](db_03_architecture_and_schema-migration-and-scaling.md) (section 8e).
+
+```bash
+# workflow.sqlite: latest recorded schema version
+sqlite3 "file:<workflow_db_path>?mode=ro" \
+  "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1;"
+
+# eventbus.sqlite: column names of its three tables
+sqlite3 "file:<eventbus_db_path>?mode=ro" \
+  "SELECT group_concat(name) FROM pragma_table_info('events');
+   SELECT group_concat(name) FROM pragma_table_info('consumer_delivery');
+   SELECT group_concat(name) FROM pragma_table_info('consumer_offsets');"
+
+# mdq.sqlite: first column of the chunk table
+sqlite3 "file:<mdq_db_path>?mode=ro" \
+  "SELECT name FROM pragma_table_info('chunks') LIMIT 1;"
+```
+
+A database at the supported baseline shows:
+
+- `workflow.sqlite`: the version that `setup_services.sh` expects; a mismatch fails startup.
+- `eventbus.sqlite`: `events` without `retry_count`; `consumer_delivery` with `acked` and without `acked_at`; `consumer_offsets` with `offset`.
+- `mdq.sqlite`: `chunk_id` as the first `chunks` column (`id` is the legacy shape, which the MDQ service rebuilds at start).
+
+A database that does not match is recreated (section 11), not migrated.
+
 ---
 
 ## 12. Verification Plan
