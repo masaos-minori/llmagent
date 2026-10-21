@@ -98,6 +98,7 @@ Changing `config/agent.toml`; reclassifying other MCP servers; ADR-004 Decision 
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | 1 | Owner decision (reclassify vs restore) not available to the planning agent | N/A: pending external governance decision | — |
+| 2 | Re-verified 2026-10-21: owner chose restore, so the reclassify branch does not apply. No action taken. | N/A: branch not selected | 2026-10-21 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

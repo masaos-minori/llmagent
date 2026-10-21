@@ -94,6 +94,7 @@ any other NC item.
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | 1 | Owner decision (reclassify vs restore) not available to the planning agent | N/A: pending external governance decision | — |
+| 2 | Re-verified 2026-10-21: owner decision (restore) already recorded in Evidence + Resolution Target. NC-041 remains open because the config change is gated on `MCP_GITHUB_AUTH_TOKEN` (still unset). `resolved` mark deferred. | N/A: pending token provisioning | 2026-10-21 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
