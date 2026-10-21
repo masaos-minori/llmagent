@@ -24,7 +24,6 @@ Turn-level orchestration (LLM loop, tool dispatch) lives in agent/orchestrator.p
 """
 
 import asyncio
-import subprocess
 from functools import cached_property
 
 from agent.cli_view import CLIView
@@ -120,7 +119,6 @@ class AgentREPL:
         startup = StartupOrchestrator(
             self._ctx, self._view, shutdown_event=self._shutdown_event
         )
-        _spawned_subprocesses: list[subprocess.Popen] = []
         # One finally for the whole session: cleanup must run on every exit path
         # (startup failure or interrupt, normal exit) but never ahead of the input
         # loop, because it closes the shared HTTP client and stops the MCP servers.
@@ -129,7 +127,6 @@ class AgentREPL:
                 (
                     self._cmds,
                     self._orchestrator,
-                    _spawned_subprocesses,
                 ) = await startup.run()
             except StartupInterrupted as e:
                 # A requested shutdown during startup is not a startup failure.

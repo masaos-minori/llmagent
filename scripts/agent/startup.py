@@ -64,8 +64,8 @@ class StartupOrchestrator:
         self._reporter = ReadinessReporter(ctx, view)
         self._prompt_setup = PromptSetup(ctx, view)
 
-    async def run(self) -> tuple[CommandRegistry, Orchestrator, list[subprocess.Popen]]:
-        """Execute full startup sequence; return (cmds, orchestrator, spawned_subprocesses)."""
+    async def run(self) -> tuple[CommandRegistry, Orchestrator]:
+        """Execute full startup sequence; return (cmds, orchestrator)."""
         self._cmds, self._orchestrator = await ComponentInitializer(
             self._ctx, self._view
         ).initialize()
@@ -85,13 +85,13 @@ class StartupOrchestrator:
                 self._view.write_fatal(
                     "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned"
                 )
-            # Pass subprocess list to caller for termination
+            # Termination is owned exclusively by lifecycle.shutdown_all() above; run() no longer returns the spawned-subprocess list.
             raise setup_err
         if self._cmds is None or self._orchestrator is None:
             raise RuntimeError(
                 "StartupOrchestrator.run() failed to initialize cmds/orchestrator"
             )
-        return self._cmds, self._orchestrator, self._spawned_subprocesses
+        return self._cmds, self._orchestrator
 
     async def _start_servers(self) -> list[subprocess.Popen]:
         """Spawn subprocesses for HTTP subprocess MCP servers.

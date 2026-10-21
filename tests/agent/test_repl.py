@@ -720,9 +720,7 @@ class TestRunBindsStartupResultsToInputLoop:
         cmds, orchestrator = MagicMock(), MagicMock()
 
         with patch("agent.repl.StartupOrchestrator") as MockStartup:
-            MockStartup.return_value.run = AsyncMock(
-                return_value=(cmds, orchestrator, [])
-            )
+            MockStartup.return_value.run = AsyncMock(return_value=(cmds, orchestrator))
             with patch.object(repl._input_loop, "run", new=AsyncMock()):
                 await repl.run()
 
@@ -759,7 +757,7 @@ class TestRunSqliteErrorMessage:
             patch("agent.repl.StartupOrchestrator") as MockStartup,
         ):
             MockStartup.return_value.run = AsyncMock(
-                return_value=(MagicMock(), MagicMock(), [])
+                return_value=(MagicMock(), MagicMock())
             )
             with patch.object(repl._ctx.session, "start") as mock_start:
                 mock_start.side_effect = sqlite3.OperationalError("disk I/O error")
@@ -796,7 +794,7 @@ class TestRunSqliteErrorMessage:
             patch("agent.repl.StartupOrchestrator") as MockStartup,
         ):
             MockStartup.return_value.run = AsyncMock(
-                return_value=(MagicMock(), MagicMock(), [])
+                return_value=(MagicMock(), MagicMock())
             )
             with patch.object(repl._ctx.session, "start") as mock_start:
                 mock_start.side_effect = sqlite3.DatabaseError("database locked")
@@ -1378,7 +1376,7 @@ class TestAgentREPLRunSubprocessTermination:
 
         with patch("agent.repl.StartupOrchestrator") as MockStartup:
             MockStartup.return_value.run = AsyncMock(
-                return_value=(MagicMock(), MagicMock(), [fake_proc])
+                return_value=(MagicMock(), MagicMock())
             )
             repl._shutdown_event = asyncio.Event()
             with patch.object(repl._input_loop, "run", AsyncMock()):
@@ -1452,7 +1450,7 @@ class TestRunResourceCleanup:
 
         with patch("agent.repl.StartupOrchestrator") as MockStartup:
             MockStartup.return_value.run = AsyncMock(
-                return_value=(MagicMock(), MagicMock(), [])
+                return_value=(MagicMock(), MagicMock())
             )
             await repl.run()
 
@@ -1482,7 +1480,7 @@ class TestRunResourceCleanup:
 
         with patch("agent.repl.StartupOrchestrator") as MockStartup:
             MockStartup.return_value.run = AsyncMock(
-                return_value=(MagicMock(), MagicMock(), [])
+                return_value=(MagicMock(), MagicMock())
             )
             with pytest.raises(RuntimeError, match="loop failed"):
                 await repl.run()

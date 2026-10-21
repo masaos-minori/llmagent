@@ -220,8 +220,8 @@ class TestStartupRollback:
         assert orch._spawned_subprocesses == fake_procs
 
     @pytest.mark.asyncio
-    async def test_run_returns_spawned_subprocesses_on_success(self) -> None:
-        """Assert run()'s third return value equals the real spawned-process list."""
+    async def test_run_returns_cmds_and_orchestrator_on_success(self) -> None:
+        """Assert run() returns exactly (cmds, orchestrator); no subprocess list."""
         orch, mock_lifecycle = _make_rollback_startup()
         fake_procs = [
             MagicMock(spec=subprocess.Popen),
@@ -233,9 +233,10 @@ class TestStartupRollback:
         orch._cmds = MagicMock()
         orch._orchestrator = MagicMock()
 
-        cmds, orchestrator, spawned = await orch.run()
+        result = await orch.run()
 
-        assert spawned == fake_procs
+        assert result == (orch._cmds, orch._orchestrator)
+        assert len(result) == 2
 
     @pytest.mark.asyncio
     async def test_startup_interrupted_triggers_rollback_like_any_other_exception(

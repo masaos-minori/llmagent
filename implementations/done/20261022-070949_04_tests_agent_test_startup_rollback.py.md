@@ -30,7 +30,7 @@ Out-of-scope: `startup.py`, `repl.py`, `test_repl.py` (sibling documents). The `
 
 ### Procedure
 
-1. Rename the method `test_run_returns_spawned_subprocesses_on_success` → `test_run_returns_cmds_and_orchestrator_on_success`.
+1. Rename the method `test_run_returns_spawned_subprocesses_on_success` → `test_run_returns_cmds_and_orchestrator_on_success` (new).
 2. Update the docstring.
 3. Replace the 3-way unpacking and the third-value assertion with a 2-tuple assertion.
 
@@ -115,10 +115,10 @@ Revert the commit (or reverse the edits above).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This file IS the test target; no separate test addition. |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261022-075154 | 20261022-075154 | stale-detector flagged the renamed-away old method name (expected post-rename); new name marked (new). |
+| 2 | Add or update tests per Validation plan | Completed | 20261022-075154 | 20261022-075154 | This file IS the test target; no separate test addition. stale-detector flagged the renamed-away old method name (expected post-rename); new name marked (new). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-075154 | 20261022-075154 | stale-detector flagged the renamed-away old method name (expected post-rename); new name marked (new). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261022-075154 | 20261022-075154 | N/A stale-detector flagged the renamed-away old method name (expected post-rename); new name marked (new). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
