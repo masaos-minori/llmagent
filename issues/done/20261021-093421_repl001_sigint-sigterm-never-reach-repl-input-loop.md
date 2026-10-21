@@ -17,13 +17,19 @@ signal-coordinated machinery in `repl_input_loop.py` becomes reachable instead o
 `tests/agent/test_repl.py:712-730` (`TestRunBindsStartupResultsToInputLoop`) exists specifically to
 guard that wiring — no equivalent guard exists for the shutdown event.
 
+Verified why the existing shutdown tests stay green on a dead production path: both REPL fixtures build
+the input loop by hand with a real event and never call `AgentREPL.__init__` — `tests/agent/test_repl.py:78`
+and `tests/agent/test_repl.py:632-636` (`_make_repl_for_shutdown`) construct
+`ReplInputLoop(ctx, view, shutdown_event)` directly, and no test in the repository constructs `AgentREPL()`
+(`grep -rn "AgentREPL()" tests/` returns nothing).
+
 ## Problem
 - `repl.py:82` sets `self._shutdown_event = None`; `repl.py:85` passes that `None` into
   `ReplInputLoop(self._ctx, self._view, self._shutdown_event)`; `repl.py:113-114` creates the real
   `asyncio.Event` afterwards and re-binds it only on `self._signal`. `ReplInputLoop._shutdown_event`
   stays `None` for the whole session (verified: attribute is `None` after `run()` is entered).
 - Consequence 1 — the prompt is uninterruptible. `repl_input_loop.py:138-139` selects the plain
-  `run_in_executor(None, input)` branch, so the shutdown-watcher/cancellation path never runs.
+  `run_in_executor(None, input)` branch (`:144`), so the shutdown-watcher/cancellation path never runs.
   `SignalHandler` replaces the default SIGINT handler (`signal_handler.py:61-63`), so no
   `KeyboardInterrupt` reaches the main thread and the worker blocked in `input()` keeps reading.
   Observed behavior: after Ctrl-C the loop keeps prompting; submitting an empty line re-prompts
@@ -43,6 +49,35 @@ guard that wiring — no equivalent guard exists for the shutdown event.
   REPL like EOF and that a running turn is awaited for a bounded grace period. Neither matches the
   implementation.
 
+### Verification (re-read at HEAD `b17ca6a26`, 2026-10-22)
+
+All four claims above are confirmed, with the mechanism stated as it is at HEAD:
+
+- Confirmed: `ReplInputLoop._shutdown_event` is assigned in exactly one place,
+  `scripts/agent/repl_input_loop.py:65` (`grep -n "_shutdown_event" scripts/agent/` shows no other
+  assignment; `bind()` at `:71-74` sets only `_cmds`/`_orchestrator`), so the `None` passed at
+  `scripts/agent/repl.py:85` is never replaced.
+- Confirmed dead code, live branch identified: `repl_input_loop.py:138` (`if shutdown_event is not None`)
+  is always false, so the prompt is read by the `else` branch at `:189-194`
+  (`await loop.run_in_executor(None, lambda: input("> "))`) — the default executor, no timeout, no
+  shutdown watcher. The mid-turn race at `:255-284` is likewise unreachable; `:285-305` is the live path.
+- Confirmed by direct measurement (project venv, `tail -f /dev/null | uv run python -u probe.py`, where
+  the probe registers `loop.add_signal_handler(SIGINT, ev.set)` and awaits
+  `run_in_executor(None, input)`): after SIGINT was delivered (`event set = True`) the read was still
+  blocked, `asyncio.run()` returned, and the process did not exit within 25 s — the default-executor
+  worker `asyncio_0` was still alive inside `input()`. Cancelling the `Future` did not unblock the
+  worker thread.
+- Confirmed: no existing mitigation covers the primary prompt. `_INPUT_TIMEOUT_S = 30`
+  (`scripts/agent/cli_view.py:24`) guards only the multi-line continuation read
+  (`read_multiline`, `scripts/agent/cli_view.py:285-291`), and that executor is itself non-daemon
+  (`concurrent.futures.ThreadPoolExecutor(max_workers=1)`, `:286-288`), so it is only ever released with
+  `shutdown(wait=False)` in `__del__` (`:115-118`).
+- Confirmed and narrowed: `_GRACEFUL_TIMEOUT_S` is defined twice (`repl_input_loop.py:55`,
+  `resource_shutdown_coordinator.py:29`); the copy in `resource_shutdown_coordinator.py` is never read in
+  that file (`grep -n "_GRACEFUL_TIMEOUT_S" scripts/agent/` shows only the definition there), so
+  `ReplInputLoop._GRACEFUL_TIMEOUT_S` is the only effective value today and is used at
+  `repl_input_loop.py:125,290`.
+
 ## Reason for Change
 Ctrl-C is the primary exit interaction for this REPL, and the operator-facing instruction in
 `start_agent.sh` is currently wrong. Graceful shutdown (WAL checkpoint, session persistence, MCP
@@ -60,6 +95,10 @@ signal entry point.
 - `scripts/agent/repl_input_loop.py` (`__init__`, `_read_input`, `_repl_loop`)
 - `scripts/agent/signal_handler.py` (setter contract only)
 - `docs/23_agent/agent_07_05_cli-and-commands-repl-io.md`, `deploy/start_agent.sh`
+
+Verified scope note: `deploy/start_agent.sh`'s operator hint (`:195` "Ctrl+C で停止") becomes accurate once
+this defect is fixed, so it is a file to re-check rather than to edit; it is copied to `/opt/llm/` by
+`deploy/deploy.sh:203-205`. The doc claims at `agent_07_05_*.md:38,43,49` do require correction.
 
 ## Required Changes
 - Pass the same `asyncio.Event` instance to `ReplInputLoop` that `SignalHandler` and
@@ -121,8 +160,12 @@ Record the shutdown-event owner in the REPL component boundaries.
 - Should Ctrl-C during a turn interrupt the turn (cancel immediately) or only prevent the next turn?
   The current docs imply "handled differently from interruption during tool loop execution" without
   defining it. Needs confirmation.
-- `_GRACEFUL_TIMEOUT_S` (10.0 s, `repl_input_loop.py:55`) is duplicated in
-  `scripts/agent/resource_shutdown_coordinator.py:29`. Which value is authoritative? Needs confirmation.
+- Resolved by measurement: `_GRACEFUL_TIMEOUT_S` (10.0 s) is authoritative in
+  `scripts/agent/repl_input_loop.py:55`, because that is the only copy referenced anywhere
+  (`repl_input_loop.py:125,290`); the definition at `scripts/agent/resource_shutdown_coordinator.py:29`
+  is unused in that file. Removing the duplicate, or making one module import the other, is a separate
+  cleanup and must not silently change the bound. Confirm with the project owner which single home is
+  intended before either change is made.
 - Whether the REPL should terminate MCP subprocesses it started when it is force-killed (orphan
   avoidance) is an operational decision, deferred to `shutdown003`.
 
