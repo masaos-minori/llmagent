@@ -234,7 +234,16 @@ The original row keeps its `dlq_at`, so only one requeue succeeds per original e
 
 ## Consumer Offset
 
-Each consumer's last-committed offset is stored in a per-consumer SQLite table (`consumer_offsets`), advanced atomically alongside that consumer's delivery-state record in one transaction. A one-time, idempotent startup migration seeds this table from any pre-existing legacy file-based store, which remains in place (not deleted) during the retention period.
+Each consumer's last-committed offset is stored in a per-consumer SQLite table (`consumer_offsets`), advanced atomically alongside that consumer's delivery-state record in one transaction. A one-time, idempotent startup migration seeds this table from any pre-existing legacy file-based store, which the service never modifies or deletes. After the import, `consumer_offsets` is the only source of a consumer's resume position and the files are never read for resume. The end condition, retention rule, and owner are in [Legacy Offset Files](eventbus_07_configuration-and-operations.md#legacy-offset-files).
+
+### Legacy Offset Import: Open Decisions
+
+Owner: the EventBus service. Each item is moot if the import is removed.
+
+- **Collision handling:** two legacy files without a `.map` companion whose names sanitize to the same consumer ID make the import raise; startup logs the failure and continues, and the rest of the import is skipped. Whether a collision should stop startup is undecided.
+- **Completion marker:** none exists; the import runs on every start. Whether it should stop once a completion condition holds is undecided.
+- **Commit behavior:** the import does not commit its inserts; they become durable through a later commit on the same connection. A restart before that commit loses them, and the retained files are imported again on the next start. Whether the import should commit explicitly is undecided.
+- **File-based helpers:** `write_offset()` and `read_offset()` have no production caller. Whether they are removed together with the import is undecided.
 
 ### Explicit Ack-only Offset
 

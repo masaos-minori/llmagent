@@ -80,15 +80,33 @@ Migration rules (all idempotent; duplicate-column, duplicate-index and missing-c
 
 The `chunks_vec` (`rag.sqlite`) and `memories_vec` (`session.sqlite`) tables defined in `db/schema_sql.py` are unrelated to the MDQ schema and are unaffected.
 
+### 8e. Supported Upgrade Baseline
+
+The minimum supported source schema of each database is the schema of the current release. A database older than that is recreated, not migrated, so no supported database depends on the migration mechanisms of sections 8a, 8b, and 8d. Every one of those migrations is classified removable; each database's migration code is removed by its own change.
+
+| Database | Minimum supported source schema | Why the migration code is kept | Removal condition | Owner |
+|---|---|---|---|---|
+| `workflow.sqlite` | The current release schema: the recorded workflow schema version equals the current `WORKFLOW_SCHEMA_VERSION` | It stays until the change that removes it lands; no supported database needs it | No supported database is older than the minimum supported source schema | The workflow engine |
+| `eventbus.sqlite` | The current release schema defined by `scripts/eventbus/schema.sql` | Same | Same | The EventBus service |
+| `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Same; a rebuilt store is recovered by re-indexing the Markdown files | Same | The `mdq-mcp` server |
+
+How to read a database's current schema without changing it: [Deployment Guide](../90_deployment/deployment_01_deployment.md), section 3.1.
+
+Open decisions (owner in parentheses):
+
+- Whether the two EventBus migration paths of section 8b stay separate while they exist (the EventBus service).
+- Whether `eventbus.sqlite` needs a schema-version marker; it has none (the EventBus service).
+- Whether a failed migration needs a rollback beyond the pre-upgrade backup of `workflow.sqlite` that the deployment guide requires (the repository maintainers).
+
 ---
 
 ## 9. Schema Evolution
 
-Schema evolution rules per database are defined in sections 8 through 8d. For `eventbus.sqlite`, `scripts/eventbus/schema.py::_migrate()` applies the idempotent additive changes described in section 8b.
+Schema evolution rules per database are defined in sections 8 through 8d; the minimum supported source schema of each database is in section 8e. For `eventbus.sqlite`, `scripts/eventbus/schema.py::_migrate()` applies the idempotent additive changes described in section 8b.
 
 ### Offset Seeding
 
-`scripts/eventbus/offset_migrator.py::migrate_legacy_offsets()` is called at EventBus startup (`scripts/eventbus/app.py`). It seeds the `consumer_offsets` table from files under `offsets_dir`. It reads each `.map` companion file to recover the original `consumer_id` (falling back to the sanitized filename when no companion exists, with a warning), then inserts the offset using `INSERT OR IGNORE` (idempotent). It does not modify or delete the offset files.
+`scripts/eventbus/offset_migrator.py::migrate_legacy_offsets()` is called at EventBus startup (`scripts/eventbus/app.py`). It seeds the `consumer_offsets` table from files under `offsets_dir`. It reads each `.map` companion file to recover the original `consumer_id` (falling back to the sanitized filename when no companion exists, with a warning), then inserts the offset using `INSERT OR IGNORE` (idempotent). It does not modify or delete the offset files. The service keeps the files; the end condition of the import, the retention rule, and the owner are in [EventBus configuration and operations](../24_eventbus/eventbus_07_configuration-and-operations.md#legacy-offset-files), and the supported baseline is in section 8e.
 
 ---
 
