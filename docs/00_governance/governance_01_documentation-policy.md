@@ -299,38 +299,11 @@ changed decision affects.
 
 ## ADR Section Header Standardization
 
-Every `adr_02_??_NNN_*.md` uses these top-level (`##`) headings, in this order. Sections marked
-*conditional* are written only when the decision has that aspect; every other section is
-always present.
-
-1. Keywords (immediately after the H1)
-2. Status (`Proposed` or `Accepted`, see ADR Status Definitions)
-3. Summary
-4. Context (subsections: Problem, Constraints)
-5. Assumptions
-6. Decision
-7. Rationale
-8. Alternatives Considered
-9. Consequences (subsections: Positive Consequences, Negative Consequences)
-10. Invariants
-11. Exceptions *(conditional)*
-12. Failure Policy *(conditional)*
-13. Data Ownership and Persistence *(conditional)*
-14. Verification
-15. Implementation Notes
-16. Known Deviations
-17. Review Triggers
-18. Approval
-19. Related ADRs
-20. Implementation References
-21. Completion Checklist
-
-No other top-level heading is allowed: additional material goes under a subsection of the section it belongs to.
-Template instruction text (for example "Briefly describe ...", "Add review conditions ...") is never left in an ADR body.
-A required section with nothing to say contains exactly "Not applicable".
-Cross-references to a decision use the decision's own wording or its position in the numbered Decision list, never a number that the Decision section does not carry.
-
-Invariant IDs are ADR-local: `INV-NN` (two digits, numbered from `INV-01` within each ADR). Outside the owning ADR, cite them as `ADR-NNN INV-NN`. There is no global invariant numbering.
+The authoritative list of required top-level (`##`) headings, their order, conditional markers,
+template-instruction residue, and global `INV-NNN` id rules is defined and enforced once by
+`check_adr_structure.py` (see governance_04 §17 "ADR Section Header Compliance"). This Policy
+section does not re-enumerate them, to avoid a second normative source. No other top-level
+heading is allowed: additional material goes under a subsection of the section it belongs to.
 
 Duplicate notes shared across all ADRs:
 - This chapter is not a basis for design decisions.

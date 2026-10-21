@@ -169,3 +169,10 @@ Also available for `--domain agent|rag|deployment|overview`. It verifies, among 
 - Generic checks provided via `tools/_docs_consistency_lib.py`: broken internal Markdown
   links, removed-legacy-doc-file references, slash-command drift vs. `command_defs_list.py`,
   `scripts/`-path reference existence, and backtick-quoted function-reference existence
+
+Identifier and config-key matching has an accepted limit: `check_docs_consistency.py` verifies
+backtick-quoted `name()` function references and `*_db_path` config keys (extracted from
+`scripts/db/config.py`). Bare snake_case variable references and non-`*_db_path` config-key
+names are not mechanically verified against `scripts/` or `config/`. This gap is accepted
+(owner: OWNER-PENDING) because exact identifier matching against prose yields high false
+positives and would require an allowlist. See governance_04 §Accepted Limits.

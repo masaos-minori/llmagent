@@ -81,6 +81,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^docs/.*\.md$
+      - id: metadata-field-policy
+        name: Check metadata/status fields within the sanctioned set (GV-016, warning)
+        entry: python -m tools.check_metadata_field_policy
+        language: system
+        pass_filenames: false
+        types_or: [markdown]
       - id: plan-target-overlaps
         name: Check active Frozen Plans do not overlap on target files
         entry: python -m tools.check_plan_target_overlaps

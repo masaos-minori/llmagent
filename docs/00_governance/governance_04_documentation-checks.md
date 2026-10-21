@@ -263,7 +263,7 @@ Notation: write the label in parentheses, optionally followed by an em dash and 
 
 The heading list, heading order, template-instruction residue and global `INV-NNN` ids are verified automatically by `check_adr_structure.py` (section ADR Structure Check above). The review below covers what the tool cannot check.
 
-The required headings and their order are defined once, in the Policy's ADR Section Header Standardization.
+The required headings and their order are defined and enforced once by `check_adr_structure.py` (see governance_01 §ADR Section Header Standardization).
 
 See [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization) for duplicate notes shared across all ADRs.
 
@@ -322,15 +322,15 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-006 | Duplicate Related Link prohibition (Metadata Related Rules) | Meta | Auto | `check_docs_structure.py` | PR | Warning | Existing | None |
 | GV-007 | Issue inventory conformance: vocabulary, template, referential integrity | Iss | Auto | `check_issue_inventory_conformance.py` | PR | Blocking | Existing | None |
 | GV-008 | Needs Confirmation assignment, review metadata, priority, and resolution target (`Assigned To`, `Last Reviewed`, `Priority`, `Resolution Target`, and Status/Blocking consistency) | Iss | Auto | `check_needs_confirmation_inventory.py` | PR | Warning | Existing | None |
-| GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Existing | None |
-| GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Existing | None |
-| GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Existing | None |
+| GV-009 | Duplicate canonical document specification | Pol | Manual | Human review | PR | Warning | Existing | Manual review by design (warning-only) |
+| GV-010 | Multiple Primary Canonical Sources within the same area | Pol | Manual | Human review | PR | Warning | Existing | Manual review by design (warning-only) |
+| GV-011 | References to non-existent canonical documents | Pol | Auto | `check_docs_structure.py` + `check_docs_quality.py` | PR | Warning | Existing | Existing auto detection only; no stale_patterns extension by design |
 | GV-012 | Code is NOT canonical for adopted design decisions | Pol | Auto | `check_compat_shims.py`, `check_adr_invariant_matrix.py`, `check_adr_reference.py` | PR | Warning | Existing | None |
 | GV-013 | Software vs Documentation dependency graph separation | Imp | Manual | Human review | PR | Warning | Existing | None |
 | GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Existing | None |
-| GV-016 | No unnecessary Metadata or Status fields added | Meta | Auto | `check_metadata_field_policy.py` | Periodic | Warning | Existing | Not run by CI or pre-commit |
-| GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Existing | None |
+| GV-016 | No unnecessary Metadata or Status fields added | Meta | Auto | `check_metadata_field_policy.py` | Pre-commit | Warning | Existing | Run by pre-commit and CI (warning, non-blocking) |
+| GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Existing | Opt-in by design (--check-removed-names); not promoted to default-on |
 | GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py --strict` | PR | Blocking | Existing | None |
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
@@ -340,17 +340,24 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 
 ### Follow-up Work Needed
 
-Rules whose enforcement is not yet fully automated or defaulted on:
+No follow-up work is currently tracked. Every rule in the matrix above is enforced by design
+(manual review or warning-only) or by existing automation; none requires open follow-up work.
 
-1. **GV-009, GV-010**: Automate conflict detection for unregistered prose across documents (registered claims are already checked by `GV-019`; the rest is manual)
-2. **GV-011**: Extend `stale_patterns` custom rule config to cover canonical document references
-3. **GV-017**: Four slash-command removed-name patterns are implemented
-     (`/diff`, `/system`, `/audit`, `/workflow`) via `check_removed_name_reintroduction()`;
-     `--check-removed-names` remains opt-in (the backward-compatibility CI workflow passes it
-     explicitly) and the corpus currently passes it, so promoting it to default-on follows
-     `check_compat_shims.py`'s own "report-only until compliant" convention. The retired identifier patterns and historical-context markers are
-     defined in `tools/check_compat_shims.py` (`_REMOVED_NAME_PATTERNS`,
-     `_HISTORICAL_CONTEXT_MARKERS`).
+## Accepted Limits
+
+The following gaps are accepted limits, not open follow-up work. Each states current behavior
+factually with its owner and rationale.
+
+- **Enumeration-generalization detection (compressverify)**: A docs compression that replaces
+  an explicit list with a general statement is not mechanically checked for dropped concrete
+  requirements when the generalization omits a universal word (`each`/`every`). Owner:
+  OWNER-PENDING. Rationale: high false-positive risk against prose words in backticks;
+  requires an allowlist; no observed gap on the current corpus.
+- **Identifier-matching coverage (identmatch)**: `check_docs_consistency.py` covers `name()`
+  function calls and `*_db_path` config keys; bare snake_case variable references and
+  non-`*_db_path` config-key names are not mechanically verified against `scripts/` /
+  `config/`. Owner: OWNER-PENDING. Rationale: high false-positive risk against prose words in
+  backticks; requires an allowlist; no observed gap on the current corpus.
 
 ## Change Impact Assessment
 
