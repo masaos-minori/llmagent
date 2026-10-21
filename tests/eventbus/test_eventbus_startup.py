@@ -151,7 +151,7 @@ def test_unsafe_bind_private_172_fails() -> None:
 def _free_loopback_port() -> int:
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind(("127.0.0.1", 0))
-        return s.getsockname()[1]
+        return int(s.getsockname()[1])
 
 
 def test_main_post_start_verification_binds_loopback(tmp_path: Path) -> None:
@@ -202,6 +202,54 @@ def test_main_post_start_verification_binds_loopback(tmp_path: Path) -> None:
             "eventbus subprocess did not accept a loopback connection: "
             f"{proc.stdout.read() if proc.stdout else ''}"
         )
+    finally:
+        proc.terminate()
+        try:
+            proc.wait(timeout=5.0)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            proc.wait(timeout=5.0)
+
+
+def test_main_failing_lifespan_exits_without_attributeerror(tmp_path: Path) -> None:
+    """Real subprocess integration test for a failing Event Bus lifespan (REQ-002,
+    AC-1, AC-4): with a missing envelope schema the uvicorn lifespan fails at the
+    schema read, so `_main()`'s post-start override must return cleanly instead of
+    raising a secondary `AttributeError` for the missing `self.servers`. Asserts
+    both halves of AC-1: the real cause is logged and no `AttributeError` surfaces,
+    and the process still exits non-zero."""
+    port = _free_loopback_port()
+    config_path = tmp_path / "eventbus.toml"
+    config_path.write_text(
+        f"port = {port}\n"
+        f'db_path = "{tmp_path / "eventbus.sqlite"}"\n'
+        f'storage_dir = "{tmp_path / "storage"}"\n'
+        f'offsets_dir = "{tmp_path / "offsets"}"\n'
+        f'deadletter_dir = "{tmp_path / "deadletter"}"\n'
+        f"max_retry = 3\n"
+        f'host = "127.0.0.1"\n'
+        f'auth_token = "test-token"\n'
+    )
+    missing_schema = tmp_path / "missing_schema.json"  # intentionally never created
+
+    proc = subprocess.Popen(
+        [sys.executable, "-m", "eventbus.app"],
+        env={
+            "EVENTBUS_CONFIG_PATH": str(config_path),
+            "EVENTBUS_SCHEMA_PATH": str(missing_schema),
+            "PATH": __import__("os").environ.get("PATH", ""),
+        },
+        cwd=str(Path(__file__).resolve().parents[2] / "scripts"),
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    try:
+        proc.wait(timeout=20.0)
+        output = proc.stdout.read() if proc.stdout else ""
+        assert "Application startup failed. Exiting." in output, output
+        assert "AttributeError" not in output, output
+        assert proc.returncode != 0, output
     finally:
         proc.terminate()
         try:

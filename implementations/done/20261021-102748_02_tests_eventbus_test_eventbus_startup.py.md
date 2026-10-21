@@ -29,7 +29,7 @@ Add a failing-lifespan regression test to `tests/eventbus/test_eventbus_startup.
 
 ### Procedure
 
-1. Append a new test function `test_main_failing_lifespan_exits_without_attributeerror(tmp_path)` to `tests/eventbus/test_eventbus_startup.py`.
+1. Append a new test function `test_main_failing_lifespan_exits_without_attributeerror` (new) to `tests/eventbus/test_eventbus_startup.py`; the signature takes a `tmp_path` fixture.
 2. Write a minimal eventbus TOML config into `tmp_path` (same fields as the existing `test_main_post_start_verification_binds_loopback`: `port`, `db_path`, `storage_dir`, `offsets_dir`, `deadletter_dir`, `max_retry`, `host = "127.0.0.1"`, `auth_token`). `db_path`/dirs must point under `tmp_path` so the lifespan reaches the schema read.
 3. Set `EVENTBUS_SCHEMA_PATH` to a **nonexistent** path (e.g. `tmp_path / "missing_schema.json"`, not created) so the lifespan fails at the schema read.
 4. Launch `[sys.executable, "-m", "eventbus.app"]` via `subprocess.Popen` with `cwd` = the repo `scripts/` directory and an env carrying `EVENTBUS_CONFIG_PATH` (the temp config), `EVENTBUS_SCHEMA_PATH` (the missing path), and `PATH`. Capture `stdout`+`stderr` merged (`stderr=subprocess.STDOUT`), `text=True`.
@@ -70,7 +70,7 @@ N/A: delete the added test function.
 
 ## Completion criteria
 
-- The new `test_main_failing_lifespan_exits_without_attributeerror` is present and green.
+- `test_main_failing_lifespan_exits_without_attributeerror` (new) is present and green.
 - It is observed failing against the unguarded code and passing after the guard (AC-4).
 - The existing loopback tests in the same file still pass; `ruff`/`mypy` clean.
 
@@ -84,8 +84,8 @@ N/A: delete the added test function.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the failing-lifespan regression test to `tests/eventbus/test_eventbus_startup.py` (subprocess, missing schema path) | Pending | — | — | REQ-002, AC-1, AC-4 |
-| 3 | Run pytest: new test passes, existing loopback tests pass, no AttributeError | Pending | — | — | REQ-001..004, AC-2, AC-3 |
+| 1 | Add the failing-lifespan regression test to `tests/eventbus/test_eventbus_startup.py` (subprocess, missing schema path) | Completed | 20261021-111324 | 20261021-111324 | REQ-002, AC-1, AC-4 Appended subprocess test; mypy cleared via int() cast in _free_loopback_port during validation |
+| 3 | Run pytest: new test passes, existing loopback tests pass, no AttributeError | Completed | 20261021-111324 | 20261021-111324 | REQ-001..004, AC-2, AC-3 17 passed; ruff/mypy/scripts-439/bandit-ll/lint-imports/module-size all clean; AC-4 verified (fails w/o guard, passes w/ guard) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -97,8 +97,8 @@ N/A: revert the commit (a single guarded line).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the early-return guard to `_LoopbackVerifyingServer.startup` after `await super().startup(sockets=sockets)` | Pending | — | — | REQ-001, AC-1 |
-| 3 | Run ruff/mypy/module-size gate and confirm existing eventbus startup tests still pass | Pending | — | — | REQ-001..004, AC-2, AC-3 |
+| 1 | Add the early-return guard to `_LoopbackVerifyingServer.startup` after `await super().startup(sockets=sockets)` | Completed | 20261021-105637 | 20261021-105637 | REQ-001, AC-1 |
+| 3 | Run ruff/mypy/module-size gate and confirm existing eventbus startup tests still pass | Completed | 20261021-105637 | 20261021-105637 | REQ-001..004, AC-2, AC-3 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
