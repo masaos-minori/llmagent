@@ -8,17 +8,19 @@ Give command dispatch its own error surface so a failed command is reported as a
 turn-level fatal failure.
 
 ## Background
-`CommandRegistry.dispatch()` has no error handling (`scripts/agent/commands/registry.py:115-137`):
+`CommandRegistry.dispatch()` has no error handling (`scripts/agent/commands/registry.py:115-138`):
 `_invoke_handler` (`:105-113`) calls the handler and any exception propagates.
-`ReplInputLoop._dispatch_line` (`scripts/agent/repl_input_loop.py:213-217`) does not catch it either, so
+`ReplInputLoop._dispatch_line` (`scripts/agent/repl_input_loop.py:210-228`) does not catch it either, so
 the per-turn `except Exception` in `_repl_loop` (`:311-312`) handles it, and `_surface_turn_error` renders
 `self._view.write_fatal(f"{exc.__class__.__name__}: {exc}")` (`:128-134`) — the `[fatal]` tag
-(`scripts/agent/output_tags.py:14-18`).
+(`scripts/agent/output_tags.py:14-21`).
 
 ## Problem
 - A command error and a turn failure share one output channel and one tag. `FATAL`, `NON_FATAL`, `ERROR`,
-  and `USAGE` all exist as distinct severities, and `write_error`/`write_usage` exist on the view
-  (`scripts/agent/cli_view.py:239-241`), but no command path uses them for a dispatch failure.
+  and `USAGE` all exist as distinct tags (`scripts/agent/output_tags.py:17-21`), and the command output
+  port already exposes `write_error` and `write_validation_error` (which renders the `[usage]` tag;
+  `scripts/agent/commands/output_port.py:25-39`, `scripts/agent/cli_view.py:239-253`), but no command path
+  uses them for a dispatch failure.
 - No command module handles database errors: `grep -rn 'sqlite3|OperationalError|IntegrityError'
   scripts/agent/commands/` matches nothing, so a `sqlite3.Error` from `/session delete`, `/session purge`,
   `/memory prune`, or `/session vacuum` surfaces as `OperationalError: …` with no explanation of which
@@ -26,7 +28,7 @@ the per-turn `except Exception` in `_repl_loop` (`:311-312`) handles it, and `_s
   effects are invisible.
 - The exception type name is the only message. For an operator this is unreadable and it is not attributable
   to a command in the logs.
-- Unknown-command handling is the one place that does behave correctly (`:215-218` writes a warning with a
+- Unknown-command handling is the one place that does behave correctly (`:215-221` writes a warning with a
   `/help` hint), which shows the intended pattern is a command-scoped message.
 
 ## Reason for Change
@@ -40,12 +42,12 @@ the existing error/usage severities, and name the subcommand that failed.
 ## Target Files or Areas
 - `scripts/agent/commands/registry.py` (`dispatch`, `_invoke_handler`)
 - `scripts/agent/repl_input_loop.py` (`_dispatch_line`, `_surface_turn_error`)
-- `scripts/agent/cli_view.py`, `scripts/agent/commands/output_port.py` (severity mapping)
+- `scripts/agent/cli_view.py`, `scripts/agent/commands/output_port.py` (output tag mapping)
 - `scripts/agent/commands/db_session_ops.py`, `cmd_session.py`, `cmd_memory.py` (DB error cases)
 
 ## Required Changes
 - Catch handler exceptions in `dispatch()` (or in `_dispatch_line` for the command branch only) and render
-  them through `write_error`/`write_usage` with the command name and its usage string.
+  them through `write_error` or `write_validation_error` (with the command name and its usage string).
 - Map storage errors to a command-level message that states the subcommand and that the effect may be
   partial.
 - Keep `_surface_turn_error` for actual turn failures only.
