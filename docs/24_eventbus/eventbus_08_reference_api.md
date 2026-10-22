@@ -38,7 +38,7 @@ Module-level reference for `scripts/eventbus/`. HTTP-level contracts (request/re
 - Route modules (`publish_route.py`, `subscribe_route.py`, `replay_route.py`, `ack_route.py`, `dlq_route.py`, `health_route.py`, `admin_route.py`) implement the HTTP endpoints; event, delivery and DLQ state changes are implemented in the repository modules (`event_repo.py`, `delivery_repo.py`, `dlq_repo.py`) and `dlq.py`.
 - `broker.py` (`EventBroker`) is the in-memory live-delivery fan-out. It holds no durable state; SQLite is the replay source.
 - `config.py` (`EventBusConfig`) validates configuration at startup, including the unconditional loopback-only bind rule. Configuration semantics are in `eventbus_07_configuration-and-operations.md`.
-- `offsets.py` is a legacy file-based offset store used only by the one-time startup migration (`offset_migrator.py`). Live ACK and subscribe paths use the `consumer_offsets` SQLite table.
+- `offsets.py` is a file-based offset helper that the service does not use. Live ACK and subscribe paths use the `consumer_offsets` SQLite table.
 
 ## Module Class/Function Reference (auto-generated)
 
@@ -102,7 +102,6 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/health_route.py` | `health_check` | `async def health_check(request) -> JSONResponse` | Return DB/broker/DLQ task health status as a JSON response. |
 | `scripts/eventbus/json_utils.py` | `dumps` | `def dumps(obj, option) -> str` | — |
 |  | `now_iso` | `def now_iso() -> str` | — |
-| `scripts/eventbus/offset_migrator.py` | `migrate_legacy_offsets` | `def migrate_legacy_offsets(conn, offsets_dir) -> list[str]` | Migrate legacy file-based offsets into the consumer_offsets table. |
 | `scripts/eventbus/offsets.py` | `CorruptOffsetError` | `class CorruptOffsetError` | Raised when offset file content is corrupted. |
 |  | `read_offset` | `def read_offset(offsets_dir, consumer_id) -> int` | Read the last committed sequence offset for a consumer from disk. |
 |  | `write_offset` | `def write_offset(offsets_dir, consumer_id, seq) -> None` | Write the current sequence offset for a consumer to disk. |

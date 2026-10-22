@@ -35,7 +35,7 @@ from eventbus.config import (
     get_schema_path,
     load_config,
 )
-from eventbus.db import get_db_lock, migrate_legacy_offsets, open_db
+from eventbus.db import get_db_lock, open_db
 from eventbus.dlq import sweep_orphans
 from eventbus.dlq_route import (
     dlq_list as dlq_list_route,
@@ -72,11 +72,6 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     app.state.db = open_db(app.state.config.db_path)
     # Populate token maps from config for authorization
     _populate_token_maps(app.state.config)
-    # Migrate legacy offset files into the new consumer_offsets table (idempotent)
-    try:
-        migrate_legacy_offsets(app.state.db, app.state.config.offsets_dir)
-    except Exception:
-        logger.exception("failed to migrate legacy offsets")
     app.state.envelope_schema = orjson.loads(get_schema_path().read_bytes())
     Path(app.state.config.storage_dir).mkdir(parents=True, exist_ok=True)
     app.state.broker = EventBroker(app.state.config)

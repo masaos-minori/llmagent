@@ -58,7 +58,6 @@ Migration rules (all idempotent; duplicate-column, duplicate-index and missing-c
 - **Additive changes:** missing columns, indexes, and the `consumer_delivery` and `consumer_offsets` tables are added to existing databases.
 - **Column removal:** a retired `retry_count` column, if present, is dropped.
 - **Column conversion:** `consumer_delivery.acked_at` (a timestamp, `NULL` = not acked) predates the boolean `acked` column. `_migrate()` gates the conversion on `acked_at` being present, so a current database never rebuilds its index. The conversion drops the stale `idx_consumer_delivery_consumer_ack` index (SQLite refuses to drop a column an index still references), adds `acked INTEGER NOT NULL DEFAULT 0`, converts `acked_at IS NOT NULL` to `1`, drops `acked_at`, commits (the conversion is DML, so the DDL's implicit commit does not cover it), and recreates the index on `(consumer_id, acked)`.
-- **Separate data seeding:** `migrate_legacy_offsets()` (see Schema Evolution below) is distinct from `_migrate()`'s schema-DDL role.
 - **Two initialization paths:** `create_schema()` bootstrap (`apply_eventbus_migrations()` in `scripts/db/schema_sql.py` runs first, then the DDL read from `scripts/eventbus/schema.sql` via `build_eventbus_schema_sql()`) vs. `open_db()` live-service startup (defined in `scripts/eventbus/db_conn.py`, re-exported by `scripts/eventbus/db.py`), which applies its own incremental ALTER TABLE operations. Migrations must precede the bootstrap DDL because `idx_consumer_delivery_consumer_ack` in `schema.sql` references `consumer_delivery.acked`, and a database still carrying `acked_at` aborts that DDL. `apply_eventbus_migrations()` swallows `sqlite3.OperationalError` for duplicate-column, missing-column, and missing-table scenarios — the last because a fresh database has no table to migrate before the DDL creates it — and re-raises the rest. `_EVENTBUS_MIGRATIONS` carries the same conversion statements as `_migrate()`; the two cannot share code because the `eventbus-is-isolated` import contract forbids `eventbus` from importing `db`. A reader must distinguish them — each path migrates an existing database, but they are separate code paths.
 
 ### 8c. RAG Consistency Verification
@@ -93,10 +92,6 @@ Open decisions (owner in parentheses):
 ## 9. Schema Evolution
 
 Schema evolution rules per database are defined in sections 8 through 8d; the minimum supported source schema of each database is in section 8e. For `eventbus.sqlite`, `scripts/eventbus/schema.py::_migrate()` applies the idempotent additive changes described in section 8b.
-
-### Offset Seeding
-
-`scripts/eventbus/offset_migrator.py::migrate_legacy_offsets()` is called at EventBus startup (`scripts/eventbus/app.py`). It seeds the `consumer_offsets` table from files under `offsets_dir`. It reads each `.map` companion file to recover the original `consumer_id` (falling back to the sanitized filename when no companion exists, with a warning), then inserts the offset using `INSERT OR IGNORE` (idempotent). It does not modify or delete the offset files. The service keeps the files; the end condition of the import, the retention rule, and the owner are in [EventBus configuration and operations](../24_eventbus/eventbus_07_configuration-and-operations.md#legacy-offset-files), and the supported baseline is in section 8e.
 
 ---
 

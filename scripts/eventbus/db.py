@@ -19,7 +19,6 @@ from eventbus.event_repo import (
     get_seq,
     insert_event,
 )
-from eventbus.offset_migrator import migrate_legacy_offsets
 
 __all__ = [
     # Connection layer
@@ -40,6 +39,4 @@ __all__ = [
     "NackResult",
     # DLQ repository
     "redeliver_event",
-    # Offset migrator
-    "migrate_legacy_offsets",
 ]

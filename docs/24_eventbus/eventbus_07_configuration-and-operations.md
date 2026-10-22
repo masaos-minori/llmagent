@@ -149,20 +149,7 @@ See `eventbus_03_dlq_operations.md` for the Subscribe/Ack protocol and `eventbus
 
 ## Legacy Offset Files
 
-`offsets_dir` (`config/eventbus.toml`) holds the file-based offsets that predate the `consumer_offsets` table. The service reads them only in the startup import (`migrate_legacy_offsets()`); it never writes, modifies, or deletes them, and no runtime path resumes from them. `consumer_offsets` in `eventbus.sqlite` is the only resume source.
-
-- **Owner:** the EventBus service owns the import; the deployment operator decides whether the files are archived or deleted.
-- **Retention:** the files are not needed once every consumer they name has a `consumer_offsets` row. After that an operator may archive or delete them; the service does not.
-- **End condition:** the import may be removed when no supported deployment keeps files in `offsets_dir`. The supported baseline is in [DB migration and scaling](../41_db/db_03_architecture_and_schema-migration-and-scaling.md) (section 8e).
-
-To check that no consumer still needs the files, run these read-only commands. The first lists the files (an empty result means nothing is left to import); the second lists the stored offsets. A `.map` companion file holds the original consumer ID of its offset file, and that ID must appear in the second result before its files are removed.
-
-```bash
-ls -A <offsets_dir>
-sqlite3 "file:<eventbus_db_path>?mode=ro" "SELECT consumer_id, offset FROM consumer_offsets;"
-```
-
-The open decisions about the import (collision handling, a completion marker, commit behavior) are in [Legacy Offset Import: Open Decisions](eventbus_05_dlq_offsets_and_delivery_semantics.md#legacy-offset-import-open-decisions).
+`offsets_dir` (`config/eventbus.toml`) holds the file-based offsets that predate the `consumer_offsets` table. The service does not read, write, modify, or delete them; `consumer_offsets` in `eventbus.sqlite` is the only resume source. An operator may archive or delete the files.
 
 ---
 

@@ -435,118 +435,29 @@ class TestSqliteOffsetMonotonicity:
         assert int(row["offset"]) == seq2  # Not seq1
 
 
-class TestLegacyOffsetMigrationHttp:
-    """Tests for legacy offset file migration idempotency and edge cases."""
+@pytest.fixture
+def legacy_offset_files(tmp_path: Path) -> dict[Path, tuple[bytes, int]]:
+    """Offset files present in offsets_dir before the service starts."""
+    offsets = tmp_path / "offsets"
+    offsets.mkdir()
+    (offsets / "legacy_consumer").write_text("42")
+    (offsets / "legacy_consumer.map").write_text("legacy-consumer")
+    return {p: (p.read_bytes(), p.stat().st_mtime_ns) for p in offsets.iterdir()}
 
-    def test_migration_is_idempotent(self, tmp_path: Path, client: TestClient) -> None:
-        """Re-running migration on already-migrated offsets is a no-op."""
-        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
-            migrate_legacy_offsets,
-        )
 
-        db = client.app.state.db
-        cfg = client.app.state.config
-
-        # Pre-populate consumer_offsets directly
-        db.execute(
-            "INSERT OR REPLACE INTO consumer_offsets(consumer_id, offset) VALUES (?, ?)",
-            ("migrating_consumer", 100),
-        )
-        db.commit()
-
-        # Migrate — should not change anything since offset already exists
-        migrated = migrate_legacy_offsets(db, cfg.offsets_dir)
-        assert len(migrated) == 0  # No new migrations (no .map files exist)
-
-        # Verify offset unchanged
-        row = db.execute(
-            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
-            ("migrating_consumer",),
-        ).fetchone()
-        assert row is not None
-        assert int(row["offset"]) == 100
-
-    def test_multi_consumer_legacy_directory(
-        self, tmp_path: Path, client: TestClient
+class TestStartupIgnoresOffsetFiles:
+    def test_existing_offset_files_are_neither_read_nor_modified(
+        self,
+        legacy_offset_files: dict[Path, tuple[bytes, int]],
+        client: TestClient,
     ) -> None:
-        """Migrate a synthetic multi-consumer legacy directory."""
-        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
-            migrate_legacy_offsets,
-        )
-
-        db = client.app.state.db
-        cfg = client.app.state.config
-
-        # Create synthetic legacy directory structure
-        offsets_dir = Path(cfg.offsets_dir)
-        offsets_dir.mkdir(parents=True, exist_ok=True)
-
-        # Consumer A: has .map companion
-        map_a = offsets_dir / "consumer_A.map"
-        map_a.write_text("original_consumer_A")
-        offset_a = offsets_dir / "consumer_A"
-        offset_a.write_text("50")
-
-        # Consumer B: has .map companion
-        map_b = offsets_dir / "consumer_B.map"
-        map_b.write_text("original_consumer_B")
-        offset_b = offsets_dir / "consumer_B"
-        offset_b.write_text("75")
-
-        # Migrate
-        migrated = migrate_legacy_offsets(db, offsets_dir)
-        assert len(migrated) == 2
-        assert "original_consumer_A" in migrated
-        assert "original_consumer_B" in migrated
-
-        # Verify both offsets were migrated
-        row_a = db.execute(
-            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
-            ("original_consumer_A",),
+        row = client.app.state.db.execute(
+            "SELECT COUNT(*) AS n FROM consumer_offsets"
         ).fetchone()
-        assert row_a is not None
-        assert int(row_a["offset"]) == 50
-
-        row_b = db.execute(
-            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
-            ("original_consumer_B",),
-        ).fetchone()
-        assert row_b is not None
-        assert int(row_b["offset"]) == 75
-
-    def test_no_map_companion_fallback(
-        self, tmp_path: Path, client: TestClient
-    ) -> None:
-        """A legacy file with no .map companion uses sanitized filename as consumer_id."""
-        from eventbus.db import (  # noqa: PLC0415 — deferred import kept local to this test helper
-            migrate_legacy_offsets,
-        )
-
-        db = client.app.state.db
-        cfg = client.app.state.config
-
-        # Create synthetic legacy directory structure without .map companion
-        offsets_dir = Path(cfg.offsets_dir)
-        offsets_dir.mkdir(parents=True, exist_ok=True)
-
-        # Offset file without .map companion
-        offset_file = offsets_dir / "bad_consumer_id..path"
-        offset_file.write_text("25")
-
-        # Migrate — should fall back to sanitized filename
-        migrated = migrate_legacy_offsets(db, offsets_dir)
-        assert len(migrated) == 1
-        # _sanitize_consumer_id() collapses ".." to a single "_" (not "__") —
-        # see its docstring: "'..' becomes '_' not '__'".
-        assert "bad_consumer_id_path" in migrated
-
-        # Verify offset was migrated under sanitized name
-        row = db.execute(
-            "SELECT offset FROM consumer_offsets WHERE consumer_id = ?",
-            ("bad_consumer_id_path",),
-        ).fetchone()
-        assert row is not None
-        assert int(row["offset"]) == 25
+        assert row["n"] == 0
+        for path, (data, mtime_ns) in legacy_offset_files.items():
+            assert path.read_bytes() == data
+            assert path.stat().st_mtime_ns == mtime_ns
 
 
 class TestConsumerOffsetsTable:
@@ -657,144 +568,7 @@ class TestConsumerOffsetsTable:
             db.close()
 
 
-class TestLegacyOffsetMigrationDirect:
-    def test_migration_is_idempotent(self, tmp_path: Path) -> None:
-        from eventbus.config import EventBusConfig
-        from eventbus.db import migrate_legacy_offsets, open_db
-
-        cfg = EventBusConfig(
-            port=8015,
-            db_path=str(tmp_path / "eventbus.sqlite"),
-            storage_dir=str(tmp_path / "storage"),
-            offsets_dir=str(tmp_path / "offsets"),
-            deadletter_dir=str(tmp_path / "deadletter"),
-            max_retry=3,
-            **eventbus_test_tokens("test-token"),
-        )
-        (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
-        # Create one offset file + .map companion — both named after the consumer_id
-        consumer_file = tmp_path / "offsets" / "consumer-A"
-        consumer_file.write_text("42\n")
-        map_file = tmp_path / "offsets" / "consumer-A.map"
-        map_file.write_text("consumer-A\n")
-
-        db = open_db(cfg.db_path)
-        try:
-            migrate_legacy_offsets(db, cfg.offsets_dir)
-
-            # First run: should have created a row for consumer-A
-            from eventbus.db import get_consumer_offset
-
-            offset_a = get_consumer_offset(db, "consumer-A")
-            assert offset_a == 42
-
-            # Second run: idempotent — same result
-            migrate_legacy_offsets(db, cfg.offsets_dir)
-
-            offset_a_again = get_consumer_offset(db, "consumer-A")
-            assert offset_a_again == 42
-        finally:
-            db.close()
-
-    def test_migration_multi_consumer(self, tmp_path: Path) -> None:
-        from eventbus.config import EventBusConfig
-        from eventbus.db import get_consumer_offset, migrate_legacy_offsets, open_db
-
-        cfg = EventBusConfig(
-            port=8015,
-            db_path=str(tmp_path / "eventbus.sqlite"),
-            storage_dir=str(tmp_path / "storage"),
-            offsets_dir=str(tmp_path / "offsets"),
-            deadletter_dir=str(tmp_path / "deadletter"),
-            max_retry=3,
-            **eventbus_test_tokens("test-token"),
-        )
-        (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
-        # Create multiple offset files + .map companions — names match .map content
-        for cid, val in [
-            ("consumer-a-mapped", 10),
-            ("consumer-b-mapped", 20),
-            ("consumer-c-mapped", 30),
-        ]:
-            consumer_file = tmp_path / "offsets" / cid
-            consumer_file.write_text(f"{val}\n")
-            map_file = tmp_path / "offsets" / f"{cid}.map"
-            map_file.write_text(f"{cid}\n")
-
-        db = open_db(cfg.db_path)
-        try:
-            migrate_legacy_offsets(db, cfg.offsets_dir)
-
-            for mapped_cid, expected_val in [
-                ("consumer-a-mapped", 10),
-                ("consumer-b-mapped", 20),
-                ("consumer-c-mapped", 30),
-            ]:
-                offset = get_consumer_offset(db, mapped_cid)
-                assert offset == expected_val
-        finally:
-            db.close()
-
-    def test_migration_missing_map_companion_falls_back(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        from eventbus.config import EventBusConfig
-        from eventbus.db import get_consumer_offset, migrate_legacy_offsets, open_db
-
-        cfg = EventBusConfig(
-            port=8015,
-            db_path=str(tmp_path / "eventbus.sqlite"),
-            storage_dir=str(tmp_path / "storage"),
-            offsets_dir=str(tmp_path / "offsets"),
-            deadletter_dir=str(tmp_path / "deadletter"),
-            max_retry=3,
-            **eventbus_test_tokens("test-token"),
-        )
-        (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
-        # Create an offset file WITHOUT a .map companion
-        consumer_file = tmp_path / "offsets" / "no-map-consumer"
-        consumer_file.write_text("99\n")
-
-        db = open_db(cfg.db_path)
-        try:
-            migrate_legacy_offsets(db, cfg.offsets_dir)
-
-            # Should fall back to sanitized filename as consumer_id
-            offset = get_consumer_offset(db, "no-map-consumer")
-            assert offset == 99
-        finally:
-            db.close()
-
-    def test_migration_collision_detected_for_sanitized_name_overlap(
-        self, tmp_path: Path
-    ) -> None:
-        """Two legacy files without .map companions sanitize to the same consumer_id — raises ValueError."""
-        from eventbus.config import EventBusConfig
-        from eventbus.db import migrate_legacy_offsets, open_db
-
-        cfg = EventBusConfig(
-            port=8015,
-            db_path=str(tmp_path / "eventbus.sqlite"),
-            storage_dir=str(tmp_path / "storage"),
-            offsets_dir=str(tmp_path / "offsets"),
-            deadletter_dir=str(tmp_path / "deadletter"),
-            max_retry=3,
-            **eventbus_test_tokens("test-token"),
-        )
-        (tmp_path / "offsets").mkdir(parents=True, exist_ok=True)
-        # Two files that sanitize to the same name (both have ".." which collapses to "_")
-        file_a = tmp_path / "offsets" / "bad..consumer"
-        file_b = tmp_path / "offsets" / "bad_consumer"
-        file_a.write_text("10\n")
-        file_b.write_text("20\n")
-
-        db = open_db(cfg.db_path)
-        try:
-            with pytest.raises(ValueError, match="Collision detected"):
-                migrate_legacy_offsets(db, cfg.offsets_dir)
-        finally:
-            db.close()
-
+class TestFileOffsetIdentityValidation:
     """Tests for REQ-001: identity validation before offset comparison."""
 
     def test_collision_rejected_for_equal_seq(self, tmp_path: Path) -> None:
