@@ -7,7 +7,7 @@
 # 実行前提 (build host のみ。/opt/llm へデプロイされない):
 #   * Python 3.13 (dev headers: Python.h あり)
 #   * patchelf
-#   * nuitka (uv run nuitka で利用可能)
+#   * nuitka (uv run --group build nuitka で利用可能。[dependency-groups] build)
 #
 # 使用例:
 #   cd /path/to/repo
@@ -101,11 +101,12 @@ BUILD_ONLY="${BUILD_ONLY:-}"
 # 例: LAZY_IMPORTS=("rag.pipeline")
 LAZY_IMPORTS=()
 
-# Nuitka コマンド (既定は `uv run nuitka`)。
-# nuitka は pyproject の依存ではないことが多いため、既定が解決できなければ
-# `uv run --with nuitka` で都度解決する。バージョンは再現のため固定デフォルト。
+# Nuitka コマンド (既定は `uv run --group build nuitka`)。
+# nuitka は [dependency-groups] build に宣言済み。`uv sync` で導入されるため
+# fresh 環境でも主経路が成立する。バージョンは pyproject の build グループと
+# 合わせる (pyproject は shell 変数を展開できないため固定。NUTKA_VERSION 既定と一致)。
 NUTKA_VERSION="${NUTKA_VERSION:-4.2.2}"
-NUTKA_PRIMARY_CMD=( "${NUTKA_CMD[@]:-uv}" run nuitka )
+NUTKA_PRIMARY_CMD=( uv run --group build nuitka )
 # [onefile] extra は zstandard を含む。無いと onefile payload が非圧縮になり約2倍のサイズになる。
 NUTKA_FALLBACK_CMD=( uv run --with "nuitka[onefile]==${NUTKA_VERSION}" nuitka )
 # dev 依存 (mypy 等) を build 環境に入れない。Nuitka が辿るファイルが約4割減り時間が半減する。
@@ -164,7 +165,7 @@ if [[ -z "${UV_PYTHON:-}" ]]; then
 fi
 
 # nuitka の実コマンドを解決する。既定 (NUTKA_PRIMARY_CMD) が解決できなければ
-# `uv run --with nuitka` で都度解決する (nuitka が pyproject 依存ではないため)。
+# `uv run --with nuitka` で都度解決する (フォールバック用。既定は build グループ)。
 if "${NUTKA_PRIMARY_CMD[@]}" --version >/dev/null 2>&1; then
     NUTKA_CMD=( "${NUTKA_PRIMARY_CMD[@]}" )
 elif "${NUTKA_FALLBACK_CMD[@]}" --version >/dev/null 2>&1; then

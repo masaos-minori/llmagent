@@ -77,6 +77,14 @@ dev = [
     "yamllint>=1.35",
 ]
 
+# nuitka はビルド専用ツール (ランタイム依存ではない)。dev へは置かない
+# (ビルドは UV_NO_DEV=1 で dev 除外するため)。ここを `uv run --group build nuitka`
+# で参照する。バージョンは deploy/build_binaries.sh の NUTKA_VERSION 既定と一致
+# させる (pyproject は shell 変数を展開できないため固定)。
+build = [
+    "nuitka[onefile]==4.2.2",
+]
+
 [build-system]
 requires = ["setuptools>=61.0", "wheel"]
 build-backend = "setuptools.build_meta"
