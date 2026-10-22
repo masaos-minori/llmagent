@@ -149,9 +149,6 @@ class StartupOrchestrator:
         """Report aggregated readiness status after startup checks complete."""
         self._reporter.report_readiness(pipeline)
 
-    def _classify_memory_failure(self, exc: Exception) -> str:
-        return self._prompt_setup._classify_memory_failure(exc)
-
     async def _setup_prompt(self) -> None:
         """Inject semantic memories into the initial system prompt."""
         await self._prompt_setup.setup_prompt()
