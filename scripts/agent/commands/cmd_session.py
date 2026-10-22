@@ -160,7 +160,7 @@ class _SessionMixin(MixinBase):
     def _session_export(self, args: str) -> None:
         """Export the current conversation history to Markdown or JSON.
 
-        Usage: /session export [markdown|json] [filename]
+        Usage: /session export [markdown|md|json] [filename]
         """
         ctx = self._ctx
         parts = args.strip().split()
@@ -178,7 +178,7 @@ class _SessionMixin(MixinBase):
 
     async def _cmd_session(self, args: str) -> None:
         """Handle /session list [n] | load <id> | rename <title> | delete <id>
-        | export markdown|json [file]
+        | export markdown|md|json [file]
         | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec.
         """
         parsed = parse_command_args(args.strip().split())
@@ -234,7 +234,7 @@ class _SessionMixin(MixinBase):
         self._out.write_validation_error(
             "/session list [n] | /session load <id>"
             " | /session rename <title> | /session delete <id>"
-            " | /session export markdown|json [file]"
+            " | /session export markdown|md|json [file]"
             " | /session stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec"
         )
 

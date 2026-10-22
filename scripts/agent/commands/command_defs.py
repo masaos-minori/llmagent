@@ -27,7 +27,7 @@ class ArgSpec:
     """One argument of a command or subcommand.
 
     token is the literal argument text without its brackets (e.g. "n",
-    "markdown|json", "--branch <branch>"); required renders it as <token>,
+    "markdown|md|json", "--branch <branch>"); required renders it as <token>,
     otherwise as [token]. default is the value used when an optional argument
     is omitted (None = no default).
     """

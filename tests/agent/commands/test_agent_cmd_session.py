@@ -909,6 +909,19 @@ class TestCmdSessionExport:
                 mock_write.assert_called_once()
 
     @pytest.mark.asyncio
+    async def test_export_md_alias(self, capsys: pytest.CaptureFixture) -> None:
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.cmd_session.render_export") as mock_render:
+            mock_render.return_value = "# Hello\n"
+            with patch("agent.commands.cmd_session.write_export") as mock_write:
+                await cmd._cmd_session("export md")
+                fmt_arg = mock_render.call_args[0][1]
+                assert fmt_arg == "md"
+                mock_write.assert_called_once()
+
+    @pytest.mark.asyncio
     async def test_export_to_file(self, capsys: pytest.CaptureFixture) -> None:
         from pathlib import Path
         from unittest.mock import patch

@@ -104,7 +104,7 @@ _COMMANDS: list[CommandDef] = [
         is_async=True,
         handler="_cmd_session",
         help="list [n] | load <id> | rename <title> | delete <id>"
-        " | export markdown|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec",
+        " | export markdown|md|json [file] | stats|health|checkpoint|vacuum|purge|recover|rag-consistency|rag-rebuild-fts|rag-rebuild-vec",
         subcommands=[
             SubcommandSpec("list", "List sessions", (ArgSpec("n", default="20"),)),
             SubcommandSpec("load", "Resume a session", (ArgSpec("id", required=True),)),
@@ -117,7 +117,7 @@ _COMMANDS: list[CommandDef] = [
             SubcommandSpec(
                 "export",
                 "Export the in-memory history",
-                (ArgSpec("markdown|json", default="markdown"), ArgSpec("file")),
+                (ArgSpec("markdown|md|json", default="markdown"), ArgSpec("file")),
             ),
             SubcommandSpec("stats", "Session DB statistics"),
             SubcommandSpec("health", "Session DB health"),

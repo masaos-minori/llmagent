@@ -4,6 +4,10 @@ Regression tests for removed slash commands — ensures they stay removed.
 
 from __future__ import annotations
 
+from unittest.mock import MagicMock
+
+import pytest
+
 
 class TestRemovedDbAliases:
     """Verify flat /db aliases are not registered as commands."""
@@ -96,3 +100,50 @@ class TestRemovedRejectCommand:
         assert "/reject" not in command_names, (
             "/reject should not be a registered command"
         )
+
+
+# Locks in REQ-004: the registry-only removed commands route to nothing —
+# they fail like unknown commands on dispatch, are absent from completion and
+# /help, alongside the existing registry-membership assertions above.
+_REMOVED_REJECTION_NAMES: tuple[str, ...] = (
+    "/db",
+    "/note",
+    "/skill",
+    "/mdq",
+    "/approve",
+    "/reject",
+)
+
+
+def _registry_ctx() -> MagicMock:
+    ctx = MagicMock()
+    ctx.cfg.tool.tool_definitions = []
+    ctx.cfg.llm.llm_url = "http://localhost/v1"
+    return ctx
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("removed_name", _REMOVED_REJECTION_NAMES)
+async def test_removed_names_dispatch_fails_like_unknown(removed_name: str) -> None:
+    from agent.commands.registry import CommandRegistry
+
+    registry = CommandRegistry(_registry_ctx(), None)
+    assert await registry.dispatch(removed_name) is False
+
+
+@pytest.mark.parametrize("removed_name", _REMOVED_REJECTION_NAMES)
+def test_removed_names_absent_from_completion(removed_name: str) -> None:
+    from agent.repl import completion_command_names
+
+    assert removed_name not in completion_command_names()
+
+
+@pytest.mark.parametrize("removed_name", _REMOVED_REJECTION_NAMES)
+def test_removed_names_absent_from_help(capsys, removed_name: str) -> None:
+    from agent.commands.output_port import CliOutputPort
+    from agent.commands.registry import CommandRegistry
+
+    registry = CommandRegistry(_registry_ctx(), CliOutputPort())
+    registry._cmd_help()
+    out = capsys.readouterr().out
+    assert removed_name not in out

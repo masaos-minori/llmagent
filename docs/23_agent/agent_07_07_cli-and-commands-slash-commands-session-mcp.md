@@ -38,9 +38,9 @@ A group of commands for session management and history operations. `/clear [new]
 | Command | Form | Effect |
 |---|---|---|
 | `/history` | `/history [n]` | Shows the last `n` user and assistant messages of the in-memory history (default 5), one line each with a truncated preview; tool messages are not shown |
-| `/session export` | `/session export [markdown\|json] [file]` | Exports the current in-memory conversation history |
+| `/session export` | `/session export [markdown\|md\|json] [file]` | Exports the current in-memory conversation history |
 
-`/history` with a non-integer `n` prints the usage line, and an empty history is reported as no data. For `/session export`, the format defaults to Markdown (`md` is accepted as an alias for `markdown`); `json` writes the message list as indented JSON. The arguments may appear in either order, and any argument that is not a format is taken as the output file. Without a file the export is written to the terminal; with a file it is written there as UTF-8 and the message count is reported, and a write failure is reported as an export error. The export covers only the history currently held in memory, not a stored session that has not been loaded, and it neither modifies nor deletes any session or memory data.
+`/history` with a non-integer `n` prints the usage line, and an empty history is reported as no data. For `/session export`, the format defaults to Markdown (`md` is the permanent short form of `markdown`); `json` writes the message list as indented JSON. The arguments may appear in either order, and any argument that is not a format is taken as the output file. Without a file the export is written to the terminal; with a file it is written there as UTF-8 and the message count is reported, and a write failure is reported as an export error. The export covers only the history currently held in memory, not a stored session that has not been loaded, and it neither modifies nor deletes any session or memory data.
 
 #### Session DB operation subcommands
 
