@@ -27,7 +27,7 @@ from agent.startup_reporter import ReadinessReporter
 from agent.startup_validation import StartupValidationPipeline
 
 
-class StartupInterrupted(RuntimeError):
+class StartupInterrupted(BaseException):
     """Raised when a SIGINT/SIGTERM shutdown request interrupts the startup sequence."""
 
 
@@ -74,6 +74,19 @@ class StartupOrchestrator:
             await self._verify_mcp_health()
             await self._check_services()
             await self._setup_prompt()
+        except StartupInterrupted:
+            try:
+                await self._ctx.services_required.lifecycle.shutdown_all()
+            except Exception as shutdown_err:  # noqa: BLE001 — rollback shutdown failure must not mask the original interrupt
+                logger.error(
+                    "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
+                    shutdown_err,
+                )
+                self._view.write_fatal(
+                    "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned"
+                )
+            # Termination is owned exclusively by lifecycle.shutdown_all() above; run() no longer returns the spawned-subprocess list.
+            raise
         except Exception as setup_err:
             try:
                 await self._ctx.services_required.lifecycle.shutdown_all()

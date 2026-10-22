@@ -56,6 +56,8 @@ class McpServerStarter:
         if ctx.services_required.lifecycle is None:
             raise RuntimeError("lifecycle service not initialized")
         last_startup_time = 0.0
+        from agent.startup import StartupInterrupted
+
         for key, cfg in ctx.cfg.mcp.mcp_servers.items():
             if self._shutdown_event is not None and self._shutdown_event.is_set():
                 from agent.startup import StartupInterrupted
@@ -85,6 +87,8 @@ class McpServerStarter:
                     started_at = await self._start_http_subprocess_once(key, cfg)
                     if started_at is not None:
                         last_startup_time = started_at
+                except StartupInterrupted:
+                    raise
                 except (
                     OSError,
                     RuntimeError,

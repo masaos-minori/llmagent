@@ -242,8 +242,10 @@ class TestStartupRollback:
     async def test_startup_interrupted_triggers_rollback_like_any_other_exception(
         self,
     ) -> None:
-        """StartupInterrupted must flow through run()'s existing rollback
-        `except Exception as setup_err:` block unchanged — no dedicated branch."""
+        """StartupInterrupted flows through run()'s dedicated
+        `except StartupInterrupted` rollback branch (added by the startup.py
+        rebase), which calls lifecycle.shutdown_all() and re-raises; the
+        generic `except Exception` no longer matches it."""
         orch, mock_lifecycle = _make_rollback_startup()
         orch._start_servers = AsyncMock(
             side_effect=StartupInterrupted("shutdown requested")

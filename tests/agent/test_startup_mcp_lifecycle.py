@@ -12,6 +12,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.shared.retry_helper import retry_once_with_delay
 from agent.startup import (
     StartupInterrupted,
     StartupOrchestrator,
@@ -243,6 +244,54 @@ class TestStartupOrchestratorStartServers:
             "web", cfg, shutdown_event=shutdown_event
         )
         assert len(result) == 1
+
+    @pytest.mark.asyncio
+    async def test_startup_interrupted_propagates_without_retry(self) -> None:
+        """REQ-002/T-001: a StartupInterrupted raised from a mocked subprocess start
+        propagates out of start_servers() without invoking the retry helper."""
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
+        startup._mcp_starter._start_http_subprocess_once = AsyncMock(
+            side_effect=StartupInterrupted("shutdown requested")
+        )
+
+        with patch(
+            "agent.startup_mcp_starter.retry_once_with_delay", new=AsyncMock()
+        ) as retry_mock:
+            with pytest.raises(StartupInterrupted, match="shutdown requested"):
+                await startup._start_servers()
+
+        retry_mock.assert_not_awaited()
+
+    @pytest.mark.asyncio
+    async def test_genuine_runtime_error_still_retries(self) -> None:
+        """REQ-005/T-002: a genuine RuntimeError from _start_http_subprocess_once()
+        still triggers exactly one retry via the retry helper, and the retried proc
+        is appended to the spawned list. Guards against accidentally dropping
+        RuntimeError from the first-attempt tuple (which would drop retry)."""
+        cfg = _http_subprocess_cfg()
+        startup = _make_startup(
+            {"web": cfg}, security_profile=SecurityProfile.PRODUCTION
+        )
+        retried_proc = MagicMock(spec=subprocess.Popen)
+        startup._ctx.services_required.lifecycle.start_http_subprocess = AsyncMock(
+            side_effect=[RuntimeError("port busy"), retried_proc]
+        )
+
+        real_retry = retry_once_with_delay
+        retry_calls = {"n": 0}
+
+        async def _spy(*args, **kwargs) -> None:
+            retry_calls["n"] += 1
+            return await real_retry(*args, **kwargs)
+
+        with patch("agent.startup_mcp_starter.retry_once_with_delay", new=_spy):
+            result = await startup._start_servers()
+
+        assert retry_calls["n"] == 1
+        assert result == [retried_proc]
 
 
 # ── StartupOrchestrator._verify_mcp_health ────────────────────────────────────
