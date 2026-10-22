@@ -92,6 +92,7 @@ _RESOLUTION_TARGET_RE = re.compile(
 _LAST_REVIEWED_RE = re.compile(r"\*\*Last Reviewed:\*\*\s*(.+)$")
 _PRIORITY_RE = re.compile(r"\*\*Priority:\*\*\s*(.+)$")
 _BLOCKING_RE = re.compile(r"\*\*Blocking:\*\*\s*(.+)$")
+_BLOCKING_NONE = "None"
 
 _DEFINITIONAL_PHRASES = [
     r"(?:defines|refers\s+to|see|indicates|means|describes)\s+(?:the\s+)?(?:label|term|phrase|concept)",
@@ -457,7 +458,9 @@ def check_blocking_reference(entries: list[NcEntry]) -> list[Issue]:
     """Flag active NC items whose 'Blocking' references a non-existent NC id.
 
     Validates the Blocking field (not a 'Blocked' status, which does not exist
-    in governance_03's Status Values). An unset/empty Blocking produces no issue.
+    in governance_03's Status Values). Allowed values: a known NC id, or `None`
+    (assessed, blocks no other item). An unset/empty Blocking means not yet
+    assessed and produces no issue.
     """
     known_ids = {e.nc_id for e in entries}
     issues: list[Issue] = []
@@ -466,6 +469,8 @@ def check_blocking_reference(entries: list[NcEntry]) -> list[Issue]:
             continue
         blocking = entry.blocking
         if not blocking or not blocking.strip():
+            continue
+        if blocking.strip() == _BLOCKING_NONE:
             continue
         if blocking.strip() not in known_ids:
             issues.append(

@@ -264,6 +264,11 @@ class TestParseInventoryMarkers:
         assert nc1.priority == "High"
         assert nc1.blocking == "NC-2"
 
+    def test_none_blocking_value_is_parsed_as_text(self) -> None:
+        lines = ["## Part 2:", "#### NC-1", "**Status:** open", "**Blocking:** None"]
+        entries = _parse_inventory_entries(SimpleNamespace(lines=lines))
+        assert entries[0].blocking == "None"
+
     def test_absent_markers_map_to_none(self) -> None:
         lines = ["## Part 2:", "#### NC-1", "**Status:** open"]
         entries = _parse_inventory_entries(SimpleNamespace(lines=lines))
@@ -361,3 +366,13 @@ class TestCheckBlockingReference:
     def test_non_open_entry_is_excluded(self) -> None:
         e1 = NcEntry("NC-1", "example.md", "resolved", blocking="NC-99")
         assert check_blocking_reference([e1]) == []
+
+    def test_none_blocking_produces_no_issue(self) -> None:
+        e1 = NcEntry("NC-1", "example.md", "open", blocking="None")
+        assert check_blocking_reference([e1]) == []
+
+    def test_none_is_matched_by_exact_spelling_only(self) -> None:
+        e1 = NcEntry("NC-1", "example.md", "open", blocking="none")
+        issues = check_blocking_reference([e1])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
