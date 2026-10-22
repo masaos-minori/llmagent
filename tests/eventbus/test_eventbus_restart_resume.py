@@ -57,7 +57,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         port=8016,
         db_path=str(tmp_path / "eventbus.sqlite"),
         storage_dir=str(tmp_path / "storage"),
-        offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
         **eventbus_test_tokens("test-token"),

@@ -147,12 +147,6 @@ See `eventbus_03_dlq_operations.md` for the Subscribe/Ack protocol and `eventbus
 
 ---
 
-## Legacy Offset Files
-
-`offsets_dir` (`config/eventbus.toml`) holds the file-based offsets that predate the `consumer_offsets` table. The service does not read, write, modify, or delete them; `consumer_offsets` in `eventbus.sqlite` is the only resume source. An operator may archive or delete the files.
-
----
-
 ## Delivery Operations
 
 ### Verifying Delivery

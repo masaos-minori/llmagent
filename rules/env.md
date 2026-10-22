@@ -90,7 +90,7 @@ DB 構成・接続管理の全体像: `docs/41_db/db_01_architecture_and_schema-
 | File | Description |
 |---|---|
 | `config/agent.toml` | AgentREPL 専用設定。DB パス、embed/llm URL、RAG パラメータ、tool definitions、`mcp_servers.*`、`tool_safety_tiers`、`system_prompts` 等 |
-| `config/eventbus.toml` | Event Bus 設定。`port`(8015), `db_path`, `storage_dir`, `offsets_dir`, `deadletter_dir`, `max_retry` |
+| `config/eventbus.toml` | Event Bus 設定。`port`(8015), `db_path`, `storage_dir`, `deadletter_dir`, `max_retry` |
 | `config/crawler.toml` | `rag/ingestion/crawler.py` 専用設定 |
 | `config/chunk_splitter.toml` | `rag/ingestion/chunk_splitter.py` 専用設定 |
 | `config/ingester.toml` | `rag/ingestion/ingester.py` 専用設定 |

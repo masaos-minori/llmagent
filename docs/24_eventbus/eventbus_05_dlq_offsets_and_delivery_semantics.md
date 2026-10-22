@@ -234,11 +234,7 @@ The original row keeps its `dlq_at`, so only one requeue succeeds per original e
 
 ## Consumer Offset
 
-Each consumer's last-committed offset is stored in a per-consumer SQLite table (`consumer_offsets`), advanced atomically alongside that consumer's delivery-state record in one transaction. `consumer_offsets` is the only source of a consumer's resume position; the service does not read offset files ([Legacy Offset Files](eventbus_07_configuration-and-operations.md#legacy-offset-files)).
-
-### File-Based Offset Helpers: Open Decision
-
-Owner: the EventBus service. `write_offset()` and `read_offset()` have no production caller. Whether they are removed is undecided.
+Each consumer's last-committed offset is stored in a per-consumer SQLite table (`consumer_offsets`), advanced atomically alongside that consumer's delivery-state record in one transaction. `consumer_offsets` is the only source of a consumer's resume position; the service has no file-based offset store.
 
 ### Explicit Ack-only Offset
 

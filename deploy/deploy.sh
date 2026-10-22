@@ -61,7 +61,6 @@ mkdir -p /opt/llm/memory
 mkdir -p "${DEPLOY_TESTS}"
 mkdir -p "${DEPLOY_DOCS}"
 mkdir -p /opt/llm/storage
-mkdir -p /opt/llm/offsets
 mkdir -p /opt/llm/deadletter
 
 # ── uv プロジェクト設定 ───────────────────────────────────────────────────────

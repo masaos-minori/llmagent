@@ -113,7 +113,6 @@ eventbus/auth.py	missing separator
 eventbus/broker.py	missing separator
 eventbus/config.py	missing separator
 eventbus/dlq.py	missing separator
-eventbus/offsets.py	missing separator
 mcp_launcher.py	missing separator
 mcp_servers/__init__.py	missing separator
 mcp_servers/cicd/cicd_models.py	missing separator

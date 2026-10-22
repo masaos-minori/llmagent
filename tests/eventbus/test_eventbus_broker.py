@@ -12,7 +12,6 @@ def _make_config() -> EventBusConfig:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         auth_token="test-token",

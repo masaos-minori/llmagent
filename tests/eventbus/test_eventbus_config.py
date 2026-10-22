@@ -16,7 +16,6 @@ def test_invalid_port_too_low() -> None:
             port=0,
             db_path="",
             storage_dir="",
-            offsets_dir="",
             deadletter_dir="",
             max_retry=3,
             auth_token="test-token",
@@ -29,7 +28,6 @@ def test_invalid_port_too_high() -> None:
             port=70000,
             db_path="",
             storage_dir="",
-            offsets_dir="",
             deadletter_dir="",
             max_retry=3,
             auth_token="test-token",
@@ -42,7 +40,6 @@ def test_invalid_max_retry_zero() -> None:
             port=8015,
             db_path="",
             storage_dir="",
-            offsets_dir="",
             deadletter_dir="",
             max_retry=0,
             auth_token="test-token",
@@ -54,7 +51,6 @@ def test_valid_config_with_host_field() -> None:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         auth_token="test-token",
@@ -69,7 +65,6 @@ def test_load_config_rejects_stray_poll_interval_ms(tmp_path: Path) -> None:
         "port = 8015\n"
         'db_path = "/tmp/e.sqlite"\n'
         'storage_dir = "/tmp/storage"\n'
-        'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
         'auth_token = "test-token"\n'
@@ -85,7 +80,6 @@ def test_load_config_rejects_stray_offset_checkpoint_interval(tmp_path: Path) ->
         "port = 8015\n"
         'db_path = "/tmp/e.sqlite"\n'
         'storage_dir = "/tmp/storage"\n'
-        'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
         'auth_token = "test-token"\n'
@@ -102,7 +96,6 @@ def test_load_config_accepts_sse_idle_timeout(tmp_path: Path) -> None:
         "port = 8015\n"
         'db_path = "/tmp/e.sqlite"\n'
         'storage_dir = "/tmp/storage"\n'
-        'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
         'auth_token = "test-token"\n'
@@ -119,7 +112,6 @@ def test_load_config_rejects_both_stray_keys(tmp_path: Path) -> None:
         "port = 8015\n"
         'db_path = "/tmp/e.sqlite"\n'
         'storage_dir = "/tmp/storage"\n'
-        'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
         'auth_token = "test-token"\n'
@@ -138,7 +130,6 @@ def test_load_config_succeeds_without_stray_keys(tmp_path: Path) -> None:
         "port = 8015\n"
         'db_path = "/tmp/e.sqlite"\n'
         'storage_dir = "/tmp/storage"\n'
-        'offsets_dir = "/tmp/offsets"\n'
         'deadletter_dir = "/tmp/deadletter"\n'
         "max_retry = 3\n"
         'host = "127.0.0.1"\n'
@@ -192,7 +183,6 @@ def test_non_loopback_host_raises_value_error() -> None:
             port=8015,
             db_path="/tmp/test.db",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="0.0.0.0",
@@ -205,7 +195,6 @@ def test_non_loopback_host_raises_value_error() -> None:
             port=8015,
             db_path="/tmp/test.db",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="::ffff:192.168.1.1",
@@ -220,7 +209,6 @@ def test_load_config_rejects_unknown_key(tmp_path: Path) -> None:
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -231,6 +219,23 @@ unknown_key = "should-be-rejected"
         load_config(config_file)
 
 
+def test_load_config_rejects_removed_offsets_dir_key(tmp_path: Path) -> None:
+    """REQ-003: a configuration that still carries offsets_dir is rejected as an unknown key."""
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text("""
+port = 8015
+db_path = "/opt/llm/db/eventbus.sqlite"
+storage_dir = "/opt/llm/storage"
+offsets_dir = "/opt/llm/offsets"
+deadletter_dir = "/opt/llm/deadletter"
+max_retry = 3
+host = "127.0.0.1"
+auth_token = "test-token"
+""")
+    with pytest.raises(ValueError, match="unknown key.*offsets_dir"):
+        load_config(config_file)
+
+
 def test_load_config_accepts_new_optional_keys(tmp_path: Path) -> None:
     """load_config() should accept the three new threshold keys and use them."""
     config_file = tmp_path / "eventbus.toml"
@@ -238,7 +243,6 @@ def test_load_config_accepts_new_optional_keys(tmp_path: Path) -> None:
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -261,7 +265,6 @@ def test_load_config_rejects_wrong_type(tmp_path: Path) -> None:
 port = "not-an-int"
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -278,7 +281,6 @@ def test_load_config_rejects_empty_auth_token(tmp_path: Path) -> None:
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -295,7 +297,6 @@ def test_load_config_succeeds_with_auth_token_only(tmp_path: Path) -> None:
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -311,7 +312,6 @@ def test_valid_threshold_configuration() -> None:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         auth_token="test-token",
@@ -331,7 +331,6 @@ def test_slow_consumer_threshold_equal_to_maxsize_raises() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             auth_token="test-token",
@@ -349,7 +348,6 @@ def test_cross_field_validation_sse_idle_timeout_less_than_heartbeat_interval() 
             port=8015,
             db_path="",
             storage_dir="",
-            offsets_dir="",
             deadletter_dir="",
             max_retry=3,
             auth_token="test-token",
@@ -362,7 +360,6 @@ def test_cross_field_validation_sse_idle_timeout_less_than_heartbeat_interval() 
             port=8015,
             db_path="",
             storage_dir="",
-            offsets_dir="",
             deadletter_dir="",
             max_retry=3,
             auth_token="test-token",
@@ -378,7 +375,6 @@ def test_backlog_health_threshold_exceeds_maxsize_raises() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             auth_token="test-token",
@@ -394,7 +390,6 @@ def test_replay_batch_size_default_is_1000() -> None:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         auth_token="test-token",
@@ -408,7 +403,6 @@ def test_subscriber_count_default_is_10() -> None:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         auth_token="test-token",
@@ -423,7 +417,6 @@ def test_load_config_rejects_removed_retained_event_count(tmp_path: Path) -> Non
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -440,7 +433,6 @@ def test_publish_rate_default_is_100_0() -> None:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         auth_token="test-token",
@@ -455,7 +447,6 @@ def test_cross_field_slow_consumer_threshold_exceeds_maxsize() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             auth_token="test-token",
@@ -472,7 +463,6 @@ def test_cross_field_backlog_health_threshold_exceeds_maxsize() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             auth_token="test-token",
@@ -489,7 +479,6 @@ def test_load_config_requires_at_least_one_token(tmp_path: Path) -> None:
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -522,7 +511,6 @@ def test_admin_token_grants_control_plane_roles_only() -> None:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         auth_token="shared-token",
@@ -544,7 +532,6 @@ def test_publisher_only_deployment_succeeds(tmp_path: Path) -> None:
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -563,7 +550,6 @@ def test_monitoring_only_deployment_succeeds(tmp_path: Path) -> None:
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -585,7 +571,6 @@ def test_load_config_resolves_shared_token_env_reference(
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -606,7 +591,6 @@ def test_load_config_shared_token_env_reference_unset_names_the_variable(
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -626,7 +610,6 @@ def test_load_config_shared_token_env_reference_empty_hits_non_empty_check(
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -646,7 +629,6 @@ def test_load_config_resolves_per_role_token_env_reference(
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -667,7 +649,6 @@ def test_load_config_per_role_token_env_reference_unset_names_the_variable(
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"
@@ -688,7 +669,6 @@ def test_load_config_keeps_literal_tokens_supported_beside_references(
 port = 8015
 db_path = "/opt/llm/db/eventbus.sqlite"
 storage_dir = "/opt/llm/storage"
-offsets_dir = "/opt/llm/offsets"
 deadletter_dir = "/opt/llm/deadletter"
 max_retry = 3
 host = "127.0.0.1"

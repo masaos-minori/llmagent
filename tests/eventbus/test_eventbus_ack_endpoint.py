@@ -26,7 +26,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         port=8015,
         db_path=str(tmp_path / "eventbus.sqlite"),
         storage_dir=str(tmp_path / "storage"),
-        offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=2,
         **eventbus_test_tokens("test-token"),
@@ -54,7 +53,6 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         port=8016,
         db_path=str(tmp_path / "eventbus.sqlite"),
         storage_dir=str(tmp_path / "storage"),
-        offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=2,
         auth_token="principal-token",
@@ -263,7 +261,7 @@ class TestAckMonotonicOffset:
 
     This deliberately supersedes an older test (test_older_seq_ack_moves_offset_backward,
     removed here) that asserted the opposite — a rollback on an older-seq ack — and
-    checked the legacy file-based read_offset(), which ack_event_for_consumer()'s
+    checked a file-based offset, which ack_event_for_consumer()'s
     SQLite-backed consumer_offsets table has replaced. The monotonic (non-regressing)
     behavior is the current, intentional design: see
     ack_event_for_consumer()'s `WHERE excluded.offset > consumer_offsets.offset` clause

@@ -27,7 +27,6 @@ def _make_admin_test_client(
         port=8016,
         db_path=str(tmp_path / "eventbus.sqlite"),
         storage_dir=str(tmp_path / "storage"),
-        offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
         # A distinct, unused-by-these-tests auth_token satisfies

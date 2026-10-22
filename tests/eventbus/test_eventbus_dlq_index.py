@@ -18,7 +18,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         port=8017,
         db_path=str(tmp_path / "eventbus.sqlite"),
         storage_dir=str(tmp_path / "storage"),
-        offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=2,
         auth_token="test-token",

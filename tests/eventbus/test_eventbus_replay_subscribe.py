@@ -19,7 +19,6 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         port=8015,
         db_path=str(tmp_path / "eventbus.sqlite"),
         storage_dir=str(tmp_path / "storage"),
-        offsets_dir=str(tmp_path / "offsets"),
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
         **eventbus_test_tokens("test-token"),
@@ -71,15 +70,6 @@ def test_replay_since_seq_filters(client: TestClient) -> None:
     ids = [e["event_id"] for e in body["items"]]
     assert ev1["event_id"] not in ids
     assert ev2["event_id"] in ids
-
-
-def test_offset_read_write(tmp_path: Path) -> None:
-    from eventbus.offsets import read_offset, write_offset
-
-    dir_ = str(tmp_path / "offsets")
-    assert read_offset(dir_, "consumer-1") == 0
-    write_offset(dir_, "consumer-1", 42)
-    assert read_offset(dir_, "consumer-1") == 42
 
 
 @pytest.mark.anyio

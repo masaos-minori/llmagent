@@ -83,7 +83,6 @@ class EventBusConfig:
     port: int
     db_path: str
     storage_dir: str
-    offsets_dir: str
     deadletter_dir: str
     max_retry: int
     replay_batch_size: int = 1000
@@ -198,7 +197,6 @@ _KNOWN_CONFIG_KEYS = frozenset(
         "port",
         "db_path",
         "storage_dir",
-        "offsets_dir",
         "deadletter_dir",
         "max_retry",
         "host",
@@ -227,7 +225,6 @@ _REQUIRED_CONFIG_KEYS = frozenset(
         "port",
         "db_path",
         "storage_dir",
-        "offsets_dir",
         "deadletter_dir",
         "max_retry",
         "auth_token",
@@ -240,7 +237,6 @@ _CONFIG_KEY_TYPES: dict[str, type] = {
     "port": int,
     "db_path": str,
     "storage_dir": str,
-    "offsets_dir": str,
     "deadletter_dir": str,
     "max_retry": int,
     "host": str,
@@ -331,7 +327,6 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         port=data["port"],
         db_path=data["db_path"],
         storage_dir=data["storage_dir"],
-        offsets_dir=data["offsets_dir"],
         deadletter_dir=data["deadletter_dir"],
         max_retry=data["max_retry"],
         replay_batch_size=int(data.get("replay_batch_size", 1000)),

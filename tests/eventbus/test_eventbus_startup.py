@@ -55,7 +55,6 @@ def test_safe_bind_127_0_0_1() -> None:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         host="127.0.0.1",
@@ -69,7 +68,6 @@ def test_safe_bind_loopback_v6() -> None:
         port=8015,
         db_path="/tmp/eventbus.sqlite",
         storage_dir="/tmp/storage",
-        offsets_dir="/tmp/offsets",
         deadletter_dir="/tmp/deadletter",
         max_retry=3,
         host="::1",
@@ -84,7 +82,6 @@ def test_unsafe_bind_0000_fails_without_override() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="0.0.0.0",
@@ -98,7 +95,6 @@ def test_unsafe_bind_ipv6_wildcard_fails_without_override() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="::",
@@ -112,7 +108,6 @@ def test_private_ip_rejected() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="192.168.1.1",
@@ -126,7 +121,6 @@ def test_unsafe_bind_private_10_fails() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="10.0.0.1",
@@ -140,7 +134,6 @@ def test_unsafe_bind_private_172_fails() -> None:
             port=8015,
             db_path="/tmp/eventbus.sqlite",
             storage_dir="/tmp/storage",
-            offsets_dir="/tmp/offsets",
             deadletter_dir="/tmp/deadletter",
             max_retry=3,
             host="172.16.0.1",
@@ -167,7 +160,6 @@ def test_main_post_start_verification_binds_loopback(tmp_path: Path) -> None:
         f"port = {port}\n"
         f'db_path = "{tmp_path / "eventbus.sqlite"}"\n'
         f'storage_dir = "{tmp_path / "storage"}"\n'
-        f'offsets_dir = "{tmp_path / "offsets"}"\n'
         f'deadletter_dir = "{tmp_path / "deadletter"}"\n'
         f"max_retry = 3\n"
         f'host = "127.0.0.1"\n'
@@ -224,7 +216,6 @@ def test_main_failing_lifespan_exits_without_attributeerror(tmp_path: Path) -> N
         f"port = {port}\n"
         f'db_path = "{tmp_path / "eventbus.sqlite"}"\n'
         f'storage_dir = "{tmp_path / "storage"}"\n'
-        f'offsets_dir = "{tmp_path / "offsets"}"\n'
         f'deadletter_dir = "{tmp_path / "deadletter"}"\n'
         f"max_retry = 3\n"
         f'host = "127.0.0.1"\n'
