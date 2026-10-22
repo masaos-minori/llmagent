@@ -49,8 +49,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the migration sentence | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Replace the migration sentence | Done | 20261022-101015 | 20261022-101015 | Replaced the idempotent-migration sentence with the create-only statement. |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Done | 20261022-101015 | 20261022-101015 | check_docs_quality/structure/content_policy pass (172 files). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

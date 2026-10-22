@@ -10,8 +10,8 @@ Remove the remaining EventBus migration references from ADR-008 as a reference-o
 - After both removal Plans land, no database in the four-database set has a migration mechanism.
 
 ## Design decisions
-- Migration sentence: after the workflow edit it reads "`rag.sqlite`, `session.sqlite`, and `workflow.sqlite` have no migration mechanism ...; `eventbus.sqlite` applies incremental additive migrations (`db_03` section 8b)"; this procedure rewrites it to list all four databases as recreated on a schema change and keeps "Migration design is out of scope for this ADR."
-- `schema-repair` definition: remove the `_migrate()` and section 8b pointer and the word "migration" from the path description, leaving the initialization path.
+- Migration sentence (Context constraints): `workflow.sqlite` still has its incremental migration mechanism (out of scope here), so keep its `db_03` section 8a reference; move `eventbus.sqlite` into the recreate-on-schema-change group (create-only, no migration). Keeps "Migration design is out of scope for this ADR."
+- `schema-repair` definition (Decision > Recovery Category Glossary): remove only the eventbus `_migrate()` and section 8b pointer; keep `apply_workflow_migrations()` and section 8a. The "approved migration or initialization path" wording stays because `workflow.sqlite` still uses migration. Editing this definition changes the `## Decision` section text, so `check_adr_preservation.py` emits one WARNING (expected); the sentence-level mapping is: only the eventbus `_migrate()` reference was removed, no decision, invariant, or approval text changed.
 
 ## Alternatives considered
 - Leaving the ADR as written: rejected, it describes removed mechanisms and contradicts the code.
@@ -41,7 +41,7 @@ N/A: revert the commit.
 
 ## Validation plan
 - `uv run python tools/check_adr_preservation.py`, `check_adr_structure.py`, `check_docs_quality.py`, `check_docs_structure.py`, `check_docs_content_policy.py`.
-- `rg "apply_eventbus_migrations|apply_workflow_migrations|_migrate\b" docs/10_adr` returns no match.
+- `rg "apply_eventbus_migrations|_EVENTBUS_MIGRATIONS|_migrate\b" docs/10_adr` returns no match (workflow's `apply_workflow_migrations` reference is intentionally retained; `workflow.sqlite` still has its migration mechanism, out of scope here).
 
 ## Completion criteria
 - The ADR names no removed function and says no database has a migration mechanism; the preservation checker reports no ERROR.
@@ -54,9 +54,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Obtain the owner's approval for the reference-only edit (Plan UNK-02) | Pending | — | — | |
-| 2 | Edit the two references | Pending | — | — | |
-| 3 | Run the ADR and documentation checkers | Pending | — | — | |
+| 1 | Obtain the owner's approval for the reference-only edit (Plan UNK-02) | Done | 20261022-101015 | 20261022-101015 | Owner approval granted for a reference-only edit with no Decision change. |
+| 2 | Edit the two references | Done | 20261022-101015 | 20261022-101015 | Eventbus-only adaptation: removed the eventbus `_migrate()`/section 8b references from the constraints bullet and the schema-repair definition; kept workflow's `apply_workflow_migrations()`/section 8a reference (workflow.sqlite still migrates, out of scope). |
+| 3 | Run the ADR and documentation checkers | Done | 20261022-101015 | 20261022-101015 | check_adr_structure clean; check_adr_preservation: no ERROR, one expected WARNING (schema-repair is inside ## Decision, so removing the eventbus ref changes that section text); check_docs_quality/structure/content_policy pass. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

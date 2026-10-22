@@ -59,10 +59,10 @@ Revert the commit; no data changes by this edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `_migrate()`, simplify `_init_schema()`, drop unused imports | Pending | — | — | |
-| 2 | Tests are covered by the test-file procedures | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Deploy step: run the read-only column check on `/opt/llm` `eventbus.sqlite`, deploy, verify startup | Pending | — | — | |
+| 1 | Delete `_migrate()`, simplify `_init_schema()`, drop unused imports | Done | 20261022-101015 | 20261022-101015 | `_migrate` removed; `_init_schema` early-returns when `events` exists; `_COL_*` imports removed. Migration tests removed by proc 05. |
+| 2 | Tests are covered by the test-file procedures | Done | 20261022-101015 | 20261022-101015 | See proc 05. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261022-101015 | 20261022-101015 | ruff format/check clean; full db/eventbus suite green (669 passed, 1 skipped). |
+| 4 | Deploy step: run the read-only column check on `/opt/llm` `eventbus.sqlite`, deploy, verify startup | Skipped | 20261022-101015 | — | Local/dev validation only; no `/opt/llm` deploy performed this session. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

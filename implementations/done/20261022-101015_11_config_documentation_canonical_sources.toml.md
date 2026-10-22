@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the registry entry | Pending | — | — | |
-| 2 | Run the registry checkers and tests | Pending | — | — | |
+| 1 | Delete the registry entry | Done | 20261022-101015 | 20261022-101015 | Deleted the `eventbus.persistence-schema.incremental-migration` table; kept one blank-line separator between the remaining tables. |
+| 2 | Run the registry checkers and tests | Done | 20261022-101015 | 20261022-101015 | check_canonical_source_registry passes; test_check_canonical_source_registry 25 passed; `rg "persistence-schema.incremental-migration" docs config tools tests` returns no match. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

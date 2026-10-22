@@ -22,7 +22,6 @@ import sys
 from db.helper import SQLiteHelper
 from db.schema_sql import (
     WORKFLOW_SCHEMA_VERSION,
-    apply_eventbus_migrations,
     build_eventbus_schema_sql,
     build_rag_schema_sql,
     build_session_schema_sql,
@@ -104,17 +103,6 @@ def create_workflow_schema() -> None:
 def create_eventbus_schema() -> None:
     """Create eventbus.sqlite tables (events, consumer_delivery, consumer_offsets)."""
     with SQLiteHelper("eventbus").open(write_mode=True) as db:
-        assert db.conn is not None, (
-            "Event Bus DB connection must be open when applying migrations"
-        )
-        # Migrations run before the DDL: schema.sql's idx_consumer_delivery_consumer_ack
-        # references consumer_delivery.acked, so a database created before that column
-        # existed aborts the DDL until the migration converts acked_at into acked.
-        try:
-            apply_eventbus_migrations(db.conn)
-        except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
-            logger.error("Failed to apply Event Bus schema migrations: %s", e)
-            raise
         try:
             db.executescript(build_eventbus_schema_sql())
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:

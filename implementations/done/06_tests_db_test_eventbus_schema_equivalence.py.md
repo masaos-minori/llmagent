@@ -53,9 +53,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the migrated-index test and fix the wording | Pending | — | — | |
-| 2 | Add the unchanged-on-restart test | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the migrated-index test and fix the wording | Done | 20261022-101015 | 20261022-101015 | Deleted `test_existing_database_without_consumer_delivery_index_is_migrated`; fixed module docstring and the `_migrate()` comment. |
+| 2 | Add the unchanged-on-restart test | Done | 20261022-101015 | 20261022-101015 | Added `test_existing_database_is_unchanged_on_restart`. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261022-101015 | 20261022-101015 | 3 passed; ruff clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

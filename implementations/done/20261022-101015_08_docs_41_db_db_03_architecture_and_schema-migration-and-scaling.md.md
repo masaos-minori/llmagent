@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite section 8 bullets, 8b, the 8e EventBus row, the section 9 sentence, and the open decision | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Rewrite section 8 bullets, 8b, the 8e EventBus row, the section 9 sentence, and the open decision | Done | 20261022-101015 | 20261022-101015 | Rewrote the EventBus parts to a create-only schema; removed the two-paths open decision. |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Done | 20261022-101015 | 20261022-101015 | check_docs_quality/structure/content_policy pass (172 files); `rg "apply_eventbus_migrations|_migrate" docs/41_db` returns no EventBus migration reference. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

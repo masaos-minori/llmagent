@@ -953,81 +953,14 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
         assert {"events", "consumer_delivery", "consumer_offsets"} <= tables
 
 
-class TestEventbusAckedAtMigration:
-    """Databases created before consumer_delivery.acked existed are carried across.
-
-    scripts/eventbus/schema.sql's idx_consumer_delivery_consumer_ack references acked, so
-    before the migration the bootstrap aborted on any database created before the rename.
-    """
-
-    def _seed_legacy_db(self, db_file: Path) -> None:
-        """consumer_delivery in its pre-rename shape: acked_at TEXT plus the index that
-        referenced it. No events table, so the missing-table path is exercised too."""
-        conn = sqlite3.connect(str(db_file))
-        conn.execute(
-            "CREATE TABLE consumer_delivery ("
-            "    consumer_id TEXT NOT NULL,"
-            "    event_id TEXT NOT NULL,"
-            "    acked_at TEXT,"
-            "    PRIMARY KEY (consumer_id, event_id)"
-            ")"
-        )
-        conn.execute(
-            "CREATE INDEX idx_consumer_delivery_consumer_ack "
-            "ON consumer_delivery(consumer_id, acked_at)"
-        )
-        conn.execute(
-            "INSERT INTO consumer_delivery VALUES ('c1', 'e1', '2026-10-01T00:00:00Z')"
-        )
-        conn.execute("INSERT INTO consumer_delivery VALUES ('c1', 'e2', NULL)")
-        conn.commit()
-        conn.close()
-
-    def test_bootstrap_migrates_acked_at_to_acked(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "eventbus_legacy_ack.sqlite"
-        self._seed_legacy_db(db_file)
-        cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        cols = {
-            row[1]: (row[2], row[3], row[4])
-            for row in conn.execute("PRAGMA table_info(consumer_delivery)")
-        }
-        index_sql = conn.execute(
-            "SELECT sql FROM sqlite_master "
-            "WHERE type='index' AND name='idx_consumer_delivery_consumer_ack'"
-        ).fetchone()
-        acked = conn.execute(
-            "SELECT acked FROM consumer_delivery ORDER BY event_id"
-        ).fetchall()
-        conn.close()
-        assert "acked_at" not in cols
-        assert cols["acked"] == ("INTEGER", 1, "0")
-        assert index_sql is not None and "acked_at" not in index_sql[0]
-        assert acked == [(1,), (0,)]
-
-    def test_bootstrap_is_idempotent_after_conversion(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "eventbus_legacy_ack_twice.sqlite"
-        self._seed_legacy_db(db_file)
-        cfg = _make_db_config(db_file, "eventbus")
-        with patch("db.helper.build_db_config", return_value=cfg):
-            cs.create_eventbus_schema()
-            cs.create_eventbus_schema()
-        conn = sqlite3.connect(str(db_file))
-        cols = {row[1] for row in conn.execute("PRAGMA table_info(consumer_delivery)")}
-        acked = conn.execute(
-            "SELECT acked FROM consumer_delivery ORDER BY event_id"
-        ).fetchall()
-        conn.close()
-        assert "acked_at" not in cols
-        assert acked == [(1,), (0,)]
+class TestEventbusSchemaCreation:
+    """create_eventbus_schema() writes the single DDL source; a fresh database ends in
+    the current shape with every table and the boolean acked column present."""
 
     def test_bootstrap_creates_current_schema_on_a_fresh_database(
         self, tmp_path: Path
     ) -> None:
-        """Migrations now run before the DDL, so a fresh database must still end in the
-        current shape with every table present."""
+        """A fresh database must end in the current shape with every table present."""
         db_file = tmp_path / "eventbus_fresh_ack.sqlite"
         cfg = _make_db_config(db_file, "eventbus")
         with patch("db.helper.build_db_config", return_value=cfg):
@@ -1041,25 +974,6 @@ class TestEventbusAckedAtMigration:
         conn.close()
         assert {"events", "consumer_delivery", "consumer_offsets"} <= tables
         assert cols["acked"] == ("INTEGER", 1, "0")
-
-    def test_migration_failure_is_logged_with_its_own_label(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        """A non-tolerated migration error is attributed to the migration step, not the DDL."""
-        db_file = tmp_path / "eventbus_bad_migration.sqlite"
-        cfg = _make_db_config(db_file, "eventbus")
-        with (
-            patch("db.helper.build_db_config", return_value=cfg),
-            patch(
-                "db.create_schema.apply_eventbus_migrations",
-                side_effect=sqlite3.OperationalError("broken migration SQL"),
-            ),
-            caplog.at_level(logging.ERROR, logger="db.create_schema"),
-        ):
-            with pytest.raises(sqlite3.OperationalError):
-                cs.create_eventbus_schema()
-        assert "Failed to apply Event Bus schema migrations" in caplog.text
-        assert "Failed to execute Event Bus schema DDL" not in caplog.text
 
 
 # ── DDL error propagation (behavior lock for the refactor extracting the shared ────
@@ -1129,8 +1043,7 @@ class TestSchemaDdlErrorPropagation:
 
     # Note: create_eventbus_schema's DDL-error path is intentionally not covered
     # here — it keeps its own inline try/except instead of the shared
-    # _execute_schema_ddl helper. Its migration step has a separate label, and that
-    # path is covered in TestEventbusAckedAtMigration above.
+    # _execute_schema_ddl helper.
 
 
 class TestCreateSchemaWrapper:

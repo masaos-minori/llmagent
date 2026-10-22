@@ -15,7 +15,6 @@ Functions:
 """
 
 import logging
-import sqlite3
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -229,78 +228,6 @@ def build_eventbus_schema_sql() -> str:
     return EVENTBUS_SCHEMA_SQL_PATH.read_text(encoding="utf-8")
 
 
-_EVENTBUS_MIGRATIONS: list[tuple[str, str]] = [
-    (
-        "2026_add_consumer_delivery_failure_count",
-        "ALTER TABLE consumer_delivery ADD COLUMN consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0",
-    ),
-    (
-        "2026_add_consumer_last_nack_attempt",
-        "ALTER TABLE consumer_delivery ADD COLUMN consumer_last_nack_attempt TEXT",
-    ),
-    (
-        "2026_drop_events_acked_at",
-        "ALTER TABLE events DROP COLUMN acked_at",
-    ),
-    (
-        "2026_drop_events_consumer_delivery_failure_count",
-        "ALTER TABLE events DROP COLUMN consumer_delivery_failure_count",
-    ),
-    # consumer_delivery.acked_at (a timestamp, NULL = not acked) was replaced by the
-    # boolean acked column, but no migration carried databases created before that rename
-    # across, and schema.sql's idx_consumer_delivery_consumer_ack references acked, so the
-    # bootstrap DDL aborted on them. The stale index is dropped first because SQLite
-    # refuses to drop a column an index still references; the DDL recreates the index on
-    # (consumer_id, acked) immediately afterwards. The UPDATE converts the timestamp
-    # semantics (any non-NULL acked_at means acked) before the column is dropped.
-    (
-        "2026_drop_stale_consumer_delivery_ack_index",
-        "DROP INDEX IF EXISTS idx_consumer_delivery_consumer_ack",
-    ),
-    (
-        "2026_add_consumer_delivery_acked",
-        "ALTER TABLE consumer_delivery ADD COLUMN acked INTEGER NOT NULL DEFAULT 0",
-    ),
-    (
-        "2026_convert_consumer_delivery_acked_at",
-        "UPDATE consumer_delivery SET acked = CASE WHEN acked_at IS NOT NULL THEN 1 ELSE 0 END",
-    ),
-    (
-        "2026_drop_consumer_delivery_acked_at",
-        "ALTER TABLE consumer_delivery DROP COLUMN acked_at",
-    ),
-]
-
-
 def build_workflow_schema_sql() -> str:
     """Return DDL for workflow.sqlite (metadata DB)."""
     return _WORKFLOW_SCHEMA
-
-
-def apply_eventbus_migrations(conn: sqlite3.Connection) -> None:
-    """Apply incremental migrations to an existing eventbus.sqlite; idempotent.
-
-    Only swallows OperationalError for duplicate-column scenarios
-    (e.g. ALTER TABLE ... ADD COLUMN when the column already exists),
-    for missing-column scenarios (e.g. ALTER TABLE ... DROP COLUMN when
-    the column was already dropped), and for missing-table scenarios
-    (create_eventbus_schema() applies migrations before the DDL, so a table a migration
-    targets may not exist yet on a fresh database, and the DDL then creates it already in
-    the current shape); all other OperationalErrors are
-    re-raised so broken migration SQL is never silently ignored.
-    """
-    for migration_id, stmt in _EVENTBUS_MIGRATIONS:
-        try:
-            conn.execute(stmt)
-        except sqlite3.OperationalError as exc:
-            if "duplicate column name" in str(exc):
-                logger.debug("Migration %s already applied: %s", migration_id, exc)
-            elif "no such column" in str(exc):
-                logger.debug("Migration %s already applied: %s", migration_id, exc)
-            elif "no such table" in str(exc):
-                logger.debug(
-                    "Migration %s skipped, table absent: %s", migration_id, exc
-                )
-            else:
-                raise
-    conn.commit()

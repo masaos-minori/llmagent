@@ -55,9 +55,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the legacy-seeding and patched-migration tests | Pending | — | — | |
-| 2 | Rename the class and fix docstrings and the comment | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the legacy-seeding and patched-migration tests | Done | 20261022-101015 | 20261022-101015 | Removed `_seed_legacy_db`, `test_bootstrap_migrates_acked_at_to_acked`, `test_bootstrap_is_idempotent_after_conversion`, `test_migration_failure_is_logged_with_its_own_label`. |
+| 2 | Rename the class and fix docstrings and the comment | Done | 20261022-101015 | 20261022-101015 | Renamed to `TestEventbusSchemaCreation`; fixed fresh-db docstring and the DDL-error comment. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261022-101015 | 20261022-101015 | 51 passed; ruff clean; no leftover refs. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

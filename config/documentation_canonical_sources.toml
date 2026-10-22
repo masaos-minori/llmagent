@@ -15,13 +15,6 @@ area = "EventBus"
 notes = "Bootstrap DDL for eventbus.sqlite schema, backed by ADR-008."
 
 [[canonical_sources]]
-decision_target = "eventbus.persistence-schema.incremental-migration"
-claim_type = "operational-procedure"
-source_paths = ["scripts/eventbus/db.py"]
-area = "EventBus"
-notes = "Incremental migration at service startup for eventbus.sqlite, backed by ADR-008."
-
-[[canonical_sources]]
 decision_target = "overview.architecture-overview"
 claim_type = "documentation-metadata"
 source_paths = ["docs/01_overview/overview_01_01-arch-process.md"]

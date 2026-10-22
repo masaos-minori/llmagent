@@ -53,9 +53,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the migration classes, legacy fixtures, and the import | Pending | — | — | |
-| 2 | Run the file's tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the migration classes, legacy fixtures, and the import | Done | 20261022-101015 | 20261022-101015 | Verified `_migrate` no longer exists in `scripts/eventbus/schema.py`; removed both classes, both fixtures, and the `_migrate` import; kept `tmp_conn` + `TestApplyEventbusPragmas`; rewrote module docstring. |
+| 2 | Run the file's tests | Done | 20261022-101015 | 20261022-101015 | 1 passed. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261022-101015 | 20261022-101015 | `ruff check` clean. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

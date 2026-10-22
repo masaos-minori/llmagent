@@ -55,9 +55,9 @@ Revert the commit; no data is changed by this edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the list and function; drop the unused import | Pending | — | — | |
-| 2 | Tests are covered by the test-file procedures | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the list and function; drop the unused import | Done | 20261022-101015 | 20261022-101015 | Removed `_EVENTBUS_MIGRATIONS` and `apply_eventbus_migrations()`; kept `import sqlite3` (still used by `apply_workflow_migrations`). |
+| 2 | Tests are covered by the test-file procedures | Done | 20261022-101015 | 20261022-101015 | Migration tests removed by proc 05; create_schema EventBus tests removed by proc 07. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261022-101015 | 20261022-101015 | ruff + mypy clean; full db/eventbus suite green (669 passed, 1 skipped). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

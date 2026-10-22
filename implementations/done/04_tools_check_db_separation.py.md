@@ -54,9 +54,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the EventBus migration text from `_schema_ddl()` | Pending | — | — | |
-| 2 | Run the tool's tests | Pending | — | — | |
-| 3 | Run the tool validation sequence per `routing.md` | Pending | — | — | |
+| 1 | Remove the EventBus migration text from `_schema_ddl()` | Done | 20261022-101015 | 20261022-101015 | Returns base EventBus DDL only; docstring updated. |
+| 2 | Run the tool's tests | Done | 20261022-101015 | 20261022-101015 | 10 tool tests pass. |
+| 3 | Run the tool validation sequence per `routing.md` | Done | 20261022-101015 | 20261022-101015 | ruff + mypy + bandit clean; description sync "No issues found"; live run "No violations found". |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

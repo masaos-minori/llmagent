@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the `_migrate()` clause and decision-target mention | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Remove the `_migrate()` clause and decision-target mention | Done | 20261022-101015 | 20261022-101015 | Removed the `_migrate()` clause and the `eventbus.persistence-schema.incremental-migration` decision-target mention from the EventBus paragraph; fixed the remaining sentence grammar. |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Done | 20261022-101015 | 20261022-101015 | check_docs_quality/structure/content_policy pass (172 files); `rg "persistence-schema.incremental-migration" docs config` returns no match. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1,4 +1,4 @@
-"""scripts/eventbus/schema.py — Schema layer: schema definition, migration logic."""
+"""scripts/eventbus/schema.py — Schema layer: schema definition and creation."""
 
 from pathlib import Path
 from sqlite3 import Connection
@@ -9,16 +9,6 @@ logger = __import__("logging").getLogger(__name__)
 _SCHEMA_PATH = Path(__file__).resolve().parent / "schema.sql"
 
 _DEFAULT_BUSY_TIMEOUT_MS = 30_000
-
-# Shared column constants
-from eventbus._constants import (
-    _COL_CONSUMER_DELIVERY_FAILURE_COUNT,
-    _COL_CONSUMER_LAST_NACK_ATTEMPT,
-    _COL_CYCLE_FAILURE_COUNT,
-    _COL_DELIVERY_FAILURE_COUNT,
-    _COL_DLQ_REQUEUE_COUNT,
-    _COL_REDISTRIBUTED_FROM,
-)
 
 
 def _apply_eventbus_pragmas(
@@ -34,170 +24,14 @@ def _apply_eventbus_pragmas(
 
 
 def _init_schema(conn: Connection) -> None:
-    """Create or migrate the events table schema."""
+    """Create the events schema when the table is absent."""
     # First check if the table exists at all
     cur = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='events'"
     )
     if cur.fetchone():
-        # Table exists — run additive migration for new columns
-        _migrate(conn)
+        # Table exists — leave the existing database unchanged
         return
     # Table doesn't exist — create from schema.sql
     sql = _SCHEMA_PATH.read_text()
     conn.executescript(sql)
-
-
-def _migrate(conn: Connection) -> None:
-    """Add new columns and indexes if they don't already exist; drop removed columns.
-
-    SQLite doesn't support ALTER TABLE ADD COLUMN IF NOT EXISTS, so we
-    catch the duplicate column error and ignore it. Indexes are created
-    with CREATE INDEX IF NOT EXISTS which is idempotent.
-    """
-    for col in (_COL_DELIVERY_FAILURE_COUNT, _COL_DLQ_REQUEUE_COUNT):
-        try:
-            conn.execute(
-                f"ALTER TABLE events ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
-            )
-            logger.info("migrated: added column %s to events", col)
-        except Exception as exc:
-            if exc.args and "duplicate column name" in str(exc.args[0]):
-                pass  # column already exists
-            else:
-                raise
-
-    for col in (_COL_CYCLE_FAILURE_COUNT, _COL_REDISTRIBUTED_FROM):
-        try:
-            if col == "cycle_failure_count":
-                conn.execute(
-                    f"ALTER TABLE events ADD COLUMN {col} INTEGER NOT NULL DEFAULT 0"
-                )
-            else:
-                conn.execute(f"ALTER TABLE events ADD COLUMN {col} TEXT")
-            logger.info("migrated: added column %s to events", col)
-        except Exception as exc:
-            if exc.args and "duplicate column name" in str(exc.args[0]):
-                pass  # column already exists
-            else:
-                raise
-
-    # Add consumer_id column for tracking which consumer last received the event
-    try:
-        conn.execute("ALTER TABLE events ADD COLUMN consumer_id TEXT")
-        logger.info("migrated: added column consumer_id to events")
-    except Exception as exc:
-        if exc.args and "duplicate column name" in str(exc.args[0]):
-            pass  # column already exists
-        else:
-            raise
-
-    # Drop columns that were removed (REQ-004: acked_at; per-consumer migration: consumer_delivery_failure_count; legacy: retry_count)
-    for col in ("acked_at", _COL_CONSUMER_DELIVERY_FAILURE_COUNT, "retry_count"):
-        try:
-            conn.execute(f"ALTER TABLE events DROP COLUMN {col}")
-            logger.info("migrated: dropped column %s from events", col)
-        except Exception as exc:
-            if exc.args and "no such column" in str(exc.args[0]).lower():
-                pass  # already dropped, or table created fresh without it
-            else:
-                raise
-
-    for idx in (
-        "idx_events_dlq_at ON events(dlq_at)",
-        "idx_events_dlq_seq ON events(dlq_at, seq)",
-    ):
-        try:
-            conn.execute(f"CREATE INDEX IF NOT EXISTS {idx}")
-            logger.info("migrated: added index %s", idx)
-        except Exception as exc:
-            if exc.args and "duplicate" in str(exc.args[0]).lower():
-                pass  # index already exists
-            else:
-                raise
-
-    # New tables added in REQ-001/REQ-002: per-consumer delivery state and offset
-    for tbl_name, ddl in [
-        (
-            "consumer_delivery",
-            "CREATE TABLE IF NOT EXISTS consumer_delivery ("
-            "    consumer_id TEXT NOT NULL,"
-            "    event_id TEXT NOT NULL,"
-            "    acked INTEGER NOT NULL DEFAULT 0,"
-            "    PRIMARY KEY (consumer_id, event_id)"
-            ")",
-        ),
-        (
-            "consumer_offsets",
-            "CREATE TABLE IF NOT EXISTS consumer_offsets ("
-            "    consumer_id TEXT PRIMARY KEY,"
-            "    offset INTEGER NOT NULL DEFAULT 0"
-            ")",
-        ),
-    ]:
-        try:
-            conn.execute(ddl)
-            logger.info("migrated: created table %s", tbl_name)
-        except Exception as exc:
-            if exc.args and "already exists" in str(exc.args[0]).lower():
-                pass  # table already exists (unlikely but defensive)
-            else:
-                raise
-
-    # Add per-consumer failure tracking columns to consumer_delivery
-    for col, col_type, default in [
-        (
-            _COL_CONSUMER_DELIVERY_FAILURE_COUNT,
-            "INTEGER NOT NULL DEFAULT 0",
-            "0",
-        ),
-        (_COL_CONSUMER_LAST_NACK_ATTEMPT, "TEXT", "NULL"),
-    ]:
-        try:
-            conn.execute(f"ALTER TABLE consumer_delivery ADD COLUMN {col} {col_type}")
-            logger.info("migrated: added column %s to consumer_delivery", col)
-        except Exception as exc:
-            if exc.args and "duplicate column name" in str(exc.args[0]):
-                pass  # column already exists
-            else:
-                raise
-
-    # Legacy databases still carry consumer_delivery.acked_at (a timestamp, NULL = not
-    # acked) from before that column was replaced by the boolean acked. The stale index on
-    # (consumer_id, acked_at) blocks ALTER TABLE ... DROP COLUMN, so it is dropped first,
-    # and the timestamp semantics are converted (any non-NULL acked_at means acked) before
-    # the column disappears. Gated on the column's presence so a current database does not
-    # rebuild its index on every startup. db/schema_sql.py's _EVENTBUS_MIGRATIONS carries
-    # the same conversion for the create_schema() bootstrap path; the two cannot share code
-    # because the eventbus-is-isolated contract forbids eventbus from importing db.
-    legacy_cols = {
-        row[1]
-        for row in conn.execute("PRAGMA table_info(consumer_delivery)").fetchall()
-    }
-    if "acked_at" in legacy_cols:
-        for stmt in (
-            "DROP INDEX IF EXISTS idx_consumer_delivery_consumer_ack",
-            "ALTER TABLE consumer_delivery ADD COLUMN acked INTEGER NOT NULL DEFAULT 0",
-            "UPDATE consumer_delivery"
-            " SET acked = CASE WHEN acked_at IS NOT NULL THEN 1 ELSE 0 END",
-            "ALTER TABLE consumer_delivery DROP COLUMN acked_at",
-        ):
-            try:
-                conn.execute(stmt)
-            except Exception as exc:
-                if exc.args and (
-                    "duplicate column name" in str(exc.args[0])
-                    or "no such column" in str(exc.args[0]).lower()
-                ):
-                    pass  # a previous run already applied part of this conversion
-                else:
-                    raise
-        conn.commit()  # the UPDATE is DML: DDL's implicit commit does not cover it
-        logger.info("migrated: consumer_delivery.acked_at converted to acked")
-
-    # Index for the low-water-mark query in get_resume_position(); schema.sql defines
-    # the same index for new databases.
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_consumer_delivery_consumer_ack "
-        "ON consumer_delivery(consumer_id, acked)"
-    )

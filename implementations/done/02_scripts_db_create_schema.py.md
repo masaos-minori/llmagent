@@ -54,9 +54,9 @@ Revert the commit; no persisted state changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the import, assertion, comment, and migration block | Pending | — | — | |
-| 2 | Tests are covered by the test-file procedures | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the import, assertion, comment, and migration block | Done | 20261022-101015 | 20261022-101015 | `create_eventbus_schema()` is now DDL-only; removed `apply_eventbus_migrations` import and its try/except block. |
+| 2 | Tests are covered by the test-file procedures | Done | 20261022-101015 | 20261022-101015 | `TestEventbusAckedAtMigration` removed by proc 07. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 20261022-101015 | 20261022-101015 | ruff + mypy clean; full db/eventbus suite green (669 passed, 1 skipped). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

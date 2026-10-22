@@ -105,17 +105,14 @@ _DB_PATH_KEY_RE = re.compile(r"^(?P<db>rag|session|workflow|eventbus)_db_path$")
 
 
 def _schema_ddl() -> dict[str, str]:
-    """Return the full schema DDL text per database, migrations included."""
+    """Return the schema DDL text per database."""
     import db.schema_sql as schema_sql  # noqa: PLC0415
 
-    migrations_eventbus = ";\n".join(s for _, s in schema_sql._EVENTBUS_MIGRATIONS)
     return {
         "rag": schema_sql.build_rag_schema_sql(8),
         "session": schema_sql.build_session_schema_sql(8),
         "workflow": schema_sql.build_workflow_schema_sql(),
-        "eventbus": schema_sql.build_eventbus_schema_sql()
-        + ";\n"
-        + migrations_eventbus,
+        "eventbus": schema_sql.build_eventbus_schema_sql(),
     }
 
 
