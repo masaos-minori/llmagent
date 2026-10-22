@@ -61,8 +61,11 @@ Checks consistency between documentation and source code for each domain.
 - `rag` — RAG docs vs `scripts/rag/`
 - `deployment` — Deployment docs vs config/deployment files
 - `overview` — Overview docs vs overall project structure
+- `eventbus` — EventBus docs vs `scripts/eventbus/`
+- `shared` — Shared docs vs `scripts/shared/`
+- `db` — DB docs vs `scripts/db/`
 
-`--domain` accepts only these five domains; there is no EventBus or Shared/DB domain, so those documents are not covered by this check.
+The `eventbus`, `shared`, and `db` domains run only the generic checks and have no domain-specific drift check.
 
 **Checks performed per domain:**
 - Schema drift (DB schema vs documented schema)
@@ -84,7 +87,7 @@ Checks consistency between documentation and source code for each domain.
 - Command contract (`GV-023`): registry usages and documented `/<command> ...` forms match both ways, with defaults. `ERROR`; `--skip commandcontract`
 - File path references (documented file paths exist)
 - Function references (documented function signatures match actual)
-- Broken internal links (`.md` links resolve correctly)
+- Broken internal links (`.md` links resolve correctly; an `#anchor` matching no heading of its target, same-page links included, is a Warning)
 - Removed file references (references to deleted files detected)
 
 **Usage:**
@@ -94,6 +97,9 @@ python tools/check_docs_consistency.py --domain mcp                # check mcp d
 python tools/check_docs_consistency.py --domain rag                # check rag docs
 python tools/check_docs_consistency.py --domain deployment         # check deployment docs
 python tools/check_docs_consistency.py --domain overview           # check overview docs
+python tools/check_docs_consistency.py --domain eventbus           # check eventbus docs
+python tools/check_docs_consistency.py --domain shared             # check shared docs
+python tools/check_docs_consistency.py --domain db                 # check db docs
 python tools/check_docs_consistency.py --domain agent --skip schemadrift  # skip a check
 ```
 

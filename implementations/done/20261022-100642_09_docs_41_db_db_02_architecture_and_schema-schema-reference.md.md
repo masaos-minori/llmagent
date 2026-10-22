@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the version-record and recovery sentences | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Update the version-record and recovery sentences | Completed | 20261022-105311 | 20261022-105311 | Changed: docs/41_db/db_02_architecture_and_schema-schema-reference.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-105311 | 20261022-105311 | validated; docs checkers pass; full suite 9690 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -55,9 +55,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the workflow migration text from `_schema_ddl()` | Pending | — | — | |
-| 2 | Run the tool's tests | Pending | — | — | |
-| 3 | Run the tool validation sequence per `routing.md` | Pending | — | — | |
+| 1 | Remove the workflow migration text from `_schema_ddl()` | Completed | 20261022-105304 | 20261022-105304 | Changed: tools/check_db_separation.py |
+| 2 | Run the tool's tests | Completed | 20261022-105304 | 20261022-105304 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
+| 3 | Run the tool validation sequence per `routing.md` | Completed | 20261022-105304 | 20261022-105304 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

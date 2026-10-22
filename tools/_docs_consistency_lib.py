@@ -100,23 +100,92 @@ def is_historical_line(line: str) -> bool:
     return any(marker.lower() in lowered for marker in _HISTORICAL_MARKERS)
 
 
+_FENCE_RE = re.compile(r"^\s*```")
+_ATX_HEADING_RE = re.compile(r"^#{1,6}\s+(.*?)\s*#*\s*$")
+_LINK_TEXT_RE = re.compile(r"\[([^\]]*)\]\([^)]*\)")
+_NON_SLUG_CHAR_RE = re.compile(r"[^\w\- ]")
+
+
+def _slugify_heading(text: str) -> str:
+    """GitHub-style heading slug: lowercase, punctuation stripped, spaces to hyphens."""
+    plain = _LINK_TEXT_RE.sub(r"\1", text).strip().lower()
+    return _NON_SLUG_CHAR_RE.sub("", plain).replace(" ", "-")
+
+
+def _heading_slugs(lines: list[str]) -> set[str]:
+    """Return the anchor slugs of the headings in *lines*.
+
+    Headings inside fenced code blocks are ignored; the n-th repeat of an
+    identical slug gets the suffix ``-n`` (``-1``, ``-2``, ...).
+    """
+    slugs: set[str] = set()
+    seen: dict[str, int] = {}
+    in_fence = False
+    for line in lines:
+        if _FENCE_RE.match(line):
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+        match = _ATX_HEADING_RE.match(line)
+        if match is None:
+            continue
+        base = _slugify_heading(match.group(1))
+        count = seen.get(base, 0)
+        seen[base] = count + 1
+        slugs.add(base if count == 0 else f"{base}-{count}")
+    return slugs
+
+
+def _anchor_issue(doc: DocFile, line_no: int, anchor: str, target_name: str) -> Issue:
+    return Issue(
+        file=doc.rel_path,
+        line_no=line_no,
+        severity="WARNING",
+        message=f"anchor '#{anchor}' not found in headings of {target_name}",
+    )
+
+
 def check_broken_internal_links(docs_dir: Path, files: list[DocFile]) -> list[Issue]:
-    """Flag [text](path.md) / [text](path.md#anchor) links that don't resolve."""
+    """Flag [text](path.md) / [text](path.md#anchor) links that don't resolve.
+
+    A missing target file is an ERROR. An ``#anchor`` (same-page links included)
+    that matches no heading of the target document is a WARNING.
+    """
     issues: list[Issue] = []
-    existing_files = {f.name for f in docs_dir.rglob("*.md")}
+    paths_by_name = {f.name: f for f in docs_dir.rglob("*.md")}
+    slug_cache: dict[str, set[str] | None] = {}
+
+    def target_slugs(name: str) -> set[str] | None:
+        if name not in slug_cache:
+            try:
+                text = paths_by_name[name].read_text(encoding="utf-8")
+            except OSError:
+                slug_cache[name] = None
+            else:
+                slug_cache[name] = _heading_slugs(text.splitlines())
+        return slug_cache[name]
 
     for doc in files:
+        own_slugs: set[str] | None = None
         for line_no, line in enumerate(doc.lines, start=1):
             for match in _MD_LINK_RE.finditer(line):
                 target = match.group(1).strip()
                 if target.startswith(("http://", "https://", "mailto:")):
                     continue
-                file_part, _anchor = _split_link_target(target)
+                file_part, anchor = _split_link_target(target)
                 if not file_part:
-                    continue  # pure "#anchor" link within the same page
+                    if anchor:  # same-page "#anchor" link
+                        if own_slugs is None:
+                            own_slugs = _heading_slugs(doc.lines)
+                        if anchor not in own_slugs:
+                            issues.append(
+                                _anchor_issue(doc, line_no, anchor, doc.rel_path)
+                            )
+                    continue
                 if "/" in file_part:
                     continue  # relative paths outside docs/ are out of scope
-                if file_part not in existing_files:
+                if file_part not in paths_by_name:
                     issues.append(
                         Issue(
                             file=doc.rel_path,
@@ -128,6 +197,10 @@ def check_broken_internal_links(docs_dir: Path, files: list[DocFile]) -> list[Is
                             ),
                         )
                     )
+                elif anchor:
+                    slugs = target_slugs(file_part)
+                    if slugs is not None and anchor not in slugs:
+                        issues.append(_anchor_issue(doc, line_no, anchor, file_part))
     return issues
 
 

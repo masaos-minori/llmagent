@@ -60,9 +60,9 @@ N/A: revert the commit with the library change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the migration-dependent tests, helpers, and names | Pending | — | — | |
-| 2 | Add the version-record and guard tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the migration-dependent tests, helpers, and names | Completed | 20261022-105307 | 20261022-105307 | Changed: tests/db/test_create_schema.py |
+| 2 | Add the version-record and guard tests | Completed | 20261022-105307 | 20261022-105307 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-105307 | 20261022-105307 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -66,10 +66,10 @@ Revert the commit; no persisted state.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the slug helpers and anchor resolution to `check_broken_internal_links` | Pending | — | — | |
-| 2 | Tests are covered by the procedure for `tests/tools/test_check_agent_docs_consistency.py` | Pending | — | — | |
-| 3 | Run the tool validation sequence and live runs | Pending | — | — | |
-| 4 | File a follow-up issue for the stale anchor (REQ-007); docs updates are in the docs procedures | Pending | — | — | |
+| 1 | Add the slug helpers and anchor resolution to `check_broken_internal_links` | Completed | 20261022-104203 | 20261022-104203 | Changed: tools/_docs_consistency_lib.py |
+| 2 | Tests are covered by the procedure for `tests/tools/test_check_agent_docs_consistency.py` | Completed | 20261022-104203 | 20261022-104203 | validated; full suite 9692 passed, 14 skipped; tools tests 1077 passed; docs checkers pass; live mcp run: one anchor Warning triaged to issues/20261022-104121_mcpanchor_fix-stale-anchor-mcp-dispatch-doc.md (REQ-007) |
+| 3 | Run the tool validation sequence and live runs | Completed | 20261022-104203 | 20261022-104203 | validated; full suite 9692 passed, 14 skipped; tools tests 1077 passed; docs checkers pass; live mcp run: one anchor Warning triaged to issues/20261022-104121_mcpanchor_fix-stale-anchor-mcp-dispatch-doc.md (REQ-007) |
+| 4 | File a follow-up issue for the stale anchor (REQ-007); docs updates are in the docs procedures | Completed | 20261022-104203 | 20261022-104203 | validated; full suite 9692 passed, 14 skipped; tools tests 1077 passed; docs checkers pass; live mcp run: one anchor Warning triaged to issues/20261022-104121_mcpanchor_fix-stale-anchor-mcp-dispatch-doc.md (REQ-007) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

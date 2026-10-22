@@ -55,16 +55,63 @@ class TestCheckBrokenInternalLinks:
         issues = check_broken_internal_links(tmp_path, [doc])
         assert issues == []
 
-    def test_anchor_only_link_skipped(self, tmp_path: Path) -> None:
+    def test_same_page_anchor_without_heading_is_warning(self, tmp_path: Path) -> None:
         doc = _mk_file("05_agent_00_b.md", ["see [x](#section)"])
+        issues = check_broken_internal_links(tmp_path, [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "#section" in issues[0].message
+
+    def test_same_page_anchor_with_heading_no_issue(self, tmp_path: Path) -> None:
+        doc = _mk_file("05_agent_00_b.md", ["## Section", "see [x](#section)"])
         issues = check_broken_internal_links(tmp_path, [doc])
         assert issues == []
 
-    def test_link_with_anchor_to_existing_file_no_issue(self, tmp_path: Path) -> None:
-        (tmp_path / "05_agent_01_a.md").write_text("target")
+    def test_link_with_anchor_to_existing_heading_no_issue(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "05_agent_01_a.md").write_text("# Title\n\n## Some Heading\n")
         doc = _mk_file("05_agent_00_b.md", ["see [a](05_agent_01_a.md#some-heading)"])
         issues = check_broken_internal_links(tmp_path, [doc])
         assert issues == []
+
+    def test_link_with_stale_anchor_is_warning(self, tmp_path: Path) -> None:
+        (tmp_path / "05_agent_01_a.md").write_text("target")
+        doc = _mk_file("05_agent_00_b.md", ["see [a](05_agent_01_a.md#some-heading)"])
+        issues = check_broken_internal_links(tmp_path, [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+        assert "#some-heading" in issues[0].message
+        assert "05_agent_01_a.md" in issues[0].message
+
+    def test_duplicate_headings_resolve_with_numeric_suffix(
+        self, tmp_path: Path
+    ) -> None:
+        (tmp_path / "05_agent_01_a.md").write_text("## Setup\n\n## Setup\n")
+        doc = _mk_file(
+            "05_agent_00_b.md",
+            [
+                "[a](05_agent_01_a.md#setup)",
+                "[b](05_agent_01_a.md#setup-1)",
+                "[c](05_agent_01_a.md#setup-2)",
+            ],
+        )
+        issues = check_broken_internal_links(tmp_path, [doc])
+        assert [i.line_no for i in issues] == [3]
+        assert "#setup-2" in issues[0].message
+
+    def test_heading_inside_fenced_code_is_not_an_anchor(self, tmp_path: Path) -> None:
+        (tmp_path / "05_agent_01_a.md").write_text("```\n## Hidden\n```\n")
+        doc = _mk_file("05_agent_00_b.md", ["see [a](05_agent_01_a.md#hidden)"])
+        issues = check_broken_internal_links(tmp_path, [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "WARNING"
+
+    def test_missing_file_with_anchor_is_still_one_error(self, tmp_path: Path) -> None:
+        doc = _mk_file("05_agent_00_b.md", ["see [a](05_agent_99_missing.md#x)"])
+        issues = check_broken_internal_links(tmp_path, [doc])
+        assert len(issues) == 1
+        assert issues[0].severity == "ERROR"
 
     def test_link_to_file_in_subdirectory_no_issue(self, tmp_path: Path) -> None:
         """docsreorg02 REQ-002: the 'existing files' universe is built via a

@@ -61,9 +61,9 @@ Revert the commit; no data is changed by this edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the list and function and fix the citing comments | Pending | — | — | |
-| 2 | Tests are covered by the procedures for the two test files | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the list and function and fix the citing comments | Completed | 20261022-105300 | 20261022-105300 | Changed: scripts/db/schema_sql.py |
+| 2 | Tests are covered by the procedures for the two test files | Completed | 20261022-105300 | 20261022-105300 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-105300 | 20261022-105300 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

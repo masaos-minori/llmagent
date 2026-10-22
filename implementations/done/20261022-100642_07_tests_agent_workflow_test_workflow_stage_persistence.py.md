@@ -52,9 +52,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the migration scenario tests and fix the import | Pending | — | — | |
-| 2 | Run the file's tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the migration scenario tests and fix the import | Completed | 20261022-105309 | 20261022-105309 | Changed: tests/agent/workflow/test_workflow_stage_persistence.py |
+| 2 | Run the file's tests | Completed | 20261022-105309 | 20261022-105309 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-105309 | 20261022-105309 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

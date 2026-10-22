@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the domain list, the decision statement, and the usage examples | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Update the domain list, the decision statement, and the usage examples | Completed | 20261022-103312 | 20261022-103312 | Changed: docs/00_governance/governance_04_documentation-checks.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-103312 | 20261022-103312 | validated; full suite 9687 passed, 14 skipped; docs checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

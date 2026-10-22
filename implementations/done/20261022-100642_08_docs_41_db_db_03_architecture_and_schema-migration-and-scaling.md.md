@@ -60,8 +60,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the section 8 bullets, 8a, the 8e workflow row, and the rollback bullet | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Rewrite the section 8 bullets, 8a, the 8e workflow row, and the rollback bullet | Completed | 20261022-105310 | 20261022-105310 | Changed: docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-105310 | 20261022-105310 | validated; docs checkers pass; full suite 9690 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

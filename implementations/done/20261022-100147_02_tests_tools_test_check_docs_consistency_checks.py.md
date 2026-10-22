@@ -59,9 +59,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the fixture helper and the new tests | Pending | — | — | |
-| 2 | Run the new tests against the registered domains | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the fixture helper and the new tests | Completed | 20261022-103311 | 20261022-103311 | Changed: tests/tools/test_check_docs_consistency_checks.py |
+| 2 | Run the new tests against the registered domains | Completed | 20261022-103311 | 20261022-103311 | validated; full suite 9687 passed, 14 skipped; docs checkers pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-103311 | 20261022-103311 | validated; full suite 9687 passed, 14 skipped; docs checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

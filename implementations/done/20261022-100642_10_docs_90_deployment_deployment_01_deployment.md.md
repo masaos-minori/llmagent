@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the responsibilities bullet, the backup paragraph, and the recovery row | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Rewrite the responsibilities bullet, the backup paragraph, and the recovery row | Completed | 20261022-105312 | 20261022-105312 | Changed: docs/90_deployment/deployment_01_deployment.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-105312 | 20261022-105312 | validated; docs checkers pass; full suite 9690 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

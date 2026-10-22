@@ -19,6 +19,9 @@ Usage:
     python tools/check_docs_consistency.py --domain rag                # check rag docs
     python tools/check_docs_consistency.py --domain deployment         # check deployment docs
     python tools/check_docs_consistency.py --domain overview           # check overview docs
+    python tools/check_docs_consistency.py --domain eventbus           # check eventbus docs
+    python tools/check_docs_consistency.py --domain shared             # check shared docs
+    python tools/check_docs_consistency.py --domain db                 # check db docs
     python tools/check_docs_consistency.py --domain agent --skip schemadrift  # skip a check
 """
 
@@ -62,6 +65,9 @@ DOMAIN_PREFIXES: dict[str, str] = {
     "rag": "03_rag_",
     "deployment": "02_deployment",
     "overview": "01_overview",
+    "eventbus": "eventbus_",
+    "shared": "shared_",
+    "db": "db_",
 }
 
 # After docs reorganization (issue docsreorg02), domain files live in subfolders.
@@ -72,6 +78,9 @@ DOMAIN_SUBFOLDERS: dict[str, str] = {
     "rag": "21_rag",
     "deployment": "90_deployment",
     "overview": "01_overview",
+    "eventbus": "24_eventbus",
+    "shared": "40_shared",
+    "db": "41_db",
 }
 
 # Which generic checks each domain runs (generic = shared across domains).
@@ -81,6 +90,13 @@ DOMAIN_GENERIC_CHECKS: dict[str, frozenset[str]] = {
     "rag": frozenset({"links", "removedfiles", "commanddrift", "filerefs", "funcrefs"}),
     "deployment": frozenset(),
     "overview": frozenset(),
+    "eventbus": frozenset(
+        {"links", "removedfiles", "commanddrift", "filerefs", "funcrefs"}
+    ),
+    "shared": frozenset(
+        {"links", "removedfiles", "commanddrift", "filerefs", "funcrefs"}
+    ),
+    "db": frozenset({"links", "removedfiles", "commanddrift", "filerefs", "funcrefs"}),
 }
 
 ALL_SKIP_OPTIONS: frozenset[str] = frozenset(
@@ -949,7 +965,7 @@ def main(argv: list[str] | None = None) -> int:
         "--domain",
         required=True,
         choices=list(DOMAIN_PREFIXES.keys()),
-        help="Domain to check (agent, mcp, rag, deployment, overview)",
+        help="Domain to check (agent, mcp, rag, deployment, overview, eventbus, shared, db)",
     )
     parser.add_argument(
         "--docs-dir",

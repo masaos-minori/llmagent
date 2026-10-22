@@ -51,9 +51,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the mismatch hint | Pending | — | — | |
-| 2 | Run the startup and health tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Reword the mismatch hint | Completed | 20261022-105305 | 20261022-105305 | Changed: scripts/agent/services/workflow_schema.py |
+| 2 | Run the startup and health tests | Completed | 20261022-105305 | 20261022-105305 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-105305 | 20261022-105305 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

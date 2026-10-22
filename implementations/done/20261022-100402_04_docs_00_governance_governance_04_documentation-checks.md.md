@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the "Broken internal links" bullet | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Extend the "Broken internal links" bullet | Completed | 20261022-104207 | 20261022-104207 | Changed: docs/00_governance/governance_04_documentation-checks.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-104207 | 20261022-104207 | validated; full suite 9692 passed, 14 skipped; tools tests 1077 passed; docs checkers pass; file size limit respected after shortening the added text |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

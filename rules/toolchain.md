@@ -160,7 +160,7 @@ uv run python tools/check_docs_consistency.py --domain mcp --skip portdrift --sk
 `uv run check-mcp-docs` and `uv run check-agent-docs` are shorthand for `--domain mcp`/`--domain agent`
 (additional args like `--skip` still work — see `tools/check_docs_consistency.py`'s `main_mcp()`/`main_agent()` wrappers).
 
-Also available for `--domain agent|rag|deployment|overview`. It verifies, among other checks
+Also available for `--domain agent|rag|deployment|overview|eventbus|shared|db`. It verifies, among other checks
 (`--help` lists all available `--skip` values):
 - `portdrift` — doc-mentioned port next to a `<name>-mcp` token vs. the port assigned in
   `config/agent.toml`'s `[mcp_servers.*]` sections

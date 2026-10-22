@@ -63,9 +63,9 @@ Revert the commit; no schema or data change. If the guard was already triggered,
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the import, assertion, and call; add the refuse-to-stamp guard | Pending | — | — | |
-| 2 | Tests are covered by the procedure for `tests/db/test_create_schema.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the import, assertion, and call; add the refuse-to-stamp guard | Completed | 20261022-105302 | 20261022-105302 | Changed: scripts/db/create_schema.py |
+| 2 | Tests are covered by the procedure for `tests/db/test_create_schema.py` | Completed | 20261022-105302 | 20261022-105302 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines; guard covered by new tests in tests/db/test_create_schema.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-105302 | 20261022-105302 | validated; full suite 9690 passed, 14 skipped with coverage run; ruff, mypy, lint-imports, check_module_size, check_db_separation pass; diff-cover: no measurable lines; guard covered by new tests in tests/db/test_create_schema.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

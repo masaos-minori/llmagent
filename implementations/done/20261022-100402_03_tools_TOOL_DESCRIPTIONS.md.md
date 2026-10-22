@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the detailed `_docs_consistency_lib.py` row | Pending | — | — | |
-| 2 | Run `check_tool_descriptions_sync.py` | Pending | — | — | |
+| 1 | Update the detailed `_docs_consistency_lib.py` row | Completed | 20261022-104206 | 20261022-104206 | Changed: tools/TOOL_DESCRIPTIONS.md |
+| 2 | Run `check_tool_descriptions_sync.py` | Completed | 20261022-104206 | 20261022-104206 | validated; full suite 9692 passed, 14 skipped; tools tests 1077 passed; docs checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

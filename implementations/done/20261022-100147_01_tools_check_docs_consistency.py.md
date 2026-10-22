@@ -63,10 +63,10 @@ Revert the commit; no data or configuration state is involved.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the domain keys and update docstring/help in `tools/check_docs_consistency.py` | Pending | — | — | |
-| 2 | Tests are covered by the procedure for `tests/tools/test_check_docs_consistency_checks.py` | Pending | — | — | |
-| 3 | Run the tool validation sequence and live domain runs | Pending | — | — | |
-| 4 | Triage findings (REQ-006); docs updates are handled by the docs procedures of this Plan | Pending | — | — | |
+| 1 | Add the domain keys and update docstring/help in `tools/check_docs_consistency.py` | Completed | 20261022-103309 | 20261022-103309 | Changed: tools/check_docs_consistency.py |
+| 2 | Tests are covered by the procedure for `tests/tools/test_check_docs_consistency_checks.py` | Completed | 20261022-103309 | 20261022-103309 | validated; full suite 9687 passed, 14 skipped; docs checkers pass; live domain runs: new domains Warning-only exit 0, existing domains clean; _insert_chunk() reference triaged as follow-up (REQ-006) |
+| 3 | Run the tool validation sequence and live domain runs | Completed | 20261022-103309 | 20261022-103309 | validated; full suite 9687 passed, 14 skipped; docs checkers pass; live domain runs: new domains Warning-only exit 0, existing domains clean; _insert_chunk() reference triaged as follow-up (REQ-006) |
+| 4 | Triage findings (REQ-006); docs updates are handled by the docs procedures of this Plan | Completed | 20261022-103309 | 20261022-103309 | validated; full suite 9687 passed, 14 skipped; docs checkers pass; live domain runs: new domains Warning-only exit 0, existing domains clean; _insert_chunk() reference triaged as follow-up (REQ-006) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

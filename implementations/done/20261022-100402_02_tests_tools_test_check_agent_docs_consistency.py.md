@@ -57,9 +57,9 @@ N/A: revert the commit together with the library change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the two old anchor tests | Pending | — | — | |
-| 2 | Add the valid, stale, same-page, duplicate, fenced, and missing-file tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace the two old anchor tests | Completed | 20261022-104205 | 20261022-104205 | Changed: tests/tools/test_check_agent_docs_consistency.py |
+| 2 | Add the valid, stale, same-page, duplicate, fenced, and missing-file tests | Completed | 20261022-104205 | 20261022-104205 | validated; full suite 9692 passed, 14 skipped; tools tests 1077 passed; docs checkers pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-104205 | 20261022-104205 | validated; full suite 9692 passed, 14 skipped; tools tests 1077 passed; docs checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

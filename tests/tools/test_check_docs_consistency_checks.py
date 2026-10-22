@@ -1,7 +1,8 @@
 """tests/tools/test_check_docs_consistency_checks.py
 
-Tests for `check_tool_name_drift()` name-prefix handling and
-`check_config_key_presence()` handling of keys that `DbConfig` defaults.
+Tests for `check_tool_name_drift()` name-prefix handling,
+`check_config_key_presence()` handling of keys that `DbConfig` defaults, and the
+eventbus/shared/db domain registration of `main()`.
 """
 
 from __future__ import annotations
@@ -130,3 +131,46 @@ def test_command_coverage_does_not_match_a_longer_command_name(tmp_path: Path) -
     _write_agent_docs(tmp_path / "docs", ["/mem"], "`/memory`\n")
     messages = [i.message for i in cdc.check_command_coverage(tmp_path / "docs", repo)]
     assert any("per-command chapter" in m for m in messages)
+
+
+_NEW_DOMAINS = [
+    ("eventbus", "24_eventbus"),
+    ("shared", "40_shared"),
+    ("db", "41_db"),
+]
+
+
+def _docs_tree(tmp_path: Path, subfolder: str, lines: list[str]) -> Path:
+    folder = tmp_path / "docs" / subfolder
+    folder.mkdir(parents=True)
+    (folder / "doc.md").write_text("\n".join(lines) + "\n", encoding="utf-8")
+    return tmp_path / "docs"
+
+
+@pytest.mark.parametrize(("domain", "subfolder"), _NEW_DOMAINS)
+def test_new_domain_valid_reference_is_clean(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], domain: str, subfolder: str
+) -> None:
+    docs = _docs_tree(tmp_path, subfolder, ["See `scripts/eventbus/schema.py`."])
+    assert cdc.main(["--domain", domain, "--docs-dir", str(docs)]) == 0
+    assert "No issues found." in capsys.readouterr().out
+
+
+@pytest.mark.parametrize(("domain", "subfolder"), _NEW_DOMAINS)
+def test_new_domain_stale_reference_is_a_warning(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str], domain: str, subfolder: str
+) -> None:
+    docs = _docs_tree(
+        tmp_path, subfolder, ["See `scripts/eventbus/no_such_module.py`."]
+    )
+    assert cdc.main(["--domain", domain, "--docs-dir", str(docs)]) == 0
+    out = capsys.readouterr().out
+    assert "[WARNING]" in out
+    assert "scripts/eventbus/no_such_module.py" in out
+
+
+def test_domain_tables_have_identical_keys_and_existing_folders() -> None:
+    keys = set(cdc.DOMAIN_PREFIXES)
+    assert keys == set(cdc.DOMAIN_SUBFOLDERS) == set(cdc.DOMAIN_GENERIC_CHECKS)
+    for _domain, subfolder in _NEW_DOMAINS:
+        assert (cdc.REPO_ROOT / "docs" / subfolder).is_dir()
