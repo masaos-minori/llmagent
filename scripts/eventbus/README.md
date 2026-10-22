@@ -7,7 +7,7 @@ Layered SQLite-based event bus for managing event persistence, delivery, and dea
 The module follows a layered architecture:
 
 1. **Connection layer** (`db_conn.py`): SQLite connection lifecycle, locking, pragma application
-2. **Schema layer** (`schema.py`): Schema definition, migration logic
+2. **Schema layer** (`schema.py`): Schema definition and creation
 3. **Event repository** (`event_repo.py`): All event read/write operations
 4. **Delivery repository** (`delivery_repo.py`): Ack/nack semantics and per-consumer delivery state
 5. **DLQ repository** (`dlq_repo.py`): Dead-letter queue operations

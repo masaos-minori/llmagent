@@ -79,9 +79,9 @@ Line 10 reads "Schema definition and creation", `rg -i "migration logic" scripts
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the README schema-layer line to "Schema definition and creation" | Pending | — | — | |
-| 3 | Run the validation sequence (manual review / `rg`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Reword the README schema-layer line to "Schema definition and creation" | Completed | 2026-10-22 | 2026-10-22 | |
+| 3 | Run the validation sequence (manual review / `rg`) | Completed | 2026-10-22 | 2026-10-22 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-22 | 2026-10-22 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

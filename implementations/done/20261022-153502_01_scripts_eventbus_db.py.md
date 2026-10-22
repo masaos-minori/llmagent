@@ -81,9 +81,9 @@ Line 1 lists only the connection, event, delivery, and DLQ layers, `rg -i "offse
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove "offset migration" from the `db.py` first-line docstring | Pending | — | — | |
-| 3 | Run the validation sequence (`check_docstrings.py`, `ruff`, `mypy`, EventBus tests) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove "offset migration" from the `db.py` first-line docstring | Completed | 2026-10-22 | 2026-10-22 | |
+| 3 | Run the validation sequence (`check_docstrings.py`, `ruff`, `mypy`, EventBus tests) | Completed | 2026-10-22 | 2026-10-22 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-22 | 2026-10-22 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
