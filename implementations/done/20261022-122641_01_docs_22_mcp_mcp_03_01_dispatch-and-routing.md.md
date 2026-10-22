@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the stale anchor in the link at line 107 (Implementation > Procedure step 1) | Pending | — | — | |
-| 2 | Run the MCP domain consistency check and the docs checkers (Validation plan) | Pending | — | — | |
+| 1 | Replace the stale anchor in the link at line 107 (Implementation > Procedure step 1) | Completed | 20261022-124913 | 20261022-124913 |  |
+| 2 | Run the MCP domain consistency check and the docs checkers (Validation plan) | Completed | 20261022-124913 | 20261022-124913 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

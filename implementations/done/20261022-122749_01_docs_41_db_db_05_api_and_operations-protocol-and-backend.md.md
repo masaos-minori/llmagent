@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the field-set sentence at line 22 (Implementation > Procedure step 1) | Pending | — | — | |
-| 2 | Run the `db` domain consistency check and the docs checkers (Validation plan) | Pending | — | — | |
+| 1 | Reword the field-set sentence at line 22 (Implementation > Procedure step 1) | Completed | 20261022-125044 | 20261022-125044 |  |
+| 2 | Run the `db` domain consistency check and the docs checkers (Validation plan) | Completed | 20261022-125044 | 20261022-125044 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

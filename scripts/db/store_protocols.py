@@ -128,7 +128,8 @@ class DocumentStore(Protocol):
             The rowid of the newly inserted chunk row.
 
         Note:
-            Field set matches RagIngester._insert_chunk() INSERT in rag/ingester.py.
+            Field set matches the chunk INSERT of the RAG ingestion transaction
+            commit (rag/ingestion/transaction_commit.py); keep the two in sync.
         """
         ...
 

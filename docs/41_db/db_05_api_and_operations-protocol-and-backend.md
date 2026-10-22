@@ -19,7 +19,7 @@ related:
 
 All protocols are `@runtime_checkable`. The embedding helpers (`get_embedding_dims`, `get_embedding_bytes`, `validate_embedding_blob`) are exported from `db.store`; the dimension is a fixed code-level constant (`scripts/db/store_protocols.py::QWEN3_EMBEDDING_DIMS`), not config-driven, and `validate_embedding_blob()` rejects non-bytes (`TypeError`) and wrong-size (`ValueError`) blobs.
 
-`VectorStore` covers vector insert, KNN search (returning `(chunk_id, distance)` pairs), delete (no-op if absent) and count. `DocumentStore` covers document upsert/get/list/delete and chunk insert/count; deleting a document cascades to its chunks. The `chunk_insert` field set intentionally matches `RagIngester._insert_chunk()` in `scripts/rag/ingestion/ingester.py`, so callers must verify consistency with the ingester when adding or modifying chunk fields. `SQLiteDocumentStore` raises `RuntimeError` if the generated row ID cannot be obtained (a defensive check that is normally unreachable). Method signatures: `db/store_protocols.py`.
+`VectorStore` covers vector insert, KNN search (returning `(chunk_id, distance)` pairs), delete (no-op if absent) and count. `DocumentStore` covers document upsert/get/list/delete and chunk insert/count; deleting a document cascades to its chunks. The `chunk_insert` field set intentionally matches the chunk INSERT of the RAG ingestion transaction commit (`scripts/rag/ingestion/transaction_commit.py`), so callers must keep the two in sync when adding or modifying chunk fields. `SQLiteDocumentStore` raises `RuntimeError` if the generated row ID cannot be obtained (a defensive check that is normally unreachable). Method signatures: `db/store_protocols.py`.
 
 ---
 

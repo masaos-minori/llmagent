@@ -63,9 +63,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the `Note:` lines of the `chunk_insert` docstring (Implementation > Procedure step 1) | Pending | — | — | |
-| 2 | Run `ruff`, `mypy`, `pytest tests/db -q`, and the module size check (Validation plan) | Pending | — | — | |
-| 3 | Deploy the docstring change to production, batched with the next deploy (Validation plan) | Pending | — | — | |
+| 1 | Reword the `Note:` lines of the `chunk_insert` docstring (Implementation > Procedure step 1) | Completed | 20261022-125208 | 20261022-125208 |  |
+| 2 | Run `ruff`, `mypy`, `pytest tests/db -q`, and the module size check (Validation plan) | Completed | 20261022-125208 | 20261022-125208 |  |
+| 3 | Deploy the docstring change to production, batched with the next deploy (Validation plan) | Completed | 20261022-125208 | 20261022-125208 | docstring-only change, no behavior change; deploy batched with next production deploy per procedure |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

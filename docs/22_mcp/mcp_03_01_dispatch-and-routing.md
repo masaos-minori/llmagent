@@ -104,7 +104,7 @@ There is a single data source for scheduling metadata today: a tool's `/v1/tools
 
 Resolves `tool_name → server_key` using `RuntimeToolRegistry`. See [ADR-003](../10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md) for rationale and invariants.
 
-Tool names are grouped by owning server in the static frozensets of `shared/tool_constants.py`; these groups seed drift detection and operation-type classification, not routing. A tool name that `RuntimeToolRegistry` cannot resolve raises `ValueError`. For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_07_mcp-failure-diagnosis.md#llm-called-a-tool-but-execution-failed-with-unknown-tool).
+Tool names are grouped by owning server in the static frozensets of `shared/tool_constants.py`; these groups seed drift detection and operation-type classification, not routing. A tool name that `RuntimeToolRegistry` cannot resolve raises `ValueError`. For diagnosis guidance, see [MCP Failure Diagnosis](mcp_06_07_mcp-failure-diagnosis.md#llm-sees-a-tool-but-execution-fails-with-unknown-tool).
 
 **Not to be confused with `ToolExecutor.server_configs`:** `ToolRouteResolver` has no `server_configs` parameter (see [Agent Reference API](../23_agent/agent_12_reference-api.md) for its parameters). `ToolExecutor.server_configs` (`shared/tool_executor.py`) is a separate, current, active configuration: a `dict[str, McpServerConfig]` used for MCP server transport and startup-mode checks (`self._server_configs.get(server_key)`), unrelated to tool-name routing.
 
