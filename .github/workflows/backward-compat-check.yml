@@ -7,12 +7,14 @@ on:
       - "docs/**/*.md"
       - "tests/**/*.py"
       - "tools/check_compat_shims.py"
+      - "tools/compat_exceptions.toml"
   pull_request:
     paths:
       - "scripts/**/*.py"
       - "docs/**/*.md"
       - "tests/**/*.py"
       - "tools/check_compat_shims.py"
+      - "tools/compat_exceptions.toml"
 
 # Cancel in-progress runs for the same workflow + branch
 concurrency:
@@ -35,3 +37,9 @@ jobs:
         run: |
           set -euo pipefail
           python tools/check_compat_shims.py --check-removed-names
+
+      - name: Report stale doc symbol references
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          python tools/check_compat_shims.py --check-doc-symbols

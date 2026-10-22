@@ -1,0 +1,223 @@
+# tools/compat_exceptions.toml
+#
+# Manifest-backed replacement for the former static DEFAULT_ALLOWLIST set that
+# lived inside tools/check_compat_shims.py. Each [[compatibility_exceptions]]
+# entry is a per-file exemption carrying an owner, a review-by expiry, a removal
+# condition, and a category so CI can fail on an expired or incomplete exception
+# instead of silently tolerating a stale path. tools/check_compat_shims.py's
+# load_exceptions() reads this file and validate_exceptions() enforces the
+# schema. Location follows the tools/*_baseline.txt precedent (tool data under
+# tools/ is not deployed).
+#
+# Paths are repo-relative and resolved against the repository root by the loader.
+version = "1"
+
+# --- Migrated compatibility-exception entries -------------------------------
+# These 20 paths are exactly the DEFAULT_ALLOWLIST entries that still produce a
+# finding under check_all(..., allowlist=set(), include_removed_names=True).
+# The 4 that do not (docs/22_mcp/mcp_03_06_tool-runtime-availability-metadata.md,
+# tests/shared/test_rag_tools_consistency.py, tests/shared/test_route_resolver.py
+# produce no finding; tests/agent/test_startup_routing_drift.py was deleted) are
+# intentionally omitted.
+
+[[compatibility_exceptions]]
+id = "mcp-00-document-guide"
+path = "docs/22_mcp/mcp_00_document-guide.md"
+reason = "Guide that names the _MCP_TOOLS to TOOL_LIST naming-convention document"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this guide no longer names the _MCP_TOOLS / TOOL_LIST naming convention."
+category = "migration"
+
+[[compatibility_exceptions]]
+id = "mcp-07-tool-schema-export-policy"
+path = "docs/22_mcp/mcp_07_tool_schema_export_policy.md"
+reason = "Doc that documents the _MCP_TOOLS -> TOOL_LIST migration policy"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this policy doc no longer references the _MCP_TOOLS -> TOOL_LIST migration."
+category = "migration"
+
+[[compatibility_exceptions]]
+id = "db-03-migration-and-scaling"
+path = "docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md"
+reason = "Doc (split from the former 90_shared_04_db_architecture_and_schema.md) documenting the deleted workflow_schema.py entry point"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this doc no longer documents the deleted workflow_schema.py entry point."
+category = "migration"
+
+[[compatibility_exceptions]]
+id = "tool-registry-reset-helper"
+path = "scripts/shared/tool_registry.py"
+reason = "Definition site of test-only reset helper (not a misuse)"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when scripts/shared/tool_registry.py no longer defines the test-only reset helper."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "cmd-registry-note-removal-test"
+path = "tests/agent/commands/test_cmd_registry_note_removal.py"
+reason = "Tests intentionally referencing removed commands"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer references the removed commands."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "removed-commands-test"
+path = "tests/agent/commands/test_removed_commands.py"
+reason = "Tests intentionally referencing removed commands"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer references the removed commands."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "mcp-tool-discovery-test"
+path = "tests/agent/services/test_mcp_tool_discovery.py"
+reason = "Test files using the test-only _reset_registry_for_testing helper as intended (not production misuse)"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer uses the test-only _reset_registry_for_testing helper."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "startup-validation-pipeline-test"
+path = "tests/agent/shared/test_startup_validation_pipeline.py"
+reason = "Test files using the test-only _reset_registry_for_testing helper as intended"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer uses the test-only _reset_registry_for_testing helper."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "rag-get-cfg-test"
+path = "tests/agent/test_rag_get_cfg.py"
+reason = "Test file intentionally referencing the removed re-export stub"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer references the removed re-export stub."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "startup-mcp-starter-test"
+path = "tests/agent/test_startup_mcp_starter.py"
+reason = "Test files using the test-only _reset_registry_for_testing helper as intended"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer uses the test-only _reset_registry_for_testing helper."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "conftest-reset-helper"
+path = "tests/conftest.py"
+reason = "Test files using the test-only _reset_registry_for_testing helper as intended (not production misuse)"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when tests/conftest.py no longer defines or uses the test-only reset helper."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "create-schema-absence-test"
+path = "tests/db/test_create_schema.py"
+reason = "Test files with assertions about absence of removed compatibility patterns"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer asserts the absence of removed compatibility patterns."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "mcp-rag-pipeline-test"
+path = "tests/mcp_servers/rag_pipeline/test_mcp_rag_pipeline.py"
+reason = "Test files with assertions about absence of removed compatibility patterns"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer asserts the absence of removed compatibility patterns."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "rag-pipeline-mcp-service-test"
+path = "tests/mcp_servers/rag_pipeline/test_rag_pipeline_mcp_service.py"
+reason = "Test files with assertions about absence of removed compatibility patterns"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer asserts the absence of removed compatibility patterns."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "mcp-tool-schema-exports-test"
+path = "tests/mcp_servers/test_mcp_tool_schema_exports.py"
+reason = "Test file that verifies _MCP_TOOLS is absent (contains the pattern as a check target)"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer verifies that _MCP_TOOLS is absent."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "tool-registry-test"
+path = "tests/shared/test_tool_registry.py"
+reason = "Test files using the test-only _reset_registry_for_testing helper as intended (not production misuse)"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer uses the test-only _reset_registry_for_testing helper."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "tool-registry-counts-test"
+path = "tests/shared/test_tool_registry_counts.py"
+reason = "Test files using the test-only _reset_registry_for_testing helper as intended"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer uses the test-only _reset_registry_for_testing helper."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "tool-registry-reset-protection-test"
+path = "tests/shared/test_tool_registry_reset_protection.py"
+reason = "CI guard test that references the helper name as a string to assert its absence from production code"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this CI guard test no longer references the helper name to assert its absence."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "check-compat-shims-test-data"
+path = "tests/tools/test_check_compat_shims.py"
+reason = "plan 56 patterns — test file that checks the checker itself (contains patterns as test data)"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when this test no longer contains compat patterns as test data."
+category = "fixture"
+
+[[compatibility_exceptions]]
+id = "check-compat-shims-source"
+path = "tools/check_compat_shims.py"
+reason = "The checker itself (self-reference for new location)"
+owner = "Repository owner"
+expires = "2027-04-22"
+removal_condition = "Remove when the checker no longer self-references for its new manifest-backed location."
+category = "compatibility"
+
+# --- Symbol-stage allowance -------------------------------------------------
+# The report-only --check-doc-symbols stage compares backtick-quoted `func()`
+# references in docs/ against definitions under scripts/. Names below are
+# referenced in docs but defined outside scripts/ (standard library,
+# third-party libraries, or conceptual helpers), so they must not fail the
+# stage. tools/check_compat_shims.py's check_doc_symbols() drops these plus any
+# name defined under tools/ before reporting.
+[symbol_stage_allowance]
+reason = "Names referenced in docs/ but defined outside scripts/ (stdlib, third-party libraries, or conceptual helpers); allowed through the report-only --check-doc-symbols stage."
+names = [
+  "check_port_drift",
+  "check_port_range_claim",
+  "copy2",
+  "isinstance",
+  "load_vec",
+  "name",
+  "read_offset",
+  "retry_once_with_delay",
+  "to_thread",
+  "write_offset",
+]

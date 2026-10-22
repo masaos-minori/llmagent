@@ -17,8 +17,11 @@ from tools.check_compat_shims import (
     check_adr_prohibited_patterns,
     check_all,
     check_compat_patterns,
+    check_doc_symbols,
     check_removed_name_reintroduction,
+    load_exceptions,
     main,
+    validate_exceptions,
 )
 
 
@@ -482,3 +485,196 @@ class TestCheckAllRemovedNamesGating:
             doc.read_text(), doc, allowlist=set(), include_removed_names=True
         )
         assert len(issues) == 1
+
+
+class TestManifestValidation:
+    """validate_exceptions() enforces the manifest schema (REQ-002): required
+    fields, a known category, a parseable non-past expires date, and unique ids.
+    Each defect prints to stderr and raises SystemExit(1) naming the id."""
+
+    def _entry(self, **overrides: str) -> str:
+        fields = {
+            "id": "test-id",
+            "path": "tests/agent/test_x.py",
+            "reason": "because",
+            "owner": "Repository owner",
+            "expires": "2027-01-01",
+            "removal_condition": "when done",
+            "category": "fixture",
+        }
+        fields.update(overrides)
+        body = "[[compatibility_exceptions]]\n"
+        for key, value in fields.items():
+            body += f'{key} = "{value}"\n'
+        return body
+
+    def _write(self, tmp_path: Path, body: str) -> Path:
+        path = tmp_path / "compat_exceptions.toml"
+        path.write_text(body)
+        return path
+
+    def test_valid_manifest_passes(self, tmp_path: Path) -> None:
+        path = self._write(tmp_path, self._entry())
+        entries, _, _ = load_exceptions(path)
+        validate_exceptions(entries)  # must not raise
+
+    def test_missing_field_fails_naming_id(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        path = self._write(
+            tmp_path,
+            self._entry(reason=""),  # drop reason via empty string
+        )
+        # _entry builds `reason = ""`; load then validate.
+        entries, _, _ = load_exceptions(path)
+        with pytest.raises(SystemExit) as exc:
+            validate_exceptions(entries)
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "test-id" in err
+        assert "reason" in err
+
+    def test_unknown_category_fails_naming_id(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        path = self._write(tmp_path, self._entry(category="bogus"))
+        entries, _, _ = load_exceptions(path)
+        with pytest.raises(SystemExit) as exc:
+            validate_exceptions(entries)
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "test-id" in err
+        assert "bogus" in err
+
+    def test_unparseable_date_fails_naming_id(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        path = self._write(tmp_path, self._entry(expires="not-a-date"))
+        entries, _, _ = load_exceptions(path)
+        with pytest.raises(SystemExit) as exc:
+            validate_exceptions(entries)
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "test-id" in err
+
+    def test_expired_date_fails_naming_id(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        path = self._write(tmp_path, self._entry(expires="2000-01-01"))
+        entries, _, _ = load_exceptions(path)
+        with pytest.raises(SystemExit) as exc:
+            validate_exceptions(entries)
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "test-id" in err
+
+    def test_duplicate_id_fails_naming_id(
+        self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        body = self._entry(id="dup") + "\n" + self._entry(id="dup")
+        path = self._write(tmp_path, body)
+        entries, _, _ = load_exceptions(path)
+        with pytest.raises(SystemExit) as exc:
+            validate_exceptions(entries)
+        assert exc.value.code == 1
+        err = capsys.readouterr().err
+        assert "dup" in err
+
+
+class TestManifestParity:
+    """The live manifest holds exactly the 20 paths that still produce findings
+    under check_all(..., allowlist=set(), include_removed_names=True)."""
+
+    def test_loaded_paths_match_needed_paths(self) -> None:
+        _, allowlist, _ = load_exceptions(ROOT_DIR / "tools" / "compat_exceptions.toml")
+        expected = {
+            ROOT_DIR / "docs/22_mcp/mcp_00_document-guide.md",
+            ROOT_DIR / "docs/22_mcp/mcp_07_tool_schema_export_policy.md",
+            ROOT_DIR
+            / "docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md",
+            ROOT_DIR / "scripts/shared/tool_registry.py",
+            ROOT_DIR / "tests/agent/commands/test_cmd_registry_note_removal.py",
+            ROOT_DIR / "tests/agent/commands/test_removed_commands.py",
+            ROOT_DIR / "tests/agent/services/test_mcp_tool_discovery.py",
+            ROOT_DIR / "tests/agent/shared/test_startup_validation_pipeline.py",
+            ROOT_DIR / "tests/agent/test_rag_get_cfg.py",
+            ROOT_DIR / "tests/agent/test_startup_mcp_starter.py",
+            ROOT_DIR / "tests/conftest.py",
+            ROOT_DIR / "tests/db/test_create_schema.py",
+            ROOT_DIR / "tests/mcp_servers/rag_pipeline/test_mcp_rag_pipeline.py",
+            ROOT_DIR
+            / "tests/mcp_servers/rag_pipeline/test_rag_pipeline_mcp_service.py",
+            ROOT_DIR / "tests/mcp_servers/test_mcp_tool_schema_exports.py",
+            ROOT_DIR / "tests/shared/test_tool_registry.py",
+            ROOT_DIR / "tests/shared/test_tool_registry_counts.py",
+            ROOT_DIR / "tests/shared/test_tool_registry_reset_protection.py",
+            ROOT_DIR / "tests/tools/test_check_compat_shims.py",
+            ROOT_DIR / "tools/check_compat_shims.py",
+        }
+        assert allowlist == expected
+        assert len(expected) == 20
+        assert all(p.exists() for p in allowlist)
+
+
+class TestDocSymbolStage:
+    """check_doc_symbols() is report-only: it drops names defined under tools/
+    and manifest allowances, reports genuine stale references, and skips
+    historical-context lines. The live corpus is clean once allowances apply.
+
+    NOTE: check_function_references() bails out when repo_root has no scripts/
+    directory (extract_defined_function_names() returns an empty index), so every
+    temp-repo test below creates an empty scripts/ first.
+    """
+
+    def _docs_dir(self, tmp_path: Path) -> Path:
+        docs = tmp_path / "docs"
+        docs.mkdir()
+        return docs
+
+    def _ensure_repo(self, tmp_path: Path) -> None:
+        (tmp_path / "scripts").mkdir(exist_ok=True)
+
+    def test_live_manifest_is_clean(self) -> None:
+        _, _, allowances = load_exceptions(
+            ROOT_DIR / "tools" / "compat_exceptions.toml"
+        )
+        assert check_doc_symbols(ROOT_DIR, ROOT_DIR / "docs", allowances) == []
+
+    def test_stale_reference_reported(self, tmp_path: Path) -> None:
+        self._ensure_repo(tmp_path)
+        docs = self._docs_dir(tmp_path)
+        (docs / "example.md").write_text("Call `nonexistent_symbol()` to proceed.\n")
+        issues = check_doc_symbols(tmp_path, docs, frozenset())
+        assert len(issues) == 1
+        assert "nonexistent_symbol" in issues[0].message
+
+    def test_scripts_defined_function_not_reported(self, tmp_path: Path) -> None:
+        self._ensure_repo(tmp_path)
+        docs = self._docs_dir(tmp_path)
+        (docs / "example.md").write_text("Call `existing_script_func()`.\n")
+        scripts = tmp_path / "scripts"
+        (scripts / "mod.py").write_text("def existing_script_func():\n    pass\n")
+        assert check_doc_symbols(tmp_path, docs, frozenset()) == []
+
+    def test_historical_context_line_not_reported(self, tmp_path: Path) -> None:
+        self._ensure_repo(tmp_path)
+        docs = self._docs_dir(tmp_path)
+        (docs / "example.md").write_text(
+            "**Status**: resolved\n\n`old_func()` was removed.\n"
+        )
+        assert check_doc_symbols(tmp_path, docs, frozenset()) == []
+
+    def test_allowance_not_reported(self, tmp_path: Path) -> None:
+        self._ensure_repo(tmp_path)
+        docs = self._docs_dir(tmp_path)
+        (docs / "example.md").write_text("Call `allowed_name()`.\n")
+        assert check_doc_symbols(tmp_path, docs, frozenset({"allowed_name"})) == []
+
+    def test_tools_defined_function_not_reported(self, tmp_path: Path) -> None:
+        self._ensure_repo(tmp_path)
+        docs = self._docs_dir(tmp_path)
+        (docs / "example.md").write_text("Call `tool_local_func()`.\n")
+        tools_dir = tmp_path / "tools"
+        tools_dir.mkdir()
+        (tools_dir / "helper.py").write_text("def tool_local_func():\n    pass\n")
+        assert check_doc_symbols(tmp_path, docs, frozenset()) == []

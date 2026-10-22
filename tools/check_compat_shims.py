@@ -16,9 +16,23 @@ from __future__ import annotations
 import argparse
 import re
 import sys
+import tomllib
+from datetime import date
 from pathlib import Path
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from tools._docs_consistency_lib import Issue
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
+
+# Allow running as a bare script (`python tools/check_compat_shims.py`) in
+# addition to `python -m tools.check_compat_shims`: make the repo root
+# importable so the `from tools._docs_consistency_lib import ...` in
+# check_doc_symbols() resolves when the script's own directory (not the repo
+# root) is sys.path[0].
+if str(ROOT_DIR) not in sys.path:
+    sys.path.insert(0, str(ROOT_DIR))
 
 # Patterns that should not appear in active source code or docs
 COMPAT_PATTERNS = {
@@ -114,55 +128,153 @@ ADR_PROHIBITED_PATTERNS: dict[str, tuple[str, str]] = {
     ),
 }
 
-# Allowlist: files that are permitted to contain these patterns (archive/migration notes only)
-DEFAULT_ALLOWLIST = {
-    # Test file intentionally referencing the removed re-export stub
-    ROOT_DIR / "tests" / "agent" / "test_rag_get_cfg.py",
-    # Test files with assertions about absence of removed compatibility patterns
-    ROOT_DIR / "tests" / "shared" / "test_route_resolver.py",
-    ROOT_DIR / "tests" / "mcp_servers" / "rag_pipeline" / "test_mcp_rag_pipeline.py",
-    ROOT_DIR
-    / "tests"
-    / "mcp_servers"
-    / "rag_pipeline"
-    / "test_rag_pipeline_mcp_service.py",
-    # Test file with description mentioning static fallback as a concept
-    ROOT_DIR / "tests" / "shared" / "test_rag_tools_consistency.py",
-    # Tests intentionally referencing removed commands
-    ROOT_DIR / "tests" / "agent" / "commands" / "test_cmd_registry_note_removal.py",
-    ROOT_DIR / "tests" / "agent" / "commands" / "test_removed_commands.py",
-    ROOT_DIR / "tests" / "db" / "test_create_schema.py",
-    # Guide that names the _MCP_TOOLS to TOOL_LIST naming-convention document
-    ROOT_DIR / "docs" / "22_mcp" / "mcp_00_document-guide.md",
-    # Doc (split from the former 90_shared_04_db_architecture_and_schema.md) documenting the deleted workflow_schema.py entry point
-    ROOT_DIR
-    / "docs"
-    / "41_db"
-    / "db_03_architecture_and_schema-migration-and-scaling.md",
-    # Doc explicitly stating the absence of a compatibility shim (negation, not a leftover)
-    ROOT_DIR / "docs" / "22_mcp" / "mcp_03_06_tool-runtime-availability-metadata.md",
-    # Test files using the test-only _reset_registry_for_testing helper as intended (not production misuse)
-    ROOT_DIR / "tests" / "conftest.py",
-    ROOT_DIR / "tests" / "agent" / "services" / "test_mcp_tool_discovery.py",
-    ROOT_DIR / "tests" / "agent" / "test_startup_routing_drift.py",
-    ROOT_DIR / "tests" / "shared" / "test_tool_registry.py",
-    ROOT_DIR / "tests" / "shared" / "test_tool_registry_counts.py",
-    # CI guard test that references the helper name as a string to assert its absence from production code
-    ROOT_DIR / "tests" / "shared" / "test_tool_registry_reset_protection.py",
-    # Test files using the test-only _reset_registry_for_testing helper as intended
-    ROOT_DIR / "tests" / "agent" / "shared" / "test_startup_validation_pipeline.py",
-    ROOT_DIR / "tests" / "agent" / "test_startup_mcp_starter.py",
-    # plan 56 patterns — test file that checks the checker itself (contains patterns as test data)
-    ROOT_DIR / "tests" / "tools" / "test_check_compat_shims.py",
-    # The checker itself (self-reference for new location)
-    ROOT_DIR / "tools" / "check_compat_shims.py",
-    # Test file that verifies _MCP_TOOLS is absent (contains the pattern as a check target)
-    ROOT_DIR / "tests" / "mcp_servers" / "test_mcp_tool_schema_exports.py",
-    # Doc that documents the _MCP_TOOLS → TOOL_LIST migration policy
-    ROOT_DIR / "docs" / "22_mcp" / "mcp_07_tool_schema_export_policy.md",
-    # Definition site of test-only reset helper (not a misuse)
-    ROOT_DIR / "scripts" / "shared" / "tool_registry.py",
-}
+# ---------------------------------------------------------------------------
+# Compatibility-exceptions manifest (replaces the former static DEFAULT_ALLOWLIST)
+# ---------------------------------------------------------------------------
+#
+# The allowlist is now a data file (`tools/compat_exceptions.toml`) rather than
+# an inline set: each entry carries an `id`, `owner`, `expires` review-by date,
+# `removal_condition`, and `category` so CI can fail on an expired or incomplete
+# exception instead of silently tolerating a stale path. `load_exceptions` reads
+# it and `validate_exceptions` enforces the schema; both are exercised by
+# tests/tools/test_check_compat_shims.py.
+
+_VALID_CATEGORIES: frozenset[str] = frozenset(
+    {"compatibility", "migration", "fallback", "fixture"}
+)
+_REQUIRED_FIELDS: tuple[str, ...] = (
+    "id",
+    "path",
+    "reason",
+    "owner",
+    "expires",
+    "removal_condition",
+    "category",
+)
+
+
+def load_exceptions(
+    manifest_path: Path,
+) -> tuple[list[dict[str, str]], set[Path], frozenset[str]]:
+    """Load the compatibility-exceptions manifest and resolve its paths.
+
+    Returns ``(entries, allowlist, symbol_allowances)``: *entries* is the raw
+    list of ``[[compatibility_exceptions]]`` tables (each a ``str``->``str``
+    dict), *allowlist* is those entries' ``path`` values resolved against
+    ``ROOT_DIR`` (so it matches the absolute paths ``main()`` scans, mirroring
+    the old ``DEFAULT_ALLOWLIST``), and *symbol_allowances* is the set of names
+    the report-only ``--check-doc-symbols`` stage must not flag. A missing
+    ``path`` on an entry is tolerated here (it is reported by
+    ``validate_exceptions``) so validation, not parsing, owns the error message.
+    """
+    data = tomllib.load(manifest_path.open("rb"))
+    entries: list[dict[str, str]] = list(data.get("compatibility_exceptions", []))
+    allowlist = {
+        ROOT_DIR / e["path"] for e in entries if isinstance(e, dict) and e.get("path")
+    }
+    allowance_table = data.get("symbol_stage_allowance", {})
+    symbol_allowances = frozenset(allowance_table.get("names", []))
+    return entries, allowlist, symbol_allowances
+
+
+def validate_exceptions(entries: list[dict[str, str]]) -> None:
+    """Validate manifest entries; raise ``SystemExit(1)`` naming the first bad id.
+
+    Enforces, per entry: all required fields present, a known ``category``, a
+    parseable non-past ``expires`` ISO date, and a unique ``id``. Each defect is
+    printed to stderr before raising, so CI reports exactly which id is at fault
+    (REQ-002).
+    """
+    today = date.today()
+    seen_ids: set[str] = set()
+    for entry in entries:
+        ident = entry.get("id", "<no id>")
+        missing = [field for field in _REQUIRED_FIELDS if not entry.get(field)]
+        if missing:
+            print(
+                f"invalid compatibility exception {ident!r}: missing fields {missing}",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        category = entry["category"]
+        if category not in _VALID_CATEGORIES:
+            print(
+                f"invalid compatibility exception {ident!r}: unknown category "
+                f"{category!r} (expected one of {sorted(_VALID_CATEGORIES)})",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        try:
+            expires = date.fromisoformat(entry["expires"])
+        except ValueError:
+            print(
+                f"invalid compatibility exception {ident!r}: unparseable expires "
+                f"{entry['expires']!r} (expected an ISO date)",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if expires < today:
+            print(
+                f"invalid compatibility exception {ident!r}: expires "
+                f"{expires.isoformat()} is in the past",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        if ident in seen_ids:
+            print(
+                f"invalid compatibility exception {ident!r}: duplicate id",
+                file=sys.stderr,
+            )
+            sys.exit(1)
+        seen_ids.add(ident)
+
+
+# Names defined under tools/ that `check_function_references` never scans (that
+# helper covers scripts/ only), so the symbol stage must drop them itself.
+_TOOL_DEF_RE = re.compile(
+    r"^\s*(?:async\s+)?def\s+([a-zA-Z_][a-zA-Z0-9_]*)\s*\(", re.MULTILINE
+)
+_TOOL_CLASS_RE = re.compile(r"^\s*class\s+([a-zA-Z_][a-zA-Z0-9_]*)", re.MULTILINE)
+# Matches the backticked `name()` token embedded in a library Issue message so
+# the post-filter can key off the referenced symbol.
+_MESSAGE_NAME_RE = re.compile(r"`([a-zA-Z_]\w*)\(\)`")
+
+
+def check_doc_symbols(
+    repo_root: Path,
+    docs_dir: Path,
+    symbol_allowances: frozenset[str],
+) -> list[Issue]:
+    """Report-only: warn about `func()` refs in docs with no def under scripts/.
+
+    Reuses `tools/_docs_consistency_lib.check_function_references`, then drops
+    (a) names defined under tools/ (never scanned by that helper) and (b) the
+    manifest's symbol-stage allowances. Returns the remaining WARNING Issues;
+    the caller prints them and never touches the exit code.
+    """
+    from tools._docs_consistency_lib import (
+        check_function_references,
+        discover_md_files,
+    )
+
+    defined_under_tools: set[str] = set()
+    tools_dir = repo_root / "tools"
+    if tools_dir.is_dir():
+        for py_file in tools_dir.rglob("*.py"):
+            text = py_file.read_text(encoding="utf-8")
+            defined_under_tools.update(_TOOL_DEF_RE.findall(text))
+            defined_under_tools.update(_TOOL_CLASS_RE.findall(text))
+
+    not_flagged = defined_under_tools | set(symbol_allowances)
+    issues = check_function_references(
+        docs_dir, discover_md_files(docs_dir, prefix=""), repo_root
+    )
+    return [
+        issue
+        for issue in issues
+        if (match := _MESSAGE_NAME_RE.search(issue.message)) is None
+        or match.group(1) not in not_flagged
+    ]
 
 
 # ---------------------------------------------------------------------------
@@ -457,6 +569,15 @@ def main() -> int:
         ),
     )
     parser.add_argument(
+        "--check-doc-symbols",
+        action="store_true",
+        help=(
+            "Report-only: warn about backtick-quoted function references in "
+            "docs/ with no matching definition under scripts/ (reuses "
+            "check_function_references; never changes the exit code)."
+        ),
+    )
+    parser.add_argument(
         "files",
         nargs="*",
         help="Files to check (default: scripts/, docs/, tests/, tools/)",
@@ -470,8 +591,12 @@ def main() -> int:
             for p in args.allowlist.read_text().splitlines()
             if p.strip()
         }
+        symbol_allowances: frozenset[str] = frozenset()
     else:
-        allowlist = DEFAULT_ALLOWLIST.copy()
+        entries, allowlist, symbol_allowances = load_exceptions(
+            ROOT_DIR / "tools" / "compat_exceptions.toml"
+        )
+        validate_exceptions(entries)  # exits 1 on an expired/incomplete entry
 
     # Determine files to check
     if not args.files:
@@ -497,6 +622,18 @@ def main() -> int:
             else:
                 files.append(p)
         files = sorted(set(files))
+
+    # Report-only symbol stage: never affects the exit code (report-only until
+    # UNK-03 is decided). Print each remaining WARNING and move on.
+    if args.check_doc_symbols:
+        symbol_warnings = check_doc_symbols(
+            ROOT_DIR, ROOT_DIR / "docs", symbol_allowances
+        )
+        for warning in symbol_warnings:
+            print(
+                f"[WARNING] {warning.file}:{warning.line_no}: {warning.message}",
+                file=sys.stderr,
+            )
 
     total_issues = 0
     for filepath in files:
