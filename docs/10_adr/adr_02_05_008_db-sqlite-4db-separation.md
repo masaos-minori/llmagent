@@ -57,7 +57,7 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 - Physical foreign keys, SQL JOINs, and distributed Transactions across DBs are not assumed
 - A persistence failure in Workflow or EventBus is not treated as success with only a log entry
 - operator-restore is currently a manual, operator-initiated CLI operation, not an automatic process at startup
-- `rag.sqlite`, `session.sqlite`, and `eventbus.sqlite` have no migration mechanism and are recreated on a schema change; `workflow.sqlite` applies incremental additive migrations (`db_03` section 8a). Migration design is out of scope for this ADR.
+- `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, and `eventbus.sqlite` have no migration mechanism and are recreated on a schema change. Migration design is out of scope for this ADR.
 
 ## Assumptions
 
@@ -73,7 +73,7 @@ With multiple SQLite files, a recovery mechanism without an explicit safety cont
 ### Recovery Category Glossary
 
 - **initialization**: Creating a fresh, empty database or required schema when no valid database exists (`scripts/db/create_schema.py`; section 11 "DB Recreation Procedure").
-- **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path (`apply_workflow_migrations()` in `docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md` section 8a); distinct from recreate-only paths.
+- **schema-repair**: Correcting a missing or incompatible schema through an approved migration or initialization path; distinct from recreate-only paths.
 - **logical-repair**: Correcting application-level inconsistencies while the SQLite file remains physically valid (`RagMaintenanceService.consistency()` in `scripts/agent/services/rag_maintenance_service.py`).
 - **derived-data-rebuild**: Recreating indexes or other data that can be derived from an authoritative source (`RagMaintenanceService.rebuild_fts()` / `rebuild_vec()` in `scripts/agent/services/rag_maintenance_service.py`; `rag.sqlite`-only per Decision Detail #20).
 - **physical-recovery**: Restoring usability after SQLite file corruption (`DbCondition.CORRUPTION` path in `scripts/db/recovery.py`; DbCondition StrEnum members: HEALTHY/CORRUPTION/LOCK_CONTENTION/PERMISSION_FAILURE/INVALID_FORMAT/UNKNOWN).

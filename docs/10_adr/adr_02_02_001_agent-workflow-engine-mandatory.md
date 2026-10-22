@@ -219,7 +219,7 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 
 - Startup preflight checks for the workflow definition file and the workflow DB schema run before `Orchestrator` construction and abort startup on failure (Explicit in code — `scripts/agent/startup_component_init.py`).
 - `Orchestrator` construction raises when the workflow definition fails to load, so no fallback mode exists; turns are routed only through the `WorkflowEngine` built from that definition (Explicit in code — `scripts/agent/orchestrator.py`; verified by `tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal`).
-- The workflow has no approval stage and `workflow.sqlite` has no `approvals` table. A task is complete only after its `verify` stage runs (Explicit in code — `scripts/db/schema_sql.py` workflow migrations).
+- The workflow has no approval stage and `workflow.sqlite` has no `approvals` table. A task is complete only after its `verify` stage runs (Explicit in code — `scripts/db/schema_sql.py` workflow schema DDL).
 - The `tool_approval` audit event is written only inside a workflow context, which guarantees INV-11's workflow linkage (Explicit in code — `scripts/agent/tool_audit.py`).
 - Invariant IDs are not contiguous: `INV-04`, `INV-09`, and `INV-12` are absent from the list. The present IDs are stable and referenced by the invariant verification matrix in `adr_01_index.md`; do not renumber them.
 
@@ -276,7 +276,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/agent/workflow/state_store.py` — `StateStore.recover_stale_attempts()`
 - `scripts/agent/workflow/idempotency_ops.py` — `begin_stage_if_new()`
 - `scripts/agent/startup_component_init.py` — workflow definition and workflow DB schema preflight checks
-- `scripts/db/schema_sql.py` — workflow migrations
+- `scripts/db/schema_sql.py` — workflow schema DDL
 - `scripts/agent/tool_audit.py` — `audit_approval()`
 - `config/workflows/default.json` — workflow definition file
 - Tests — `tests/agent/workflow/test_workflow_engine.py`, `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py`, `tests/agent/workflow/test_workflow_stage_persistence.py`
