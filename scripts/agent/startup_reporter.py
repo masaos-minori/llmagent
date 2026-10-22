@@ -47,6 +47,17 @@ def _count_by_status(
     return counts
 
 
+def _status_word(counts: OrderedDict[str, int]) -> str:
+    """Return the highest-precedence present status: FATAL > WARNING > SKIPPED > OK."""
+    if counts["FATAL"] > 0:
+        return "FATAL"
+    if counts["WARNING"] > 0:
+        return "WARNING"
+    if counts["SKIPPED"] > 0 and counts["OK"] == 0:
+        return "SKIPPED"
+    return "OK"
+
+
 class ReadinessReporter:
     """Owns pipeline result display and readiness reporting."""
 
@@ -79,13 +90,13 @@ class ReadinessReporter:
         lines: list[str] = []
         lines.append("Readiness Summary:")
         lines.append(
-            f"  Service readiness: {'OK' if mcp_counts['OK'] else 'FAIL'} ({mcp_counts['FATAL']} fatal, {mcp_counts['WARNING']} warnings, {mcp_counts['SKIPPED']} skipped)"
+            f"  Service readiness: {_status_word(mcp_counts)} ({mcp_counts['FATAL']} fatal, {mcp_counts['WARNING']} warnings, {mcp_counts['SKIPPED']} skipped)"
         )
         lines.append(
-            f"  Tool discovery: {'OK' if tool_disc_counts['OK'] else 'FAIL'} ({tool_disc_counts['FATAL']} fatal, {tool_disc_counts['WARNING']} warnings, {tool_disc_counts['SKIPPED']} skipped)"
+            f"  Tool discovery: {_status_word(tool_disc_counts)} ({tool_disc_counts['FATAL']} fatal, {tool_disc_counts['WARNING']} warnings, {tool_disc_counts['SKIPPED']} skipped)"
         )
         lines.append(
-            f"  RAG consistency: {'OK' if rag_counts['OK'] else 'WARN'} ({rag_counts['FATAL']} fatal, {rag_counts['WARNING']} warnings, {rag_counts['SKIPPED']} skipped)"
+            f"  RAG consistency: {_status_word(rag_counts)} ({rag_counts['FATAL']} fatal, {rag_counts['WARNING']} warnings, {rag_counts['SKIPPED']} skipped)"
         )
         # Compute unavailable_servers early; used for both the unreachable count
         # and the detailed excluded-tools list below.

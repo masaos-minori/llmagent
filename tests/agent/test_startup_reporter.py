@@ -97,3 +97,25 @@ def test_report_readiness_rag_line_without_skip_shows_zero_skipped() -> None:
 
     assert line.startswith("  RAG consistency: OK")
     assert "0 skipped" in line
+
+
+def test_report_readiness_rag_line_shows_warning_not_fail() -> None:
+    """REQ-001: a warning-only RAG check reports WARNING, not FAIL."""
+    line = _rag_line(_readiness_message_for_rag(StartupCheckStatus.WARNING))
+
+    assert "WARNING" in line
+    assert "FAIL" not in line
+
+
+def test_report_readiness_rag_line_shows_fatal() -> None:
+    """REQ-002: a RAG check with a FATAL outcome reports FATAL."""
+    line = _rag_line(_readiness_message_for_rag(StartupCheckStatus.FATAL))
+
+    assert "FATAL" in line
+
+
+def test_report_readiness_rag_line_shows_skipped_when_all_skipped() -> None:
+    """REQ-003: a RAG check whose only outcome is SKIPPED reports SKIPPED."""
+    line = _rag_line(_readiness_message_for_rag(StartupCheckStatus.SKIPPED))
+
+    assert line.startswith("  RAG consistency: SKIPPED")
