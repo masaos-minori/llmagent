@@ -172,7 +172,8 @@ DEFAULT_ALLOWLIST = {
 # `plans/20260903-090945_plan.md` (compatterms) REQ-003 designs an asymmetric
 # rule: a name confirmed fully absent from source needs only a simple
 # grep-vs-source-absence check (implemented here); a name that remains in
-# source but is no longer the current production path (e.g. `read_json_file`)
+# source but is no longer the current production path (for example a function
+# that is still defined but superseded)
 # needs a harder, context-aware "is this presented as current?" check that
 # this function does not attempt — see that Plan's Design section for why the
 # two cases are not the same check. Scoped to docs/ only (this checks

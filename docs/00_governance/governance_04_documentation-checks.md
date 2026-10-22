@@ -132,9 +132,7 @@ context. Two cases require different detection strategies:
   `ToolRouteResolver`+`server_configs` co-occurrence, section-scoped) — a simple
   grep-vs-source-absence check suffices. Implemented.
 - **Name that remains in source but is no longer the current production path**
-  (e.g. `read_json_file`, still defined in
-  `scripts/rag/ingestion/pipeline_utils.py` but no longer the current production
-  reader) — requires checking whether a *current-specification* section presents
+  (a function that is still defined in source but whose purpose is now served by another mechanism) — requires checking whether a *current-specification* section presents
   it as production, not merely whether the identifier string appears in `docs/`.
   Not yet implemented (follow-up).
 

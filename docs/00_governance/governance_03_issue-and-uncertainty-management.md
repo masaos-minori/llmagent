@@ -115,6 +115,14 @@ As in Part 1, a resolved or inapplicable item is removed, not kept closed-out.
 - **Medium** — Resolve within sprint
 - **Low** — Nice-to-have
 
+### Blocking Values
+
+- **An NC id** — The Needs Confirmation item that this entry blocks
+- **None** — Assessed; this entry blocks no other item
+- **Empty** — Not yet assessed for blocking
+
+The Part 3 `Blocking` / `Non-blocking` vocabulary does not apply to this field.
+
 ### Extraction Process
 
 Search `docs/` for "Needs confirmation", populate fields from context, add sequential ID, never modify source documents.
@@ -137,8 +145,8 @@ Each active item is listed with all fifteen Inventory Entry Fields above.
 - **Last Reviewed:** 2026-10-22
 - **Priority:** Medium
 - **Related NC:** None
-- **Resolution Target:** Owner decision on the `github` classification recorded (restore); classification table and `config/agent.toml` agree once `required = true` is restored after `MCP_GITHUB_AUTH_TOKEN` is provisioned
-- **Blocking:**
+- **Resolution Target:** Owner decision on the `github` classification recorded (restore); classification table and `config/agent.toml` agree once `required = true` is restored after `MCP_GITHUB_AUTH_TOKEN` is provisioned; tracked as DRIFT-001 in Part 4
+- **Blocking:** None
 
 ## Part 3: Canonical Source Conflict
 
@@ -180,7 +188,12 @@ An item is removed from this active inventory once it is resolved (deployed and 
 
 ### Active Items
 
-No active Configuration Drift items remain.
+- **ID**: DRIFT-001
+- **Decision target**: Component criticality and startup availability of the `github` MCP server
+- **Deployed value description**: `config/agent.toml` configures the `github` server as not required and with startup disabled
+- **Approved operational value description**: `github` is required, per the classification table in `agent_08_04_configuration-mcp-approval-obs.md` and ADR-004 Decision Group 3 item 13; the owner decision is to restore it once `MCP_GITHUB_AUTH_TOKEN` is provisioned (evidence and required action: NC-041)
+- **Severity**: Medium
+- **Status**: open
 
 ## Resolution Rules
 
