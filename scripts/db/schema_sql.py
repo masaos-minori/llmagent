@@ -12,7 +12,6 @@ Functions:
   build_session_schema_sql(dims) — return DDL for session.sqlite with given dimension
   build_workflow_schema_sql() — return DDL for workflow.sqlite (metadata DB)
   build_eventbus_schema_sql() — return DDL for eventbus.sqlite, read from scripts/eventbus/schema.sql
-  apply_workflow_migrations(conn) — apply incremental schema migrations to an existing workflow DB
 """
 
 import logging
@@ -21,7 +20,8 @@ from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-# Bump this constant whenever a new entry is added to _WORKFLOW_MIGRATIONS.
+# Bump this constant whenever the workflow schema changes in a way that requires
+# recreating the database.
 WORKFLOW_SCHEMA_VERSION = "1.1.0"
 
 _RAG_SCHEMA_TEMPLATE: str = """
@@ -83,8 +83,7 @@ _RAG_SCHEMA_TEMPLATE: str = """
     END;
 """
 
-# session.sqlite uses recreate-only DDL (CREATE TABLE IF NOT EXISTS), unlike
-# workflow.sqlite's incremental _WORKFLOW_MIGRATIONS / apply_workflow_migrations.
+# session.sqlite uses recreate-only DDL (CREATE TABLE IF NOT EXISTS).
 # Unlike rag.sqlite, session.sqlite's data (conversation history, semantic/episodic
 # memory) is not trivially re-derivable from an external source. This gap is a
 # known, accepted risk (cross-reference issues/done/20260819-183436_risks.md);
@@ -272,36 +271,6 @@ _EVENTBUS_MIGRATIONS: list[tuple[str, str]] = [
     ),
 ]
 
-_WORKFLOW_MIGRATIONS: list[tuple[str, str]] = [
-    ("2026_add_attempts_error_kind", "ALTER TABLE attempts ADD COLUMN error_kind TEXT"),
-    (
-        "2026_add_attempts_error_detail",
-        "ALTER TABLE attempts ADD COLUMN error_detail TEXT",
-    ),
-    (
-        "2026_add_artifacts_workflow_id",
-        "ALTER TABLE artifacts ADD COLUMN workflow_id TEXT",
-    ),
-    (
-        "2026_add_artifacts_attempt_number",
-        "ALTER TABLE artifacts ADD COLUMN attempt_number INTEGER",
-    ),
-    (
-        "2026_add_processed_events_workflow_id",
-        "ALTER TABLE processed_events ADD COLUMN workflow_id TEXT",
-    ),
-    # The post-execution approval stage was removed: tasks left waiting in it never
-    # reach their verify stage, so they are failed; then the table is dropped.
-    # One statement per entry (conn.execute runs a single statement).
-    (
-        "2026_fail_pending_approval_tasks",
-        "UPDATE tasks SET status='failed',"
-        " updated_at=strftime('%Y-%m-%dT%H:%M:%SZ','now')"
-        " WHERE status='pending_approval'",
-    ),
-    ("2026_drop_approvals", "DROP TABLE IF EXISTS approvals"),
-]
-
 
 def build_workflow_schema_sql() -> str:
     """Return DDL for workflow.sqlite (metadata DB)."""
@@ -332,25 +301,6 @@ def apply_eventbus_migrations(conn: sqlite3.Connection) -> None:
                 logger.debug(
                     "Migration %s skipped, table absent: %s", migration_id, exc
                 )
-            else:
-                raise
-    conn.commit()
-
-
-def apply_workflow_migrations(conn: sqlite3.Connection) -> None:
-    """Apply incremental migrations to an existing workflow.sqlite; idempotent.
-
-    Only swallows OperationalError for duplicate-column scenarios
-    (e.g. ALTER TABLE ... ADD COLUMN when the column already exists);
-    all other OperationalErrors are re-raised so broken migration SQL
-    is never silently ignored.
-    """
-    for migration_id, stmt in _WORKFLOW_MIGRATIONS:
-        try:
-            conn.execute(stmt)
-        except sqlite3.OperationalError as exc:
-            if "duplicate column name" in str(exc):
-                logger.debug("Migration %s already applied: %s", migration_id, exc)
             else:
                 raise
     conn.commit()

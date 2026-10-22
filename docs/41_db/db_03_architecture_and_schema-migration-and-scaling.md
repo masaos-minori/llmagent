@@ -26,8 +26,8 @@ related:
 `create_schema()` (`db/create_schema.py`) initializes all four schemas (rag, session, workflow, eventbus).
 
 - For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
-- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `workflow.sqlite` (section 8a), `eventbus.sqlite` (section 8b below), and `mdq.sqlite` (section 8d) each have their own incremental migration/auto-update mechanisms — see respective sections for details.
-- `create_schema()` is a wrapper that calls the four per-database initializers in order, and the responsibilities differ per database: `create_rag_schema()` and `create_session_schema()` run create-only DDL (idempotent, no migration); `create_workflow_schema()` runs the DDL, then applies the incremental migrations and records the schema version (section 8a); `create_eventbus_schema()` runs the DDL read from `scripts/eventbus/schema.sql`, then applies the incremental migration list (section 8b). Against an existing file the rag and session initializers change nothing, while the workflow and eventbus initializers migrate it.
+- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `eventbus.sqlite` (section 8b below) and `mdq.sqlite` (section 8d) have their own incremental migration/auto-update mechanisms, while `workflow.sqlite` (section 8a) is create-only with a version record — see respective sections for details.
+- `create_schema()` is a wrapper that calls the four per-database initializers in order, and the responsibilities differ per database: `create_rag_schema()` and `create_session_schema()` run create-only DDL (idempotent, no migration); `create_workflow_schema()` runs the DDL and records the schema version (section 8a); `create_eventbus_schema()` runs the DDL read from `scripts/eventbus/schema.sql`, then applies the incremental migration list (section 8b). Against an existing file the rag, session, and workflow initializers change nothing (the workflow initializer refuses a different recorded version), while the eventbus initializer migrates it.
 - The embedding dimension is a fixed code-level constant (`get_embedding_dims()`), not a config key.
 
 ### Recreating `session.sqlite`: Session and Memory Recovery
@@ -39,16 +39,13 @@ Recreating `session.sqlite` physically removes both sessions and memories, but t
 3. Recover memory only, from the JSONL archive, with `/memory rebuild`.
 4. Past session history is not restored into the database; `/memory rebuild` does not recover sessions and `/session export` output is for human reference only.
 
-### 8a. Incremental Migrations for `workflow.sqlite` Only
+### 8a. Create-Only Bootstrap for `workflow.sqlite`
 
-The principle that "rag/session do not support backward-compatible migrations" applies only to those two databases. `workflow.sqlite` is an exception, as `db/schema_sql.py` implements a dedicated incremental migration mechanism.
+`workflow.sqlite` is created from the base DDL in `db/schema_sql.py` and has no migration mechanism; a database older than the supported baseline is recreated (section 8e).
 
-- `db/schema_sql.py` maintains an ordered list of (ID, SQL statement) pairs applied by `apply_workflow_migrations()`. A `"duplicate column name"` `sqlite3.OperationalError` is treated as already applied; other errors are re-raised.
-- `create_workflow_schema()` creates base tables, then applies migrations, and finally records the schema version.
-- Each list entry holds exactly one SQL statement: `conn.execute` rejects several statements in one entry, which would abort startup.
-- Column-addition migrations are no-ops for new databases (the base schema already has the columns) and incremental additions for existing ones. Two entries remove the post-execution approval stage from existing databases, in this order: one marks tasks left waiting in that stage as failed, and one drops the `approvals` table. Both are idempotent and neither changes a new database.
-
-Incremental migration mechanisms like this do not exist for `rag.sqlite` or `session.sqlite`.
+- `create_workflow_schema()` creates the base tables with `IF NOT EXISTS` statements and then records the schema version.
+- `workflow_schema_version` is an append-only log. An empty log records the current `WORKFLOW_SCHEMA_VERSION`; a log whose latest version is the current one is left unchanged; any other latest version makes `create_workflow_schema()` raise instead of recording the current version, so an older database is never marked as current.
+- The agent startup check rejects a database whose latest recorded version differs from `WORKFLOW_SCHEMA_VERSION`; recovery is recreating the database ([db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)).
 
 ### 8b. Incremental Migration for `eventbus.sqlite`
 
@@ -82,11 +79,11 @@ The `chunks_vec` (`rag.sqlite`) and `memories_vec` (`session.sqlite`) tables def
 
 ### 8e. Supported Upgrade Baseline
 
-The minimum supported source schema of each database is the schema of the current release. A database older than that is recreated, not migrated, so no supported database depends on the migration mechanisms of sections 8a, 8b, and 8d. Every one of those migrations is classified removable; each database's migration code is removed by its own change.
+The minimum supported source schema of each database is the schema of the current release. A database older than that is recreated, not migrated, so no supported database depends on the migration mechanisms of sections 8b and 8d. Every one of those migrations is classified removable; each database's migration code is removed by its own change.
 
 | Database | Minimum supported source schema | Why the migration code is kept | Removal condition | Owner |
 |---|---|---|---|---|
-| `workflow.sqlite` | The current release schema: the recorded workflow schema version equals the current `WORKFLOW_SCHEMA_VERSION` | It stays until the change that removes it lands; no supported database needs it | No supported database is older than the minimum supported source schema | The workflow engine |
+| `workflow.sqlite` | The current release schema: the recorded workflow schema version equals the current `WORKFLOW_SCHEMA_VERSION` | None: the workflow initializer is create-only | N/A: nothing to remove | The workflow engine |
 | `eventbus.sqlite` | The current release schema defined by `scripts/eventbus/schema.sql` | Same | Same | The EventBus service |
 | `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Same; a rebuilt store is recovered by re-indexing the Markdown files | Same | The `mdq-mcp` server |
 
@@ -96,7 +93,6 @@ Open decisions (owner in parentheses):
 
 - Whether the two EventBus migration paths of section 8b stay separate while they exist (the EventBus service).
 - Whether `eventbus.sqlite` needs a schema-version marker; it has none (the EventBus service).
-- Whether a failed migration needs a rollback beyond the pre-upgrade backup of `workflow.sqlite` that the deployment guide requires (the repository maintainers).
 
 ---
 

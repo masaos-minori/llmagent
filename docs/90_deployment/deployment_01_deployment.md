@@ -296,12 +296,12 @@ bash deploy/init_db.sh
 **Responsibilities of init_db.sh:**
 - Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
 - Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts)
-- Applies the incremental migrations of `workflow.sqlite` and `eventbus.sqlite` (idempotent); `rag.sqlite` and `session.sqlite` are create-only and are not migrated
+- Applies the incremental migrations of `eventbus.sqlite` (idempotent); `workflow.sqlite`, `rag.sqlite` and `session.sqlite` are create-only and are not migrated
 - Verifies all mandatory tables exist; aborts if any are missing
 
 - Records the schema version
 
-Run `init_db.sh` before `setup_services.sh`, which rejects a schema-version mismatch. Back up `workflow.sqlite` before running it against an existing file, because the migrations are applied in place. The migrations mark tasks that wait for the removed approval stage as failed and drop the `approvals` table. The workflow definition must not contain `require_approval`; the loader rejects the key.
+Run `init_db.sh` before `setup_services.sh`, which rejects a schema-version mismatch. A workflow database older than the current schema is recreated, not migrated: archive the file first, because `init_db.sh` refuses to record the current version over a different one. The workflow definition must not contain `require_approval`; the loader rejects the key.
 
 **Recreating `session.sqlite`.** `session.sqlite` has no incremental migration, so a schema change to it (for example the `sessions.undo_floor_message_id` column of the `/undo` compression boundary) requires recreating the file. The recreated file is empty, and the memory tables recover separately.
 
@@ -334,7 +334,7 @@ Sessions, messages, and diagnostics are not recovered; past sessions can no long
 | `[FATAL] Workflow definition failed validation; aborting deployment.` | deploy.sh | Fix JSON validation error |
 | `[FATAL] Deployed workflow definition checksum does not match source; deployment corrupted.` | deploy.sh | Re-run `deploy.sh`, check filesystem integrity |
 | `[FATAL] Workflow database schema is missing or incomplete.` | init_db.sh / setup_services.sh | Re-run `init_db.sh` |
-| `[FATAL] Workflow schema version mismatch: expected <X>, found <Y>.` | setup_services.sh | Apply migrations via `init_db.sh` |
+| `[FATAL] Workflow schema version mismatch: expected <X>, found <Y>.` | setup_services.sh | Recreate the workflow database (archive the file, then run `init_db.sh`) |
 | `[FATAL] LLM services did not become ready within <N> attempts` | setup_services.sh | Start `agent-llm` (or `embed-llm` under `LLM_GATE_STRICT=1`); an unreachable `embed-llm` alone only warns |
 
 For detailed diagnosis and recovery commands per failure mode, see [Workflow Deployment Runbook](../23_agent/agent_10_04_operations-and-observability-validation-and-troubleshooting.md#workflow-deployment-runbook).

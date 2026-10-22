@@ -115,7 +115,8 @@ def check_workflow_schema(db_path: str | None = None) -> SchemaCheckResult:
             return SchemaCheckResult(
                 valid=False,
                 error=f"Workflow schema version mismatch: expected {WORKFLOW_SCHEMA_VERSION!r}, "
-                f"found {actual_version!r}. Run create_workflow_schema() to migrate.",
+                f"found {actual_version!r}. Recreate the workflow database "
+                "(archive the file, then run deploy/init_db.sh).",
             )
 
         return SchemaCheckResult(valid=True)

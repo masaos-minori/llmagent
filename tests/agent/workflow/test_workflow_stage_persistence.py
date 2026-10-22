@@ -4,7 +4,6 @@ Tests for workflow stage persistence: error_kind, error_detail, workflow_id, att
 
 from __future__ import annotations
 
-import sqlite3
 import uuid
 
 import pytest
@@ -12,7 +11,7 @@ from agent.workflow.artifact_ops import record_artifact
 from agent.workflow.attempt_ops import finish_attempt, start_attempt
 from agent.workflow.idempotency_ops import begin_stage_if_new
 from db.helper import SQLiteHelper
-from db.schema_sql import apply_workflow_migrations, build_workflow_schema_sql
+from db.schema_sql import build_workflow_schema_sql
 
 
 @pytest.fixture
@@ -140,47 +139,3 @@ def test_begin_stage_if_new_idempotent(db: SQLiteHelper) -> None:
     second = begin_stage_if_new(db, event_id, task_id, "stage1")
     assert first is not None
     assert second is None
-
-
-# --- Migration scenario ---
-
-
-def test_migration_adds_columns_to_existing_db() -> None:
-    conn = sqlite3.connect(":memory:")
-    # The migration list updates tasks (pending_approval -> failed), so the
-    # table must exist even in this minimal pre-migration database.
-    conn.execute(
-        "CREATE TABLE tasks (task_id TEXT PRIMARY KEY, status TEXT, updated_at TEXT)"
-    )
-    conn.execute(
-        "CREATE TABLE attempts (attempt_id TEXT PRIMARY KEY, task_id TEXT, stage_id TEXT,"
-        " status TEXT, started_at TEXT, ended_at TEXT, error_msg TEXT)"
-    )
-    conn.execute(
-        "CREATE TABLE artifacts (artifact_id TEXT PRIMARY KEY, task_id TEXT, stage_id TEXT, uri TEXT, created_at TEXT)"
-    )
-    conn.execute(
-        "CREATE TABLE processed_events (event_id TEXT PRIMARY KEY, task_id TEXT, stage_id TEXT, recorded_at TEXT)"
-    )
-    conn.commit()
-    apply_workflow_migrations(conn)
-    cols_attempts = {
-        row[1] for row in conn.execute("PRAGMA table_info(attempts)").fetchall()
-    }
-    cols_artifacts = {
-        row[1] for row in conn.execute("PRAGMA table_info(artifacts)").fetchall()
-    }
-    cols_events = {
-        row[1] for row in conn.execute("PRAGMA table_info(processed_events)").fetchall()
-    }
-    assert "error_kind" in cols_attempts
-    assert "error_detail" in cols_attempts
-    assert "workflow_id" in cols_artifacts
-    assert "attempt_number" in cols_artifacts
-    assert "workflow_id" in cols_events
-
-
-def test_migration_idempotent() -> None:
-    conn = sqlite3.connect(":memory:")
-    conn.executescript(build_workflow_schema_sql())
-    apply_workflow_migrations(conn)  # should not raise when columns already exist

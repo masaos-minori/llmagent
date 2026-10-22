@@ -429,8 +429,8 @@ class TestCreateWorkflowSchema:
             cs.create_workflow_schema()
             cs.create_workflow_schema()  # must not raise
 
-    def test_migration_workflow_id_column_exists(self, tmp_path: Path) -> None:
-        """create_workflow_schema() applies migration: workflow_id column present in tasks."""
+    def test_workflow_id_column_exists(self, tmp_path: Path) -> None:
+        """create_workflow_schema() creates the workflow_id column in tasks."""
         db_file = tmp_path / "workflow_id_col.sqlite"
         cfg = DbConfig(
             rag_db_path="/tmp/rag.sqlite",
@@ -452,8 +452,8 @@ class TestCreateWorkflowSchema:
         conn.close()
         assert "workflow_id" in columns
 
-    def test_migration_workflow_id_column_idempotent(self, tmp_path: Path) -> None:
-        """_migrate_workflow_schema is idempotent: running twice does not duplicate column."""
+    def test_workflow_schema_creation_is_idempotent(self, tmp_path: Path) -> None:
+        """Running create_workflow_schema() twice does not duplicate the column."""
         db_file = tmp_path / "workflow_idempotent.sqlite"
         cfg = DbConfig(
             rag_db_path="/tmp/rag.sqlite",
@@ -482,35 +482,6 @@ class TestCreateWorkflowSchema:
         )
         assert workflow_id_count == 1
         conn.close()
-
-    def test_non_duplicate_column_error_propagates(self, tmp_path: Path) -> None:
-        """Non-'duplicate column name' OperationalErrors must propagate from apply_workflow_migrations()."""
-        import db.schema_sql as schema_sql_mod
-
-        original = schema_sql_mod._WORKFLOW_MIGRATIONS
-        try:
-            schema_sql_mod._WORKFLOW_MIGRATIONS = list(original) + [
-                ("bad_migration", "ALTER TABLE nonexistent_table ADD COLUMN x TEXT"),
-            ]
-            db_file = tmp_path / "workflow_bad_migration.sqlite"
-            cfg = DbConfig(
-                rag_db_path="/tmp/rag.sqlite",
-                session_db_path="/tmp/session.sqlite",
-                workflow_db_path=str(db_file),
-            )
-            with (
-                patch("db.helper.build_db_config", return_value=cfg),
-                patch(
-                    "db.create_schema.build_workflow_schema_sql",
-                    return_value=_WORKFLOW_SCHEMA_NO_VEC0,
-                ),
-            ):
-                with pytest.raises(
-                    sqlite3.OperationalError, match="no such table: nonexistent_table"
-                ):
-                    cs.create_workflow_schema()
-        finally:
-            schema_sql_mod._WORKFLOW_MIGRATIONS = original
 
     def test_tasks_idempotency_key_unique(self, tmp_path: Path) -> None:
         db_file = tmp_path / "workflow3.sqlite"
@@ -636,50 +607,7 @@ def _second_chunk_payload(field: str, value: str) -> dict:
     return base
 
 
-_OLD_APPROVALS_DDL = """
-    CREATE TABLE IF NOT EXISTS approvals (
-        approval_id TEXT PRIMARY KEY,
-        task_id     TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
-        stage_id    TEXT,
-        status      TEXT NOT NULL DEFAULT 'pending',
-        reason      TEXT,
-        created_at  TEXT NOT NULL,
-        resolved_at TEXT
-    );
-"""
-
-
-def _make_old_schema_db(db_file: Path, *, with_pending_task: bool) -> None:
-    """Build a workflow database shaped like the pre-removal schema (version 1.0.0)."""
-    now = "2026-01-01T00:00:00Z"
-    conn = sqlite3.connect(str(db_file))
-    conn.executescript(_WORKFLOW_SCHEMA_NO_VEC0)
-    conn.executescript(_OLD_APPROVALS_DDL)
-    conn.execute(
-        "INSERT INTO workflow_schema_version (version, applied_at) VALUES ('1.0.0', ?)",
-        (now,),
-    )
-    conn.execute(
-        "INSERT INTO tasks (task_id, session_id, workflow_version, status,"
-        " idempotency_key, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
-        ("t-done", "s1", "1.0.0", "completed", "s1:1", now, now),
-    )
-    conn.execute(
-        "INSERT INTO approvals (approval_id, task_id, status, created_at)"
-        " VALUES ('a1', 't-done', 'approved', ?)",
-        (now,),
-    )
-    if with_pending_task:
-        conn.execute(
-            "INSERT INTO tasks (task_id, session_id, workflow_version, status,"
-            " idempotency_key, created_at, updated_at) VALUES (?,?,?,?,?,?,?)",
-            ("t-pending", "s1", "1.0.0", "pending_approval", "s1:2", now, now),
-        )
-    conn.commit()
-    conn.close()
-
-
-def _migrate(db_file: Path) -> None:
+def _create_workflow_db(db_file: Path) -> None:
     cfg = _make_db_config(db_file, "workflow")
     with (
         patch("db.helper.build_db_config", return_value=cfg),
@@ -691,40 +619,49 @@ def _migrate(db_file: Path) -> None:
         cs.create_workflow_schema()
 
 
-class TestApprovalsMigration:
-    """The post-execution approval stage is removed: migration drops its table."""
-
-    def test_migration_fails_pending_approval_tasks(self, tmp_path: Path) -> None:
-        db_file = tmp_path / "old_workflow.sqlite"
-        _make_old_schema_db(db_file, with_pending_task=True)
-        _migrate(db_file)
-        conn = sqlite3.connect(str(db_file))
-        status = dict(conn.execute("SELECT task_id, status FROM tasks").fetchall())
-        tables = _table_names(conn)
+def _recorded_versions(db_file: Path) -> list[str]:
+    conn = sqlite3.connect(str(db_file))
+    try:
+        rows = conn.execute(
+            "SELECT version FROM workflow_schema_version ORDER BY applied_at, rowid"
+        ).fetchall()
+    finally:
         conn.close()
-        assert status == {"t-done": "completed", "t-pending": "failed"}
-        assert "approvals" not in tables
+    return [row[0] for row in rows]
 
-    def test_migration_is_idempotent_after_drop(self, tmp_path: Path) -> None:
+
+class TestWorkflowSchemaVersionRecord:
+    """The version log is recorded once and an older database is never stamped."""
+
+    def test_first_run_records_the_current_version_once(self, tmp_path: Path) -> None:
         from db.schema_sql import WORKFLOW_SCHEMA_VERSION
 
-        db_file = tmp_path / "old_workflow2.sqlite"
-        _make_old_schema_db(db_file, with_pending_task=False)
-        _migrate(db_file)
-        _migrate(db_file)  # second run must not raise or change anything
+        db_file = tmp_path / "first_run.sqlite"
+        _create_workflow_db(db_file)
+        assert _recorded_versions(db_file) == [WORKFLOW_SCHEMA_VERSION]
+
+    def test_rerun_at_the_current_version_is_idempotent(self, tmp_path: Path) -> None:
+        from db.schema_sql import WORKFLOW_SCHEMA_VERSION
+
+        db_file = tmp_path / "rerun.sqlite"
+        _create_workflow_db(db_file)
+        _create_workflow_db(db_file)
+        assert _recorded_versions(db_file) == [WORKFLOW_SCHEMA_VERSION]
+
+    def test_differing_version_raises_and_records_nothing(self, tmp_path: Path) -> None:
+        db_file = tmp_path / "older.sqlite"
+        _create_workflow_db(db_file)
         conn = sqlite3.connect(str(db_file))
-        status = dict(conn.execute("SELECT task_id, status FROM tasks").fetchall())
-        latest = conn.execute(
-            "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC"
-        ).fetchone()[0]
+        conn.execute("UPDATE workflow_schema_version SET version = '0.0.1'")
+        conn.commit()
         conn.close()
-        assert status == {"t-done": "completed"}
-        assert latest == WORKFLOW_SCHEMA_VERSION
-        assert WORKFLOW_SCHEMA_VERSION != "1.0.0"
+        with pytest.raises(RuntimeError, match="recreate the database"):
+            _create_workflow_db(db_file)
+        assert _recorded_versions(db_file) == ["0.0.1"]
 
     def test_new_database_has_no_approvals_table(self, tmp_path: Path) -> None:
         db_file = tmp_path / "new_workflow.sqlite"
-        _migrate(db_file)
+        _create_workflow_db(db_file)
         conn = sqlite3.connect(str(db_file))
         tables = _table_names(conn)
         conn.close()

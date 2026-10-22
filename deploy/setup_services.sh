@@ -68,7 +68,7 @@ ACTUAL_SCHEMA_VERSION=$(sqlite3 "${WORKFLOW_DB}" \
 echo "Workflow schema version: ${ACTUAL_SCHEMA_VERSION:-<none>} (expected: ${EXPECTED_SCHEMA_VERSION})"
 if [ "${ACTUAL_SCHEMA_VERSION}" != "${EXPECTED_SCHEMA_VERSION}" ]; then
   echo "[FATAL] Workflow schema version mismatch: expected ${EXPECTED_SCHEMA_VERSION}, found ${ACTUAL_SCHEMA_VERSION:-<none>}." >&2
-  echo "Run deploy/init_db.sh to migrate the workflow schema before starting services." >&2
+  echo "Recreate the workflow database (archive the file, then run deploy/init_db.sh) before starting services." >&2
   exit 1
 fi
 

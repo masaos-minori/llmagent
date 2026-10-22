@@ -23,7 +23,6 @@ from db.helper import SQLiteHelper
 from db.schema_sql import (
     WORKFLOW_SCHEMA_VERSION,
     apply_eventbus_migrations,
-    apply_workflow_migrations,
     build_eventbus_schema_sql,
     build_rag_schema_sql,
     build_session_schema_sql,
@@ -50,15 +49,30 @@ def _execute_schema_ddl(db: SQLiteHelper, sql: str, error_label: str) -> None:
 
 
 def _record_workflow_schema_version(db: SQLiteHelper) -> None:
-    """Idempotently record WORKFLOW_SCHEMA_VERSION as the current version."""
+    """Record WORKFLOW_SCHEMA_VERSION on a new database; refuse a different one.
+
+    An empty version log records the current version, the current version is a
+    no-op, and any other latest version raises: an older database is recreated,
+    never stamped as current.
+    """
     row = db.execute(
         "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1"
     ).fetchone()
     current = row[0] if row else None
-    if current != WORKFLOW_SCHEMA_VERSION:
+    if current is None:
         db.execute(
             "INSERT INTO workflow_schema_version (version) VALUES (?)",
             (WORKFLOW_SCHEMA_VERSION,),
+        )
+    elif current != WORKFLOW_SCHEMA_VERSION:
+        logger.error(
+            "workflow_schema_version records %s, expected %s",
+            current,
+            WORKFLOW_SCHEMA_VERSION,
+        )
+        raise RuntimeError(
+            f"workflow.sqlite schema version {current!r} differs from "
+            f"{WORKFLOW_SCHEMA_VERSION!r}; recreate the database"
         )
 
 
@@ -82,10 +96,6 @@ def create_workflow_schema() -> None:
     """Create workflow.sqlite tables (tasks, attempts, processed_events, artifacts)."""
     with SQLiteHelper("workflow").open(write_mode=True) as db:
         _execute_schema_ddl(db, build_workflow_schema_sql(), "workflow")
-        assert db.conn is not None, (
-            "Workflow DB connection must be open when applying migrations"
-        )
-        apply_workflow_migrations(db.conn)
         _record_workflow_schema_version(db)
         db.commit()
     logger.info("Workflow schema created successfully.")
