@@ -13,8 +13,6 @@ logger = logging.getLogger(__name__)
 from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus._constants
     _COL_CONSUMER_DELIVERY_FAILURE_COUNT,
     _COL_CONSUMER_LAST_NACK_ATTEMPT,
-    _COL_CYCLE_FAILURE_COUNT,
-    _COL_DELIVERY_FAILURE_COUNT,
     _COL_DLQ_AT,
     _COL_EVENT_ID,
 )
@@ -24,18 +22,15 @@ from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a 
 class NackResult:
     """Return value for nack_event().
 
-    delivery_failure_count: int | Literal[-1] — -1 if event not found, -2 if event in invalid
-      state (already DLQ'd, or already ACKed by the consumer); otherwise the stored events-level
-      value, a legacy value that is not modified under the per-consumer model.
-    cycle_failure_count: int | Literal[-2] — same sentinels; otherwise the stored legacy value.
-      An idempotent repeat NACK of the same attempt returns -2 here while delivery_failure_count
-      holds the stored value.
-    consumer_failure_count: int | None — per-consumer failure count when consumer_id was provided,
-      None when consumer_id was not provided.
+    status: Literal["ok", "not_found", "invalid_state"] — "ok" when the NACK was
+      recorded (or an idempotent repeat of the same attempt); "not_found" when the
+      event does not exist; "invalid_state" when the event is already DLQ'd or
+      already ACKed by this consumer.
+    consumer_failure_count: int | None — per-consumer failure count when
+      consumer_id was provided, None when consumer_id was not provided.
     """
 
-    delivery_failure_count: int | Literal[-1]
-    cycle_failure_count: int | Literal[-2]
+    status: Literal["ok", "not_found", "invalid_state"]
     consumer_failure_count: int | None = None
 
 
@@ -48,9 +43,8 @@ def nack_event(
     """Record a per-consumer NACK failure for an event.
 
     When consumer_id is provided, the consumer's failure count is incremented and
-    its last NACK attempt marker is stored. The events-level delivery_failure_count
-    and cycle_failure_count are legacy values: they are not modified here and are
-    returned as stored.
+    its last NACK attempt marker is stored. The events-level failure counters are
+    legacy values: they are not modified here under the per-consumer model.
 
     Nothing is recorded if the event is already DLQ'd (has dlq_at) or, when
     consumer_id is provided, if that consumer has already ACKed the event —
@@ -60,9 +54,12 @@ def nack_event(
     count is not incremented again.
 
     Returns NackResult with:
-      - delivery_failure_count: stored events-level value on success, -1 if event not found
-      - cycle_failure_count: stored events-level value on success, -2 if event in invalid state
-      - consumer_failure_count: per-consumer count when consumer_id was provided
+      - status: "ok" when the NACK was recorded (or an idempotent repeat of the
+        same attempt); "not_found" when the event does not exist;
+        "invalid_state" when the event is already DLQ'd or already ACKed by this
+        consumer.
+      - consumer_failure_count: per-consumer count when consumer_id was provided,
+        None otherwise.
     """
     try:
         # Check if event exists and is not DLQ'd
@@ -71,9 +68,9 @@ def nack_event(
             (event_id,),
         ).fetchone()
         if not existing:
-            return NackResult(-1, -1)
+            return NackResult("not_found")
         if existing[_COL_DLQ_AT] is not None:
-            return NackResult(-2, -2)
+            return NackResult("invalid_state")
 
         if consumer_id is not None:
             # Per-consumer ACK guard: reject NACK if this consumer already ACKed
@@ -83,7 +80,7 @@ def nack_event(
                 (consumer_id, event_id),
             ).fetchone()
             if acked:
-                return NackResult(-2, -2)
+                return NackResult("invalid_state")
 
             # NACK idempotency: skip if same consumer already NACKed this attempt
             last_attempt = conn.execute(
@@ -102,20 +99,17 @@ def nack_event(
                     (consumer_id, event_id),
                 ).fetchone()
                 if consumer_row:
-                    # Read delivery_failure_count from events table (existing[_COL_DLQ_AT] is None here)
-                    row = conn.execute(
-                        f"SELECT {_COL_DELIVERY_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
-                        (event_id,),
-                    ).fetchone()
-                    dfc = int(row[_COL_DELIVERY_FAILURE_COUNT]) if row else -1
                     return NackResult(
-                        dfc, -2, int(consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT])
+                        "ok",
+                        consumer_failure_count=int(
+                            consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]
+                        ),
                     )
-                return NackResult(-1, -1)
+                return NackResult("not_found")
 
-        # Per-consumer model: only consumer_delivery_failure_count is authoritative for DLQ promotion.
-        # delivery_failure_count / cycle_failure_count on events table are kept for backward compat
-        # but no longer written to under the per-consumer model.
+        # Per-consumer model: only the per-consumer counter is authoritative for
+        # DLQ promotion; the events-level failure counters are legacy and no longer
+        # written to under the per-consumer model.
         # Update consumer_delivery table if consumer_id is provided
         if consumer_id is not None:
             conn.execute(
@@ -129,31 +123,21 @@ def nack_event(
 
         conn.commit()
 
-        # Read back the counts
-        row = conn.execute(
-            f"SELECT {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT} FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
-            (event_id,),
-        ).fetchone()
-        if row:
-            result = NackResult(
-                int(row[_COL_DELIVERY_FAILURE_COUNT]),
-                int(row[_COL_CYCLE_FAILURE_COUNT]),
-            )
-            # Include per-consumer failure count when consumer_id was provided
-            if consumer_id is not None:
-                consumer_row = conn.execute(
-                    f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
-                    f"WHERE consumer_id = ? AND event_id = ?",
-                    (consumer_id, event_id),
-                ).fetchone()
-                if consumer_row:
-                    result = NackResult(
-                        result.delivery_failure_count,
-                        result.cycle_failure_count,
-                        int(consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]),
-                    )
-            return result
-        return NackResult(-1, -1)
+        # Read back the per-consumer count when a consumer was involved
+        if consumer_id is not None:
+            consumer_row = conn.execute(
+                f"SELECT {_COL_CONSUMER_DELIVERY_FAILURE_COUNT} FROM consumer_delivery "  # nosec B608 — column names are module-level constants, values parameterized
+                f"WHERE consumer_id = ? AND event_id = ?",
+                (consumer_id, event_id),
+            ).fetchone()
+            if consumer_row:
+                return NackResult(
+                    "ok",
+                    consumer_failure_count=int(
+                        consumer_row[_COL_CONSUMER_DELIVERY_FAILURE_COUNT]
+                    ),
+                )
+        return NackResult("ok")
     except Exception:
         conn.rollback()
         raise

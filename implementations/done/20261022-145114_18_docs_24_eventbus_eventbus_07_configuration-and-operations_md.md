@@ -78,9 +78,9 @@ N/A: revert the commit that makes this change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the legacy counter references from the requeue description | Pending | — | — | |
-| 3 | Run the documentation checkers | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove the legacy counter references from the requeue description | Completed | 2026-10-22 | 2026-10-22 | |
+| 3 | Run the documentation checkers | Completed | 2026-10-22 | 2026-10-22 | check_docs_quality/structure/content_policy, generate_reference_table.py --check all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-22 | 2026-10-22 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

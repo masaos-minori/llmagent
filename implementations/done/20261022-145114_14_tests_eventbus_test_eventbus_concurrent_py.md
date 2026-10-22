@@ -87,9 +87,9 @@ The setup comment in `test_concurrent_dlq_requeue` no longer names `delivery_fai
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the stale shared-counter reference from the setup comment | Pending | — | — | |
-| 2 | Update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the stale shared-counter reference from the setup comment | Completed | 2026-10-22 | 2026-10-22 | |
+| 2 | Update tests per Validation plan | Completed | 2026-10-22 | 2026-10-22 | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-22 | 2026-10-22 | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: test-only change | — | — | |
 
 ### Blocker Log

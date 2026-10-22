@@ -117,8 +117,6 @@ CREATE TABLE IF NOT EXISTS events (
     payload                TEXT    NOT NULL,
     producer               TEXT    NOT NULL,
     published_at           TEXT    NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ', 'now')),
-    delivery_failure_count INTEGER NOT NULL DEFAULT 0,
-    cycle_failure_count    INTEGER NOT NULL DEFAULT 0,
     redelivered_from       TEXT,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
     dlq_at                 TEXT,
@@ -1162,41 +1160,7 @@ class TestEventBusTablesExist:
 
 
 class TestEventBusSchemaNewColumns:
-    """Verify create_eventbus_schema() includes cycle_failure_count and redelivered_from columns."""
-
-    def test_events_table_has_cycle_failure_count_column(self, tmp_path: Path) -> None:
-        import unittest.mock as mock
-
-        captured_path = {}
-
-        def capture_init(self, target="rag", **kwargs):
-            # Set required attributes directly to skip DbConfig validation
-            self._target = target
-            self._db_path = str(tmp_path / "eventbus_cfc.sqlite")
-            self._default_load_vec = False
-            self._vec_so = None
-            self._sqlite_timeout = 5000
-            self._busy_timeout_ms = 5000
-            if target == "eventbus":
-                captured_path["path"] = self._db_path
-
-        with mock.patch.object(cs.SQLiteHelper, "__init__", capture_init):
-            with mock.patch(
-                "db.create_schema.build_eventbus_schema_sql",
-                return_value=_EVENTBUS_SCHEMA_NO_VEC0,
-            ):
-                cs.create_eventbus_schema()
-
-        if "path" in captured_path:
-            conn = sqlite3.connect(captured_path["path"])
-            try:
-                cursor = conn.execute("PRAGMA table_info(events)")
-                cols = {row[1]: row[2] for row in cursor.fetchall()}
-                assert "cycle_failure_count" in cols, (
-                    "events should have cycle_failure_count column"
-                )
-            finally:
-                conn.close()
+    """Verify create_eventbus_schema() includes redelivered_from columns."""
 
     def test_events_table_has_redelivered_from_column(self, tmp_path: Path) -> None:
         import unittest.mock as mock

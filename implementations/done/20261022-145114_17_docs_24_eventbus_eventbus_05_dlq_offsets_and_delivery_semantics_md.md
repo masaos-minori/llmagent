@@ -84,9 +84,9 @@ No mention of `delivery_failure_count` or `cycle_failure_count` remains in the d
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the failure-counters section and redelivery behavior to the per-consumer model | Pending | — | — | |
-| 3 | Run the documentation checkers | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Rewrite the failure-counters section and redelivery behavior to the per-consumer model | Completed | 2026-10-22 | 2026-10-22 | |
+| 3 | Run the documentation checkers | Completed | 2026-10-22 | 2026-10-22 | check_docs_quality/structure/content_policy, generate_reference_table.py --check all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-22 | 2026-10-22 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

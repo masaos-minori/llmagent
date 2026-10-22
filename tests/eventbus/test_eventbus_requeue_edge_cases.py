@@ -2,7 +2,7 @@
 Edge case tests for POST /dlq/{event_id}/requeue endpoint.
 
 Tests requeue behavior: unknown event, non-DLQ event, repeated requeue,
-and re-promotion after requeue when delivery_failure_count >= max_retry.
+and re-promotion after requeue when the per-consumer failure count >= max_retry.
 """
 
 from __future__ import annotations
@@ -98,13 +98,8 @@ class TestRequeueEdgeCases:
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        db.execute(
-            "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-            (body["event_id"],),
-        )
         # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
-        # sweep can promote; the shared delivery_failure_count is copied through
-        # requeue lineage and asserted on separately.
+        # sweep can promote.
         db.execute(
             "INSERT INTO consumer_delivery "
             "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
@@ -131,11 +126,10 @@ class TestRequeueEdgeCases:
 
         # New event exists with redelivered_from set
         new_row = db.execute(
-            "SELECT redelivered_from, cycle_failure_count FROM events WHERE event_id = ?",
+            "SELECT redelivered_from FROM events WHERE event_id = ?",
             (data["new_event_id"],),
         ).fetchone()
         assert new_row["redelivered_from"] == body["event_id"]
-        assert new_row["cycle_failure_count"] == 0
 
     def test_second_requeue_of_same_event_rejected_after_first_redeliver(
         self, client: TestClient, tmp_path: Path
@@ -155,7 +149,7 @@ class TestRequeueEdgeCases:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
 
-        # Promote to DLQ with delivery_failure_count >= max_retry
+        # Promote to DLQ when the per-consumer failure count >= max_retry
         db = open_db(str(tmp_path / "eventbus.sqlite"))
         # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
         db.execute(
@@ -163,13 +157,8 @@ class TestRequeueEdgeCases:
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        db.execute(
-            "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-            (body["event_id"],),
-        )
         # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
-        # sweep can promote; the shared delivery_failure_count is copied through
-        # requeue lineage and asserted on separately.
+        # sweep can promote.
         db.execute(
             "INSERT INTO consumer_delivery "
             "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
@@ -190,10 +179,9 @@ class TestRequeueEdgeCases:
         ).fetchone()
         assert orig_row["dlq_requeue_count"] == 1
 
-        # The descendant inherits delivery_failure_count >= max_retry and its
-        # own dlq_at starts NULL, so it (not the original) becomes the next
-        # sweep's promotion candidate — the original's dlq_at is never
-        # cleared by redeliver_event, so it is never re-selected here.
+        # The descendant's own dlq_at starts NULL, so it (not the original)
+        # becomes the next sweep's promotion candidate — the original's dlq_at
+        # is never cleared by redeliver_event, so it is never re-selected here.
         # Seed a giving-up consumer for the descendant so the per-consumer
         # sweep can promote it again.
         db = open_db(str(tmp_path / "eventbus.sqlite"))
@@ -237,13 +225,8 @@ class TestRequeueEdgeCases:
             ("consumer-A", body["event_id"]),
         )
         db.commit()
-        db.execute(
-            "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-            (body["event_id"],),
-        )
         # Per-consumer sweep gating (REQ-002): seed a giving-up consumer so the
-        # sweep can promote; the shared delivery_failure_count is copied through
-        # requeue lineage and asserted on separately.
+        # sweep can promote.
         db.execute(
             "INSERT INTO consumer_delivery "
             "(consumer_id, event_id, consumer_delivery_failure_count) VALUES ('sweep-consumer', ?, 2)",
@@ -268,9 +251,9 @@ class TestRequeueEdgeCases:
         dlq_at = _get_field(client, body["event_id"], "dlq_at")
         assert dlq_at is not None
 
-        # Next DLQ loop tick promotes the new descendant (its inherited
-        # delivery_failure_count is still >= max_retry, and its own dlq_at
-        # starts NULL) — not the original, whose dlq_at was never cleared.
+        # Next DLQ loop tick promotes the new descendant (a giving-up
+        # consumer is seeded for it, and its own dlq_at starts NULL) — not the
+        # original, whose dlq_at was never cleared.
         # Seed a giving-up consumer for the descendant so the per-consumer
         # sweep can promote it again.
         db = open_db(str(tmp_path / "eventbus.sqlite"))

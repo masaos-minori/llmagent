@@ -84,9 +84,9 @@ The `_EVENTBUS_SCHEMA_NO_VEC0` stub lists no `delivery_failure_count` or `cycle_
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the EventBus schema stub and assertions to drop the legacy counter columns | Pending | — | — | |
-| 2 | Update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Update the EventBus schema stub and assertions to drop the legacy counter columns | Completed | 2026-10-22 | 2026-10-22 | |
+| 2 | Update tests per Validation plan | Completed | 2026-10-22 | 2026-10-22 | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-22 | 2026-10-22 | |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: test-only change | — | — | |
 
 ### Blocker Log

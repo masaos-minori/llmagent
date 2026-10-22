@@ -276,8 +276,6 @@ class TestOutOfOrderAckNoSkipOnReconnect:
                 "producer TEXT NOT NULL, "
                 "published_at TEXT NOT NULL, "
                 "acked INTEGER NOT NULL DEFAULT 0, "
-                "delivery_failure_count INTEGER NOT NULL DEFAULT 0, "
-                "cycle_failure_count INTEGER NOT NULL DEFAULT 0, "
                 "redelivered_from TEXT, "
                 "dlq_requeue_count INTEGER NOT NULL DEFAULT 0, "
                 "dlq_at TEXT, "

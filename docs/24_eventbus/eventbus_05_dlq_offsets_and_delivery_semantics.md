@@ -79,9 +79,9 @@ The `seq` field is globally monotonic across all topics. Each event is assigned 
 
 ### NACK Postconditions
 
-- The nacking consumer's `consumer_delivery_failure_count` is incremented. The events-level `delivery_failure_count` is a legacy value that NACK does not modify.
-- Promotion to the DLQ is gated on the **per-consumer** failure count (`consumer_delivery_failure_count`), not the shared `delivery_failure_count`, under the conditions in [Inline Promotion Path](#inline-promotion-path). One consumer's repeated NACKs never promote an Event shared by other consumers.
-- The response body includes `{event_id, delivery_failure_count}`, where `delivery_failure_count` is the nacking consumer's per-consumer failure count after this NACK (`dlq_promoted: true` is added when the event was promoted).
+- The nacking consumer's `consumer_delivery_failure_count` is incremented.
+- Promotion to the DLQ is gated on the **per-consumer** failure count (`consumer_delivery_failure_count`), under the conditions in [Inline Promotion Path](#inline-promotion-path). One consumer's repeated NACKs never promote an Event shared by other consumers.
+- The response body includes `{event_id, consumer_delivery_failure_count}`, where `consumer_delivery_failure_count` is the nacking consumer's per-consumer failure count after this NACK (`dlq_promoted: true` is added when the event was promoted).
 
 ### NACK Error Responses
 
@@ -162,7 +162,7 @@ When a NACK occurs and the nacking consumer's `consumer_delivery_failure_count` 
 
 ### Background Loop Promotion
 
-The background DLQ loop runs periodically and promotes events that were missed during inline processing. It considers only events whose every attempting consumer has `consumer_delivery_failure_count >= max_retry` and none has ACKed (an event with no `consumer_delivery` rows is never promoted). The shared `events.delivery_failure_count` is intentionally ignored for gating.
+The background DLQ loop runs periodically and promotes events that were missed during inline processing. It considers only events whose every attempting consumer has `consumer_delivery_failure_count >= max_retry` and none has ACKed (an event with no `consumer_delivery` rows is never promoted).
 
 ### Requeue Semantics
 
@@ -211,13 +211,11 @@ See [Inline Promotion Path](#inline-promotion-path) and [Background Loop Promoti
 
 ### Failure Count Split
 
-The system tracks three failure counters:
+The system tracks one failure counter:
 
-- **`delivery_failure_count`** (events-level, legacy): Stored on the `events` row, copied to a redelivered row, and listed by `GET /dlq`. NACK does not modify it under the per-consumer model, and it does not gate DLQ promotion. The NACK response field of the same name carries the nacking consumer's per-consumer count, not this stored value.
-- **`cycle_failure_count`** (events-level, legacy): Reset to 0 on each redelivery. NACK does not modify it, and it does not gate DLQ promotion.
 - **`consumer_delivery_failure_count`** (per-consumer): Tracks failures for a single `(consumer_id, event_id)` delivery record. This is the counter that gates DLQ promotion.
 
-DLQ promotion is gated on the per-consumer `consumer_delivery_failure_count`, not on `delivery_failure_count` or `cycle_failure_count`. Promotion additionally requires that every consumer that attempted delivery has given up (none has ACKed); see [Inline Promotion Path](#inline-promotion-path) and [Background Loop Promotion](#background-loop-promotion).
+DLQ promotion is gated on the per-consumer `consumer_delivery_failure_count`. Promotion additionally requires that every consumer that attempted delivery has given up (none has ACKed); see [Inline Promotion Path](#inline-promotion-path) and [Background Loop Promotion](#background-loop-promotion).
 
 ### Requeue (Redelivery)
 
@@ -226,8 +224,6 @@ DLQ promotion is gated on the per-consumer `consumer_delivery_failure_count`, no
 1. Inserts a new row into the `events` table with:
    - A fresh UUID v4 `event_id`
    - `redelivered_from` set to the original `event_id`
-   - `cycle_failure_count = 0` (fresh retry budget)
-   - `delivery_failure_count` copied from the original row (stored legacy value carried over)
 2. Increments `dlq_requeue_count` on the original row as audit trail.
 
 The original row keeps its `dlq_at`, so only one requeue succeeds per original event; a second requeue returns HTTP 409. The requeue handler does not archive the DLQ JSON file and does not publish to `EventBroker`. Subscribers receive the new row through the existing `seq > since_seq` replay path in the subscribe endpoint.
@@ -273,7 +269,7 @@ Normal ──NACK──> Failed (if the nacking consumer's `consumer_delivery_fa
 Failed ──NACK──> Failed (increment `consumer_delivery_failure_count`; promotion fires once every attempting consumer has given up)
 Failed ──ACK──> ACKed
 Failed ──promotion (inline on NACK, or the background DLQ loop)──> DLQ
-DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted (cycle_failure_count reset, delivery_failure_count preserved)
+DLQ ──REQUEUE──> original stays in DLQ; a new Normal row is inserted
 ```
 
 ### Prohibited Transitions

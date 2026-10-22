@@ -59,11 +59,6 @@ def test_dlq_promotion_when_retry_exhausted(client: TestClient, tmp_path: Path) 
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
-    db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (ev["event_id"],),
-    )
-    db.commit()
 
     n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert n == 1
@@ -87,11 +82,7 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
-    db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (ev["event_id"],),
-    )
-    db.commit()
+
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     r = client.get("/dlq")
@@ -99,6 +90,9 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
     body = r.json()
     ids = [e["event_id"] for e in body["items"]]
     assert ev["event_id"] in ids
+    for item in body["items"]:
+        assert "delivery_failure_count" not in item
+        assert "cycle_failure_count" not in item
 
 
 def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
@@ -114,11 +108,7 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
-    db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (ev["event_id"],),
-    )
-    db.commit()
+
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     r = client.post(f"/dlq/{ev['event_id']}/requeue")
@@ -161,11 +151,7 @@ def test_requeue_increments_dlq_requeue_count(
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
-    db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (ev["event_id"],),
-    )
-    db.commit()
+
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     # Requeue once — new row inserted with redelivered_from
@@ -177,21 +163,18 @@ def test_requeue_increments_dlq_requeue_count(
 
     # Original row's dlq_requeue_count incremented
     orig_row = db.execute(
-        "SELECT dlq_requeue_count, delivery_failure_count, dlq_at FROM events WHERE event_id = ?",
+        "SELECT dlq_requeue_count, dlq_at FROM events WHERE event_id = ?",
         (ev["event_id"],),
     ).fetchone()
     assert orig_row["dlq_requeue_count"] == 1
-    assert orig_row["delivery_failure_count"] == 2
     assert orig_row["dlq_at"] is not None
 
     # New row has redelivered_from set
     new_row = db.execute(
-        "SELECT redelivered_from, cycle_failure_count FROM events WHERE event_id = ?",
+        "SELECT redelivered_from FROM events WHERE event_id = ?",
         (new_event_id,),
     ).fetchone()
     assert new_row["redelivered_from"] == ev["event_id"]
-    assert new_row["cycle_failure_count"] == 0
-    assert orig_row["delivery_failure_count"] == 2
     assert orig_row["dlq_at"] is not None
 
     # Exhaust retries again — should promote to DLQ
@@ -201,11 +184,7 @@ def test_requeue_increments_dlq_requeue_count(
         ("consumer-A", new_event_id),
     )
     db.commit()
-    db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (new_event_id,),
-    )
-    db.commit()
+
     n = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
     assert n == 1
     dlq_file = tmp_path / "deadletter" / f"{new_event_id}.json"
@@ -219,16 +198,16 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
     ev = _event()
     client.post("/publish", json=ev)
 
-    # First nack — delivery_failure_count becomes 1, below threshold of 2
+    # First nack — consumer_delivery_failure_count becomes 1, below threshold of 2
     r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
     assert r.status_code == 200
-    assert r.json()["delivery_failure_count"] == 1
+    assert r.json()["consumer_delivery_failure_count"] == 1
     assert "dlq_promoted" not in r.json()
 
-    # Second nack — delivery_failure_count becomes 2, hits threshold, inline promote
+    # Second nack — consumer_delivery_failure_count becomes 2, hits threshold, inline promote
     r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
     assert r.status_code == 200
-    assert r.json()["delivery_failure_count"] == 2
+    assert r.json()["consumer_delivery_failure_count"] == 2
     assert r.json().get("dlq_promoted") is True
 
     dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
@@ -256,7 +235,7 @@ def test_inline_dlq_promotion_skipped_below_threshold(
     # Nack once — below threshold of 2, no DLQ promotion
     r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
     assert r.status_code == 200
-    assert r.json()["delivery_failure_count"] == 1
+    assert r.json()["consumer_delivery_failure_count"] == 1
     assert "dlq_promoted" not in r.json()
 
     dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
@@ -290,11 +269,7 @@ def test_nack_on_already_dlq_event_does_not_repromote(
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
-    db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (ev["event_id"],),
-    )
-    db.commit()
+
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     # Nack an already-DLQ'd event — should return 409 Conflict, not increment count
@@ -368,11 +343,7 @@ async def test_concurrent_requeue_same_event(
         ("consumer-A", ev["event_id"]),
     )
     db.commit()
-    db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?",
-        (ev["event_id"],),
-    )
-    db.commit()
+
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     from httpx import ASGITransport, AsyncClient
@@ -439,11 +410,7 @@ async def test_concurrent_requeue_different_events(
         ("consumer-B", ev2["event_id"]),
     )
     db.commit()
-    db.execute(
-        "UPDATE events SET delivery_failure_count = 2 WHERE event_id IN (?, ?)",
-        (ev1["event_id"], ev2["event_id"]),
-    )
-    db.commit()
+
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     async def requeue(event_id: str) -> dict:

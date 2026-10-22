@@ -31,6 +31,15 @@ Remove assertions on `delivery_failure_count` in DLQ items and dead-letter recor
 
 ~27 references remain in this file; they assert the legacy field on items/records. Removing them plus one absence assertion verifies REQ-004 for the listing and record.
 
+### Deviation from procedure
+
+During implementation, additional dead-code blocks were found and removed beyond the prescribed steps. Each of the following sets a `delivery_failure_count` on the `events` row, a value the per-consumer model never reads (promotion gates on `consumer_delivery_failure_count`):
+
+- `UPDATE events SET delivery_failure_count = 2 WHERE event_id = ?` blocks (several, including a pair preceding each NACK in the inline-promotion test).
+- `UPDATE events SET delivery_failure_count = 2 WHERE event_id IN (?, ?)`.
+
+These writes had no effect on promotion or on any response, so removing them changes no behavior. The prescribed assertion changes (remove legacy assertions, add `"delivery_failure_count" not in item` / `"cycle_failure_count" not in item`) were applied on top.
+
 ## Compatibility considerations
 
 - Run after `dlq.py` + `event_repo.py`.
@@ -60,10 +69,10 @@ Remove assertions on `delivery_failure_count` in DLQ items and dead-letter recor
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-22 | 2026-10-22 | See Deviation: vestigial `UPDATE events SET delivery_failure_count` dead-code blocks also removed |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-22 | 2026-10-22 | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-22 | 2026-10-22 | test_eventbus_dlq.py passes |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-22 | 2026-10-22 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

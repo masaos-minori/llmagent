@@ -10,8 +10,6 @@ logger = logging.getLogger(__name__)
 
 # Shared column constants
 from eventbus._constants import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus._constants
-    _COL_CYCLE_FAILURE_COUNT,
-    _COL_DELIVERY_FAILURE_COUNT,
     _COL_DLQ_AT,
     _COL_DLQ_REQUEUE_COUNT,
     _COL_EVENT_ID,
@@ -30,8 +28,9 @@ def redeliver_event(
     could both see dlq_at IS NOT NULL and both insert new rows.
 
     Performs conditional-update guard on the original row (WHERE event_id = ? AND dlq_at IS NOT NULL)
-    then inserts a new row with a fresh UUID v4 event_id, copied delivery_failure_count,
-    cycle_failure_count=0, and redelivered_from set to the original event_id.
+    then inserts a new row with a fresh UUID v4 event_id, no event-level failure
+    counters (the per-consumer model is authoritative), and redelivered_from set to
+    the original event_id.
 
     Returns (success, new_event_id):
       - (True, new_event_id)   = event found and redelivered
@@ -55,8 +54,8 @@ def redeliver_event(
     if cur.rowcount == 0:
         return (False, None)
     conn.execute(
-        f"INSERT INTO events ({_COL_EVENT_ID}, topic, payload, producer, published_at, {_COL_DELIVERY_FAILURE_COUNT}, {_COL_CYCLE_FAILURE_COUNT}, redelivered_from) "
-        f"SELECT ?, topic, payload, producer, {ts}, {_COL_DELIVERY_FAILURE_COUNT}, 0, ? "
+        f"INSERT INTO events ({_COL_EVENT_ID}, topic, payload, producer, published_at, redelivered_from) "
+        f"SELECT ?, topic, payload, producer, {ts}, ? "
         f"FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
         (new_event_id, event_id, event_id),
     )

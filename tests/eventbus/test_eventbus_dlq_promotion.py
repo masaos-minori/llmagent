@@ -1,9 +1,9 @@
 """tests/test_eventbus_dlq_promotion.py
 DLQ promotion semantics regression tests for Event Bus.
 
-Tests that DLQ promotion uses delivery_failure_count (not retry_count),
-that dlq_requeue_count increments on requeue, and that the dlq_imminent
-warning is returned when delivery_failure_count >= max_retry.
+Tests that DLQ promotion uses consumer_delivery_failure_count (not retry_count),
+that dlq_requeue_count increments on requeue, and that requeue succeeds when
+consumer_delivery_failure_count >= max_retry.
 """
 
 from __future__ import annotations
@@ -65,9 +65,11 @@ def _get_field(client: TestClient, event_id: str, field: str) -> Any:
 
 
 class TestDLQPromotionSemantics:
-    """Verify DLQ promotion uses delivery_failure_count, not retry_count."""
+    """Verify DLQ promotion gates on consumer_delivery_failure_count, not retry_count."""
 
-    def test_nack_increments_delivery_failure_count(self, client: TestClient) -> None:
+    def test_nack_increments_consumer_delivery_failure_count(
+        self, client: TestClient
+    ) -> None:
         """NACK increments consumer_delivery_failure_count (not delivery_failure_count on events table).
 
         Per-consumer model: delivery_failure_count/cycle_failure_count on events table

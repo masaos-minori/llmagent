@@ -1,6 +1,6 @@
 ## Goal
 
-Replace `NackResult`'s `-1` / `-2` sentinel fields (`delivery_failure_count`, `cycle_failure_count`) with an explicit `status` (`ok`, `not_found`, `invalid_state`) plus `consumer_failure_count`, and stop `nack_event()` from reading the events-level counters that the per-consumer model left inert (REQ-002).
+Replace `NackResult`'s `-1` / `-2` sentinel fields (`delivery_failure_count`, `cycle_failure_count`) with an explicit `status` (`ok`, `not_found` (new), `invalid_state` (new)) plus `consumer_failure_count`, and stop `nack_event()` from reading the events-level counters that the per-consumer model left inert (REQ-002).
 
 ## Scope
 
@@ -16,7 +16,7 @@ Replace `NackResult`'s `-1` / `-2` sentinel fields (`delivery_failure_count`, `c
 ## Design decisions
 
 - Model the three outcomes with a single `status: Literal["ok", "not_found", "invalid_state"]`; drop the two sentinel ints that doubled as both a returned value and the route's status signal.
-- Keep `consumer_failure_count: int | None` unchanged: `ok` carries it when a `consumer_id` was given, `not_found` / `invalid_state` carry `None`.
+- Keep `consumer_failure_count: int | None` unchanged: `ok` carries it when a `consumer_id` was given, `not_found` (new) / `invalid_state` (new) carry `None`.
 
 ## Alternatives considered
 
@@ -84,10 +84,10 @@ The `-1` / `-2` sentinels and the events-level column reads were the sole users 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-22 | 2026-10-22 | |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-22 | 2026-10-22 | |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-22 | 2026-10-22 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-22 | 2026-10-22 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

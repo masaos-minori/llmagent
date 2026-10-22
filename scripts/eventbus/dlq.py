@@ -27,7 +27,6 @@ class DlqEventRecord:
     payload: dict | list | str | int | float | bool
     producer: str
     published_at: str
-    delivery_failure_count: int
     dlq_at: str
     consumer_delivery_failure_count: int | None = (
         None  # REQ-002: per-consumer failure count
@@ -47,7 +46,6 @@ def _build_dlq_record(
         payload=orjson.loads(row["payload"]),
         producer=row["producer"],
         published_at=row["published_at"],
-        delivery_failure_count=row["delivery_failure_count"],
         dlq_at=now,
         consumer_delivery_failure_count=consumer_delivery_failure_count,
     )
@@ -88,8 +86,7 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
     """
     now = now_iso()
     rows = db.execute(
-        "SELECT e.seq, e.event_id, e.topic, e.payload, e.producer, e.published_at,"  # nosec B608 — constant SQL fragment, values parameterized
-        " e.delivery_failure_count, e.cycle_failure_count"
+        "SELECT e.seq, e.event_id, e.topic, e.payload, e.producer, e.published_at"  # nosec B608 — constant SQL fragment, values parameterized
         " FROM events e"
         " WHERE e.dlq_at IS NULL AND " + _PROMOTABLE_CONDITION,
         (max_retry,),
@@ -136,8 +133,7 @@ def _shared_promote_single(
     """
     now = now_iso()
     row = db.execute(
-        "SELECT seq, event_id, topic, payload, producer, published_at,"
-        " delivery_failure_count, cycle_failure_count"
+        "SELECT seq, event_id, topic, payload, producer, published_at"
         " FROM events WHERE event_id = ? AND dlq_at IS NULL",
         (event_id,),
     ).fetchone()
@@ -153,9 +149,9 @@ def _shared_promote_single(
     db.commit()
     if cur.rowcount:
         logger.warning(
-            "dlq inline promoted event_id=%s delivery_failure_count=%d",
+            "dlq inline promoted event_id=%s consumer_delivery_failure_count=%s",
             event_id,
-            row["delivery_failure_count"],
+            consumer_failure_count,
         )
     return cur.rowcount > 0
 

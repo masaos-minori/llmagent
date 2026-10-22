@@ -37,7 +37,7 @@ On ACK, the per-consumer delivery record and the consumer offset are updated in 
 
 ## Negatively Acknowledge Event
 
-`POST /nack?event_id=<id>&consumer_id=<id>`. Success returns HTTP 200 with `event_id` and `delivery_failure_count`, which is the nacking consumer's per-consumer failure count after this NACK. `dlq_promoted: true` is added when the event was promoted.
+`POST /nack?event_id=<id>&consumer_id=<id>`. Success returns HTTP 200 with `event_id` and `consumer_delivery_failure_count`, which is the nacking consumer's per-consumer failure count after this NACK. `dlq_promoted: true` is added when the event was promoted.
 
 | Condition | HTTP status |
 |---|---|

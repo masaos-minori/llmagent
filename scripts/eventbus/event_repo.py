@@ -115,7 +115,7 @@ def fetch_dlq(
     """Return events currently in the DLQ (dlq_at IS NOT NULL)."""
     sql = (
         "SELECT seq, event_id, topic, producer, published_at,"
-        " delivery_failure_count, dlq_requeue_count, dlq_at"
+        " dlq_requeue_count, dlq_at"
         " FROM events WHERE dlq_at IS NOT NULL ORDER BY seq"
     )
     params: tuple[int, ...] = ()

@@ -29,8 +29,7 @@ GET /dlq
 ### Behavior
 
 - Query parameters `limit` (bounded; see `scripts/eventbus/dlq_route.py`) and `offset` (`>= 0`) paginate the result. Out-of-range values return HTTP 422.
-- The response is a pagination envelope (`total`, `limit`, `offset`) plus an `items` array. Each item carries event identity, `dlq_at` (the time the event was promoted to the DLQ), `dlq_requeue_count` and `delivery_failure_count`.
-- `delivery_failure_count` is the stored events-level value, a legacy value that NACK does not modify under the per-consumer model; it is not the per-consumer failure count returned by `POST /nack`.
+- The response is a pagination envelope (`total`, `limit`, `offset`) plus an `items` array. Each item carries event identity, `dlq_at` (the time the event was promoted to the DLQ) and `dlq_requeue_count`.
 - Items are ordered by event `seq` ascending (oldest event first), not by the time of DLQ promotion. An empty DLQ returns `total: 0` and an empty `items` array.
 
 ## Requeue DLQ Entry

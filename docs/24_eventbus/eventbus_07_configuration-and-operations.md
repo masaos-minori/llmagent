@@ -182,7 +182,7 @@ Files are created at `{deadletter_dir}/{event_id}.json` during inline processing
 
 ### Requeue
 
-`POST /dlq/{event_id}/requeue` uses the lineage model: it inserts a new event row (`redelivered_from` set to the original, `delivery_failure_count` copied, `cycle_failure_count` reset) and increments `dlq_requeue_count` on the original, whose `dlq_at` is preserved. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` (Requeue (Redelivery)).
+`POST /dlq/{event_id}/requeue` uses the lineage model: it inserts a new event row (`redelivered_from` set to the original) and increments `dlq_requeue_count` on the original, whose `dlq_at` is preserved. See `eventbus_05_dlq_offsets_and_delivery_semantics.md` (Requeue (Redelivery)).
 
 ### Monitoring
 

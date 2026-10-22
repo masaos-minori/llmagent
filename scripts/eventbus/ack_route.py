@@ -154,12 +154,11 @@ async def nack(
     db = get_db(request)
     cfg = get_config(request)
 
-    def _nack_and_promote() -> tuple[int, bool]:
+    def _nack_and_promote() -> tuple[str, int | None, bool]:
         """Nack an event and promote to DLQ if max retries exceeded.
 
         DLQ promotion is gated on consumer_failure_count (the per-consumer
-        failure counter), not delivery_failure_count (the shared per-event
-        counter) — see REQ-002.
+        failure counter), not the shared per-event counter — see REQ-002.
         """
         # REQ-001: Generate attempt ID for NACK idempotency
         import uuid  # noqa: PLC0415 — local import avoids circular dependency
@@ -168,12 +167,12 @@ async def nack(
         nack_result = _nack_event(
             db, event_id, consumer_id, last_nack_attempt=attempt_id
         )
-        failure_count = nack_result.delivery_failure_count
-        if failure_count == -1:
-            return (-1, False)
-        if failure_count == -2:
-            # REQ-003: Determine -2 state atomically within the same transaction
-            # Check per-consumer ACK first (REQ-001, REQ-003)
+        status = nack_result.status
+        if status == "not_found":
+            return ("not_found", None, False)
+        if status == "invalid_state":
+            # REQ-003: Determine the invalid-state atomically within the same
+            # transaction. Check per-consumer ACK first (REQ-001, REQ-003)
             consumer_row = db.execute(
                 "SELECT acked FROM consumer_delivery "
                 "WHERE consumer_id = ? AND event_id = ?",
@@ -202,22 +201,19 @@ async def nack(
             promoted = is_promotable(db, event_id, cfg.max_retry) and promote_single(
                 db, cfg.deadletter_dir, event_id, consumer_failure_count
             )
-        return (
-            consumer_failure_count
-            if consumer_failure_count is not None
-            else failure_count,
-            promoted,
-        )
+        return ("ok", consumer_failure_count, promoted)
 
-    failure_count, promoted = await run_with_db_lock(_nack_and_promote)
-    if failure_count == -1:
+    status, consumer_failure_count, promoted = await run_with_db_lock(_nack_and_promote)
+    if status == "not_found":
         raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)
     logger.info(
-        "event nacked event_id=%s delivery_failure_count=%d", event_id, failure_count
+        "event nacked event_id=%s consumer_delivery_failure_count=%d",
+        event_id,
+        consumer_failure_count,
     )
     result: dict[str, Any] = {
         "event_id": event_id,
-        "delivery_failure_count": failure_count,
+        "consumer_delivery_failure_count": consumer_failure_count,
     }
     if promoted:
         result["dlq_promoted"] = True
