@@ -128,13 +128,13 @@ Each active item is listed with all fifteen Inventory Entry Fields above.
 - **Source File:** `agent_08_04_configuration-mcp-approval-obs.md`
 - **Section:** Component Criticality Classification, classification table, `github` row
 - **Line Number:** 61
-- **Question:** Whether `config/agent.toml` setting `[mcp_servers.github]` to `required = false` with `startup_mode = "none"` is an approved reclassification under ADR-004 Decision Group 3 item 13, or a deviation from the approved classification (`github` = required)
+- **Question:** Whether `MCP_GITHUB_AUTH_TOKEN` has been provisioned and `config/agent.toml` `[mcp_servers.github]` restored to `required = true` with a subprocess startup mode, so that it matches the approved classification (`github` = required) under ADR-004 Decision Group 3 item 13
 - **Evidence:** `config/agent.toml` `[mcp_servers.github]` sets `startup_mode = "none"` and `required = false` (commit `4e2442a75`, "disable the github MCP server until GITHUB_TOKEN is provisioned"); the classification table records `github` as required; ADR-004 Decision Group 3 item 13 states the `required` field in `config/agent.toml` must match the table and that configuration alone cannot weaken a mandatory component; no owner decision or table update accompanied the configuration change until 2026-10-21, when the owner decision was recorded as restore (`required = true`, matching the classification table). The config change is gated on `MCP_GITHUB_AUTH_TOKEN` provisioning, which is not yet available, so the restore is deferred and NC-041 remains open. Owner assignment pending.
-- **Impact:** Until resolved, the classification table and the deployed configuration disagree for `github`, and it is unknown whether the Fail-Closed handling of a disabled `github-mcp` has been assessed against Decision Group 3 item 10
-- **Required Action:** Record an owner decision: either update the classification table for `github` (with the item 10 assessment) or restore `required = true` when `GITHUB_TOKEN` is provisioned
+- **Impact:** Until restored, the approved value (`github` = required) and the deployed configuration disagree, and it is unknown whether the Fail-Closed handling of a disabled `github-mcp` has been assessed against Decision Group 3 item 10
+- **Required Action:** Provision `MCP_GITHUB_AUTH_TOKEN` through the project's secret-management path, restore `required = true` with a subprocess startup mode in `config/agent.toml`, and verify startup and tool discovery
 - **Status:** open
 - **Assigned To:** Unknown
-- **Last Reviewed:** 2026-10-20
+- **Last Reviewed:** 2026-10-22
 - **Priority:** Medium
 - **Related NC:** None
 - **Resolution Target:** Owner decision on the `github` classification recorded (restore); classification table and `config/agent.toml` agree once `required = true` is restored after `MCP_GITHUB_AUTH_TOKEN` is provisioned
