@@ -49,8 +49,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the `mdq.sqlite` baseline bullet | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Edit the `mdq.sqlite` baseline bullet | Completed | 20261022-111752 | 20261022-111752 | Changed: docs/41_db/db_07_api_and_operations-recovery-and-reference.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-111752 | 20261022-111752 | validated; docs checkers pass; full suite 9692 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

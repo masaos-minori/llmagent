@@ -26,6 +26,7 @@ N/A: wording rewrite fixed by the Plan.
 1. Replace the body of 8d (trigger, detection, action, comparison, data-loss warning) with the create-only description and rename its heading; keep the paragraph about `chunks_vec` and `memories_vec` being unrelated.
 2. Update the mdq row of the 8e table.
 3. Change "mdq.sqlite schema/auto-update source" in section 10 to "mdq.sqlite schema creation source".
+4. In the section 8 bullet that lists databases with incremental migration/auto-update mechanisms, leave only `eventbus.sqlite` there and describe `workflow.sqlite` (8a) and `mdq.sqlite` (8d) as create-only (found by verification; same file); in the 8e intro change "sections 8b and 8d" to "section 8b".
 
 ### Method
 - Minimal in-place edits; re-read the file before editing (three other procedures edit it); apply sequentially.
@@ -58,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite 8d, update the 8e mdq row and the section 10 phrase | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Rewrite 8d, update the 8e mdq row and the section 10 phrase | Completed | 20261022-111751 | 20261022-111751 | Changed: docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-111751 | 20261022-111751 | validated; docs checkers pass; full suite 9692 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

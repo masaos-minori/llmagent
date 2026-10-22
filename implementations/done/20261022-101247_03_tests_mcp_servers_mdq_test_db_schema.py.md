@@ -54,9 +54,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the legacy tests and helper; rename the kept test | Pending | — | — | |
-| 2 | Run the file's tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the legacy tests and helper; rename the kept test | Completed | 20261022-111750 | 20261022-111750 | Changed: tests/mcp_servers/mdq/test_db_schema.py |
+| 2 | Run the file's tests | Completed | 20261022-111750 | 20261022-111750 | validated; full suite 9692 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; MDQ tests incl. boundary pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-111750 | 20261022-111750 | validated; full suite 9692 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; MDQ tests incl. boundary pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

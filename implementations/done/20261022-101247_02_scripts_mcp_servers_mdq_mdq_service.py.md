@@ -49,8 +49,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix the `_init_db()` docstring | Pending | — | — | |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Fix the `_init_db()` docstring | Completed | 20261022-111749 | 20261022-111749 | Changed: scripts/mcp_servers/mdq/mdq_service.py |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-111749 | 20261022-111749 | validated; full suite 9692 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; MDQ tests incl. boundary pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

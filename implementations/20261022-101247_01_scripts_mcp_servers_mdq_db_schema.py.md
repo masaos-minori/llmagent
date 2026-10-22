@@ -58,15 +58,15 @@ Revert the commit; no data is changed by this edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the function and its call; fix the docstring | Pending | — | — | |
-| 2 | Tests are covered by the test-file procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Deploy step: read-only first-column check on `/opt/llm` `mdq.sqlite`, deploy, verify MDQ health | Pending | — | — | |
+| 1 | Delete the function and its call; fix the docstring | Completed | 20261022-111748 | 20261022-111748 | Changed: scripts/mcp_servers/mdq/db_schema.py |
+| 2 | Tests are covered by the test-file procedure | Completed | 20261022-111748 | 20261022-111748 | validated; full suite 9692 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; MDQ tests incl. boundary pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-111748 | 20261022-111748 | validated; full suite 9692 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; MDQ tests incl. boundary pass |
+| 4 | Deploy step: read-only first-column check on `/opt/llm` `mdq.sqlite`, deploy, verify MDQ health | Blocked | 20261022-111748 | — | Deploy to /opt/llm not performed: needs user confirmation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | Deploy to the production host `/opt/llm` modifies shared infrastructure and was not performed without the user's confirmation; the read-only first-column check of the deployed `mdq.sqlite` is also pending | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

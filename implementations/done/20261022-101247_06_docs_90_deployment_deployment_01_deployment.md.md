@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the legacy-schema clause | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Remove the legacy-schema clause | Completed | 20261022-111753 | 20261022-111753 | Changed: docs/90_deployment/deployment_01_deployment.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-111753 | 20261022-111753 | validated; docs checkers pass; full suite 9692 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
