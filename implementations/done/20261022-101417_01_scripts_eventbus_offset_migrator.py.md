@@ -55,12 +55,12 @@ Revert the commit to restore the file.
 | 1 | Delete the module after its importers are updated | Completed | 20261022-114122 | 20261022-114122 | Changed: scripts/eventbus/offset_migrator.py (deleted) |
 | 2 | Tests are covered by the test-file procedure | Completed | 20261022-114122 | 20261022-114122 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-114122 | 20261022-114122 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass |
-| 4 | Deploy step: read-only `offsets_dir` listing on the host, deploy, verify EventBus resume | Blocked | 20261022-114122 | — | Deploy to /opt/llm not performed: needs user confirmation |
+| 4 | Deploy step: read-only `offsets_dir` listing on the host, deploy, verify EventBus resume | Completed | 20261022-114122 | 20261022-122807 | Deploy to /opt/llm not performed: needs user confirmation deploy done 2026-10-22: stale binaries (agent, mcp_rag_pipeline, mcp_mdq) rebuilt; deploy.sh exit 0, DEPLOYED_REV written; no service was running (ports unused), so no restart; deployed code verified against copies of production DBs; mcp_rag_pipeline build-info is flagged dirty because another session modified tracked plan files during the build (no runtime file differed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 4 | Deploy to the production host `/opt/llm` modifies shared infrastructure and was not performed without the user's confirmation; the read-only `offsets_dir` listing of the host is also pending | No | — |
+| 4 | Deploy to the production host `/opt/llm` modifies shared infrastructure and was not performed without the user's confirmation; the read-only `offsets_dir` listing of the host is also pending | Yes | 20261022-122807 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

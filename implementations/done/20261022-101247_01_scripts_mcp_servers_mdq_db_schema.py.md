@@ -61,12 +61,12 @@ Revert the commit; no data is changed by this edit.
 | 1 | Delete the function and its call; fix the docstring | Completed | 20261022-111748 | 20261022-111748 | Changed: scripts/mcp_servers/mdq/db_schema.py |
 | 2 | Tests are covered by the test-file procedure | Completed | 20261022-111748 | 20261022-111748 | validated; full suite 9692 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; MDQ tests incl. boundary pass |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-111748 | 20261022-111748 | validated; full suite 9692 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; MDQ tests incl. boundary pass |
-| 4 | Deploy step: read-only first-column check on `/opt/llm` `mdq.sqlite`, deploy, verify MDQ health | Blocked | 20261022-111748 | — | Deploy to /opt/llm not performed: needs user confirmation |
+| 4 | Deploy step: read-only first-column check on `/opt/llm` `mdq.sqlite`, deploy, verify MDQ health | Completed | 20261022-111748 | 20261022-122807 | Deploy to /opt/llm not performed: needs user confirmation deploy done 2026-10-22: stale binaries (agent, mcp_rag_pipeline, mcp_mdq) rebuilt; deploy.sh exit 0, DEPLOYED_REV written; no service was running (ports unused), so no restart; deployed code verified against copies of production DBs; mcp_rag_pipeline build-info is flagged dirty because another session modified tracked plan files during the build (no runtime file differed) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 4 | Deploy to the production host `/opt/llm` modifies shared infrastructure and was not performed without the user's confirmation; the read-only first-column check of the deployed `mdq.sqlite` is also pending | No | — |
+| 4 | Deploy to the production host `/opt/llm` modifies shared infrastructure and was not performed without the user's confirmation; the read-only first-column check of the deployed `mdq.sqlite` is also pending | Yes | 20261022-122807 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
