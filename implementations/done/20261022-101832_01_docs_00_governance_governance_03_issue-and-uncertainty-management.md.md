@@ -57,9 +57,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the owner's decision on the `Blocking` semantics (gate) | Pending | — | — | |
-| 2 | Add the "Blocking Values" section and set NC-041's `Blocking` | Pending | — | — | |
-| 3 | Run the inventory and documentation checkers | Pending | — | — | |
+| 1 | Confirm the owner's decision on the `Blocking` semantics (gate) | Completed | 20261022-115448 | 20261022-115448 | Owner decision recorded: Option A, confirmed by the user in this session |
+| 2 | Add the "Blocking Values" section and set NC-041's `Blocking` | Completed | 20261022-115448 | 20261022-115448 | Changed: docs/00_governance/governance_03_issue-and-uncertainty-management.md |
+| 3 | Run the inventory and documentation checkers | Completed | 20261022-115448 | 20261022-115448 | validated; full suite 9689 passed, 14 skipped; ruff, mypy, bandit on edited tools pass; docs checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

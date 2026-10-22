@@ -61,8 +61,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Register `DRIFT-001` in Part 4 and add the NC-041 cross-reference | Pending | — | — | |
-| 2 | Run the inventory and documentation checkers and read back for consistency | Pending | — | — | |
+| 1 | Register `DRIFT-001` in Part 4 and add the NC-041 cross-reference | Completed | 20261022-115452 | 20261022-115452 | Changed: docs/00_governance/governance_03_issue-and-uncertainty-management.md |
+| 2 | Run the inventory and documentation checkers and read back for consistency | Completed | 20261022-115452 | 20261022-115452 | validated; full suite 9689 passed, 14 skipped; ruff, mypy, bandit on edited tools pass; docs checkers pass; check_issue_inventory_conformance and check_needs_confirmation_inventory pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -51,9 +51,9 @@ N/A: revert the commit with the tool change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `None`, exact-spelling, and parser tests | Pending | — | — | |
-| 2 | Run the file's tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the `None`, exact-spelling, and parser tests | Completed | 20261022-115455 | 20261022-115455 | Changed: tests/tools/test_check_needs_confirmation_inventory.py |
+| 2 | Run the file's tests | Completed | 20261022-115455 | 20261022-115455 | validated; full suite 9689 passed, 14 skipped; ruff, mypy, bandit on edited tools pass; docs checkers pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-115455 | 20261022-115455 | validated; full suite 9689 passed, 14 skipped; ruff, mypy, bandit on edited tools pass; docs checkers pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

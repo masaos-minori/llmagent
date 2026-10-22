@@ -52,9 +52,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the comment | Pending | — | — | |
-| 2 | Run the tool tests and the tool | Pending | — | — | |
-| 3 | Run the tool validation sequence per `routing.md` | Pending | — | — | |
+| 1 | Reword the comment | Completed | 20261022-115451 | 20261022-115451 | Changed: tools/check_compat_shims.py (comment only) |
+| 2 | Run the tool tests and the tool | Completed | 20261022-115451 | 20261022-115451 | validated; full suite 9689 passed, 14 skipped; ruff, mypy, bandit on edited tools pass; docs checkers pass; check_compat_shims tests (84) pass |
+| 3 | Run the tool validation sequence per `routing.md` | Completed | 20261022-115451 | 20261022-115451 | validated; full suite 9689 passed, 14 skipped; ruff, mypy, bandit on edited tools pass; docs checkers pass; check_compat_shims tests (84) pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

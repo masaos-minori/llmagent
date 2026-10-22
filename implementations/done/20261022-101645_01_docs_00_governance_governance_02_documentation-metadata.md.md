@@ -59,8 +59,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the five Example cells and add the scope sentence | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Rewrite the five Example cells and add the scope sentence | Completed | 20261022-115448 | 20261022-115448 | Changed: docs/00_governance/governance_02_documentation-metadata.md (Term/Definition cells verified unchanged) |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-115448 | 20261022-115448 | validated; full suite 9689 passed, 14 skipped; ruff, mypy, bandit on edited tools pass; docs checkers pass; check_glossary_term_classification --strict passes |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
