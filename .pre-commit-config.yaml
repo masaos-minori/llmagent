@@ -83,7 +83,7 @@ repos:
         files: ^docs/.*\.md$
       - id: metadata-field-policy
         name: Check metadata/status fields within the sanctioned set (GV-016, warning)
-        entry: python -m tools.check_metadata_field_policy
+        entry: uv run python -m tools.check_metadata_field_policy
         language: system
         pass_filenames: false
         types_or: [markdown]
