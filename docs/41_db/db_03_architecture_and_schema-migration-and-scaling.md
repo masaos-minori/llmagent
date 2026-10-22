@@ -26,7 +26,7 @@ related:
 `create_schema()` (`db/create_schema.py`) initializes all four schemas (rag, session, workflow, eventbus).
 
 - For create-only DDL (used by `create_schema()` bootstrap): all statements use `IF NOT EXISTS` — idempotent and safe to run multiple times.
-- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `eventbus.sqlite` (section 8b below) and `mdq.sqlite` (section 8d) have their own incremental migration/auto-update mechanisms, while `workflow.sqlite` (section 8a) is create-only with a version record — see respective sections for details.
+- **`rag.sqlite` and `session.sqlite` do not support backward-compatible migrations.** Changes to these schemas require database recreation: Archive → Delete → Recreate via `create_schema()`. Refer to [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure) for the full procedure. `eventbus.sqlite` (section 8b below) has its own incremental migration mechanism, while `workflow.sqlite` (section 8a, with a version record) and `mdq.sqlite` (section 8d) are create-only — see respective sections for details.
 - `create_schema()` is a wrapper that calls the four per-database initializers in order, and the responsibilities differ per database: `create_rag_schema()` and `create_session_schema()` run create-only DDL (idempotent, no migration); `create_workflow_schema()` runs the DDL and records the schema version (section 8a); `create_eventbus_schema()` runs the DDL read from `scripts/eventbus/schema.sql`, then applies the incremental migration list (section 8b). Against an existing file the rag, session, and workflow initializers change nothing (the workflow initializer refuses a different recorded version), while the eventbus initializer migrates it.
 - The embedding dimension is a fixed code-level constant (`get_embedding_dims()`), not a config key.
 
@@ -65,27 +65,21 @@ Migration rules (all idempotent; duplicate-column, duplicate-index and missing-c
 
 `db/rag_consistency.py::check_rag_consistency()` is a read-only verification function that compares row counts of `chunks`, `chunks_fts`, and `chunks_vec`, returning a `RagConsistencyReport` (`db/models.py`). See code for details on consistency conditions and error message generation logic.
 
-### 8d. Automatic Legacy Schema Detection for `mdq.sqlite` Only
+### 8d. Create-Only Tables for `mdq.sqlite`
 
-`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` is a third pattern of schema update, distinct from rag/session/eventbus and workflow, which runs automatically upon MDQ service startup.
-
-- **Trigger:** Called every time the MDQ service starts (no explicit migration command required).
-- **Detection:** Determines if the schema is legacy using `PRAGMA table_info(chunks)`.
-- **Action:** If a legacy schema is detected, it unconditionally `DROP`s the `chunks`/`chunks_fts` tables and related triggers, then recreates them with the current schema.
-- **Comparison:** Unlike 8a's `workflow.sqlite`, there are no version control columns or explicit `ALTER TABLE` migration lists — it simply inspects the schema shape at startup and rebuilds it silently if it is outdated.
-- **Data Loss Warning:** The `DROP` during legacy schema detection is unconditional; existing data is lost after recreation.
+`scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` creates the `mdq.sqlite` tables, triggers, and index state with `IF NOT EXISTS` statements every time the MDQ service starts; nothing is dropped or rewritten. `mdq.sqlite` is a derived store: a store older than the supported baseline is recovered by deleting the file and re-indexing the Markdown files (section 8e).
 
 The `chunks_vec` (`rag.sqlite`) and `memories_vec` (`session.sqlite`) tables defined in `db/schema_sql.py` are unrelated to the MDQ schema and are unaffected.
 
 ### 8e. Supported Upgrade Baseline
 
-The minimum supported source schema of each database is the schema of the current release. A database older than that is recreated, not migrated, so no supported database depends on the migration mechanisms of sections 8b and 8d. Every one of those migrations is classified removable; each database's migration code is removed by its own change.
+The minimum supported source schema of each database is the schema of the current release. A database older than that is recreated, not migrated, so no supported database depends on the migration mechanism of section 8b. Every one of those migrations is classified removable; each database's migration code is removed by its own change.
 
 | Database | Minimum supported source schema | Why the migration code is kept | Removal condition | Owner |
 |---|---|---|---|---|
 | `workflow.sqlite` | The current release schema: the recorded workflow schema version equals the current `WORKFLOW_SCHEMA_VERSION` | None: the workflow initializer is create-only | N/A: nothing to remove | The workflow engine |
 | `eventbus.sqlite` | The current release schema defined by `scripts/eventbus/schema.sql` | Same | Same | The EventBus service |
-| `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Same; a rebuilt store is recovered by re-indexing the Markdown files | Same | The `mdq-mcp` server |
+| `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | None: the MDQ initializer is create-only; a store older than the baseline is recovered by re-indexing the Markdown files | N/A: nothing to remove | The `mdq-mcp` server |
 
 How to read a database's current schema without changing it: [DB API and Operations](db_07_api_and_operations-recovery-and-reference.md#11a-identifying-a-databases-current-schema) (section 11a).
 
@@ -108,7 +102,7 @@ Schema evolution rules per database are defined in sections 8 through 8d; the mi
 
 ## 10. Source of Truth
 
-DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_schema.py::create_schema()`; deploy initialization entry point: `deploy/init_db.sh`; DB connection helper: `db/helper.py::SQLiteHelper`; DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`; Event Bus schema (DDL only): `scripts/eventbus/schema.sql`; mdq.sqlite schema/auto-update source: `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` (see section 8d).
+DDL source: `db/schema_sql.py`; schema initialization entry point: `db/create_schema.py::create_schema()`; deploy initialization entry point: `deploy/init_db.sh`; DB connection helper: `db/helper.py::SQLiteHelper`; DB files: `rag.sqlite`, `session.sqlite`, `workflow.sqlite`, `eventbus.sqlite`; Event Bus schema (DDL only): `scripts/eventbus/schema.sql`; mdq.sqlite schema creation source: `scripts/mcp_servers/mdq/db_schema.py::create_production_tables()` (see section 8d).
 
 ## 11. Storage Growth
 

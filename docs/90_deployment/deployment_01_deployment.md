@@ -283,7 +283,7 @@ key in `agent.toml` or falls back to `DbConfig`'s Python-level default
 
 Default paths are not stated here: the DB Path Reference below shows which keys are set in `agent.toml` and which fall back to a Python-level default.
 
-`mdq.sqlite` is a derived index owned by the MDQ server, outside the four platform databases ([ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md), Derived Stores Outside the Four Domains; [active databases](../41_db/db_08_active_databases.md)). `init_db.sh` does not create it: `deploy.sh` provisions the DB directory, and the MDQ service creates the file and its tables when it starts, recreating a legacy chunk schema as described in [DB migration and scaling](../41_db/db_03_architecture_and_schema-migration-and-scaling.md) (section 8d). Recovery is by re-indexing the Markdown files; the backup and rotation helpers do not cover it. The MDQ health check reports a missing database file or an unhealthy schema as degraded.
+`mdq.sqlite` is a derived index owned by the MDQ server, outside the four platform databases ([ADR-008](../10_adr/adr_02_05_008_db-sqlite-4db-separation.md), Derived Stores Outside the Four Domains; [active databases](../41_db/db_08_active_databases.md)). `init_db.sh` does not create it: `deploy.sh` provisions the DB directory, and the MDQ service creates the file and its tables when it starts. Recovery is by re-indexing the Markdown files; the backup and rotation helpers do not cover it. The MDQ health check reports a missing database file or an unhealthy schema as degraded.
 
 Schema details: `db_01_architecture_and_schema-overview-and-config.md`
 

@@ -109,7 +109,7 @@ class MdqService:
         return self._allowed_dirs
 
     def _init_db(self) -> None:
-        """Create production tables and migrate from legacy schema if needed."""
+        """Create the production tables."""
         db_dir = Path(self.db_path).parent
         db_dir.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)

@@ -18,20 +18,6 @@ from db.helper import apply_connection_pragmas
 logger = logging.getLogger(__name__)
 
 
-def _migrate_legacy_chunks_schema(conn: sqlite3.Connection) -> None:
-    """Detect and rebuild old schema (id INTEGER PK + chunk_id TEXT UNIQUE)."""
-    old_col = conn.execute("PRAGMA table_info(chunks)").fetchone()
-    if old_col is not None and old_col[1] == "id":  # index 1 = name column
-        logger.info(
-            "Detected old chunks schema (id column); rebuilding to chunk_id PRIMARY KEY"
-        )
-        conn.execute("DROP TABLE IF EXISTS chunks_fts")
-        conn.execute("DROP TABLE IF EXISTS chunks")
-        conn.execute("DROP TRIGGER IF EXISTS chunks_ai")
-        conn.execute("DROP TRIGGER IF EXISTS chunks_ad")
-        conn.execute("DROP TRIGGER IF EXISTS chunks_au")
-
-
 def _create_documents_table(conn: sqlite3.Connection) -> None:
     conn.execute("""
         CREATE TABLE IF NOT EXISTS documents (
@@ -122,14 +108,13 @@ def create_production_tables(
     db_path: str,
     sqlite_busy_timeout: int,
 ) -> None:
-    """Create production tables and migrate from legacy schema if needed."""
+    """Create the production tables."""
     db_dir = Path(db_path).parent
     db_dir.mkdir(parents=True, exist_ok=True)
     try:
         apply_connection_pragmas(
             conn, busy_timeout_ms=sqlite_busy_timeout, write_mode=False
         )
-        _migrate_legacy_chunks_schema(conn)
         _create_documents_table(conn)
         _create_chunks_table(conn)
         _create_chunks_fts_table(conn)

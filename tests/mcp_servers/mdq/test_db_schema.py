@@ -2,7 +2,6 @@
 Characterization tests for scripts/mcp_servers/mdq/db_schema.py.
 
 Locks current behavior of create_production_tables() before refactoring:
-- legacy schema detection/rebuild branch
 - production table/FTS5/trigger creation
 - error logging + re-raise on sqlite3.OperationalError
 """
@@ -85,103 +84,11 @@ class TestCreateProductionTablesFreshDb:
             conn.close()
 
 
-class TestLegacySchemaMigration:
-    """Behavior when an old (id INTEGER PK + chunk_id TEXT UNIQUE) chunks table exists."""
+class TestRerunOnCurrentShape:
+    """Behavior when create_production_tables() runs against a current-shape database."""
 
-    def _make_legacy_db(self, db_path: str) -> None:
-        conn = sqlite3.connect(db_path)
-        try:
-            conn.execute(
-                """
-                CREATE TABLE chunks (
-                    id INTEGER PRIMARY KEY,
-                    chunk_id TEXT UNIQUE,
-                    content TEXT
-                )
-                """
-            )
-            conn.execute(
-                """
-                CREATE VIRTUAL TABLE chunks_fts USING fts5(content)
-                """
-            )
-            conn.execute(
-                """
-                CREATE TRIGGER chunks_ai AFTER INSERT ON chunks
-                BEGIN
-                    INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
-                END
-                """
-            )
-            conn.execute(
-                """
-                CREATE TRIGGER chunks_ad AFTER DELETE ON chunks
-                BEGIN
-                    DELETE FROM chunks_fts WHERE rowid = old.id;
-                END
-                """
-            )
-            conn.execute(
-                """
-                CREATE TRIGGER chunks_au AFTER UPDATE ON chunks
-                BEGIN
-                    DELETE FROM chunks_fts WHERE rowid = old.id;
-                    INSERT INTO chunks_fts(rowid, content) VALUES (new.id, new.content);
-                END
-                """
-            )
-            conn.execute(
-                "INSERT INTO chunks (chunk_id, content) VALUES ('c1', 'legacy content')"
-            )
-            conn.commit()
-        finally:
-            conn.close()
-
-    def test_rebuilds_chunks_table_with_chunk_id_primary_key(
-        self, tmp_path: Path
-    ) -> None:
-        db_path = str(tmp_path / "legacy.sqlite")
-        self._make_legacy_db(db_path)
-        conn = sqlite3.connect(db_path)
-        try:
-            create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
-            cols = conn.execute("PRAGMA table_info(chunks)").fetchall()
-            col_names = [c[1] for c in cols]
-            assert "id" not in col_names
-            pk_cols = [c[1] for c in cols if c[5] > 0]
-            assert pk_cols == ["chunk_id"]
-        finally:
-            conn.close()
-
-    def test_legacy_data_is_dropped_on_rebuild(self, tmp_path: Path) -> None:
-        db_path = str(tmp_path / "legacy.sqlite")
-        self._make_legacy_db(db_path)
-        conn = sqlite3.connect(db_path)
-        try:
-            create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
-            rows = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()
-            assert rows[0] == 0
-        finally:
-            conn.close()
-
-    def test_logs_info_message_on_legacy_schema_detection(
-        self, tmp_path: Path, caplog: pytest.LogCaptureFixture
-    ) -> None:
-        db_path = str(tmp_path / "legacy.sqlite")
-        self._make_legacy_db(db_path)
-        conn = sqlite3.connect(db_path)
-        try:
-            with caplog.at_level(logging.INFO, logger="mcp_servers.mdq.db_schema"):
-                create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
-            assert any(
-                "old chunks schema" in record.message.lower()
-                for record in caplog.records
-            )
-        finally:
-            conn.close()
-
-    def test_new_schema_is_not_treated_as_legacy(self, tmp_path: Path) -> None:
-        """A chunks table already using chunk_id PRIMARY KEY must not trigger migration."""
+    def test_rerun_preserves_existing_rows(self, tmp_path: Path) -> None:
+        """Re-running against a chunk_id PRIMARY KEY database keeps its rows."""
         db_path = str(tmp_path / "already_new.sqlite")
         conn = sqlite3.connect(db_path)
         try:
@@ -201,7 +108,7 @@ class TestLegacySchemaMigration:
             create_production_tables(conn, db_path, sqlite_busy_timeout=5000)
 
             rows = conn.execute("SELECT COUNT(*) FROM chunks").fetchone()
-            assert rows[0] == 1  # data survives — no rebuild triggered
+            assert rows[0] == 1
         finally:
             conn.close()
 

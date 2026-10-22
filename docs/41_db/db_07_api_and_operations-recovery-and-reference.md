@@ -139,7 +139,7 @@ A database at the supported baseline shows:
 
 - `workflow.sqlite`: the version that `setup_services.sh` expects; a mismatch fails startup.
 - `eventbus.sqlite`: `events` without `retry_count`; `consumer_delivery` with `acked` and without `acked_at`; `consumer_offsets` with `offset`.
-- `mdq.sqlite`: `chunk_id` as the first `chunks` column (`id` is the legacy shape, which the MDQ service rebuilds at start).
+- `mdq.sqlite`: `chunk_id` as the first `chunks` column.
 
 A database that does not match is recreated (section 11), not migrated.
 
