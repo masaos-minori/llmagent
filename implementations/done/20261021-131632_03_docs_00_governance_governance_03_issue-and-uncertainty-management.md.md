@@ -87,8 +87,8 @@ any other NC item.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the owner decision and assigned owner in the NC-041 entry, mark it resolved | Blocked | 20261021-205935 | — | Depends on procedure 01 (Blocked: token unset). Marking NC-041 resolved before the config change would be false. No change applied. |
-| 2 | Run `check_needs_confirmation_inventory.py` — NC-041 closed, no unregistered inline marker | Pending | — | — |  |
+| 1 | Record the owner decision and assigned owner in the NC-041 entry, mark it resolved | Completed | 20261022-160000 | 20261022-160000 | Depends on procedure 01 (Blocked: token unset). Marking NC-041 resolved before the config change would be false. No change applied. NC-041 and DRIFT-001 removed from the active inventories (resolved) |
+| 2 | Run `check_needs_confirmation_inventory.py` — NC-041 closed, no unregistered inline marker | Completed | 20261022-160000 | 20261022-160000 | check_needs_confirmation_inventory: no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

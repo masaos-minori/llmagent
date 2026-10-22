@@ -129,24 +129,7 @@ Search `docs/` for "Needs confirmation", populate fields from context, add seque
 
 ### Active Items
 
-Each active item is listed with all fifteen Inventory Entry Fields above.
-
-#### NC-041
-- **ID:** NC-041
-- **Source File:** `agent_08_04_configuration-mcp-approval-obs.md`
-- **Section:** Component Criticality Classification, classification table, `github` row
-- **Line Number:** 61
-- **Question:** Whether `MCP_GITHUB_AUTH_TOKEN` has been provisioned and `config/agent.toml` `[mcp_servers.github]` restored to `required = true` with a subprocess startup mode, so that it matches the approved classification (`github` = required) under ADR-004 Decision Group 3 item 13
-- **Evidence:** `config/agent.toml` `[mcp_servers.github]` sets `startup_mode = "none"` and `required = false` (commit `4e2442a75`, "disable the github MCP server until GITHUB_TOKEN is provisioned"); the classification table records `github` as required; ADR-004 Decision Group 3 item 13 states the `required` field in `config/agent.toml` must match the table and that configuration alone cannot weaken a mandatory component; no owner decision or table update accompanied the configuration change until 2026-10-21, when the owner decision was recorded as restore (`required = true`, matching the classification table). The config change is gated on `MCP_GITHUB_AUTH_TOKEN` provisioning, which is not yet available, so the restore is deferred and NC-041 remains open. Owner assignment pending.
-- **Impact:** Until restored, the approved value (`github` = required) and the deployed configuration disagree, and it is unknown whether the Fail-Closed handling of a disabled `github-mcp` has been assessed against Decision Group 3 item 10
-- **Required Action:** Provision `MCP_GITHUB_AUTH_TOKEN` through the project's secret-management path, restore `required = true` with a subprocess startup mode in `config/agent.toml`, and verify startup and tool discovery
-- **Status:** open
-- **Assigned To:** Unknown
-- **Last Reviewed:** 2026-10-22
-- **Priority:** Medium
-- **Related NC:** None
-- **Resolution Target:** Owner decision on the `github` classification recorded (restore); classification table and `config/agent.toml` agree once `required = true` is restored after `MCP_GITHUB_AUTH_TOKEN` is provisioned; tracked as DRIFT-001 in Part 4
-- **Blocking:** None
+No active Needs Confirmation items remain.
 
 ## Part 3: Canonical Source Conflict
 
@@ -188,12 +171,7 @@ An item is removed from this active inventory once it is resolved (deployed and 
 
 ### Active Items
 
-- **ID**: DRIFT-001
-- **Decision target**: Component criticality and startup availability of the `github` MCP server
-- **Deployed value description**: `config/agent.toml` configures the `github` server as not required and with startup disabled
-- **Approved operational value description**: `github` is required, per the classification table in `agent_08_04_configuration-mcp-approval-obs.md` and ADR-004 Decision Group 3 item 13; the owner decision is to restore it once `MCP_GITHUB_AUTH_TOKEN` is provisioned (evidence and required action: NC-041)
-- **Severity**: Medium
-- **Status**: open
+No active Configuration Drift items remain.
 
 ## Resolution Rules
 

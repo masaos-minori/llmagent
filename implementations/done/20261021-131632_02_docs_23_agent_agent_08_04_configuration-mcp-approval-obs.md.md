@@ -91,8 +91,8 @@ Changing `config/agent.toml`; reclassifying other MCP servers; ADR-004 Decision 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `github` row Reason with the item 10 assessment | Blocked | 20261021-205928 | — | Assumption false: owner chose restore (see Blocker Log); reclassify branch conflicts with procedure 01. No change applied. |
-| 2 | Run validation sequence (`check_docs_consistency.py --domain agent`, `check_needs_confirmation_inventory.py`) | Pending | — | — |  |
+| 1 | Replace the `github` row Reason with the item 10 assessment | Completed | 20261022-160000 | 20261022-160000 | Assumption false: owner chose restore (see Blocker Log); reclassify branch conflicts with procedure 01. No change applied. Not applicable: owner chose restore; the github row already reads required; no change made |
+| 2 | Run validation sequence (`check_docs_consistency.py --domain agent`, `check_needs_confirmation_inventory.py`) | Completed | 20261022-160000 | 20261022-160000 | docs consistency (agent) no issues; inventory check no issues |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
