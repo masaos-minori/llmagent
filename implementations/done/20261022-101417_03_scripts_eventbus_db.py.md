@@ -50,9 +50,9 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the import, comment, and `__all__` entry | Pending | — | — | |
-| 2 | Tests are covered by the test-file procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the import, comment, and `__all__` entry | Completed | 20261022-114125 | 20261022-114125 | Changed: scripts/eventbus/db.py |
+| 2 | Tests are covered by the test-file procedure | Completed | 20261022-114125 | 20261022-114125 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-114125 | 20261022-114125 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

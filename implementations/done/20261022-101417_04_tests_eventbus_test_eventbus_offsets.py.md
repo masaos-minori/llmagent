@@ -56,9 +56,9 @@ N/A: revert the commit with the source change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the import tests; re-home the collision tests | Pending | — | — | |
-| 2 | Add the untouched-`offsets_dir` fixture and test | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Delete the import tests; re-home the collision tests | Completed | 20261022-114126 | 20261022-114126 | Changed: tests/eventbus/test_eventbus_offsets.py |
+| 2 | Add the untouched-`offsets_dir` fixture and test | Completed | 20261022-114126 | 20261022-114126 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass; new untouched-offsets_dir test added |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-114126 | 20261022-114126 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass; new untouched-offsets_dir test added |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

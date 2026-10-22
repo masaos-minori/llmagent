@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the two sentences and replace the open-decisions section | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Edit the two sentences and replace the open-decisions section | Completed | 20261022-114127 | 20261022-114127 | Changed: docs/24_eventbus/eventbus_05_dlq_offsets_and_delivery_semantics.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-114127 | 20261022-114127 | validated; docs checkers pass; generate_reference_table --check passes; full suite 9686 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

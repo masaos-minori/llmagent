@@ -53,9 +53,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the responsibility sentence | Pending | — | — | |
-| 2 | Regenerate the reference block and run `--check` | Pending | — | — | |
-| 3 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Edit the responsibility sentence | Completed | 20261022-114129 | 20261022-114129 | Changed: docs/24_eventbus/eventbus_08_reference_api.md |
+| 2 | Regenerate the reference block and run `--check` | Completed | 20261022-114129 | 20261022-114129 | validated; docs checkers pass; generate_reference_table --check passes; full suite 9686 passed |
+| 3 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-114129 | 20261022-114129 | validated; docs checkers pass; generate_reference_table --check passes; full suite 9686 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

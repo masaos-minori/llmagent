@@ -52,15 +52,15 @@ Revert the commit to restore the file.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the module after its importers are updated | Pending | — | — | |
-| 2 | Tests are covered by the test-file procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Deploy step: read-only `offsets_dir` listing on the host, deploy, verify EventBus resume | Pending | — | — | |
+| 1 | Delete the module after its importers are updated | Completed | 20261022-114122 | 20261022-114122 | Changed: scripts/eventbus/offset_migrator.py (deleted) |
+| 2 | Tests are covered by the test-file procedure | Completed | 20261022-114122 | 20261022-114122 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-114122 | 20261022-114122 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass |
+| 4 | Deploy step: read-only `offsets_dir` listing on the host, deploy, verify EventBus resume | Blocked | 20261022-114122 | — | Deploy to /opt/llm not performed: needs user confirmation |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 4 | Deploy to the production host `/opt/llm` modifies shared infrastructure and was not performed without the user's confirmation; the read-only `offsets_dir` listing of the host is also pending | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

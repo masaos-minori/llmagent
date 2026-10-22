@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reduce the "Legacy Offset Files" section | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Reduce the "Legacy Offset Files" section | Completed | 20261022-114128 | 20261022-114128 | Changed: docs/24_eventbus/eventbus_07_configuration-and-operations.md |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-114128 | 20261022-114128 | validated; docs checkers pass; generate_reference_table --check passes; full suite 9686 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -52,9 +52,9 @@ Revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove the import and the startup call block | Pending | — | — | |
-| 2 | Tests are covered by the test-file procedure | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Remove the import and the startup call block | Completed | 20261022-114123 | 20261022-114123 | Changed: scripts/eventbus/app.py |
+| 2 | Tests are covered by the test-file procedure | Completed | 20261022-114123 | 20261022-114123 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261022-114123 | 20261022-114123 | validated; full suite 9686 passed, 14 skipped; ruff, mypy, lint-imports, check_module_size pass; offset, resume, startup tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

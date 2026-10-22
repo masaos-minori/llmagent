@@ -52,8 +52,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete the "Offset Seeding" subsection | Pending | — | — | |
-| 2 | Run the documentation checkers named in `routing.md` Tools | Pending | — | — | |
+| 1 | Delete the "Offset Seeding" subsection | Completed | 20261022-114130 | 20261022-114130 | Changed: docs/41_db/db_03_architecture_and_schema-migration-and-scaling.md; also removed the 8b seeding bullet |
+| 2 | Run the documentation checkers named in `routing.md` Tools | Completed | 20261022-114130 | 20261022-114130 | validated; docs checkers pass; generate_reference_table --check passes; full suite 9686 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
