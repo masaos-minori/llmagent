@@ -54,14 +54,14 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Obtain the owner's approval for the reference-only edit (Plan UNK-03) | Pending | — | — | |
-| 2 | Edit the two references | Pending | — | — | |
-| 3 | Run the ADR and documentation checkers | Pending | — | — | |
+| 1 | Obtain the owner's approval for the reference-only edit (Plan UNK-03) | Blocked | 20261022-104512 | — | Blocked: ADR change needs the owner's decision (Plan UNK-03) |
+| 2 | Edit the two references | Pending | — | — |  |
+| 3 | Run the ADR and documentation checkers | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | `check_adr_preservation.py` reports WARNING "section 'Decision' text changed" for both ADR-008 references (they sit in the Decision section); the Plan forbids a Decision change, so the edit was reverted and needs the owner's ADR-change decision | No | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
