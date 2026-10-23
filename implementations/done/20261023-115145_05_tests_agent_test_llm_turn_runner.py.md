@@ -6,7 +6,7 @@ Pin the observable consequence this Plan introduces: a round whose calls all fai
 
 ## Scope
 
-Add to `tests/agent/test_llm_turn_runner.py`: one class `TestAllFailingRoundGuardReachable` with a full-failure case (all calls fail → turn stops with `reason="error_limit"` after `tool_error_max_consecutive` rounds) and a partial-failure case (count maintained, not incremented, per `tool_loop_guard.py:385-389`). Do not modify any existing test, including `test_check_error_limit_triggers` (`tests/agent/test_llm_turn_runner.py:475`).
+Add to `tests/agent/test_llm_turn_runner.py`: one class `TestAllFailingRoundGuardReachable` (new) with a full-failure case (all calls fail → turn stops with `reason="error_limit"` after `tool_error_max_consecutive` rounds) and a partial-failure case (count maintained, not incremented, per `tool_loop_guard.py:385-389`). Do not modify any existing test, including `test_check_error_limit_triggers` (`tests/agent/test_llm_turn_runner.py:475`).
 
 ## Assumptions
 
@@ -35,7 +35,7 @@ Add to `tests/agent/test_llm_turn_runner.py`: one class `TestAllFailingRoundGuar
 1. Import `ToolLoopGuard` alongside the existing `LLMTurnRunner` import, so the new runner can be built with a real guard.
 
 2. Add `class TestAllFailingRoundGuardReachable`:
-   - **`test_full_failure_stops_turn_at_error_limit` (`AC-7`):** build a runner with a real `ToolLoopGuard(ctx)` (so `update_errors`/`check_error_limit` run for real; `cfg.tool_error_max_consecutive` is 3 from `_make_ctx` at `:27`). Patch `runner._stream_llm` to yield a `tool_calls` response each turn. Patch `agent.tool_runner.execute_one_tool_call` so every call raises. Run `runner.run(...)`. Assert the result is `TurnResult(action="fail", reason="error_limit")` — i.e. after 3 consecutive all-failing rounds the real guard aborts. This proves the round now records errors and the guard becomes reachable.
+   - **`test_full_failure_stops_turn_at_error_limit` (new) (`AC-7`):** build a runner with a real `ToolLoopGuard(ctx)` (so `update_errors`/`check_error_limit` run for real; `cfg.tool_error_max_consecutive` is 3 from `_make_ctx` at `:27`). Patch `runner._stream_llm` to yield a `tool_calls` response each turn. Patch `agent.tool_runner.execute_one_tool_call` so every call raises. Run `runner.run(...)`. Assert the result is `TurnResult(action="fail", reason="error_limit")` — i.e. after 3 consecutive all-failing rounds the real guard aborts. This proves the round now records errors and the guard becomes reachable.
    - **`test_partial_failure_maintains_count` (`REQ-009`, `tool_loop_guard.py:385-389`):** one round mixing a succeeding call and a failing call. Assert that `update_errors` maintains `consecutive_errors` (partial failure: `n_errors > 0` but `!= n_tool_calls`) rather than incrementing, so a single partially-failing round does not itself stop the turn.
 
 3. Confirm the existing `TestRun` cases — especially `test_check_error_limit_triggers` (`:475`) and `test_executes_tool_calls_then_returns` (`:377`) — still pass unmodified.
@@ -68,7 +68,7 @@ N/A: revert the commit.
 
 ## Completion criteria
 
-- `TestAllFailingRoundGuardReachable` asserts the full-failure round stops the turn with `reason="error_limit"` after `tool_error_max_consecutive` rounds, and the partial-failure round maintains (not increments) the consecutive-error count.
+- `TestAllFailingRoundGuardReachable` (new) asserts the full-failure round stops the turn with `reason="error_limit"` after `tool_error_max_consecutive` rounds, and the partial-failure round maintains (not increments) the consecutive-error count.
 - Every existing test in the file passes.
 
 ## Out of Scope
@@ -82,8 +82,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestAllFailingRoundGuardReachable` (full-failure + partial-failure) with a real `ToolLoopGuard` | Pending | — | — | Exercises the newly reachable `check_error_limit` path |
-| 2 | Run the llm_turn_runner unit tests + full suite | Pending | — | — | Existing `TestRun` cases must pass unmodified |
+| 1 | Add `TestAllFailingRoundGuardReachable` (new) (full-failure + partial-failure) with a real `ToolLoopGuard` | Completed | — | 20261023-184320 | Exercises the newly reachable `check_error_limit` path Real ToolLoopGuard(ctx); execute_all_tool_calls patched to advance stat_tool_errors. MagicMock <= int raises TypeError, so pinned progress_stagnation_window and tool_empty_result_max_repeats to 0. |
+| 2 | Run the llm_turn_runner unit tests + full suite | Completed | — | 20261023-184320 | Existing `TestRun` cases must pass unmodified 29 pass (27 existing unmodified + 2 new). Full suite 9941 passed / 10 skipped / 0 failed. Test-only; no production/doc change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

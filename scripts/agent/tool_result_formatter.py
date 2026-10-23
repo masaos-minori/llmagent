@@ -24,6 +24,21 @@ def turn_limit_hint(omitted_chars: int, omitted_lines: int, limit: int) -> str:
     )
 
 
+def build_execution_failure_text(exc: Exception) -> str:
+    """Build the LLM-facing text for a tool call whose execution raised.
+
+    Mirrors turn_limit_hint(): a fixed bracketed marker that distinguishes an
+    execution failure from a tool-reported error and from a preparation
+    rejection, followed by the exception class name and message so the model
+    can gauge severity. An empty message still yields a usable single-line
+    marker.
+    """
+    class_name = type(exc).__name__
+    message = str(exc).strip()
+    detail = f"{class_name}: {message}" if message else class_name
+    return f"[Tool execution failed: {detail}]"
+
+
 def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:
     """Return a copy of args with masked_fields values replaced by '***'.
 

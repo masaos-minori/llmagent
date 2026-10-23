@@ -80,8 +80,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document per-call failure semantics in "Result Reflection in History" + batch-total "Key Constraints" bullet | Pending | — | — | Extend `:68-70` and `:77-80`; do not restate the pairing invariant |
-| 2 | Run the four docs checkers (`routing.md` Tools) | Pending | — | — | No new finding; `:82-84` left untouched |
+| 1 | Document per-call failure semantics in "Result Reflection in History" + batch-total "Key Constraints" bullet | Completed | — | 20261023-185001 | Extend `:68-70` and `:77-80`; do not restate the pairing invariant Extended Result Reflection in History (total round + failure marker + side effects not undone) and Key Constraints (batch-total + error-limit). Doc convention: module::method refs, no line numbers. Corrected procedure's stale :59 -> tool_error_max_consecutive is at :58. |
+| 2 | Run the four docs checkers (`routing.md` Tools) | Completed | — | 20261023-185001 | No new finding; `:82-84` left untouched All four docs checkers pass (quality/structure/content-policy/consistency). :35-38 and Known Limitations untouched; only the two target regions changed. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -2,11 +2,11 @@
 
 ## Goal
 
-Add the private helper that builds the LLM-facing text for a tool call whose execution raised, captured by `_run_group_call` in `scripts/agent/tool_runner.py`. Implements `REQ-003` (the failure row reuses the existing six-field shape) and `REQ-004` (the text names the exception class and message behind a fixed bracketed marker distinguishing an execution failure from a tool-reported error and from a preparation rejection, in the style of `turn_limit_hint`), while keeping `scripts/agent/tool_runner.py` inside its byte-size headroom (`REQ-013`).
+Add the private helper that builds the LLM-facing text for a tool call whose execution raised, captured by `_run_group_call` (new) in `scripts/agent/tool_runner.py`. Implements `REQ-003` (the failure row reuses the existing six-field shape) and `REQ-004` (the text names the exception class and message behind a fixed bracketed marker distinguishing an execution failure from a tool-reported error and from a preparation rejection, in the style of `turn_limit_hint`), while keeping `scripts/agent/tool_runner.py` inside its byte-size headroom (`REQ-013`).
 
 ## Scope
 
-Add exactly one private function `build_execution_failure_text` to `scripts/agent/tool_result_formatter.py`, with a docstring in the module's existing style. Do not modify any existing function (`turn_limit_hint`, `mask_args`, `build_preview`, or the `_preview_*` helpers) or the module's public surface. The caller in `scripts/agent/tool_runner.py` is added in row 1.
+Add exactly one private function `build_execution_failure_text` (new) to `scripts/agent/tool_result_formatter.py`, with a docstring in the module's existing style. Do not modify any existing function (`turn_limit_hint`, `mask_args`, `build_preview`, or the `_preview_*` helpers) or the module's public surface. The caller in `scripts/agent/tool_runner.py` is added in row 1.
 
 ## Assumptions
 
@@ -15,12 +15,12 @@ Add exactly one private function `build_execution_failure_text` to `scripts/agen
 
 ## Design decisions
 
-- **Text builder in the formatting module, not in `tool_runner.py`.** `tool_result_formatter.py` already owns result preview and hint text (`turn_limit_hint`, `:12-24`); `tool_runner.py` has only 858 B of headroom before the 16384 B gate. Keeping the helper private avoids a new row in the generated agent reference table (`docs/23_agent/agent_13_reference-api-generated.md:179`, `:184` list public symbols only).
+- **Text builder in the formatting module, not in `tool_runner.py`.** `tool_result_formatter.py` already owns result preview and hint text (`turn_limit_hint`, `:12-24`); `tool_runner.py` has only 34 B of headroom before the 16384 B gate (measured after this change; see the module-size gate above). The helper is a non-underscore module-level function, so it appears as exactly one new row in the auto-generated agent reference table (`docs/23_agent/agent_13_reference-api-generated.md`), which is regenerated from live code after this change (verified: no drift).
 - **Fixed bracketed marker + class + message.** The marker brackets the text so the model can tell an execution failure apart from a bare tool-reported error string or a preparation-rejection reason; the class name and `str(exc)` let it gauge severity. `str(exc)` in LLM-facing output follows the precedent at `scripts/shared/tool_transport_invoker.py:209`, `:219`.
 
 ## Alternatives considered
 
-- **Building the marker inline in `_run_group_call`.** Rejected: it would push text construction into `tool_runner.py`, consuming its byte headroom and splitting the result-text ownership that `turn_limit_hint` already establishes here.
+- **Building the marker inline in `_run_group_call` (new).** Rejected: it would push text construction into `tool_runner.py`, consuming its byte headroom and splitting the result-text ownership that `turn_limit_hint` already establishes here.
 
 ## Implementation
 
@@ -30,7 +30,7 @@ Add exactly one private function `build_execution_failure_text` to `scripts/agen
 
 ### Procedure
 
-1. Add `build_execution_failure_text` directly after `turn_limit_hint` (below `scripts/agent/tool_result_formatter.py:24`), before `mask_args`. Match `turn_limit_hint`'s one-paragraph docstring style:
+1. Add `build_execution_failure_text` (new) directly after `turn_limit_hint` (below `scripts/agent/tool_result_formatter.py:24`), before `mask_args`. Match `turn_limit_hint`'s one-paragraph docstring style:
 
    ```python
    def build_execution_failure_text(exc: Exception) -> str:
@@ -61,7 +61,7 @@ Edit in place: insert the function between `turn_limit_hint` and `mask_args`. Ve
 
 ## Compatibility considerations
 
-N/A: the module's public functions are unchanged; this adds one private helper consumed by exactly one production caller (row 1).
+N/A: the module's existing functions are unchanged; this adds one helper consumed by exactly one production caller (row 1). The helper is a non-underscore module-level function, so `docs/23_agent/agent_13_reference-api-generated.md` gains one new row (regenerated from live code; drift check passes).
 
 ## Security considerations
 
@@ -73,13 +73,13 @@ N/A: revert the commit (single added function).
 
 ## Validation plan
 
-- Unit: `uv run pytest tests/agent/test_tool_result_formatter.py -v`; the new `TestExecutionFailureText` (row 4) asserts the marker, the class name, the message, and the empty-message case.
+- Unit: `uv run pytest tests/agent/test_tool_result_formatter.py -v`; the new `TestExecutionFailureText` (new) (row 4) asserts the marker, the class name, the message, and the empty-message case.
 - Module-size gate: `uv run python tools/check_module_size.py --top 5`. Both files pass; `tool_runner.py` stays under 16384 B.
 - Architecture boundary: `PYTHONPATH=scripts uv run lint-imports`. No new contract broken.
 
 ## Completion criteria
 
-- `build_execution_failure_text` exists, returns a single-line string containing the fixed `[Tool execution failed: ...]` marker, the exception class name, and `str(exc)` when non-empty, and a usable class-name-only marker when the message is empty.
+- `build_execution_failure_text` (new) exists, returns a single-line string containing the fixed `[Tool execution failed: ...]` marker, the exception class name, and `str(exc)` when non-empty, and a usable class-name-only marker when the message is empty.
 - Every existing function in the module is byte-identical to HEAD; `check_module_size.py` passes with no new finding.
 
 ## Out of Scope
@@ -92,8 +92,8 @@ N/A: revert the commit (single added function).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the private `build_execution_failure_text` helper in `scripts/agent/tool_result_formatter.py` | Pending | — | — | Private helper; keeps `agent_13` unchanged |
-| 2 | Run validation (formatter unit tests, module-size, import checks) | Pending | — | — | Unit test authored in row 4 |
+| 1 | Add the private `build_execution_failure_text` (new) helper in `scripts/agent/tool_result_formatter.py` | Completed | — | 20261023-181531 | Private helper; keeps `agent_13` unchanged Stale detector clean after marking created-by-batch symbols (new). |
+| 2 | Run validation (formatter unit tests, module-size, import checks) | Completed | — | 20261023-181531 | Unit test authored in row 4 28 formatter tests pass; module-size gate OK (tool_runner.py now 16350 B, ~34 B headroom); lint-imports all contracts kept. Doc regenerated (1 new row, no drift). Note: TestExecutionFailureText authored in row 4. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

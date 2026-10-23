@@ -6,7 +6,7 @@ Unit-test the failure-text contract directly, without a full round fixture. Impl
 
 ## Scope
 
-Add `TestExecutionFailureText` to `tests/agent/test_tool_result_formatter.py`, following the `TestTurnLimitHint` pattern (`tests/agent/test_tool_result_formatter.py:177`), and add `build_execution_failure_text` to the module import block (`:9-14`). Do not modify any existing test.
+Add `TestExecutionFailureText` (new) to `tests/agent/test_tool_result_formatter.py`, following the `TestTurnLimitHint` pattern (`tests/agent/test_tool_result_formatter.py:177`), and add `build_execution_failure_text` to the module import block (`:9-14`). Do not modify any existing test.
 
 ## Assumptions
 
@@ -77,11 +77,11 @@ N/A: revert the commit.
 
 ## Validation plan
 
-- `uv run pytest tests/agent/test_tool_result_formatter.py -v`: `TestExecutionFailureText` passes; all existing cases pass unmodified.
+- `uv run pytest tests/agent/test_tool_result_formatter.py -v`: `TestExecutionFailureText` (new) passes; all existing cases pass unmodified.
 
 ## Completion criteria
 
-- `TestExecutionFailureText` asserts the marker, the class name, the message, and the empty-message case.
+- `TestExecutionFailureText` (new) asserts the marker, the class name, the message, and the empty-message case.
 - Every existing test in the file passes.
 
 ## Out of Scope
@@ -94,8 +94,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestExecutionFailureText` following the `TestTurnLimitHint` pattern | Pending | — | — | Follows the existing text-builder test pattern |
-| 2 | Run the formatter unit tests | Pending | — | — | Existing cases must pass unmodified |
+| 1 | Add `TestExecutionFailureText` (new) following the `TestTurnLimitHint` pattern | Completed | — | 20261023-181912 | Follows the existing text-builder test pattern Stale detector clean after marking TestExecutionFailureText (new). Import added alphabetically. |
+| 2 | Run the formatter unit tests | Completed | — | 20261023-181912 | Existing cases must pass unmodified 30 formatter tests pass (28 existing unmodified + 2 new TestExecutionFailureText). Test-only; no production/doc change. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

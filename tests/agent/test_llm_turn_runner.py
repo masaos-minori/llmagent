@@ -13,6 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.context import ConversationState
 from agent.llm_turn_runner import LLMTurnRunner
+from agent.tool_loop_guard import ToolLoopGuard
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
 from shared.types import LLMMessage
@@ -591,3 +592,108 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
             "content": "",
             "tool_calls": tool_calls,
         }
+
+
+class TestAllFailingRoundGuardReachable:
+    """Pin the real ToolLoopGuard consecutive-error counting path (REQ-009 / AC-7).
+
+    The shared `runner` fixture uses a MagicMock guard, so these cases build a
+    runner with a real ToolLoopGuard(ctx) and drive run() through multiple
+    tool-call rounds. execute_all_tool_calls is replaced with an AsyncMock whose
+    side_effect advances ctx.stats.stat_tool_errors, so update_errors and
+    check_error_limit run for real while the preparation/registry path stays
+    out of the way.
+    """
+
+    def _guarded_runner(self) -> tuple[LLMTurnRunner, MagicMock]:
+        ctx = _make_ctx()
+        # The guard compares several thresholds with `<= 0`; an unset MagicMock
+        # attribute raises TypeError on comparison, so pin the ones this test
+        # does not otherwise configure.
+        ctx.cfg.tool.progress_stagnation_window = 0
+        ctx.cfg.tool.tool_empty_result_max_repeats = 0
+        guard = ToolLoopGuard(ctx)
+        return LLMTurnRunner(ctx, guard), ctx
+
+    @pytest.mark.asyncio
+    async def test_full_failure_stops_turn_at_error_limit(self) -> None:
+        runner, ctx = self._guarded_runner()
+        # Distinct tool name per round so the real dedup guard never fires
+        # before the consecutive-error limit is reached.
+        rounds = [
+            [{"id": "c1", "function": {"name": "read_file"}}],
+            [{"id": "c2", "function": {"name": "write_file"}}],
+            [{"id": "c3", "function": {"name": "delete_file"}}],
+        ]
+        responses = [
+            LLMResponse(
+                message={"role": "assistant", "content": "", "tool_calls": calls},
+                finish_reason="tool_calls",
+            )
+            for calls in rounds
+        ]
+
+        async def _record_all_fail(_ctx, calls, *_a, **_k) -> None:
+            # Every call failed: record one error per call in the round.
+            _ctx.stats.stat_tool_errors += len(calls)
+
+        with (
+            patch.object(
+                runner,
+                "_stream_llm",
+                AsyncMock(side_effect=responses),
+            ),
+            patch(
+                "agent.llm_turn_runner.execute_all_tool_calls",
+                AsyncMock(side_effect=_record_all_fail),
+            ),
+        ):
+            result = await runner.run("http://llm", **WF_CTX)
+
+        assert result.action == "fail"
+        assert result.reason == "error_limit"
+
+    @pytest.mark.asyncio
+    async def test_partial_failure_maintains_consecutive_count(self) -> None:
+        runner, ctx = self._guarded_runner()
+        # Dedup raised so the two tools can repeat across the three partial
+        # rounds below (progress stagnation is disabled in the helper).
+        ctx.cfg.tool.tool_dedup_max_repeats = 100
+
+        partial = LLMResponse(
+            message={
+                "role": "assistant",
+                "content": "",
+                "tool_calls": [
+                    {"id": "c1", "function": {"name": "read_file"}},
+                    {"id": "c2", "function": {"name": "write_file"}},
+                ],
+            },
+            finish_reason="tool_calls",
+        )
+        stop_response = LLMResponse(
+            message={"role": "assistant", "content": "done"},
+            finish_reason="stop",
+        )
+
+        async def _record_one_fail(_ctx, calls, *_a, **_k) -> None:
+            # Only one of the two calls in the round failed.
+            _ctx.stats.stat_tool_errors += 1
+
+        with (
+            patch.object(
+                runner,
+                "_stream_llm",
+                AsyncMock(side_effect=[partial, partial, partial, stop_response]),
+            ),
+            patch(
+                "agent.llm_turn_runner.execute_all_tool_calls",
+                AsyncMock(side_effect=_record_one_fail),
+            ),
+        ):
+            result = await runner.run("http://llm", **WF_CTX)
+
+        # Three partial rounds keep consecutive_errors below the limit, so the
+        # turn continues. Had update_errors incremented on partial failure, the
+        # third round would have hit error_limit instead.
+        assert result.action == "continue"

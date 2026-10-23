@@ -7,6 +7,7 @@ from __future__ import annotations
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_result_formatter import (
+    build_execution_failure_text,
     build_github_preview,
     build_preview,
     mask_args,
@@ -192,6 +193,21 @@ class TestTurnLimitHint:
         assert "0 chars" in hint
         assert "0 lines" in hint
         assert "4000 chars" in hint
+
+
+class TestExecutionFailureText:
+    def test_marker_class_and_message_present(self) -> None:
+        text = build_execution_failure_text(ValueError("disk full"))
+        assert "[Tool execution failed:" in text
+        assert "ValueError" in text
+        assert "disk full" in text
+        assert text.endswith("]")
+
+    def test_empty_message_still_usable(self) -> None:
+        text = build_execution_failure_text(RuntimeError())
+        assert "[Tool execution failed:" in text
+        assert "RuntimeError" in text
+        assert text.endswith("]")
 
 
 class TestBuildGithubPreview:
