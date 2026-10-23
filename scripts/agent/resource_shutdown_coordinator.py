@@ -139,15 +139,22 @@ class ResourceShutdownCoordinator:
         # 3. Concurrent Service Shutdown
         svc = self._ctx.services
         if svc is not None:
-            shutdown_tasks = []
-            shutdown_tasks.append(svc.lifecycle.shutdown_all())
-            shutdown_tasks.append(svc.http.aclose())
-            results = await asyncio.gather(*shutdown_tasks, return_exceptions=True)
-            for i, res in enumerate(results):
+            svc_results = await asyncio.gather(
+                svc.lifecycle.shutdown_all(), svc.http.aclose(), return_exceptions=True
+            )
+            for i, res in enumerate(svc_results):
                 if isinstance(res, Exception):
                     err_name = "lifecycle_shutdown" if i == 0 else "http_close"
                     errors.append((err_name, f"{type(res).__name__}: {res}"))
                     logger.error("%s failed: %s", err_name, res)
+                elif i == 0 and isinstance(res, list):
+                    for server_key, outcome in res:
+                        errors.append(("http_termination", f"{server_key} ({outcome})"))
+                        logger.error(
+                            "MCP server %r not confirmed stopped (%s)",
+                            server_key,
+                            outcome,
+                        )
         else:
             logger.debug("No services available to shut down")
 

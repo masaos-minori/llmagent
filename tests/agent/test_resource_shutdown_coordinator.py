@@ -17,6 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import agent.resource_shutdown_coordinator as coordinator_module
 import pytest
+from agent.http_lifecycle_errors import TerminationOutcome
 from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
 from agent.wal_checkpoint_manager import WalCheckpointManager
 from db.helper import SQLiteHelper as RealHelper
@@ -66,6 +67,48 @@ class TestSettlementBlockRemoved:
         error_messages = [str(c.args) for c in mock_logger.error.call_args_list]
         assert not any("shutdown_timeout" in msg for msg in error_messages)
         assert not any("shutdown_error" in msg for msg in error_messages)
+
+
+class TestHttpTerminationReported:
+    """Servers whose exit was not confirmed enter the shutdown error list."""
+
+    @staticmethod
+    def _coordinator_with_services(
+        unconfirmed: list[tuple[str, TerminationOutcome]],
+    ) -> ResourceShutdownCoordinator:
+        coordinator = _make_coordinator()
+        svc = MagicMock()
+        svc.lifecycle.shutdown_all = AsyncMock(return_value=unconfirmed)
+        svc.http.aclose = AsyncMock()
+        coordinator._ctx.services = svc
+        return coordinator
+
+    @pytest.mark.asyncio
+    async def test_each_unconfirmed_server_is_one_http_termination_entry(self) -> None:
+        coordinator = self._coordinator_with_services(
+            [
+                ("a", TerminationOutcome.EXIT_UNCONFIRMED),
+                ("b", TerminationOutcome.SIGNAL_NOT_DELIVERED),
+            ]
+        )
+
+        await coordinator.close_resources()
+
+        warning = coordinator._view.write_warning.call_args[0][0]
+        assert warning.count("http_termination") == 2
+        assert "a (exit_unconfirmed)" in warning
+        assert "b (signal_not_delivered)" in warning
+        # The other steps still ran.
+        coordinator._ctx.services.http.aclose.assert_awaited_once()
+        coordinator._wal.checkpoint_sync.assert_awaited_once()
+
+    @pytest.mark.asyncio
+    async def test_clean_shutdown_adds_no_entry(self) -> None:
+        coordinator = self._coordinator_with_services([])
+
+        await coordinator.close_resources()
+
+        coordinator._view.write_warning.assert_not_called()
 
 
 class TestSelectiveTaskCancellation:

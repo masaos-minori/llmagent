@@ -3,6 +3,7 @@ import time
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from agent.http_lifecycle_errors import TerminationOutcome
 from agent.http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 
 
@@ -10,29 +11,42 @@ class TestShutdownCoordinatorFailureScenarios:
     """Tests for REQ-003, REQ-004: Verify tracking entry handling on shutdown failure."""
 
     @pytest.mark.asyncio
-    async def test_tracking_entry_persists_on_termination_failure(self):
-        """REQ-004: Tracking entry persists when termination fails."""
+    @pytest.mark.parametrize(
+        "outcome",
+        [
+            TerminationOutcome.EXIT_UNCONFIRMED,
+            TerminationOutcome.SIGNAL_NOT_DELIVERED,
+        ],
+    )
+    async def test_unconfirmed_exit_removes_process_entry_but_keeps_other_tracking(
+        self, outcome, caplog
+    ):
+        """The process entry goes before the attempt; the rest survives a failure."""
         coordinator = ShutdownCoordinator()
         server_key = "test-server-key"
+        mock_manager = _multi_manager([server_key], AsyncMock(return_value=outcome))
 
-        # Setup mock manager
-        mock_manager = MagicMock()
-        mock_manager.process_terminator = MagicMock()
-        mock_manager.process_terminator.terminate_with_timeout = AsyncMock(
-            side_effect=OSError("Connection refused")
-        )
-        mock_manager.cleanup_server_key = MagicMock()
-        mock_manager.remove_process_entry = MagicMock()
-        mock_proc = MagicMock()
-        mock_proc.poll.return_value = None  # Process still running
-        mock_manager.iter_processes = MagicMock(return_value=[(server_key, mock_proc)])
-        mock_manager.clear_all_health_checks = MagicMock()
+        failures = await coordinator.shutdown_all(mock_manager)
 
-        # Exception is caught and logged, not re-raised
-        await coordinator.shutdown_all(mock_manager)
-
-        # Verify cleanup_server_key was NOT called
+        mock_manager.remove_process_entry.assert_called_once_with(server_key)
         mock_manager.cleanup_server_key.assert_not_called()
+        assert failures == [(server_key, outcome)]
+        assert "kill -TERM -" in caplog.text
+        assert "pgid and stderr-log tracking retained" in caplog.text
+        assert "tracking entry" not in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_termination_exception_is_reported_as_unconfirmed(self):
+        """An OSError out of the terminator is an unconfirmed exit, not a success."""
+        coordinator = ShutdownCoordinator()
+        mock_manager = _multi_manager(
+            ["srv"], AsyncMock(side_effect=OSError("Connection refused"))
+        )
+
+        failures = await coordinator.shutdown_all(mock_manager)
+
+        mock_manager.cleanup_server_key.assert_not_called()
+        assert failures == [("srv", TerminationOutcome.EXIT_UNCONFIRMED)]
 
     @pytest.mark.asyncio
     async def test_tracking_entry_removed_on_success(self):
@@ -44,7 +58,7 @@ class TestShutdownCoordinatorFailureScenarios:
         mock_manager = MagicMock()
         mock_manager.process_terminator = MagicMock()
         mock_manager.process_terminator.terminate_with_timeout = AsyncMock(
-            return_value=None
+            return_value=TerminationOutcome.EXITED
         )
         mock_manager.cleanup_server_key = MagicMock()
         mock_manager.remove_process_entry = MagicMock()
@@ -54,10 +68,11 @@ class TestShutdownCoordinatorFailureScenarios:
         mock_manager.clear_all_health_checks = MagicMock()
 
         # Attempt shutdown
-        await coordinator.shutdown_all(mock_manager)
+        failures = await coordinator.shutdown_all(mock_manager)
 
-        # Verify cleanup_server_key WAS called
+        # Verify cleanup_server_key WAS called and nothing is reported as failed
         mock_manager.cleanup_server_key.assert_called_once_with(server_key)
+        assert failures == []
 
 
 def _multi_manager(keys, terminate):
@@ -86,6 +101,7 @@ class TestShutdownCoordinatorConcurrency:
 
         async def terminate(proc, key, **kwargs):
             await asyncio.sleep(0.2)
+            return TerminationOutcome.EXITED
 
         manager = _multi_manager(["a", "b", "c"], terminate)
 
@@ -105,6 +121,7 @@ class TestShutdownCoordinatorConcurrency:
             events.append(("signalled", key))
             await asyncio.sleep(0.05)
             events.append(("finished", key))
+            return TerminationOutcome.EXITED
 
         manager = _multi_manager(["a", "b", "c"], terminate)
 
@@ -139,11 +156,15 @@ class TestShutdownCoordinatorConcurrency:
 
         async def terminate(proc, key, **kwargs):
             if key == "b":
-                raise OSError("Connection refused")
+                return TerminationOutcome.EXIT_UNCONFIRMED
+            return TerminationOutcome.EXITED
 
         manager = _multi_manager(["a", "b", "c"], terminate)
 
-        await ShutdownCoordinator().shutdown_all(manager)
+        failures = await ShutdownCoordinator().shutdown_all(manager)
 
         cleaned = sorted(c.args[0] for c in manager.cleanup_server_key.call_args_list)
         assert cleaned == ["a", "c"]
+        assert failures == [("b", TerminationOutcome.EXIT_UNCONFIRMED)]
+        removed = sorted(c.args[0] for c in manager.remove_process_entry.call_args_list)
+        assert removed == ["a", "b", "c"]

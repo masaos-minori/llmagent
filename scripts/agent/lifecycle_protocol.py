@@ -16,6 +16,7 @@ from typing import Protocol, runtime_checkable
 
 from shared.mcp_config import McpServerConfig
 
+from agent.http_lifecycle_errors import TerminationOutcome
 from agent.lifecycle import LifecycleState
 
 
@@ -32,8 +33,12 @@ class LifecycleManagerProtocol(Protocol):
         """Ensure the named MCP server is running; start it if needed."""
         ...
 
-    async def shutdown_all(self) -> None:
-        """Shut down all managed MCP servers."""
+    async def shutdown_all(self) -> list[tuple[str, TerminationOutcome]]:
+        """Shut down all managed MCP servers.
+
+        Returns one ``(server_key, outcome)`` pair per server whose exit was not
+        confirmed; an empty list means every started server was confirmed gone.
+        """
         ...
 
     async def restart(self, server_key: str) -> None:

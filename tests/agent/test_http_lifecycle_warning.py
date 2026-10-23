@@ -5,6 +5,7 @@ from unittest.mock import Mock, patch
 
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.http_lifecycle_errors import TerminationOutcome
 
 
 @pytest.fixture
@@ -32,13 +33,12 @@ async def test_terminate_warning_when_no_pgid():
     logger.setLevel(logging.WARNING)
 
     try:
-        await mgr._process_terminator.terminate_with_timeout(
+        outcome = await mgr._process_terminator.terminate_with_timeout(
             proc_mock, "test-server", timeout=1.0
         )
 
-        assert any(
-            "terminated, but children may remain" in w for w in captured_warnings
-        )
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
+        assert any("proc.terminate() fallback" in w for w in captured_warnings)
     finally:
         logger.removeHandler(handler)
 
@@ -67,13 +67,12 @@ async def test_terminate_warning_when_killpg_fails():
             patch.object(mgr, "_http_pgids", {"test-server": 1234}),
             patch.object(os, "killpg", side_effect=OSError("No such process")),
         ):
-            await mgr._process_terminator.terminate_with_timeout(
+            outcome = await mgr._process_terminator.terminate_with_timeout(
                 proc_mock, "test-server", timeout=1.0
             )
 
-        assert any(
-            "terminated, but children may remain" in w for w in captured_warnings
-        )
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
+        assert any("proc.terminate() fallback" in w for w in captured_warnings)
     finally:
         logger.removeHandler(handler)
 
@@ -102,12 +101,11 @@ async def test_terminate_warning_integration_simulation():
         with (
             patch.object(os, "killpg", side_effect=OSError("Permission denied")),
         ):
-            await mgr._process_terminator.terminate_with_timeout(
+            outcome = await mgr._process_terminator.terminate_with_timeout(
                 proc_mock, "test-server", timeout=1.0
             )
 
-        assert any(
-            "terminated, but children may remain" in w for w in captured_warnings
-        )
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
+        assert any("proc.terminate() fallback" in w for w in captured_warnings)
     finally:
         logger.removeHandler(handler)

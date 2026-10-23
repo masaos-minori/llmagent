@@ -10,6 +10,7 @@ from collections.abc import Iterator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from agent.http_lifecycle_errors import TerminationOutcome
 from agent.startup import StartupInterrupted, StartupOrchestrator
 from agent.startup_component_init import ComponentInitializer
 from shared.mcp_config import (
@@ -38,6 +39,7 @@ def _make_rollback_startup() -> tuple[StartupOrchestrator, AsyncMock]:
     ctx.cfg.obs.audit_log_file = "/opt/llm/logs/audit.log"
     ctx.cfg.rag.embed_url = "http://localhost:6000/embedding"
     mock_lifecycle = AsyncMock()
+    mock_lifecycle.shutdown_all.return_value = []  # every server confirmed stopped
     ctx.services_required.lifecycle = mock_lifecycle
     view = MagicMock()
     orch = StartupOrchestrator(ctx, view)
@@ -102,6 +104,40 @@ class TestStartupRollback:
         # REQ-004: the rollback-failure branch surfaces the failure via an
         # operator-visible console emit, in addition to the logger line above.
         orch._view.write_fatal.assert_called_once()
+        message = orch._view.write_fatal.call_args[0][0]
+        assert "OSError: shutdown failed" in message
+        assert "original error" in message
+
+    @pytest.mark.asyncio
+    async def test_rollback_names_servers_that_could_not_be_confirmed_stopped(
+        self,
+    ) -> None:
+        orch, mock_lifecycle = _make_rollback_startup()
+        orch._start_servers = AsyncMock()
+        orch._check_services = AsyncMock(side_effect=RuntimeError("original error"))
+        orch._setup_prompt = AsyncMock()
+        mock_lifecycle.shutdown_all.return_value = [
+            ("rag", TerminationOutcome.EXIT_UNCONFIRMED)
+        ]
+
+        with pytest.raises(RuntimeError, match="original error"):
+            await orch.run()
+
+        orch._view.write_fatal.assert_called_once()
+        message = orch._view.write_fatal.call_args[0][0]
+        assert "rag (exit_unconfirmed)" in message
+
+    @pytest.mark.asyncio
+    async def test_confirmed_rollback_emits_nothing(self) -> None:
+        orch, _ = _make_rollback_startup()
+        orch._start_servers = AsyncMock()
+        orch._check_services = AsyncMock(side_effect=RuntimeError("original error"))
+        orch._setup_prompt = AsyncMock()
+
+        with pytest.raises(RuntimeError, match="original error"):
+            await orch.run()
+
+        orch._view.write_fatal.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_no_fatal_emit_on_successful_startup(self) -> None:

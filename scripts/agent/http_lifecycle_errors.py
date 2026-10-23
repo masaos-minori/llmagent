@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from enum import StrEnum
 
 from agent.secrets_masker import _mask_secrets
 
@@ -41,3 +42,21 @@ class HttpStartupError(RuntimeError):
             masked = _mask_secrets(tail)
             parts.append(f"(stderr_tail: {masked})")
         return " ".join(parts)
+
+
+class TerminationOutcome(StrEnum):
+    """What one MCP server termination attempt proved about the process."""
+
+    EXITED = "exited"
+    """Exit observed within the confirmation bound."""
+    ALREADY_EXITED = "already_exited"
+    """Exit observed before any signal was sent."""
+    SIGNAL_NOT_DELIVERED = "signal_not_delivered"
+    """No signal call succeeded."""
+    EXIT_UNCONFIRMED = "exit_unconfirmed"
+    """A signal call succeeded; exit was not observed within the bound."""
+
+    @property
+    def confirmed(self) -> bool:
+        """Return True when the process is proved gone (EXITED or ALREADY_EXITED)."""
+        return self in (TerminationOutcome.EXITED, TerminationOutcome.ALREADY_EXITED)

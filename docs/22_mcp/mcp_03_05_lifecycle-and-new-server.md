@@ -18,7 +18,7 @@ related:
 `HttpServerLifecycleManager` provides read-only snapshots of managed subprocesses for diagnostic purposes (e.g., via the `/mcp status` command or `mcp_status.py`).
 
 - Per-server snapshot (`pid`, `pgid`, `running`, `last_exit_code`; `None` for an unknown key), a typed variant that adds `managed` and `stderr_log`, and a listing of all managed servers.
-These methods only perform `proc.poll()` or read cached states; they do not terminate or restart processes.
+These methods only perform `proc.poll()` or read cached states; they do not terminate or restart processes. A snapshot exists only while the manager holds a process entry: shutdown removes that entry before signalling, so after an unconfirmed termination the surviving record is the reported failure (server key, outcome, and the pid and pgid in the agent log), not a snapshot.
 
 The `_ServerLifecycleRouter` facade (`agent/lifecycle_router.py`) delegates these methods, so callers such as `McpStatusService` use them without touching the manager internals.
 

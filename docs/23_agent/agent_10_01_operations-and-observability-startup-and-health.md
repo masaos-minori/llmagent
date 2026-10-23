@@ -78,7 +78,7 @@ Resources are closed once, when the interactive session ends or when startup fai
 1. Persist session state (`AgentREPL._persist_session_state`) — writes a session summary and session memory, but only when a session was started. On a startup failure or interrupt no session exists, so this step runs and writes nothing, by design (the write-or-skip decision is owned by `SessionPersister`, keyed on `ctx.session.session_id`).
 2. WAL checkpoint (with PASSIVE → TRUNCATE fallback)
 3. WAL backup (with path validation)
-4. `lifecycle.shutdown_all()`
+4. `lifecycle.shutdown_all()` — terminates every started MCP subprocess server and returns the servers whose exit it could not confirm; each one is added to the shutdown errors as an `http_termination` entry (`<server_key> (<outcome>)`), so a clean shutdown means every started server was confirmed gone (the process group was observed to exit, including after SIGKILL).
 5. `http.aclose()`
 
 Persist is first because it reads `ctx.services` clients that `close_resources()` releases; a persistence failure is contained and reported as non-fatal, so it cannot replace the exception the process was already reporting.
@@ -145,7 +145,7 @@ The recreated databases contain schema only: all workflow state (tasks, attempts
 ## Known Limitations / Unresolved Issues
 
 - The WAL checkpoint and the WAL backup at shutdown share one timeout bound, fixed in `ResourceShutdownCoordinator.close_resources()` and not configurable; when it expires the step is abandoned, recorded as a shutdown error and logged, and an abandoned checkpoint leaves the WAL to be replayed or checkpointed on the next open ("timed out" means "not rolled back", never "left clean"). The collected shutdown errors are also shown on the console (Explicit in code — `scripts/agent/resource_shutdown_coordinator.py`, `scripts/agent/wal_checkpoint_manager.py`).
-- A failure of the rollback `shutdown_all()` during startup failure is only logged; the original startup exception is re-raised and nothing is shown on the console for the rollback failure (Explicit in code — `scripts/agent/startup.py`).
+- A failure of the rollback `shutdown_all()` during startup failure, or a server it could not confirm stopped, is logged and shown on the console with the rollback error or the unconfirmed server keys and the startup cause; the original startup exception is still the one re-raised (Explicit in code — `scripts/agent/startup.py`, `StartupOrchestrator._rollback_servers`).
 - Secret masking of MCP subprocess output is incomplete (see Secret Masking in MCP Subprocess Failure Reports).
 
 ## Keywords

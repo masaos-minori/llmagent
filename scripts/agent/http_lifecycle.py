@@ -43,7 +43,7 @@ from shared.mcp_config import McpServerConfig
 from agent.services.models import ProcessInfoSnapshot
 
 from .http_lifecycle_command_validator import CommandValidator
-from .http_lifecycle_errors import HttpStartupError, StartupFailure
+from .http_lifecycle_errors import HttpStartupError, StartupFailure, TerminationOutcome
 from .http_lifecycle_health_checker import HEALTH_RECHECK_INTERVAL_SEC, HealthChecker
 from .http_lifecycle_process_terminator import ProcessTerminator
 from .http_lifecycle_shutdown_coordinator import ShutdownCoordinator
@@ -331,13 +331,23 @@ class HttpServerLifecycleManager:
         proc = self._http_procs.pop(server_key, None)
         if proc is not None and proc.poll() is None:
             logger.info("Lifecycle: terminating %r for restart", server_key)
-            await self._process_terminator.terminate_with_timeout(proc, server_key)
+            outcome = await self._process_terminator.terminate_with_timeout(
+                proc, server_key, timeout=TERMINATE_TIMEOUT_SEC
+            )
+            if not outcome.confirmed:
+                logger.error(
+                    "Lifecycle: %r pid=%s not confirmed stopped before restart (%s)",
+                    server_key,
+                    proc.pid,
+                    outcome,
+                )
         self._http_pgids.pop(server_key, None)
         await self.start(server_key, cfg)
 
-    async def shutdown_all(self) -> None:
+    async def shutdown_all(self) -> list[tuple[str, TerminationOutcome]]:
         """Shut down all managed servers.
 
-        Delegates to ShutdownCoordinator.shutdown_all().
+        Delegates to ShutdownCoordinator.shutdown_all(); returns the servers whose
+        exit was not confirmed (empty when every started server was confirmed gone).
         """
-        await self._shutdown_coordinator.shutdown_all(self)
+        return await self._shutdown_coordinator.shutdown_all(self)

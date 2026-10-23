@@ -75,36 +75,41 @@ class StartupOrchestrator:
             await self._check_services()
             await self._setup_prompt()
         except StartupInterrupted:
-            try:
-                await self._ctx.services_required.lifecycle.shutdown_all()
-            except Exception as shutdown_err:  # noqa: BLE001 — rollback shutdown failure must not mask the original interrupt
-                logger.error(
-                    "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
-                    shutdown_err,
-                )
-                self._view.write_fatal(
-                    "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned"
-                )
-            # Termination is owned exclusively by lifecycle.shutdown_all() above; run() no longer returns the spawned-subprocess list.
+            await self._rollback_servers("startup interrupted")
             raise
         except Exception as setup_err:
-            try:
-                await self._ctx.services_required.lifecycle.shutdown_all()
-            except Exception as shutdown_err:  # noqa: BLE001 — rollback shutdown failure must not mask the original startup error
-                logger.error(
-                    "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
-                    shutdown_err,
-                )
-                self._view.write_fatal(
-                    "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned"
-                )
-            # Termination is owned exclusively by lifecycle.shutdown_all() above; run() no longer returns the spawned-subprocess list.
+            await self._rollback_servers(f"{type(setup_err).__name__}: {setup_err}")
             raise setup_err
         if self._cmds is None or self._orchestrator is None:
             raise RuntimeError(
                 "StartupOrchestrator.run() failed to initialize cmds/orchestrator"
             )
         return self._cmds, self._orchestrator
+
+    async def _rollback_servers(self, cause: str) -> None:
+        """Stop the servers started so far; report anything that could not be stopped.
+
+        Termination is owned by lifecycle.shutdown_all(). A failure here is reported
+        on the console and never replaces the startup error being propagated.
+        """
+        try:
+            unconfirmed = await self._ctx.services_required.lifecycle.shutdown_all()
+        except Exception as shutdown_err:  # noqa: BLE001 — rollback shutdown failure must not mask the original startup error
+            logger.error(
+                "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned: %s",
+                shutdown_err,
+            )
+            self._view.write_fatal(
+                "CRITICAL: Startup rollback FAILED — subprocesses may be orphaned "
+                f"(after {cause}; rollback error {type(shutdown_err).__name__}: {shutdown_err})"
+            )
+            return
+        if unconfirmed:
+            keys = ", ".join(f"{key} ({outcome})" for key, outcome in unconfirmed)
+            self._view.write_fatal(
+                "CRITICAL: Startup rollback could not confirm these servers stopped "
+                f"and they may be orphaned: {keys} (after {cause})"
+            )
 
     async def _start_servers(self) -> list[subprocess.Popen]:
         """Spawn subprocesses for HTTP subprocess MCP servers.

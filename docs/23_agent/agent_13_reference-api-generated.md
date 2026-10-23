@@ -87,6 +87,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 | `scripts/agent/http_lifecycle_command_validator.py` | `CommandValidator` | `class CommandValidator` | Validates commands and filters environment variables for HTTP subprocess MCP servers. |
 | `scripts/agent/http_lifecycle_errors.py` | `StartupFailure` | `class StartupFailure` | Records the full stderr output and reason when an HTTP subprocess fails to start. |
 |  | `HttpStartupError` | `class HttpStartupError` | Raised when an HTTP subprocess MCP server fails to start. |
+|  | `TerminationOutcome` | `class TerminationOutcome` | What one MCP server termination attempt proved about the process. |
 | `scripts/agent/http_lifecycle_health_checker.py` | `HealthChecker` | `class HealthChecker` | Performs HTTP health checks against a running server. |
 | `scripts/agent/http_lifecycle_process_terminator.py` | `ProcessTerminator` | `class ProcessTerminator` | Manages process termination with SIGTERM → SIGKILL escalation. |
 | `scripts/agent/http_lifecycle_shutdown_coordinator.py` | `ShutdownCoordinator` | `class ShutdownCoordinator` | Coordinates shutdown of HTTP server process and associated resources. |

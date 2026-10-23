@@ -21,6 +21,7 @@ from shared.tool_executor import ToolExecutor
 from shared.tool_lifecycle import ServerCooldownError
 
 from agent.http_lifecycle import HttpServerLifecycleManager
+from agent.http_lifecycle_errors import TerminationOutcome
 from agent.lifecycle import LifecycleState, assert_valid_transition
 from agent.lifecycle_protocol import LifecycleManagerProtocol
 from agent.services.models import ProcessInfoSnapshot
@@ -73,9 +74,9 @@ class _SubprocessLifecycleManager(LifecycleManagerProtocol):
                 )
                 await self._http_mgr.restart(server_key, cfg)
 
-    async def shutdown_all(self) -> None:
+    async def shutdown_all(self) -> list[tuple[str, TerminationOutcome]]:
         """Shut down all managed HTTP subprocess servers."""
-        await self._http_mgr.shutdown_all()
+        return await self._http_mgr.shutdown_all()
 
     async def restart(self, server_key: str) -> None:
         """Restart one HTTP subprocess MCP server; the router pre-checks startup_mode."""
@@ -251,12 +252,13 @@ class _ServerLifecycleRouter:
                     lambda: self._subprocess_mgr.restart(server_key),
                 )
 
-    async def shutdown_all(self) -> None:
+    async def shutdown_all(self) -> list[tuple[str, TerminationOutcome]]:
         """Shut down all managed HTTP subprocess servers."""
         self._shutting_down = True
-        await self._subprocess_mgr.shutdown_all()
+        unconfirmed = await self._subprocess_mgr.shutdown_all()
         for key in self._server_configs:
             self._set_state(key, LifecycleState.STOPPED)
+        return unconfirmed
 
     async def start_http_subprocess(
         self,

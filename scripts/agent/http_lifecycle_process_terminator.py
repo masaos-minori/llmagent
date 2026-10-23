@@ -14,11 +14,17 @@ import os
 import signal
 import time
 
+from agent.http_lifecycle_errors import TerminationOutcome
+
 logger = logging.getLogger(__name__)
 
 # Poll interval for wait_exited(), which probes process-group liveness via
 # os.killpg(); a different waiting mechanism would need a different default.
 _DEFAULT_TERMINATE_POLL_INTERVAL_SEC: float = 0.1
+
+# Window in which an exit must be observed after SIGKILL was delivered; a process
+# that is still in the group after it is reported EXIT_UNCONFIRMED.
+_DEFAULT_KILL_CONFIRM_TIMEOUT_SEC: float = 2.0
 
 
 def _resolve_pgid(proc: object) -> int | None:
@@ -66,6 +72,18 @@ def _reap(proc: object) -> None:
         pass
 
 
+def _signal_via_proc(proc: object) -> bool:
+    """Send SIGTERM through ``proc.terminate()``; return True when the call was made."""
+    terminate_method = getattr(proc, "terminate", None)
+    if terminate_method is None:
+        return False
+    try:
+        terminate_method()
+    except (OSError, AttributeError, TypeError):
+        return False
+    return True
+
+
 class ProcessTerminator:
     """Manages process termination with SIGTERM → SIGKILL escalation."""
 
@@ -73,11 +91,17 @@ class ProcessTerminator:
         self,
         *,
         terminate_poll_interval_sec: float | None = None,
+        kill_confirm_timeout_sec: float | None = None,
     ) -> None:
         self._terminate_poll_interval_sec = (
             terminate_poll_interval_sec
             if terminate_poll_interval_sec is not None
             else _DEFAULT_TERMINATE_POLL_INTERVAL_SEC
+        )
+        self._kill_confirm_timeout_sec = (
+            kill_confirm_timeout_sec
+            if kill_confirm_timeout_sec is not None
+            else _DEFAULT_KILL_CONFIRM_TIMEOUT_SEC
         )
 
     async def wait_exited(
@@ -112,81 +136,77 @@ class ProcessTerminator:
                 return True
         return False
 
+    async def _confirm_group_gone(self, proc: object, pgid: int) -> bool:
+        """Return True when process group *pgid* is observed gone within the kill window."""
+        deadline = time.monotonic() + self._kill_confirm_timeout_sec
+        while True:
+            _reap(proc)
+            try:
+                os.killpg(pgid, 0)
+            except ProcessLookupError:
+                return True
+            if time.monotonic() >= deadline:
+                return False
+            await asyncio.sleep(self._terminate_poll_interval_sec)
+
     async def terminate_with_timeout(
-        self, proc: object, server_key: str, timeout: float = 5.0
-    ) -> bool:
-        """Terminate a process with a strict timeout.
+        self, proc: object, server_key: str, timeout: float
+    ) -> TerminationOutcome:
+        """Terminate a process with a strict timeout and report what was proved.
 
         Args:
             proc: subprocess.Popen instance representing the process.
             server_key: Unique identifier for the server.
-            timeout: Maximum time to wait before escalating to SIGKILL.
+            timeout: Maximum time to wait before escalating to SIGKILL; every call
+                site states its own bound.
 
-        Raises:
-            HttpStartupError: If process termination fails.
+        Returns:
+            ALREADY_EXITED: the exit was observed before any signal was sent.
+            EXITED: the exit was observed after a signal (group gone within the
+                bound, group already gone, or gone within the post-SIGKILL window).
+            SIGNAL_NOT_DELIVERED: no signal call succeeded.
+            EXIT_UNCONFIRMED: a signal call succeeded but the exit was not observed
+                (no process group to probe, the SIGKILL call failed after SIGTERM,
+                or the group was still present after the post-SIGKILL window).
         """
+        pid = getattr(proc, "pid", None)
         pgid = _resolve_pgid(proc)
-        if pgid is None or not isinstance(pgid, int):
+        if pgid is None:
             if _already_exited(proc):
                 logger.info("Process %s already exited", server_key)
-                return True
-            # Fallback to proc-level termination when pgid is unavailable
+                return TerminationOutcome.ALREADY_EXITED
+            # No group to signal or probe: proc-level SIGTERM, exit cannot be observed
             logger.warning(
-                "Lifecycle: %r terminated, but children may remain (no pgid available)",
+                "Lifecycle: %r pid=%s has no pgid; proc.terminate() fallback, exit not observed",
                 server_key,
+                pid,
             )
-            terminate_method = getattr(proc, "terminate", None)
-            if terminate_method is not None:
-                try:
-                    terminate_method()
-                except (OSError, AttributeError, TypeError):
-                    pass
-            return True
+            if _signal_via_proc(proc):
+                return TerminationOutcome.EXIT_UNCONFIRMED
+            return TerminationOutcome.SIGNAL_NOT_DELIVERED
 
-        # Early-exit if process already exited
         if _already_exited(proc):
             logger.info("Process %s already exited", server_key)
-            return True
+            return TerminationOutcome.ALREADY_EXITED
 
-        # Track whether we actually used pgid for termination
-        used_pgid = False
-
-        # Send SIGTERM
         try:
             os.killpg(pgid, signal.SIGTERM)  # nosec B603 — process-group signal to terminate an admin-started MCP server subprocess, not user input
-            used_pgid = True
         except ProcessLookupError:
-            logger.warning("Process group %d already terminated", pgid)
-            # Fallback: try proc-level termination when process group is gone
-            terminate_method = getattr(proc, "terminate", None)
-            if terminate_method is not None:
-                try:
-                    terminate_method()
-                except (OSError, AttributeError, TypeError):
-                    pass
-            return True
-        except OSError:
+            logger.warning("%r pid=%s pgid=%d already gone", server_key, pid, pgid)
+            _signal_via_proc(proc)
+            return TerminationOutcome.ALREADY_EXITED
+        except OSError as e:
             logger.warning(
-                "Lifecycle: os.killpg() failed for %r pid=%d; falling back to proc.terminate()",
+                "Lifecycle: os.killpg(SIGTERM) failed for %r pid=%s pgid=%d: %s; falling back to proc.terminate()",
                 server_key,
-                getattr(proc, "pid", None),
+                pid,
+                pgid,
+                e,
             )
-            terminate_method = getattr(proc, "terminate", None)
-            if terminate_method is not None:
-                try:
-                    terminate_method()
-                except (OSError, AttributeError, TypeError):
-                    pass
-            return True
+            if _signal_via_proc(proc):
+                return TerminationOutcome.EXIT_UNCONFIRMED
+            return TerminationOutcome.SIGNAL_NOT_DELIVERED
 
-        # Warn if pgid wasn't used (children may remain)
-        if not used_pgid:
-            logger.warning(
-                "Lifecycle: %r terminated, but children may remain (no pgid available)",
-                server_key,
-            )
-
-        # Wait with timeout
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             _reap(proc)
@@ -195,17 +215,38 @@ class ProcessTerminator:
                 await asyncio.sleep(self._terminate_poll_interval_sec)
             except ProcessLookupError:
                 logger.info("Process group %d exited within timeout", pgid)
-                return True
+                return TerminationOutcome.EXITED
 
         # Escalate to SIGKILL
         try:
             os.killpg(pgid, signal.SIGKILL)  # nosec B603 — process-group signal to force-kill an admin-started MCP server subprocess after a graceful-termination timeout
-            logger.warning("Escalated to SIGKILL for process group %d", pgid)
-            return True
         except ProcessLookupError:
-            logger.info("Process group %d already exited after timeout")
-            return True
+            logger.info(
+                "%r pid=%s pgid=%d already exited after timeout",
+                server_key,
+                pid,
+                pgid,
+            )
+            return TerminationOutcome.EXITED
         except OSError as e:
-            logger.error(f"Failed to send SIGKILL to process group {pgid}: {e}")
-            # Process may still be running — do not mark as terminated
-            return False
+            logger.error(
+                "Failed to send SIGKILL to %r pid=%s pgid=%d: %s",
+                server_key,
+                pid,
+                pgid,
+                e,
+            )
+            return TerminationOutcome.EXIT_UNCONFIRMED
+        logger.warning(
+            "Escalated to SIGKILL for %r pid=%s pgid=%d", server_key, pid, pgid
+        )
+        if await self._confirm_group_gone(proc, pgid):
+            return TerminationOutcome.EXITED
+        logger.error(
+            "%r pid=%s pgid=%d still present %.2fs after SIGKILL",
+            server_key,
+            pid,
+            pgid,
+            self._kill_confirm_timeout_sec,
+        )
+        return TerminationOutcome.EXIT_UNCONFIRMED

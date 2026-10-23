@@ -21,6 +21,7 @@ from agent.http_lifecycle import (
     HttpStartupError,
     StartupFailure,
 )
+from agent.http_lifecycle_errors import TerminationOutcome
 from agent.http_lifecycle_shutdown_coordinator import ShutdownCoordinator
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
@@ -248,8 +249,11 @@ class TestSignalHandling:
         manager = HttpServerLifecycleManager()
         terminate_keys: list[str] = []
 
-        async def track_terminate(proc: object, key: str, **kwargs: object) -> None:
+        async def track_terminate(
+            proc: object, key: str, **kwargs: object
+        ) -> TerminationOutcome:
             terminate_keys.append(key)
+            return TerminationOutcome.EXITED
 
         proc_mock = Mock(poll=Mock(return_value=None))
         manager._http_procs["test"] = proc_mock
@@ -593,8 +597,11 @@ class TestShutdownSequence:
 
         terminate_keys: list[str] = []
 
-        async def track_terminate(proc: object, key: str, **kwargs: object) -> None:
+        async def track_terminate(
+            proc: object, key: str, **kwargs: object
+        ) -> TerminationOutcome:
             terminate_keys.append(key)
+            return TerminationOutcome.EXITED
 
         with (
             patch.object(signal, "getsignal", return_value=signal.default_int_handler),
@@ -808,8 +815,11 @@ class TestShutdownSequence:
 
         terminate_keys: list[str] = []
 
-        async def track_terminate(proc: object, key: str, **kwargs: object) -> None:
+        async def track_terminate(
+            proc: object, key: str, **kwargs: object
+        ) -> TerminationOutcome:
             terminate_keys.append(key)
+            return TerminationOutcome.EXITED
 
         with (
             patch.object(signal, "getsignal", return_value=signal.default_int_handler),

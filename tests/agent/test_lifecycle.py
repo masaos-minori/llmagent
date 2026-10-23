@@ -18,10 +18,13 @@ import httpx
 import pytest
 from agent import lifecycle_router
 from agent.http_lifecycle import (
+    TERMINATE_TIMEOUT_SEC,
     HttpServerLifecycleManager,
     HttpStartupError,
     StartupFailure,
 )
+from agent.http_lifecycle_errors import TerminationOutcome
+from agent.http_lifecycle_process_terminator import ProcessTerminator
 from agent.http_lifecycle_stderr_log_manager import StderrLogManager
 from agent.lifecycle import LifecycleState, assert_valid_transition
 from agent.lifecycle_router import _ServerLifecycleRouter, _SubprocessLifecycleManager
@@ -532,10 +535,15 @@ class TestHttpManagerRestart:
         mgr._http_pgids["srv"] = 7777  # deliberately different from proc.pid
 
         seen_pgid: dict[str, int] = {}
+        seen_timeout: dict[str, float] = {}
         orig_get = mgr._http_pgids.get
 
-        async def fake_terminate(p: object, key: str, timeout: float = 3.0) -> None:
+        async def fake_terminate(
+            p: object, key: str, timeout: float
+        ) -> TerminationOutcome:
             seen_pgid[key] = orig_get(key, -1)
+            seen_timeout[key] = timeout
+            return TerminationOutcome.EXITED
 
         monkeypatch.setattr(
             mgr._process_terminator, "terminate_with_timeout", fake_terminate
@@ -550,7 +558,29 @@ class TestHttpManagerRestart:
         await mgr.restart("srv", cfg)
 
         assert seen_pgid["srv"] == 7777
+        assert seen_timeout["srv"] == TERMINATE_TIMEOUT_SEC  # stated, not defaulted
         assert "srv" not in mgr._http_pgids  # popped only after terminate completes
+
+    @pytest.mark.asyncio
+    async def test_restart_logs_an_unconfirmed_exit_and_still_restarts(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, caplog
+    ) -> None:
+        _patch_open_to_tmp(monkeypatch, tmp_path)
+        mgr = HttpServerLifecycleManager()
+        mgr._http_procs["srv"] = _make_running_proc(pid=42)
+        monkeypatch.setattr(
+            mgr._process_terminator,
+            "terminate_with_timeout",
+            AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED),
+        )
+        start = AsyncMock()
+        monkeypatch.setattr(mgr, "start", start)
+
+        await mgr.restart("srv", _make_test_cfg(cmd=["python", "-c", "pass"]))
+
+        assert "not confirmed stopped before restart" in caplog.text
+        assert "pid=42" in caplog.text
+        start.assert_awaited_once()
 
 
 class TestShutdownAll:
@@ -888,22 +918,24 @@ class TestShutdownAllCleanup:
         call_count = 0
 
         async def flaky_terminate(
-            proc: MagicMock, key: str, timeout: float = 3.0
-        ) -> None:
+            proc: MagicMock, key: str, timeout: float
+        ) -> TerminationOutcome:
             nonlocal call_count
             call_count += 1
             if key == "srv1":
                 raise OSError("terminate failed")
+            return TerminationOutcome.EXITED
 
         with patch.object(
             mgr._process_terminator,
             "terminate_with_timeout",
             side_effect=flaky_terminate,
         ):
-            await mgr.shutdown_all()
+            unconfirmed = await mgr.shutdown_all()
 
         assert len(mgr._http_procs) == 0
         assert call_count == 2
+        assert unconfirmed == [("srv1", TerminationOutcome.EXIT_UNCONFIRMED)]
 
     @pytest.mark.asyncio
     async def test_shutdown_all_twice_is_safe(self) -> None:
@@ -926,8 +958,8 @@ class TestShutdownAllCleanup:
         call_count = 0
 
         async def terminate_and_interrupt(
-            proc: MagicMock, key: str, timeout: float = 3.0
-        ) -> None:
+            proc: MagicMock, key: str, timeout: float
+        ) -> TerminationOutcome:
             nonlocal call_count
             call_count += 1
             if call_count == 1:
@@ -936,6 +968,7 @@ class TestShutdownAllCleanup:
                 current_handler = signal.getsignal(signal.SIGINT)
                 assert callable(current_handler)
                 current_handler(signal.SIGINT, None)
+            return TerminationOutcome.EXITED
 
         with patch.object(
             mgr._process_terminator,
@@ -982,11 +1015,16 @@ class TestProcessGroupShutdown:
         # stub never reports as gone, so the loop runs the given timeout out.
         proc.poll = MagicMock(side_effect=lambda: 0 if killed else None)
         mgr._http_pgids["srv"] = 42
+        mgr._process_terminator = ProcessTerminator(kill_confirm_timeout_sec=0.02)
 
-        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=1.0)
+        outcome = await mgr._process_terminator.terminate_with_timeout(
+            proc, "srv", timeout=0.05
+        )
 
         assert (42, _signal.SIGTERM) in killed
         proc.terminate.assert_not_called()
+        # The stub's liveness probe never reports the group gone: no exit proof.
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
 
     @pytest.mark.asyncio
     async def test_terminate_fallback_on_process_lookup_error(
@@ -1006,9 +1044,12 @@ class TestProcessGroupShutdown:
         proc.poll = MagicMock(side_effect=lambda: 0 if proc.terminate.called else None)
         mgr._http_pgids["srv"] = 42
 
-        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=1.0)
+        outcome = await mgr._process_terminator.terminate_with_timeout(
+            proc, "srv", timeout=1.0
+        )
 
         proc.terminate.assert_called_once()
+        assert outcome is TerminationOutcome.ALREADY_EXITED
 
     @pytest.mark.asyncio
     async def test_terminate_sigkill_on_second_timeout(
@@ -1031,10 +1072,14 @@ class TestProcessGroupShutdown:
             )
         )
         mgr._http_pgids["srv"] = 55
+        mgr._process_terminator = ProcessTerminator(kill_confirm_timeout_sec=0.02)
 
-        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=0.05)
+        outcome = await mgr._process_terminator.terminate_with_timeout(
+            proc, "srv", timeout=0.05
+        )
 
         assert any(sig == _signal.SIGKILL for _, sig in killed)
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
 
     @pytest.mark.asyncio
     async def test_terminate_never_uses_thread_even_when_process_never_exits(
@@ -1061,12 +1106,16 @@ class TestProcessGroupShutdown:
         proc = _make_running_proc(pid=77)
         proc.poll = MagicMock(return_value=None)  # never exits
         mgr._http_pgids["srv"] = 77
+        mgr._process_terminator = ProcessTerminator(kill_confirm_timeout_sec=0.02)
 
         # Small real timeouts so this test costs ~tens of ms, not the 5.0s production default.
-        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=0.02)
+        outcome = await mgr._process_terminator.terminate_with_timeout(
+            proc, "srv", timeout=0.02
+        )
 
         assert (77, _signal.SIGTERM) in killed
         assert (77, _signal.SIGKILL) in killed
+        assert outcome is TerminationOutcome.EXIT_UNCONFIRMED
 
     @pytest.mark.asyncio
     async def test_terminate_skips_killpg_when_already_exited(
@@ -1086,8 +1135,11 @@ class TestProcessGroupShutdown:
         proc = _make_mock_proc(exit_code=0)  # already exited
         mgr._http_pgids["srv"] = 42
 
-        await mgr._process_terminator.terminate_with_timeout(proc, "srv", timeout=1.0)
+        outcome = await mgr._process_terminator.terminate_with_timeout(
+            proc, "srv", timeout=1.0
+        )
 
+        assert outcome is TerminationOutcome.ALREADY_EXITED
         assert killed == []
         proc.terminate.assert_not_called()
         proc.wait.assert_not_called()

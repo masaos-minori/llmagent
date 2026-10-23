@@ -16,7 +16,7 @@ import agent.http_lifecycle_subprocess_launcher as launcher_module
 import httpx
 import pytest
 from agent.http_lifecycle import HttpServerLifecycleManager
-from agent.http_lifecycle_errors import HttpStartupError
+from agent.http_lifecycle_errors import HttpStartupError, TerminationOutcome
 from shared.mcp_config import McpServerConfig, StartupMode, TransportType
 
 
@@ -45,7 +45,7 @@ class TestGetPgidFailureTracking:
     async def test_tracking_removed_after_confirmed_exit(
         self, mgr: HttpServerLifecycleManager
     ) -> None:
-        """REQ-001: tracking entries removed only after confirmed process exit."""
+        """A confirmed exit logs no failure and releases every tracking entry."""
         cfg = _make_cfg()
         proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
         stderr_fh_mock = MagicMock()
@@ -59,7 +59,7 @@ class TestGetPgidFailureTracking:
             patch.object(
                 mgr._process_terminator,
                 "terminate_with_timeout",
-                AsyncMock(return_value=True),
+                AsyncMock(return_value=TerminationOutcome.EXITED),
             ),
             patch.object(launcher_module, "logger") as mock_logger,
         ):
@@ -73,6 +73,38 @@ class TestGetPgidFailureTracking:
         # Tracking entries were not retained (removed in the success path).
         assert mgr._http_procs.get("test") is None
         assert mgr._http_pgids.get("test") is None
+
+    @pytest.mark.asyncio
+    async def test_unconfirmed_exit_is_logged_with_pid_and_entries_are_released(
+        self, mgr: HttpServerLifecycleManager
+    ) -> None:
+        """The entries are released after the attempt; the unconfirmed exit is named."""
+        cfg = _make_cfg()
+        proc_mock = Mock(pid=9999, poll=Mock(return_value=None))
+        stderr_fh_mock = MagicMock()
+
+        with (
+            patch.object(subprocess, "Popen", return_value=proc_mock),
+            patch.object(os, "getpgid", side_effect=OSError("no such process")),
+            patch.object(
+                mgr._stderr_log_manager, "open_log", return_value=stderr_fh_mock
+            ),
+            patch.object(
+                mgr._process_terminator,
+                "terminate_with_timeout",
+                AsyncMock(return_value=TerminationOutcome.EXIT_UNCONFIRMED),
+            ),
+            patch.object(launcher_module, "logger") as mock_logger,
+        ):
+            with pytest.raises(OSError, match="no such process"):
+                await mgr.start("test", cfg)
+
+        logged = [str(call) for call in mock_logger.error.call_args_list]
+        assert len(logged) == 1
+        assert "9999" in logged[0] and "exit_unconfirmed" in logged[0]
+        assert mgr._http_procs.get("test") is None
+        assert mgr._http_pgids.get("test") is None
+        stderr_fh_mock.close.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_pid_logged_on_termination_failure(
@@ -166,7 +198,7 @@ class TestStartupFailureCleanupCharacterization:
             patch.object(
                 mgr._process_terminator,
                 "terminate_with_timeout",
-                AsyncMock(return_value=True),
+                AsyncMock(return_value=TerminationOutcome.EXITED),
             ),
             patch.object(launcher_module, "logger") as mock_logger,
         ):

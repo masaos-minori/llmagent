@@ -131,9 +131,10 @@ class SubprocessLauncher:
     ) -> NoReturn:
         """Terminate a process whose pgid could not be resolved, then re-raise *error*.
 
-        Tracking entries are removed only after a confirmed exit so a failed
-        termination keeps them available for a subsequent manual-cleanup attempt.
-        Stderr resources are always released regardless of the termination outcome.
+        The process and pgid tracking entries are removed after the termination
+        attempt whatever it proved; an exit that was not confirmed is logged as an
+        error with the pid and pgid so it can be stopped manually. Stderr resources
+        are always released regardless of the termination outcome.
         """
         logger.warning(
             "Lifecycle: getpgid() failed for %r pid=%d; cleaning up",
@@ -141,9 +142,17 @@ class SubprocessLauncher:
             proc.pid,
         )
         try:
-            await self._process_terminator.terminate_with_timeout(
+            outcome = await self._process_terminator.terminate_with_timeout(
                 proc, server_key, timeout=self._terminate_timeout_sec
             )
+            if not outcome.confirmed:
+                logger.error(
+                    "Lifecycle: %r pid=%d pgid=%s not confirmed stopped after getpgid() failure (%s)",
+                    server_key,
+                    proc.pid,
+                    self._http_pgids.get(server_key),
+                    outcome,
+                )
             poll_result = proc.poll()
             if poll_result is not None and poll_result != 0:
                 logger.info(
@@ -156,8 +165,7 @@ class SubprocessLauncher:
             self._http_pgids.pop(server_key, None)
         except Exception as term_err:
             logger.error(
-                "Lifecycle: getpgid() failed AND termination failed for %r (pid=%d): %s. "
-                "Tracking entry retained for manual cleanup.",
+                "Lifecycle: getpgid() failed AND termination raised for %r (pid=%d): %s.",
                 server_key,
                 proc.pid,
                 term_err,

@@ -15,6 +15,7 @@ import signal
 import subprocess
 from typing import TYPE_CHECKING, Any
 
+from .http_lifecycle_errors import TerminationOutcome
 from .http_lifecycle_process_terminator import ProcessTerminator
 
 logger = logging.getLogger(__name__)
@@ -22,8 +23,9 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from agent.http_lifecycle import HttpServerLifecycleManager
 
+# Bound on the SIGTERM wait of the shutdown path (shutdown_all); the post-SIGKILL
+# confirmation window is owned by ProcessTerminator.
 _SHUTDOWN_TIMEOUT_SEC = 30.0
-_KILL_TIMEOUT_SEC = 5.0
 
 
 def _get_pgid(proc: subprocess.Popen[bytes]) -> int | None:
@@ -58,30 +60,49 @@ class ShutdownCoordinator:
         server_key: str,
         proc: subprocess.Popen[bytes],
         terminate_kwargs: dict[str, Any],
-    ) -> None:
-        """Terminate one server and settle its tracking entry."""
+    ) -> TerminationOutcome:
+        """Terminate one server and settle its tracking; return what was proved.
+
+        The process entry was already removed by shutdown_all so the same shutdown is
+        never attempted twice. Only a confirmed exit clears the remaining tracking; an
+        unconfirmed one keeps the pgid and stderr-log tracking for manual cleanup.
+        """
         logger.info("Shutting down %s...", server_key)
+        pid = getattr(proc, "pid", None)
         try:
-            await terminator.terminate_with_timeout(
+            outcome = await terminator.terminate_with_timeout(
                 proc, server_key, **terminate_kwargs
             )
-            # Process terminated successfully — safe to remove tracking
-            manager.cleanup_server_key(server_key)
-        except (OSError, TimeoutError) as e:
-            # Termination failed — keep tracking entries for manual intervention
+        except OSError as e:
             logger.error(
-                "Lifecycle: error terminating %r (%s); "
-                "tracking entry retained for manual cleanup.",
+                "Lifecycle: error terminating %r pid=%s (%s); "
+                "pgid and stderr-log tracking retained for manual cleanup.",
                 server_key,
+                pid,
                 e,
             )
+            return TerminationOutcome.EXIT_UNCONFIRMED
+        if outcome.confirmed:
+            manager.cleanup_server_key(server_key)
+            return outcome
+        pgid = _get_pgid(proc)
+        logger.error(
+            "Lifecycle: %r pid=%s pgid=%s not confirmed stopped (%s); pgid and "
+            "stderr-log tracking retained, stop it manually with: kill -TERM -%s",
+            server_key,
+            pid,
+            pgid,
+            outcome,
+            pgid,
+        )
+        return outcome
 
     async def shutdown_all(
         self,
         manager: HttpServerLifecycleManager,
         terminator: ProcessTerminator | None = None,
         fields: dict[str, Any] | None = None,
-    ) -> None:
+    ) -> list[tuple[str, TerminationOutcome]]:
         """Gracefully shut down every managed server.
 
         Iterates over all entries in ``manager._http_procs``, delegates termination
@@ -94,6 +115,10 @@ class ShutdownCoordinator:
             fields: Additional keyword arguments to pass to each
                 ``terminate_with_timeout()`` call. If None, defaults to
                 an empty dict.
+
+        Returns:
+            One ``(server_key, outcome)`` pair per server whose exit was not
+            confirmed; empty when every started server was confirmed gone.
         """
         old_sigint: object | None = None
         try:
@@ -129,7 +154,7 @@ class ShutdownCoordinator:
                 running.append((server_key, proc))
             # Terminate together so total time is bounded by one timeout and every
             # server is signalled before any wait begins.
-            await asyncio.gather(
+            outcomes = await asyncio.gather(
                 *(
                     ShutdownCoordinator._terminate_one(
                         manager, terminator, server_key, proc, terminate_kwargs
@@ -138,6 +163,11 @@ class ShutdownCoordinator:
                 )
             )
             manager.clear_all_health_checks()
+            return [
+                (server_key, outcome)
+                for (server_key, _), outcome in zip(running, outcomes, strict=True)
+                if not outcome.confirmed
+            ]
         finally:
             if old_sigint is not None:
                 try:
