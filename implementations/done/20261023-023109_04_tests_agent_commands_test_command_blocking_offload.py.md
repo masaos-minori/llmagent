@@ -24,9 +24,12 @@ New file `tests/agent/commands/test_command_blocking_offload.py` (Create). Drive
 
 ## Design decisions
 
-- **Event-based blocking, not sleep.** The stub blocks on a `threading.Event`/`asyncio.Event`
-  pair instead of `time.sleep`, so the tests are deterministic and free of tight timing
-  assertions (plan Tests).
+- **Event-based blocking, not sleep.** The stub blocks on a pair of `threading.Event`s
+  instead of `time.sleep`, so the tests are deterministic and free of tight timing
+  assertions (plan Tests). Both signalling events are `threading.Event` (not `asyncio.Event`)
+  because the stub runs on the `asyncio.to_thread` worker thread: setting an `asyncio.Event`
+  from a non-loop thread is unreliable, whereas a `threading.Event` is safe to set from any
+  thread and is polled by the probe coroutine on the loop.
 - **Two independent assertions:**
   1. `test_loop_advances_while_storage_runs`: schedule a probe coroutine alongside
      `cmd._cmd_session("vacuum")` via `asyncio.gather`; assert the probe completed its
@@ -58,12 +61,14 @@ New file `tests/agent/commands/test_command_blocking_offload.py` (Create). Drive
    `agent.commands.db_session_ops.DbMaintenanceService` so the storage call resolves to a
    controllable stub.
 3. Write `test_loop_advances_while_storage_runs`:
-   - The stub sets an `asyncio.Event` when it starts and blocks on a `threading.Event`.
-   - `asyncio.gather` the stub-driven `await cmd._cmd_session("vacuum")` with a probe
-     coroutine that awaits `asyncio.sleep(0)` repeatedly until the start event is set,
-     counting iterations.
-   - Assert the probe made progress (loop stayed responsive) and then release the
-     `threading.Event` so the call completes.
+   - The stub signals start with a `threading.Event` (safe to set from the worker thread)
+     and blocks on a second `threading.Event`.
+   - `asyncio.create_task(cmd._cmd_session("vacuum"))`; wait for the worker to reach its
+     block (`await asyncio.to_thread(started.wait)`), then run a probe coroutine that
+     yields `asyncio.sleep(0)` a fixed number of times.
+   - Assert every probe yield completed while the storage call was still blocked (a loop
+     held by the storage call would hang the probe); then release the `threading.Event`
+     so the call completes.
 4. Write `test_await_cancel_does_not_stop_work`:
    - Launch `task = asyncio.create_task(cmd._cmd_session("vacuum"))`, let the stub start,
      then cancel the await (or abandon it) and assert the stub still ran to completion and
@@ -128,10 +133,10 @@ Delete the single new file. Nothing else references it.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261023-163437 | 20261023-163437 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-163437 | 20261023-163437 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-163437 | 20261023-163437 | AC-3 regression signal (fails vs pre-offload inline call) NOT executed: verifying it requires reverting row 02 (cmd_session.py), which is out of scope. Full suite: 9866 passed, 10 skipped, 0 failed. ruff/lint-imports/bandit clean. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-163437 | 20261023-163437 | N/A: no docs/00_index.md task-scope mapping for tests/agent/commands/test_command_blocking_offload.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

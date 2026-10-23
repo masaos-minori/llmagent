@@ -109,10 +109,10 @@ No other file touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261023-164331 | 20261023-164331 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-164331 | 20261023-164331 | N/A: doc-only edit, no tests. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-164331 | 20261023-164331 | check_docs_quality/structure/content_policy/consistency(--domain agent)/japanese/skills_references all pass. UNK-01 owner confirmation (plan Step 6) is still Pending; wording documents the mechanism-accurate 'allowed to finish' per REQ-006 and the source issue's measured behavior, not a stronger guarantee. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-164331 | 20261023-164331 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

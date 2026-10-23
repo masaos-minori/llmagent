@@ -103,10 +103,10 @@ No other file touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261023-163917 | 20261023-163917 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-163917 | 20261023-163917 | N/A: doc-only edit, no tests. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-163917 | 20261023-163917 | check_docs_quality/structure/content_policy/consistency(--domain agent)/japanese/skills_references all pass. (Plan validation-row refs to check_docs_refs.py and check_docs_index_completeness.py are stale — those scripts do not exist; routing.md is the canonical checker list.) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-163917 | 20261023-163917 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

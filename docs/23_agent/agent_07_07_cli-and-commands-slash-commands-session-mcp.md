@@ -62,6 +62,10 @@ A group of commands for session management and history operations. `/clear [new]
 | `/session rag-rebuild-fts` | Rebuilds `chunks_fts` from `chunks` |
 | `/session rag-rebuild-vec` | Rebuilds `chunks_vec` from `chunks` |
 
+#### Long-running and off-loop subcommands
+
+The maintenance, export, and RAG subcommands — `/session stats`, `/session health`, `/session checkpoint`, `/session vacuum`, `/session purge`, `/session recover`, `/session rag-consistency`, `/session rag-rebuild-fts`, `/session rag-rebuild-vec`, and `/session export` — open their own SQLite connection and run **outside the event loop** through the offloaded `db_dispatch` table, so they may take seconds while the REPL stays responsive. A shutdown request does not interrupt an in-progress storage call: the call runs to completion, and process shutdown joins the worker thread until it finishes. This is the behavior the offload produces (REQ-006); these subcommands are not cancellable at shutdown. The `is_async` contract that makes this dispatch safe is documented in [agent_07_03](agent_07_03_cli-and-commands-command-registry.md), and `tests/agent/commands/test_command_blocking_offload.py` guards both the loop responsiveness and the completion semantics.
+
 ### Session and Memory Separation
 
 `/session load`, `/session delete`, `/session export`, and `/session purge`

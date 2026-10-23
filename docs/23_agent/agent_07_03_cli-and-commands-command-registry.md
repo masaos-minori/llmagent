@@ -60,14 +60,14 @@ Index of the built-in slash commands defined in `_COMMANDS`; `/exit` is addition
 
 ### Adding New Commands
 
-Add a `CommandDef(...)` entry to `command_defs_list.py` (with `SubcommandSpec`/`ArgSpec` for its subcommands and arguments) and implement the corresponding handler in the appropriate mixin file. Document each usage line in the per-command chapter; `check_docs_consistency.py --domain agent` verifies the contract.
+Add a `CommandDef(...)` entry to `command_defs_list.py` (with `SubcommandSpec`/`ArgSpec` for its subcommands and arguments) and implement the corresponding handler in the appropriate mixin file. Set `is_async` to match the handler's kind — `True` for an `async def` handler, `False` for a sync callable — because `CommandRegistry.__init__` checks it at startup and a mismatch raises a `TypeError` before the REPL runs, not when the command is invoked. Document each usage line in the per-command chapter; `check_docs_consistency.py --domain agent` verifies the contract.
 
 `AgentREPL.SLASH_COMMANDS` (for tab completion) is derived from `command_defs_list._COMMANDS` plus REPL-reserved commands via `completion_command_names()`, so it does not drift from the dispatch table.
 
 ## Responsibility Boundary
 
 - `CommandRegistry` is responsible **only for dispatching**. Command implementations are distributed among individual mixin classes.
-- `CommandRegistry.__init__` performs fail-fast validation of handler strings.
+- `CommandRegistry.__init__` performs fail-fast validation of handler strings **and** their kind: each `CommandDef.is_async` must match whether its handler is a coroutine function or a sync callable, and a mismatch raises a `TypeError` at construction (startup), not when the command runs.
 
 ## Key Constraints
 
