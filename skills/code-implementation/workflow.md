@@ -410,6 +410,7 @@ only and does not apply to this workflow at all.
   work — leave it staged and include it when the change is committed
   (`skills/git-commit-and-sync/workflow.md` Phase 2). A single-file cycle may keep the
   default auto-commit.
+- When closing an entire batch of procedures that share one plan (a shared `YYYYMMDD-HHMMSS` timestamp prefix across `implementations/<prefix>_NN_*.md`), prefer `uv run python tools/manage_workitem_stage.py close-batch <batch-id>` over issuing one `close-implementation` per file — it archives every procedure of the batch and marks the owning plan's `### Execution Status` rows `Completed` in a single step, and refuses (nothing moved) if any procedure still has a `Pending` row. See `tools/TOOL_DESCRIPTIONS.md` for the batch id form and its flags.
 - Direct command (fallback): `git mv implementations/{filename}.md
   implementations/done/{filename}.md`. MUST NOT use `mv`, `cp` + `rm`, or any other
   fallback beyond these two.
