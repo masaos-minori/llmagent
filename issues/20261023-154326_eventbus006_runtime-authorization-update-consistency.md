@@ -35,7 +35,6 @@ Update configuration and token-principal maps under one lock and generation; dec
 - Require exactly HTTP 403 for unauthorized consumer IDs before database-state checks; unify dependency and handler authorization checks and remove principal `repr` logging.
 - Build principals via the production config-loader path in tests and remove direct mutation of private token-map globals.
 - Build the new principal map completely first and publish it with one reference swap (no in-place `clear()`), together with the config, so a failed rebuild leaves the previous generation intact.
-- Build the new principal map completely first and publish it with one reference swap (no in-place `clear()`), together with the config, so a failed rebuild leaves the previous generation intact.
 
 ## Constraints
 Token values must stay out of audit records and logs. Public admin API shape changes only where the persistence decision requires it.

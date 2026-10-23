@@ -57,7 +57,6 @@ Requeue delivery semantics (live push versus replay) and DLQ file reconciliation
 ## Dependencies
 Siblings under `issues/`: none touch EventBus. Related memo tasks: H-04 and H-05 (same lock and connection model); M-02 (requeue delivery semantics). Fix order: this issue is independent and may go first.
 Note: the memo's claim that concurrent requeue requests race is not confirmed for the update/insert path (serialized by the lock); concurrency tests should target the unlocked follow-up reads and the failed-transaction carry-over instead.
-Note: the memo's claim that concurrent requeue requests race is not confirmed for the update/insert path (serialized by the lock); concurrency tests should target the unlocked follow-up reads and the failed-transaction carry-over instead.
 
 ## Unresolved Questions
 - Does the explicit-timestamp parameter of `redeliver_event()` stay part of the repository API, or may it be removed (no caller passes it)? Needs confirmation; either choice satisfies the parameter-binding criterion.

@@ -14,6 +14,7 @@ Confirmed against HEAD (adversarial re-verification):
 - The import-linter contract `eventbus-is-isolated` forbids `eventbus` from importing `db` (it may import `shared`). One shared validator therefore cannot simply live in `scripts/db/` or be called from `scripts/eventbus/schema.py` both ways: the shared piece belongs in `shared/` (or the SQL is read by both with the validator in `shared/`).
 - `scripts/eventbus/schema.sql` currently defines tables and indexes only (no triggers).
 A schema version marker (`PRAGMA user_version`) was added by earlier compat-removal work; this issue covers shape validation beyond it. Aggregated from the memo's strict schema-shape validation and deployment fail-closed items.
+- `docs/90_deployment/deployment_01_deployment.md:299-305` claims `init_db.sh` verifies all mandatory EventBus tables and aborts if any are missing, and that the EventBus service refuses a different table shape. `deploy/init_db.sh` verifies only the Workflow tables (EventBus: `.tables` output only), and the service checks shape only for an unstamped database. The deployment document must be corrected together with the implementation (not instead of it).
 
 ## Problem
 A correct version stamp does not prove that tables, indexes, constraints or triggers exist, so a malformed database can start and fail only when a route touches a missing object. Deployment can report success without proving that configuration, token maps, all database schemas, the EventBus process and the health endpoint are ready; HTTP 503, an immediate process exit or an incomplete database must not be summarized as success. Initialization validates some databases more strictly than others.
@@ -36,7 +37,6 @@ Build one reusable preflight and readiness chain: load and validate production c
 
 ## Constraints
 A database stamped with another version stays refused (recreate, never migrate). Deployment scripts must stay non-interactive and must not print secrets.
-The import-linter contracts (`eventbus` must not import `db`; `eventbus` may import `shared`) must keep passing. The deployment readiness gate must use a readiness signal that does not fail on transient capacity degradation (see M-02's liveness/readiness/integrity split), not the full `/health` `status == ok`.
 The import-linter contracts (`eventbus` must not import `db`; `eventbus` may import `shared`) must keep passing. The deployment readiness gate must use a readiness signal that does not fail on transient capacity degradation (see M-02's liveness/readiness/integrity split), not the full `/health` `status == ok`.
 
 ## Acceptance Criteria

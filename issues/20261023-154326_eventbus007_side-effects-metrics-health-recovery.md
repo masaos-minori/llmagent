@@ -58,7 +58,6 @@ Changing the SQLite durability boundary; the requeue transaction fix (H-01).
 ## Dependencies
 Related to H-01 (requeue) and H-03 (integrity check). No open issue under `issues/` overlaps. Large item: consider splitting into delivery semantics, health/metrics and DLQ recovery at plan time.
 The readiness definition feeds the deployment gate in H-03 (`eventbus003`); coordinate the response fields so H-03 can rely on them.
-The readiness definition feeds the deployment gate in H-03 (`eventbus003`); coordinate the response fields so H-03 can rely on them.
 
 ## Unresolved Questions
 - Is immediate broker notification on requeue required? Owner decision.
