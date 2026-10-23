@@ -6,7 +6,7 @@ SignalHandler — platform-specific signal handling for graceful shutdown.
 Responsibilities:
   - Registering SIGTERM/SIGINT handlers on Unix (loop.add_signal_handler)
   - Registering Windows console control handler fallback
-  - Coordinating shutdown with ReplInputLoop via shutdown_event
+  - Receiving the shutdown_event owned by AgentREPL at construction and setting it on SIGTERM to coordinate with ReplInputLoop
 """
 
 from __future__ import annotations
@@ -31,7 +31,7 @@ class SignalHandler:
     Responsibilities:
       - Registering SIGTERM/SIGINT handlers on Unix (loop.add_signal_handler)
       - Registering Windows console control handler fallback
-      - Setting shutdown_event to coordinate with ReplInputLoop shutdown watcher
+      - Receiving the shutdown_event owned by AgentREPL at construction to coordinate with the ReplInputLoop shutdown watcher
     """
 
     def __init__(
@@ -132,7 +132,3 @@ class SignalHandler:
                         )
                 except Exception:  # noqa: BLE001 — best-effort non-POSIX signal fallback must not crash startup even on unexpected failures
                     pass
-
-    def set_shutdown_event(self, event: asyncio.Event | None) -> None:
-        """Update the shutdown event reference after run() initializes it."""
-        self._shutdown_event = event

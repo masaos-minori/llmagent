@@ -20,6 +20,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 from agent.commands.registry import CommandRegistry
 from agent.repl import AgentREPL
+from agent.repl_input_loop import ReplInputLoop
 from agent.startup_banner import StartupBanner
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -70,7 +71,7 @@ def _make_bare_repl() -> AgentREPL:
     view = MagicMock()
     view.read_multiline = AsyncMock(return_value="")
     repl._view = view
-    repl._signal = SignalHandler(ctx, view)
+    repl._signal = SignalHandler(ctx, repl._shutdown_event)
     repl._banner = StartupBanner(ctx, view)
     repl._persister = SessionPersister(ctx, MagicMock(), view)
     repl._persister.persist_session_diagnostics = AsyncMock()
@@ -704,6 +705,159 @@ class TestReadInputShutdownRace:
             repl._input_loop._input_coro.cancel()
             result = await asyncio.wait_for(read_task, timeout=1.0)
         assert result is None
+
+
+# ── AgentREPL owns one shutdown event shared with its consumers ───────────────
+
+
+def _make_real_wired_repl() -> AgentREPL:
+    """Construct AgentREPL through __init__ so ReplInputLoop and SignalHandler are real."""
+    with (
+        patch("agent.repl.AgentContext"),
+        patch("agent.repl.CLIView"),
+        patch("agent.repl.DiagnosticStore"),
+    ):
+        return AgentREPL()
+
+
+class TestAgentREPLOwnsOneShutdownEvent:
+    """The fixtures bypass __init__, which would hide an input loop built with no event."""
+
+    def test_consumers_share_the_event_created_at_construction(self) -> None:
+        repl = _make_real_wired_repl()
+
+        assert repl._input_loop._shutdown_event is not None
+        assert repl._input_loop._shutdown_event is repl._signal._shutdown_event
+        assert repl._input_loop._shutdown_event is repl._shutdown_event
+
+    @pytest.mark.asyncio
+    async def test_run_neither_recreates_nor_rebinds_the_event(self) -> None:
+        repl = _make_real_wired_repl()
+        event_before = repl._shutdown_event
+
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                return_value=(MagicMock(), MagicMock())
+            )
+            with (
+                patch.object(repl._signal, "register"),
+                patch.object(repl._input_loop, "run", new=AsyncMock()),
+                patch.object(repl._shutdown, "close_resources", new=AsyncMock()),
+            ):
+                await repl.run()
+
+        assert repl._shutdown_event is event_before
+        assert repl._input_loop._shutdown_event is event_before
+        assert repl._signal._shutdown_event is event_before
+        assert MockStartup.call_args.kwargs["shutdown_event"] is event_before
+
+
+# ── A signal while the prompt waits, or during a turn, stops the loop ─────────
+
+
+class TestSignalDuringPromptEndsLoop:
+    @pytest.mark.asyncio
+    async def test_signal_ends_the_loop_without_any_input(self) -> None:
+        repl = _make_real_wired_repl()
+        repl._input_loop.bind(MagicMock(), MagicMock())
+        captured: list = []
+        loop = asyncio.get_running_loop()
+        with patch.object(
+            loop, "add_signal_handler", side_effect=lambda sig, h: captured.append(h)
+        ):
+            repl._signal.register(loop)
+        release = threading.Event()
+
+        async def fire_signal() -> None:
+            await asyncio.sleep(0.05)
+            captured[0]()
+
+        signal_task = asyncio.ensure_future(fire_signal())
+        try:
+            with patch(
+                "builtins.input", side_effect=lambda p: (release.wait(5), "never")[1]
+            ):
+                await asyncio.wait_for(
+                    repl._input_loop.run(MagicMock(), None), timeout=1.0
+                )
+        finally:
+            release.set()
+            await signal_task
+
+        repl._view.write_turn_end.assert_called_once()
+
+
+class TestMidTurnSignalIsBounded:
+    @staticmethod
+    async def _run_with_signal_during_turn(
+        monkeypatch: pytest.MonkeyPatch, *, cooperative: bool
+    ) -> tuple[MagicMock, float, list[asyncio.Task]]:
+        monkeypatch.setattr(ReplInputLoop, "_GRACEFUL_TIMEOUT_S", 0.2)
+        repl = _make_bare_repl()
+        tasks: list[asyncio.Task] = []
+        turn_started = asyncio.Event()
+
+        async def _handle_turn(_line: str) -> None:
+            current = asyncio.current_task()
+            assert current is not None
+            tasks.append(current)
+            turn_started.set()
+            try:
+                await asyncio.sleep(30)
+            except asyncio.CancelledError:
+                if cooperative:
+                    raise
+                await asyncio.sleep(0.8)  # ignores the cancellation for a while
+
+        repl._orchestrator.handle_turn = AsyncMock(side_effect=_handle_turn)
+        repl._input_loop._orchestrator = repl._orchestrator
+        answers = iter(["hello"])
+
+        def _input(_prompt: str) -> str:
+            try:
+                return next(answers)
+            except StopIteration:
+                time.sleep(5)
+                return "never"
+
+        async def _signal_once_turn_runs() -> None:
+            await turn_started.wait()
+            repl._shutdown_event.set()
+
+        signal_task = asyncio.ensure_future(_signal_once_turn_runs())
+        start = time.monotonic()
+        with patch("builtins.input", side_effect=_input):
+            await asyncio.wait_for(repl._input_loop.run(MagicMock(), None), timeout=3.0)
+        elapsed = time.monotonic() - start
+        await signal_task
+        return repl._view, elapsed, tasks
+
+    @pytest.mark.asyncio
+    async def test_non_cooperative_turn_is_abandoned_after_the_bound(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        view, elapsed, tasks = await self._run_with_signal_during_turn(
+            monkeypatch, cooperative=False
+        )
+        try:
+            assert elapsed < 0.6
+            warnings = [c.args[0] for c in view.write_warning.call_args_list]
+            assert any("Graceful shutdown timed out" in w for w in warnings)
+            assert tasks[0].cancelling() >= 1
+        finally:
+            await asyncio.gather(*tasks, return_exceptions=True)
+
+    @pytest.mark.asyncio
+    async def test_cooperative_turn_ends_without_a_timeout_warning(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        view, elapsed, tasks = await self._run_with_signal_during_turn(
+            monkeypatch, cooperative=True
+        )
+        warnings = [c.args[0] for c in view.write_warning.call_args_list]
+        assert not any("Graceful shutdown timed out" in w for w in warnings)
+        assert elapsed < 0.6
+        assert tasks[0].cancelled()
 
 
 # ── AgentREPL.run() wires the startup results into the input loop ─────────────

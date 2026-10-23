@@ -278,9 +278,13 @@ class ReplInputLoop:
                     if dispatch_task in pending:
                         dispatch_task.cancel()
                         try:
-                            await dispatch_task
+                            await asyncio.wait_for(
+                                dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S
+                            )
                         except asyncio.CancelledError:
                             pass
+                        except TimeoutError:
+                            self._log_graceful_shutdown_timeout()
                     break
                 else:
                     # _shutdown_event is None or already set — await the already-created dispatch_task

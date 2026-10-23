@@ -6,19 +6,20 @@ AgentREPL — thin composition facade over extracted REPL concern classes.
 Delegates REPL input/dispatch to ReplInputLoop, session persistence to
 SessionPersister, WAL operations to WalCheckpointManager, resource shutdown
 to ResourceShutdownCoordinator, startup display to StartupBanner, and signal
-handling to SignalHandler.
+handling to SignalHandler. Per-session diagnostics are held by DiagnosticStore and
+startup is run by StartupOrchestrator.
 
 Architecture (dependency injection via AgentContext):
   AgentContext   — shared mutable state container (agent/context.py)
   CLIView        — readline, multiline input display (agent/cli_view.py)
   LLMClient      — HTTP retry, payload build, SSE stream (shared/llm_client.py)
-  ToolExecutor   — MCP routing, error handling, TTL cache (shared/tool_executor.py)
+  ToolExecutor   — MCP routing, call dispatch, name-to-server resolution, per-server health (shared/tool_executor.py)
   HistoryManager — character counting, LLM-based compression (agent/history.py)
   CommandRegistry — slash-command dispatch (agent/commands/registry.py)
   Orchestrator   — per-turn task control: LLM loop, tool dispatch (agent/orchestrator.py)
-  AgentConfig    — mutable runtime config dataclass (agent/config.py)
+  AgentConfig    — mutable runtime config dataclass (agent/config_dataclasses.py)
 
-Imported by agent.py as the entry point.
+main() in this module is the process entry point, compiled into /opt/llm/bin/agent by deploy/build_binaries.sh.
 Slash-command handlers live in agent/commands/registry.CommandRegistry.
 Turn-level orchestration (LLM loop, tool dispatch) lives in agent/orchestrator.py.
 """
@@ -77,9 +78,7 @@ class AgentREPL:
         self._ctx = AgentContext()
         self._view = CLIView(list(self.SLASH_COMMANDS))
         self._diagnostic_store = DiagnosticStore()
-        self._turn_active: bool = False
-        self._shutdown_event: asyncio.Event | None = None
-        self._input_coro: asyncio.Task[str] | None = None
+        self._shutdown_event = asyncio.Event()
         # Wire extracted components via DI
         self._input_loop = ReplInputLoop(self._ctx, self._view, self._shutdown_event)
         self._persister = SessionPersister(
@@ -90,17 +89,6 @@ class AgentREPL:
         self._banner = StartupBanner(self._ctx, self._view)
         self._signal = SignalHandler(self._ctx, self._shutdown_event)
 
-    @property
-    def _prompt(self) -> str:
-        """REPL input prompt string."""
-        return "> "
-
-    @property
-    def _n_tools(self) -> int:
-        """Number of tools available at runtime (excludes unavailable/degraded servers)."""
-        rt = self._ctx.services_required.runtime_tools
-        return len(rt.all_tools()) if rt else 0
-
     async def _persist_after_loop(self) -> None:
         """Persist session data after the REPL loop ends."""
         await self._persister.persist_session_memories()
@@ -109,8 +97,6 @@ class AgentREPL:
     async def run(self) -> None:
         """Start the interactive REPL."""
         loop = asyncio.get_running_loop()
-        self._shutdown_event = asyncio.Event()
-        self._signal.set_shutdown_event(self._shutdown_event)
 
         # Register signal handlers
         self._signal.register(loop)

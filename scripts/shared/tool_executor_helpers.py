@@ -38,7 +38,12 @@ def format_transport_error(
 
 
 def tool_hash_key(name: str, args: dict[str, Any]) -> str:
-    """Return a stable MD5 hash for a (tool name, args) pair; used for failed-call tracking (NOT for cache keys). Cache keys use plain string concatenation: f'{name}:{json_dumps(args)}'."""
+    """Return a stable MD5 hash identifying a (tool name, args) pair; used for failed-call tracking (NOT for cache keys).
+
+    The hash is computed over f'{name}:{json_dumps(args)}'. The real duplicate-call cache lives
+    server-side in mcp_servers/dispatch.py and is keyed by the caller's idempotency key, not by
+    this hash.
+    """
     return hashlib.md5(  # nosec B324 — non-security hash for dedup key identity
         f"{name}:{_json_dumps(args)}".encode(),
         usedforsecurity=False,

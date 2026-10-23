@@ -36,11 +36,11 @@ Documents the design intent and operational decisions for the REPL input/output 
 - **Slash Commands:** Lines starting with `/` → `CommandRegistry.dispatch(line)`
 - **Multi-line Input:** Lines ending with `\` → continued with `... ` prompt
 - **EOF / Ctrl-D:** Graceful shutdown (REPL input returns `None` and exits the loop)
-- **Ctrl-C:** Caught within input; during input wait, it leads to REPL termination similar to EOF (handled differently from interruption during tool loop execution in current implementation)
+- **Ctrl-C:** Caught within input; during input wait, it leads to REPL termination similar to EOF (asserted by `TestSignalDuringPromptEndsLoop`)
 
 ### Shutdown Behavior
 
-- On SIGTERM the shutdown flag and event are set, and the running turn is awaited for a bounded grace period (`_GRACEFUL_TIMEOUT_S`) before forced termination. `/exit` and the shutdown flag both end the loop (Explicit in code — `scripts/agent/repl.py`).
+- On a signal the `shutdown_requested` flag and the shared shutdown event are set. At the prompt this ends the loop immediately (`TestSignalDuringPromptEndsLoop`); during a turn the in-flight dispatch is cancelled and the wait for that cancellation is bounded by `_GRACEFUL_TIMEOUT_S` before the loop exits (`TestMidTurnSignalIsBounded`). `/exit` and the shutdown flag both end the loop (Explicit in code — `scripts/agent/repl.py`).
 
 ## Responsibility Boundary
 
@@ -49,7 +49,7 @@ Documents the design intent and operational decisions for the REPL input/output 
 ## Key Constraints
 
 - The prompt is a fixed string `"> "` and does not display session ID or status; the `... ` continuation prompt is specific to multi-line input.
-- Ctrl-C while waiting for input terminates the entire REPL rather than interrupting the current line.
+- Ctrl-C while waiting for input terminates the entire REPL rather than interrupting the current line (`TestSignalDuringPromptEndsLoop`).
 
 ## Keywords
 
