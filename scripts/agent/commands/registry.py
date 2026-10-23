@@ -24,6 +24,7 @@ _COMMANDS ownership:
                     and the fail-fast handler validation in __init__.
 """
 
+import inspect
 import logging
 import sqlite3
 from collections.abc import Callable
@@ -74,6 +75,14 @@ class CommandRegistry(
             if not hasattr(self, _cmd.handler):
                 raise AttributeError(
                     f"CommandDef references unknown handler: {_cmd.handler!r}"
+                )
+            handler = getattr(self, _cmd.handler)
+            is_coro = inspect.iscoroutinefunction(handler)
+            if is_coro != _cmd.is_async:
+                kind = "coroutine function" if is_coro else "sync callable"
+                raise TypeError(
+                    f"Command '{_cmd.name}' handler {_cmd.handler!r} is a "
+                    f"{kind}, but CommandDef.is_async={_cmd.is_async}"
                 )
 
     def _get_handler(self, cmd: CommandDef) -> Callable[..., Any]:
