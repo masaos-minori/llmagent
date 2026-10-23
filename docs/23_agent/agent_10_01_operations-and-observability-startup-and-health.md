@@ -141,7 +141,7 @@ The recreated databases contain schema only: all workflow state (tasks, attempts
 
 ## Known Limitations / Unresolved Issues
 
-- The WAL checkpoint and backup timeouts at shutdown are fixed in `ResourceShutdownCoordinator.close_resources()` and are not configurable; a timeout is recorded as a shutdown error and logged (Explicit in code — `scripts/agent/resource_shutdown_coordinator.py`).
+- The WAL checkpoint and the WAL backup at shutdown share one timeout bound, fixed in `ResourceShutdownCoordinator.close_resources()` and not configurable; when it expires the step is abandoned, recorded as a shutdown error and logged, and an abandoned checkpoint leaves the WAL to be replayed or checkpointed on the next open ("timed out" means "not rolled back", never "left clean"). The collected shutdown errors are also shown on the console (Explicit in code — `scripts/agent/resource_shutdown_coordinator.py`, `scripts/agent/wal_checkpoint_manager.py`).
 - A failure of the rollback `shutdown_all()` during startup failure is only logged; the original startup exception is re-raised and nothing is shown on the console for the rollback failure (Explicit in code — `scripts/agent/startup.py`).
 - Secret masking of MCP subprocess output is incomplete (see Secret Masking in MCP Subprocess Failure Reports).
 

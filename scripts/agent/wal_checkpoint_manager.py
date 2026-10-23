@@ -8,11 +8,16 @@ Responsibilities:
   - WAL file backup before closing connections
   - Path validation against allowed_root
 
-Constants moved from AgentREPL class attributes per REQ-012.
+Both steps run on a worker thread (asyncio.to_thread) so the caller's wait_for bound can
+fire while SQLite and the retry backoff are still blocking. A step abandoned by that bound is
+not rolled back: its worker keeps running, a half-finished checkpoint leaves the WAL to be
+replayed or checkpointed on the next open, and a half-finished backup can leave a partial
+copy next to the database. The bound itself is owned by ResourceShutdownCoordinator.
 """
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import os
 import shutil
@@ -28,9 +33,6 @@ if TYPE_CHECKING:
     from agent.context import AgentContext
 
 logger = logging.getLogger(__name__)
-
-_WAL_CHECKPOINT_TIMEOUT_S: float = 30.0
-_WAL_BACKUP_TIMEOUT_S: float = 10.0
 
 
 class WalCheckpointManager:
@@ -55,68 +57,82 @@ class WalCheckpointManager:
         )
 
     async def checkpoint_sync(self) -> tuple[bool, list[tuple[str, str]]]:
-        """Attempt a WAL checkpoint (PASSIVE, falling back to TRUNCATE).
+        """Attempt a WAL checkpoint (PASSIVE, falling back to TRUNCATE) off the event loop.
 
         Returns ``(True, [])`` on PASSIVE/TRUNCATE success or when journal mode
-        is not WAL; returns ``(False, errors)`` when TRUNCATE exhausts retries.
+        is not WAL; returns ``(False, errors)`` when PASSIVE copied nothing over a
+        non-empty WAL or TRUNCATE exhausts retries.
         """
+        return await asyncio.to_thread(self._checkpoint_step)
+
+    def _checkpoint_step(self) -> tuple[bool, list[tuple[str, str]]]:
+        """Blocking checkpoint body; the connection never leaves this worker thread."""
         errors: list[tuple[str, str]] = []
         with SQLiteHelper("session").open(write_mode=True) as db:
             wal_mode = db.execute("PRAGMA journal_mode").fetchone()[0]
             if wal_mode.lower() != "wal":
                 logger.debug("WAL checkpoint skipped: journal mode is %r", wal_mode)
                 return True, errors
-            _passive_start = time.monotonic()
             try:
-                db.checkpoint("PASSIVE")
-                elapsed = time.monotonic() - _passive_start
-                if elapsed > 5:
-                    logger.warning(
-                        "WAL PASSIVE checkpoint took %s seconds, falling back to TRUNCATE",
-                        round(elapsed, 2),
-                    )
-                else:
-                    logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
-                    return True, errors
+                counts = db.checkpoint("PASSIVE")
             except sqlite3.Error as passive_err:
                 logger.warning(
                     "WAL PASSIVE checkpoint failed, falling back to TRUNCATE: %s",
                     passive_err,
                 )
+            else:
+                if int(counts.log_size) > 0 and int(counts.pages_checkpointed) == 0:
+                    message = (
+                        f"PASSIVE copied 0 of {int(counts.log_size)} WAL frames "
+                        f"(busy={int(counts.busy)}): a reader is holding the WAL"
+                    )
+                    logger.warning("WAL checkpoint made no progress: %s", message)
+                    errors.append(("wal_checkpoint_no_progress", message))
+                    return False, errors
+                logger.info("WAL checkpoint completed (PASSIVE) on shutdown")
+                return True, errors
             for attempt in range(3):
+                failure: str | None
                 try:
-                    db.checkpoint("TRUNCATE")
+                    counts = db.checkpoint("TRUNCATE")
+                    failure = (
+                        None
+                        if int(counts.busy) == 0
+                        else f"TRUNCATE blocked by a reader (busy={int(counts.busy)}, "
+                        f"log_size={int(counts.log_size)}, "
+                        f"pages_checkpointed={int(counts.pages_checkpointed)})"
+                    )
+                except sqlite3.Error as truncate_err:
+                    failure = f"{type(truncate_err).__name__}: {truncate_err}"
+                if failure is None:
                     logger.info(
                         "WAL checkpoint completed (TRUNCATE) on shutdown after %d retries",
                         attempt + 1,
                     )
                     return True, errors
-                except sqlite3.Error as truncate_err:
-                    if attempt < 2:
-                        logger.warning(
-                            "WAL TRUNCATE checkpoint attempt %d failed, retrying: %s",
-                            attempt + 1,
-                            truncate_err,
-                        )
-                        time.sleep(2**attempt)
-                    else:
-                        logger.error(
-                            "WAL TRUNCATE checkpoint failed after 3 attempts: %s",
-                            truncate_err,
-                        )
-                        errors.append(
-                            (
-                                "wal_checkpoint_truncate",
-                                f"{type(truncate_err).__name__}: {truncate_err}",
-                            )
-                        )
+                if attempt < 2:
+                    logger.warning(
+                        "WAL TRUNCATE checkpoint attempt %d failed, retrying: %s",
+                        attempt + 1,
+                        failure,
+                    )
+                    time.sleep(2**attempt)
+                else:
+                    logger.error(
+                        "WAL TRUNCATE checkpoint failed after 3 attempts: %s", failure
+                    )
+                    errors.append(("wal_checkpoint_truncate", failure))
             return False, errors
 
     async def backup_sync(self) -> tuple[str | None, list[tuple[str, str]]]:
-        """Copy the WAL file to a backup location.
+        """Copy the WAL file to a backup location off the event loop.
 
         Returns ``(backup_path_or_None, errors)``.
         """
+        return await asyncio.to_thread(self._backup_step)
+
+    def _backup_step(self) -> tuple[str | None, list[tuple[str, str]]]:
+        """Blocking backup body; the connection never leaves this worker thread."""
         errors: list[tuple[str, str]] = []
         wal_backup_path: str | None = None
         try:

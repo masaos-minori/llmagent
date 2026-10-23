@@ -22,6 +22,7 @@ from agent.commands.registry import CommandRegistry
 from agent.repl import AgentREPL
 from agent.repl_input_loop import ReplInputLoop
 from agent.startup_banner import StartupBanner
+from db.models import WalCheckpointCounts
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -1130,7 +1131,13 @@ class TestCloseResourcesWALCheckpoint:
         repl = _make_bare_repl()
         mock_db = MagicMock()
         mock_db.execute.return_value.fetchone.return_value = ("wal",)
-        mock_db.checkpoint.side_effect = sqlite3.Error("exclusive lock")
+
+        def _checkpoint(mode: str) -> WalCheckpointCounts:
+            if mode == "PASSIVE":
+                raise sqlite3.Error("exclusive lock")
+            return WalCheckpointCounts(busy=0, log_size=0, pages_checkpointed=0)
+
+        mock_db.checkpoint.side_effect = _checkpoint
         mock_ctx_manager = MagicMock()
         mock_ctx_manager.__enter__ = MagicMock(return_value=mock_db)
         mock_ctx_manager.__exit__ = MagicMock(return_value=None)
@@ -1157,8 +1164,12 @@ class TestCloseResourcesWALCheckpoint:
 
     @pytest.mark.asyncio
     async def test_checkpoint_timeout_records_error_and_still_runs_backup(self) -> None:
-        """A checkpoint stage that exceeds the timeout is aborted (from the caller's
-        perspective) promptly, logs a timeout error, and the backup stage still runs."""
+        """Branch-existence scenario: a stubbed ``checkpoint`` raises TimeoutError directly.
+
+        Verifies that the coordinator's timeout branch exists, logs a timeout error and that
+        the backup stage still runs when it fires. It does not exercise the real blocking
+        step body; that is covered by tests/agent/test_wal_checkpoint_manager.py.
+        """
         repl = _make_bare_repl()
         mock_db = MagicMock()
         mock_db.execute.return_value.fetchone.return_value = ("wal",)

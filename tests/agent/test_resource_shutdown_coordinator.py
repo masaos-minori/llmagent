@@ -8,11 +8,19 @@ shutdown_timeout/shutdown_error entries may be recorded once the block is remove
 
 from __future__ import annotations
 
+import asyncio
+import sqlite3
+import threading
 import time
+from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import agent.resource_shutdown_coordinator as coordinator_module
 import pytest
 from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
+from agent.wal_checkpoint_manager import WalCheckpointManager
+from db.helper import SQLiteHelper as RealHelper
+from db.models import WalCheckpointCounts
 
 
 def _make_coordinator() -> ResourceShutdownCoordinator:
@@ -31,7 +39,11 @@ class TestSettlementBlockRemoved:
     @pytest.mark.asyncio
     async def test_healthy_shutdown_completes_promptly(self) -> None:
         """A healthy shutdown (no pending tasks, checkpoint/backup succeed
-        immediately) completes well under _GRACEFUL_TIMEOUT_S."""
+        immediately) completes well under the shutdown bound.
+
+        Exercises stubbed ``checkpoint_sync``/``backup_sync`` (AsyncMock): it documents the
+        ordering contract, not the real blocking step (see TestRealContendedStepIsBounded).
+        """
         coordinator = _make_coordinator()
         start = time.monotonic()
         await coordinator.close_resources()
@@ -43,7 +55,11 @@ class TestSettlementBlockRemoved:
         self,
     ) -> None:
         """No shutdown_timeout/shutdown_error entries are recorded — the
-        settlement block that used to produce them no longer exists."""
+        settlement block that used to produce them no longer exists.
+
+        Exercises stubbed ``checkpoint_sync``/``backup_sync`` (AsyncMock): it documents the
+        error-collection contract, not the real blocking step.
+        """
         coordinator = _make_coordinator()
         with patch("agent.resource_shutdown_coordinator.logger") as mock_logger:
             await coordinator.close_resources()
@@ -120,3 +136,66 @@ class TestSelectiveTaskCancellation:
         coordinator = ResourceShutdownCoordinator(ctx, view, wal)
         # Should not raise even without turn attribute
         await coordinator.close_resources()
+
+
+class TestRealContendedStepIsBounded:
+    """The unstubbed counterpart of the stub-based cases above.
+
+    A real WalCheckpointManager runs against a real WAL database held by a reader, so its
+    step body genuinely blocks; the coordinator's own wait_for must abandon it and still
+    run the later cleanup steps.
+    """
+
+    @pytest.mark.asyncio
+    async def test_contended_checkpoint_is_abandoned_and_cleanup_still_runs(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        path = tmp_path / "session.db"
+        writer = sqlite3.connect(path, isolation_level=None)
+        writer.execute("PRAGMA journal_mode=WAL")
+        writer.execute("PRAGMA wal_autocheckpoint=0")
+        writer.execute("CREATE TABLE t (v INTEGER)")
+        writer.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        reader = sqlite3.connect(path, isolation_level=None)
+        reader.execute("BEGIN")
+        reader.execute("SELECT count(*) FROM t").fetchone()
+        for i in range(20):
+            writer.execute("INSERT INTO t VALUES (?)", (i,))
+        closed = threading.Event()
+
+        class _Helper(RealHelper):
+            def checkpoint(self, mode: str = "TRUNCATE") -> WalCheckpointCounts:
+                if mode == "PASSIVE":
+                    raise sqlite3.OperationalError("database is locked")
+                return super().checkpoint(mode)
+
+            def close(self) -> None:
+                super().close()
+                closed.set()
+
+        ctx = MagicMock()
+        ctx.cfg.approval.allowed_root = str(tmp_path)
+        ctx.session.session_id = 1
+        ctx.services = None
+        background = asyncio.ensure_future(asyncio.sleep(30))
+        ctx.turn.background_tasks = {background}
+        view = MagicMock()
+        monkeypatch.setattr(coordinator_module, "_SHUTDOWN_TIMEOUT_S", 0.3)
+        coordinator = ResourceShutdownCoordinator(ctx, view, WalCheckpointManager(ctx))
+        try:
+            with patch(
+                "agent.wal_checkpoint_manager.SQLiteHelper",
+                lambda *_a, **_k: _Helper(
+                    db_path=str(path), sqlite_busy_timeout_ms=3000
+                ),
+            ):
+                await coordinator.close_resources()
+        finally:
+            reader.close()
+            await asyncio.to_thread(closed.wait, 15)
+            writer.close()
+
+        summary = view.write_warning.call_args.args[0]
+        assert "wal_checkpoint_timeout" in summary
+        assert "bound of 0.3s expired" in summary
+        assert background.cancelled()

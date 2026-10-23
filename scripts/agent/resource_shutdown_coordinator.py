@@ -7,9 +7,8 @@ Responsibilities:
   - Cancelling pending tasks in LIFO order (last-created-first-cancelled)
   - WAL checkpoint and backup during shutdown
   - Service lifecycle shutdown (HTTP client, lifecycle manager)
-  - Graceful timeout enforcement
-
-Constant moved from AgentREPL class attribute per REQ-013.
+  - Timeout enforcement: one named bound, _SHUTDOWN_TIMEOUT_S, shared by the WAL
+    checkpoint and the WAL backup (the backup previously had a shorter bound)
 """
 
 from __future__ import annotations
@@ -26,7 +25,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_GRACEFUL_TIMEOUT_S: float = 10.0
+# The one bound on a blocking shutdown step (WAL checkpoint, WAL backup). A step that
+# exceeds it is abandoned, not rolled back (see wal_checkpoint_manager).
+_SHUTDOWN_TIMEOUT_S: float = 30.0
 
 
 class ResourceShutdownCoordinator:
@@ -71,17 +72,19 @@ class ResourceShutdownCoordinator:
         try:
             truncated_or_ok, checkpoint_errors = await asyncio.wait_for(
                 self._wal.checkpoint_sync(),
-                timeout=30.0,
+                timeout=_SHUTDOWN_TIMEOUT_S,
             )
             errors.extend(checkpoint_errors)
         except TimeoutError:
             errors.append(
                 (
                     "wal_checkpoint_timeout",
-                    "TimeoutError: exceeded 30s",
+                    f"TimeoutError: bound of {_SHUTDOWN_TIMEOUT_S:g}s expired",
                 )
             )
-            logger.error("WAL checkpoint timed out after 30.0s on shutdown")
+            logger.error(
+                "WAL checkpoint timed out after %ss on shutdown", _SHUTDOWN_TIMEOUT_S
+            )
         except Exception as e:  # noqa: BLE001 — shutdown path must record and continue past any checkpoint failure, not propagate
             errors.append(("wal_checkpoint_error", f"{type(e).__name__}: {e}"))
             logger.error("Unexpected error during WAL checkpoint: %s", e)
@@ -90,17 +93,19 @@ class ResourceShutdownCoordinator:
             try:
                 _wal_backup_path, backup_errors = await asyncio.wait_for(
                     self._wal.backup_sync(),
-                    timeout=10.0,
+                    timeout=_SHUTDOWN_TIMEOUT_S,
                 )
                 errors.extend(backup_errors)
             except TimeoutError:
                 errors.append(
                     (
                         "wal_backup_timeout",
-                        "TimeoutError: exceeded 10s",
+                        f"TimeoutError: bound of {_SHUTDOWN_TIMEOUT_S:g}s expired",
                     )
                 )
-                logger.error("WAL backup timed out after 10.0s on shutdown")
+                logger.error(
+                    "WAL backup timed out after %ss on shutdown", _SHUTDOWN_TIMEOUT_S
+                )
             except Exception as e:  # noqa: BLE001 — shutdown path must record and continue past any backup failure, not propagate
                 errors.append(("wal_backup_error", f"{type(e).__name__}: {e}"))
                 logger.error("Unexpected error during WAL backup: %s", e)
@@ -149,3 +154,4 @@ class ResourceShutdownCoordinator:
         if errors:
             summary = "; ".join(f"{name}: {err}" for name, err in errors)
             logger.error("Resource close errors (%d): %s", len(errors), summary)
+            self._view.write_warning(f"Shutdown completed with errors: {summary}")
