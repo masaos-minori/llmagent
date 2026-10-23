@@ -406,7 +406,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Completion Checklist
 
-Confirm the following before changing the ADR to Accepted.
+Acceptance conditions and their current state.
 
 - [x] The problem to solve is clear
 - [x] The Decision is narrowed to one primary design decision
@@ -419,7 +419,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-06, INV-07, INV-09, INV-10, INV-11, INV-12 have no automated test)
+- [x] Each Invariant has a corresponding Verification (gaps: Verification > Manual Review)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications

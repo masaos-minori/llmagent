@@ -303,7 +303,7 @@ Not applicable
 - Changes to RuntimeTool field definitions
 - Adding or removing MCP servers without restarting the Agent (Hot Reload/Rediscovery, Policy B) becomes a requirement
 - The design changes so that availability is computed centrally instead of individually by each MCP server
-- Per-server self-validation and the Security Posture contract (2026-10-16) added posture-gated Registry construction as Decision Detail #16 (linked with ADR-002 and ADR-004)
+- The Security Posture contract changes posture-gated Registry construction (Decision Detail #16; linked with ADR-002 and ADR-004)
 
 ## Approval
 
@@ -352,7 +352,7 @@ Task-level approval decision for Decision Details #10 to #15 and INV-04 (runtime
 
 ## Completion Checklist
 
-Confirm the following before changing the ADR to Accepted.
+Acceptance conditions and their current state.
 
 - [x] The problem to solve is clear
 - [x] The Decision is narrowed to one primary design decision

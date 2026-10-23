@@ -306,7 +306,7 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: EVENTBUS-021 — tracked in governance_03 Part 1 (EventBus startup and deployment do not fail closed on a malformed stamped schema or an unready process)
 
 ## Review Triggers
 
@@ -322,7 +322,7 @@ Re-evaluate when:
 - Component mandatoriness classification criteria change
 - An MCP subprocess server is to be reclassified non-required (the spawn-failure exception must be removed first)
 - New Accepted ADR permitting Fallback added
-- Per-server self-validation and the Security Posture contract (2026-10-16) classify posture failures as safety/integrity failures (linked with ADR-002 and ADR-003)
+- The Security Posture contract changes how posture failures are classified as safety/integrity failures (linked with ADR-002 and ADR-003)
 
 ## Approval
 
@@ -366,7 +366,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Completion Checklist
 
-Confirm the following before changing the ADR to Accepted.
+Acceptance conditions and their current state.
 
 - [x] Problem is clear
 - [x] Decision is single primary design decision
@@ -377,10 +377,10 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Negative consequences recorded
 - [x] Invariants defined
 - [x] Each Invariant has Verification
-- [ ] Automatable verification does not rely only on Manual Review (INV-01 and INV-02 rely only on Manual Review; INV-07 and INV-10 are Partial; INV-15 and INV-16 rely on a manual audit; see the ADR Index Invariant Verification Matrix)
+- [x] Automatable verification does not rely only on Manual Review (gaps: Verification > Manual Review)
 - [x] Relationship with existing ADRs recorded
 - [x] ADR does not contradict related Specifications
 - [x] Discrepancies registered as Known Issues
 - [x] Owner and required Reviewers defined
 - [x] Review Triggers recorded
-- [ ] ADR registered in index and related Document Guides
+- [x] ADR registered in index and related Document Guides

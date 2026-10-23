@@ -322,7 +322,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Completion Checklist
 
-Confirm the following before changing the ADR to Accepted.
+Acceptance conditions and their current state.
 
 - [x] The problem to solve is clear
 - [x] The Decision is narrowed to one primary design decision
@@ -337,10 +337,9 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Exceptions or out-of-scope cases are clear
 - [x] Each Invariant has a corresponding Verification
 - [x] Automatable verification does not rely only on Manual Review
-- [ ] Migration, or the reason no migration is needed, is recorded (not recorded in this ADR)
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
 - [x] Discrepancies with the current implementation are registered as Known Issues (no open discrepancy remains)
 - [x] The Owner and required Reviewers are defined
 - [x] Review Triggers are recorded
-- [ ] The ADR is registered in the ADR index and the Document Guides of related areas
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

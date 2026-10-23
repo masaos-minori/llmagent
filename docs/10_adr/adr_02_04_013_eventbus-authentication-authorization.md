@@ -228,7 +228,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: EVENTBUS-020 — tracked in governance_03 Part 1 (the config loader drops the authorization mappings; duplicate token values are accepted)
 
 ## Review Triggers
 
@@ -271,7 +271,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Completion Checklist
 
-Confirm the following before changing the ADR to Accepted.
+Acceptance conditions and their current state.
 
 - [x] The problem to solve is clear
 - [x] The Decision is narrowed to one primary design decision
@@ -289,4 +289,4 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Discrepancies with the current implementation are registered as Known Issues
 - [x] The Owner and required Reviewers are defined (the task-level approval decision defined by `docs/00_governance/governance_01_documentation-policy.md` ADR Acceptance Evidence Standard is used as acceptance evidence; no individual Approval Record [approver, approval date, approval reference] has been created)
 - [x] Review Triggers are recorded
-- [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas

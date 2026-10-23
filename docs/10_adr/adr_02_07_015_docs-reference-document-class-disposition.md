@@ -158,7 +158,7 @@ Not applicable
 
 ## Completion Checklist
 
-Confirm the following before changing the ADR to Accepted.
+Acceptance conditions and their current state.
 
 - [x] The problem to solve is clear
 - [x] The Decision is narrowed to one primary design decision
@@ -176,5 +176,5 @@ Confirm the following before changing the ADR to Accepted.
 - [x] Discrepancies with the current implementation are registered as Known Issues (none applicable; see Known Deviations)
 - [x] The Owner and required Reviewers are defined (see Approval Record — review completed through a Named Approval Record)
 - [x] Review Triggers are recorded
-- [ ] The ADR is registered in the ADR index and the Document Guides of related areas (separate confirmation required)
+- [x] The ADR is registered in the ADR index and the Document Guides of related areas
 - [x] The documents listed in Implementation Notes declare `class: Reference` in their front matter

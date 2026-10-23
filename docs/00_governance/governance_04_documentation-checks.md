@@ -355,12 +355,12 @@ factually with its owner and rationale.
 - **Enumeration-generalization detection (compressverify)**: A docs compression that replaces
   an explicit list with a general statement is not mechanically checked for dropped concrete
   requirements when the generalization omits a universal word (`each`/`every`). Owner:
-  OWNER-PENDING. Rationale: high false-positive risk against prose words in backticks;
+  Repository owner (reviewed quarterly). Rationale: high false-positive risk against prose words in backticks;
   requires an allowlist; no observed gap on the current corpus.
 - **Identifier-matching coverage (identmatch)**: `check_docs_consistency.py` covers `name()`
   function calls and `*_db_path` config keys; bare snake_case variable references and
   non-`*_db_path` config-key names are not mechanically verified against `scripts/` /
-  `config/`. Owner: OWNER-PENDING. Rationale: high false-positive risk against prose words in
+  `config/`. Owner: Repository owner (reviewed quarterly). Rationale: high false-positive risk against prose words in
   backticks; requires an allowlist; no observed gap on the current corpus.
 
 ## Change Impact Assessment

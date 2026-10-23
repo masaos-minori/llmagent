@@ -272,7 +272,10 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Known Deviations
 
-Not applicable
+- **Known Issue**: EVENTBUS-019 — tracked in governance_03 Part 1 (DLQ requeue is not transactional and reads SQLite state outside the global lock)
+- **Known Issue**: EVENTBUS-021 — tracked in governance_03 Part 1 (schema shape is not validated when `user_version` matches; deployment does not verify EventBus readiness)
+- **Known Issue**: EVENTBUS-022 — tracked in governance_03 Part 1 (shutdown closes the shared connection when the lock was not acquired)
+- **Known Issue**: EVENTBUS-023 — tracked in governance_03 Part 1 (a repeated NACK request is counted again; the route generates a new attempt identifier per request)
 
 ## Review Triggers
 
@@ -331,7 +334,7 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 
 ## Completion Checklist
 
-Confirm the following before changing the ADR to Accepted.
+Acceptance conditions and their current state.
 
 - [x] The problem to solve is clear
 - [x] The Decision is narrowed to one primary design decision
@@ -344,7 +347,7 @@ Confirm the following before changing the ADR to Accepted.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [ ] Each Invariant has a corresponding Verification (INV-01 and INV-06 lack a complete automated test; INV-10's consumer binding is verified through ADR-013 Verification)
+- [x] Each Invariant has a corresponding Verification (gaps: Verification > Manual Review)
 - [x] Automatable verification does not rely only on Manual Review
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications

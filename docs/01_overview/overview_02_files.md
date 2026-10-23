@@ -145,7 +145,7 @@ See `config/` for the current file layout.
 
 **`config/workflows/default.json`** — Default workflow definition file; required by deploy.sh and setup_services.sh for startup validation. Owned by the deployment process; consumed by all services requiring workflow definitions.
 
-**`config/agent.toml`** — Global agent settings including DB paths, embedding URLs, and MCP server configurations. Owned by the agent process; provides shared configuration for the AgentREPL runtime.
+**`config/agent.toml`** — Settings read only by the agent process: DB paths, embedding URLs, and the MCP server connection descriptors the Agent uses. No other process (including MCP servers) reads this file.
 
 **`config/<key>_mcp_server.toml`** — Per-MCP-server configuration files (one per server, for example `shell_mcp_server.toml`); each contains the server's service-specific settings such as allowlists and the auth token reference.
 

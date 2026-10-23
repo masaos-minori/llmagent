@@ -19,7 +19,7 @@ This directory contains all Architecture Decision Records (ADRs). Each ADR captu
 
 ## Known Deviations
 
-No confirmed deviations.
+Confirmed deviations are tracked in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` Part 1 and cited in each affected ADR's `Known Deviations`: EVENTBUS-019 to EVENTBUS-023 (ADR-004, ADR-006, ADR-013).
 
 ## Reading Order
 
