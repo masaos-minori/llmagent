@@ -52,7 +52,7 @@ N/A: documentation-only correction. No change to signal handling, delivery, or t
 Revert the single commit; the Shutdown paragraph returns to its pre-correction wording exactly.
 
 ## Validation plan
-- Re-run the `AC-7` docs checkers: `uv run python tools/check_docs_structure.py`, `check_docs_quality.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain agent`, `check_docs_refs.py`, `check_docs_index_completeness.py`, `check_docs_japanese.py`, `check_skills_references.py` — all exit 0.
+- Re-run the `AC-7` docs checkers: `uv run python tools/check_docs_structure.py`, `check_docs_quality.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain agent`, `check_docs_japanese.py`, `check_skills_references.py` — all exit 0.
 - Confirm no surviving grace-period sentence claims an unimplemented SIGINT/SIGTERM distinction (`AC-7`): grep the chapter for "SIGINT"/"SIGTERM" and confirm none ascribes different behavior.
 - Confirm each corrected sentence maps to a named test: `TestSignalDuringPromptEndsLoop` (`AC-3`) for the prompt-wait clause, `TestMidTurnSignalIsBounded` (`AC-4`) for the mid-turn bound clause.
 - `git diff --stat docs/23_agent/agent_02_runtime-architecture.md` lists only this file among the doc rows.
@@ -68,10 +68,10 @@ The Shutdown constraint paragraph (`:163-165`) states the post-fix contract, nam
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the Shutdown constraint paragraph in `agent_02_runtime-architecture.md` | Pending | — | — | REQ-008; AC-7 |
-| 2 | Add or update tests per Validation plan | N/A | — | — | Tests live in the `tests/agent/test_repl.py` row (AC-3, AC-4) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs checkers in AC-7 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In scope | — | — | This row is the documentation edit |
+| 1 | Correct the Shutdown constraint paragraph in `agent_02_runtime-architecture.md` | Completed | 20261023-133232 | 20261023-133232 | REQ-008; AC-7 implemented; procedures corrected (except clause, fixture line in _make_bare_repl, new-markers, nonexistent doc checkers); full suite 9810 passed |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-133232 | 20261023-133232 | Tests live in the `tests/agent/test_repl.py` row (AC-3, AC-4) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-133232 | 20261023-133232 | docs checkers in AC-7 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-133232 | 20261023-133232 | This row is the documentation edit |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

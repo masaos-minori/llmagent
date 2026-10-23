@@ -13,7 +13,7 @@ Only `scripts/shared/tool_executor_helpers.py`: the `tool_hash_key` docstring at
 
 ## Design decisions
 
-- Replace only the false clause "Cache keys use plain string concatenation: `f'{name}:{json_dumps(args)}'`". State that the hash identifies a failed call and, if the real cache is referenced, that it is keyed by the caller's idempotency key plus tool name plus normalized argument hash (REQ-006, AC-5).
+- Replace only the false clause "Cache keys use plain string concatenation: `f'{name}:{json_dumps(args)}'`". State that the hash identifies a failed call and, if the real cache is referenced, that it lives server-side in `mcp_servers/dispatch.py` and is keyed by the caller's idempotency key (the cached entry records the tool name and a normalized argument hash that a reused key must match) (REQ-006, AC-5).
 - Leave the function signature and body untouched — only the docstring text changes.
 
 ## Alternatives considered
@@ -29,11 +29,11 @@ Only `scripts/shared/tool_executor_helpers.py`: the `tool_hash_key` docstring at
 
 ### Method
 - Locate the docstring: `grep -n "Cache keys" scripts/shared/` should currently match `:41`; after the edit it must return nothing (AC-5).
-- Confirm the real cache location the corrected wording points at: `scripts/mcp_servers/dispatch.py:101-106`, `:122-129` (keyed by idempotency key), and the failed-call consumer `scripts/agent/tool_runner.py:237`.
+- Confirm the real cache location the corrected wording points at: `dispatch_tool` in `scripts/mcp_servers/dispatch.py` (`_duplicate_cache.get(key)` keyed by the idempotency key; the entry stores `tool_name` and `args_hash`, and a reused key with different content is rejected; verified against current source, the older line numbers `:101-129` have shifted), and the failed-call consumer `scripts/agent/tool_runner.py:237`.
 
 ### Details
 - Current `:41`: `"...used for failed-call tracking (NOT for cache keys). Cache keys use plain string concatenation: f'{name}:{json_dumps(args)}'."`
-- New: keep "`...used for failed-call tracking (NOT for cache keys)`", then describe the identity as the MD5 over `f"{name}:{json_dumps(args)}"` and, if the cache is mentioned, that the real cache lives server-side (`dispatch.py`) and is keyed by the caller's idempotency key plus tool name plus normalized argument hash. Do NOT present any client-side cache-key format (REQ-006, AC-5).
+- New: keep "`...used for failed-call tracking (NOT for cache keys)`", then describe the identity as the MD5 over `f"{name}:{json_dumps(args)}"` and, if the cache is mentioned, that the real cache lives server-side (`dispatch.py`) and is keyed by the caller's idempotency key (entries record the tool name and normalized argument hash for the reuse check). Do NOT present any client-side cache-key format (REQ-006, AC-5).
 
 ## Compatibility considerations
 N/A: the change is a docstring-only clarification; no public contract or other file depends on the old wording.
@@ -61,10 +61,10 @@ The `tool_hash_key` docstring states no client-side cache-key format and correct
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change in Implementation > Procedure/Method/Details (docstring rewrite) | Pending | — | — | REQ-006 |
-| 2 | Add or update tests per Validation plan | N/A | — | — | No new test module: no behaviour changes |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | acceptance greps, existing helper suites, git diff --stat |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No `docs/*.md` edit in scope |
+| 1 | Implement the change in Implementation > Procedure/Method/Details (docstring rewrite) | Completed | 20261023-133225 | 20261023-133225 | REQ-006 implemented; targeted + full suite 9810 passed; procedure corrected for dispatch cache wording |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-133225 | 20261023-133225 | No new test module: no behaviour changes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-133225 | 20261023-133225 | acceptance greps, existing helper suites, git diff --stat |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-133225 | 20261023-133225 | No `docs/*.md` edit in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

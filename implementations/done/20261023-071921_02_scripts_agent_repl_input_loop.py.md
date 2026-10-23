@@ -9,7 +9,7 @@ Only `scripts/agent/repl_input_loop.py`: the shutdown branch of `_repl_loop` (`:
 ## Assumptions
 
 - `REQ-001` (the sibling `repl.py` row) makes this branch reachable by giving `ReplInputLoop` a non-`None` event; this row only bounds the unwind once it is live.
-- In Python 3.12+ `wait_for` raises `TimeoutError` when the bound expires regardless of whether the awaited task unwinds, so the bound is deterministic.
+- `wait_for` raises `TimeoutError` when the bound expires even if the awaited, already-cancelled task keeps running: measured on Python 3.13.5 with a task that swallows `CancelledError` and sleeps 3 s, `wait_for(task, 0.2)` returned `TimeoutError` after 0.20 s; `asyncio.wait({task}, timeout=0.2)` also returned after 0.20 s with the task still pending. The bound is therefore deterministic here.
 - A cancelled-but-unwinding task can outlive the loop; the boundary and the open question are recorded in UNK-03/WI-02 rather than hidden.
 
 ## Design decisions
@@ -44,10 +44,12 @@ Only `scripts/agent/repl_input_loop.py`: the shutdown branch of `_repl_loop` (`:
       dispatch_task.cancel()
       try:
           await dispatch_task
-      except _InputAborted:
-          ...
+      except asyncio.CancelledError:
+          pass
+  break
   ```
-  Replace the unbounded `await dispatch_task` with `await asyncio.wait_for(dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S)` and add an `except asyncio.TimeoutError:` branch that calls `self._log_graceful_shutdown_timeout()`, mirroring the live path's handling at `:293-308`.
+  (Correction found while verifying against current source: the existing handler is `except asyncio.CancelledError: pass`, not `_InputAborted`.)
+  Replace the unbounded `await dispatch_task` with `await asyncio.wait_for(dispatch_task, timeout=self._GRACEFUL_TIMEOUT_S)` keep `except asyncio.CancelledError: pass`, and add an `except TimeoutError:` branch (the repository uses the builtin name; `asyncio.TimeoutError` is an alias on 3.11+) that calls `self._log_graceful_shutdown_timeout()`, mirroring the live path's handling at `:293-308`.
 - Keep the `asyncio.CancelledError` handling and the trailing `break` exactly as they are.
 - Leave `_GRACEFUL_TIMEOUT_S` (`:55`, value `10.0`), the `None`-fallback read branch (`:189-194`), and `run()`'s public signature (`:76-115`) unchanged.
 
@@ -77,10 +79,10 @@ The shutdown branch of `_repl_loop` awaits the cancelled dispatch through `async
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Bound the cancellation unwind in `_repl_loop`'s shutdown branch with `wait_for` + `_log_graceful_shutdown_timeout` | Pending | — | — | REQ-002, REQ-003, REQ-004, REQ-006; AC-3, AC-4, AC-5 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | REQ-003; AC-4 (TestMidTurnSignalIsBounded) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy/radon, check_module_size, git diff --stat |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No `docs/*.md` edit in scope (REQ-008) |
+| 1 | Bound the cancellation unwind in `_repl_loop`'s shutdown branch with `wait_for` + `_log_graceful_shutdown_timeout` | Completed | 20261023-133227 | 20261023-133227 | REQ-002, REQ-003, REQ-004, REQ-006; AC-3, AC-4, AC-5 implemented; procedures corrected (except clause, fixture line in _make_bare_repl, new-markers, nonexistent doc checkers); full suite 9810 passed |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-133227 | 20261023-133227 | REQ-003; AC-4 (TestMidTurnSignalIsBounded) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-133227 | 20261023-133227 | ruff/mypy/radon, check_module_size, git diff --stat |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-133227 | 20261023-133227 | No `docs/*.md` edit in scope (REQ-008) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

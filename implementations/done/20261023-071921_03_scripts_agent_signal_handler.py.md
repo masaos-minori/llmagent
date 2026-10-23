@@ -75,10 +75,10 @@ Revert the single commit; the setter and original bullets return, restoring the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `set_shutdown_event()` and rewrite the two responsibility bullets | Pending | — | — | REQ-001, REQ-005; AC-2, AC-6 |
-| 2 | Add or update tests per Validation plan | N/A | — | — | No new test module (REQ-005) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | vulture, generate_reference_table --check, existing signal tests |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | No `docs/*.md` edit in scope (REQ-008) |
+| 1 | Delete `set_shutdown_event()` and rewrite the two responsibility bullets | Completed | 20261023-133228 | 20261023-133228 | REQ-001, REQ-005; AC-2, AC-6 implemented; procedures corrected (except clause, fixture line in _make_bare_repl, new-markers, nonexistent doc checkers); full suite 9810 passed |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-133228 | 20261023-133228 | No new test module (REQ-005) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-133228 | 20261023-133228 | vulture, generate_reference_table --check, existing signal tests |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-133228 | 20261023-133228 | No `docs/*.md` edit in scope (REQ-008) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
