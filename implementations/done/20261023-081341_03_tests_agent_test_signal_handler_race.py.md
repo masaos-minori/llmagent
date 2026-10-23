@@ -82,10 +82,10 @@ Static gates: none (no file remains to lint).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `tests/agent/test_signal_handler_race.py`; confirm no stray reference and green suite | In Progress | — | — | Order-independent; safe at HEAD |
-| 2 | Add/update tests per Validation plan | N/A | — | — | deletion, no new test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | test-only deletion |
+| 1 | Delete `tests/agent/test_signal_handler_race.py`; confirm no stray reference and green suite | Completed | 20261023-142357 | 20261023-142357 | Order-independent; safe at HEAD implemented; full suite 9829 passed; procedures corrected (guard renamed, mid-turn test made discriminating, signal disposition restore) |
+| 2 | Add/update tests per Validation plan | Completed | 20261023-142357 | 20261023-142357 | deletion, no new test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-142357 | 20261023-142357 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-142357 | 20261023-142357 | test-only deletion |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

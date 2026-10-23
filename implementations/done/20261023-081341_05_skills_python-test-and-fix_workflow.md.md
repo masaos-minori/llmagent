@@ -78,10 +78,10 @@ N/A: revert the commit; the change is a single appended paragraph.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the fixture-pairing paragraph to `Test structure` | In Progress | — | — | Order-independent; safe at HEAD |
-| 2 | Add/update tests per Validation plan | N/A | — | — | doc-only rule, no test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_skills_references.py` | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In Progress | — | — | this row |
+| 1 | Add the fixture-pairing paragraph to `Test structure` | Completed | 20261023-142400 | 20261023-142400 | Order-independent; safe at HEAD implemented; full suite 9829 passed; procedures corrected (guard renamed, mid-turn test made discriminating, signal disposition restore) |
+| 2 | Add/update tests per Validation plan | Completed | 20261023-142400 | 20261023-142400 | doc-only rule, no test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_skills_references.py` | Completed | 20261023-142400 | 20261023-142400 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-142400 | 20261023-142400 | this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

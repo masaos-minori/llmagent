@@ -159,6 +159,8 @@ async def test_signal_mid_turn_exits_within_graceful_timeout(self) -> None:
 **UNK-01** resolution (implementer, via the mutation in the Validation plan): both assertions discriminate; keep the `CancelledError` capture as primary and the `await_count` as secondary. Remove `dispatch_task.cancel()` at `repl_input_loop.py:279` temporarily → dispatch never cancels, `wait_for(timeout=5.0)` times out, `TimeoutError` propagates → test fails. Restore with `git checkout -- scripts/agent/repl_input_loop.py`.
 
 ## Compatibility considerations
+Corrections found while implementing (the procedure predates the event-ownership fix that has since landed): `AgentREPL.__init__` now owns the event, `run()` no longer creates it or calls `set_shutdown_event` (removed), so the guard no longer "fails at HEAD". The constructor and `run()` handoff guard already existed as `TestAgentREPLOwnsOneShutdownEvent`; it was renamed `TestWiringGuard` (the name the skills text references) rather than duplicated. The mid-turn test as specified did not discriminate: removing `dispatch_task.cancel()` still passed because the outer `wait_for` cancellation reaches the inner wait and is swallowed; the corrected test also asserts `elapsed < 1.0` and was verified to fail when the cancel is removed.
+
 
 N/A: test-only change; the guard is order-independent and lands after `repl001` per the hard ordering in the Plan's Notes. At HEAD it fails by design (the non-`None` assertion), which is the expected pre-`repl001` state (AC-1).
 
@@ -197,10 +199,10 @@ Every production file under `scripts/`; the value of `_GRACEFUL_TIMEOUT_S` (`rep
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestWiringGuard` (constructor + run-handoff), rewrite both fixture docstrings, correct the graceful-shutdown assertions | In Progress | — | — | Gated on repl001 for the guard; fixture/docstring/correction rows safe at HEAD |
-| 2 | Add/update tests per Validation plan (mutation checks) | Pending | — | — | |
-| 3 | Run validation sequence (`rules/toolchain.md`) incl. `check_mock_patch_targets.py` | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A | — | — | test-only change |
+| 1 | Add `TestWiringGuard` (constructor + run-handoff), rewrite both fixture docstrings, correct the graceful-shutdown assertions | Completed | 20261023-142355 | 20261023-142355 | Gated on repl001 for the guard; fixture/docstring/correction rows safe at HEAD implemented; full suite 9829 passed; procedures corrected (guard renamed, mid-turn test made discriminating, signal disposition restore) |
+| 2 | Add/update tests per Validation plan (mutation checks) | Completed | 20261023-142355 | 20261023-142355 |  |
+| 3 | Run validation sequence (`rules/toolchain.md`) incl. `check_mock_patch_targets.py` | Completed | 20261023-142355 | 20261023-142355 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-142355 | 20261023-142355 | test-only change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

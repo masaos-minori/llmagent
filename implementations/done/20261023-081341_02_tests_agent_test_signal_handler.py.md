@@ -126,6 +126,8 @@ class TestRealSignalTransport:
 **UNK-03**: real `os.kill` delivery inside a pytest-asyncio test is observed via the loop's self-pipe wakeup; awaiting `event.wait()` under `asyncio.wait_for` is deterministic (no fixed sleep drives the assertion). The single `asyncio.sleep(0.1)` in the None case is a loop-yield (there is no event to await by design), not a timing fix — resolve/confirm at implementation and replace with a polling task if flaky.
 
 ## Compatibility considerations
+Corrections found while implementing: the AC-6 claim that `signal.getsignal` is identical after `loop.remove_signal_handler()` is false inside an asyncio `Runner` for SIGINT (the Runner's own handler is replaced and removal resets to the default), so teardown restores the captured dispositions with `signal.signal`. The `set_shutdown_event` reference is obsolete (method removed); the `None` event case remains valid because the handler still guards on it.
+
 
 N/A: test-only. Real handlers are removed in teardown; AC-6 asserts `signal.getsignal(SIGTERM)`/`SIGINT` are identical before and after the file runs.
 
@@ -162,10 +164,10 @@ Static gates: `uv run ruff format`, `uv run ruff check`.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add real-loop registration, delivered-`SIGTERM`, and `None`-event cases; add restoring teardown; delete the skip-only test; restate the module docstring | In Progress | — | — | Order-independent; safe at HEAD |
-| 2 | Add/update tests per Validation plan | Pending | — | — | |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In Progress | — | — | module docstring restatement (REQ-007) |
+| 1 | Add real-loop registration, delivered-`SIGTERM`, and `None`-event cases; add restoring teardown; delete the skip-only test; restate the module docstring | Completed | 20261023-142356 | 20261023-142356 | Order-independent; safe at HEAD implemented; full suite 9829 passed; procedures corrected (guard renamed, mid-turn test made discriminating, signal disposition restore) |
+| 2 | Add/update tests per Validation plan | Completed | 20261023-142356 | 20261023-142356 |  |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-142356 | 20261023-142356 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-142356 | 20261023-142356 | module docstring restatement (REQ-007) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

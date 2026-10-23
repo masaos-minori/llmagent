@@ -45,6 +45,8 @@ Insert this bullet (exact text) immediately after the `Ensure Mock Cleanliness` 
 The insertion point is between the current `Ensure Mock Cleanliness` bullet and the `No Tool Hallucination` bullet (`SKILL.md:22`→`:23`). The rule is scoped to *state the test itself assigned to a mock* and to *components constructed in `__init__`*, not to interaction assertions in general — many suite tests legitimately assert mock call state, and this rule must not contradict them (see the Plan's Risks).
 
 ## Compatibility considerations
+Correction: the example no longer names `set_shutdown_event` (removed); it names the shutdown event shared by `ReplInputLoop` and `SignalHandler`.
+
 
 N/A: skill-documentation change only; no code, no new dependency.
 
@@ -78,10 +80,10 @@ N/A: revert the commit; the change is a single inserted bullet.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the wiring-guard / mock-state bullet to `Core Testing Rules` | In Progress | — | — | Order-independent; safe at HEAD |
-| 2 | Add/update tests per Validation plan | N/A | — | — | doc-only rule, no test |
-| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_skills_references.py` | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | In Progress | — | — | this row |
+| 1 | Add the wiring-guard / mock-state bullet to `Core Testing Rules` | Completed | 20261023-142359 | 20261023-142359 | Order-independent; safe at HEAD implemented; full suite 9829 passed; procedures corrected (guard renamed, mid-turn test made discriminating, signal disposition restore) |
+| 2 | Add/update tests per Validation plan | Completed | 20261023-142359 | 20261023-142359 | doc-only rule, no test |
+| 3 | Run the validation sequence (`rules/toolchain.md`) incl. `check_skills_references.py` | Completed | 20261023-142359 | 20261023-142359 |  |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-142359 | 20261023-142359 | this row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
