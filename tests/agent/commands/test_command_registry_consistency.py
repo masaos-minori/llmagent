@@ -4,6 +4,7 @@ Validate CommandDef/handler consistency for all built-in slash commands.
 
 from __future__ import annotations
 
+import dataclasses
 import inspect
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -48,6 +49,37 @@ class TestCommandRegistryConsistency:
                 if inspect.iscoroutinefunction(fn):
                     errors.append(cmd.handler)
         assert errors == [], f"Expected sync but got coroutines: {errors}"
+
+    def test_is_async_handler_mismatch_raises_at_construction(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """AC-1: a CommandDef whose is_async disagrees with its handler kind
+        fails CommandRegistry construction with a TypeError naming all three
+        pieces (command, handler, kind)."""
+        import agent.commands.registry as registry
+
+        target = registry._COMMANDS[0]
+        flipped = [
+            dataclasses.replace(cmd, is_async=not cmd.is_async)
+            if cmd is target
+            else cmd
+            for cmd in registry._COMMANDS
+        ]
+        monkeypatch.setattr(registry, "_COMMANDS", flipped)
+
+        ctx = MagicMock()
+        out = SimpleNamespace(
+            write=lambda msg: None,
+            write_error=lambda msg: None,
+            write_validation_error=lambda msg: None,
+        )
+        with pytest.raises(TypeError) as excinfo:
+            registry.CommandRegistry(ctx=ctx, out=out)
+
+        message = str(excinfo.value)
+        assert target.name in message
+        assert target.handler in message
+        assert "async" in message.lower()
 
     def test_exact_handlers_have_no_required_params(
         self, registry: CommandRegistry
