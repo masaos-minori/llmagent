@@ -144,10 +144,10 @@ to `handler()`. This restores the prior inline behavior exactly.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261023-154041 | 20261023-154041 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-154041 | 20261023-154041 | offload regression test added in row 04; this cycle validated against existing test_agent_cmd_session.py + metadata suites |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-154041 | 20261023-154041 | full suite 9863 passed; ruff/mypy/lint-imports/bandit/vulture/clean; AC-7 files unchanged |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-154041 | 20261023-154041 | N/A: slash-commands-session doc update owned by row 06 (agent_07_07) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
