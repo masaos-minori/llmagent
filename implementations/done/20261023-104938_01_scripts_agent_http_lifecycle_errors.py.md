@@ -78,6 +78,11 @@ existing failure vocabulary. Keep it a `StrEnum`; the four members are the only 
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- `TerminationOutcome` added after `HttpStartupError` with the four members as written, plus a `confirmed` property (True for EXITED/ALREADY_EXITED) so the single settle rule lives in one place. `StrEnum` import added.
+
+
 - N/A: purely additive. No member, field, or signature anywhere else changes; the type
   is imported by the terminator (row 2) and the coordinator (row 3) only.
 
@@ -115,8 +120,8 @@ reference-table check pass; no existing member changed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TerminationOutcome` StrEnum (four members, one evidence line each) | Pending | — | — | REQ-001 |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Add `TerminationOutcome` StrEnum (four members, one evidence line each) | Completed | 20261023-152936 | 20261023-152936 | REQ-001 implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152936 | 20261023-152936 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

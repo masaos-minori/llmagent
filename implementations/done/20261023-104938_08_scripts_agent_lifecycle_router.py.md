@@ -51,6 +51,11 @@ Read-and-confirm against both routes. Edit only if verification finds a concrete
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+Authoritative contract is the source plan's REQ-001..REQ-011 (plans/done/20261022-082349_plan.md); this procedure's earlier Design/Procedure text diverged from it (wrong REQ numbering, nonexistent `HttpShutdownError`, a `for server_key in self._servers` loop, raising on a failed outcome) and was not followed. Contrary to 'verify only': both `shutdown_all` definitions return the manager's list (the subprocess manager's STOPPED sweep still runs before returning).
+
+
 - N/A unless a gap is found; this row is verification-first.
 
 ## Security considerations
@@ -85,9 +90,9 @@ mypy passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify both `shutdown_all` routes propagate (`:76`, `:254`) | Pending | — | — | Verify-only |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Verify both `shutdown_all` routes propagate (`:76`, `:254`) | Completed | 20261023-152944 | 20261023-152944 | Verify-only implemented; full suite passed |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-152944 | 20261023-152944 | AC-9 |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-152944 | 20261023-152944 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

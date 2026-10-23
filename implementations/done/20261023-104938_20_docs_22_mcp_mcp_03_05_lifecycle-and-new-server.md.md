@@ -55,6 +55,11 @@ Additive correction only if a conflict exists; otherwise no edit.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Process Introspection: states that snapshots exist only while a process entry exists, so the surviving record after an unconfirmed attempt is the reported failure.
+
+
 - Doc-only; no source or behavioral impact.
 
 ## Security considerations
@@ -87,8 +92,8 @@ unverified content introduced and the new-server checklist is intact.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify/correct lifecycle descriptions | Pending | — | — | Doc-only |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Verify/correct lifecycle descriptions | Completed | 20261023-152957 | 20261023-152957 | Doc-only implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152957 | 20261023-152957 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

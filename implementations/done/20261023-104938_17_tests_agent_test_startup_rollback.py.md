@@ -53,6 +53,11 @@ Add one test method if a gap exists; reconcile the success assertion; otherwise 
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Rollback console assertions strengthened (cause text, unconfirmed keys); a confirmed rollback emits nothing; the fixture now returns `[]` from `shutdown_all` so a mocked result is not treated as unconfirmed.
+
+
 - N/A unless a test is added or the success assertion is reconciled; tied to row 10.
 
 ## Security considerations
@@ -87,8 +92,8 @@ and the suite passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify/strengthen rollback test (REQ-008) | Pending | — | — | Verify-only |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Verify/strengthen rollback test (REQ-008) | Completed | 20261023-152954 | 20261023-152954 | Verify-only implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152954 | 20261023-152954 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

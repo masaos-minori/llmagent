@@ -57,6 +57,11 @@ Additive correction to the shutdown-termination note. Do not alter unrelated sec
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Shutdown Termination note replaced: outcome vocabulary, confirmation window, which tracking is removed first and which survives, and that the failure is reported through the shutdown errors.
+
+
 - Doc-only; no source or behavioral impact.
 
 ## Security considerations
@@ -89,8 +94,8 @@ behavior; no unrelated text changed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify/correct shutdown-termination note (`:95-97`) | Pending | — | — | Doc-only |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Verify/correct shutdown-termination note (`:95-97`) | Completed | 20261023-152956 | 20261023-152956 | Doc-only implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152956 | 20261023-152956 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

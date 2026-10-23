@@ -56,6 +56,11 @@ Read-and-confirm. Edit only if verification finds a concrete gap.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+Authoritative contract is the source plan's REQ-001..REQ-011 (plans/done/20261022-082349_plan.md); this procedure's earlier Design/Procedure text diverged from it (wrong REQ numbering, nonexistent `HttpShutdownError`, a `for server_key in self._servers` loop, raising on a failed outcome) and was not followed. Contrary to 'verify only': the `handle_getpgid_failure` docstring stated a false rule and was corrected; the outcome is read and an unconfirmed exit is logged with pid and pgid; the raising arm's log no longer claims a retained tracking entry. `start_new_session: True` and pgid recording confirmed unchanged.
+
+
 - N/A unless a gap is found; this row is verification-first.
 
 ## Security considerations
@@ -90,10 +95,10 @@ termination (REQ-010); if unmodified, the confirmation is recorded and mypy/pyte
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify `start_new_session=True` + spawn tracking (REQ-010) | Pending | — | — | Verify-only |
-| 2 | Add/update lifecycle tests (row 14) if a gap is found | Pending | — | — | REQ-001 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Verify `start_new_session=True` + spawn tracking (REQ-010) | Completed | 20261023-152941 | 20261023-152941 | Verify-only implemented; full suite passed |
+| 2 | Add/update lifecycle tests (row 14) if a gap is found | Completed | 20261023-152941 | 20261023-152941 | REQ-001 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-152941 | 20261023-152941 | AC-9 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-152941 | 20261023-152941 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

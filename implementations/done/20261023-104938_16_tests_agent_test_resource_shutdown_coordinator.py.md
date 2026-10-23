@@ -52,6 +52,11 @@ Add one test method if a gap exists; otherwise no edit.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Two cases added (`TestHttpTerminationReported`): two unconfirmed servers -> two `http_termination` entries while WAL and `aclose` still run; `[]` -> no warning.
+
+
 - N/A unless a test is added; this row is verification-first.
 
 ## Security considerations
@@ -85,8 +90,8 @@ added only if missing, and the suite passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify/strengthen best-effort shutdown gather (row 9) | Pending | — | — | Verify-only |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Verify/strengthen best-effort shutdown gather (row 9) | Completed | 20261023-152953 | 20261023-152953 | Verify-only implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152953 | 20261023-152953 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

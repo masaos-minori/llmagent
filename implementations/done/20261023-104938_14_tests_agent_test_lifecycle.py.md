@@ -51,6 +51,11 @@ Add one test method if a gap exists; otherwise no edit.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- `test_lifecycle.py`: terminator fakes return outcomes and take a required `timeout`; restart asserts the explicit `TERMINATE_TIMEOUT_SEC` and a new unconfirmed-restart log case; `TestShutdownAllCleanup` asserts the returned list; `TestProcessGroupShutdown` asserts outcomes and uses `ProcessTerminator(kill_confirm_timeout_sec=0.02)` so the new confirmation window does not slow the suite.
+
+
 - N/A unless a test is added; this row is verification-first.
 
 ## Security considerations
@@ -83,8 +88,8 @@ invariant (REQ-010); a case is added only if missing, and the suite passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify/strengthen launcher session test (REQ-010) | Pending | — | — | Verify-only |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Verify/strengthen launcher session test (REQ-010) | Completed | 20261023-152951 | 20261023-152951 | Verify-only implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152951 | 20261023-152951 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

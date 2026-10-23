@@ -50,6 +50,11 @@ Read-and-confirm. Edit only if verification finds a concrete gap.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Verify-only confirmed: the call at `http_lifecycle_health_checker.py:181` already passes `timeout=terminate_timeout_sec` (5.0) explicitly and does not read the return value; no edit. With the signature default removed, this explicit keyword is now required (AC-5).
+
+
 - N/A unless a gap is found; this row is verification-first.
 
 ## Security considerations
@@ -81,9 +86,9 @@ termination (row 2); if unmodified, the confirmation is recorded and mypy passes
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify health-checker call sites unchanged | Pending | — | — | Verify-only |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Verify health-checker call sites unchanged | Completed | 20261023-152942 | 20261023-152942 | Verify-only implemented; full suite passed |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-152942 | 20261023-152942 | AC-9 |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-152942 | 20261023-152942 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

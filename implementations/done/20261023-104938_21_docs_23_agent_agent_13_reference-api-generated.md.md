@@ -69,6 +69,11 @@ Run the generator; review the diff; do not hand-edit the table.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Regenerated with `tools/generate_reference_table.py --type agent` (one row for `TerminationOutcome`); `--check` reports no drift. Not hand-edited.
+
+
 - Generated-doc only; no source or behavioral impact.
 
 ## Security considerations
@@ -101,8 +106,8 @@ passes, and the diff contains the expected new public symbols with no unrelated 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate reference table (`--type agent`) | Pending | — | — | Generated file |
-| 2 | Validate drift-free (`--check --type agent`) | Pending | — | — | AC-9 |
+| 1 | Regenerate reference table (`--type agent`) | Completed | 20261023-152958 | 20261023-152958 | Generated file implemented; full suite passed |
+| 2 | Validate drift-free (`--check --type agent`) | Completed | 20261023-152958 | 20261023-152958 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

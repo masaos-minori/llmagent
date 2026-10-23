@@ -68,6 +68,11 @@ return-type change.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+Authoritative contract is the source plan's REQ-001..REQ-011 (plans/done/20261022-082349_plan.md); this procedure's earlier Design/Procedure text diverged from it (wrong REQ numbering, nonexistent `HttpShutdownError`, a `for server_key in self._servers` loop, raising on a failed outcome) and was not followed. Contrary to 'verify / REQ-006 return-type': the rollback is extracted into `_rollback_servers(cause)`; it reads the `shutdown_all()` result and the console line (`write_fatal`) names the cause and any unconfirmed keys; the original error is still the one re-raised.
+
+
 - Behavioral only if REQ-006 mandates returning instead of raising; the repl caller
   (row 11) must be updated in lockstep.
 
@@ -104,10 +109,10 @@ instead of raising; mypy plus tests pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify/adjust `run()` startup error handling (:67, :102) | Pending | — | — | REQ-008 |
-| 2 | Add/update rollback tests (row 17) | Pending | — | — | REQ-001 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Verify/adjust `run()` startup error handling (:67, :102) | Completed | 20261023-152947 | 20261023-152947 | REQ-008 implemented; full suite passed |
+| 2 | Add/update rollback tests (row 17) | Completed | 20261023-152947 | 20261023-152947 | REQ-001 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-152947 | 20261023-152947 | AC-9 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-152947 | 20261023-152947 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

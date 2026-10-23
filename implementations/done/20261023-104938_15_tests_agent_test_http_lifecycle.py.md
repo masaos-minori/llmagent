@@ -51,6 +51,11 @@ Add one test method if a gap exists; otherwise no edit.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- `test_http_lifecycle.py`: confirmed-exit mocks return `EXITED`; a new case asserts an unconfirmed exit is logged with pid and the entries are still released. `test_http_lifecycle_integration.py` (not listed in the plan) had three fake terminators returning `None` and was updated.
+
+
 - N/A unless a test is added; this row is verification-first.
 
 ## Security considerations
@@ -83,8 +88,8 @@ a case is added only if missing, and the suite passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify/strengthen graceful-shutdown timeout test (REQ-007) | Pending | — | — | Verify-only |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Verify/strengthen graceful-shutdown timeout test (REQ-007) | Completed | 20261023-152952 | 20261023-152952 | Verify-only implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152952 | 20261023-152952 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -70,6 +70,11 @@ In-place edit of the loop body. Do not reorder servers or change the timeout par
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+Authoritative contract is the source plan's REQ-001..REQ-011 (plans/done/20261022-082349_plan.md); this procedure's earlier Design/Procedure text diverged from it (wrong REQ numbering, nonexistent `HttpShutdownError`, a `for server_key in self._servers` loop, raising on a failed outcome) and was not followed. Implemented per plan REQ-005/007: `_terminate_one` returns the outcome; `cleanup_server_key` only for `outcome.confirmed`; unconfirmed keeps pgid/stderr tracking and logs key, pid, pgid and `kill -TERM -<pgid>`; an `OSError` from the terminator is reported as EXIT_UNCONFIRMED (no `TimeoutError` producer exists). `shutdown_all` returns the `(key, outcome)` pairs that were not confirmed. `_KILL_TIMEOUT_SEC` deleted; `_SHUTDOWN_TIMEOUT_SEC` commented. Pre-removal at the loop, gather, SIGINT guard unchanged.
+
+
 - Behavioral: the coordinator now distinguishes `EXIT_UNCONFIRMED` (warn) from
   `SIGNAL_NOT_DELIVERED` (raise). Existing callers see finer-grained failures, not a
   coarse bool.
@@ -108,10 +113,10 @@ In-place edit of the loop body. Do not reorder servers or change the timeout par
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Branch `shutdown_all` on `TerminationOutcome` (REQ-005, REQ-007) | Pending | — | — | |
-| 2 | Add/update coordinator tests (row 13) | Pending | — | — | REQ-001 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Branch `shutdown_all` on `TerminationOutcome` (REQ-005, REQ-007) | Completed | 20261023-152938 | 20261023-152938 | implemented; full suite passed |
+| 2 | Add/update coordinator tests (row 13) | Completed | 20261023-152938 | 20261023-152938 | REQ-001 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-152938 | 20261023-152938 | AC-9 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-152938 | 20261023-152938 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

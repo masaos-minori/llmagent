@@ -69,6 +69,11 @@ Edit assertions in place; add one new test method to
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+Authoritative contract is the source plan's REQ-001..REQ-011 (plans/done/20261022-082349_plan.md); this procedure's earlier Design/Procedure text diverged from it (wrong REQ numbering, nonexistent `HttpShutdownError`, a `for server_key in self._servers` loop, raising on a failed outcome) and was not followed. The whole-module `patch("...os")` / `time` mocks were replaced by a `_FakeGroup` helper using `monkeypatch` on `os.getpgid`/`os.killpg` with tiny real timeouts; `TestTerminationOutcomeContract` covers each arm; the real-child cases assert `EXITED`. Mutation check: returning EXITED after SIGKILL without confirmation fails the never-leaves case. An extra file, `tests/agent/test_http_lifecycle_warning.py`, asserted the old warning text and was updated.
+
+
 - N/A: test-only change. The assertions must match row 2's exact mapping or the suite
   fails.
 
@@ -106,8 +111,8 @@ suite passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate bool assertions to `TerminationOutcome` + add SIGNAL_NOT_DELIVERED case | Pending | — | — | High risk |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Migrate bool assertions to `TerminationOutcome` + add SIGNAL_NOT_DELIVERED case | Completed | 20261023-152949 | 20261023-152949 | High risk implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152949 | 20261023-152949 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

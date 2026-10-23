@@ -70,6 +70,11 @@ In-place edits to `shutdown_all` and a type-check pass on `restart`. Do not add 
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+Authoritative contract is the source plan's REQ-001..REQ-011 (plans/done/20261022-082349_plan.md); this procedure's earlier Design/Procedure text diverged from it (wrong REQ numbering, nonexistent `HttpShutdownError`, a `for server_key in self._servers` loop, raising on a failed outcome) and was not followed. Implemented per plan REQ-006/007: `shutdown_all` returns the coordinator's list; `restart()` passes `timeout=TERMINATE_TIMEOUT_SEC` and logs an unconfirmed outcome (pid) before restarting.
+
+
 - Behavioral: the graceful timeout is now explicit at the manager level; the shutdown
   outcome semantics come from the coordinator (row 3). No signature change to callers.
 
@@ -106,10 +111,10 @@ pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route graceful `TERMINATE_TIMEOUT_SEC` through `shutdown_all` (REQ-007) | Pending | — | — | |
-| 2 | Add/update lifecycle tests (row 15) | Pending | — | — | REQ-001 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Route graceful `TERMINATE_TIMEOUT_SEC` through `shutdown_all` (REQ-007) | Completed | 20261023-152939 | 20261023-152939 | implemented; full suite passed |
+| 2 | Add/update lifecycle tests (row 15) | Completed | 20261023-152939 | 20261023-152939 | REQ-001 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-152939 | 20261023-152939 | AC-9 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-152939 | 20261023-152939 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

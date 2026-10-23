@@ -60,6 +60,11 @@ Additive correction to the shutdown section. Do not alter unrelated sections.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Resource Cleanup step 4 now states what `shutdown_all()` reports and that clean means every started server was confirmed gone; Known-Limitations item 2 corrected (console line carries cause and unconfirmed keys). The WAL item was not touched.
+
+
 - Doc-only; no source or behavioral impact.
 
 ## Security considerations
@@ -92,8 +97,8 @@ and remains consistent with the rollback/re-raise description; no unrelated text
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct shutdown/rollback section (add outcome-based note) | Pending | — | — | Doc-only |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Correct shutdown/rollback section (add outcome-based note) | Completed | 20261023-152955 | 20261023-152955 | Doc-only implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152955 | 20261023-152955 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

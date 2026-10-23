@@ -56,6 +56,11 @@ Read-and-confirm against the shutdown block. Edit only if verification finds a c
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+Authoritative contract is the source plan's REQ-001..REQ-011 (plans/done/20261022-082349_plan.md); this procedure's earlier Design/Procedure text diverged from it (wrong REQ numbering, nonexistent `HttpShutdownError`, a `for server_key in self._servers` loop, raising on a failed outcome) and was not followed. Contrary to 'verify only': the service gather now uses a distinct `svc_results` name; a list result at index 0 is turned into one `("http_termination", "<key> (<outcome>)")` entry per item. pid/pgid are in the agent log line of the terminator/coordinator, not in the summary entry, because the plan fixes the carried type at `(str, TerminationOutcome)`.
+
+
 - N/A unless a gap is found; this row is verification-first.
 
 ## Security considerations
@@ -89,9 +94,9 @@ confirmation is recorded and mypy passes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify shutdown consumption at gather (`:138-140`) | Pending | — | — | Verify-only |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Verify shutdown consumption at gather (`:138-140`) | Completed | 20261023-152945 | 20261023-152945 | Verify-only implemented; full suite passed |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-152945 | 20261023-152945 | AC-9 |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-152945 | 20261023-152945 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

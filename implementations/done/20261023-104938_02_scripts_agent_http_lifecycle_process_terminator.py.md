@@ -86,6 +86,11 @@ annotation/docstring. Keep the `# nosec` comments and logging intact.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+Authoritative contract is the source plan's REQ-001..REQ-011 (plans/done/20261022-082349_plan.md); this procedure's earlier Design/Procedure text diverged from it (wrong REQ numbering, nonexistent `HttpShutdownError`, a `for server_key in self._servers` loop, raising on a failed outcome) and was not followed. Implemented per plan REQ-001..004: `terminate_with_timeout(proc, server_key, timeout)` has NO default timeout and no `Raises:` section; mapping: no pgid + exited -> ALREADY_EXITED; no pgid + `proc.terminate()` delivered -> EXIT_UNCONFIRMED, failed -> SIGNAL_NOT_DELIVERED; exited before signal -> ALREADY_EXITED; SIGTERM `ProcessLookupError` (group gone) -> ALREADY_EXITED; SIGTERM `OSError` + fallback delivered -> EXIT_UNCONFIRMED, fallback failed -> SIGNAL_NOT_DELIVERED; group gone in wait loop -> EXITED; SIGKILL `ProcessLookupError` -> EXITED (log format fixed); SIGKILL `OSError` -> EXIT_UNCONFIRMED (SIGTERM was delivered); SIGKILL delivered -> bounded confirmation pass (`_confirm_group_gone`, `kill_confirm_timeout_sec`, default 2.0s) -> EXITED or EXIT_UNCONFIRMED. Fallback duplication extracted to `_signal_via_proc`; radon C(18) -> C(13). Every failure log names server_key, pid and pgid.
+
+
 - Behavioral: callers must compare the returned `TerminationOutcome`, not test truthiness.
   The coordinator (row 3) is the only caller and is updated in the same commit.
 - No public API surface beyond the return type changes; the method name, args, and
@@ -128,10 +133,10 @@ behavioral tests plus mypy pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Convert `terminate_with_timeout` returns to `TerminationOutcome` (nine arms, REQ-002/003/004) | Pending | — | — | High risk |
-| 2 | Add/update behavioral tests (row 12) | Pending | — | — | REQ-001 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Convert `terminate_with_timeout` returns to `TerminationOutcome` (nine arms, REQ-002/003/004) | Completed | 20261023-152937 | 20261023-152937 | High risk implemented; full suite passed |
+| 2 | Add/update behavioral tests (row 12) | Completed | 20261023-152937 | 20261023-152937 | REQ-001 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-152937 | 20261023-152937 | AC-9 |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-152937 | 20261023-152937 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

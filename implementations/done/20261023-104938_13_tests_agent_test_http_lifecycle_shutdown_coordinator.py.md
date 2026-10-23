@@ -52,6 +52,11 @@ Edit mock return values; add three test methods.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- `test_tracking_entry_persists_on_termination_failure` replaced by parametrized unconfirmed cases asserting `remove_process_entry` called, `cleanup_server_key` not called, the returned list and the `kill -TERM -` log. Mutation check (`if True:` in place of `outcome.confirmed`) fails 3 tests.
+
+
 - N/A: test-only. Mock returns must match row 3's branching.
 
 ## Security considerations
@@ -84,8 +89,8 @@ The coordinator's three outcome branches are asserted (REQ-005), mock returns us
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add outcome-branching tests (REQ-005) | Pending | — | — | |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-9 |
+| 1 | Add outcome-branching tests (REQ-005) | Completed | 20261023-152950 | 20261023-152950 | implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-152950 | 20261023-152950 | AC-9 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
