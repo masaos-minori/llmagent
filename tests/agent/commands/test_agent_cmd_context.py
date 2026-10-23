@@ -500,6 +500,16 @@ class TestCmdHistory:
         out = capsys.readouterr().out
         assert "usage" in out.lower()
 
+    @pytest.mark.parametrize("arg", ["0", "-3", "201"])
+    def test_history_rejects_out_of_range(self, arg: str, capsys: Any) -> None:
+        ctx = _make_ctx()
+        ctx.conv.history = [_system_msg(), _user_msg("q1"), _assistant_msg("a1")]
+        cmd = _FakeCmd(ctx)
+        cmd._cmd_history(arg)
+        out = capsys.readouterr().out
+        assert "usage" in out.lower()
+        assert "q1" not in out
+
     def test_history_no_conversation_prints_message(self, capsys: Any) -> None:
         ctx = _make_ctx()
         ctx.conv.history = [_system_msg()]

@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from agent.commands.exceptions import CommandValidationError
 from agent.commands.output_port import OutputPort
+from agent.commands.utils import parse_int_arg
 from agent.context import AgentContext
 from agent.memory.config_path import resolve_memory_jsonl_dir
 from agent.memory.pin_ops import pin as pin_mem
@@ -82,12 +84,16 @@ def _parse_list_options(self, tokens: list[str]) -> _ListOptions | None:
                 query_parts.append(tokens[i])
                 i += 1
             continue
-        if tok.isdigit():
-            value = int(tok)
-            if value < 1 or value > 200:
+        if not tok.startswith("--"):
+            try:
+                parsed_limit = parse_int_arg(
+                    tok, usage="/memory list [n]", default=20, minimum=1, maximum=200
+                )
+            except CommandValidationError:
                 self._out.write_validation_error("/memory list [n]")
                 return None
-            limit = value
+            assert parsed_limit is not None
+            limit = parsed_limit
             i += 1
             continue
         if tok == "--type":

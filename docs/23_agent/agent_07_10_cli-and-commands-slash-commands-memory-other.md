@@ -36,7 +36,7 @@ A group of commands for long-term memory. `/memory` without a subcommand runs `s
 | Subcommand | Form | Effect |
 |---|---|---|
 | `status` | `/memory status` | Shows mode, counts, and pinned count against `memory_max_pinned`; changes nothing |
-| `list` | `/memory list [n] [--type semantic\|episodic] [--pinned] [--query <text>]` | Lists memories with short IDs (default 20, at most 200); changes nothing |
+| `list` | `/memory list [n] [--type semantic\|episodic] [--pinned] [--query <text>]` | Lists memories with short IDs (default 20, at most 200); the positional `n` accepts the shared `int()` grammar — `'+5'` and `'1_0'` are accepted, the 1..200 bound still applies, and non-ASCII decimal digits such as `'٣'` remain accepted because `int()` accepts them; changes nothing |
 | `delete` | `/memory delete <memory_id>` | Deletes one memory from all four memory tables after a `y/N` confirmation |
 | `pin` | `/memory pin <memory_id>` | Fixes a memory; no confirmation; refused at the pin limit |
 | `unpin` | `/memory unpin <memory_id>` | Releases a memory; no confirmation |

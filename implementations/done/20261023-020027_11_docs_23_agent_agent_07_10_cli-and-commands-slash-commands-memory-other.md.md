@@ -85,8 +85,8 @@ The session chapter (`agent_07_07`) and all source-code rows — each is its own
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the `/memory list` row with the accepted token grammar in prose | Pending | — | — | REQ-006, REQ-008, AC-5, AC-7 |
-| 2 | Run the documentation checkers (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend the `/memory list` row with the accepted token grammar in prose | Completed | 2026-10-23 | 2026-10-23 | REQ-006, REQ-008, AC-5, AC-7 |
+| 2 | Run the documentation checkers (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

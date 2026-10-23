@@ -158,10 +158,10 @@ Every other command that adopts `parse_int_arg` (`cmd_context.py`, `cmd_session.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the two `_parse_optional_int(...)` calls in `purge()` with `parse_int_arg` (`--max-sessions` minimum=1, `--max-age-days` minimum=0); skip the service call on rejection; delete `_parse_optional_int`; import `CommandValidationError` | Pending | — | — | REQ-002, REQ-005, REQ-007, REQ-009, AC-4, AC-6 |
-| 2 | Rewrite the two `…_treated_as_none` tests as rejection tests asserting `purge` is not called; add bare-flag and negative-value purge cases; keep existing list/purge cases unchanged | Pending | — | — | REQ-004, REQ-005, REQ-009, AC-3, AC-4, AC-6 |
-| 3 | Run the validation sequence (`rules/toolchain.md`), incl. grep + vulture for AC-8 | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Replace the two `_parse_optional_int(...)` calls in `purge()` with `parse_int_arg` (`--max-sessions` minimum=1, `--max-age-days` minimum=0); skip the service call on rejection; delete `_parse_optional_int`; import `CommandValidationError` | Completed | 2026-10-23 | 2026-10-23 | REQ-002, REQ-005, REQ-007, REQ-009, AC-4, AC-6 |
+| 2 | Rewrite the two `…_treated_as_none` tests as rejection tests asserting `purge` is not called; add bare-flag and negative-value purge cases; keep existing list/purge cases unchanged | Completed | 2026-10-23 | 2026-10-23 | REQ-004, REQ-005, REQ-009, AC-3, AC-4, AC-6 |
+| 3 | Run the validation sequence (`rules/toolchain.md`), incl. grep + vulture for AC-8 | Completed | 2026-10-23 | 2026-10-23 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

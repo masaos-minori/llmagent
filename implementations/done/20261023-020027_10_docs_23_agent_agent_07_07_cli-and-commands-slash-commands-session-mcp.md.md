@@ -96,8 +96,8 @@ The `/memory list` chapter (`agent_07_10`) and all source-code rows — each is 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document accepted ranges/grammars for `/history [n]`, `/session list [n]`, `/session purge` in prose | Pending | — | — | REQ-008, AC-7 |
-| 2 | Run the documentation checkers (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Document accepted ranges/grammars for `/history [n]`, `/session list [n]`, `/session purge` in prose | Completed | 2026-10-23 | 2026-10-23 | REQ-008, AC-7 |
+| 2 | Run the documentation checkers (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -127,10 +127,10 @@ Every other command that adopts `parse_int_arg` (`cmd_session.py`, `db_session_o
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `int()`/`except ValueError` block in `_cmd_history` with `parse_int_arg(usage="/history [n]", default=5, minimum=1, maximum=200)`; print nothing on rejection | Pending | — | — | REQ-003, REQ-007, REQ-009, AC-2, AC-6 |
-| 2 | Add `/history 0`, `/history -3`, `/history 201` rejection cases to `tests/agent/commands/test_agent_cmd_context.py`; keep existing cases unchanged | Pending | — | — | REQ-003, REQ-009, AC-2, AC-6 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Replace the `int()`/`except ValueError` block in `_cmd_history` with `parse_int_arg(usage="/history [n]", default=5, minimum=1, maximum=200)`; print nothing on rejection | Completed | 2026-10-23 | 2026-10-23 | REQ-003, REQ-007, REQ-009, AC-2, AC-6 |
+| 2 | Add `/history 0`, `/history -3`, `/history 201` rejection cases to `tests/agent/commands/test_agent_cmd_context.py`; keep existing cases unchanged | Completed | 2026-10-23 | 2026-10-23 | REQ-003, REQ-009, AC-2, AC-6 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

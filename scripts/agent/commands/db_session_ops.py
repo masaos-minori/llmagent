@@ -2,18 +2,11 @@
 
 from __future__ import annotations
 
+from agent.commands.exceptions import CommandValidationError
 from agent.commands.output_port import OutputPort
-from agent.commands.utils import parse_command_args
+from agent.commands.utils import parse_command_args, parse_int_arg
 from agent.context import AgentContext
 from agent.services.db_maintenance_service import DbMaintenanceService
-
-
-def _parse_optional_int(raw: str | bool | None) -> int | None:
-    """Parse raw as int; return None when raw is empty/falsy or not a valid integer."""
-    try:
-        return int(raw) if raw else None
-    except (ValueError, TypeError):
-        return None
 
 
 class DbSessionOps:
@@ -50,8 +43,20 @@ class DbSessionOps:
     def purge(self, rest: str) -> None:
         """Purge old sessions. Options: --max-sessions N --max-age-days N"""
         parsed = parse_command_args(rest.split())
-        max_sessions = _parse_optional_int(parsed.flags.get("max-sessions"))
-        max_age_days = _parse_optional_int(parsed.flags.get("max-age-days"))
+        try:
+            max_sessions = parse_int_arg(
+                parsed.flags.get("max-sessions"),
+                usage="/session purge …",
+                minimum=1,
+            )
+            max_age_days = parse_int_arg(
+                parsed.flags.get("max-age-days"),
+                usage="/session purge …",
+                minimum=0,
+            )
+        except CommandValidationError:
+            self._out.write_validation_error("/session purge …")
+            return
         result = DbMaintenanceService().purge(max_sessions, max_age_days)
         self._out.write_success(
             f"Purged: {result.sessions_removed} session(s) removed [Session]"

@@ -123,10 +123,10 @@ Every other command that adopts `parse_int_arg` (`cmd_context.py`, `db_session_o
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `try: int(limit_arg) … except: limit = 20` block in `_session_list` with `parse_int_arg(usage="/session list [n]", default=20, minimum=1, maximum=200)`; return before `list_sessions` on rejection | Pending | — | — | REQ-004, REQ-007, REQ-009, AC-3, AC-6 |
-| 2 | Add `/session list abc`, `/session list 0`, `/session list -1` rejection cases to `tests/agent/commands/test_agent_cmd_session.py`; keep existing list cases unchanged | Pending | — | — | REQ-004, REQ-009, AC-3, AC-6 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Replace the `try: int(limit_arg) … except: limit = 20` block in `_session_list` with `parse_int_arg(usage="/session list [n]", default=20, minimum=1, maximum=200)`; return before `list_sessions` on rejection | Completed | 2026-10-23 | 2026-10-23 | REQ-004, REQ-007, REQ-009, AC-3, AC-6 |
+| 2 | Add `/session list abc`, `/session list 0`, `/session list -1` rejection cases to `tests/agent/commands/test_agent_cmd_session.py`; keep existing list cases unchanged | Completed | 2026-10-23 | 2026-10-23 | REQ-004, REQ-009, AC-3, AC-6 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

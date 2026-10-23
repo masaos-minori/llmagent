@@ -40,7 +40,7 @@ A group of commands for session management and history operations. `/clear [new]
 | `/history` | `/history [n]` | Shows the last `n` user and assistant messages of the in-memory history (default 5), one line each with a truncated preview; tool messages are not shown |
 | `/session export` | `/session export [markdown\|md\|json] [file]` | Exports the current in-memory conversation history |
 
-`/history` with a non-integer `n` prints the usage line, and an empty history is reported as no data. For `/session export`, the format defaults to Markdown (`md` is the permanent short form of `markdown`); `json` writes the message list as indented JSON. The arguments may appear in either order, and any argument that is not a format is taken as the output file. Without a file the export is written to the terminal; with a file it is written there as UTF-8 and the message count is reported, and a write failure is reported as an export error. The export covers only the history currently held in memory, not a stored session that has not been loaded, and it neither modifies nor deletes any session or memory data.
+`/history` accepts `n` in `1..200`; a non-integer, `0`, a negative, or a value above `200` is a usage error that prints nothing, and an empty history is reported as no data; omitting `n` keeps the default of 5. For `/session export`, the format defaults to Markdown (`md` is the permanent short form of `markdown`); `json` writes the message list as indented JSON. The arguments may appear in either order, and any argument that is not a format is taken as the output file. Without a file the export is written to the terminal; with a file it is written there as UTF-8 and the message count is reported, and a write failure is reported as an export error. The export covers only the history currently held in memory, not a stored session that has not been loaded, and it neither modifies nor deletes any session or memory data.
 
 #### Session DB operation subcommands
 
@@ -48,7 +48,7 @@ A group of commands for session management and history operations. `/clear [new]
 
 | Form | Effect |
 |---|---|
-| `/session list [n]` | Shows recent sessions with their message count (default 20) |
+| `/session list [n]` | Shows recent sessions with their message count (default 20); `n` accepts `1..200`, and a non-integer, `0`, a negative, or a value above `200` is a usage error |
 | `/session load <id>` | Resumes a session by id |
 | `/session rename <title>` | Sets the title of the current session |
 | `/session delete <id>` | Removes a session by id |
@@ -56,7 +56,7 @@ A group of commands for session management and history operations. `/clear [new]
 | `/session health` | Shows session database integrity and size |
 | `/session checkpoint [PASSIVE\|FULL\|RESTART\|TRUNCATE]` | Runs a WAL checkpoint; without a mode the configured mode is used |
 | `/session vacuum` | Rebuilds the session database file |
-| `/session purge [--max-sessions <n>] [--max-age-days <n>]` | Purges old sessions |
+| `/session purge [--max-sessions <n>] [--max-age-days <n>]` | Purges old sessions; `--max-sessions` accepts an integer `>= 1` (a bare flag, `0`, a negative, or a non-integer is an error), `--max-age-days` accepts an integer `>= 0` (`0` keeps its documented "disabled" meaning; a negative or non-integer is an error), and an absent flag uses the retention default |
 | `/session recover [backup_path]` | Checks integrity and restores from the backup when corruption is found |
 | `/session rag-consistency` | Checks the consistency of the RAG database |
 | `/session rag-rebuild-fts` | Rebuilds `chunks_fts` from `chunks` |

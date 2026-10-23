@@ -131,8 +131,8 @@ Every call site that adopts `parse_int_arg` (`cmd_context.py`, `cmd_session.py`,
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `parse_int_arg` to `scripts/agent/commands/utils.py` (raise `CommandValidationError`; no `OutputPort` import); keep `ParsedArgs`/`parse_command_args` unchanged | Pending | — | — | REQ-001, AC-1 |
-| 2 | Delete `parse_flag_int`/`parse_flag_str` and their `__all__` entries; confirm AC-8 with grep + vulture | Pending | — | — | REQ-002, AC-8 |
+| 1 | Add `parse_int_arg` to `scripts/agent/commands/utils.py` (raise `CommandValidationError`; no `OutputPort` import); keep `ParsedArgs`/`parse_command_args` unchanged | Completed | 2026-10-23 | 2026-10-23 | REQ-001, AC-1 |
+| 2 | Delete `parse_flag_int`/`parse_flag_str` and their `__all__` entries; confirm AC-8 with grep + vulture | Completed | 2026-10-23 | 2026-10-23 | REQ-002, AC-8 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -87,6 +87,37 @@ class TestMemoryListSummaryPreview:
         assert any("No entries found" in line for line in lines)
 
 
+class TestMemoryListLimit:
+    """Numeric-limit cases for `memory_list`: bound enforcement and shared-parser grammar."""
+
+    @pytest.mark.parametrize("tokens", [["0"], ["201"]])
+    def test_rejects_out_of_range(self, tokens) -> None:
+        ops, out = _make_ops()
+        mem = MagicMock()
+        mem.store.search_by_type.return_value = [_make_entry(summary="x")]
+        ops.memory_list(mem, tokens)
+        out.write_validation_error.assert_called_once()
+        out.write.assert_not_called()
+
+    @pytest.mark.parametrize(
+        ("tokens", "expected_limit"),
+        [
+            (["5"], 5),
+            (["+5"], 5),
+            (["٣"], 3),
+        ],
+    )
+    def test_applies_limit(self, tokens, expected_limit) -> None:
+        ops, out = _make_ops()
+        mem = MagicMock()
+        entries = [_make_entry(summary=f"s{i}") for i in range(10)]
+        mem.store.search_by_type.return_value = entries
+        ops.memory_list(mem, tokens)
+        written = " ".join(c.args[0] for c in out.write.call_args_list)
+        shown = sum(f"s{i}" in written for i in range(10))
+        assert shown == expected_limit
+
+
 class TestMemorySearchSummaryPreview:
     def test_uses_summary_when_present(self) -> None:
         ops, out = _make_ops()

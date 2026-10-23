@@ -97,6 +97,13 @@ class TestCmdSessionList:
         cmd._ctx.session.list_sessions.assert_called_once_with(5)
 
     @pytest.mark.asyncio
+    @pytest.mark.parametrize("args", ["list abc", "list 0", "list -1"])
+    async def test_list_rejects_invalid_limit(self, args: str) -> None:
+        cmd = _make_cmd(sessions=[])
+        await cmd._cmd_session(args)
+        cmd._ctx.session.list_sessions.assert_not_called()
+
+    @pytest.mark.asyncio
     async def test_list_shows_generating_when_title_pending(
         self, capsys: pytest.CaptureFixture
     ) -> None:
@@ -564,10 +571,10 @@ class TestCmdSessionPurge:
                 await cmd._cmd_session("purge")
 
     @pytest.mark.asyncio
-    async def test_purge_with_non_numeric_max_sessions_treated_as_none(
+    async def test_purge_non_numeric_max_sessions_rejected(
         self, capsys: pytest.CaptureFixture
     ) -> None:
-        """A non-numeric --max-sessions value falls back to None rather than raising."""
+        """A non-numeric --max-sessions value is rejected; purge is not called."""
         from unittest.mock import patch
 
         from agent.services.models import DbPurgeResult
@@ -578,13 +585,14 @@ class TestCmdSessionPurge:
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("purge --max-sessions not-a-number")
-            mock_svc.purge.assert_called_once_with(None, None)
+            mock_svc.purge.assert_not_called()
+            assert "usage" in capsys.readouterr().out.lower()
 
     @pytest.mark.asyncio
-    async def test_purge_with_non_numeric_max_age_days_treated_as_none(
+    async def test_purge_non_numeric_max_age_days_rejected(
         self, capsys: pytest.CaptureFixture
     ) -> None:
-        """A non-numeric --max-age-days value falls back to None rather than raising."""
+        """A non-numeric --max-age-days value is rejected; purge is not called."""
         from unittest.mock import patch
 
         from agent.services.models import DbPurgeResult
@@ -595,7 +603,29 @@ class TestCmdSessionPurge:
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("purge --max-age-days not-a-number")
-            mock_svc.purge.assert_called_once_with(None, None)
+            mock_svc.purge.assert_not_called()
+            assert "usage" in capsys.readouterr().out.lower()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize(
+        "args",
+        [
+            "purge --max-sessions",
+            "purge --max-age-days",
+            "purge --max-sessions -3",
+            "purge --max-age-days -1",
+        ],
+    )
+    async def test_purge_bare_flag_or_negative_rejected(self, args: str) -> None:
+        """A bare flag (True) or a negative value is rejected; purge is not called."""
+        from unittest.mock import patch
+
+        cmd = _make_cmd()
+        with patch("agent.commands.db_session_ops.DbMaintenanceService") as MockSvc:
+            mock_svc = MagicMock()
+            MockSvc.return_value = mock_svc
+            await cmd._cmd_session(args)
+            mock_svc.purge.assert_not_called()
 
 
 # ── /session recover ────────────────────────────────────────────────────────────

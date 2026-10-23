@@ -16,9 +16,10 @@ from collections.abc import Callable
 from typing import Any
 
 from agent.commands.db_session_ops import DbSessionOps
+from agent.commands.exceptions import CommandValidationError
 from agent.commands.mixin_base import MixinBase
 from agent.commands.session_title import SessionTitleGen
-from agent.commands.utils import parse_command_args
+from agent.commands.utils import parse_command_args, parse_int_arg
 from agent.services.db_maintenance_service import DbMaintenanceService
 from agent.services.export_formatter import render_export, write_export
 from agent.services.models import SessionRow
@@ -82,9 +83,13 @@ class _SessionMixin(MixinBase):
         )
 
         try:
-            limit = int(limit_arg) if limit_arg else 20
-        except (ValueError, TypeError):
-            limit = 20
+            limit = parse_int_arg(
+                limit_arg, usage="/session list [n]", default=20, minimum=1, maximum=200
+            )
+        except CommandValidationError:
+            self._out.write_validation_error("/session list [n]")
+            return
+        assert limit is not None
         raw_rows = self._ctx.session.list_sessions(limit)
         if not raw_rows:
             self._out.write_no_data("No sessions found")

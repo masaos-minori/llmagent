@@ -10,13 +10,14 @@ from __future__ import annotations
 import logging
 from dataclasses import dataclass, field
 
+from agent.commands.exceptions import CommandValidationError
+
 logger = logging.getLogger(__name__)
 
 __all__ = [
     "ParsedArgs",
     "parse_command_args",
-    "parse_flag_int",
-    "parse_flag_str",
+    "parse_int_arg",
 ]
 
 
@@ -57,20 +58,32 @@ def parse_command_args(tokens: list[str]) -> ParsedArgs:
     return result
 
 
-def parse_flag_int(tokens: list[str], flag: str) -> int | None:
-    """Return the integer value following `flag` in tokens, or None."""
-    for i, t in enumerate(tokens):
-        if t == flag and i + 1 < len(tokens):
-            try:
-                return int(tokens[i + 1])
-            except ValueError:
-                pass
-    return None
+def parse_int_arg(
+    raw: str | bool | None,
+    *,
+    usage: str,
+    default: int | None = None,
+    minimum: int | None = None,
+    maximum: int | None = None,
+) -> int | None:
+    """Parse a command argument into an int, raising on invalid or out-of-range input.
 
-
-def parse_flag_str(tokens: list[str], flag: str) -> str | None:
-    """Return the string value following `flag` in tokens, or None."""
-    for i, t in enumerate(tokens):
-        if t == flag and i + 1 < len(tokens):
-            return tokens[i + 1]
-    return None
+    `raw is None` means the argument was absent -> return `default`. A present-but-invalid
+    value raises `CommandValidationError` (mapped to `[usage]` by dispatch()); a bare
+    `--flag` (True) also raises. `minimum`/`maximum` are inclusive bounds.
+    """
+    if raw is None:
+        return default
+    if isinstance(raw, bool):
+        # A bare --flag sets the flag to True; int(True) == 1 would silently accept it.
+        # Reject it so the command renders a usage error (AC-1), not a parsed 1.
+        raise CommandValidationError(usage)
+    try:
+        value = int(raw)
+    except (ValueError, TypeError):
+        raise CommandValidationError(usage) from None
+    if minimum is not None and value < minimum:
+        raise CommandValidationError(usage)
+    if maximum is not None and value > maximum:
+        raise CommandValidationError(usage)
+    return value

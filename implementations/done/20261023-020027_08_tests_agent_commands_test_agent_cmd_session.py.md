@@ -119,10 +119,10 @@ test rows — each is its own row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `/session list abc/0/-1` rejection cases; rewrite the two `…_treated_as_none` tests as purge rejection cases; add bare-flag and negative-value purge cases; keep listed cases unchanged | Pending | — | — | REQ-004, REQ-005, REQ-009, AC-3, AC-4, AC-6 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
-| 4 | — | Pending | — | — | |
+| 1 | Add `/session list abc/0/-1` rejection cases; rewrite the two `…_treated_as_none` tests as purge rejection cases; add bare-flag and negative-value purge cases; keep listed cases unchanged | Completed | 2026-10-23 | 2026-10-23 | REQ-004, REQ-005, REQ-009, AC-3, AC-4, AC-6 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | — |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-23 | 2026-10-23 | — |
+| 4 | — | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

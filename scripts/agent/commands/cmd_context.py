@@ -20,9 +20,10 @@ import logging
 import re
 from typing import Any
 
+from agent.commands.exceptions import CommandValidationError
 from agent.commands.mixin_base import MixinBase
 from agent.commands.token_display import TokenDisplay
-from agent.commands.utils import parse_command_args
+from agent.commands.utils import parse_command_args, parse_int_arg
 from agent.services.context_view import collect_context_state
 from agent.services.conversation_service import clear_conversation
 from agent.services.exceptions import ContextStateBuildError
@@ -138,12 +139,18 @@ class _ContextMixin(MixinBase, TokenDisplay):
     def _cmd_history(self, args: str) -> None:
         """Print last N user/assistant messages in compact form."""
         parsed = parse_command_args(args.split())
-        raw = parsed.subcommand or "5"
         try:
-            n = int(raw)
-        except ValueError:
+            n = parse_int_arg(
+                parsed.subcommand or "5",
+                usage="/history [n]",
+                default=5,
+                minimum=1,
+                maximum=200,
+            )
+        except CommandValidationError:
             self._out.write_validation_error("/history [n]")
             return
+        assert n is not None
         ctx = self._ctx
         turns = [m for m in ctx.conv.history if m["role"] in ("user", "assistant")]
         recent = turns[-n:]

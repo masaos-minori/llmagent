@@ -138,10 +138,10 @@ Every other command that adopts `parse_int_arg` (`cmd_context.py`, `cmd_session.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `tok.isdigit()` branch in `_parse_list_options` with a bare-positional check + `parse_int_arg(usage="/memory list [n]", default=20, minimum=1, maximum=200)` wrapped in try/except; render usage error and return None on rejection | Pending | — | — | REQ-006, REQ-007, REQ-009, AC-5, AC-6 |
-| 2 | Add numeric-limit cases to `tests/agent/commands/test_memory_data_ops.py`: `["201"]`/`["0"]` rejected, `["5"]` applied, `["+5"]` accepted; keep dispatch unchanged | Pending | — | — | REQ-006, AC-5, AC-6 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Replace the `tok.isdigit()` branch in `_parse_list_options` with a bare-positional check + `parse_int_arg(usage="/memory list [n]", default=20, minimum=1, maximum=200)` wrapped in try/except; render usage error and return None on rejection | Completed | 2026-10-23 | 2026-10-23 | REQ-006, REQ-007, REQ-009, AC-5, AC-6 |
+| 2 | Add numeric-limit cases to `tests/agent/commands/test_memory_data_ops.py`: `["201"]`/`["0"]` rejected, `["5"]` applied, `["+5"]` accepted; keep dispatch unchanged | Completed | 2026-10-23 | 2026-10-23 | REQ-006, AC-5, AC-6 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

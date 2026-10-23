@@ -118,10 +118,10 @@ rows — each is its own row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/agent/commands/test_command_arg_parsing.py` and show it fails against the current `scripts/agent/commands/utils.py` (no `parse_int_arg`) | Pending | — | — | REQ-001, AC-1 |
-| 2 | Fill the table-driven cases over the accepted/rejected token set and `minimum`/`maximum`/`default` combinations; run to green | Pending | — | — | REQ-001, AC-1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Create `tests/agent/commands/test_command_arg_parsing.py` and show it fails against the current `scripts/agent/commands/utils.py` (no `parse_int_arg`) | Completed | 2026-10-23 | 2026-10-23 | REQ-001, AC-1 |
+| 2 | Fill the table-driven cases over the accepted/rejected token set and `minimum`/`maximum`/`default` combinations; run to green | Completed | 2026-10-23 | 2026-10-23 | REQ-001, AC-1 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | — |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

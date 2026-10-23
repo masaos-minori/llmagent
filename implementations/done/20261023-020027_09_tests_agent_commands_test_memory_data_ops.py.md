@@ -90,10 +90,10 @@ own row.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add numeric-limit cases to `test_memory_data_ops.py`: `["201"]`/`["0"]` rejected, `["5"]` applied, `["+5"]` accepted, `'٣'` accepted | Pending | — | — | REQ-006, AC-5, AC-6 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 3 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
-| 4 | — | Pending | — | — | |
+| 1 | Add numeric-limit cases to `test_memory_data_ops.py`: `["201"]`/`["0"]` rejected, `["5"]` applied, `["+5"]` accepted, `'٣'` accepted | Completed | 2026-10-23 | 2026-10-23 | REQ-006, AC-5, AC-6 |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | — |
+| 3 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-23 | 2026-10-23 | — |
+| 4 | — | Completed | 2026-10-23 | 2026-10-23 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
