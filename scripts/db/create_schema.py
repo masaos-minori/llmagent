@@ -26,6 +26,7 @@ from db.schema_sql import (
     build_rag_schema_sql,
     build_session_schema_sql,
     build_workflow_schema_sql,
+    eventbus_schema_version,
 )
 from db.store_protocols import get_embedding_dims
 
@@ -103,11 +104,24 @@ def create_workflow_schema() -> None:
 def create_eventbus_schema() -> None:
     """Create eventbus.sqlite tables (events, consumer_delivery, consumer_offsets)."""
     with SQLiteHelper("eventbus").open(write_mode=True) as db:
+        existing = db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='events'"
+        ).fetchone()
+        before = int(db.execute("PRAGMA user_version").fetchone()[0])
+        if existing and before not in (0, eventbus_schema_version()):
+            raise RuntimeError(
+                f"eventbus.sqlite schema version {before} differs from "
+                f"{eventbus_schema_version()}; recreate the database"
+            )
         try:
             db.executescript(build_eventbus_schema_sql())
         except (sqlite3.OperationalError, sqlite3.DatabaseError) as e:
             logger.error("Failed to execute Event Bus schema DDL: %s", e)
             raise
+        if existing and before == 0:
+            # Leave an unverified legacy database unstamped; the EventBus service
+            # stamps it only after checking its tables against schema.sql.
+            db.execute("PRAGMA user_version = 0")
         db.commit()
     logger.info("Event Bus schema created successfully.")
 

@@ -29,7 +29,7 @@ Primary store for all events. WAL mode is enabled to allow concurrent reads. DB 
 
 `events` holds one row per event, keyed by a monotonic `seq` with a UNIQUE `event_id`. The per-consumer failure count and last NACK attempt live in `consumer_delivery`, not in `events`. `scripts/eventbus/schema.sql` is the only DDL definition; `build_eventbus_schema_sql()` in `scripts/db/schema_sql.py` reads it.
 
-The schema is created from `schema.sql` when the database is new; an existing database at the current schema is left unchanged, and an older database is recreated.
+The schema is created from `schema.sql` when the database is new; an existing database at the current schema version (`PRAGMA user_version` in `schema.sql`) is left unchanged, and a database with another version or a different table shape is refused at startup and must be recreated.
 
 ### Per-consumer delivery state
 

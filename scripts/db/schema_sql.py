@@ -15,6 +15,7 @@ Functions:
 """
 
 import logging
+import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -221,6 +222,18 @@ CREATE TABLE IF NOT EXISTS workflow_schema_version (
 EVENTBUS_SCHEMA_SQL_PATH: Path = (
     Path(__file__).resolve().parents[1] / "eventbus" / "schema.sql"
 )
+
+
+def eventbus_schema_version() -> int:
+    """Return the version schema.sql stamps with PRAGMA user_version."""
+    match = re.search(
+        r"^PRAGMA\s+user_version\s*=\s*(\d+)\s*;",
+        build_eventbus_schema_sql(),
+        re.MULTILINE,
+    )
+    if match is None:
+        raise RuntimeError(f"{EVENTBUS_SCHEMA_SQL_PATH} does not stamp user_version")
+    return int(match.group(1))
 
 
 def build_eventbus_schema_sql() -> str:

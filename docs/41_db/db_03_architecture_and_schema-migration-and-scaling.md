@@ -49,7 +49,7 @@ Recreating `session.sqlite` physically removes both sessions and memories, but t
 
 ### 8b. Create-Only Schema for `eventbus.sqlite`
 
-`create_eventbus_schema()` (`db/create_schema.py`) and the EventBus service (`open_db()`) both create the schema from the single DDL definition in `scripts/eventbus/schema.sql`, read through `build_eventbus_schema_sql()`. There is no incremental migration: a database older than the current release schema is recreated, not migrated. Table roles: `eventbus_06_persistence_schema_and_replay.md`.
+`create_eventbus_schema()` (`db/create_schema.py`) and the EventBus service (`open_db()`) both create the schema from the single DDL definition in `scripts/eventbus/schema.sql`, read through `build_eventbus_schema_sql()`. `schema.sql` ends with `PRAGMA user_version = N;`, the schema version. There is no incremental migration: `open_db()` refuses a database stamped with a different version, stamps an unstamped existing database only when its tables match `schema.sql` column for column, and refuses any other; `create_eventbus_schema()` refuses a database stamped with a different version. Recovery is recreating the database. Table roles: `eventbus_06_persistence_schema_and_replay.md`.
 
 `events.published_at` has a `DEFAULT` expression in `schema.sql`. SQLite cannot change a column default without rebuilding the table, so existing databases created before the default was added are not rebuilt; the difference has no effect because every insert path (`POST /publish` and the DLQ requeue) supplies `published_at` explicitly.
 
@@ -73,11 +73,15 @@ The minimum supported source schema of each database is the schema of the curren
 | `eventbus.sqlite` | The current release schema defined by `scripts/eventbus/schema.sql` | N/A — create-only DDL; no migration code exists | N/A — no migration code to remove | The EventBus service |
 | `mdq.sqlite` | The current `chunks` shape, keyed by `chunk_id` | Same; a rebuilt store is recovered by re-indexing the Markdown files | Same | The `mdq-mcp` server |
 
+Recreation impact when a database is older than the baseline (procedure: [db_07 section 11](db_07_api_and_operations-recovery-and-reference.md#11-db-recreation-procedure)):
+
+| Database | Data loss possible | Backup before recreation | Rollback |
+|---|---|---|---|
+| `workflow.sqlite` | Yes — the recreated database is empty | Required: `rotate_all_dbs()` archives it (db_07 section 11, step 1) | Restore the archived file |
+| `eventbus.sqlite` | Yes — events and delivery state are not carried over | Required: `rotate_all_dbs()` archives it (`rotate_eventbus_db()`) | Restore the archived file manually; no automated restoration path exists (db_07 section 9) |
+| `mdq.sqlite` | No lasting loss — derived store, rebuilt from the Markdown files | Not required | Delete the file and re-index (section 8d) |
+
 How to read a database's current schema without changing it: [DB API and Operations](db_07_api_and_operations-recovery-and-reference.md#11a-identifying-a-databases-current-schema) (section 11a).
-
-Open decisions (owner in parentheses):
-
-- Whether `eventbus.sqlite` needs a schema-version marker; it has none (the EventBus service).
 
 ---
 

@@ -1,5 +1,7 @@
 """scripts/eventbus/schema.py — Schema layer: schema definition and creation."""
 
+import re
+import sqlite3
 from pathlib import Path
 from sqlite3 import Connection
 
@@ -23,15 +25,66 @@ def _apply_eventbus_pragmas(
     conn.execute("PRAGMA foreign_keys=ON")
 
 
+_VERSION_RE = re.compile(r"^PRAGMA\s+user_version\s*=\s*(\d+)\s*;", re.MULTILINE)
+
+
+def _expected_schema_version(sql: str) -> int:
+    """Return the schema version that schema.sql stamps via PRAGMA user_version."""
+    match = _VERSION_RE.search(sql)
+    if match is None:
+        raise RuntimeError(f"{_SCHEMA_PATH} does not stamp PRAGMA user_version")
+    return int(match.group(1))
+
+
+def _table_columns(conn: Connection) -> dict[str, list[tuple[object, ...]]]:
+    """Return {table: PRAGMA table_info rows} for every user table."""
+    tables = [
+        r[0]
+        for r in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+    ]
+    # PRAGMA cannot bind the table name; names come from sqlite_master, not user input.
+    return {
+        t: [tuple(r) for r in conn.execute(f'PRAGMA table_info("{t}")')]  # nosec B608 — table name read from sqlite_master
+        for t in tables
+    }
+
+
+def _matches_current_schema(conn: Connection, sql: str) -> bool:
+    """Return True when every table in schema.sql exists with identical columns."""
+    fresh = sqlite3.connect(":memory:")
+    try:
+        fresh.executescript(sql)
+        expected = _table_columns(fresh)
+    finally:
+        fresh.close()
+    actual = _table_columns(conn)
+    return all(actual.get(t) == cols for t, cols in expected.items())
+
+
 def _init_schema(conn: Connection) -> None:
-    """Create the events schema when the table is absent."""
-    # First check if the table exists at all
+    """Create the schema when absent; verify the schema version when present.
+
+    A database stamped with a different version is refused (it must be recreated,
+    never migrated). An existing unstamped database (user_version 0) is stamped
+    only after its tables match schema.sql column for column.
+    """
+    sql = _SCHEMA_PATH.read_text()
     cur = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='events'"
     )
-    if cur.fetchone():
-        # Table exists — leave the existing database unchanged
+    if not cur.fetchone():
+        conn.executescript(sql)
         return
-    # Table doesn't exist — create from schema.sql
-    sql = _SCHEMA_PATH.read_text()
-    conn.executescript(sql)
+    expected = _expected_schema_version(sql)
+    found = int(conn.execute("PRAGMA user_version").fetchone()[0])
+    if found == expected:
+        return
+    if found == 0 and _matches_current_schema(conn, sql):
+        conn.execute(f"PRAGMA user_version = {expected}")  # nosec B608 — expected is an int parsed from schema.sql
+        return
+    raise RuntimeError(
+        f"eventbus.sqlite schema version {found} differs from {expected} or its "
+        "tables do not match schema.sql; recreate the database"
+    )

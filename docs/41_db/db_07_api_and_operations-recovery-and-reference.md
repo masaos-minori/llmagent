@@ -141,7 +141,7 @@ A database at the supported baseline shows:
 - `eventbus.sqlite`: `events` without `retry_count`; `consumer_delivery` with `acked` and without `acked_at`; `consumer_offsets` with `offset`.
 - `mdq.sqlite`: `chunk_id` as the first `chunks` column.
 
-A database that does not match is recreated (section 11), not migrated.
+A database that does not match is recreated (section 11), not migrated. `eventbus.sqlite` is stamped with `PRAGMA user_version` (the version in `scripts/eventbus/schema.sql`); the EventBus service fails to start on a different version.
 
 ---
 

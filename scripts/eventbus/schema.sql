@@ -37,3 +37,7 @@ CREATE TABLE IF NOT EXISTS consumer_offsets (
     consumer_id          TEXT    PRIMARY KEY,
     offset               INTEGER NOT NULL DEFAULT 0
 );
+
+-- Schema version of this DDL. Bump it whenever the schema changes in a way that
+-- requires recreating the database; open_db() refuses a database stamped otherwise.
+PRAGMA user_version = 1;
