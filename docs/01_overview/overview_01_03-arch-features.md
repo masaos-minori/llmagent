@@ -62,10 +62,10 @@ Refer to `overview_02_files.md` for the file structure.
 
 **Diagnostic Storage upon Session Termination**
 
-After the REPL input loop ends, session diagnostics and memory are persisted (`AgentREPL._persist_after_loop`) and then the resource shutdown sequence runs (`ResourceShutdownCoordinator.close_resources`). The following actions are performed:
+On every REPL exit path (normal exit, startup failure, startup interrupt, and input-loop error), session diagnostics and memory are persisted (`AgentREPL._persist_session_state`) and then the resource shutdown sequence runs (`ResourceShutdownCoordinator.close_resources`), persist first because it reads clients that shutdown releases. Persistence is gated on a session existing: when no session was started (for example on a startup failure) the persist step runs and writes nothing, by design. The following actions are performed:
 
-1. **Save Session Diagnostics** — Saves turn count, tool call count, latency, and workflow statistics to `DiagnosticStore`.
-2. **Persist Session Memory** — Extracts and persists memory from session history using rule-based logic.
+1. **Save Session Diagnostics** — Saves turn count, tool call count, latency, and workflow statistics to `DiagnosticStore`; no row is written when no session was started.
+2. **Persist Session Memory** — Extracts and persists memory from session history using rule-based logic; nothing is extracted or persisted when no session was started.
 3. **WAL Checkpoint** — Executes a WAL checkpoint on `session.sqlite` before closing the connection: a PASSIVE checkpoint first, falling back to TRUNCATE (up to 3 attempts) when PASSIVE raises. A PASSIVE checkpoint that copies no frames over a non-empty WAL (a reader is holding it) and a TRUNCATE that stays blocked are recorded as shutdown errors. When the checkpoint does not succeed, a defensive backup of the WAL file via `WalCheckpointManager.backup_sync` is attempted; no exception is raised and the process terminates normally. Since SQLite will read existing WAL files upon the next startup, no data loss occurs. Note that if failures persist, attention should be paid to WAL file growth. (Explicit in code — `agent/wal_checkpoint_manager.py`, `agent/repl.py`)
 
 Current-session counters can be viewed with the `/stats` command; the saved record is stored in the `session_diagnostics` table. (Explicit in code — `agent/repl.py`)

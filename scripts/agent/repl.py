@@ -89,8 +89,8 @@ class AgentREPL:
         self._banner = StartupBanner(self._ctx, self._view)
         self._signal = SignalHandler(self._ctx, self._shutdown_event)
 
-    async def _persist_after_loop(self) -> None:
-        """Persist session data after the REPL loop ends."""
+    async def _persist_session_state(self) -> None:
+        """Persist session state on exit, before resource shutdown."""
         await self._persister.persist_session_memories()
         await self._persister.persist_session_diagnostics()
 
@@ -105,9 +105,11 @@ class AgentREPL:
         startup = StartupOrchestrator(
             self._ctx, self._view, shutdown_event=self._shutdown_event
         )
-        # One finally for the whole session: cleanup must run on every exit path
-        # (startup failure or interrupt, normal exit) but never ahead of the input
-        # loop, because it closes the shared HTTP client and stops the MCP servers.
+        # One finally for the whole session: persist session state, then close
+        # resources. Both run on every exit path (startup failure or interrupt,
+        # normal exit); persist is first because it reads ctx.services clients that
+        # close_resources releases, and it is contained so a persist failure cannot
+        # replace the in-flight exception.
         try:
             try:
                 (
@@ -139,9 +141,14 @@ class AgentREPL:
             # Delegate to input loop
             await self._input_loop.run(
                 lambda: self._banner.print_startup_banner(self._orchestrator),
-                self._persist_after_loop,
             )
         finally:
+            try:
+                await self._persist_session_state()
+            except Exception as e:  # noqa: BLE001 — persist is non-fatal; never mask the in-flight exception
+                self._view.write_warning(
+                    f"{OutputTag.NON_FATAL} Session persistence failed: {type(e).__name__}: {e}"
+                )
             await self._shutdown.close_resources()
 
 

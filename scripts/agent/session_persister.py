@@ -6,6 +6,10 @@ SessionPersister — session data persistence at shutdown.
 Responsibilities:
   - Persisting session diagnostics summary
   - Persisting session memories via memory layer
+
+Both steps skip (logging the reason) when ctx.session.session_id is None, i.e. no
+session was started; otherwise they write before resource close. Failures are
+contained and reported as non-fatal.
 """
 
 from __future__ import annotations
@@ -22,6 +26,7 @@ if TYPE_CHECKING:
 from agent.cli_view import CLIView
 from agent.diagnostic_store import DiagnosticStore
 from agent.memory.models import HistoryMessage
+from agent.output_tags import OutputTag
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +38,8 @@ class SessionPersister:
     """Handles persistence of session-level data at shutdown.
 
     Encapsulates ``_persist_session_diagnostics`` and ``_persist_session_memories``
-    extracted from AgentREPL.
+    extracted from AgentREPL. Each skips when no session was started
+    (``ctx.session.session_id is None``) and otherwise writes before resource close.
     """
 
     def __init__(
@@ -48,7 +54,14 @@ class SessionPersister:
         self._view = view
 
     async def persist_session_diagnostics(self) -> None:
-        """Persist a lightweight runtime diagnostics summary at session end."""
+        """Persist a lightweight runtime diagnostics summary at session end.
+
+        Skips (logging the reason) when no session was started; any failure while
+        building or saving the summary is reported as non-fatal.
+        """
+        if self._ctx.session.session_id is None:
+            logger.info("Skipping session diagnostics: no started session")
+            return
         try:
             stats = self._ctx.stats
             llm = self._ctx.services.llm if self._ctx.services is not None else None
@@ -151,11 +164,20 @@ class SessionPersister:
                 logger.debug("DiagnosticStore.save failed: %s", e)
                 self._view.write_warning(f"Diagnostics could not be saved: {e}")
 
-        except (OSError, sqlite3.Error):
+        except Exception as e:  # noqa: BLE001 — whole step is non-fatal, payload defects included
             logger.debug("Failed to persist session diagnostics", exc_info=True)
+            self._view.write_warning(
+                f"{OutputTag.NON_FATAL} Session persistence failed: {type(e).__name__}: {e}"
+            )
 
     async def persist_session_memories(self) -> None:
-        """Extract and persist session memories before compression or resource close."""
+        """Extract and persist session memories before compression or resource close.
+
+        Skips (logging the reason) when no session was started.
+        """
+        if self._ctx.session.session_id is None:
+            logger.info("Skipping session memories: no started session")
+            return
         if self._ctx.services is not None and self._ctx.services.memory is not None:
             try:
                 history = []

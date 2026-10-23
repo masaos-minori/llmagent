@@ -73,12 +73,15 @@ SIGTERM/SIGINT signals can be fired even during the startup sequence. Using `asy
 
 ### Resource Cleanup on Shutdown
 
-Resources are closed once, when the interactive session ends or when startup fails or is interrupted; they are not closed during a successful startup. The cleanup runs in a `finally` block in the following order:
+Resources are closed once, when the interactive session ends or when startup fails or is interrupted; they are not closed during a successful startup. The exit sequence runs in a single `finally` block in the following order:
 
-1. WAL checkpoint (with PASSIVE → TRUNCATE fallback)
-2. WAL backup (with path validation)
-3. `lifecycle.shutdown_all()`
-4. `http.aclose()`
+1. Persist session state (`AgentREPL._persist_session_state`) — writes a session summary and session memory, but only when a session was started. On a startup failure or interrupt no session exists, so this step runs and writes nothing, by design (the write-or-skip decision is owned by `SessionPersister`, keyed on `ctx.session.session_id`).
+2. WAL checkpoint (with PASSIVE → TRUNCATE fallback)
+3. WAL backup (with path validation)
+4. `lifecycle.shutdown_all()`
+5. `http.aclose()`
+
+Persist is first because it reads `ctx.services` clients that `close_resources()` releases; a persistence failure is contained and reported as non-fatal, so it cannot replace the exception the process was already reporting.
 
 Each step is independently guarded so that if one fails, others still execute. WAL backups are allowed only within paths matching `allowed_root`, and symlinks are resolved before validation.
 

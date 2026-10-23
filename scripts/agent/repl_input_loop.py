@@ -8,8 +8,8 @@ Handles: readline, multiline continuation, shutdown event racing, command routin
 
 import asyncio
 import sqlite3
-from collections.abc import Callable, Coroutine
-from typing import TYPE_CHECKING, Any, cast
+from collections.abc import Callable
+from typing import TYPE_CHECKING, cast
 
 from agent.output_tags import OutputTag
 from agent.session import SchemaMissingError
@@ -75,26 +75,28 @@ class ReplInputLoop:
         self._cmds = cmds
         self._orchestrator = orchestrator
 
-    async def run(
-        self,
-        banner_callback: Callable[[], None],
-        persister_callback: Callable[[], None]
-        | Callable[[], "Coroutine[Any, Any, None]"]
-        | None = None,
-    ) -> None:
-        """Run the main REPL loop."""
+    async def run(self, banner_callback: Callable[[], None]) -> None:
+        """Run the main REPL loop.
+
+        Persistence is not owned here: AgentREPL.run() persists on every exit path.
+        Each error is reported to the operator exactly once.
+        """
         ctx = self._ctx
+        reported = False
         try:
             banner_callback()
             try:
                 ctx.session.start()
             except SchemaMissingError as e:
+                reported = True
                 self._view.write_fatal(str(e))
                 raise
             except RuntimeError as e:
+                reported = True
                 self._view.write_fatal(f"Session start failed: {e}")
                 raise
             except sqlite3.Error as e:
+                reported = True
                 self._view.write_fatal(
                     f"Database unavailable during session start ({e.__class__.__name__}): {e}. Check DB connectivity or run: bash deploy/init_db.sh"
                 )
@@ -108,13 +110,9 @@ class ReplInputLoop:
                 ctx.services_required.tools.set_session_id(str(ctx.session.session_id))
             await self._repl_loop()
         except RuntimeError as e:
-            self._view.write_fatal(str(e))
+            if not reported:
+                self._view.write_fatal(str(e))
             raise
-        finally:
-            if persister_callback is not None:
-                result = persister_callback()
-                if asyncio.iscoroutine(result):
-                    await result
 
     def _abort_input(self) -> None:
         """Signal end-of-turn display and clear the tracked input task."""

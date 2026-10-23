@@ -153,26 +153,23 @@ class TestReplLoop:
     async def test_exit_command_breaks_loop(self) -> None:
         repl = _make_bare_repl()
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         # No assertions needed: reaching here means the loop terminated cleanly.
 
     @pytest.mark.asyncio
     async def test_eof_breaks_loop(self) -> None:
         repl = _make_bare_repl()
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=EOFError):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
 
     @pytest.mark.asyncio
     async def test_keyboard_interrupt_breaks_loop(self) -> None:
         repl = _make_bare_repl()
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=KeyboardInterrupt):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         # Verify KeyboardInterrupt routed through _abort_input, not an uncaught escape
         repl._view.write_turn_end.assert_called_once()
         assert repl._input_loop._input_coro is None
@@ -182,9 +179,8 @@ class TestReplLoop:
         repl = _make_bare_repl()
         repl._cmds.dispatch = AsyncMock(return_value=True)
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["/help", "/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         repl._cmds.dispatch.assert_called_once_with("/help")
 
     @pytest.mark.asyncio
@@ -192,9 +188,8 @@ class TestReplLoop:
         repl = _make_bare_repl()
         repl._cmds.dispatch = AsyncMock(return_value=False)
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["/unknown_cmd", "/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         repl._view.write_warning.assert_called_once()
         msg = repl._view.write_warning.call_args[0][0]
         assert "Unknown command" in msg
@@ -214,9 +209,8 @@ class TestReplLoop:
         repl._cmds = CommandRegistry(repl._ctx, MagicMock())
         repl._input_loop._cmds = repl._cmds
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=[removed_name, "/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         repl._view.write_warning.assert_called_once()
         msg = repl._view.write_warning.call_args[0][0]
         assert msg.startswith(f"Unknown command: {removed_name}")
@@ -226,18 +220,16 @@ class TestReplLoop:
     async def test_regular_text_dispatched_to_orchestrator(self) -> None:
         repl = _make_bare_repl()
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["hello world", "/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         repl._orchestrator.handle_turn.assert_called_once_with("hello world")
 
     @pytest.mark.asyncio
     async def test_empty_line_skipped(self) -> None:
         repl = _make_bare_repl()
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["", "  ", "/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         repl._orchestrator.handle_turn.assert_not_called()
         repl._cmds.dispatch.assert_not_called()
 
@@ -245,7 +237,6 @@ class TestReplLoop:
     async def test_shutdown_requested_breaks_loop(self) -> None:
         repl = _make_bare_repl()
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         # After returning first line, mark shutdown
         call_count = 0
 
@@ -258,7 +249,7 @@ class TestReplLoop:
             return "second line"
 
         with patch("builtins.input", side_effect=_input_with_shutdown):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         # handle_turn called once (for "first line"); shutdown breaks before second
         repl._orchestrator.handle_turn.assert_called_once_with("first line")
 
@@ -269,12 +260,11 @@ class TestReplLoop:
         repl._cmds = None  # type: ignore[assignment]
         repl._input_loop._cmds = None  # type: ignore[assignment]
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch.object(
             repl._input_loop, "_read_input", new=AsyncMock(return_value="/exit")
         ):
             with pytest.raises((AssertionError, RuntimeError)):
-                await repl._input_loop.run(mock_banner, mock_persister)
+                await repl._input_loop.run(mock_banner)
 
     @pytest.mark.asyncio
     async def test_orchestrator_none_raises_runtime_error(self) -> None:
@@ -283,12 +273,11 @@ class TestReplLoop:
         repl._orchestrator = None  # type: ignore[assignment]
         repl._input_loop._orchestrator = None  # type: ignore[assignment]
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch.object(
             repl._input_loop, "_read_input", new=AsyncMock(return_value="/exit")
         ):
             with pytest.raises((AssertionError, RuntimeError)):
-                await repl._input_loop.run(mock_banner, mock_persister)
+                await repl._input_loop.run(mock_banner)
 
     @pytest.mark.asyncio
     async def test_partial_completion_warning_emitted(self) -> None:
@@ -297,14 +286,13 @@ class TestReplLoop:
         repl._ctx.services_required.llm.stat_partial_completions = 0
         repl._ctx.stats.stat_partial_completions = 0
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
 
         def _increment_partial(*_args, **_kwargs):
             repl._ctx.stats.stat_partial_completions += 1
 
         repl._orchestrator.handle_turn = AsyncMock(side_effect=_increment_partial)
         with patch("builtins.input", side_effect=["hello", "/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         write_warning_calls = repl._view.write_warning.call_args_list
         partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
         assert partial_warnings, "Expected partial completion warning"
@@ -316,9 +304,8 @@ class TestReplLoop:
         repl._ctx.services_required.llm.stat_partial_completions = 0
         repl._ctx.stats.stat_partial_completions = 0
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["hello", "/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         write_warning_calls = repl._view.write_warning.call_args_list
         partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
         assert not partial_warnings
@@ -329,9 +316,8 @@ class TestReplLoop:
         repl = _make_bare_repl()
         repl._ctx.services_required.llm = None
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch("builtins.input", side_effect=["hello", "/exit"]):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
         write_warning_calls = repl._view.write_warning.call_args_list
         partial_warnings = [c for c in write_warning_calls if "Partial" in str(c)]
         assert not partial_warnings
@@ -364,14 +350,11 @@ class TestReplLoop:
         signal_task = asyncio.ensure_future(_set_shutdown_after_delay())
 
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         start = time.monotonic()
         with patch.object(
             repl._input_loop, "_read_input", new=AsyncMock(return_value="test input")
         ):
-            await asyncio.wait_for(
-                repl._input_loop.run(mock_banner, mock_persister), timeout=5.0
-            )
+            await asyncio.wait_for(repl._input_loop.run(mock_banner), timeout=5.0)
         elapsed = time.monotonic() - start
         await signal_task
 
@@ -381,7 +364,6 @@ class TestReplLoop:
         assert dispatch_cancelled.is_set(), (
             "the race branch must cancel the hung dispatch"
         )
-        assert mock_persister.await_count == 1, "the post-loop persist hook runs once"
 
     @pytest.mark.asyncio
     async def test_signal_before_turn_starts_still_exits(self) -> None:
@@ -404,14 +386,11 @@ class TestReplLoop:
         asyncio.ensure_future(_set_shutdown_after_delay())
 
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
         with patch.object(
             repl._input_loop, "_read_input", new=AsyncMock(return_value="first line")
         ):
             try:
-                await asyncio.wait_for(
-                    repl._input_loop.run(mock_banner, mock_persister), timeout=5.0
-                )
+                await asyncio.wait_for(repl._input_loop.run(mock_banner), timeout=5.0)
             except TimeoutError:
                 pass
 
@@ -424,7 +403,6 @@ class TestReplLoop:
         repl = _make_bare_repl()
         repl._orchestrator.handle_turn = AsyncMock(return_value=None)
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
 
         call_count = 0
 
@@ -436,7 +414,7 @@ class TestReplLoop:
             return "/exit"
 
         with patch("builtins.input", side_effect=_input_with_exit):
-            await repl._input_loop.run(mock_banner, mock_persister)
+            await repl._input_loop.run(mock_banner)
 
         repl._orchestrator.handle_turn.assert_called_once_with("hello world")
 
@@ -449,7 +427,6 @@ class TestReplLoop:
         """
         repl = _make_bare_repl()
         mock_banner = MagicMock()
-        mock_persister = AsyncMock()
 
         # Replace the pre-set shutdown event so we can control its timing
         new_shutdown_event = asyncio.Event()
@@ -477,7 +454,7 @@ class TestReplLoop:
 
         with patch("builtins.input", side_effect=lambda p: (time.sleep(5), "never")[1]):
             result = await asyncio.wait_for(
-                repl._input_loop.run(mock_banner, mock_persister), timeout=5.0
+                repl._input_loop.run(mock_banner), timeout=5.0
             )
 
         # Assert input_coro was cancelled and read returned None
@@ -525,8 +502,10 @@ class TestPersistSessionDiagnostics:
         repl._ctx.session.session_id = None
         repl._ctx.services = None
 
-        with patch("agent.wal_checkpoint_manager.SQLiteHelper"):
-            await repl._persister.persist_session_diagnostics()
+        await repl._persister.persist_session_diagnostics()
+
+        # Gate: no started session means no save call.
+        repl._diagnostic_store.save.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_handles_none_services(self):
@@ -857,9 +836,7 @@ class TestSignalDuringPromptEndsLoop:
             with patch(
                 "builtins.input", side_effect=lambda p: (release.wait(5), "never")[1]
             ):
-                await asyncio.wait_for(
-                    repl._input_loop.run(MagicMock(), None), timeout=1.0
-                )
+                await asyncio.wait_for(repl._input_loop.run(MagicMock()), timeout=1.0)
         finally:
             release.set()
             await signal_task
@@ -907,7 +884,7 @@ class TestMidTurnSignalIsBounded:
         signal_task = asyncio.ensure_future(_signal_once_turn_runs())
         start = time.monotonic()
         with patch("builtins.input", side_effect=_input):
-            await asyncio.wait_for(repl._input_loop.run(MagicMock(), None), timeout=3.0)
+            await asyncio.wait_for(repl._input_loop.run(MagicMock()), timeout=3.0)
         elapsed = time.monotonic() - start
         await signal_task
         return repl._view, elapsed, tasks
@@ -1001,10 +978,30 @@ class TestRunSqliteErrorMessage:
                     pass
 
         fatal_calls = repl._view.write_fatal.call_args_list
-        assert len(fatal_calls) >= 1
+        assert len(fatal_calls) == 1
         last_fatal = str(fatal_calls[-1][0][0])
         assert "OperationalError" in last_fatal
         assert "disk I/O error" in last_fatal
+
+    @pytest.mark.asyncio
+    async def test_schema_missing_is_reported_exactly_once(self) -> None:
+        """A SchemaMissingError produces one operator-facing line, not two."""
+        from agent.session import SchemaMissingError
+
+        repl = _make_bare_repl()
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                return_value=(MagicMock(), MagicMock())
+            )
+            with patch.object(
+                repl._ctx.session, "start", side_effect=SchemaMissingError("no schema")
+            ):
+                with pytest.raises(SchemaMissingError):
+                    await repl.run()
+
+        fatal_calls = repl._view.write_fatal.call_args_list
+        assert len(fatal_calls) == 1
+        assert "no schema" in str(fatal_calls[0][0][0])
 
     @pytest.mark.asyncio
     async def test_runtime_error_includes_class_name(self, tmp_path) -> None:
@@ -1671,18 +1668,27 @@ class TestRunResourceCleanup:
 
     @staticmethod
     def _install_spies(
-        repl: AgentREPL, calls: list[str], loop_error: Exception | None = None
+        repl: AgentREPL,
+        calls: list[str],
+        loop_error: Exception | None = None,
+        persist_error: Exception | None = None,
     ) -> None:
         async def spy_close() -> None:
             calls.append("close_resources")
 
-        async def spy_loop(banner, persister) -> None:
+        async def spy_persist() -> None:
+            calls.append("persist_session_state")
+            if persist_error is not None:
+                raise persist_error
+
+        async def spy_loop(banner) -> None:
             calls.append("input_loop.run")
             if loop_error is not None:
                 raise loop_error
 
         repl._shutdown = MagicMock()
         repl._shutdown.close_resources = spy_close
+        repl._persist_session_state = spy_persist
         repl._input_loop = MagicMock()
         repl._input_loop.run = spy_loop
 
@@ -1698,7 +1704,7 @@ class TestRunResourceCleanup:
             )
             await repl.run()
 
-        assert calls == ["input_loop.run", "close_resources"]
+        assert calls == ["input_loop.run", "persist_session_state", "close_resources"]
 
     @pytest.mark.asyncio
     async def test_cleanup_runs_once_when_startup_fails(self) -> None:
@@ -1713,7 +1719,7 @@ class TestRunResourceCleanup:
             with pytest.raises(RuntimeError, match="startup failed"):
                 await repl.run()
 
-        assert calls == ["close_resources"]
+        assert calls == ["persist_session_state", "close_resources"]
         repl._view.write_fatal.assert_called_once()
 
     @pytest.mark.asyncio
@@ -1729,4 +1735,25 @@ class TestRunResourceCleanup:
             with pytest.raises(RuntimeError, match="loop failed"):
                 await repl.run()
 
-        assert calls == ["input_loop.run", "close_resources"]
+        assert calls == ["input_loop.run", "persist_session_state", "close_resources"]
+
+    @pytest.mark.asyncio
+    async def test_persist_failure_does_not_mask_loop_error(self) -> None:
+        repl = _make_bare_repl()
+        calls: list[str] = []
+        self._install_spies(
+            repl,
+            calls,
+            loop_error=RuntimeError("loop failed"),
+            persist_error=RuntimeError("persist failed"),
+        )
+
+        with patch("agent.repl.StartupOrchestrator") as MockStartup:
+            MockStartup.return_value.run = AsyncMock(
+                return_value=(MagicMock(), MagicMock())
+            )
+            with pytest.raises(RuntimeError, match="loop failed"):
+                await repl.run()
+
+        assert calls == ["input_loop.run", "persist_session_state", "close_resources"]
+        repl._view.write_warning.assert_called_once()
