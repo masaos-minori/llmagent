@@ -15,6 +15,7 @@ include_external_packages = True
 #   rag   → db, shared
 #   db    → shared
 #   shared → (external only)
+#   eventbus → shared (must not import agent, mcp_servers, rag, db)
 
 [importlinter:contract:shared-is-leaf]
 name = shared must not import from agent, mcp_servers, rag, or db

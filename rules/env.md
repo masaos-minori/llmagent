@@ -46,7 +46,7 @@ db      → shared
 rag     → db, shared
 mcp_servers → db, shared
 agent   → rag, db, shared, mcp_servers（installer 用途のみ）
-eventbus → 他の全レイヤーから完全に独立（shared にすら依存不可）
+eventbus → shared（agent, mcp_servers, rag, db には依存不可）
 ```
 
 `lint-imports` で違反を検出。各レイヤーの責務・ファイル構成:
