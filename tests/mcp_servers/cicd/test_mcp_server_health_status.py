@@ -21,7 +21,9 @@ class TestHealthHTTPStatusCodes:
         """web-search-mcp has no dependency checks — always healthy."""
         from mcp_servers.web_search.web_search_server import app
 
-        client = TestClient(app, raise_server_exceptions=False)
+        client = TestClient(
+            app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+        )
         response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
@@ -36,7 +38,9 @@ class TestHealthHTTPStatusCodes:
         """git-mcp returns 503 when git is not found in PATH."""
         from mcp_servers.git.git_server import app as git_app
 
-        client = TestClient(git_app, raise_server_exceptions=False)
+        client = TestClient(
+            git_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+        )
         response = client.get("/health")
         assert response.status_code in (200, 503)
         data = response.json()
@@ -63,7 +67,9 @@ class TestHealthHTTPStatusCodes:
         original_token = os.environ.get("GITHUB_TOKEN")
         try:
             os.environ.pop("GITHUB_TOKEN", None)
-            client = TestClient(cicd_app, raise_server_exceptions=False)
+            client = TestClient(
+                cicd_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+            )
             response = client.get("/health")
             assert response.status_code == 503
             data = response.json()
@@ -80,7 +86,9 @@ class TestHealthHTTPStatusCodes:
         """Verify the full response shape for a healthy server."""
         from mcp_servers.web_search.web_search_server import app
 
-        client = TestClient(app, raise_server_exceptions=False)
+        client = TestClient(
+            app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+        )
         response = client.get("/health")
         assert response.status_code == 200
         data = response.json()
@@ -104,7 +112,9 @@ class TestHealthHTTPStatusCodes:
         original_token = os.environ.get("GITHUB_TOKEN")
         try:
             os.environ.pop("GITHUB_TOKEN", None)
-            client = TestClient(cicd_app, raise_server_exceptions=False)
+            client = TestClient(
+                cicd_app, raise_server_exceptions=False, headers=MCP_TEST_AUTH_HEADERS
+            )
             response = client.get("/health")
             assert response.status_code == 503
             data = response.json()

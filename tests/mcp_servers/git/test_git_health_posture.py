@@ -19,6 +19,8 @@ from fastapi.testclient import TestClient
 from mcp_servers.git import git_server
 from shared.security.posture_contract import SECURITY_CONTRACT_VERSION, SecurityPosture
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 _GIT_CHECK_IDS = {
     "server.repo_allowlist",
     "server.repo_allowlist_resolvable",
@@ -31,7 +33,7 @@ _FINGERPRINT_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 @pytest.fixture
 def client() -> TestClient:
     """TestClient for the real git app; git-mcp keeps the empty-token accept-all path."""
-    return TestClient(git_server.app)
+    return TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
 def _security_block(client: TestClient) -> dict[str, Any]:

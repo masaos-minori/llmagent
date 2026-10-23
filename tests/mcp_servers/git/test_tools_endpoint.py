@@ -147,7 +147,7 @@ def test_git_tools_all_disabled_when_allowed_repo_paths_empty(
     monkeypatch.setattr(
         git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=True)
     )
-    client = TestClient(git_server.app)
+    client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get("/v1/tools?include_disabled=true").json()
     assert data["tools"]
     for tool in data["tools"]:
@@ -172,7 +172,7 @@ def test_git_write_tools_disabled_when_read_only(
     monkeypatch.setattr(
         git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=True)
     )
-    client = TestClient(git_server.app)
+    client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get("/v1/tools?include_disabled=true").json()
     assert data["tools"]
     for tool in data["tools"]:
@@ -191,7 +191,7 @@ def test_git_tools_all_enabled_when_repo_paths_set_and_not_read_only(
     monkeypatch.setattr(
         git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=False)
     )
-    client = TestClient(git_server.app)
+    client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get("/v1/tools").json()
     for tool in data["tools"]:
         assert tool["enabled"] is True
@@ -210,7 +210,7 @@ def test_git_include_disabled_false_omits_disabled_tools(
     monkeypatch.setattr(
         git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=True)
     )
-    client = TestClient(git_server.app)
+    client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get("/v1/tools?include_disabled=false").json()
     assert data["tools"] == []
 
@@ -225,7 +225,7 @@ def test_git_disabled_code_filters_to_matching_tools(
     monkeypatch.setattr(
         git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=True)
     )
-    client = TestClient(git_server.app)
+    client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get(
         "/v1/tools?include_disabled=true&disabled_code=allowed_repo_paths+is+empty"
     ).json()
@@ -257,7 +257,7 @@ def test_enabled_and_disabled_reason_types_across_all_servers(
     monkeypatch.setattr(
         git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=False)
     )
-    client = TestClient(git_server.app)
+    client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
     data = client.get("/v1/tools").json()
     for tool in data["tools"]:
         assert isinstance(tool["enabled"], bool)

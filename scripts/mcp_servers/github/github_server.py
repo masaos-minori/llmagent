@@ -37,11 +37,11 @@ Available endpoints:
   GET  /health                 Health check
 """
 
-import logging
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
@@ -68,7 +68,7 @@ from mcp_servers.server import (
 )
 
 # Log path is owned here; service module uses logging.getLogger(__name__)
-logger = logging.getLogger(__name__)
+logger = Logger(__name__, "/opt/llm/logs/github-mcp.log")
 
 _cfg = GitHubConfig.load()  # noqa: F821
 _service: GitHubService = build_service(_cfg)

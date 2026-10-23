@@ -224,24 +224,13 @@ def pytest_sessionfinish(session: pytest.Session, exitstatus: int) -> None:
         _cleanup_isolated_root(_CREATED_ROOT)
 
 
-# git/cicd/web_search MCP servers load their standalone *_mcp_server.toml at
-# module import time, and those files reference ${ENV:...}-style auth tokens
-# (mcpauth, 2026-09-04). resolve_env_ref() only requires the variable to be
-# *set*, not non-empty -- default to "" (not a real token) so import doesn't
-# fail during test collection, while preserving these servers' pre-existing
-# empty-token accept-all behavior that many tests rely on. web_search shares
-# its variable with the agent configuration, like git and cicd; tests that
-# build the real agent configuration set a real value locally.
-os.environ.setdefault("MCP_GIT_AUTH_TOKEN", "")
-os.environ.setdefault("MCP_CICD_AUTH_TOKEN", "")
-os.environ.setdefault("MCP_WEB_SEARCH_AUTH_TOKEN", "")
-
 # config/agent.toml's own [mcp.mcp_servers.*] table references the same
 # ${ENV:...} pattern for every subprocess-started server's auth_token,
 # resolved by build_agent_config() -> shared.mcp_config._build_single_server().
-# Unlike the standalone *_mcp_server.toml layer above, McpServerConfig
-# requires a non-empty auth_token (production-strict validation), so these
-# need a real (dummy) value rather than "". Tests that call
+# McpServerConfig requires a non-empty auth_token (production-strict validation),
+# and every MCP server module refuses to import with an empty token, so all ten
+# tokens need a real (dummy) value rather than "". web_search shares its variable
+# with the agent configuration, like git and cicd. Tests that call
 # build_agent_config() against the real agent.toml (e.g.
 # tests/agent/test_mcp_server_cmd_paths.py) need all of these set.
 for _mcp_env_var in (
@@ -252,6 +241,9 @@ for _mcp_env_var in (
     "MCP_GITHUB_AUTH_TOKEN",
     "MCP_RAG_PIPELINE_AUTH_TOKEN",
     "MCP_MDQ_AUTH_TOKEN",
+    "MCP_GIT_AUTH_TOKEN",
+    "MCP_CICD_AUTH_TOKEN",
+    "MCP_WEB_SEARCH_AUTH_TOKEN",
 ):
     os.environ.setdefault(_mcp_env_var, "test-token")
 

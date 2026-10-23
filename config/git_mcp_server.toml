@@ -21,6 +21,7 @@ max_log_entries = 50
 # auth_token: Bearer token, resolved from the MCP_GIT_AUTH_TOKEN
 # environment variable. Must match config/agent.toml's
 # [mcp_servers.git].auth_token value.
+# An empty or missing value makes the server refuse to start.
 auth_token = "${ENV:MCP_GIT_AUTH_TOKEN}"
 
 # NOTE: audit_log_path was removed (2026-07-13). GitConfig.audit_log_path was parsed

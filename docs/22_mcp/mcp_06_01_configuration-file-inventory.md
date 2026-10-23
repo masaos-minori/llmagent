@@ -23,7 +23,7 @@ This document and its siblings cover all MCP configuration files, per-server con
 
 Each MCP server is an independent process and **only reads its own configuration file (`*_mcp_server.toml`)**. It does not read `agent.toml`. Even when values such as DB paths or external service URLs need to be shared with other processes, they must be described individually in each configuration file rather than using a common file.
 
-`MCPServer.run_http()` calls `ConfigLoader.restrict_to(own_config_file)` before starting uvicorn to enforce this rule at runtime. A `ConfigPermissionError` is raised upon violation.
+The rule is enforced at runtime by `ConfigLoader.restrict_to(own_config_file)`, which raises `ConfigPermissionError` upon violation. The Agent-launched binaries and `mcp_launcher.py` apply it before the server module is imported, so no config is read ahead of the restriction; `python -m <server module>` is a development path that applies it in `MCPServer.run_http()`. A server never imports another server module.
 
 → Details: [ADR-002](../10_adr/adr_02_01_002_platform-config-isolation.md) / [Process Separation Policy](../40_shared/shared_03_01_runtime_and_execution-config-and-logging.md#2a-process-separation-policy-config-isolation-policy)
 

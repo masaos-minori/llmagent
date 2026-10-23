@@ -42,7 +42,7 @@ Tool membership and risk tiers: [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ow
 
 - No tool requires configuration (`config_dependent: false`); availability depends on `allowed_dirs` (empty means disabled, reason `"allowed_dirs is empty"`).
 - Error mapping: 403 `FileAuthorizationError`, 404 `FileNotFoundError`, 422 `FileValidationError`. `/health` is the same as file-write-mcp.
-- Logs: `<log_dir>/file-delete-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec`, Layer3 `<log_dir>/delete_audit.log` (ISO8601 UTC + op + path + user). The audit destination is fixed in code, not a configuration key.
+- Logs: `<log_dir>/file-delete-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec` (in `file-delete-mcp.log`), Layer3 `<log_dir>/delete_audit.log` (ISO8601 UTC + op + path + user). The audit destination is fixed in code, not a configuration key.
 - **Audit write failure policy:** failure to write `delete_audit.log` is logged as an error and does not raise; the deletion still returns as successful. This differs from github-mcp, where `GitHubAuditError` fails the call.
 
 ### Guard and postcondition coverage
@@ -65,6 +65,7 @@ Security-relevant settings:
 - `command_allowlist` matches the base name of `argv[0]`; empty means disabled (reason `"command_allowlist is empty"`).
 - `shell_cwd_allowed_dirs`: empty means all working directories are denied.
 - `env_allowlist` / `env_denylist` filter `req.env` (default-deny filter; the denylist applies when the allowlist is empty).
+- A command receives a small fixed base environment plus the filtered `req.env`, never the server process environment; credential-shaped variables (`MCP_*`, token, secret and password variables) are removed even when listed in `req.env`.
 - `max_timeout_sec`, `max_output_kb`, `max_memory_mb` (`RLIMIT_AS`) bound resource use; `kill_policy` / `kill_grace_sec` choose SIGTERM-then-SIGKILL or SIGKILL only for timed-out processes.
 - `execution_user` runs commands as another OS user via setuid and requires `CAP_SETUID`.
 - `audit_log_path` is the dedicated audit log; `shell_sandbox_backend` selects isolation (below).
@@ -76,7 +77,7 @@ Security-relevant settings:
 > **Enforcement:** `shell_sandbox_backend = "none"` is rejected by shell-mcp itself: the startup Security Posture check `server.sandbox_backend` reports `failed`, so the posture does not validate and shell-mcp refuses to bind its HTTP port. The Agent reads the same posture from `/health` and aborts startup. Set `shell_sandbox_backend = "firejail"` or disable `shell-mcp`. Enforcement lives in shell-mcp's own startup validation (`validate_shell_security()` in `scripts/mcp_servers/shell/shell_service_static_helpers.py`), not in a separate Agent-side audit, so a shell-mcp process started independently of the Agent still refuses to bind when its posture fails. See [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md).
 
 - `/health`: `dependencies.shell` reports `sh` not found; `details.sandbox_backend` is `firejail` or `none`.
-- Logs: `<log_dir>/shell-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec`, Layer3 `shell_audit.log`.
+- Logs: `<log_dir>/shell-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec` (in `shell-mcp.log`), Layer3 `shell_audit.log`.
 
 ### Guard and postcondition coverage
 

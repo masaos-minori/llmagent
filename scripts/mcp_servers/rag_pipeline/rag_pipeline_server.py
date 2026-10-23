@@ -19,7 +19,6 @@ Provided endpoints:
 
 from __future__ import annotations
 
-import logging
 import time
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -28,6 +27,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
@@ -57,9 +57,10 @@ from mcp_servers.server import (
     attach_auth_middleware,
     build_tools_response,
     extract_request_context,
+    require_auth_token,
 )
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__, "/opt/llm/logs/rag-mcp.log")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object (module-level singleton)
@@ -140,9 +141,11 @@ def _rag_pipeline_tool_availability(
 async def _lifespan(_app: FastAPI) -> AsyncGenerator[None]:
     """Start and stop the shared RAG pipeline service."""
     svc: RagPipelineMCPService = _service
-    await svc.start()
-    yield
-    await svc.stop()
+    await svc.start(_cfg)
+    try:
+        yield
+    finally:
+        await svc.stop()
 
 
 app = FastAPI(
@@ -152,7 +155,12 @@ app = FastAPI(
     lifespan=_lifespan,
 )
 
-attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token or "")
+attach_auth_middleware(
+    cast(_FastAPIApp, app),
+    require_auth_token(
+        "rag-pipeline-mcp", "MCP_RAG_PIPELINE_AUTH_TOKEN", _cfg.auth_token
+    ),
+)
 
 
 @app.exception_handler(RagPipelineServiceError)

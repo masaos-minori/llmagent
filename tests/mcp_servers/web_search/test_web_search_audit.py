@@ -28,6 +28,8 @@ from mcp_servers.web_search.web_search_models import (
     WebSearchUpstreamError,
 )
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 @pytest.fixture(autouse=True)
 def _reset_state() -> Iterator[None]:
@@ -63,7 +65,7 @@ def audit_stub(monkeypatch: pytest.MonkeyPatch) -> _RecordingAudit:
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(web_search_server.app)
+    return TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
 class TestAuditAlwaysFires:

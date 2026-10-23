@@ -9,7 +9,7 @@ Security:
   - Operations are restricted to repositories in allowed_repo_paths (fail-closed)
   - read_only=true (default) prevents all write operations (add/commit/checkout/pull/push)
   - All write tools support dry_run=True for preview without side effects
-  - Optional Bearer-token auth via auth_token in git_mcp_server.toml
+  - Bearer-token auth via a non-empty auth_token in git_mcp_server.toml (required)
 
 Provided endpoints:
   GET  /v1/tools      MCP tool list
@@ -27,6 +27,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
@@ -54,9 +55,10 @@ from mcp_servers.server import (
     attach_auth_middleware,
     build_tools_response,
     extract_request_context,
+    require_auth_token,
 )
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__, "/opt/llm/logs/git-mcp.log")
 
 _cfg = GitConfig.load()
 _service = build_service(_cfg)
@@ -158,7 +160,7 @@ def _sanitize_for_audit(value: str) -> str:
 _audit_failure_count: int = 0
 
 
-def _audit_log_safe(logger: logging.Logger, **kwargs: Any) -> None:
+def _audit_log_safe(logger: logging.Logger | Logger, **kwargs: Any) -> None:
     """Wrap _audit_log so its own failure cannot mask the original response."""
     global _audit_failure_count
     try:
@@ -174,7 +176,10 @@ app = FastAPI(
     description="Local git operations MCP server",
 )
 
-attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token or "")
+attach_auth_middleware(
+    cast(_FastAPIApp, app),
+    require_auth_token("git-mcp", "MCP_GIT_AUTH_TOKEN", _cfg.auth_token),
+)
 
 
 @app.exception_handler(GitServiceError)

@@ -36,6 +36,11 @@ env_allowlist = []
 # env_denylist: glob patterns for env keys removed from req.env (active when env_allowlist is empty)
 env_denylist = ["LD_PRELOAD", "LD_LIBRARY_PATH", "PYTHONPATH"]
 
+# Commands never inherit the server's environment. They receive only HOME, USER, LOGNAME,
+# SHELL, LANG, LC_*, TMPDIR, TMP, TEMP and PATH, plus the req.env entries that pass the
+# filters above. Variables named MCP_*, or containing a TOKEN, SECRET, PASSWORD,
+# CREDENTIAL or API_KEY word, are always removed, even when listed in req.env.
+
 # execution_user: OS user to run commands as via setuid; "" = run as current process user
 # Requires CAP_SETUID (root). When non-empty and service is not root, a warning is logged
 # and the setting is ignored (no-op).

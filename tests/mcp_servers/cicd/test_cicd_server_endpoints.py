@@ -29,6 +29,8 @@ from fastapi.testclient import TestClient
 from mcp_servers.cicd import cicd_server
 from mcp_servers.cicd.cicd_models import CicdConfig
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class _FakeService:
     """Minimal stand-in for CiCdService, exposing only what cicd_server.py touches."""
@@ -49,7 +51,7 @@ def fake_service(monkeypatch: pytest.MonkeyPatch) -> _FakeService:
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(cicd_server.app)
+    return TestClient(cicd_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
 class TestToolsListEndpoint:

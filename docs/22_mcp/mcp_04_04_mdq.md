@@ -41,7 +41,7 @@ Tool membership and risk tiers: [mcp_01_tool_ownership_matrix.md](mcp_01_tool_ow
 **Operations:**
 
 - `/health` returns more fields than the basic response (refer to [mcp_06 Health probes](mcp_06_04_verification-methods.md#health-probes)).
-- Logs: `<log_dir>/mdq-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec` (shared JSON-lines audit log `<log_dir>/audit.log` via `_audit_log()`, `server_key="mdq"`), Layer3 none. There is no dedicated audit log and no `audit_log_path` key.
+- Logs: `<log_dir>/mdq-mcp.log`. Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec` (JSON-lines records in `<log_dir>/mdq-mcp.log` via `_audit_log()`, `server_key="mdq"`), Layer3 none. There is no dedicated audit log and no `audit_log_path` key.
 
 ### Path Control
 

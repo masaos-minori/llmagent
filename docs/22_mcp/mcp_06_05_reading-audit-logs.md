@@ -46,14 +46,14 @@ grep "op=delete_directory" <log_dir>/delete_audit.log
 grep '"event":"mcp_tool_exec"' <log_dir>/audit.log
 ```
 
-> **Note:** `cicd-mcp`, `git-mcp`, and `mdq-mcp` use the shared audit log only (no dedicated audit log files). They record via `_audit_log()` to the shared audit log (`<log_dir>/audit.log`) in JSON-lines format. Only git-mcp emits the optional `canonical_target`, `pre_condition`, and `post_condition` fields (see `mcp_02_03_audit-logging-and-errors.md`). Outcome values are `"ok"` (operation succeeded), `"error"` (operation failed with an exception), or `"rejected"` (operation rejected by a policy guard before execution).
+> **Note:** `cicd-mcp`, `git-mcp`, and `mdq-mcp` have no dedicated audit log files. They record via `_audit_log()` into their own application log (`<log_dir>/<server>-mcp.log`) as JSON-lines records; `<log_dir>/audit.log` is written only by the Agent. Only git-mcp emits the optional `canonical_target`, `pre_condition`, and `post_condition` fields (see `mcp_02_03_audit-logging-and-errors.md`). Outcome values are `"ok"` (operation succeeded), `"error"` (operation failed with an exception), or `"rejected"` (operation rejected by a policy guard before execution).
 
 ## Server-specific Log Files and Audit Layers
 
-Each server with a dedicated application log writes `<log_dir>/<server>-mcp.log` (rag-pipeline-mcp writes `rag-mcp.log`); cicd-mcp and git-mcp have no dedicated log file and use the standard logger. Audit layers:
+Every server writes an application log `<log_dir>/<server>-mcp.log` (rag-pipeline-mcp writes `rag-mcp.log`). Audit layers:
 
 - Layer 1 (agent-side `tool_exec`): every server.
-- Layer 2 (shared `mcp_tool_exec` in `<log_dir>/audit.log`): all servers except file-read-mcp and rag-pipeline-mcp.
+- Layer 2 (`mcp_tool_exec` in the server's own application log `<log_dir>/<server>-mcp.log`): all servers except file-read-mcp and rag-pipeline-mcp.
 - Layer 3 (dedicated audit file): file-delete-mcp (`delete_audit.log`, `ISO8601 op= path= user=llm-agent`), github-mcp (`github_audit.log`), shell-mcp (`shell_audit.log`).
 - file-write-mcp and file-delete-mcp also record the `_audit_log()` payload in their dedicated application logs.
 - Dedicated audit files carry no `X-Session-Id` / `X-Request-Id`; correlate through the agent-side log.

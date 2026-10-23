@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import dataclasses
 import hmac
+import importlib
 import logging
 import uuid
 from collections.abc import Callable, Sequence
@@ -133,6 +134,19 @@ def attach_auth_middleware(
         return response
 
 
+def require_auth_token(label: str, env_var: str, token: str | None) -> str:
+    """Return the Bearer token, or refuse to start the server when it is empty.
+
+    Never echoes the token: the message names only the server and the variable.
+    """
+    if not token:
+        raise RuntimeError(
+            f"{label}: auth_token is empty; set {env_var} to a non-empty value "
+            "(the server does not start without Bearer authentication)"
+        )
+    return token
+
+
 def extract_request_context(request: Request) -> tuple[str, str, str]:
     """Extract session_id, request_id, and idempotency_key from request headers/state.
 
@@ -229,8 +243,32 @@ class MCPServer:
             "details": {},
         }, status_code
 
+    def _enforce_startup_posture_gate(self) -> None:
+        """Refuse to start when the server module's security posture is not validated.
+
+        Resolves `_enforce_posture_gate` from the module named in `app_module`, so every
+        launch path (binary launchers, mcp_launcher, python -m) that reaches run_http()
+        is gated. Only modules in the `mcp_servers.` namespace are gated, and one that
+        defines no gate fails closed.
+        """
+        module_name = self.app_module.partition(":")[0]
+        if not module_name.startswith("mcp_servers."):
+            return
+        gate = getattr(
+            importlib.import_module(module_name), "_enforce_posture_gate", None
+        )
+        if gate is None:
+            raise RuntimeError(
+                f"{module_name} defines no _enforce_posture_gate; refusing to start"
+            )
+        gate()
+
     def run_http(self) -> None:
-        """Launch the HTTP server via uvicorn, enforcing loopback-only binding."""
+        """Launch the HTTP server via uvicorn, enforcing loopback-only binding.
+
+        Also enforces config isolation and the server's security posture gate before
+        any socket is created.
+        """
         import sys
 
         import uvicorn
@@ -252,6 +290,8 @@ class MCPServer:
                 "Config Isolation: own_config_file is falsy — "
                 "cannot start without config isolation"
             )
+
+        self._enforce_startup_posture_gate()
 
         class _LoopbackVerifyingServer(uvicorn.Server):
             """Verifies the actual bound socket address is loopback right

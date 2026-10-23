@@ -16,7 +16,6 @@ Provided endpoints:
   GET  /health      Health check
 """
 
-import logging
 import shutil
 import time
 from typing import Any, cast
@@ -24,6 +23,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
@@ -52,7 +52,7 @@ from mcp_servers.shell.shell_service import ShellService, build_service
 from mcp_servers.shell.shell_service_static_helpers import validate_shell_security
 from mcp_servers.shell.shell_tools import TOOL_LIST
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__, "/opt/llm/logs/shell-mcp.log")
 
 SHELL_SERVER_KEY = "shell"
 SHELL_OWN_CONFIG_FILE = "shell_mcp_server.toml"

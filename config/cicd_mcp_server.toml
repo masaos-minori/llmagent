@@ -21,6 +21,7 @@ max_log_size_kb = 256
 # auth_token: Bearer token for MCP server call authentication, resolved
 # from the MCP_CICD_AUTH_TOKEN environment variable. Must match
 # config/agent.toml's [mcp_servers.cicd].auth_token value.
+# An empty or missing value makes the server refuse to start.
 auth_token = "${ENV:MCP_CICD_AUTH_TOKEN}"
 
 # github_token: fallback when GITHUB_TOKEN env var is unset (not recommended)

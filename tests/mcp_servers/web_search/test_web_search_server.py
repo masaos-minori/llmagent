@@ -21,6 +21,8 @@ from mcp_servers.web_search.web_search_models import (
     WebSearchTimeoutError,
 )
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 class TestCallToolErrorClassification:
     @pytest.mark.parametrize(
@@ -41,7 +43,7 @@ class TestCallToolErrorClassification:
         monkeypatch.setattr(
             "mcp_servers.web_search.web_search_service.search_duckduckgo", _raise
         )
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.post(
             "/v1/call_tool", json={"name": "search_web", "args": {"query": "q"}}
@@ -62,7 +64,7 @@ class TestBrowserFetchErrorClassification:
         monkeypatch.setattr(
             web_search_server._cfg, "browser_allowed_domains", ["example.com"]
         )
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.post(
             "/v1/call_tool",
@@ -87,7 +89,7 @@ class TestBrowserFetchErrorClassification:
         monkeypatch.setattr(
             web_search_server._cfg, "browser_allowed_domains", ["example.com"]
         )
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.post(
             "/v1/call_tool",
@@ -106,7 +108,7 @@ class TestBrowserFetchToolsEndpoint:
         browser_allowed_domains, so REQ-005's default filtering would otherwise
         omit browser_fetch and this assertion would fail on a real gap instead
         of exercising the intended server_key/listing behavior."""
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.get("/v1/tools?include_disabled=true")
 
@@ -120,14 +122,14 @@ class TestBrowserFetchToolsEndpoint:
     def test_include_disabled_false_omits_browser_fetch_when_domains_empty(
         self,
     ) -> None:
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.get("/v1/tools?include_disabled=false")
         names = {t["name"] for t in resp.json()["tools"]}
         assert "browser_fetch" not in names
         assert "search_web" in names
 
     def test_disabled_code_matches_browser_fetch_when_domains_empty(self) -> None:
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.get(
             "/v1/tools?include_disabled=true&disabled_code=browser_allowed_domains+is+empty"
         )
@@ -149,7 +151,7 @@ class TestBrowserFetchDispatchSuccess:
             return mock_result
 
         monkeypatch.setattr(service, "fetch_browser", _fake)
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.post(
             "/v1/call_tool",

@@ -50,7 +50,7 @@ A disabled tool called via `/v1/call_tool` returns `Tool disabled: <reason>`.
 - `pull_timeout` / `push_timeout`: optional per-operation timeout (seconds); when exceeded the operation raises `TimeoutError`. Unset means no timeout.
 - `max_log_entries` limits `git_log`; the `git_log` `inputSchema` `max_entries` has its own default. `git_show` output is truncated at a fixed character limit.
 - `/health`: `dependencies.git` reports `git` not found in PATH (degraded, HTTP 503).
-- Audit has no configured path: `GitConfig.audit_log_path` exists but is unused and no code path writes to it. Call logging goes through `_audit_log` in `git_server.py::call_tool` using the module logger, unlike github-mcp, shell-mcp, and file-delete-mcp, which keep dedicated audit files.
+- Audit has no configured path: `GitConfig.audit_log_path` exists but is unused and no code path writes to it. Call logging goes through `_audit_log` in `git_server.py::call_tool` into the server's application log `git-mcp.log`, unlike github-mcp, shell-mcp, and file-delete-mcp, which keep dedicated audit files.
 
 ### Implementation Notes
 
@@ -118,7 +118,7 @@ Git MCP returns free-form `[DENIED] ...` strings, not stable rejection codes. Ca
 
 ### Audit
 
-`git_server.py::call_tool` calls `_audit_log()` (through `_audit_log_safe()`) for every call that passes argument validation (a disabled-tool or schema-validation rejection is not audited). On a dispatched call, `target` is the resolved canonical repository path and `pre_condition`/`post_condition` carry the serialized `RepositoryState` (path, dirty flag, head type, active branch, untracked-file count, protected-branch flag, ref validity); on a path-resolution, path-containment, or repository-existence rejection, `target` is empty and `pre_condition`/`post_condition` are null. The record also carries `canonical_target` (the resolved canonical repository path) and, when the caller supplies a value, `requested_target` (the sanitized pre-resolution path), so requested and canonical targets can be correlated. Outcome values are `"ok"` (operation succeeded), `"error"` (operation failed with an exception), or `"rejected"` (operation rejected by a policy guard before execution). `GitServiceError` raises HTTP 500 (internal server error), while `GitPolicyError` raises HTTP 200 with `is_error=True` (policy rejection, not a server error).
+`git_server.py::call_tool` calls `_audit_log()` (through `_audit_log_safe()`, recorded in `git-mcp.log`) for every call that passes argument validation (a disabled-tool or schema-validation rejection is not audited). On a dispatched call, `target` is the resolved canonical repository path and `pre_condition`/`post_condition` carry the serialized `RepositoryState` (path, dirty flag, head type, active branch, untracked-file count, protected-branch flag, ref validity); on a path-resolution, path-containment, or repository-existence rejection, `target` is empty and `pre_condition`/`post_condition` are null. The record also carries `canonical_target` (the resolved canonical repository path) and, when the caller supplies a value, `requested_target` (the sanitized pre-resolution path), so requested and canonical targets can be correlated. Outcome values are `"ok"` (operation succeeded), `"error"` (operation failed with an exception), or `"rejected"` (operation rejected by a policy guard before execution). `GitServiceError` raises HTTP 500 (internal server error), while `GitPolicyError` raises HTTP 200 with `is_error=True` (policy rejection, not a server error).
 
 
 ## Keywords

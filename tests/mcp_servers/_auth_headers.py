@@ -1,9 +1,9 @@
 """tests/mcp_servers/_auth_headers.py
 
 Authorization header for tests that call the Bearer-authenticated MCP server
-applications (shell, github, file-read, file-write, file-delete).
+applications; every MCP server refuses to start without a token.
 
-The token is the value tests/conftest.py assigns to the five
+The token is the value tests/conftest.py assigns to all of the
 MCP_*_AUTH_TOKEN environment variables; keep the two in step.
 """
 

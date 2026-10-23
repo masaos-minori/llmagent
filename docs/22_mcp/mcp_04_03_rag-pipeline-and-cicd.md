@@ -64,7 +64,7 @@ Security and availability:
 - Log retrieval is bounded by a job count limit and a total size limit (`max_log_size_kb`).
 - `/health`: `dependencies.github_token="not_set"` or `dependencies.config="check failed"` (degraded, HTTP 503); otherwise `ok`.
 - Architecture: `CiCdService` delegates to a `CiBackend` Protocol (`GitHubActionsBackend`), which abstracts the CI backend.
-- Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec` (shared JSON-lines audit log `<log_dir>/audit.log` via `_audit_log()`, `server_key="cicd"`), Layer3 none.
+- Audit: Layer1 `tool_exec`, Layer2 `mcp_tool_exec` (JSON-lines records in the server's application log `<log_dir>/cicd-mcp.log` via `_audit_log()`, `server_key="cicd"`), Layer3 none.
 
 ### Guard and postcondition coverage
 

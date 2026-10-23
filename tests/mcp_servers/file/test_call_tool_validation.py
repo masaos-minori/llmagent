@@ -176,7 +176,7 @@ class TestGitCallToolDisabledGate:
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=False)
         )
-        client = TestClient(git_server.app)
+        client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool", json={"name": "git_status", "args": {"repo_path": "/tmp"}}
         )
@@ -193,7 +193,7 @@ class TestGitCallToolDisabledGate:
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=[], read_only=True)
         )
-        client = TestClient(git_server.app)
+        client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool",
             json={"name": "git_commit", "args": {"repo_path": "/tmp", "message": "x"}},
@@ -211,7 +211,7 @@ class TestGitCallToolDisabledGate:
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=True)
         )
-        client = TestClient(git_server.app)
+        client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool",
             json={"name": "git_commit", "args": {"repo_path": "/tmp", "message": "x"}},
@@ -229,7 +229,7 @@ class TestGitCallToolDisabledGate:
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=True)
         )
-        client = TestClient(git_server.app)
+        client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool", json={"name": "git_status", "args": {"repo_path": "/tmp"}}
         )
@@ -245,7 +245,7 @@ class TestGitCallToolDisabledGate:
         monkeypatch.setattr(
             git_server, "_cfg", GitConfig(allowed_repo_paths=["/tmp"], read_only=False)
         )
-        client = TestClient(git_server.app)
+        client = TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
         resp = client.post(
             "/v1/call_tool",
             json={"name": "git_commit", "args": {"repo_path": "/tmp", "message": "x"}},

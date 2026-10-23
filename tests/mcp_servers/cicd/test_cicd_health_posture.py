@@ -20,6 +20,8 @@ from fastapi.testclient import TestClient
 from mcp_servers.cicd import cicd_server
 from shared.security.posture_contract import SECURITY_CONTRACT_VERSION, SecurityPosture
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 _CICD_CHECK_IDS = {
     "server.repo_allowlist",
     "server.workflow_allowlist",
@@ -32,7 +34,7 @@ _FINGERPRINT_RE = re.compile(r"\A[0-9a-f]{64}\Z")
 @pytest.fixture
 def client() -> TestClient:
     """TestClient for the real cicd app; cicd-mcp keeps the empty-token accept-all path."""
-    return TestClient(cicd_server.app)
+    return TestClient(cicd_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
 
 def _security_block(client: TestClient) -> dict[str, Any]:

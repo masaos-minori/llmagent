@@ -23,6 +23,8 @@ from fastapi.testclient import TestClient
 from mcp_servers.server import attach_auth_middleware
 from mcp_servers.web_search import health, web_search_server
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 @pytest.fixture(autouse=True)
 def _reset_health() -> Iterator[None]:
@@ -106,7 +108,7 @@ class TestProviderHealth:
 
 class TestHealthEndpointWiring:
     def test_health_endpoint_reports_healthy_provider_details(self) -> None:
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.get("/health")
 
@@ -120,7 +122,7 @@ class TestHealthEndpointWiring:
     def test_health_endpoint_degrades_after_repeated_failures(self) -> None:
         for _ in range(health.DEGRADED_THRESHOLD):
             health.record_failure("network_error")
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.get("/health")
 
@@ -188,7 +190,7 @@ class TestBrowserProviderHealth:
 
 class TestBrowserHealthEndpointWiring:
     def test_health_endpoint_reports_browser_provider_details(self) -> None:
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.get("/health")
 
@@ -201,7 +203,7 @@ class TestBrowserHealthEndpointWiring:
     def test_health_endpoint_degrades_after_repeated_browser_failures(self) -> None:
         for _ in range(health.DEGRADED_THRESHOLD):
             health.record_browser_failure("fetch_error")
-        client = TestClient(web_search_server.app)
+        client = TestClient(web_search_server.app, headers=MCP_TEST_AUTH_HEADERS)
 
         resp = client.get("/health")
 
@@ -283,11 +285,12 @@ class TestHealthExemptionOptIn:
     def test_web_search_server_uses_the_shared_token(self) -> None:
         (call,) = _auth_middleware_calls("web_search/web_search_server.py")
         token_arg = call.args[1]
-        assert isinstance(token_arg, ast.BoolOp)
-        assert isinstance(token_arg.op, ast.Or)
-        first = token_arg.values[0]
-        assert isinstance(first, ast.Attribute)
-        assert first.attr == "auth_token"
+        assert isinstance(token_arg, ast.Call)
+        assert isinstance(token_arg.func, ast.Name)
+        assert token_arg.func.id == "require_auth_token"
+        config_token = token_arg.args[2]
+        assert isinstance(config_token, ast.Attribute)
+        assert config_token.attr == "auth_token"
 
     @pytest.mark.parametrize(
         "server_file",

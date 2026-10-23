@@ -10,12 +10,12 @@ Search provider: DuckDuckGo (no API key required).
 from __future__ import annotations
 
 import hashlib
-import logging
 import time
 from typing import Any, cast
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
@@ -30,6 +30,7 @@ from mcp_servers.server import (
     attach_auth_middleware,
     build_tools_response,
     extract_request_context,
+    require_auth_token,
 )
 from mcp_servers.web_search import health, metrics
 from mcp_servers.web_search.formatters import dispatch_web_tool
@@ -48,7 +49,7 @@ from mcp_servers.web_search.web_search_security_checks import (
 )
 from mcp_servers.web_search.web_search_tools import TOOL_LIST
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__, "/opt/llm/logs/web-search-mcp.log")
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Typed config object (module-level singleton)
@@ -99,7 +100,7 @@ app = FastAPI(
 
 attach_auth_middleware(
     cast(_FastAPIApp, app),
-    _cfg.auth_token or "",
+    require_auth_token("web-search-mcp", "MCP_WEB_SEARCH_AUTH_TOKEN", _cfg.auth_token),
 )
 
 

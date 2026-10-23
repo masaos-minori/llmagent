@@ -53,7 +53,7 @@ The `make_health_response()` helper sets `operator_action_required = not ready`,
 | `fingerprint` | 64-character lowercase hex digest over the server's non-secret security settings (scalars and counts only) |
 | `checks` | Ordered list of that server's checks; each entry carries `id`, `status`, `reason_code`, `message` |
 
-`status` is one of `ok`, `warning`, `failed`, `not_applicable`. Only `failed` blocks `validated`. `warning` is reported and the server still binds. `not_applicable` means the check does not apply to that server and is never treated as a failure. Check messages carry setting names and counts, never secrets, allowlist entries, or absolute paths.
+`status` is one of `ok`, `warning`, `failed`, `not_applicable`. Only `failed` blocks `validated`. `warning` is reported and the server still binds. `not_applicable` means the check does not apply to that server and is never treated as a failure. Check messages carry setting names and counts, never secrets, allowlist entries, or absolute paths. A server whose posture is not validated refuses to bind (exit status 1); the check runs in the common start path used by the Agent-launched binaries, `mcp_launcher.py` and `python -m`, so no launch route skips it.
 
 The Agent reads this block during startup readiness and MCP tool discovery. A `failed` check blocks Agent startup regardless of the server's `required` classification; see [ADR-004](../10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md). A server whose posture is not validated refuses to bind its HTTP port.
 

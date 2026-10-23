@@ -16,9 +16,9 @@ To trace a failed tool call through agent, transport, and server logs, follow th
     ```bash
     jq 'select(.mcp_request_id == "<id>")' <log_dir>/audit.log
     ```
-2. Search for the same `request_id` field in the MCP server's audit log (JSON-lines format):
+2. Search for the same `request_id` in the MCP server's own application log, where the `mcp_tool_exec` record is a JSON line:
     ```bash
-    jq 'select(.request_id == "<id>")' <log_dir>/audit.log
+    grep '"request_id":"<id>"' <log_dir>/<server>-mcp.log
     ```
 3. Search for the `X-Request-Id` response header in the specific server logs:
     ```bash

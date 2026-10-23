@@ -92,28 +92,42 @@ class RagPipelineMCPService:
             "use_rrf": cfg.use_rrf,
         }
 
-    async def start(self) -> None:
-        """Initialize shared resources; must be called once before first request."""
+    async def start(self, cfg: RagPipelineConfig | None = None) -> None:
+        """Initialize shared resources; must be called once before first request.
+
+        `cfg` is the configuration the security posture was built from; when omitted the
+        configuration is loaded here. A failure after the HTTP client exists closes it.
+        """
         from rag.pipeline import (
             RagPipeline,  # lazy: avoids circular import (_pipeline typed as Any)
         )
 
-        cfg = RagPipelineConfig.load()
+        if cfg is None:
+            cfg = RagPipelineConfig.load()
 
         rag_cfg = build_rag_cfg_adapter(cfg)
         module_cfg = self._build_module_cfg(cfg)
         http_timeout = 120.0  # process-level HTTP client timeout
         self._http = httpx.AsyncClient(timeout=http_timeout)
-        # SimpleNamespace satisfies RagPipeline's cfg.* attribute access pattern
-        # module_cfg bypasses resolve_rag_config's config_loader fallback / agent.toml loading
-        self._pipeline = RagPipeline(self._http, rag_cfg, module_cfg=module_cfg)
-        self._doc_mgr = DocumentManager(rag_db_path=cfg.rag_db_path)
+        try:
+            # SimpleNamespace satisfies RagPipeline's cfg.* attribute access pattern
+            # module_cfg bypasses resolve_rag_config's config_loader fallback / agent.toml loading
+            self._pipeline = RagPipeline(self._http, rag_cfg, module_cfg=module_cfg)
+            self._doc_mgr = DocumentManager(rag_db_path=cfg.rag_db_path)
+        except BaseException:
+            await self._http.aclose()
+            self._http = None
+            self._pipeline = None
+            raise
         logger.info("RagPipelineMCPService started")
 
     async def stop(self) -> None:
-        """Shutdown shared resources; must be called once before process exit."""
-        if self._http is not None:
-            await self._http.aclose()
+        """Shutdown shared resources; safe to call repeatedly or after a failed start."""
+        http = getattr(self, "_http", None)
+        self._http = None
+        self._pipeline = None
+        if http is not None:
+            await http.aclose()
         logger.info("RagPipelineMCPService stopped")
 
     def _pipeline_or_raise(self) -> RagPipelineLike:

@@ -39,6 +39,7 @@ from mcp_servers.shell.shell_models import (
 )
 
 from .shell_service_static_helpers import (
+    build_command_env,
     init_sandbox,
 )
 from .subprocess_runner import SubprocessRunner
@@ -265,9 +266,9 @@ class ShellService:
         timeout_sec = min(req.timeout_sec, self._max_timeout_sec)
         max_output_bytes = min(req.max_output_kb, self._max_output_kb) * 1024
 
-        # Filter caller env vars, then merge: inherit current env, override PATH
+        # Filter caller env vars, then build the allowlisted command environment
         filtered_env = self._filter_env(req.env)
-        env = os.environ.copy() | {"PATH": self._path} | filtered_env
+        env = build_command_env(os.environ, self._path, filtered_env)
 
         start = time.monotonic()
         proc, stdout_b, stderr_b, timed_out = await self._run_subprocess(

@@ -17,6 +17,8 @@ from mcp_servers.git.git_service import GitService
 from mcp_servers.git.git_tools import TOOL_LIST
 from mcp_servers.git.repository_state import RepositoryState
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 def _svc(
     allowed: list[str] | None = None,
@@ -394,7 +396,7 @@ class TestDispatchContract:
         git_server._cfg.allowed_repo_paths = [str(repo_dir)]
         git_server._cfg.read_only = False
         try:
-            yield TestClient(git_server.app)
+            yield TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS)
         finally:
             git_server._cfg.allowed_repo_paths = original_paths
             git_server._cfg.read_only = original_read_only

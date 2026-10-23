@@ -13,7 +13,7 @@ import logging
 import os
 import resource
 import shutil
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Mapping, Sequence
 
 from shared.security.result_dto import (
     REASON_ALLOWLIST_EMPTY,
@@ -40,6 +40,18 @@ _MAX_SUBPROCESS_COUNT = 64
 # RLIMIT_FSIZE: max size of any file written by the child, in megabytes.
 _MAX_WRITTEN_FILE_MB = 256
 
+
+# Environment a sandboxed command may inherit from the server process. Everything else,
+# in particular the MCP Bearer tokens and GITHUB_TOKEN the Agent hands to this process, is
+# withheld so model-chosen commands cannot read credentials.
+_BASE_ENV_KEYS = frozenset(
+    {"HOME", "USER", "LOGNAME", "SHELL", "LANG", "TMPDIR", "TMP", "TEMP"}
+)
+_BASE_ENV_PREFIXES = ("LC_",)
+# Matched on `_`-delimited segments so TOKENIZERS_PARALLELISM is kept.
+_SECRET_ENV_SEGMENTS = frozenset(
+    {"TOKEN", "SECRET", "PASSWORD", "PASSWD", "CREDENTIAL", "CREDENTIALS", "APIKEY"}
+)
 
 _SANDBOX_BACKEND = "firejail"
 
@@ -231,3 +243,41 @@ def make_preexec(
         set_resource_limits(max_memory_mb, timeout_sec)
 
     return _preexec
+
+
+def is_secret_env_key(key: str) -> bool:
+    """Return True when an environment variable name looks like a credential.
+
+    Matches MCP_* names and names with a TOKEN, SECRET, PASSWORD, PASSWD, CREDENTIAL(S) or
+    API_KEY word segment; the name is split on underscores so harmless names that merely
+    contain such letters (TOKENIZERS_PARALLELISM) are kept.
+    """
+    segments = key.upper().split("_")
+    if segments[0] == "MCP":
+        return True
+    if any(segment in _SECRET_ENV_SEGMENTS for segment in segments):
+        return True
+    return any(
+        first == "API" and second == "KEY"
+        for first, second in zip(segments, segments[1:], strict=False)
+    )
+
+
+def build_command_env(
+    base_env: Mapping[str, str], path: str, req_env: Mapping[str, str]
+) -> dict[str, str]:
+    """Build the environment of a sandboxed command from an explicit allowlist.
+
+    Copies only the base keys from `base_env`, sets PATH, merges the already filtered
+    caller `req_env` (which may still override PATH, as before), then drops every
+    secret-shaped key so neither the server environment nor `req_env` can pass a
+    credential to the command.
+    """
+    env = {
+        key: value
+        for key, value in base_env.items()
+        if key in _BASE_ENV_KEYS or key.startswith(_BASE_ENV_PREFIXES)
+    }
+    env["PATH"] = path
+    env.update(req_env)
+    return {key: value for key, value in env.items() if not is_secret_env_key(key)}

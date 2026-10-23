@@ -24,4 +24,5 @@ browser_timeout_sec = 15
 # auth_token: Bearer token for MCP server call authentication, resolved from
 # the MCP_WEB_SEARCH_AUTH_TOKEN environment variable. Must match
 # config/agent.toml's [mcp_servers.web_search].auth_token value (shared secret).
+# An empty or missing value makes the server refuse to start.
 auth_token = "${ENV:MCP_WEB_SEARCH_AUTH_TOKEN}"

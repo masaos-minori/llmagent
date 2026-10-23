@@ -9,7 +9,7 @@ Security:
   - repo_allowlist: only listed 'owner/repo' slugs are accessible (fail-closed)
   - workflow_allowlist: restrict triggerable workflows (empty = deny all (fail-closed))
   - max_log_size_kb: log output is capped to prevent large data dumps
-  - Optional Bearer-token auth via auth_token in cicd_mcp_server.toml
+  - Bearer-token auth via a non-empty auth_token in cicd_mcp_server.toml (required)
 
 Provided endpoints:
   GET  /v1/tools      MCP tool list
@@ -19,7 +19,6 @@ Provided endpoints:
 
 from __future__ import annotations
 
-import logging
 import os
 import time
 from typing import Any, cast
@@ -27,6 +26,7 @@ from typing import Any, cast
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from shared.formatters import fmt_kvlog
+from shared.logger import Logger
 from shared.security.posture_contract import SecurityPosture
 from shared.security.result_dto import SecurityCheckStatus
 from shared.security.startup_flow import run_startup_validation
@@ -53,9 +53,10 @@ from mcp_servers.server import (
     attach_auth_middleware,
     build_tools_response,
     extract_request_context,
+    require_auth_token,
 )
 
-logger = logging.getLogger(__name__)
+logger = Logger(__name__, "/opt/llm/logs/cicd-mcp.log")
 
 _cfg = CicdConfig.load()
 _service: CiCdService = build_service(_cfg)
@@ -118,7 +119,10 @@ app = FastAPI(
     description="CI/CD (GitHub Actions) MCP server",
 )
 
-attach_auth_middleware(cast(_FastAPIApp, app), _cfg.auth_token or "")
+attach_auth_middleware(
+    cast(_FastAPIApp, app),
+    require_auth_token("cicd-mcp", "MCP_CICD_AUTH_TOKEN", _cfg.auth_token),
+)
 setup_exception_handlers(app)
 
 

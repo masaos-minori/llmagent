@@ -97,13 +97,13 @@ See also: [security_02_high-risk-tool-common-policy.md](../91_security/security_
 - **Common guard:** `call_tool` rejects a disabled tool first; every operation naming a repository asserts it against `allowed_repos` (`_assert_allowed_repo`, `github_service_security.py`), raising `GitHubAuthorizationError` outside the allowlist.
 - **Command-specific guard:** per-operation asserts for path, branch, file size, and `per_page` clamping run before each mutating call (`github_service_security.py`).
 - **Postcondition verification:** not applicable in the current plan, because the GitHub API response carries the resulting state and no local before/after comparison is performed. `push_files` returns the new commit SHA without inspecting the ref update result, so it does not confirm that the ref moved; confirming ref movement without an extra API call is a follow-up (Plan UNK-02).
-- **Audit:** `call_tool` writes one shared `mcp_tool_exec` record per dispatched call (`server_key="github"`, `target` = `repo={owner}/{repo}`); a disabled-tool rejection returns before the audit call and writes no record. The service also writes the dedicated `github_audit.log`, and a failure to write it raises `GitHubAuditError` (HTTP 500) instead of being ignored. Before/after state snapshots are not applicable.
+- **Audit:** `call_tool` writes one `mcp_tool_exec` record (to `github-mcp.log`) per dispatched call (`server_key="github"`, `target` = `repo={owner}/{repo}`); a disabled-tool rejection returns before the audit call and writes no record. The service also writes the dedicated `github_audit.log`, and a failure to write it raises `GitHubAuditError` (HTTP 500) instead of being ignored. Before/after state snapshots are not applicable.
 
 **Error mapping:** PyGithub `GithubException` is converted to domain exceptions by status (404 NotFound, 403 Authorization, 409 Conflict, 400/422 Validation, others Upstream 502); `GitHubAuditError` is 500. Mapping is registered in `exception_handlers.py`.
 
 **Health:** `dependencies.github_token="not_set"` when the token is missing (`degraded`, HTTP 503); otherwise `ok`.
 **Logs:** `<log_dir>/github-mcp.log`
-**Audit layers:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (Shared MCP): `mcp_tool_exec` / Layer3 (Dedicated): `github_audit.log`
+**Audit layers:** Layer1 (Agent/MCP shared): `tool_exec` / Layer2 (per-server application log): `mcp_tool_exec` / Layer3 (Dedicated): `github_audit.log`
 
 ---
 

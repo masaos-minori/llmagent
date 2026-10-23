@@ -16,6 +16,8 @@ from mcp_servers.git.git_security import _resolve_repo_path, is_within_allowed_p
 from mcp_servers.git.git_service import GitService
 from mcp_servers.git.repository_state import RepositoryState
 
+from tests.mcp_servers._auth_headers import MCP_TEST_AUTH_HEADERS
+
 
 @pytest.fixture(autouse=True)
 def _disable_dispatch_duplicate_cache(monkeypatch):
@@ -543,7 +545,7 @@ def client():
     """Provide a TestClient for the git-mcp server."""
     from mcp_servers.git import git_server
 
-    with TestClient(git_server.app) as c:
+    with TestClient(git_server.app, headers=MCP_TEST_AUTH_HEADERS) as c:
         yield c
 
 
@@ -764,7 +766,7 @@ class TestPostConditionBypassPrevention:
     def client(self):
         from mcp_servers.git.git_server import app
 
-        return TestClient(app)
+        return TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
 
     def test_checkout_postcondition_cannot_be_bypassed(self, client, monkeypatch):
         """REQ-010, AC-8: Checkout postcondition failure is reported, not silently accepted."""
@@ -875,7 +877,7 @@ class TestCompletePipelineCoverage:
     def client(self):
         from mcp_servers.git.git_server import app
 
-        return TestClient(app)
+        return TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
 
     def test_all_stages_execute_in_order_for_checkout(self, client, monkeypatch):
         """REQ-010, AC-1: Authorization, precondition, execution, and postcondition stages execute in documented order."""
@@ -1012,7 +1014,7 @@ class TestLiveCallToolAuthorization:
     def client(self):
         from mcp_servers.git.git_server import app
 
-        return TestClient(app)
+        return TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
 
     @pytest.fixture
     def mock_validate_pre_snapshot(self, monkeypatch):
@@ -1606,7 +1608,7 @@ class TestDryRunAndDetachedHeadLivePath:
     def client(self):
         from mcp_servers.git.git_server import app
 
-        return TestClient(app)
+        return TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
 
     def test_dry_run_checkout_skips_dirty_and_detached_precondition(
         self, client, tmp_path
@@ -1840,13 +1842,13 @@ class TestNewlyReachableToolsViaHTTP:
     @pytest.fixture
     def client(self):
         # Unlike the module-scoped `client` fixture at the top of this file, which
-        # enters the app's lifespan via `with TestClient(...)`, this class-local
+        # enters the app's lifespan via `with TestClient(..., headers=MCP_TEST_AUTH_HEADERS)`, this class-local
         # fixture builds a plain TestClient. Both use the same
         # `mcp_servers.git.git_server` module (`mcp_servers.git.server` is only an
         # alias for it), so patching `_cfg`/`_service` affects both.
         from mcp_servers.git.git_server import app
 
-        return TestClient(app)
+        return TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
 
     @pytest.fixture
     def repo_dir(self, tmp_path):
@@ -1962,7 +1964,7 @@ class TestRemoteAuthorizationViaHTTP:
     def client(self):
         from mcp_servers.git.git_server import app
 
-        return TestClient(app)
+        return TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
 
     @pytest.fixture
     def repo_dir(self, tmp_path):
@@ -2151,7 +2153,7 @@ class TestGitServiceErrorHandlerIdentity:
     def client(self):
         from mcp_servers.git.git_server import app
 
-        return TestClient(app)
+        return TestClient(app, headers=MCP_TEST_AUTH_HEADERS)
 
     @pytest.fixture
     def repo_dir(self, tmp_path):
