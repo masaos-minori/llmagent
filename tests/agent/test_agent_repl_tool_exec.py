@@ -369,6 +369,7 @@ def _make_ctx_for_dag(
     ctx.cfg.tool.tool_result_max_llm_chars = 8000
     ctx.cfg.tools_results_turn_max_chars = 50000
     ctx.cfg.tool.tool_results_turn_max_chars = 50000
+    ctx.cfg.tool.tool_empty_result_max_repeats = 0  # mid-round scan disabled
     ctx.conv.history = []
     ctx.conv.extend_messages = AsyncMock()
     ctx.services = MagicMock()

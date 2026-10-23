@@ -168,27 +168,33 @@ class ToolLoopGuard:
             self._empty_result_counts.get(tool_name, 0) + 1
         )
 
+    def scan_empty_result_repeat(self) -> tuple[str, int] | None:
+        """Return the first (tool_name, count) at the repeat threshold; record nothing."""
+        limit = self._ctx.cfg.tool.tool_empty_result_max_repeats
+        if limit <= 0:
+            return None
+        return next(
+            ((n, c) for n, c in self._empty_result_counts.items() if c >= limit), None
+        )
+
     def check_empty_result_repeat(self, message: LLMMessage) -> str | None:
         """Check if any tool has exceeded the empty result repeat threshold."""
-        ctx = self._ctx
-        if ctx.cfg.tool.tool_empty_result_max_repeats <= 0:
+        if (hit := self.scan_empty_result_repeat()) is None:
             return None
-        for tool_name, count in self._empty_result_counts.items():
-            if count >= ctx.cfg.tool.tool_empty_result_max_repeats:
-                logger.warning(
-                    "Empty result repeat detected: %r (%s times)",
-                    tool_name,
-                    count,
-                )
-                self._save_guard_hint(
-                    ctx,
-                    "empty_result_repeat",
-                    tool_name=tool_name,
-                    repeat_count=count,
-                    hint=EMPTY_RESULT_REPEAT_HINT,
-                )
-                return f"Repeated empty result from '{tool_name}' detected."
-        return None
+        tool_name, count = hit
+        logger.warning(
+            "Empty result repeat detected: %r (%s times)",
+            tool_name,
+            count,
+        )
+        self._save_guard_hint(
+            self._ctx,
+            "empty_result_repeat",
+            tool_name=tool_name,
+            repeat_count=count,
+            hint=EMPTY_RESULT_REPEAT_HINT,
+        )
+        return f"Repeated empty result from '{tool_name}' detected."
 
     # ── Guard checks ──────────────────────────────────────────────────────────
 

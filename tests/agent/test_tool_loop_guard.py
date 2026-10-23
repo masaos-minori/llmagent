@@ -411,3 +411,61 @@ class TestReportEffectiveState:
         cfg = ToolConfig()
         assert cfg.tool_error_retry_max == 1
         assert cfg.tool_empty_result_max_repeats == 0
+
+
+class TestNonRecordingScanIsEquivalentToTheCheck:
+    @staticmethod
+    def _guard(limit: int, counts: dict[str, int]) -> tuple[ToolLoopGuard, MagicMock]:
+        ctx = _make_ctx()
+        ctx.cfg.tool.tool_empty_result_max_repeats = limit
+        ctx.diagnostics = MagicMock()
+        guard = ToolLoopGuard(ctx)
+        guard._empty_result_counts.update(counts)
+        return guard, ctx
+
+    def test_scan_returns_the_tripping_pair_and_writes_nothing(self) -> None:
+        guard, ctx = self._guard(2, {"a": 1, "b": 2, "c": 3})
+
+        assert guard.scan_empty_result_repeat() == ("b", 2)
+        ctx.diagnostics.save.assert_not_called()
+
+    def test_scan_returns_none_below_the_threshold(self) -> None:
+        guard, _ = self._guard(3, {"a": 2})
+
+        assert guard.scan_empty_result_repeat() is None
+
+    def test_check_still_logs_writes_one_hint_and_returns_the_same_text(
+        self, caplog
+    ) -> None:
+        guard, ctx = self._guard(2, {"a": 2})
+
+        with caplog.at_level("WARNING", logger="agent.tool_loop_guard"):
+            text = guard.check_empty_result_repeat({"role": "assistant"})
+
+        assert text == "Repeated empty result from 'a' detected."
+        assert "Empty result repeat detected: 'a' (2 times)" in caplog.text
+        ctx.diagnostics.save.assert_called_once()
+        kind = ctx.diagnostics.save.call_args.args[1]
+        payload = orjson.loads(ctx.diagnostics.save.call_args.args[2])
+        assert kind == "guard_hint"
+        assert payload["guard_type"] == "empty_result_repeat"
+        assert (payload["tool_name"], payload["repeat_count"]) == ("a", 2)
+
+    def test_check_returns_none_and_writes_nothing_without_a_trip(self) -> None:
+        guard, ctx = self._guard(2, {"a": 1})
+
+        assert guard.check_empty_result_repeat({"role": "assistant"}) is None
+        ctx.diagnostics.save.assert_not_called()
+
+
+class TestDisabledOptionIsInert:
+    def test_scan_and_check_are_inert_when_the_option_is_off(self) -> None:
+        ctx = _make_ctx()
+        ctx.cfg.tool.tool_empty_result_max_repeats = 0
+        ctx.diagnostics = MagicMock()
+        guard = ToolLoopGuard(ctx)
+        guard._empty_result_counts["a"] = 99
+
+        assert guard.scan_empty_result_repeat() is None
+        assert guard.check_empty_result_repeat({"role": "assistant"}) is None
+        ctx.diagnostics.save.assert_not_called()

@@ -45,3 +45,10 @@ class GuardDecisionType(StrEnum):
     DEDUP = "dedup"
     RETRY = "retry"
     ERROR_LIMIT = "error_limit"
+
+
+class ToolCallStopReason(StrEnum):
+    """Why a declared tool call was not executed in a round."""
+
+    GUARD_STOP = "guard_stop"
+    ROUND_NOT_COMPLETED = "round_not_completed"

@@ -69,6 +69,8 @@ Only calls that pass the preparation phase are passed to approval, execution, an
 
 Uses verified methods via `ConversationState.append_message()` / `extend_messages()`.
 
+A round answers every `tool_call_id` the assistant message declared: when `execute_all_tool_calls()` ends, normally or by raising, history and the saved batch hold exactly one `role='tool'` row per declared id, in the original call order. A call the round did not execute is answered by a synthesized row that says it was not executed, for one of two reasons (`ToolCallStopReason`): the round was stopped by a loop guard, or the round did not complete. A synthesized row changes neither `ctx.stats` nor `out_failed_keys`, and it is never fed to the empty-result guard. The exception that ended a failing round still propagates unchanged.
+
 ## Responsibility Boundary
 
 - **Source of Truth**: `shared/tool_executor.py`, `agent/tool_scheduler.py`, `agent/tool_preparation.py` (including preparation phase with argument validation/registry resolution)
@@ -77,6 +79,7 @@ Uses verified methods via `ConversationState.append_message()` / `extend_message
 ## Key Constraints
 
 - `_execute_with_dag()` is the only execution path; `serial_tool_calls=True` only changes the scheduler input and never selects another engine.
+- A trip of the empty-result guard observed while a round runs ends the remaining calls of the sequential group and the remaining batches of the plan; those ids are answered by synthesized rows, and the post-round check remains the only place that records the guard hint.
 - Preparation phase is fail-closed: if any issue exists (missing id, invalid JSON, unregistered tool, registry disconnected, schema violation, metadata construction failure), it is rejected before reaching approval, execution, or scheduling.
 
 ## Known Limitations

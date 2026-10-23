@@ -240,7 +240,9 @@ class TestExecuteWithDag:
                 call_id="call_read_text_file", name="read_text_file", is_write=False
             ),
         )
-        results = await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx))
+        results = await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected={}
+        )
         assert len(results) == 1
 
     @pytest.mark.asyncio
@@ -292,7 +294,10 @@ class TestExecuteWithDag:
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
         await _execute_with_dag(
-            ctx, [write_a_pc, write_b_pc, read_pc], guard=ToolLoopGuard(ctx)
+            ctx,
+            [write_a_pc, write_b_pc, read_pc],
+            guard=ToolLoopGuard(ctx),
+            collected={},
         )
         # The conflicting write pair must execute in group order.
         assert call_order.index("write_file") < call_order.index("edit_file")
@@ -329,13 +334,17 @@ class TestExecuteWithDag:
             )
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
-        await _execute_with_dag(ctx, [shell_pc, read_pc], guard=ToolLoopGuard(ctx))
+        await _execute_with_dag(
+            ctx, [shell_pc, read_pc], guard=ToolLoopGuard(ctx), collected={}
+        )
         assert call_order[0] == "shell_run"
 
     @pytest.mark.asyncio
     async def test_empty_approved_calls_returns_empty(self) -> None:
         ctx = _make_ctx()
-        results = await _execute_with_dag(ctx, [], guard=ToolLoopGuard(ctx))
+        results = await _execute_with_dag(
+            ctx, [], guard=ToolLoopGuard(ctx), collected={}
+        )
         assert results == []
 
     @pytest.mark.asyncio
@@ -380,7 +389,7 @@ class TestExecuteWithDag:
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record)
         results = await _execute_with_dag(
-            ctx, [write_pc, github_pc, read_pc], guard=ToolLoopGuard(ctx)
+            ctx, [write_pc, github_pc, read_pc], guard=ToolLoopGuard(ctx), collected={}
         )
         assert len(results) == 3
         assert set(executed) == {"write_file", "github_push_files", "read_text_file"}
@@ -408,7 +417,7 @@ class TestExecuteWithDag:
             )
         )
         results = await _execute_with_dag(
-            ctx, [read_pc, write_pc], guard=ToolLoopGuard(ctx)
+            ctx, [read_pc, write_pc], guard=ToolLoopGuard(ctx), collected={}
         )
         assert len(results) == 2
         # tc_id at index 0 should be "call_read_text_file"
@@ -442,7 +451,9 @@ class TestExecuteWithDag:
                 "agent.tool_scheduler", fromlist=["build_execution_groups"]
             ).build_execution_groups,
         ) as mock_build:
-            await _execute_with_dag(ctx, [pc1, pc2], guard=ToolLoopGuard(ctx))
+            await _execute_with_dag(
+                ctx, [pc1, pc2], guard=ToolLoopGuard(ctx), collected={}
+            )
 
         passed_tool_meta = mock_build.call_args[0][1]
         assert set(passed_tool_meta.keys()) == {"call_1", "call_2"}
@@ -618,6 +629,7 @@ class TestExecuteOneToolCallRecordsOnGuard:
             [_pc("read_text_file", {"i": i}, call_id=f"c{i}") for i in range(3)],
             guard=guard,
             force_serial=serial,
+            collected={},
         )
 
         assert guard._empty_result_counts == {"read_text_file": 3}
@@ -631,6 +643,242 @@ class TestExecuteOneToolCallRecordsOnGuard:
         await _collect_tool_result_msgs(ctx, results, 0, None)
 
         assert ctx.guard._empty_result_counts == {}
+
+
+def _declared(*names: str) -> list[dict]:
+    return [_tc(name) for name in names]
+
+
+def _tool_history_ids(ctx: MagicMock) -> list[str]:
+    return [m["tool_call_id"] for m in ctx.conv.history if m.get("role") == "tool"]
+
+
+def _saved_tool_ids(ctx: MagicMock) -> list[str]:
+    rows = ctx.session.save_many.call_args.args[0]
+    return [row[3] for row in rows]
+
+
+def _saved_text(ctx: MagicMock, call_id: str) -> str:
+    rows = ctx.session.save_many.call_args.args[0]
+    return next(row[1] for row in rows if row[3] == call_id)
+
+
+def _approve_all() -> Any:
+    return patch(
+        "agent.tool_approval.run_approval_checks",
+        new_callable=AsyncMock,
+        side_effect=lambda ctx, prepared: (prepared, []),
+    )
+
+
+def _ok(output: str = "result") -> ToolCallResult:
+    return ToolCallResult(output=output, is_error=False, request_id="r", server_key="")
+
+
+class TestRoundPairingAfterForcedFailure:
+    """Every declared tool_call id is answered exactly once, even when the round raises."""
+
+    @staticmethod
+    def _assert_paired(ctx: MagicMock, declared: list[str]) -> None:
+        assert sorted(_tool_history_ids(ctx)) == sorted(declared)
+        assert sorted(_saved_tool_ids(ctx)) == sorted(declared)
+        ctx.session.save_many.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_executor_unavailable(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.tools = None
+        calls = _declared("read_text_file", "list_directory")
+
+        with _approve_all(), pytest.raises(ToolExecutorUnavailableError):
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+
+        self._assert_paired(ctx, [c["id"] for c in calls])
+        assert "did not complete" in _saved_text(ctx, calls[0]["id"])
+
+    @pytest.mark.asyncio
+    async def test_policy_violation_reraised_on_the_gateway_bypass_path(self) -> None:
+        ctx = _make_ctx()
+        calls = _declared("shell_run")
+
+        with (
+            _approve_all(),
+            patch(
+                "agent.tool_runner.check_preflight",
+                side_effect=PolicyViolationError("denied", "denied by policy"),
+            ),
+            pytest.raises(PolicyViolationError),
+        ):
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+
+        self._assert_paired(ctx, [calls[0]["id"]])
+
+    @pytest.mark.asyncio
+    async def test_resolver_value_error(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=ValueError("unregistered tool")
+        )
+        calls = _declared("read_text_file")
+
+        with _approve_all(), pytest.raises(ValueError, match="unregistered tool"):
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+
+        self._assert_paired(ctx, [calls[0]["id"]])
+
+    @pytest.mark.asyncio
+    async def test_gathered_group_raises(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=[RuntimeError("boom"), _ok()]
+        )
+        calls = _declared("read_text_file", "list_directory")
+
+        with _approve_all(), pytest.raises(RuntimeError, match="boom"):
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+
+        self._assert_paired(ctx, [c["id"] for c in calls])
+
+    @pytest.mark.asyncio
+    async def test_approval_gate_raises_before_any_execution(self) -> None:
+        ctx = _make_ctx()
+        calls = _declared("read_text_file", "list_directory")
+
+        with (
+            patch(
+                "agent.tool_approval.run_approval_checks",
+                new_callable=AsyncMock,
+                side_effect=RuntimeError("approval down"),
+            ),
+            pytest.raises(RuntimeError, match="approval down"),
+        ):
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+
+        self._assert_paired(ctx, [c["id"] for c in calls])
+        ctx.services_required.tools.execute.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_the_original_exception_survives_a_failing_completion(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.tools = None
+        ctx.session.save_many.side_effect = RuntimeError("db down")
+
+        with _approve_all(), pytest.raises(ToolExecutorUnavailableError):
+            await execute_all_tool_calls(
+                ctx, _declared("read_text_file"), 0, guard=ToolLoopGuard(ctx)
+            )
+
+    @pytest.mark.asyncio
+    async def test_normal_round_synthesizes_nothing(self) -> None:
+        ctx = _make_ctx()
+        calls = _declared("read_text_file", "list_directory")
+
+        with _approve_all():
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+
+        self._assert_paired(ctx, [c["id"] for c in calls])
+        assert "not executed" not in " ".join(_saved_text(ctx, c["id"]) for c in calls)
+
+
+class TestCompletedResultsSurviveAFailure:
+    @pytest.mark.asyncio
+    async def test_first_result_is_kept_and_only_the_failed_call_is_synthesized(
+        self,
+    ) -> None:
+        ctx = _make_ctx(_cfg(serial_tool_calls=True))
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=[_ok("first-output"), RuntimeError("boom")]
+        )
+        calls = _declared("read_text_file", "list_directory")
+
+        with _approve_all(), pytest.raises(RuntimeError, match="boom"):
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+
+        assert _saved_text(ctx, calls[0]["id"]) == "first-output"
+        assert "not executed" in _saved_text(ctx, calls[1]["id"])
+        assert _saved_tool_ids(ctx) == [c["id"] for c in calls]  # original order
+
+
+class TestMidRoundGuardStop:
+    @pytest.mark.asyncio
+    async def test_a_trip_skips_the_rest_and_answers_it_with_the_guard_stop_reason(
+        self,
+    ) -> None:
+        ctx = _make_ctx(_cfg(serial_tool_calls=True))
+        ctx.cfg.tool.tool_empty_result_max_repeats = 2
+        ctx.diagnostics = MagicMock()
+        ctx.services_required.tools.execute = AsyncMock(return_value=_ok(""))
+        calls = [
+            {"id": f"c{i}", "function": {"name": "read_text_file", "arguments": "{}"}}
+            for i in range(3)
+        ]
+        guard = ToolLoopGuard(ctx)
+
+        with _approve_all():
+            await execute_all_tool_calls(ctx, calls, 0, guard=guard)
+
+        assert ctx.services_required.tools.execute.await_count == 2
+        assert "stopped by a loop guard" in _saved_text(ctx, "c2")
+        assert _saved_tool_ids(ctx) == ["c0", "c1", "c2"]
+        # The mid-round scan records nothing: the single hint comes from the
+        # post-round check.
+        ctx.diagnostics.save.assert_not_called()
+        assert guard.check_empty_result_repeat({"role": "assistant"}) is not None
+        ctx.diagnostics.save.assert_called_once()
+
+    @pytest.mark.asyncio
+    async def test_a_trip_ends_the_remaining_calls_of_one_sequential_group(
+        self,
+    ) -> None:
+        ctx = _make_ctx(_cfg())
+        ctx.cfg.tool.tool_empty_result_max_repeats = 2
+        ctx.services_required.tools.execute = AsyncMock(return_value=_ok(""))
+        pcs = [
+            _pc(
+                "write_file",
+                {"i": i},
+                call_id=f"w{i}",
+                spec=ToolSpec(
+                    call_id=f"w{i}",
+                    name="write_file",
+                    resource_scopes=("filesystem:/shared",),
+                    is_write=True,
+                ),
+            )
+            for i in range(3)
+        ]
+        collected: dict[str, tuple] = {}
+
+        results = await _execute_with_dag(
+            ctx, pcs, guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        assert ctx.services_required.tools.execute.await_count == 2
+        assert sorted(collected) == ["w0", "w1"]
+        assert [r[0] for r in results] == ["w0", "w1"]
+
+
+class TestSynthesizedRowsDoNotTouchGuardStateOrStats:
+    @pytest.mark.asyncio
+    async def test_only_real_results_reach_stats_failed_keys_and_the_guard(
+        self,
+    ) -> None:
+        ctx = _make_ctx(_cfg(serial_tool_calls=True))
+        ctx.cfg.tool.tool_empty_result_max_repeats = 5
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=[_ok(""), RuntimeError("boom")]
+        )
+        calls = _declared("read_text_file", "list_directory")
+        failed: set[str] = set()
+        guard = ToolLoopGuard(ctx)
+
+        with _approve_all(), pytest.raises(RuntimeError):
+            await execute_all_tool_calls(ctx, calls, 0, failed, guard=guard)
+
+        assert ctx.stats.stat_tool_calls == 1  # the executed call only
+        assert ctx.stats.stat_tool_errors == 0
+        assert failed == set()
+        assert guard._empty_result_counts == {"read_text_file": 1}
 
 
 class TestExecuteAllToolCalls:
@@ -1474,6 +1722,7 @@ class TestDagBucketDebugLines:
                 ctx,
                 [serial_pc, scoped_pc, unscoped_write_pc, parallel_pc],
                 guard=ToolLoopGuard(ctx),
+                collected={},
             )
 
         assert {r.message for r in caplog.records if "DAG_BUCKET:" in r.message} == {
@@ -1496,7 +1745,7 @@ class TestDagBucketDebugLines:
         )
 
         with caplog.at_level(logging.INFO, logger="agent.tool_run_recorder"):
-            await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx))
+            await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx), collected={})
 
         assert not [r for r in caplog.records if "DAG_BUCKET:" in r.message]
 

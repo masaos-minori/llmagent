@@ -75,7 +75,7 @@ When a guard is triggered, the system attempts to re-invoke the LLM by injecting
 - If `finish_reason != "tool_calls"`: Returns the answer text.
 - If `finish_reason == "tool_calls"`: Returns failure.
 
-The original unexecuted assistant message is not persisted.
+A guard trip before the assistant message is persisted writes nothing: the unexecuted assistant message is not persisted. A round that fails after the persist leaves a complete round: the assistant message plus one `role='tool'` row per declared `tool_call_id`, the missing ones synthesized by `execute_all_tool_calls()`.
 
 ### Hints on Guard Triggering
 

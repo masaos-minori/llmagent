@@ -24,10 +24,9 @@ from shared.tool_executor import ToolExecutor
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
-from shared.types import LLMMessage
 
 from agent.tool_audit import audit_tool_exec
-from agent.tool_enums import OperationType
+from agent.tool_enums import OperationType, ToolCallStopReason
 from agent.tool_exceptions import ToolExecutorUnavailableError
 from agent.tool_output import emit_tool_call, emit_tool_result
 from agent.tool_policy import (
@@ -40,6 +39,7 @@ from agent.tool_result_formatter import (
     mask_args,
     turn_limit_hint,
 )
+from agent.tool_round_completion import RoundState, complete_round
 from agent.tool_run_recorder import (
     _log_dag_buckets,
     _record_round_exec,
@@ -61,20 +61,40 @@ logger = logging.getLogger(__name__)
 _TOOL_RESULT_MAX_CHARS = 500
 
 
+async def _recorded_call(
+    ctx: AgentContext,
+    pc: PreparedToolCall,
+    guard: ToolLoopGuard,
+    collected: dict[str, tuple],
+) -> tuple[str, str, dict, str, bool, str]:
+    """Execute one call and record its result in *collected* the moment it exists."""
+    result = await execute_one_tool_call(ctx, pc, guard)
+    collected[pc.call_id] = result
+    return result
+
+
 async def _run_group_calls(
     group: list[PreparedToolCall],
     serialize: bool,
     ctx: AgentContext,
     guard: ToolLoopGuard,
+    collected: dict[str, tuple],
 ) -> list[Any]:
-    """Execute one group of tool calls, sequentially when serialize=True, gathered otherwise."""
+    """Execute one group of tool calls, sequentially when serialize=True, gathered otherwise.
+
+    A sequential group ends early once the guard's empty-result scan trips.
+    """
     if serialize:
         results: list[Any] = []
         for pc in group:
-            results.append(await execute_one_tool_call(ctx, pc, guard))
+            results.append(await _recorded_call(ctx, pc, guard, collected))
+            if guard.scan_empty_result_repeat():
+                break
         return results
     return list(
-        await asyncio.gather(*(execute_one_tool_call(ctx, pc, guard) for pc in group))
+        await asyncio.gather(
+            *(_recorded_call(ctx, pc, guard, collected) for pc in group)
+        )
     )
 
 
@@ -280,8 +300,12 @@ async def _run_plan_batches(
     plan: ExecutionPlan,
     pc_by_id: dict[str, PreparedToolCall],
     guard: ToolLoopGuard,
+    collected: dict[str, tuple],
 ) -> list[Any]:
-    """Run every batch of the plan, flattening group results into one list."""
+    """Run every batch of the plan, flattening group results into one list.
+
+    No further batch is dispatched once the guard's empty-result scan trips.
+    """
     results: list[Any] = []
     for batch in plan.batches:
         is_concurrent = len(batch.groups) > 1
@@ -295,11 +319,13 @@ async def _run_plan_batches(
         ]
         batch_results = await asyncio.gather(
             *(
-                _run_group_calls(pcs, group.sequential, ctx, guard)
+                _run_group_calls(pcs, group.sequential, ctx, guard, collected)
                 for pcs, group in zip(pc_groups, batch.groups)
             )
         )
         results.extend(r for group_res in batch_results for r in group_res)
+        if guard.scan_empty_result_repeat():
+            break
     return results
 
 
@@ -307,6 +333,7 @@ async def _execute_with_dag(
     ctx: AgentContext,
     approved_calls: list[PreparedToolCall],
     guard: ToolLoopGuard,
+    collected: dict[str, tuple],
     force_serial: bool = False,
 ) -> list[Any]:
     """Run approved calls through the single DAG execution plan.
@@ -334,7 +361,7 @@ async def _execute_with_dag(
     _record_serialization_stats(serialization_events)
 
     call_order = {pc.call_id: i for i, pc in enumerate(approved_calls)}
-    results = await _run_plan_batches(ctx, plan, pc_by_id, guard)
+    results = await _run_plan_batches(ctx, plan, pc_by_id, guard, collected)
     results.sort(key=lambda r: call_order.get(r[0], 0))
 
     elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -361,7 +388,9 @@ async def execute_all_tool_calls(
     """Execute all tool calls then append results in original order.
 
     *guard* is the per-turn ToolLoopGuard; each executed call records its own
-    result on it (see execute_one_tool_call).
+    result on it (see execute_one_tool_call). Every declared tool_call id is
+    answered when the round ends, by a real result or a synthesized row, even
+    when the round raises; the exception then propagates unchanged.
 
     Always DAG-scheduled via _execute_with_dag() — the single execution path.
     ctx.cfg.tool.serial_tool_calls feeds force_serial into the planner (one
@@ -376,33 +405,38 @@ async def execute_all_tool_calls(
         ctx.session.save_many([])
         return
 
-    # Fail-closed preparation phase: parse/resolve/validate before approval.
-    prepared, prep_failures = prepare_tool_calls(ctx, tool_calls)
+    state = RoundState([tc["id"] for tc in tool_calls if tc.get("id")])
 
-    # Enforce approval checks before any execution
-    approved_calls, denied_ids = await _run_approval_gate(ctx, prepared)
-
-    if approved_calls:
-        results = await _execute_with_dag(
+    async def finish(reason: ToolCallStopReason) -> None:
+        await complete_round(
             ctx,
-            approved_calls,
-            guard,
-            force_serial=ctx.cfg.tool.serial_tool_calls,
+            state,
+            tool_calls,
+            turn,
+            out_failed_keys,
+            reason,
+            _collect_tool_result_msgs,
         )
-    else:
-        results = []
 
-    # Merge preparation failures back into original batch order alongside
-    # successful execution results (denied calls are handled separately below).
-    call_order = {tc["id"]: i for i, tc in enumerate(tool_calls)}
-    results = list(results) + list(prep_failures)
-    results.sort(key=lambda r: call_order.get(r[0], 0))
-
-    tool_msgs = await _collect_tool_result_msgs(ctx, results, turn, out_failed_keys)
-    denied_history, denied_msgs = _build_denied_messages(denied_ids)
-    await ctx.conv.extend_messages(denied_history)
-    tool_msgs.extend(denied_msgs)
-    ctx.session.save_many(tool_msgs)
+    try:
+        # Fail-closed preparation phase: parse/resolve/validate before approval.
+        prepared, state.prep_failures = prepare_tool_calls(ctx, tool_calls)
+        approved_calls, state.denied_ids = await _run_approval_gate(ctx, prepared)
+        if approved_calls:
+            await _execute_with_dag(
+                ctx,
+                approved_calls,
+                guard,
+                state.collected,
+                force_serial=ctx.cfg.tool.serial_tool_calls,
+            )
+    except BaseException:
+        try:
+            await finish(ToolCallStopReason.ROUND_NOT_COMPLETED)
+        except Exception:  # noqa: BLE001 — completion must never replace the round's own exception
+            logger.exception("tool round completion failed")
+        raise
+    await finish(ToolCallStopReason.GUARD_STOP)
 
 
 async def _run_approval_gate(
@@ -421,22 +455,3 @@ async def _run_approval_gate(
     from agent.tool_approval import run_approval_checks
 
     return await run_approval_checks(ctx, prepared)
-
-
-def _build_denied_messages(
-    denied_ids: list[str],
-) -> tuple[list[LLMMessage], list[tuple[str, str, None, str]]]:
-    """Build history entries and tool_msgs for denied tool calls."""
-    denied_text = "Tool execution denied by user."
-    history_entries: list[LLMMessage] = []
-    messages: list[tuple[str, str, None, str]] = []
-    for denied_id in denied_ids:
-        history_entries.append(
-            LLMMessage(
-                role="tool",
-                tool_call_id=denied_id,
-                content=denied_text,
-            ),
-        )
-        messages.append(("tool", denied_text, None, denied_id))
-    return history_entries, messages

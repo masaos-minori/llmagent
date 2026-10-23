@@ -149,6 +149,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `OperationType` | `class OperationType` | Categorization of tool operation kinds. |
 |  | `ApprovalDecisionType` | `class ApprovalDecisionType` | Possible outcomes of an approval gate evaluation. |
 |  | `GuardDecisionType` | `class GuardDecisionType` | Decisions made by the tool guardrail system. |
+|  | `ToolCallStopReason` | `class ToolCallStopReason` | Why a declared tool call was not executed in a round. |
 | `scripts/agent/tool_exceptions.py` | `ToolArgumentsDecodeError` | `class ToolArgumentsDecodeError` | Raised when tool call arguments cannot be decoded as JSON. |
 |  | `ToolExecutorUnavailableError` | `class ToolExecutorUnavailableError` | Raised when ctx.services.tools is None at execution time. |
 |  | `PolicyViolationError` | `class PolicyViolationError` | Raised when a pre-flight policy check denies the tool call. |
@@ -182,6 +183,10 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `mask_args` | `def mask_args(args, masked_fields) -> dict[str, Any]` | Return a copy of args with masked_fields values replaced by '***'. |
 |  | `build_github_preview` | `def build_github_preview(args) -> str` | Build preview string for github_* tools showing repo and extra args. |
 |  | `build_preview` | `def build_preview(tool_name, args) -> str` | Build a human-readable operation preview shown before approval prompts. |
+| `scripts/agent/tool_result_pairing.py` | `pair_round_results` | `def pair_round_results(declared, answered, collected, stop_reason) -> tuple[list[LLMMessage], list[tuple[str, str, None, str]]]` | Return (history entries, tool rows) for declared ids that have no result. |
+|  | `build_denied_messages` | `def build_denied_messages(denied_ids) -> tuple[list[LLMMessage], list[tuple[str, str, None, str]]]` | Build history entries and tool_msgs for denied tool calls. |
+| `scripts/agent/tool_round_completion.py` | `RoundState` | `class RoundState` | What one round has produced so far, keyed by tool_call_id where it matters. |
+|  | `complete_round` | `async def complete_round(ctx, state, tool_calls, turn, out_failed_keys, reason, collect) -> None` | Persist every row the round owes and answer each unanswered declared id. |
 | `scripts/agent/tool_run_recorder.py` | `get_serialization_stats` | `def get_serialization_stats() -> dict[str, int]` | Return current serialization statistics. |
 | `scripts/agent/tool_runner.py` | `execute_one_tool_call` | `async def execute_one_tool_call(ctx, pc, guard) -> tuple[str, str, dict, str, bool, str]` | Execute and truncate one already-prepared tool call. |
 |  | `execute_all_tool_calls` | `async def execute_all_tool_calls(ctx, tool_calls, turn, out_failed_keys, *, guard) -> None` | Execute all tool calls then append results in original order. |
