@@ -16,6 +16,7 @@ from agent.config_dataclasses import AgentConfig
 from agent.context import ConversationState
 from agent.repository_gateway import RepositoryGateway
 from agent.tool_exceptions import ToolExecutorUnavailableError
+from agent.tool_loop_guard import ToolLoopGuard
 from agent.tool_policy import PolicyViolationError
 from agent.tool_preparation import PreparedToolCall
 from agent.tool_run_recorder import get_serialization_stats
@@ -239,7 +240,7 @@ class TestExecuteWithDag:
                 call_id="call_read_text_file", name="read_text_file", is_write=False
             ),
         )
-        results = await _execute_with_dag(ctx, [pc])
+        results = await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx))
         assert len(results) == 1
 
     @pytest.mark.asyncio
@@ -290,7 +291,9 @@ class TestExecuteWithDag:
             )
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
-        await _execute_with_dag(ctx, [write_a_pc, write_b_pc, read_pc])
+        await _execute_with_dag(
+            ctx, [write_a_pc, write_b_pc, read_pc], guard=ToolLoopGuard(ctx)
+        )
         # The conflicting write pair must execute in group order.
         assert call_order.index("write_file") < call_order.index("edit_file")
         # The unrelated read still executes (no ordering guarantee against it).
@@ -326,13 +329,13 @@ class TestExecuteWithDag:
             )
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record_exec)
-        await _execute_with_dag(ctx, [shell_pc, read_pc])
+        await _execute_with_dag(ctx, [shell_pc, read_pc], guard=ToolLoopGuard(ctx))
         assert call_order[0] == "shell_run"
 
     @pytest.mark.asyncio
     async def test_empty_approved_calls_returns_empty(self) -> None:
         ctx = _make_ctx()
-        results = await _execute_with_dag(ctx, [])
+        results = await _execute_with_dag(ctx, [], guard=ToolLoopGuard(ctx))
         assert results == []
 
     @pytest.mark.asyncio
@@ -376,7 +379,9 @@ class TestExecuteWithDag:
             )
 
         ctx.services_required.tools.execute = AsyncMock(side_effect=_record)
-        results = await _execute_with_dag(ctx, [write_pc, github_pc, read_pc])
+        results = await _execute_with_dag(
+            ctx, [write_pc, github_pc, read_pc], guard=ToolLoopGuard(ctx)
+        )
         assert len(results) == 3
         assert set(executed) == {"write_file", "github_push_files", "read_text_file"}
 
@@ -402,7 +407,9 @@ class TestExecuteWithDag:
                 output="ok", is_error=False, request_id="req", server_key=""
             )
         )
-        results = await _execute_with_dag(ctx, [read_pc, write_pc])
+        results = await _execute_with_dag(
+            ctx, [read_pc, write_pc], guard=ToolLoopGuard(ctx)
+        )
         assert len(results) == 2
         # tc_id at index 0 should be "call_read_text_file"
         assert results[0][0] == "call_read_text_file"
@@ -435,7 +442,7 @@ class TestExecuteWithDag:
                 "agent.tool_scheduler", fromlist=["build_execution_groups"]
             ).build_execution_groups,
         ) as mock_build:
-            await _execute_with_dag(ctx, [pc1, pc2])
+            await _execute_with_dag(ctx, [pc1, pc2], guard=ToolLoopGuard(ctx))
 
         passed_tool_meta = mock_build.call_args[0][1]
         assert set(passed_tool_meta.keys()) == {"call_1", "call_2"}
@@ -453,7 +460,9 @@ class TestExecuteWithDag:
         )
 
         with patch("rag.llm_client.summarize_tool_result") as mock_summarize:
-            result = await execute_one_tool_call(ctx, _pc("shell_run", {}))
+            result = await execute_one_tool_call(
+                ctx, _pc("shell_run", {}), guard=ToolLoopGuard(ctx)
+            )
             assert mock_summarize.call_count == 0
             _, _, _, _, _, llm_text = result
             assert len(llm_text) <= 100 + len("\n... (truncated)")
@@ -469,7 +478,9 @@ class TestExecuteWithDag:
             )
         )
 
-        result = await execute_one_tool_call(ctx, _pc("shell_run", {}))
+        result = await execute_one_tool_call(
+            ctx, _pc("shell_run", {}), guard=ToolLoopGuard(ctx)
+        )
         _, _, _, _, _, llm_text = result
         assert llm_text == short_text
 
@@ -485,7 +496,7 @@ class TestExecuteWithDag:
         )
 
         _tc_id, _name, _args, _text, is_error, llm_text = await execute_one_tool_call(
-            ctx, _pc("read_text_file", {})
+            ctx, _pc("read_text_file", {}), guard=ToolLoopGuard(ctx)
         )
 
         assert is_error
@@ -509,10 +520,117 @@ class TestExecuteWithDag:
         )
 
         _tc_id, _name, _args, _text, _is_error, llm_text = await execute_one_tool_call(
-            ctx, _pc("read_text_file", {})
+            ctx, _pc("read_text_file", {}), guard=ToolLoopGuard(ctx)
         )
 
         assert llm_text == text_over_old_threshold
+
+
+class TestExecuteOneToolCallRecordsOnGuard:
+    """Each produced non-error result is recorded on the passed guard, before truncation."""
+
+    @staticmethod
+    def _ctx(max_repeats: int = 5) -> MagicMock:
+        ctx = _make_ctx(_cfg())
+        ctx.cfg.tool.tool_empty_result_max_repeats = max_repeats
+        ctx.diagnostics = None
+        return ctx
+
+    @pytest.mark.asyncio
+    async def test_gateway_bypass_path_records_the_result(self) -> None:
+        ctx = self._ctx()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="", is_error=False, request_id="r", server_key=""
+            )
+        )
+        guard = ToolLoopGuard(ctx)
+
+        await execute_one_tool_call(ctx, _pc("read_text_file", {}), guard=guard)
+
+        assert guard._empty_result_counts == {"read_text_file": 1}
+
+    @pytest.mark.asyncio
+    async def test_gateway_path_records_the_result(self) -> None:
+        ctx = self._ctx()
+        ctx.services_required.gateway = MagicMock()
+        ctx.services_required.gateway.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="", is_error=False, request_id="r", server_key=""
+            )
+        )
+        guard = ToolLoopGuard(ctx)
+
+        await execute_one_tool_call(ctx, _pc("read_text_file", {}), guard=guard)
+
+        assert guard._empty_result_counts == {"read_text_file": 1}
+
+    @pytest.mark.asyncio
+    async def test_error_result_is_not_recorded(self) -> None:
+        ctx = self._ctx()
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="", is_error=True, request_id="r", server_key=""
+            )
+        )
+        guard = ToolLoopGuard(ctx)
+
+        await execute_one_tool_call(ctx, _pc("read_text_file", {}), guard=guard)
+
+        assert guard._empty_result_counts == {}
+
+    @pytest.mark.asyncio
+    async def test_empty_result_is_recorded_from_the_untruncated_output(self) -> None:
+        ctx = self._ctx()
+        ctx.cfg.tool.tool_result_max_llm_chars = 5
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=[
+                ToolCallResult(
+                    output="x" * 50, is_error=False, request_id="r", server_key=""
+                ),
+                ToolCallResult(
+                    output="", is_error=False, request_id="r", server_key=""
+                ),
+            ]
+        )
+        guard = ToolLoopGuard(ctx)
+
+        await execute_one_tool_call(ctx, _pc("read_text_file", {}), guard=guard)
+        await execute_one_tool_call(ctx, _pc("read_text_file", {}), guard=guard)
+
+        # A non-empty (even truncated) result resets the count; the empty one starts it.
+        assert guard._empty_result_counts == {"read_text_file": 1}
+
+    @pytest.mark.parametrize("serial", [True, False])
+    @pytest.mark.asyncio
+    async def test_both_group_shapes_record_every_result(self, serial: bool) -> None:
+        ctx = self._ctx()
+        ctx.cfg.tool.serial_tool_calls = serial
+        ctx.services_required.tools.execute = AsyncMock(
+            return_value=ToolCallResult(
+                output="", is_error=False, request_id="r", server_key=""
+            )
+        )
+        guard = ToolLoopGuard(ctx)
+
+        await _execute_with_dag(
+            ctx,
+            [_pc("read_text_file", {"i": i}, call_id=f"c{i}") for i in range(3)],
+            guard=guard,
+            force_serial=serial,
+        )
+
+        assert guard._empty_result_counts == {"read_text_file": 3}
+
+    @pytest.mark.asyncio
+    async def test_collector_no_longer_reads_a_guard_from_ctx(self) -> None:
+        ctx = self._ctx()
+        ctx.guard = ToolLoopGuard(ctx)  # the old, never-assigned attribute
+        results = [("c1", "read_text_file", {}, "", False, "")]
+
+        await _collect_tool_result_msgs(ctx, results, 0, None)
+
+        assert ctx.guard._empty_result_counts == {}
 
 
 class TestExecuteAllToolCalls:
@@ -533,7 +651,10 @@ class TestExecuteAllToolCalls:
             side_effect=lambda ctx, prepared: (prepared, []),
         ):
             await execute_all_tool_calls(
-                ctx, [_tc("read_text_file", '{"path": "/tmp/f"}')], 0
+                ctx,
+                [_tc("read_text_file", '{"path": "/tmp/f"}')],
+                0,
+                guard=ToolLoopGuard(ctx),
             )
 
         ctx.services_required.tools.execute.assert_awaited_once_with(
@@ -566,6 +687,7 @@ class TestExecuteAllToolCalls:
                 ctx,
                 [write_call],
                 0,
+                guard=ToolLoopGuard(ctx),
             )
 
         ctx.services_required.tools.execute.assert_awaited_once_with("write_file", {})
@@ -576,7 +698,7 @@ class TestExecuteAllToolCalls:
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
 
-        await execute_all_tool_calls(ctx, [], 0)
+        await execute_all_tool_calls(ctx, [], 0, guard=ToolLoopGuard(ctx))
 
         ctx.services_required.tools.execute.assert_not_called()
         ctx.session.save_many.assert_called_once_with([])
@@ -603,7 +725,7 @@ class TestExecuteAllToolCalls:
             new_callable=AsyncMock,
             return_value=([], ["call_write"]),
         ):
-            await execute_all_tool_calls(ctx, [write_call], 0)
+            await execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
 
         ctx.services_required.tools.execute.assert_not_called()
         # Denied call should appear as tool message in history
@@ -637,7 +759,9 @@ class TestExecuteAllToolCalls:
                 ["call_write"],
             ),
         ):
-            await execute_all_tool_calls(ctx, [write_call, read_call], 0)
+            await execute_all_tool_calls(
+                ctx, [write_call, read_call], 0, guard=ToolLoopGuard(ctx)
+            )
 
         ctx.services_required.tools.execute.assert_awaited_once_with(
             "read_text_file", {}
@@ -667,7 +791,7 @@ class TestExecuteAllToolCalls:
             new_callable=AsyncMock,
             return_value=([], [write_call["id"]]),
         ):
-            await execute_all_tool_calls(ctx, [write_call], 0)
+            await execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
 
         ctx.services_required.tools.execute.assert_not_called()
         assert len(ctx.conv.history) == 1
@@ -696,7 +820,7 @@ class TestExecuteAllToolCalls:
             new_callable=AsyncMock,
             return_value=([], ["call_write"]),
         ):
-            await execute_all_tool_calls(ctx, [write_call], 0)
+            await execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
 
         ctx.services_required.tools.execute.assert_not_called()
 
@@ -731,7 +855,9 @@ class TestExecuteAllToolCalls:
                 ["call_write"],
             ),
         ):
-            await execute_all_tool_calls(ctx, [write_call, read_call], 0)
+            await execute_all_tool_calls(
+                ctx, [write_call, read_call], 0, guard=ToolLoopGuard(ctx)
+            )
 
         assert ctx.conv.history == [
             {
@@ -784,7 +910,7 @@ class TestRunApprovalGateEndToEnd:
             new_callable=AsyncMock,
             return_value=True,
         ) as mock_prompt:
-            await execute_all_tool_calls(ctx, [write_call], 0)
+            await execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
 
         mock_prompt.assert_awaited_once()
         executor.execute.assert_awaited_once_with("write_file", {})
@@ -877,7 +1003,7 @@ class TestExecuteStandardSerialization:
             new_callable=AsyncMock,
             side_effect=lambda ctx, prepared: (prepared, []),
         ):
-            await execute_all_tool_calls(ctx, [write_call], 0)
+            await execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
 
         assert len(ctx.stats.stat_serialization_events) == 1
         event = ctx.stats.stat_serialization_events[0]
@@ -908,7 +1034,7 @@ class TestExecuteStandardSerialization:
             new_callable=AsyncMock,
             side_effect=lambda ctx, prepared: (prepared, []),
         ):
-            await execute_all_tool_calls(ctx, [read_call], 0)
+            await execute_all_tool_calls(ctx, [read_call], 0, guard=ToolLoopGuard(ctx))
 
         assert ctx.stats.stat_serialization_events == []
 
@@ -930,7 +1056,9 @@ class TestExecuteStandardSerialization:
             new_callable=AsyncMock,
             side_effect=lambda ctx, prepared: (prepared, []),
         ):
-            await execute_all_tool_calls(ctx, [unknown_call], 0)
+            await execute_all_tool_calls(
+                ctx, [unknown_call], 0, guard=ToolLoopGuard(ctx)
+            )
 
         assert ctx.stats.stat_serialization_events == []
         ctx.services_required.tools.execute.assert_not_called()
@@ -956,7 +1084,7 @@ class TestExecuteStandardSerialization:
             new_callable=AsyncMock,
             side_effect=lambda ctx, prepared: (prepared, []),
         ):
-            await execute_all_tool_calls(ctx, [read_call], 0)
+            await execute_all_tool_calls(ctx, [read_call], 0, guard=ToolLoopGuard(ctx))
 
         assert ctx.stats.stat_serialization_events == []
         ctx.services_required.tools.execute.assert_not_called()
@@ -981,7 +1109,7 @@ class TestExecuteStandardSerialization:
             new_callable=AsyncMock,
             side_effect=lambda ctx, prepared: (prepared, []),
         ):
-            await execute_all_tool_calls(ctx, [write_call], 0)
+            await execute_all_tool_calls(ctx, [write_call], 0, guard=ToolLoopGuard(ctx))
 
         ctx.diagnostics.save_serialization_event.assert_called_once()
         call_kwargs = ctx.diagnostics.save_serialization_event.call_args[1]
@@ -1017,7 +1145,9 @@ class TestExecuteStandardSerialization:
             new_callable=AsyncMock,
             side_effect=lambda ctx, prepared: (prepared, []),
         ):
-            await execute_all_tool_calls(ctx, [write_call_1, write_call_2], 0)
+            await execute_all_tool_calls(
+                ctx, [write_call_1, write_call_2], 0, guard=ToolLoopGuard(ctx)
+            )
 
         assert len(ctx.stats.stat_serialization_events) == 1
         event = ctx.stats.stat_serialization_events[0]
@@ -1072,7 +1202,10 @@ class TestExecuteStandardSerialization:
             side_effect=lambda ctx, prepared: (prepared, []),
         ):
             await execute_all_tool_calls(
-                ctx, [read_call, write_call_1, write_call_2], 0
+                ctx,
+                [read_call, write_call_1, write_call_2],
+                0,
+                guard=ToolLoopGuard(ctx),
             )
 
         assert [entry["tool_call_id"] for entry in ctx.conv.history] == [
@@ -1119,7 +1252,7 @@ class TestGatewayBypassGapResolution:
             call_id="call_r",
             spec=ToolSpec(call_id="call_r", name="read_text_file", is_write=False),
         )
-        result = await execute_one_tool_call(ctx, pc)
+        result = await execute_one_tool_call(ctx, pc, guard=ToolLoopGuard(ctx))
 
         executor.execute.assert_awaited_once_with("read_text_file", {})
         assert result[0] == "call_r"
@@ -1137,7 +1270,7 @@ class TestGatewayBypassGapResolution:
         )
 
         pc = _pc("read_text_file", args={}, call_id="call_r")
-        result = await execute_one_tool_call(ctx, pc)
+        result = await execute_one_tool_call(ctx, pc, guard=ToolLoopGuard(ctx))
 
         ctx.services_required.tools.execute.assert_called_once()
         assert result[0] == "call_r"
@@ -1162,7 +1295,9 @@ class TestExecutorUnavailableGuard:
             match="Tool executor is not available",
         ):
             await execute_one_tool_call(
-                ctx, _pc("read_text_file", {}, call_id="call_r")
+                ctx,
+                _pc("read_text_file", {}, call_id="call_r"),
+                guard=ToolLoopGuard(ctx),
             )
 
 
@@ -1184,7 +1319,7 @@ class TestGatewayBypassPreflightDenial:
             ),
         ):
             with pytest.raises(PolicyViolationError, match="denied by policy"):
-                await execute_one_tool_call(ctx, pc)
+                await execute_one_tool_call(ctx, pc, guard=ToolLoopGuard(ctx))
 
         assert any(
             "tool_runner.policy_denied tool='shell_run' reason=denied by policy"
@@ -1212,7 +1347,9 @@ class TestTransportFailureDiagnostics:
         )
         pc = _pc("read_text_file", {}, call_id="call_r")
 
-        _, _, _, text, is_error, _ = await execute_one_tool_call(ctx, pc)
+        _, _, _, text, is_error, _ = await execute_one_tool_call(
+            ctx, pc, guard=ToolLoopGuard(ctx)
+        )
 
         assert is_error is True
         assert len(text) == 900
@@ -1239,7 +1376,7 @@ class TestTransportFailureDiagnostics:
         )
         pc = _pc("read_text_file", {}, call_id="call_r")
 
-        await execute_one_tool_call(ctx, pc)
+        await execute_one_tool_call(ctx, pc, guard=ToolLoopGuard(ctx))
 
         ctx.diagnostics.save_transport_failure.assert_not_called()
 
@@ -1334,7 +1471,9 @@ class TestDagBucketDebugLines:
 
         with caplog.at_level(logging.DEBUG, logger="agent.tool_run_recorder"):
             await _execute_with_dag(
-                ctx, [serial_pc, scoped_pc, unscoped_write_pc, parallel_pc]
+                ctx,
+                [serial_pc, scoped_pc, unscoped_write_pc, parallel_pc],
+                guard=ToolLoopGuard(ctx),
             )
 
         assert {r.message for r in caplog.records if "DAG_BUCKET:" in r.message} == {
@@ -1357,7 +1496,7 @@ class TestDagBucketDebugLines:
         )
 
         with caplog.at_level(logging.INFO, logger="agent.tool_run_recorder"):
-            await _execute_with_dag(ctx, [pc])
+            await _execute_with_dag(ctx, [pc], guard=ToolLoopGuard(ctx))
 
         assert not [r for r in caplog.records if "DAG_BUCKET:" in r.message]
 

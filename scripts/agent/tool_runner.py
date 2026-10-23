@@ -53,6 +53,7 @@ from agent.tool_scheduler import (
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
+    from agent.tool_loop_guard import ToolLoopGuard
 
 logger = logging.getLogger(__name__)
 
@@ -64,14 +65,17 @@ async def _run_group_calls(
     group: list[PreparedToolCall],
     serialize: bool,
     ctx: AgentContext,
+    guard: ToolLoopGuard,
 ) -> list[Any]:
     """Execute one group of tool calls, sequentially when serialize=True, gathered otherwise."""
     if serialize:
         results: list[Any] = []
         for pc in group:
-            results.append(await execute_one_tool_call(ctx, pc))
+            results.append(await execute_one_tool_call(ctx, pc, guard))
         return results
-    return list(await asyncio.gather(*(execute_one_tool_call(ctx, pc) for pc in group)))
+    return list(
+        await asyncio.gather(*(execute_one_tool_call(ctx, pc, guard) for pc in group))
+    )
 
 
 def _idempotency_key(ctx: AgentContext, pc: PreparedToolCall) -> str:
@@ -147,8 +151,12 @@ def _truncate_for_llm(text: str, limit: int) -> str:
 async def execute_one_tool_call(
     ctx: AgentContext,
     pc: PreparedToolCall,
+    guard: ToolLoopGuard,
 ) -> tuple[str, str, dict, str, bool, str]:
     """Execute and truncate one already-prepared tool call.
+
+    A non-error result is recorded on *guard* here, as it is produced and before
+    truncation, so empty-result counts are visible while the rest of the batch runs.
 
     Returns (tc_id, name, args, full_text, is_error, llm_text).
     Raises ToolExecutorUnavailableError when ctx.services_required.tools is None.
@@ -178,6 +186,8 @@ async def execute_one_tool_call(
     )
 
     _record_transport_failure(ctx, name, result)
+    if not is_error:
+        guard.record_tool_result(name, text)
 
     llm_text = _truncate_for_llm(text, ctx.cfg.tool.tool_result_max_llm_chars)
 
@@ -197,17 +207,11 @@ async def _collect_tool_result_msgs(
     """
     tool_msgs: list[tuple[str, str | None, list[dict] | None, str | None]] = []
     turn_chars = 0
-    # Get guard reference for empty-result repeat detection
-    guard = getattr(ctx, "guard", None)
     for tc_id, name, args, text, is_error, llm_text in results:
         _update_stats_for_result(ctx, name, args, is_error, out_failed_keys)
         masked = mask_args(args, ctx.cfg.tool.masked_fields)
         _log_and_emit_tool_call(turn + 1, name, masked)
         _emit_tool_result(text, name)
-
-        # Wire tool result into guard for empty-result repeat detection
-        if guard is not None and not is_error:
-            guard.record_tool_result(name, text)
 
         llm_text = _apply_turn_char_limit(
             llm_text,
@@ -275,6 +279,7 @@ async def _run_plan_batches(
     ctx: AgentContext,
     plan: ExecutionPlan,
     pc_by_id: dict[str, PreparedToolCall],
+    guard: ToolLoopGuard,
 ) -> list[Any]:
     """Run every batch of the plan, flattening group results into one list."""
     results: list[Any] = []
@@ -290,7 +295,7 @@ async def _run_plan_batches(
         ]
         batch_results = await asyncio.gather(
             *(
-                _run_group_calls(pcs, group.sequential, ctx)
+                _run_group_calls(pcs, group.sequential, ctx, guard)
                 for pcs, group in zip(pc_groups, batch.groups)
             )
         )
@@ -301,6 +306,7 @@ async def _run_plan_batches(
 async def _execute_with_dag(
     ctx: AgentContext,
     approved_calls: list[PreparedToolCall],
+    guard: ToolLoopGuard,
     force_serial: bool = False,
 ) -> list[Any]:
     """Run approved calls through the single DAG execution plan.
@@ -328,7 +334,7 @@ async def _execute_with_dag(
     _record_serialization_stats(serialization_events)
 
     call_order = {pc.call_id: i for i, pc in enumerate(approved_calls)}
-    results = await _run_plan_batches(ctx, plan, pc_by_id)
+    results = await _run_plan_batches(ctx, plan, pc_by_id, guard)
     results.sort(key=lambda r: call_order.get(r[0], 0))
 
     elapsed_ms = (time.perf_counter() - t0) * 1000
@@ -349,8 +355,13 @@ async def execute_all_tool_calls(
     tool_calls: list[dict],
     turn: int,
     out_failed_keys: set[str] | None = None,
+    *,
+    guard: ToolLoopGuard,
 ) -> None:
     """Execute all tool calls then append results in original order.
+
+    *guard* is the per-turn ToolLoopGuard; each executed call records its own
+    result on it (see execute_one_tool_call).
 
     Always DAG-scheduled via _execute_with_dag() — the single execution path.
     ctx.cfg.tool.serial_tool_calls feeds force_serial into the planner (one
@@ -373,7 +384,10 @@ async def execute_all_tool_calls(
 
     if approved_calls:
         results = await _execute_with_dag(
-            ctx, approved_calls, force_serial=ctx.cfg.tool.serial_tool_calls
+            ctx,
+            approved_calls,
+            guard,
+            force_serial=ctx.cfg.tool.serial_tool_calls,
         )
     else:
         results = []

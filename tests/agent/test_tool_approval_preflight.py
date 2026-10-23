@@ -19,6 +19,7 @@ from agent.tool_audit import audit_approval as _audit_approval
 from agent.tool_audit import audit_tool_exec as _audit_tool_exec
 from agent.tool_audit import log_approval_decision
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
+from agent.tool_loop_guard import ToolLoopGuard
 from agent.tool_models import ApprovalOutcome
 from agent.tool_policy import (
     PolicyViolationError,
@@ -767,7 +768,7 @@ class TestExecuteOneToolCall:
 
         pc = _pc("read_text_file", {"path": "/tmp/f"}, call_id="call_1")
         tc_id, name, args, full_text, is_error, llm_text = await execute_one_tool_call(
-            ctx, pc
+            ctx, pc, guard=ToolLoopGuard(ctx)
         )
 
         assert tc_id == "call_1"
@@ -799,7 +800,7 @@ class TestExecuteOneToolCall:
         ctx.turn.current_turn_id = "turn-x"
 
         pc = _pc("read_text_file", {}, call_id="call_2")
-        await execute_one_tool_call(ctx, pc)
+        await execute_one_tool_call(ctx, pc, guard=ToolLoopGuard(ctx))
 
         ctx.services_required.audit_logger.info.assert_called_once()
         logged = ctx.services_required.audit_logger.info.call_args[0][0]

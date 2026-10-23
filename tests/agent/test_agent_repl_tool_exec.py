@@ -12,6 +12,7 @@ from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from agent.tool_loop_guard import ToolLoopGuard
 from agent.tool_policy import (
     check_allowed_repo as _check_allowed_repo,
 )
@@ -390,7 +391,7 @@ async def test_dag_write_executed_before_read() -> None:
     write_call = _make_tool_call("write_file", "w1")
     read_call = _make_tool_call("read_file", "r1")
 
-    async def fake_execute_one(ctx, pc):
+    async def fake_execute_one(ctx, pc, guard):
         name = pc.name
         execution_order.append(name)
         return MagicMock(
@@ -414,7 +415,9 @@ async def test_dag_write_executed_before_read() -> None:
             side_effect=lambda ctx, prepared: (prepared, []),
         ),
     ):
-        await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
+        await execute_all_tool_calls(
+            ctx, [write_call, read_call], turn=1, guard=ToolLoopGuard(ctx)
+        )
 
     assert execution_order.index("write_file") < execution_order.index("read_file")
 
@@ -431,7 +434,7 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
     write_call = _make_tool_call("write_file", "w1")
     read_call = _make_tool_call("read_file", "r1")
 
-    async def fake_execute_one(ctx, pc):
+    async def fake_execute_one(ctx, pc, guard):
         name = pc.name
         execution_order.append(name)
         return MagicMock(
@@ -458,7 +461,9 @@ async def test_dag_serial_tool_calls_overrides_dag() -> None:
             side_effect=lambda ctx, prepared: (prepared, []),
         ),
     ):
-        await execute_all_tool_calls(ctx, [write_call, read_call], turn=1)
+        await execute_all_tool_calls(
+            ctx, [write_call, read_call], turn=1, guard=ToolLoopGuard(ctx)
+        )
 
     # serial_tool_calls=True → DAG を使わず直列: LLM 指定順で実行
     assert execution_order == ["write_file", "read_file"]
@@ -477,7 +482,7 @@ async def test_parallel_execution_without_side_effects() -> None:
     read_call1 = _make_tool_call("read_file", "r1")
     read_call2 = _make_tool_call("read_file", "r2")
 
-    async def fake_execute_one(ctx, pc):
+    async def fake_execute_one(ctx, pc, guard):
         name = pc.name
         execution_order.append(pc.call_id)
         return MagicMock(
@@ -501,7 +506,9 @@ async def test_parallel_execution_without_side_effects() -> None:
             side_effect=lambda ctx, prepared: (prepared, []),
         ),
     ):
-        await execute_all_tool_calls(ctx, [read_call1, read_call2], turn=1)
+        await execute_all_tool_calls(
+            ctx, [read_call1, read_call2], turn=1, guard=ToolLoopGuard(ctx)
+        )
 
     # 両方が実行されたこと
     assert set(execution_order) == {"r1", "r2"}

@@ -117,6 +117,7 @@ class LLMTurnRunner:
                 message["tool_calls"],
                 turn,
                 out_failed_keys=state.failed_calls,
+                guard=self._guard,
             )
             n_errors = ctx.stats.stat_tool_errors - errors_before
             state.consecutive_errors = ToolLoopGuard.update_errors(

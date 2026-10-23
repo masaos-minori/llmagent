@@ -85,8 +85,10 @@ class TurnLoopState:
 class ToolLoopGuard:
     """Guards the tool-call loop against dedup, cycle, retry, consecutive errors, and progress stagnation.
 
-    Stateless per-instance; all mutable state lives in TurnLoopState so that
-    each call to LLMTurnRunner.run() starts from a clean slate.
+    One instance exists per LLM turn (created by handle_llm_turn). It owns the
+    per-tool empty-result counts in ``_empty_result_counts``, filled by
+    ``record_tool_result`` as each tool call produces its result; the other
+    per-turn loop state lives in TurnLoopState.
     """
 
     def __init__(self, ctx: AgentContext) -> None:
