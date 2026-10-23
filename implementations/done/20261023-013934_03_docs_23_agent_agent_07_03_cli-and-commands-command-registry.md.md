@@ -120,9 +120,9 @@ command error is not a turn failure; the docs checkers pass with no drift for th
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document the REPL tag taxonomy in `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md` (`REQ-008`) | Pending | — | — | AC-6 |
+| 1 | Document the REPL tag taxonomy in `docs/23_agent/agent_07_03_cli-and-commands-command-registry.md` (`REQ-008`) | Completed | 2026-10-23 | 2026-10-23 | AC-6. Added "Output Tags and Severities" section between "Key Constraints" and "Known Limitations". |
 | 2 | Add or update tests per Validation plan | N/A: documentation-only row | — | — | — |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs checkers |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | check_docs quality/structure/content_policy/consistency(--domain agent)/japanese all pass; no drift. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: this document is the documentation | — | — | — |
 
 ### Blocker Log

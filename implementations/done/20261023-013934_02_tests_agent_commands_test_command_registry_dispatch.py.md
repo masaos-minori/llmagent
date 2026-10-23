@@ -129,9 +129,9 @@ still pass unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the command-error regression tests + `caplog` assertion to `tests/agent/commands/test_command_registry_dispatch.py` (`REQ-007`) | Pending | — | — | AC-1, AC-2, AC-3, AC-7 |
+| 1 | Add the command-error regression tests + `caplog` assertion to `tests/agent/commands/test_command_registry_dispatch.py` (`REQ-007`) | Completed | 2026-10-23 | 2026-10-23 | AC-1, AC-2, AC-3, AC-7. Step 3b: tag is emitted by `CliOutputPort.write_*`, not in the body registry passes; assertions now target the emitting method + body. |
 | 2 | Add or update tests per Validation plan | N/A: this document is the test addition | — | — | — |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | pytest/ruff/mypy |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | ruff/mypy clean; 5/5 dispatch tests pass; full suite 9695 passed / 14 skipped. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: documentation-only row | — | — | — |
 
 ### Blocker Log

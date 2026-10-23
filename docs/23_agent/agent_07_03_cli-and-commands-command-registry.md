@@ -74,6 +74,17 @@ Add a `CommandDef(...)` entry to `command_defs_list.py` (with `SubcommandSpec`/`
 - A slash command that is not registered, including legacy commands such as `/db`, is rejected as an unknown command (`Unknown command: ... (type /help for commands)`); no compatibility alias is provided.
 - `/debug` rejects an unknown subcommand explicitly (`Unknown subcommand: ...`) instead of ignoring it.
 
+## Output Tags and Severities
+
+Four REPL output tags participate in the command/turn surface. Each has exactly one emitting component:
+
+- `[fatal]` — emitted by `ReplInputLoop._surface_turn_error` (`scripts/agent/repl_input_loop.py`) for turn-level failures that do **not** originate from a command handler.
+- `[error]` — emitted by `CommandRegistry` via `OutputPort.write_error` for a command-handler exception that is not a command-domain validation/parse error and not a `sqlite3.Error` (for example a runtime error raised inside a handler). A `sqlite3.Error` is also rendered here by the storage path, prefixed with a statement that the effect may be partial.
+- `[usage]` — emitted by `CommandRegistry` via `OutputPort.write_validation_error` for a command-domain validation/parse error (`CommandValidationError`, `CommandParseError`, and subclasses such as `UnknownPresetError` / `UnknownTierError`).
+- `[non-fatal]` — emitted for non-blocking runtime notices (for example the disabled-memory warning).
+
+A command-handler error is handled at the `CommandRegistry` dispatch boundary: it renders `[error]` or `[usage]` and returns a matched result, so `_surface_turn_error` (`[fatal]`) is **not** reached. A command error is therefore not a turn failure. Tag values themselves live in `scripts/agent/output_tags.py` and are not modified by this change.
+
 ## Known Limitations
 
 Not applicable.

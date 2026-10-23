@@ -25,8 +25,9 @@ document).
   knows the matched `CommandDef` and its usage line; `_dispatch_line` does not.
 - A module-level `logger` in `registry.py` matches repository conventions — sibling command
   modules already define one (`cmd_config.py`, `cmd_mcp.py`, `cmd_memory.py`).
-- `sqlite3` is already imported in `registry.py`; `CommandValidationError` / `CommandParseError`
-  come from `scripts/agent/commands/exceptions.py`.
+- `sqlite3` is imported in `registry.py` (added during implementation; the pre-edit module did
+  not import it, so this assumption was corrected at Step 3b) and `CommandValidationError` /
+  `CommandParseError` come from `scripts/agent/commands/exceptions.py`.
 
 ## Design decisions
 
@@ -150,9 +151,9 @@ strings unchanged), argument parsing (`cmd002`), event-loop blocking (`cmd003`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement command-boundary error classification, rendering and logging in `scripts/agent/commands/registry.py` (`REQ-001`–`REQ-005`) | Pending | — | — | AC-1, AC-2, AC-3, AC-5, AC-7 |
-| 2 | Add or update tests per Validation plan (companion tests in `test_command_registry_dispatch.py`) | Pending | — | — | REQ-007 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff/mypy/radon/module-size/diff-cover |
+| 1 | Implement command-boundary error classification, rendering and logging in `scripts/agent/commands/registry.py` (`REQ-001`–`REQ-005`) | Completed | 2026-10-23 | 2026-10-23 | AC-1, AC-2, AC-3, AC-5, AC-7. Step 3b: `sqlite3` was NOT pre-imported in `registry.py`; added `import sqlite3` (needed for `sqlite3.Error` classification). |
+| 2 | Add or update tests per Validation plan (companion tests in `test_command_registry_dispatch.py`) | Completed | 2026-10-23 | 2026-10-23 | AC-7. Step 3b: procedure asserted `OutputTag.*` inside the rendered body, but the tag is added by `CliOutputPort.write_*` (registry passes the raw body); rewritten to assert on the emitting method + body. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-23 | 2026-10-23 | ruff/mypy/import-linter/bandit clean; radon `dispatch()` grade B(8); module size OK; full suite 9695 passed / 14 skipped; diff-cover 100%. |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: docs handled by companion doc | — | — | REQ-008 is a separate row |
 
 ### Blocker Log

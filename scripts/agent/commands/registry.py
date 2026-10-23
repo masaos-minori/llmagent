@@ -24,6 +24,8 @@ _COMMANDS ownership:
                     and the fail-fast handler validation in __init__.
 """
 
+import logging
+import sqlite3
 from collections.abc import Callable
 from typing import Any
 
@@ -37,10 +39,13 @@ from agent.commands.cmd_session import _SessionMixin
 from agent.commands.cmd_tooling import _ToolingMixin
 from agent.commands.command_defs import CommandDef
 from agent.commands.command_defs_list import _COMMANDS
+from agent.commands.exceptions import CommandParseError, CommandValidationError
 from agent.commands.output_port import CliOutputPort, OutputPort
 from agent.context import AgentContext
 
 __all__ = ["CommandRegistry"]
+
+logger = logging.getLogger(__name__)
 
 
 class CommandRegistry(
@@ -112,6 +117,38 @@ class CommandRegistry(
         else:
             handler(*args)
 
+    async def _run_matched_command(
+        self, handler: Callable[..., Any], cmd: CommandDef, *args: str
+    ) -> bool:
+        """Invoke a matched handler, surfacing its errors at the command boundary.
+
+        Wraps the invocation in a single ``except Exception`` branch so a failing
+        slash command renders as a command-scoped ``[error]``/``[usage]`` tag and
+        returns ``True`` (matched) instead of propagating to the REPL loop's
+        turn-level ``[fatal]`` path. ``BaseException`` (e.g.
+        ``asyncio.CancelledError``, ``KeyboardInterrupt``) keeps propagating.
+        """
+        try:
+            await self._invoke_handler(handler, cmd, *args)
+        except Exception as exc:  # noqa: BLE001 — command-boundary error surface; never swallow BaseException
+            self._emit_command_error(cmd, exc)
+        return True
+
+    def _emit_command_error(self, cmd: CommandDef, exc: Exception) -> None:
+        """Render and log a handler exception as a command-scoped error.
+
+        ``CommandValidationError``/``CommandParseError`` (and subclasses) render as
+        ``[usage]``; ``sqlite3.Error`` and any other exception render as ``[error]``
+        with an explicit partial-effect note for the database case.
+        """
+        if isinstance(exc, (CommandValidationError, CommandParseError)):
+            self._out.write_validation_error(str(exc))
+        elif isinstance(exc, sqlite3.Error):
+            self._out.write_error(f"{cmd.name}: {exc} — the effect may be partial")
+        else:
+            self._out.write_error(str(exc))
+        logger.error("command %s failed: %s: %s", cmd.name, exc.__class__.__name__, exc)
+
     async def dispatch(self, line: str) -> bool:
         """Dispatch a slash command; return True if matched, False otherwise.
 
@@ -128,11 +165,9 @@ class CommandRegistry(
             if cmd.prefix:
                 if line == cmd.name or line.startswith(cmd.name + " "):
                     args = line[len(cmd.name) :].strip()
-                    await self._invoke_handler(handler, cmd, args)
-                    return True
+                    return await self._run_matched_command(handler, cmd, args)
             else:
                 if line == cmd.name:
-                    await self._invoke_handler(handler, cmd)
-                    return True
+                    return await self._run_matched_command(handler, cmd)
 
         return False
