@@ -36,6 +36,7 @@ from agent.tool_policy import (
 )
 from agent.tool_preparation import PreparedToolCall, prepare_tool_calls
 from agent.tool_result_formatter import (
+    build_execution_failure_text,
     mask_args,
     turn_limit_hint,
 )
@@ -67,8 +68,29 @@ async def _recorded_call(
     guard: ToolLoopGuard,
     collected: dict[str, tuple],
 ) -> tuple[str, str, dict, str, bool, str]:
-    """Execute one call and record its result in *collected* the moment it exists."""
-    result = await execute_one_tool_call(ctx, pc, guard)
+    """Execute one call and record its result in *collected* the moment it exists.
+
+    A call that raises during execution is converted into the same six-field
+    error row the preparation phase produces
+    (scripts/agent/tool_preparation.py:37), so a sibling in the same group still
+    completes and the round stays total (plans/20261023-004538_plan.md, REQ-001/
+    REQ-007). Only *this* call's Exception is converted; BaseException (e.g.
+    asyncio.CancelledError) keeps propagating (REQ-002/AC-5), so a cancelled
+    round still raises out of execute_all_tool_calls.
+    """
+    try:
+        result = await execute_one_tool_call(ctx, pc, guard)
+    except Exception as exc:  # noqa: BLE001 — per-call boundary: one raising call must not abort its siblings; CancelledError (BaseException) intentionally propagates (REQ-002, AC-5)
+        logger.exception(
+            "tool execution failed tool=%r call_id=%s", pc.name, pc.call_id
+        )
+        failure_text = build_execution_failure_text(exc)
+        llm_text = _truncate_for_llm(
+            failure_text, ctx.cfg.tool.tool_result_max_llm_chars
+        )
+        error_row = (pc.call_id, pc.name, pc.args, failure_text, True, llm_text)
+        collected[pc.call_id] = error_row
+        return error_row
     collected[pc.call_id] = result
     return result
 
@@ -389,8 +411,11 @@ async def execute_all_tool_calls(
 
     *guard* is the per-turn ToolLoopGuard; each executed call records its own
     result on it (see execute_one_tool_call). Every declared tool_call id is
-    answered when the round ends, by a real result or a synthesized row, even
-    when the round raises; the exception then propagates unchanged.
+    answered when the round ends, by a real result (success or a captured
+    execution-failure row) or a synthesized "not executed" row for a call that
+    never ran. A call that raises during execution is converted into that error
+    row rather than aborting its siblings; only a BaseException (e.g.
+    asyncio.CancelledError) propagates unchanged.
 
     Always DAG-scheduled via _execute_with_dag() — the single execution path.
     ctx.cfg.tool.serial_tool_calls feeds force_serial into the planner (one

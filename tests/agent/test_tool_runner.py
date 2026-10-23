@@ -5,6 +5,7 @@ Unit tests for tool_runner.py: DAG execution, standard execution, and entry poin
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,7 @@ from agent.tool_runner import (
     execute_all_tool_calls,
     execute_one_tool_call,
 )
+from agent.tool_scheduler import ExecutionPlan, ScheduledBatch, ScheduledGroup
 from shared.tool_executor_helpers import tool_hash_key
 from shared.tool_spec import ToolSpec
 from shared.transport_dto import ToolCallResult
@@ -675,8 +677,13 @@ def _ok(output: str = "result") -> ToolCallResult:
     return ToolCallResult(output=output, is_error=False, request_id="r", server_key="")
 
 
-class TestRoundPairingAfterForcedFailure:
-    """Every declared tool_call id is answered exactly once, even when the round raises."""
+class TestBatchFailureTotality:
+    """Every declared tool_call id is answered exactly once.
+
+    A call that raises DURING execution is converted into an error row (the
+    round completes); only a BaseException such as asyncio.CancelledError, or a
+    failure before execution (approval, completion), leaves the round raised.
+    """
 
     @staticmethod
     def _assert_paired(ctx: MagicMock, declared: list[str]) -> None:
@@ -685,19 +692,21 @@ class TestRoundPairingAfterForcedFailure:
         ctx.session.save_many.assert_called_once()
 
     @pytest.mark.asyncio
-    async def test_executor_unavailable(self) -> None:
+    async def test_executor_unavailable_yields_error_row_not_raise(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.tools = None
         calls = _declared("read_text_file", "list_directory")
 
-        with _approve_all(), pytest.raises(ToolExecutorUnavailableError):
+        with _approve_all():
             await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
 
         self._assert_paired(ctx, [c["id"] for c in calls])
-        assert "did not complete" in _saved_text(ctx, calls[0]["id"])
+        text = _saved_text(ctx, calls[0]["id"])
+        assert "Tool execution failed" in text
+        assert "ToolExecutorUnavailableError" in text
 
     @pytest.mark.asyncio
-    async def test_policy_violation_reraised_on_the_gateway_bypass_path(self) -> None:
+    async def test_policy_violation_yields_error_row_not_raise(self) -> None:
         ctx = _make_ctx()
         calls = _declared("shell_run")
 
@@ -707,37 +716,167 @@ class TestRoundPairingAfterForcedFailure:
                 "agent.tool_runner.check_preflight",
                 side_effect=PolicyViolationError("denied", "denied by policy"),
             ),
-            pytest.raises(PolicyViolationError),
         ):
             await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
 
         self._assert_paired(ctx, [calls[0]["id"]])
+        text = _saved_text(ctx, calls[0]["id"])
+        assert "Tool execution failed" in text
+        assert "PolicyViolationError" in text
 
     @pytest.mark.asyncio
-    async def test_resolver_value_error(self) -> None:
+    async def test_resolver_value_error_yields_error_row_not_raise(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.tools.execute = AsyncMock(
             side_effect=ValueError("unregistered tool")
         )
         calls = _declared("read_text_file")
 
-        with _approve_all(), pytest.raises(ValueError, match="unregistered tool"):
+        with _approve_all():
             await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
 
         self._assert_paired(ctx, [calls[0]["id"]])
+        text = _saved_text(ctx, calls[0]["id"])
+        assert "Tool execution failed" in text
+        assert "unregistered tool" in text
 
     @pytest.mark.asyncio
-    async def test_gathered_group_raises(self) -> None:
+    async def test_gathered_group_yields_one_error_and_one_real_row(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.tools.execute = AsyncMock(
-            side_effect=[RuntimeError("boom"), _ok()]
+            side_effect=[RuntimeError("boom"), _ok("real-output")]
         )
         calls = _declared("read_text_file", "list_directory")
 
-        with _approve_all(), pytest.raises(RuntimeError, match="boom"):
+        with _approve_all():
             await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
 
-        self._assert_paired(ctx, [c["id"] for c in calls])
+        # Exactly one error row and one real row survive; which call took the
+        # raise is non-deterministic under gather, so assert on counts.
+        texts = {c["id"]: _saved_text(ctx, c["id"]) for c in calls}
+        error_ids = [cid for cid, t in texts.items() if "Tool execution failed" in t]
+        real_ids = [cid for cid, t in texts.items() if "Tool execution failed" not in t]
+        assert len(error_ids) == 1
+        assert len(real_ids) == 1
+        assert "RuntimeError" in texts[error_ids[0]]
+        assert "boom" in texts[error_ids[0]]
+        assert texts[real_ids[0]] == "real-output"
+
+    @pytest.mark.asyncio
+    async def test_sequential_group_continues_after_a_failure(self) -> None:
+        ctx = _make_ctx(_cfg(serial_tool_calls=True))
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=[
+                RuntimeError("boom"),
+                _ok("second-output"),
+                _ok("third-output"),
+            ]
+        )
+        calls = [
+            {"id": "c0", "function": {"name": "read_text_file", "arguments": "{}"}},
+            {"id": "c1", "function": {"name": "list_directory", "arguments": "{}"}},
+            {"id": "c2", "function": {"name": "read_text_file", "arguments": "{}"}},
+        ]
+
+        with _approve_all():
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
+
+        self._assert_paired(ctx, ["c0", "c1", "c2"])
+        assert "Tool execution failed" in _saved_text(ctx, "c0")
+        assert _saved_text(ctx, "c1") == "second-output"
+        assert _saved_text(ctx, "c2") == "third-output"
+
+    @pytest.mark.asyncio
+    async def test_later_batch_runs_after_an_earlier_failure(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=[RuntimeError("boom"), _ok("second-output")]
+        )
+        pcs = [
+            _pc("read_text_file", {"i": 1}, call_id="c1"),
+            _pc("list_directory", {"i": 2}, call_id="c2"),
+        ]
+        collected: dict[str, tuple] = {}
+
+        plan = ExecutionPlan(
+            batches=(
+                ScheduledBatch(
+                    groups=(
+                        ScheduledGroup(
+                            calls=(pcs[0].spec,), sequential=True, reason="test"
+                        ),
+                    ),
+                ),
+                ScheduledBatch(
+                    groups=(
+                        ScheduledGroup(
+                            calls=(pcs[1].spec,), sequential=True, reason="test"
+                        ),
+                    ),
+                ),
+            ),
+            serialization_events=(),
+        )
+
+        with patch("agent.tool_runner.build_execution_groups", return_value=plan):
+            results = await _execute_with_dag(
+                ctx, pcs, guard=ToolLoopGuard(ctx), collected=collected
+            )
+
+        assert [r[0] for r in results] == ["c1", "c2"]
+        assert results[0][4] is True  # c1 raised -> captured as an error row
+        assert "Tool execution failed" in results[0][3]
+        assert results[1][4] is False  # c2 succeeded -> its real output survives
+        assert results[1][1] == "list_directory"
+
+    @pytest.mark.asyncio
+    async def test_error_row_carries_marker_class_and_message(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=RuntimeError("kaboom")
+        )
+        pc = _pc("read_text_file", {"i": 1}, call_id="c1")
+        collected: dict[str, tuple] = {}
+
+        await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        row = collected["c1"]
+        assert row[0] == "c1"  # tool_call_id preserved
+        assert row[1] == "read_text_file"
+        assert row[4] is True  # is_error
+        assert "[Tool execution failed:" in row[3]
+        assert "RuntimeError" in row[3]
+        assert "kaboom" in row[3]
+
+    @pytest.mark.asyncio
+    async def test_error_row_llm_copy_respects_the_char_limit(self) -> None:
+        ctx = _make_ctx(_cfg(tool_result_max_llm_chars=20))
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=RuntimeError("x" * 500)
+        )
+        pc = _pc("read_text_file", {"i": 1}, call_id="c1")
+        collected: dict[str, tuple] = {}
+
+        await _execute_with_dag(
+            ctx, [pc], guard=ToolLoopGuard(ctx), collected=collected
+        )
+
+        llm_text = collected["c1"][5]
+        assert len(llm_text) <= 20 + len("\n... (truncated)")
+        assert "... (truncated)" in llm_text
+
+    @pytest.mark.asyncio
+    async def test_cancellation_still_propagates_not_converted(self) -> None:
+        ctx = _make_ctx()
+        ctx.services_required.tools.execute = AsyncMock(
+            side_effect=[asyncio.CancelledError("stop"), _ok()]
+        )
+        calls = _declared("read_text_file", "list_directory")
+
+        with _approve_all(), pytest.raises(asyncio.CancelledError):
+            await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
 
     @pytest.mark.asyncio
     async def test_approval_gate_raises_before_any_execution(self) -> None:
@@ -758,12 +897,14 @@ class TestRoundPairingAfterForcedFailure:
         ctx.services_required.tools.execute.assert_not_called()
 
     @pytest.mark.asyncio
-    async def test_the_original_exception_survives_a_failing_completion(self) -> None:
+    async def test_a_failing_completion_still_raises(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.tools = None
         ctx.session.save_many.side_effect = RuntimeError("db down")
 
-        with _approve_all(), pytest.raises(ToolExecutorUnavailableError):
+        # The per-call failure is now converted to an error row, so the round
+        # completes; the surviving exception is the completion (save_many) one.
+        with _approve_all(), pytest.raises(RuntimeError, match="db down"):
             await execute_all_tool_calls(
                 ctx, _declared("read_text_file"), 0, guard=ToolLoopGuard(ctx)
             )
@@ -782,20 +923,21 @@ class TestRoundPairingAfterForcedFailure:
 
 class TestCompletedResultsSurviveAFailure:
     @pytest.mark.asyncio
-    async def test_first_result_is_kept_and_only_the_failed_call_is_synthesized(
-        self,
-    ) -> None:
+    async def test_first_result_kept_and_failed_call_becomes_error_row(self) -> None:
         ctx = _make_ctx(_cfg(serial_tool_calls=True))
         ctx.services_required.tools.execute = AsyncMock(
             side_effect=[_ok("first-output"), RuntimeError("boom")]
         )
         calls = _declared("read_text_file", "list_directory")
 
-        with _approve_all(), pytest.raises(RuntimeError, match="boom"):
+        # The failing call is converted to an error row; the round completes.
+        with _approve_all():
             await execute_all_tool_calls(ctx, calls, 0, guard=ToolLoopGuard(ctx))
 
         assert _saved_text(ctx, calls[0]["id"]) == "first-output"
-        assert "not executed" in _saved_text(ctx, calls[1]["id"])
+        failed_text = _saved_text(ctx, calls[1]["id"])
+        assert "Tool execution failed" in failed_text
+        assert "RuntimeError" in failed_text
         assert _saved_tool_ids(ctx) == [c["id"] for c in calls]  # original order
 
 
@@ -858,27 +1000,45 @@ class TestMidRoundGuardStop:
         assert [r[0] for r in results] == ["w0", "w1"]
 
 
-class TestSynthesizedRowsDoNotTouchGuardStateOrStats:
+class TestStatsForRealVsSynthesizedRows:
     @pytest.mark.asyncio
-    async def test_only_real_results_reach_stats_failed_keys_and_the_guard(
-        self,
-    ) -> None:
+    async def test_every_failed_call_increments_stats_and_failed_keys(self) -> None:
+        # A raised call is now an error row that reaches stats (REQ-009/AC-7),
+        # unlike the pre-fix behavior where it aborted the round.
         ctx = _make_ctx(_cfg(serial_tool_calls=True))
         ctx.cfg.tool.tool_empty_result_max_repeats = 5
         ctx.services_required.tools.execute = AsyncMock(
-            side_effect=[_ok(""), RuntimeError("boom")]
+            side_effect=[RuntimeError("boom-a"), RuntimeError("boom-b")]
         )
         calls = _declared("read_text_file", "list_directory")
         failed: set[str] = set()
         guard = ToolLoopGuard(ctx)
 
-        with _approve_all(), pytest.raises(RuntimeError):
+        with _approve_all():
             await execute_all_tool_calls(ctx, calls, 0, failed, guard=guard)
 
-        assert ctx.stats.stat_tool_calls == 1  # the executed call only
+        assert ctx.stats.stat_tool_calls == 2
+        assert ctx.stats.stat_tool_errors == 2
+        assert len(failed) == 2
+
+    @pytest.mark.asyncio
+    async def test_never_rans_synthesized_row_skips_stats(self) -> None:
+        ctx = _make_ctx(_cfg(serial_tool_calls=True))
+        ctx.cfg.tool.tool_empty_result_max_repeats = 2
+        ctx.services_required.tools.execute = AsyncMock(return_value=_ok(""))
+        calls = _declared("read_text_file", "list_directory", "read_text_file")
+        failed: set[str] = set()
+
+        with _approve_all():
+            await execute_all_tool_calls(
+                ctx, calls, 0, failed, guard=ToolLoopGuard(ctx)
+            )
+
+        # Only the two executed calls hit stats; the guard-stop synthesized row
+        # bypasses stats (see complete_round).
+        assert ctx.stats.stat_tool_calls == 2
         assert ctx.stats.stat_tool_errors == 0
         assert failed == set()
-        assert guard._empty_result_counts == {"read_text_file": 1}
 
 
 class TestExecuteAllToolCalls:

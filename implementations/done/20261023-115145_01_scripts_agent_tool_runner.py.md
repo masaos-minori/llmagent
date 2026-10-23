@@ -33,51 +33,25 @@ Modify only `scripts/agent/tool_runner.py`: add one private per-call wrapper and
 
 ### Procedure
 
-1. Add the cross-module private import near the existing `tool_run_recorder` import block (`scripts/agent/tool_runner.py:43-48`). Import the failure-text builder by name from `agent.tool_result_formatter`:
+1. Add the cross-module private import to the existing `agent.tool_result_formatter` import block (`scripts/agent/tool_runner.py:38-41`). Import `build_execution_failure_text` by name alongside `mask_args` and `turn_limit_hint`, keeping the single grouped import.
 
-   ```python
-   from agent.tool_result_formatter import build_execution_failure_text
-   ```
+2. Modify the existing per-call boundary `_recorded_call` (`scripts/agent/tool_runner.py:64-73`) **in place** rather than adding a new wrapper. Wrap its `await execute_one_tool_call(ctx, pc, guard)` in `try/except Exception`: on success, record the result into *collected* exactly as before and return it; on `Exception`, log the traceback, build the same six-field error row the preparation phase produces (`scripts/agent/tool_preparation.py:37`), record it into *collected*, and return it. `BaseException` (e.g. `asyncio.CancelledError`) is intentionally not caught, so a cancelled round still propagates. Annotate the catch with `# noqa: BLE001` carrying an em-dash justification. Because `_recorded_call` is already the single function both branches of `_run_group_calls` await, no routing change is needed and the concurrent `asyncio.gather` keeps its current form (no `return_exceptions=True`).
 
-   Keep it in the same grouped third-party/first-party import style as the surrounding imports; do not add a second import group. This is the same cross-module private-import pattern the module already uses for `_log_dag_buckets`, `_record_round_exec`, `_record_serialization_stats`, `_record_round_serialization_events`.
+3. Update `execute_all_tool_calls`'s docstring, which previously stated the round's exception "then propagates unchanged"; a call that raises during execution is now converted into an error row, and only a `BaseException` propagates unchanged.
 
-2. Add the private per-call wrapper as a module-level async function directly above `_run_group_calls` (before `scripts/agent/tool_runner.py:63`). It returns `tuple[str, str, dict, str, bool, str]` for both outcomes:
-
-   ```python
-   async def _run_group_call(
-       ctx: AgentContext,
-       pc: PreparedToolCall,
-   ) -> tuple[str, str, dict, str, bool, str]:
-       """Execute one prepared call, capturing its failure as an error row.
-
-       Returns the same six-field tuple `execute_one_tool_call` documents
-       (`scripts/agent/tool_runner.py:150`, `:153`) for a success and for a
-       failure: `(tc_id, name, args, full_text, is_error, llm_text)`. Only this
-       call's exception is converted; nothing is raised out of here, so the
-       surrounding `asyncio.gather` sites need no `return_exceptions`.
-       """
-       try:
-           return await execute_one_tool_call(ctx, pc)
-       except Exception as exc:  # noqa: BLE001 — per-call boundary: one raising call must not abort its siblings; CancelledError (BaseException) intentionally propagates
-           logger.exception(
-               "tool execution failed tool=%r call_id=%s", pc.name, pc.call_id
-           )
-           failure_text = build_execution_failure_text(exc)
-           llm_text = _truncate_for_llm(
-               failure_text, ctx.cfg.tool.tool_result_max_llm_chars
-           )
-           return pc.call_id, pc.name, pc.args, failure_text, True, llm_text
-   ```
-
-   The `try` covers only the awaited `execute_one_tool_call` call. The row-building (`build_execution_failure_text`, `_truncate_for_llm`, the return tuple) is outside the `try`, so a bug in this new code stays a bug rather than becoming a tool error. `str(exc)` in the LLM-facing text follows the existing precedent at `scripts/shared/tool_transport_invoker.py:209`, `:219`.
-
-3. Route both branches of `_run_group_calls` (`scripts/agent/tool_runner.py:63-74`) through the wrapper. The sequential branch (`:69-73`) awaits each call through `_run_group_call`; the concurrent branch (`:74`) gathers `_run_group_call` coroutines. Leave the function's signature, docstring, and the `serialize` branch selection unchanged. Because nothing raises at the boundary, the concurrent `asyncio.gather` keeps its current form (no `return_exceptions=True`).
-
-4. Do not touch `_run_plan_batches` (`:274-298`), either order-restoring sort (`:332`, `:383-385`), `_collect_tool_result_msgs` (`:187-222`), `_update_stats_for_result` (`:225-237`), `execute_all_tool_calls` (`:347-391`), or `execute_one_tool_call` (`:147-184`). Every element of `results` is still a tuple, so both sorts keep working and downstream consumers already handle `is_error=True` rows.
+Do not touch `_run_plan_batches`, either order-restoring sort, `_collect_tool_result_msgs`, `_update_stats_for_result`, `execute_one_tool_call` (its raise contract is intact — `TestExecutorUnavailableGuard` / `TestGatewayBypassPreflightDenial` pass unmodified), or `_run_group_calls` itself.
 
 ### Method
 
-Edit in place with the `edit` tool: add the import (one edit), add the wrapper function (one edit before `_run_group_calls`), and replace the two body lines of `_run_group_calls` (one edit). Verify with `git diff` that only these three regions changed and that `_run_plan_batches`, both sorts, and `execute_one_tool_call` are byte-identical to HEAD.
+Edit in place with the `edit` tool: add the import name (one edit), wrap `_recorded_call`'s awaited call (one edit), and update the `execute_all_tool_calls` docstring (one edit). Verify with `git diff` that only these three regions changed and that `_run_plan_batches`, both sorts, `_run_group_calls`, and `execute_one_tool_call` are byte-identical to HEAD.
+
+## Adversarial-verification findings (Step 3b)
+
+Verified against current HEAD before implementing. Two corrections vs. the original procedure:
+
+- **Change location.** The original Procedure said to add a *new* `_run_group_call(ctx, pc)` wrapper above `_run_group_calls` and route both branches through it. That assumed a pre-refactor `_run_group_calls` that awaited a 2-arg wrapper. HEAD instead has `_recorded_call(ctx, pc, guard, collected)` as the single per-call boundary already awaited by both branches of `_run_group_calls`. Adding a new wrapper would have required changing `_run_group_calls` and would have dropped the `collected[pc.call_id] = ...` recording (the new wrapper never recorded). The implemented change therefore modifies `_recorded_call` in place: it preserves the success-path recording and adds the capture path. This is the minimal, correct location.
+- **Line numbers are stale.** All `scripts/agent/tool_runner.py:N` references in the original Procedure pointed at the pre-refactor layout (e.g. `_run_group_calls` at `:63-74`, the import at `:43-48`). They have been restated above against the current file.
+- **Module-size gate.** The original "16384 B" was wrong; the gate is 20480 B (`tools/check_module_size.py:5`). `tool_runner.py` is 17718 B after this change — under the gate.
 
 ### Details
 
@@ -107,8 +81,8 @@ Revert the commit (single logical change: one import, one wrapper, two routed ca
 
 ## Completion criteria
 
-- `_run_group_call` exists as a private module-level async function returning `tuple[str, str, dict, str, bool, str]` for both success and failure.
-- Both branches of `_run_group_calls` await their calls through `_run_group_call`; the concurrent branch's `asyncio.gather` has no `return_exceptions=True`.
+- The per-call boundary `_recorded_call` returns `tuple[str, str, dict, str, bool, str]` for both success and failure (success path unchanged; a raised call now yields an error row).
+- Both branches of `_run_group_calls` await their calls through `_recorded_call`; the concurrent branch's `asyncio.gather` has no `return_exceptions=True`.
 - No exception object reaches `results`; both sorts (`:332`, `:383-385`) and `_collect_tool_result_msgs` unpack are unchanged in form.
 - `execute_one_tool_call` is byte-identical to HEAD; `TestExecutorUnavailableGuard` and `TestGatewayBypassPreflightDenial` pass unmodified.
 - The `# noqa: BLE001` annotation carries an em-dash justification; `bandit`, `check_suppression_justification.py`, `lint-imports`, `check_module_size.py`, and `generate_reference_table.py --check` all pass with no new finding.
@@ -126,9 +100,9 @@ Revert the commit (single logical change: one import, one wrapper, two routed ca
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the per-call wrapper and route both `_run_group_calls` branches in `scripts/agent/tool_runner.py` | Pending | — | — | `# noqa: BLE001` with justification; no change to `_run_plan_batches` or the sorts |
-| 2 | Add/update tests in `tests/agent/test_tool_runner.py` per Validation plan | Pending | — | — | Includes cancellation and stats cases |
-| 3 | Run the validation sequence (`rules/toolchain.md`) plus module-size/import/reference checks | Pending | — | — | See Validation plan |
+| 1 | Modify `_recorded_call` in place (wrap `execute_one_tool_call` in `try/except Exception`, record error row into `collected`) + add the `build_execution_failure_text` import + update `execute_all_tool_calls` docstring in `scripts/agent/tool_runner.py` | Completed | 20261023 | 20261023 | Changed existing `_recorded_call` in place, NOT a new per-call wrapper (see findings). `# noqa: BLE001` with em-dash justification; `_run_plan_batches`, both sorts, `_run_group_calls`, `execute_one_tool_call` byte-identical to HEAD |
+| 2 | Rewrite the three raise-expecting test classes in `tests/agent/test_tool_runner.py` to the batch-total contract + add sequential/multi-batch/row-text/truncation/cancellation/stats cases | Completed | 20261023 | 20261023 | the round-pairing class → `TestBatchFailureTotality`, the stats-reachability class → `TestStatsForRealVsSynthesizedRows`; 64→70 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) plus module-size/import/reference checks | Completed | 20261023 | 20261023 | ruff clean; mypy clean; 6 import contracts kept; bandit 0 high/medium; suppression-justification clean; tool_runner.py 17718 B < 20480 B; radon `_recorded_call` grade A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
