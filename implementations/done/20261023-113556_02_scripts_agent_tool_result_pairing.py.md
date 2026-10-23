@@ -101,6 +101,11 @@ Create the file with these contents:
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Implemented with a 4-argument `pair_round_results(declared, answered, collected, stop_reason)` returning `(history entries, tool rows)` like `build_denied_messages`, so the caller extends history and the saved batch directly. Module docstring uses the `path — description` form required by `check_docstrings`. The enum text constants live in the module as one dict keyed by `ToolCallStopReason`. `format_error_payload` named in the procedure does not exist in the tree; the tests compare against the denial text instead.
+
+
 - Pure function; no caller contract beyond its parameters. `tool_runner.py`
   imports it and merges its output into the existing `save_many()` batch.
 
@@ -145,8 +150,8 @@ and passes docstring and module-size checks.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create pure module with `pair_round_results` and one payload per `ToolCallStopReason` (REQ-001, REQ-004) | Pending | — | — | Phase 1 |
-| 2 | Add pure-function test file; run docstring + module-size checks (REQ-013) | Pending | — | — | Phase 1 |
+| 1 | Create pure module with `pair_round_results` and one payload per `ToolCallStopReason` (REQ-001, REQ-004) | Completed | 20261023-170136 | 20261023-170136 | Phase 1 implemented; full suite passed |
+| 2 | Add pure-function test file; run docstring + module-size checks (REQ-013) | Completed | 20261023-170136 | 20261023-170136 | Phase 1 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -92,6 +92,11 @@ Add these classes to the existing file (do not modify existing classes):
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- The sessions in these tests are mocks, so rows are read from the `save_many` argument and `ctx.conv.history` instead of `fetch_messages()` (no real DB is built in this file). Cases: executor unavailable, re-raised policy violation, resolver error, gathered group failure, approval gate failure, completion failure not masking the original exception, a normal round synthesizing nothing, completed results surviving, a mid-round stop (batch boundary and one sequential group), and stats/guard isolation. Mutation checks: pairing disabled (14 tests fail), scan writing a hint (4), no completion on exception (7), no group-level break (1), no batch-level break (1).
+
+
 - Purely additive; existing 16 direct `execute_all_tool_calls` call sites
   (`:535`, `:565`, … `:1074`) and the order contract at `:1034` keep passing
   unchanged (`AC-3`).
@@ -133,10 +138,10 @@ exception still propagates, and all existing assertions remain green.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add TestRoundPairingAfterForcedFailure, TestCompletedResultsSurviveAFailure, AC-2 request-shape assertion (REQ-001, REQ-002, REQ-012) | Pending | — | — | Phase 1 |
-| 2 | Add TestSynthesizedRowsDoNotTouchGuardStateOrStats (REQ-005) | Pending | — | — | Phase 1 |
-| 3 | Add TestMidRoundGuardStop, TestNoSecondHintForOneTrip (REQ-006, REQ-007) | Pending | — | — | Phase 2, needs guard parameter |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add TestRoundPairingAfterForcedFailure, TestCompletedResultsSurviveAFailure, AC-2 request-shape assertion (REQ-001, REQ-002, REQ-012) | Completed | 20261023-170141 | 20261023-170141 | Phase 1 implemented; full suite passed |
+| 2 | Add TestSynthesizedRowsDoNotTouchGuardStateOrStats (REQ-005) | Completed | 20261023-170141 | 20261023-170141 | Phase 1 |
+| 3 | Add TestMidRoundGuardStop, TestNoSecondHintForOneTrip (REQ-006, REQ-007) | Completed | 20261023-170141 | 20261023-170141 | Phase 2, needs guard parameter |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-170141 | 20261023-170141 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

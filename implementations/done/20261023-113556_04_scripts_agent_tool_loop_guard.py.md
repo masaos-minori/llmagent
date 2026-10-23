@@ -84,6 +84,11 @@ keep passing). Dependent test: `tests/agent/test_tool_loop_guard.py`.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- The scan is public, `scan_empty_result_repeat()`, not `_scan_empty_result_repeat()`: `tool_runner.py` consults it from another module. `check_empty_result_repeat()` keeps the log line, the `guard_hint` payload and the returned text. The scan is a single `next(...)` over the counts; module size 16104 B.
+
+
 - `check_empty_result_repeat()` keeps its signature, return type, logging, and
   diagnostic write. The turn-level check at `llm_turn_runner.py:125` is unchanged.
 
@@ -127,10 +132,10 @@ existing guard tests pass; no lint/type/size finding.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extract `_scan_empty_result_repeat()` (non-recording) from `check_empty_result_repeat()` (REQ-007) | Pending | — | — | Phase 2 |
-| 2 | Make `check_empty_result_repeat()` the recording wrapper over the scan (REQ-007) | Pending | — | — | Phase 2 |
-| 3 | Add extraction-equivalence + disabled-option tests (REQ-006, REQ-007) | Pending | — | — | Phase 2 |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extract `_scan_empty_result_repeat()` (non-recording) from `check_empty_result_repeat()` (REQ-007) | Completed | 20261023-170138 | 20261023-170138 | Phase 2 implemented; full suite passed |
+| 2 | Make `check_empty_result_repeat()` the recording wrapper over the scan (REQ-007) | Completed | 20261023-170138 | 20261023-170138 | Phase 2 |
+| 3 | Add extraction-equivalence + disabled-option tests (REQ-006, REQ-007) | Completed | 20261023-170138 | 20261023-170138 | Phase 2 |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-170138 | 20261023-170138 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

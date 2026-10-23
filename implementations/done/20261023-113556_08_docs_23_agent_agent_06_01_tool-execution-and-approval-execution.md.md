@@ -63,6 +63,11 @@ plus one `## Key Constraints` bullet for the mid-round stop. `## Known Limitatio
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- `### Result Reflection in History` states the round invariant, the two stop reasons and that synthesized rows do not touch stats or the guard; one `Key Constraints` bullet states the mid-round stop and that the post-round check records the hint.
+
+
 - Documentation only; no code, config, or `docs/00_index.md` change.
 
 ## Security considerations
@@ -94,9 +99,9 @@ Constraints` carries the mid-round-stop bullet; all three docs validators pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `### Result Reflection in History` with the round invariant, two stop reasons, stats/guard note (AC-6) | Pending | — | — | Phase 3 |
-| 2 | Add mid-round-stop bullet to `## Key Constraints` | Pending | — | — | Phase 3 |
-| 3 | Run docs validators (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend `### Result Reflection in History` with the round invariant, two stop reasons, stats/guard note (AC-6) | Completed | 20261023-170143 | 20261023-170143 | Phase 3 implemented; full suite passed |
+| 2 | Add mid-round-stop bullet to `## Key Constraints` | Completed | 20261023-170143 | 20261023-170143 | Phase 3 |
+| 3 | Run docs validators (`rules/toolchain.md`) | Completed | 20261023-170143 | 20261023-170143 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -158,6 +158,15 @@ parameters to the three engines.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Implemented per the plan with these corrections: `tool001` had already landed, so the round threads `guard` and the new round-owned `collected` map through `_execute_with_dag`/`_run_plan_batches`/`_run_group_calls` and `_recorded_call(ctx, pc, guard, collected)` calls `execute_one_tool_call(ctx, pc, guard)`. The procedure's `_execute_with_dag(..., collected=...)` omitted `guard`; the 35 existing test calls of `_execute_with_dag` needed `collected` as well.
+- UNK-05 materialized: the round logic put `tool_runner.py` at 17797 B (gate 16384 B). Fallback taken: the completion step moved to a new module `scripts/agent/tool_round_completion.py` (`RoundState`, `complete_round`, with `_collect_tool_result_msgs` injected to avoid an import cycle), and `_build_denied_messages` moved to the pure pairing module as `build_denied_messages` (no external reference existed). Final size 16303 B, no baseline added.
+- Completion runs in an `except BaseException` branch (so cancellation is covered) and the original exception is re-raised; a failure inside the completion is logged and never replaces it. Declared ids are read with `tc.get(\"id\")` so the existing `KeyError` from `tc[\"id\"]` stays where it was (REQ-011).
+- Known limit: `collected` is keyed by id, so two calls sharing an id in one batch now yield one row (HEAD wrote both). A duplicated id is a malformed provider response and is out of scope.
+- The mid-round scan is consulted after each recorded call of a sequential group and after each batch.
+
+
 - No public signature change above `execute_all_tool_calls`; its parameter list
   and `-> None` are unchanged (`REQ-008`, AC-4). The three private engines gain
   parameters but are called only internally.
@@ -223,11 +232,11 @@ or import finding.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Read declared ids, own `collected`, thread through engines, record at production point (REQ-002, REQ-003) | Pending | — | — | Phase 1 |
-| 2 | Run pairing step on normal and exceptional completion; merge into single save_many in declared order (REQ-001, REQ-009, REQ-012) | Pending | — | — | Phase 1 |
-| 3 | Re-raise original exception; preserve KeyError at :383; keep answered paths unsynthesized (REQ-008, REQ-010, REQ-011) | Pending | — | — | Phase 1 |
-| 4 | Consult mid-round scan after each recorded result / batch; break on trip (REQ-006) | Pending | — | — | Phase 2, needs tool001 guard parameter |
-| 5 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Read declared ids, own `collected`, thread through engines, record at production point (REQ-002, REQ-003) | Completed | 20261023-170135 | 20261023-170135 | Phase 1 implemented; full suite passed |
+| 2 | Run pairing step on normal and exceptional completion; merge into single save_many in declared order (REQ-001, REQ-009, REQ-012) | Completed | 20261023-170135 | 20261023-170135 | Phase 1 |
+| 3 | Re-raise original exception; preserve KeyError at :383; keep answered paths unsynthesized (REQ-008, REQ-010, REQ-011) | Completed | 20261023-170135 | 20261023-170135 | Phase 1 |
+| 4 | Consult mid-round scan after each recorded result / batch; break on trip (REQ-006) | Completed | 20261023-170135 | 20261023-170135 | Phase 2, needs tool001 guard parameter |
+| 5 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-170135 | 20261023-170135 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

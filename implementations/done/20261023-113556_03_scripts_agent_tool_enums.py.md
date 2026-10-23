@@ -62,6 +62,11 @@ No call site exists yet; `tool_result_pairing.py` (row 2) imports it.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Appended `ToolCallStopReason` (`GUARD_STOP`, `ROUND_NOT_COMPLETED`) after `GuardDecisionType` as written.
+
+
 - Pure addition; no existing symbol changes. `tool_runner.py` imports the new
   enum (row 1).
 
@@ -98,8 +103,8 @@ pattern; both members have distinct string values; all checks pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append two-member `ToolCallStopReason` `StrEnum` (REQ-004) | Pending | — | — | Phase 1 |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Append two-member `ToolCallStopReason` `StrEnum` (REQ-004) | Completed | 20261023-170137 | 20261023-170137 | Phase 1 implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-170137 | 20261023-170137 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

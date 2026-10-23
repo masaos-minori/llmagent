@@ -70,6 +70,11 @@ Add one class after the existing tests:
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Added to `tests/agent/test_tool_loop_guard.py` against the public scan name; boundary cases use real `ToolLoopGuard` counts and a mock diagnostics channel.
+
+
 - Additive; the 34 existing tests are not edited (`REQ-006`).
 
 ## Security considerations
@@ -103,9 +108,9 @@ option returns `None`; all existing tests pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add TestNonRecordingScanIsEquivalentToTheCheck (REQ-007) | Pending | — | — | Phase 2 |
-| 2 | Add TestDisabledOptionIsInert (REQ-006) | Pending | — | — | Phase 2 |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add TestNonRecordingScanIsEquivalentToTheCheck (REQ-007) | Completed | 20261023-170142 | 20261023-170142 | Phase 2 implemented; full suite passed |
+| 2 | Add TestDisabledOptionIsInert (REQ-006) | Completed | 20261023-170142 | 20261023-170142 | Phase 2 |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-170142 | 20261023-170142 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

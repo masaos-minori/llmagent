@@ -78,6 +78,11 @@ Create the file with four test classes:
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Written as `tests/agent/test_tool_result_pairing.py` against the 4-argument signature; added `TestBuildDeniedMessages` because that helper moved into the pure module. No fixtures or patching.
+
+
 - New file; does not touch any existing test.
 
 ## Security considerations
@@ -111,8 +116,8 @@ declared order, and both payloads are distinct and non-error-shaped.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add pure-function coverage of REQ-004, REQ-009, REQ-010, REQ-013 | Pending | — | — | Phase 1 |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add pure-function coverage of REQ-004, REQ-009, REQ-010, REQ-013 | Completed | 20261023-170140 | 20261023-170140 | Phase 1 implemented; full suite passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-170140 | 20261023-170140 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

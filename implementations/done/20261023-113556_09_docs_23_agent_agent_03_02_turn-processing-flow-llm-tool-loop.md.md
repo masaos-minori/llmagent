@@ -60,6 +60,11 @@ persisted.") with two cases:
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- The `:78` sentence is replaced by the two real cases (trip before the persist writes nothing; failure after the persist leaves a complete round). `agent_13_reference-api-generated.md` was regenerated (new public names from the two new modules) and `--check` reports no drift.
+
+
 - Documentation only; no code, config, or `docs/00_index.md` change.
 
 ## Security considerations
@@ -91,8 +96,8 @@ Triggering` is unchanged; all three docs validators pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace `:78` with the two real cases (AC-6) | Pending | — | — | Phase 3 |
-| 2 | Run docs validators (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace `:78` with the two real cases (AC-6) | Completed | 20261023-170144 | 20261023-170144 | Phase 3 implemented; full suite passed |
+| 2 | Run docs validators (`rules/toolchain.md`) | Completed | 20261023-170144 | 20261023-170144 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
