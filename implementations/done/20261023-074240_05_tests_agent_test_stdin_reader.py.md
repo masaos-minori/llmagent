@@ -33,11 +33,11 @@ N/A: the Plan's test list is fixed; this row implements them.
 
 ### Method
 
-- `TestRequestDrivenRead`: inject a counting fake; assert (a) no line is consumed before a request exists, (b) one read per request, (c) a second concurrent `read()` on the same instance raises `RuntimeError`.
-- `TestCancelledRequestDelivery`: cancel a request, then complete the read; assert the line is delivered to the newest pending request, discarded when none exists, and that a delivery to a closed loop produces no exception and no log.
-- `TestWorkerSurvivesReadErrors`: inject a fake that raises `EOFError`, then `KeyboardInterrupt`, then `SystemExit`, then `RuntimeError`; assert each arrives at the awaiting call site as a stored future exception and that the same instance serves the next request.
-- `TestReaderUsesNoExecutorAndNoNonDaemonThread`: assert `threading.enumerate()` shows the worker is a daemon thread and no non-daemon thread is created by a read; spy on the running loop's `run_in_executor` during a read and assert it is never called.
-- `TestAbandonedReadDoesNotDelayProcessExit` (`@pytest.mark.integration`): run `sys.executable -c` with the primitive, keep the child's stdin pipe open and never write to it, start a read, cancel it after 100 ms, let the child's main coroutine return, and assert the child exits within 2.0 s of `time.monotonic()`.
+- `TestRequestDrivenRead` (new): inject a counting fake; assert (a) no line is consumed before a request exists, (b) one read per request, (c) a second concurrent `read()` on the same instance raises `RuntimeError`.
+- `TestCancelledRequestDelivery` (new): cancel a request, then complete the read; assert the line is delivered to the newest pending request, discarded when none exists, and that a delivery to a closed loop produces no exception and no log.
+- `TestWorkerSurvivesReadErrors` (new): inject a fake that raises `EOFError`, then `KeyboardInterrupt`, then `SystemExit`, then `RuntimeError`; assert each arrives at the awaiting call site as a stored future exception and that the same instance serves the next request.
+- `TestReaderUsesNoExecutorAndNoNonDaemonThread` (new): assert `threading.enumerate()` shows the worker is a daemon thread and no non-daemon thread is created by a read; spy on the running loop's `run_in_executor` during a read and assert it is never called.
+- `TestAbandonedReadDoesNotDelayProcessExit` (new) (`@pytest.mark.integration`): run `sys.executable -c` with the primitive, keep the child's stdin pipe open and never write to it, start a read, cancel it after 100 ms, let the child's main coroutine return, and assert the child exits within 2.0 s of `time.monotonic()`.
 
 ### Details
 
@@ -77,8 +77,8 @@ Modifying any existing test file (rows 6, 7, 8).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `tests/agent/test_stdin_reader.py` with the four unit classes and the integration subprocess case | In Progress | 20261023-074240 | — | REQ-001..REQ-005; AC-1, AC-3, AC-4 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `tests/agent/test_stdin_reader.py` with the four unit classes and the integration subprocess case | Completed | 20261023-135522 | 20261023-135522 | REQ-001..REQ-005; AC-1, AC-3, AC-4 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-135522 | 20261023-135522 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

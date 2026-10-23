@@ -73,8 +73,8 @@ Editing any other section of this document. Updating `agent_07_05` (that is row 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `:65` stdin-read executor-thread claim in `agent_10_06` | In Progress | 20261023-074240 | — | REQ-010; AC-9 |
-| 2 | Run the docs validation sequence (`routing.md` Tools) | Pending | — | — | |
+| 1 | Replace the `:65` stdin-read executor-thread claim in `agent_10_06` | Completed | 20261023-135528 | 20261023-135528 | REQ-010; AC-9 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Run the docs validation sequence (`routing.md` Tools) | Completed | 20261023-135528 | 20261023-135528 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

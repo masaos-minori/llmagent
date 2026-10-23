@@ -72,8 +72,8 @@ Changing any assertion value, parameterization, or case name. Modifying `tool_ap
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-point the `asyncio.to_thread` patch targets and `:805`'s assertion to the private seam | In Progress | 20261023-074240 | — | REQ-009; AC-6, AC-8 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Re-point the `asyncio.to_thread` patch targets and `:805`'s assertion to the private seam | Completed | 20261023-135525 | 20261023-135525 | REQ-009; AC-6, AC-8 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-135525 | 20261023-135525 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

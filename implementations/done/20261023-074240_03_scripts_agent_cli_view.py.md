@@ -1,6 +1,6 @@
 ## Goal
 
-Route `scripts/agent/cli_view.py`'s multiline continuation read through the instance-owned `StdinReader`, and remove the private `ThreadPoolExecutor`, its `__del__` cleanup, and the `concurrent.futures` import that keep a joinable pool worker alive across process exit (`plans/20261022-040200_plan.md`, REQ-005, REQ-007, REQ-008, REQ-011; AC-2, AC-4, AC-5, AC-7).
+Route `scripts/agent/cli_view.py`'s multiline continuation read through the instance-owned `StdinReader` (new), and remove the private `ThreadPoolExecutor`, its `__del__` cleanup, and the `concurrent.futures` import that keep a joinable pool worker alive across process exit (`plans/20261022-040200_plan.md`, REQ-005, REQ-007, REQ-008, REQ-011; AC-2, AC-4, AC-5, AC-7).
 
 ## Scope
 
@@ -8,7 +8,7 @@ Modify only `scripts/agent/cli_view.py`: replace the private-pool read in `read_
 
 ## Assumptions
 
-- `CLIView` owns one `StdinReader` instance for its lifetime, used only from the loop that runs `read_multiline`.
+- `CLIView` owns one `StdinReader` (new) instance for its lifetime, used only from the loop that runs `read_multiline`.
 - The `"... "` prompt and the continuation stop conditions (no trailing backslash, empty line, EOF, Ctrl-C) are preserved exactly.
 
 ## Design decisions
@@ -31,7 +31,7 @@ N/A: the Plan fixes the mechanism; this row performs the mechanical substitution
 
 1. Delete `import concurrent.futures` (`:13`).
 2. In `CLIView.__init__`, delete the `self._input_executor` attribute assignment (`:112`) and the `__del__` method (`:114-118`).
-3. Import `StdinReader` from `scripts/agent/stdin_reader.py`.
+3. Import `StdinReader` (new) from `scripts/agent/stdin_reader.py`.
 4. In `read_multiline`, replace the lazy-pool block (`:285-289`) with a single call: `cont = await asyncio.wait_for(self._stdin_reader.read(prompt="... "), timeout=_INPUT_TIMEOUT_S)`.
 5. Reword the `read_multiline` docstring rationale (`:277-280`) to describe the bounded daemon read.
 
@@ -66,7 +66,7 @@ N/A: revert the commit.
 ## Completion criteria
 
 - `cli_view.py` contains no `concurrent.futures` reference and no `__del__`.
-- `TestReadMultilineTimeout` passes (with `_INPUT_TIMEOUT_S` monkeypatched far from 30, blocking `input` stub → asserts `KeyboardInterrupt` and no non-daemon thread left behind).
+- `TestReadMultilineTimeout` (new) passes (with `_INPUT_TIMEOUT_S` monkeypatched far from 30, blocking `input` stub → asserts `KeyboardInterrupt` and no non-daemon thread left behind).
 - The five existing `TestReadMultiline` cases pass unchanged.
 
 ## Out of Scope
@@ -78,9 +78,9 @@ The primary prompt reads (`repl_input_loop.py`, row 2) and the approval prompt (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewire `scripts/agent/cli_view.py` and delete its pool, `__del__` and import | In Progress | 20261023-074240 | — | REQ-005, REQ-007, REQ-008, REQ-011; AC-2, AC-4, AC-5, AC-7 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rewire `scripts/agent/cli_view.py` and delete its pool, `__del__` and import | Completed | 20261023-135519 | 20261023-135519 | REQ-005, REQ-007, REQ-008, REQ-011; AC-2, AC-4, AC-5, AC-7 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-135519 | 20261023-135519 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-135519 | 20261023-135519 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

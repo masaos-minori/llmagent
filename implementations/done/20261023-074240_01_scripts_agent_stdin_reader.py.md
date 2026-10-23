@@ -4,7 +4,7 @@ Create `scripts/agent/stdin_reader.py`, the single blocking-stdin-read primitive
 
 ## Scope
 
-One new module, one public class (`StdinReader`). It owns one daemon `threading.Thread` per instance, performs one blocking `input()` per request, and bridges the result back to the awaiting coroutine via `loop.call_soon_threadsafe`. No other file is modified by this row.
+One new module, one public class (`StdinReader` (new)). It owns one daemon `threading.Thread` per instance, performs one blocking `input()` per request, and bridges the result back to the awaiting coroutine via `loop.call_soon_threadsafe`. No other file is modified by this row.
 
 ## Assumptions
 
@@ -14,7 +14,7 @@ One new module, one public class (`StdinReader`). It owns one daemon `threading.
 
 ## Design decisions
 
-- A plain daemon `threading.Thread`, not any `concurrent.futures` executor. Measured: a private pool returns the loop in 0.20 s but the process in 6.09 s, and a pool subclass whose workers are daemon still waits 6.10 s, because `_python_exit` joins every entry of `_threads_queues` regardless of the daemon flag (`/usr/lib/python3.14/concurrent/futures/thread.py:23-31`). Only a non-pool daemon thread satisfies the exit criterion (measured 0.29 s).
+- A plain daemon `threading.Thread`, not any `concurrent.futures` executor. Measured: a private pool returns the loop in 0.20 s but the process in 6.09 s, and a pool subclass whose workers are daemon still waits 6.10 s, because the interpreter-exit hook (_python_exit) joins every entry of the executor's thread-queue registry regardless of the daemon flag (`/usr/lib/python3.14/concurrent/futures/thread.py:23-31`). Only a non-pool daemon thread satisfies the exit criterion (measured 0.29 s).
 - Request-driven: the worker blocks on a `threading.Event` (no poll, no sleep loop, no busy wait). It performs exactly one read per request and never pre-reads a line the caller has not requested.
 - Instance ownership, not a process-wide singleton: each owner holds its own instance; a reader instance is used only from the event loop that issued its request.
 - Loop capture per request from `asyncio.get_running_loop()`, so a reader instance can deliver into whichever loop is currently running rather than a bound, possibly-closed loop.
@@ -32,7 +32,7 @@ One new module, one public class (`StdinReader`). It owns one daemon `threading.
 
 ### Procedure
 
-1. Create the module with one class `StdinReader`.
+1. Create the module with one class `StdinReader` (new).
 2. Implement the guarded, request-driven read described below.
 3. Keep every function at or below radon B and the file well under the 16384 B size gate.
 
@@ -43,9 +43,12 @@ One new module, one public class (`StdinReader`). It owns one daemon `threading.
 
 ### Details
 
+- **Adversarial correction (verified against the stated policies; supersedes the "start event" wording below)**: a literal "start event set once per request" lets a request that arrives while an abandoned `input()` is still blocked set the event a second time, so after delivering the abandoned line to the newest request the worker would run a second, unrequested `input()` and steal a line. Implement an explicit single-waiter state machine under one `threading.Lock`: a `_waiter` (new) slot (loop, future, prompt) for the one pending request, and a `_reading` (new) flag for "an `input()` call is outstanding". `read()` takes the lock, raises `RuntimeError` if a not-yet-done waiter exists, stores its waiter, and wakes the worker only when `_reading` (new) is false; the `finally` of `read()` clears the slot only if it still holds that request's future. The worker loop waits for the wake event, sets `_reading` (new), calls the read function with the waiter's prompt, then under the lock clears `_reading` (new) and takes the current waiter; it delivers through `loop.call_soon_threadsafe(self._deliver, future, line, exc)` and discards the line when no waiter exists. `_deliver` (new) runs in the loop thread and skips a future that is already `done()` (cancelled), so no the asyncio invalid-state error reaches the loop's exception handler. Result: one outstanding `input()` at a time, at most one line per request, no unrequested reads.
+- **Closed-loop waiter (found by a unit test while implementing)**: a waiter whose loop was closed without cancelling the task never completes its future, so `read()` also treats a waiter whose loop `is_closed()` as stale instead of refusing the next request with `RuntimeError`.
+- **Read function lookup**: resolve the builtin at call time (`builtins.input`), not at construction, because existing tests patch `builtins.input` after the owner (`CLIView`, `ReplInputLoop`) is built; an optional constructor argument overrides it for the unit tests.
 - **Worker thread**: started exactly once, the first time `read` is called, as `threading.Thread(target=self._run, daemon=True)`. `_run` loops: wait on the start event, perform `input(self._prompt)`, store the line or the raised exception, set the line-available event, and repeat until the interpreter exits. It never joins and is never joined.
-- **Delivery**: after the worker stores a line, it calls `loop.call_soon_threadsafe(self._deliver, future)` where `_deliver` sets the future's result. Wrap the `call_soon_threadsafe` call in `try/except RuntimeError` to make delivery to a closed loop a no-op (REQ-003).
-- **Cancellation / abandoned-line policy**: if the originating future is already `done()` when the line arrives, deliver to the newest pending request on the instance; if none exists, discard. This is stated in code and pinned by `TestCancelledRequestDelivery` (`AC-4`).
+- **Delivery**: after the worker stores a line, it calls `loop.call_soon_threadsafe(self._deliver, future)` where `_deliver` (new) sets the future's result. Wrap the `call_soon_threadsafe` call in `try/except RuntimeError` to make delivery to a closed loop a no-op (REQ-003).
+- **Cancellation / abandoned-line policy**: if the originating future is already `done()` when the line arrives, deliver to the newest pending request on the instance; if none exists, discard. This is stated in code and pinned by `TestCancelledRequestDelivery` (new) (`AC-4`).
 - **Exceptions (REQ-004)**: the worker catches `(Exception, KeyboardInterrupt, SystemExit)` explicitly around `input()` and stores the exception in the future via `loop.call_soon_threadsafe(fut.set_exception, exc)`. No blind `except Exception`; no suppression comment. This reproduces what `concurrent.futures` delivers today and what `_input_task` expects at `repl_input_loop.py:145`.
 - **One-request guard (REQ-002)**: a second `read` on the same instance while one is in flight raises `RuntimeError` instead of being silently queued.
 - **No lifecycle hooks**: no `close()`, `shutdown()`, `join()`, or `atexit` hook. Joining it is exactly the cost this Plan removes.
@@ -86,9 +89,9 @@ Rewiring the three call sites (that is rows 2, 3, 4). Tuning any timeout value. 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `scripts/agent/stdin_reader.py` with the guarded, request-driven daemon read primitive | In Progress | 20261023-074240 | — | REQ-001..REQ-005; AC-1, AC-3, AC-4 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create `scripts/agent/stdin_reader.py` with the guarded, request-driven daemon read primitive | Completed | 20261023-135514 | 20261023-135514 | REQ-001..REQ-005; AC-1, AC-3, AC-4 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-135514 | 20261023-135514 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-135514 | 20261023-135514 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

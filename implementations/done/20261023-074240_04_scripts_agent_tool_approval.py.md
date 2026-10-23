@@ -1,10 +1,10 @@
 ## Goal
 
-Route `scripts/agent/tool_approval.py`'s approval prompts through a module-level owned `StdinReader`, and remove the now-unused `import asyncio` (used in the module only for `asyncio.to_thread`, which is `loop.run_in_executor(None, …)`) so the approval prompt is no longer a default-executor stdin read (`plans/20261022-040200_plan.md`, REQ-005, REQ-009; AC-2, AC-6, AC-8).
+Route `scripts/agent/tool_approval.py`'s approval prompts through a module-level owned `StdinReader` (new), and remove the now-unused `import asyncio` (used in the module only for `asyncio.to_thread`, which is `loop.run_in_executor(None, …)`) so the approval prompt is no longer a default-executor stdin read (`plans/20261022-040200_plan.md`, REQ-005, REQ-009; AC-2, AC-6, AC-8).
 
 ## Scope
 
-Modify only `scripts/agent/tool_approval.py`: add a module-level lazily-created `StdinReader`, route both prompts through a private seam, and delete `import asyncio`. Keep the prompts, `"yes"`/`"y"` matching, `check_approval`'s exactly-one-prompt-per-tool-call shape (`:186`), the audit calls, and the `EOFError` propagation path unchanged.
+Modify only `scripts/agent/tool_approval.py`: add a module-level lazily-created `StdinReader` (new), route both prompts through a private seam, and delete `import asyncio`. Keep the prompts, `"yes"`/`"y"` matching, `check_approval`'s exactly-one-prompt-per-tool-call shape (`:186`), the audit calls, and the `EOFError` propagation path unchanged.
 
 ## Assumptions
 
@@ -13,7 +13,7 @@ Modify only `scripts/agent/tool_approval.py`: add a module-level lazily-created 
 
 ## Design decisions
 
-- A single module-level `StdinReader` is created lazily on first use (no eager import-time construction), since this module has no component to own an instance (`REQ-005`). A small private helper `_approval_read(prompt)` wraps `reader.read(prompt=prompt)` so the two call sites stay one-liners and the patch-target re-point in `test_tool_approval_preflight.py` has a single seam to aim at.
+- A single module-level `StdinReader` (new) is created lazily on first use (no eager import-time construction), since this module has no component to own an instance (`REQ-005`). A small private helper `_approval_read(prompt)` wraps `reader.read(prompt=prompt)` so the two call sites stay one-liners and the patch-target re-point in `test_tool_approval_preflight.py` has a single seam to aim at.
 - `import asyncio` is removed in the same step once both `to_thread` calls are replaced.
 
 ## Alternatives considered
@@ -28,7 +28,7 @@ N/A: the Plan fixes the mechanism; this row performs the mechanical substitution
 
 ### Procedure
 
-1. Import `StdinReader` from `scripts/agent/stdin_reader.py`.
+1. Import `StdinReader` (new) from `scripts/agent/stdin_reader.py`.
 2. Add a module-level lazily-created reader, e.g. a function-local singleton via a module global set on first call, or a small accessor that constructs one on first use.
 3. In `_prompt_user_approval` (`:123-131`), replace `(await asyncio.to_thread(input, "  Execute? [yes/no]: "))` with `(await _approval_read("  Execute? [yes/no]: "))` and `(await asyncio.to_thread(input, "  Execute? [y/N]: "))` with `(await _approval_read("  Execute? [y/N]: "))`.
 4. Delete `import asyncio` (`:11`).
@@ -76,9 +76,9 @@ The primary prompt reads (`repl_input_loop.py`, row 2) and the multiline continu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewire `scripts/agent/tool_approval.py` and remove its `asyncio` import | In Progress | 20261023-074240 | — | REQ-005, REQ-009; AC-2, AC-6 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rewire `scripts/agent/tool_approval.py` and remove its `asyncio` import | Completed | 20261023-135520 | 20261023-135520 | REQ-005, REQ-009; AC-2, AC-6 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-135520 | 20261023-135520 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-135520 | 20261023-135520 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

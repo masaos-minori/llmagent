@@ -4,7 +4,7 @@ Add two additive cases to `tests/agent/test_repl.py` asserting that the prompt r
 
 ## Scope
 
-Modify only `tests/agent/test_repl.py`: add `TestPromptReadDoesNotUseAnExecutor` and `TestPromptInterruptAndEofUnchanged`. Keep every existing fixture and case unchanged.
+Modify only `tests/agent/test_repl.py`: add `TestPromptReadDoesNotUseAnExecutor` (new) and `TestPromptInterruptAndEofUnchanged` (new). Keep every existing fixture and case unchanged.
 
 ## Assumptions
 
@@ -13,8 +13,8 @@ Modify only `tests/agent/test_repl.py`: add `TestPromptReadDoesNotUseAnExecutor`
 
 ## Design decisions
 
-- `TestPromptReadDoesNotUseAnExecutor` spies on the running loop's `run_in_executor` while `_read_input` performs a read on each branch and asserts the spy is never called, and asserts `threading.enumerate()` shows no non-daemon thread left behind.
-- `TestPromptInterruptAndEofUnchanged` stubs `builtins.input` to raise `EOFError`/`KeyboardInterrupt` and asserts `_read_input` returns `None` and `_abort_input` runs once.
+- `TestPromptReadDoesNotUseAnExecutor` (new) spies on the running loop's `run_in_executor` while `_read_input` performs a read on each branch and asserts the spy is never called, and asserts `threading.enumerate()` shows no non-daemon thread left behind.
+- `TestPromptInterruptAndEofUnchanged` (new) stubs `builtins.input` to raise `EOFError`/`KeyboardInterrupt` and asserts `_read_input` returns `None` and `_abort_input` runs once.
 
 ## Alternatives considered
 
@@ -28,8 +28,8 @@ N/A: the Plan fixes the two cases; this row adds them.
 
 ### Procedure
 
-1. Add `TestPromptReadDoesNotUseAnExecutor` under the existing read-input test class.
-2. Add `TestPromptInterruptAndEofUnchanged` alongside it.
+1. Add `TestPromptReadDoesNotUseAnExecutor` (new) under the existing read-input test class.
+2. Add `TestPromptInterruptAndEofUnchanged` (new) alongside it.
 3. Do not modify any existing fixture, parameterization, or case name.
 
 ### Method
@@ -61,7 +61,7 @@ N/A: delete the added cases.
 
 ## Completion criteria
 
-- `TestPromptReadDoesNotUseAnExecutor` and `TestPromptInterruptAndEofUnchanged` pass.
+- `TestPromptReadDoesNotUseAnExecutor` (new) and `TestPromptInterruptAndEofUnchanged` (new) pass.
 - All pre-existing cases in `test_repl.py` pass unchanged.
 
 ## Out of Scope
@@ -73,8 +73,8 @@ Changing any existing case, fixture, or case name.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestPromptReadDoesNotUseAnExecutor` and `TestPromptInterruptAndEofUnchanged` to `tests/agent/test_repl.py` | In Progress | 20261023-074240 | — | REQ-006, REQ-011; AC-2, AC-5 |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestPromptReadDoesNotUseAnExecutor` (new) and `TestPromptInterruptAndEofUnchanged` (new) to `tests/agent/test_repl.py` | Completed | 20261023-135523 | 20261023-135523 | REQ-006, REQ-011; AC-2, AC-5 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-135523 | 20261023-135523 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

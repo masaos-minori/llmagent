@@ -1,6 +1,6 @@
 ## Goal
 
-Route `scripts/agent/repl_input_loop.py`'s two blocking stdin reads through the instance-owned `StdinReader` so neither uses `loop.run_in_executor(None, …)`, eliminating the pool-worker-holds-exit defect for the primary prompt path (`plans/20261022-040200_plan.md`, REQ-005, REQ-006, REQ-011; AC-2, AC-5, AC-8).
+Route `scripts/agent/repl_input_loop.py`'s two blocking stdin reads through the instance-owned `StdinReader` (new) so neither uses `loop.run_in_executor(None, …)`, eliminating the pool-worker-holds-exit defect for the primary prompt path (`plans/20261022-040200_plan.md`, REQ-005, REQ-006, REQ-011; AC-2, AC-5, AC-8).
 
 ## Scope
 
@@ -8,7 +8,7 @@ Modify only `scripts/agent/repl_input_loop.py`: replace the two `loop.run_in_exe
 
 ## Assumptions
 
-- `ReplInputLoop` owns one `StdinReader` instance for its lifetime; it is used only from the event loop that runs `_repl_loop`.
+- `ReplInputLoop` owns one `StdinReader` (new) instance for its lifetime; it is used only from the event loop that runs `_repl_loop`.
 - The `"> "` prompt and the `lambda: input("> ")` semantics are preserved exactly.
 
 ## Design decisions
@@ -31,7 +31,7 @@ N/A: the Plan's design fixes the mechanism (daemon reader thread); this row only
 1. In `ReplInputLoop.__init__`, create `self._stdin_reader = StdinReader(prompt="> ")` alongside the existing attributes.
 2. Replace the shutdown-event branch read at `:144` (`return await loop.run_in_executor(None, lambda: input("> "))`) with `return await self._stdin_reader.read()`.
 3. Replace the fallback-branch read at `:191` (`raw = await loop.run_in_executor(None, lambda: input("> "))`) with `raw = await self._stdin_reader.read()`.
-4. Import `StdinReader` from `scripts/agent/stdin_reader.py`.
+4. Import `StdinReader` (new) from `scripts/agent/stdin_reader.py`.
 
 ### Method
 
@@ -64,7 +64,7 @@ N/A: revert the commit.
 ## Completion criteria
 
 - Neither `:144` nor `:191` calls `run_in_executor`; both await the instance reader.
-- `TestPromptReadDoesNotUseAnExecutor` passes (loop spy never called; no non-daemon thread).
+- `TestPromptReadDoesNotUseAnExecutor` (new) passes (loop spy never called; no non-daemon thread).
 - `TestReadInputShutdownRace` and `test_no_shutdown_event_fallback` pass unchanged.
 
 ## Out of Scope
@@ -76,9 +76,9 @@ The multiline continuation read (`cli_view.py`, row 3) and the approval prompt (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewire `scripts/agent/repl_input_loop.py`'s two prompt reads | In Progress | 20261023-074240 | — | REQ-005, REQ-006, REQ-011; AC-2, AC-5, AC-8 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Rewire `scripts/agent/repl_input_loop.py`'s two prompt reads | Completed | 20261023-135516 | 20261023-135516 | REQ-005, REQ-006, REQ-011; AC-2, AC-5, AC-8 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-135516 | 20261023-135516 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-135516 | 20261023-135516 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

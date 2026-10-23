@@ -40,7 +40,7 @@ N/A: documentation-only; the Plan fixes the claims.
 ### Details
 
 - Keep the existing bullets (`:36`, `:38`, `:39`, `:44`, `:52`) unchanged; only add.
-- After editing, run the docs checkers named in `routing.md`: `check_docs_structure.py`, `check_docs_quality.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain agent`, `check_docs_refs.py`, `check_docs_index_completeness.py`, `check_docs_japanese.py`, `check_skills_references.py` — all must exit 0 (`AC-9`).
+- After editing, run the docs checkers named in `routing.md`: `check_docs_structure.py`, `check_docs_quality.py`, `check_docs_content_policy.py`, `check_docs_consistency.py --domain agent`, `check_docs_japanese.py`, `check_skills_references.py` — all must exit 0 (`AC-9`).
 
 ## Compatibility considerations
 
@@ -75,8 +75,8 @@ Correcting the `:65` claim in `agent_10_06` (that is row 10). Rewriting the exis
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `agent_07_05` input-model and shutdown text | In Progress | 20261023-074240 | — | REQ-010; AC-9 |
-| 2 | Run the docs validation sequence (`routing.md` Tools) | Pending | — | — | |
+| 1 | Update `agent_07_05` input-model and shutdown text | Completed | 20261023-135526 | 20261023-135526 | REQ-010; AC-9 implemented; full suite 9831 passed; procedures corrected (reader state machine, call-time input lookup, new-markers, nonexistent doc checkers); rows 11-13 added for three further approval test files; generated reference table regenerated |
+| 2 | Run the docs validation sequence (`routing.md` Tools) | Completed | 20261023-135526 | 20261023-135526 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
