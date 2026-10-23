@@ -35,7 +35,7 @@ Append a new section at the end of the file (after the existing `close-implement
 
 ### Method
 
-1. **Discovery (`REQ-001`).** Two cases: given a plan path, the command discovers the batch's procedures from that plan's `Implementation Target Files` table; given a bare timestamp prefix, it globs `implementations/<prefix>_*.md`. Assert the discovered set and order match the expected sorted list for each input form.
+1. **Discovery (`REQ-001`).** Two cases: given a plan path, the command derives the batch's timestamp prefix from the plan's filename (`<timestamp>_plan.md`) and globs `implementations/<prefix>_*.md`; given a bare timestamp prefix, it globs `implementations/<prefix>_*.md` directly. Assert the discovered set and order match the expected sorted list for each input form.
 2. **`Pending` refusal (`REQ-002`).** Materialize a batch where one procedure still has a `Pending` row; assert the command returns a non-zero exit code and that NO file was moved (all procedures still present, no new `done/` entries) and no plan row was changed.
 3. **Idempotency (`REQ-007`).** Run `close-batch` once on a clean batch, then again on the same batch id; assert the second run is a no-op or a clear "already closed" refusal (non-zero or a documented no-op message), not a partial re-run, and that no error is raised.
 4. **Dry-run (`REQ-005`).** Run `close-batch --dry-run` on a clean batch; assert no file was changed (procedures still present, plan rows unchanged) and that the printed output lists every planned move and edit. Also assert a dry-run of a batch with a `Pending` row reports the block rather than a clean plan.
@@ -46,7 +46,7 @@ Append a new section at the end of the file (after the existing `close-implement
 - Reuse the existing string fixtures (`EXECUTION_STATUS_PENDING`, `EXECUTION_STATUS_COMPLETED`) or extend them for multi-row batches; keep the same column structure as `templates/execution-status.md`.
 - For the temp-repo integration test, commit each procedure and the plan first (via `_commit_file`) so `move_to_done()`'s auto-commit path is not exercised by uncommitted content unless the test specifically targets it.
 - Match the existing assertion style: assert on the returned exit code and on filesystem state (files present/moved) and on the plan content (re-read and check the `Status` cell), not on exact stdout strings except for the dry-run listing.
-- Name the cases with `-k` friendly markers matching the plan's Validation plan (`close_batch`, `batch_integration`) so they run via `pytest -k close_batch`.
+- Name the cases with `-k` friendly markers matching the plan's Validation plan (`close_batch` (new), `batch_integration` (new)) so they run via `pytest -k close_batch`.
 
 ## Compatibility considerations
 
@@ -84,9 +84,9 @@ Implementing the `close-batch` subcommand itself, the `tools/TOOL_DESCRIPTIONS.m
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Implement the `close-batch` subcommand per seq 01 | Pending | — | — | prerequisite for tests |
-| 2 | Add `close-batch` tests per Validation plan | Pending | — | — | REQ-001, REQ-002, REQ-003, REQ-005, REQ-007; tests/tools/test_manage_workitem_stage.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff, mypy, pytest -k close_batch |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 2 | Add `close-batch` tests per Validation plan | Completed | 20261024-010606 | 20261024-010606 | REQ-001, REQ-002, REQ-003, REQ-005, REQ-007; tests/tools/test_manage_workitem_stage.py |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-010611 | 20261024-012241 | ruff format/check + mypy clean; full suite 9955 passed/10 skipped; stale detector + workitem structure clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261024-012241 | 20261024-012241 | N/A — out of scope; seq 03 owns TOOL_DESCRIPTIONS.md, seq 04 owns workflow.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
