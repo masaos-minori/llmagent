@@ -42,10 +42,11 @@ Implement in three phases mirroring the plan's Implementation steps.
 
 ### Method
 
-1. **Batch discovery (`REQ-001`).** Add a helper `_discover_batch(batch_id: str) -> list[Path]` returning procedure paths in sorted order, with two input forms:
-   - Plan path: read the plan's `Implementation Target Files` table, extract the procedure filenames listed there, derive their shared timestamp prefix, and glob `implementations/<prefix>_*.md`.
+1. **Batch discovery (`REQ-001`).** Add helpers `_batch_prefix(batch_id: str) -> str` and `_discover_batch(batch_id: str, prefix: str) -> list[Path]`. `_discover_batch` returns the live procedure paths in `implementations/` in sorted order, with two input forms:
+   - Plan path: derive the batch prefix from the plan's filename — the `<timestamp>` before `_plan.md` (via a new `_prefix_from_plan_path` helper); glob `implementations/<prefix>_*.md`.
    - Bare timestamp prefix: glob `implementations/<prefix>_*.md` directly.
-   Return the sorted union; refuse (exit 1) when the batch resolves to zero files. Derive the owning plan from the discovered prefix by scanning `plans/*.md` (not `plans/done/`) for the plan whose `Implementation Target Files` table lists a procedure carrying that prefix.
+   When live files exist, return them sorted. When none are live but they exist under `implementations/done/`, raise `AlreadyClosedBatch(archived_paths)` so the caller reports an already-closed no-op (exit 0); otherwise raise `BatchResolutionError` so the caller prints it and exits 1.
+   **Owning plan.** Find the plan that owns the batch by (1) preferring a plan whose content references `implementations/<prefix>_`, then (2) falling back to a plan sharing the batch's `Source issue` (parsed from a procedure via a new `_extract_source_issue` helper). Search **both** `plans/*.md` and `plans/done/*.md` and return the first match, or `None` when no plan owns the batch.
 2. **`Pending` pre-check (`REQ-002`).** For each discovered procedure, call `parse_execution_status_rows()` (already at `:308`) and collect any `Pending` rows via the existing `_pending_rows()` helper. If any exist, print the block message (reuse `_describe_rows()`, already at `:356`) and return exit 1 before touching any file.
 3. **Mark + archive (`REQ-003`, `UNK-02`).** For each discovered procedure, call `update_execution_status(source=..., kind="implementation-procedure", new_status="Completed", new_started=<ts>, new_completed=<ts>)` (already at `:380`) to stamp `Started`/`Completed`, then archive via `move_to_done(source, kind="implementation procedure", stage_only=args.stage_only)` (already at `:235`). Pass `--stage-only` through to the archival move.
 4. **Plan status (`REQ-004`).** Call `update_execution_status(source=<plan_path>, kind="plan", new_status="Completed", new_started=<ts>, new_completed=<ts>)` on the owning plan found in step 1.
@@ -57,8 +58,9 @@ Implement in three phases mirroring the plan's Implementation steps.
 
 - Reuse the existing symbols rather than reimplementing them: `move_to_done()` (`:235-305`), `update_execution_status()` (`:380-525`), `parse_execution_status_rows()` (`:308-349`), `_pending_rows()` (`:352`), `_describe_rows()` (`:356`), `_report_move_result()` (`:597-609`), `build_parser()`/`main()` (`:713-1085`).
 - The batch-id positional argument accepts both forms; disambiguate by testing `Path(batch_id).is_file()` first (plan path), else treat as a bare timestamp prefix.
+- Plan-path discovery derives the prefix from the plan's filename stem, which only matches the batch when the plan and its procedures share a timestamp. In this repository the procedures carry a fresh generation timestamp (`20261023-233058_*`) that differs from the plan's (`20261023-222901`), so the bare-prefix form is the reliable entry point and the plan-path form is best-effort.
 - Keep the atomic ordering even in `--dry-run`: discover and pre-check first, then print the intended moves/edits — a dry-run of a batch with a `Pending` row must report the block, not a clean plan.
-- The owning-plan lookup scans `plans/*.md` with a content marker for the prefix; if multiple plans could match, prefer the exact plan whose `Implementation Target Files` table names a procedure with the discovered prefix, and refuse if the mapping is ambiguous.
+- The owning-plan lookup scans `plans/*.md` **and `plans/done/*.md`** (a plan may already be archived) for a content reference to `implementations/<prefix>_`, falling back to a shared `Source issue`; return the first match. Do not try to identify the owner via the plan's `Implementation Target Files` table — that table lists the plan's code/test/doc targets, not the batch's procedures (this was the original Step 3a finding).
 
 ## Compatibility considerations
 
@@ -98,7 +100,7 @@ Tests (`tests/tools/test_manage_workitem_stage.py`), the `tools/TOOL_DESCRIPTION
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `close-batch` subcommand: discovery, `Pending` pre-check, mark/archive via `move_to_done()`/`update_execution_status()`, plan-status update, `--dry-run`, `--stage-only`, idempotency | Pending | — | — | REQ-001..REQ-007; tools/manage_workitem_stage.py |
+| 1 | Implement `close-batch` subcommand: discovery, `Pending` pre-check, mark/archive via `move_to_done()`/`update_execution_status()`, plan-status update, `--dry-run`, `--stage-only`, idempotency | Completed | 20261024-003320 | 20261024-004517 | REQ-001..REQ-007; tools/manage_workitem_stage.py. Stale detection clean (workflow Step 2). Step 3a corrections vs original procedure: owning-plan scan now includes `plans/done/`; owner identified via shared `Source issue` (primary: content reference to `implementations/<prefix>_`), not the plan's `Implementation Target Files` table; batch prefix derived from the plan filename stem. See Final Report. |
 | 2 | Add tests per Validation plan | Pending | — | — | REQ-001, REQ-002, REQ-005, REQ-007; tests/tools/test_manage_workitem_stage.py |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | ruff, mypy, bandit, check_workitem_structure.py |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: registration is seq 03/04 |
