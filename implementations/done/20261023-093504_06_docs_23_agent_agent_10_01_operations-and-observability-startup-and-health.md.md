@@ -93,6 +93,11 @@ contract so the two documents agree.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Steps renumbered 1-5 (no `0.` item); persist is step 1.
+
+
 - This section cross-references `overview_01_03-arch-features.md` (row 7); keep
   the two descriptions consistent (same order, same gate).
 - `agent_07_05_cli-and-commands-repl-io.md` and `agent_02_runtime-architecture.md`
@@ -133,9 +138,9 @@ untouched; AC-8 holds.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the ordering sentence + prepend the persist step | Pending | — | — | REQ-001, REQ-009 |
-| 2 | State the by-design skip on startup failure/interrupt | Pending | — | — | REQ-003, AC-8 |
-| 3 | Run documentation validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-8 |
+| 1 | Rewrite the ordering sentence + prepend the persist step | Completed | 20261023-150352 | 20261023-150352 | REQ-001, REQ-009 implemented; full suite 9879 passed |
+| 2 | State the by-design skip on startup failure/interrupt | Completed | 20261023-150352 | 20261023-150352 | REQ-003, AC-8 |
+| 3 | Run documentation validation sequence (`rules/toolchain.md`) | Completed | 20261023-150352 | 20261023-150352 | AC-8 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

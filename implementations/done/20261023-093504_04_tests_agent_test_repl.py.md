@@ -211,6 +211,11 @@ session.py` (`session_id` at `:148`) confirms the gate the new assertions cover.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Line numbers had shifted; `mock_persister` removed with a regex, plus the `await_count == 1` assertion in the cancel-branch test (persist no longer lives in the loop) and two `run(MagicMock(), None)` call sites added by the signal tests. Added `test_schema_missing_is_reported_exactly_once` in `TestRunSqliteErrorMessage`. Mutation-checked against the old sources: 11 tests fail.
+
+
 - The 11 `await repl.run()` call sites in the class under change now reach the
   persist step via `run()`'s `finally` (row 1); `_make_bare_repl` stubs both
   persist methods (`:75-77`) so the new `finally` is observable without new
@@ -258,13 +263,13 @@ AC-6/AC-7 hold.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend `_install_spies` with persist spy; drop `persister` from `spy_loop` | Pending | — | — | REQ-001, AC-4 |
-| 2 | Update the three expected call lists to persist-then-close | Pending | — | — | AC-1, AC-2 |
-| 3 | Add AC-4 case (persist raises while loop raises) | Pending | — | — | AC-4 |
-| 4 | Strengthen `test_error_message_includes_class_name` to `== 1` + `SchemaMissingError` variant | Pending | — | — | AC-6 (needs row 2) |
-| 5 | Give `test_handles_none_session_id` its assertion; remove inert patch | Pending | — | — | AC-3 |
-| 6 | Delete the 18 `mock_persister` fixtures + paired args | Pending | — | — | AC-5 |
-| 7 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Extend `_install_spies` with persist spy; drop `persister` from `spy_loop` | Completed | 20261023-150349 | 20261023-150349 | REQ-001, AC-4 implemented; full suite 9879 passed |
+| 2 | Update the three expected call lists to persist-then-close | Completed | 20261023-150349 | 20261023-150349 | AC-1, AC-2 |
+| 3 | Add AC-4 case (persist raises while loop raises) | Completed | 20261023-150349 | 20261023-150349 | AC-4 |
+| 4 | Strengthen `test_error_message_includes_class_name` to `== 1` + `SchemaMissingError` variant | Completed | 20261023-150349 | 20261023-150349 | AC-6 (needs row 2) |
+| 5 | Give `test_handles_none_session_id` its assertion; remove inert patch | Completed | 20261023-150349 | 20261023-150349 | AC-3 |
+| 6 | Delete the 18 `mock_persister` fixtures + paired args | Completed | 20261023-150349 | 20261023-150349 | AC-5 |
+| 7 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-150349 | 20261023-150349 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -131,6 +131,11 @@ file changes.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Gate and widened guard implemented as written. radon: `persist_session_diagnostics` is C (19) vs C (18) at HEAD; no gate enforces the budget (`rules/toolchain.md` only lists grade C or worse), so the payload extraction was not done; deferred. The `noqa` justification uses an em dash.
+
+
 - No signature changes. The payload (`:111-134`), the `StateStore`/RAG enrichment
   (`:72-109`), and the inner `save` error path (`:144-152`) are unchanged.
 - On the normal-exit path both methods still run, in the same order, with the same
@@ -183,12 +188,12 @@ docstrings state the gate; AC-3/AC-4/AC-7/AC-9 hold.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Import `OutputTag` | Pending | — | — | REQ-004 |
-| 2 | Gate `persist_session_diagnostics` with early return (REQ-003) | Pending | — | — | REQ-003, REQ-009 |
-| 3 | Widen outer guard to `Exception` + `write_warning` (REQ-004, REQ-005) | Pending | — | — | REQ-004, REQ-005, AC-9 |
-| 4 | Gate `persist_session_memories` with early return | Pending | — | — | REQ-003 |
-| 5 | Update module/class/method docstrings (REQ-009) | Pending | — | — | REQ-009 |
-| 6 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Import `OutputTag` | Completed | 20261023-150347 | 20261023-150347 | REQ-004 implemented; full suite 9879 passed |
+| 2 | Gate `persist_session_diagnostics` with early return (REQ-003) | Completed | 20261023-150347 | 20261023-150347 | REQ-003, REQ-009 |
+| 3 | Widen outer guard to `Exception` + `write_warning` (REQ-004, REQ-005) | Completed | 20261023-150347 | 20261023-150347 | REQ-004, REQ-005, AC-9 |
+| 4 | Gate `persist_session_memories` with early return | Completed | 20261023-150347 | 20261023-150347 | REQ-003 |
+| 5 | Update module/class/method docstrings (REQ-009) | Completed | 20261023-150347 | 20261023-150347 | REQ-009 |
+| 6 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-150347 | 20261023-150347 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -132,6 +132,11 @@ confirm the persist step's new home and gate; no edit there belongs to this row.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- REQ-007 resolved with a local `reported` flag in `run()` (not option a/b as written): the inner session-start handlers report once and set the flag; the outer `except RuntimeError` reports only unreported errors (e.g. `_repl_loop()` not bound). `Coroutine` and `Any` imports were removed (ruff F401). `StdinReader`/bounded-wait changes that landed after this procedure do not interact.
+
+
 - `ReplInputLoop.run()` loses one parameter; no other signature changes. The single
   remaining caller (`repl.py:154-157`, row 1) drops its second argument. In
   `test_repl.py` the 18 `mock_persister` fixtures and their paired call-site
@@ -177,11 +182,11 @@ error raised inside it produces one operator-facing line (UNK-01 resolved);
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Drop `persister_callback` parameter + type union from `run()` signature | Pending | — | — | REQ-002 |
-| 2 | Delete the persist `finally` (:111-115) | Pending | — | — | REQ-002 |
-| 3 | Trim `Coroutine` from the import (F401) | Pending | — | — | REQ-002 |
-| 4 | Apply REQ-007 single-report rule (UNK-01 decides) | Pending | — | — | REQ-007 |
-| 5 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Drop `persister_callback` parameter + type union from `run()` signature | Completed | 20261023-150346 | 20261023-150346 | REQ-002 implemented; full suite 9879 passed |
+| 2 | Delete the persist `finally` (:111-115) | Completed | 20261023-150346 | 20261023-150346 | REQ-002 |
+| 3 | Trim `Coroutine` from the import (F401) | Completed | 20261023-150346 | 20261023-150346 | REQ-002 |
+| 4 | Apply REQ-007 single-report rule (UNK-01 decides) | Completed | 20261023-150346 | 20261023-150346 | REQ-007 |
+| 5 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-150346 | 20261023-150346 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

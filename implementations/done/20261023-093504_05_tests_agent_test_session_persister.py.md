@@ -142,6 +142,11 @@ start with an empty `conv.history`; `scripts/agent/session.py:148` confirms
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- The real `build_db_config` seam was replaced by an in-memory fake `SQLiteHelper` patched at `agent.diagnostic_store.SQLiteHelper` (the pattern of `test_regression_diagnostic_persist.py`); `StateStore` is patched to raise so no real DB is opened. Row counts are asserted on the in-memory table.
+
+
 - New file; does not touch existing tests. Must pass alongside
   `tests/agent/test_repl.py` (row 4), `test_repl_error_handling.py`,
   `test_regression_diagnostic_persist.py`, `test_import_smoke.py` (AC-7).
@@ -184,11 +189,11 @@ AC-7 hold.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create file with temp-DB seed helper + ctx builders | Pending | — | — | REQ-003 |
-| 2 | Gate suite for `persist_session_diagnostics` (skip/write/store-contrast) | Pending | — | — | REQ-003, REQ-006, AC-3 |
-| 3 | Containment cases (payload defect, store failure) | Pending | — | — | REQ-004, REQ-005, AC-4 |
-| 4 | Gate suite for `persist_session_memories` | Pending | — | — | REQ-003 |
-| 5 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create file with temp-DB seed helper + ctx builders | Completed | 20261023-150350 | 20261023-150350 | REQ-003 implemented; full suite 9879 passed |
+| 2 | Gate suite for `persist_session_diagnostics` (skip/write/store-contrast) | Completed | 20261023-150350 | 20261023-150350 | REQ-003, REQ-006, AC-3 |
+| 3 | Containment cases (payload defect, store failure) | Completed | 20261023-150350 | 20261023-150350 | REQ-004, REQ-005, AC-4 |
+| 4 | Gate suite for `persist_session_memories` | Completed | 20261023-150350 | 20261023-150350 | REQ-003 |
+| 5 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-150350 | 20261023-150350 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -84,6 +84,11 @@ documents agree.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Lead sentence and items 1-2 edited as written; item 3 untouched.
+
+
 - Cross-references `agent_10_01_*` (row 6); keep the two descriptions consistent
   (same order, same gate).
 - `agent_07_05_cli-and-commands-repl-io.md` and `agent_02_runtime-architecture.md`
@@ -122,9 +127,9 @@ holds.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the lead sentence (:65) | Pending | — | — | REQ-009 |
-| 2 | Name the gate in items 1-2 (:67-68) | Pending | — | — | REQ-009 |
-| 3 | Run documentation validation sequence (`rules/toolchain.md`) | Pending | — | — | AC-8 |
+| 1 | Rewrite the lead sentence (:65) | Completed | 20261023-150353 | 20261023-150353 | REQ-009 implemented; full suite 9879 passed |
+| 2 | Name the gate in items 1-2 (:67-68) | Completed | 20261023-150353 | 20261023-150353 | REQ-009 |
+| 3 | Run documentation validation sequence (`rules/toolchain.md`) | Completed | 20261023-150353 | 20261023-150353 | AC-8 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
