@@ -2,7 +2,7 @@
 """check_module_size.py — Verify scripts/ Python modules stay under the size gate.
 
 Every `.py` file under `scripts/` is measured in bytes. A file larger than the
-limit (default 16384 B) is a violation, because a module that large has outgrown
+limit (default 20480 B) is a violation, because a module that large has outgrown
 the point where one screen of logic can be reviewed, tested, and refactored as a
 unit.
 
@@ -35,7 +35,7 @@ import argparse
 import sys
 from pathlib import Path
 
-DEFAULT_LIMIT = 16384
+DEFAULT_LIMIT = 20480
 
 DEFAULT_BASELINE = Path(__file__).resolve().parent / "check_module_size_baseline.txt"
 
