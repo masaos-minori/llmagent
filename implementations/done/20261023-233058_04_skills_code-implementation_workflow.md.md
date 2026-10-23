@@ -73,10 +73,10 @@ Implementing the `close-batch` subcommand, its tests, and the `tools/TOOL_DESCRI
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-008; skills/code-implementation/workflow.md |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_skills_references.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261024-014732 | 20261024-014732 | REQ-008; skills/code-implementation/workflow.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261024-014732 | 20261024-014732 | N/A: docs-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-014732 | 20261024-014732 | check_skills_references.py |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261024-014732 | 20261024-014732 | this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -1,6 +1,6 @@
 ## Goal
 
-Document the new `close-batch` subcommand in `tools/TOOL_DESCRIPTIONS.md` so the tool stays registered and `check_tool_descriptions_sync.py` passes. (`REQ-008`)
+Document the new `close-batch` subcommand in the `### manage_workitem_stage.py subcommands` reference of `tools/TOOL_DESCRIPTIONS.md`, completing the subcommand-level description. (`REQ-008`)
 
 ## Scope
 
@@ -10,7 +10,7 @@ Document the new `close-batch` subcommand in `tools/TOOL_DESCRIPTIONS.md` so the
 ## Assumptions
 
 - `manage_workitem_stage.py` already has a top-level row in the "Work Items" table (line ~153) that defers to "the subcommand reference below"; the `close-batch` entry belongs in that subcommand reference, not as a new top-level `tools/` row.
-- `check_tool_descriptions_sync.py` fails when a subcommand named in the module's docstring/parser has no corresponding description here.
+- `check_tool_descriptions_sync.py` gates at the file level: it requires each `tools/*.py` file to appear as a backticked `.py` path in `TOOL_DESCRIPTIONS.md`. `manage_workitem_stage.py` is already documented there, so the checker passes whether or not the `close-batch` subcommand is described; this change adds subcommand-level detail for completeness rather than satisfying a gate.
 
 ## Design decisions
 
@@ -73,10 +73,10 @@ Implementing the `close-batch` subcommand, its tests, and the `skills/code-imple
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-008; tools/TOOL_DESCRIPTIONS.md |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_tool_descriptions_sync.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261024-014229 | 20261024-014229 | REQ-008; tools/TOOL_DESCRIPTIONS.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261024-014229 | 20261024-014229 | N/A: docs-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-014229 | 20261024-014229 | check_tool_descriptions_sync.py |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261024-014229 | 20261024-014229 | this change |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
