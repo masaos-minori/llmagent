@@ -163,8 +163,7 @@ class TestConcurrentDlqRequeue:
 
         # Simulate one prior failure for consumer-A so a single NACK reaches
         # max_retry. Under per-consumer gating (REQ-002) one consumer reaching
-        # its own budget promotes; the shared delivery_failure_count is not used
-        # for gating.
+        # its own budget promotes; only the per-consumer failure count gates.
         from eventbus import app as eb_app
 
         loop = asyncio.new_event_loop()

@@ -87,7 +87,7 @@ Each process restricts itself to its OWN configuration file via `ConfigLoader.re
 | Crawler | `config/crawler.toml` | `rag_src_dir`, `crawl_delay`, `max_depth`, `min_chunk`, `fetch_retry`, `target_urls` | — |
 | Chunk Splitter | `config/chunk_splitter.toml` | `rag_src_dir`, `min_chunk`, `max_chunk`, `en_stopwords`, `ja_stop_pos` | — |
 | Ingester | `config/ingester.toml` | `rag_src_dir`, `embed_url`, `embed_retry` | — |
-| EventBus | `config/eventbus.toml` (loaded through `ConfigLoader` without `restrict_to()`; see Exceptions) | `port`, `db_path`, `storage_dir`, `offsets_dir`, `deadletter_dir`, `max_retry`, `auth_token` (enforced by `load_config()` in `scripts/eventbus/config.py`) | — |
+| EventBus | `config/eventbus.toml` (loaded through `ConfigLoader` without `restrict_to()`; see Exceptions) | `port`, `db_path`, `storage_dir`, `deadletter_dir`, `max_retry`, `auth_token` (enforced by `load_config()` in `scripts/eventbus/config.py`) | — |
 
 (Explicit in code — `scripts/agent/config_builders.py`, `scripts/agent/production_config_validator.py`, `scripts/mcp_servers/server.py`, `scripts/rag/ingestion/crawler.py`, `scripts/rag/ingestion/chunk_splitter.py`, `scripts/rag/ingestion/ingester.py`, `scripts/eventbus/config.py`)
 

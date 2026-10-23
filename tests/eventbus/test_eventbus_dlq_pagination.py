@@ -111,8 +111,8 @@ def test_dlq_pagination(client: TestClient) -> None:
         _simulate_delivery(client, event_id, "consumer-A")
 
     # Promote all to DLQ. Under per-consumer gating (REQ-002) a single consumer
-    # reaching its own max_retry promotes; the shared delivery_failure_count is
-    # intentionally not used for promotion gating.
+    # reaching its own max_retry promotes; only the per-consumer failure count
+    # gates promotion.
     nack_headers = {"Authorization": "Bearer consumer-token"}
     for event_id in events:
         r = client.post(

@@ -70,10 +70,10 @@ class TestDLQPromotionSemantics:
     def test_nack_increments_consumer_delivery_failure_count(
         self, client: TestClient
     ) -> None:
-        """NACK increments consumer_delivery_failure_count (not delivery_failure_count on events table).
+        """NACK increments consumer_delivery_failure_count.
 
-        Per-consumer model: delivery_failure_count/cycle_failure_count on events table
-        are no longer written to; only consumer_delivery_failure_count is authoritative.
+        Per-consumer model: the events table has no failure counters; only
+        consumer_delivery_failure_count is authoritative.
         """
         body = _event("dlq_promo")
         resp = client.post("/publish", json=body)
@@ -159,8 +159,7 @@ class TestDLQPromotionSemantics:
         sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
         # Requeue the event — succeeds (no dlq_imminent field: that field was
-        # removed from the response, since the original event's
-        # delivery_failure_count is no longer relevant after redelivery)
+        # removed from the response)
         resp = client.post(f"/dlq/{body['event_id']}/requeue")
         assert resp.status_code == 200
 

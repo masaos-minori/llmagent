@@ -42,7 +42,7 @@ Canonicalizes SQLite as the persistent store of Events and SSE as the Live deliv
 
 ### Problem
 
-The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with different roles. SQLite is the canonical store of Events; SSE delivery is independent as a low-latency channel. Replay of unprocessed Events on Subscriber reconnection must be guaranteed, and delivery guarantees for ACK/NAK/DLQ must be clarified.
+The EventBus has multiple data stores (SQLite, JSONL archive) with different roles. SQLite is the canonical store of Events; SSE delivery is independent as a low-latency channel. Replay of unprocessed Events on Subscriber reconnection must be guaranteed, and delivery guarantees for ACK/NAK/DLQ must be clarified.
 
 ### Constraints
 
@@ -85,7 +85,7 @@ The EventBus has multiple data stores (SQLite, JSONL archive, offset files) with
 
 ### Scope
 
-- **Target components**: `EventBroker`, the publish, subscribe and ACK/NACK routes, offset handling (`offsets.py`), and DLQ handling (`dlq.py`, `dlq_repo.py`, `dlq_route.py`)
+- **Target components**: `EventBroker`, the publish, subscribe and ACK/NACK routes, offset handling (`delivery_repo.py`), and DLQ handling (`dlq.py`, `dlq_repo.py`, `dlq_route.py`)
 - **Target processes**: the EventBus process
 - **Target data**: the `events` table, the `consumer_delivery` and `consumer_offsets` tables, DLQ state (`events.dlq_at` and deadletter files)
 - **Target Environment Profile**: production (the only supported execution mode; ADR-004 applies one failure-handling policy to every environment)
@@ -266,7 +266,7 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 
 ## Implementation Notes
 
-- Offset store: `consumer_delivery` tracks per-consumer delivery progress and `consumer_offsets` stores monotonic offsets; `ack_event_for_consumer()` updates both atomically. At startup, `migrate_legacy_offsets()` reads each offset file's `.map` companion to recover the original `consumer_id` and seeds `consumer_offsets`; without a `.map` companion, the sanitized filename is the `consumer_id`.
+- Offset store: `consumer_delivery` tracks per-consumer delivery progress and `consumer_offsets` stores monotonic offsets; `ack_event_for_consumer()` updates both atomically.
 - INV-07 is enforced by content comparison logic in `insert_event()`: duplicate events cannot corrupt stored data; identical retries return the original seq, conflicting retries return HTTP 409.
 - DLQ promotion threshold (INV-13): an Event promotes when every attempting consumer's `consumer_delivery_failure_count` has reached `max_retry` (`>= max_retry`, i.e. its retry budget is exhausted) and none has ACKed. This `>=` boundary is enforced in `ack_route.py` and `dlq.py` and confirmed by `test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry`.
 
@@ -320,15 +320,12 @@ This ADR's `Accepted` status uses the task-level approval decision defined by th
 - `scripts/eventbus/subscribe_route.py` — `subscribe()`
 - `scripts/eventbus/delivery_repo.py` — `ack_event_for_consumer()`, `nack_event()`, `get_consumer_offset()`
 - `scripts/eventbus/event_repo.py` — `insert_event()`
-- `scripts/eventbus/offset_migrator.py` — `migrate_legacy_offsets()`
 - `scripts/eventbus/db.py` — facade that re-exports the functions above
 - `scripts/eventbus/dlq.py` — `promote_single()`, `sweep_orphans()`
 - `scripts/eventbus/config.py` — `_validate_deployment_mode()`
-- `scripts/eventbus/offsets.py` — `write_offset()`, `read_offset()`
-- `events` table — `seq`, `event_id`, `topic`, `payload`, `producer`, `published_at`, `delivery_failure_count`, `cycle_failure_count`, `redelivered_from`, `dlq_requeue_count`, `dlq_at`, `consumer_id` (no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`)
+- `events` table — `seq`, `event_id`, `topic`, `payload`, `producer`, `published_at`, `redelivered_from`, `dlq_requeue_count`, `dlq_at`, `consumer_id` (no event-level `acked_at` column; ACK state is per-consumer in `consumer_delivery`)
 - `consumer_delivery` table — `consumer_id`, `event_id`, `acked`, `consumer_delivery_failure_count`, `consumer_last_nack_attempt`, PRIMARY KEY `(consumer_id, event_id)`
 - `consumer_offsets` table — `consumer_id` PRIMARY KEY, `offset INTEGER NOT NULL DEFAULT 0`
-- Offset files — `{offsets_dir}/{sanitized_consumer_id}` (read only by `migrate_legacy_offsets()` at startup)
 - DLQ promotion paths — inline promotion (on `POST /nack`) and the periodic background loop
 - Tests — `tests/eventbus/`, `tests/db/test_create_schema.py`
 

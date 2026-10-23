@@ -43,8 +43,8 @@ def nack_event(
     """Record a per-consumer NACK failure for an event.
 
     When consumer_id is provided, the consumer's failure count is incremented and
-    its last NACK attempt marker is stored. The events-level failure counters are
-    legacy values: they are not modified here under the per-consumer model.
+    its last NACK attempt marker is stored. The per-consumer count is the only
+    failure counter; the events table carries none.
 
     Nothing is recorded if the event is already DLQ'd (has dlq_at) or, when
     consumer_id is provided, if that consumer has already ACKed the event —
