@@ -91,6 +91,12 @@ Reference reads only: `_record_transport_failure` (`:122` def, called at `:180`)
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Implemented as written: required keyword-only `guard` on `execute_all_tool_calls`; `execute_one_tool_call(ctx, pc, guard)` takes it positionally so the internal `_run_group_calls`/`_run_plan_batches`/`_execute_with_dag` pass it through; recording sits after `_record_transport_failure` and before truncation under `not is_error`; the `getattr(ctx, "guard", None)` read and block are deleted from `_collect_tool_result_msgs`. Phase 1 (record in the collector) and Phase 2 (record at production) were combined in one change; the plan allows it and the end state is identical.
+- Behavior note found in review: `record_tool_result` resets a tool's count on a non-empty result and increments on an empty one. Recording at production time makes the order within a gathered group follow completion order, not call order, so a batch of the same tool mixing empty and non-empty results can end with a different count than before. Nothing consults the count mid-batch (`check_empty_result_repeat` runs after the batch), so the observable change is limited to that mixed, concurrent case and to results that were produced before an exception aborted the batch.
+
+
 - `execute_all_tool_calls` gains a required parameter, so every caller — including the 28
   test call sites across `tests/agent/test_tool_runner.py`,
   `tests/agent/test_agent_repl_tool_exec.py`, `tests/agent/test_tool_approval_preflight.py`
@@ -144,10 +150,10 @@ import change.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add required keyword-only `guard` param and thread through the four internal functions | Pending | — | — | REQ-001, REQ-002; import under existing TYPE_CHECKING |
-| 2 | Delete getattr read + recording block in `_collect_tool_result_msgs` | Pending | — | — | removes the unreachable path at :200-211 |
-| 3 | Record inside `execute_one_tool_call` after :180, before :182 | Pending | — | — | REQ-003, REQ-004; raw result.output, keep is_error filter |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | mypy must report zero missing-guard sites |
+| 1 | Add required keyword-only `guard` param and thread through the four internal functions | Completed | 20261023-163749 | 20261023-163749 | REQ-001, REQ-002; import under existing TYPE_CHECKING implemented; full suite 9909 passed |
+| 2 | Delete getattr read + recording block in `_collect_tool_result_msgs` | Completed | 20261023-163749 | 20261023-163749 | removes the unreachable path at :200-211 |
+| 3 | Record inside `execute_one_tool_call` after :180, before :182 | Completed | 20261023-163749 | 20261023-163749 | REQ-003, REQ-004; raw result.output, keep is_error filter |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-163749 | 20261023-163749 | mypy must report zero missing-guard sites |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

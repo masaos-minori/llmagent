@@ -58,6 +58,11 @@ Insert `, guard=self._guard` before the closing paren.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Implemented as written (`guard=self._guard` at the single production call site). A grep of `scripts/` confirms there is no other caller.
+
+
 - This is the sole production caller of the changed signature; the 28 test callers migrate in
   rows 4-6. `check_mock_patch_targets.py` stays green because the patch targets are unchanged.
 
@@ -90,8 +95,8 @@ mocked turn/orchestrator tests pass unchanged.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `guard=self._guard` to the `execute_all_tool_calls` call at :115 | Pending | — | — | REQ-001; only production caller |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | mypy clean; mocked suite green |
+| 1 | Add `guard=self._guard` to the `execute_all_tool_calls` call at :115 | Completed | 20261023-163750 | 20261023-163750 | REQ-001; only production caller implemented; full suite 9909 passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-163750 | 20261023-163750 | mypy clean; mocked suite green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

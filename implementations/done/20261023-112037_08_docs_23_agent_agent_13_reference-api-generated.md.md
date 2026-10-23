@@ -60,6 +60,11 @@ The generator introspects the live signatures; once rows 1-2 add the required ke
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Regenerated with `tools/generate_reference_table.py --type agent`; `--check` reports no drift; the two signature rows now show `guard`.
+
+
 - The regenerated rows must match the landed signatures exactly; `--check` failing is the
   signal that a signature was changed without regenerating.
 
@@ -93,8 +98,8 @@ no drift; `check_docs_consistency.py --domain agent` is clean.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the API reference table (`--type agent`) | Pending | — | — | REQ-008; requires rows 1-2 landed first |
-| 2 | Re-check for drift (`--check --type agent`) + docs consistency | Pending | — | — | AC-8; zero drift expected |
+| 1 | Regenerate the API reference table (`--type agent`) | Completed | 20261023-163757 | 20261023-163757 | REQ-008; requires rows 1-2 landed first implemented; full suite 9909 passed |
+| 2 | Re-check for drift (`--check --type agent`) + docs consistency | Completed | 20261023-163757 | 20261023-163757 | AC-8; zero drift expected |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -57,6 +57,11 @@ missing it.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- The three call sites were migrated with a module-level `ToolLoopGuard` import; the three `fake_execute_one(ctx, pc)` stubs patched over `execute_one_tool_call` needed the new `guard` parameter too (not listed in the procedure).
+
+
 - The three migrated calls must each supply a real guard; mypy is the completeness check.
 
 ## Security considerations
@@ -91,8 +96,8 @@ DAG-evaluation cases pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate the 3 DAG-evaluation `execute_all_tool_calls` calls (:417, :461, :504) | Pending | — | — | REQ-007; patch execute_one_tool_call, so no recording assertion |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | mypy clean; DAG cases green |
+| 1 | Migrate the 3 DAG-evaluation `execute_all_tool_calls` calls (:417, :461, :504) | Completed | 20261023-163753 | 20261023-163753 | REQ-007; patch execute_one_tool_call, so no recording assertion implemented; full suite 9909 passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-163753 | 20261023-163753 | mypy clean; DAG cases green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

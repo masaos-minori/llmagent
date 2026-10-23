@@ -82,6 +82,11 @@ that is not a mocked entry point. Reference reads only:
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- New module written with real `ToolLoopGuard`, real `execute_all_tool_calls` and `LLMTurnRunner`; the stub tool observes the guard counts mid-batch for sequential and gathered groups (the gathered stub waits briefly so the earlier calls have finished). Added a call-site check that the runner passes its own guard. Mutation checks (recording removed; `guard=` not passed) fail 3 and 9 tests.
+
+
 - New module; imported by the normal `tests/agent` collection. Add no import edge that breaks
   `lint-imports`.
 
@@ -121,11 +126,11 @@ passes; each AC-7 removal turns the suite red; the full `tests/agent` suite pass
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Build helper: real guard + stub tool returning "" with a call counter | Pending | — | — | reuse test_tool_loop_guard.py:360-413 pattern |
-| 2 | Sequential- and gathered-group mid-batch visibility tests | Pending | — | — | AC-2; read guard._empty_result_counts inside stub |
-| 3 | Inert-option (max_repeats<=0) and no-leak-across-turns cases | Pending | — | — | AC-4, AC-5 |
-| 4 | Turn-level empty_result_repeat acceptance case | Pending | — | — | AC-6; real executor, no mock |
-| 5 | Run validation + AC-7 removal gates (`rules/toolchain.md`) | Pending | — | — | each removal turns suite red |
+| 1 | Build helper: real guard + stub tool returning "" with a call counter | Completed | 20261023-163755 | 20261023-163755 | reuse test_tool_loop_guard.py:360-413 pattern implemented; full suite 9909 passed |
+| 2 | Sequential- and gathered-group mid-batch visibility tests | Completed | 20261023-163755 | 20261023-163755 | AC-2; read guard._empty_result_counts inside stub |
+| 3 | Inert-option (max_repeats<=0) and no-leak-across-turns cases | Completed | 20261023-163755 | 20261023-163755 | AC-4, AC-5 |
+| 4 | Turn-level empty_result_repeat acceptance case | Completed | 20261023-163755 | 20261023-163755 | AC-6; real executor, no mock |
+| 5 | Run validation + AC-7 removal gates (`rules/toolchain.md`) | Completed | 20261023-163755 | 20261023-163755 | each removal turns suite red |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

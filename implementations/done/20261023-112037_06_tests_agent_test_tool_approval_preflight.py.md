@@ -56,6 +56,11 @@ paren. mypy flags any site still missing it — the completeness check.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Both direct `execute_one_tool_call` call sites migrated. `tests/integration/test_rag_turn_integration.py` only patches the function, so it needed no change.
+
+
 - Both migrated calls must supply a real guard; mypy is the safety net.
 
 ## Security considerations
@@ -89,8 +94,8 @@ cases pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate the 2 direct `execute_one_tool_call` calls (current :721, :754) | Pending | — | — | REQ-007; frozen plan numbers :678/:711 are stale |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | mypy clean; preflight cases green |
+| 1 | Migrate the 2 direct `execute_one_tool_call` calls (current :721, :754) | Completed | 20261023-163754 | 20261023-163754 | REQ-007; frozen plan numbers :678/:711 are stale implemented; full suite 9909 passed |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-163754 | 20261023-163754 | mypy clean; preflight cases green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

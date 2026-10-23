@@ -54,6 +54,11 @@ Leave everything from `:90` onward untouched.
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Class docstring rewritten: one instance per LLM turn owns `_empty_result_counts`, filled by `record_tool_result`; the other per-turn state stays in `TurnLoopState`. No code change.
+
+
 - N/A: docstring-only; no signature or runtime change. The generated API table (row 8) is
   unaffected by a docstring edit.
 
@@ -89,8 +94,8 @@ pass unedited.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the class docstring at :88-89 to state per-instance/per-turn ownership | Pending | — | — | REQ-006; docstring-only, no code change |
-| 2 | Run documentation checkers (`rules/toolchain.md`) | Pending | — | — | check_docstrings.py green; 34 tests unedited |
+| 1 | Reword the class docstring at :88-89 to state per-instance/per-turn ownership | Completed | 20261023-163751 | 20261023-163751 | REQ-006; docstring-only, no code change implemented; full suite 9909 passed |
+| 2 | Run documentation checkers (`rules/toolchain.md`) | Completed | 20261023-163751 | 20261023-163751 | check_docstrings.py green; 34 tests unedited |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

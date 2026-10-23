@@ -75,6 +75,11 @@ Reference reads only: the fixture shapes reused from `tests/agent/test_llm_turn_
 
 ## Compatibility considerations
 
+### Corrections found while implementing
+
+- Plan scope gap: `tests/agent/test_tool_runner.py` also calls `_execute_with_dag` directly (9 sites), which now needs `guard` too; those were migrated together with the 26 entry-point calls (35 call sites in total). Added `TestExecuteOneToolCallRecordsOnGuard` (gateway-bypass and gateway paths, error result not recorded, untruncated output, both group shapes, collector no longer reads `ctx.guard`). Mutation check (recording removed) fails 9 tests.
+
+
 - Every migrated call must supply a concrete `ToolLoopGuard`; a missing argument fails mypy,
   which is the safety net for completeness.
 
@@ -112,10 +117,10 @@ mypy is clean; recording asserted on both group shapes and both execution paths;
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Migrate 16 `execute_all_tool_calls` call sites to pass a real guard | Pending | — | — | REQ-007; enumerate via mypy, do not trust frozen line numbers |
-| 2 | Migrate 10 `execute_one_tool_call` call sites | Pending | — | — | REQ-007 |
-| 3 | Add recording assertions on both group shapes and both execution paths | Pending | — | — | REQ-003, REQ-004, AC-2, AC-3 |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | mypy clean; full suite green |
+| 1 | Migrate 16 `execute_all_tool_calls` call sites to pass a real guard | Completed | 20261023-163752 | 20261023-163752 | REQ-007; enumerate via mypy, do not trust frozen line numbers implemented; full suite 9909 passed |
+| 2 | Migrate 10 `execute_one_tool_call` call sites | Completed | 20261023-163752 | 20261023-163752 | REQ-007 |
+| 3 | Add recording assertions on both group shapes and both execution paths | Completed | 20261023-163752 | 20261023-163752 | REQ-003, REQ-004, AC-2, AC-3 |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-163752 | 20261023-163752 | mypy clean; full suite green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
