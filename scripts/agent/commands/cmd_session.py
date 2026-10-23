@@ -11,8 +11,9 @@ Provides _SessionMixin with:
   _load_session            — restore messages into ctx.conv.history (delegates to restore_session)
 """
 
+import asyncio
 import logging
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from agent.commands.db_session_ops import DbSessionOps
@@ -217,23 +218,25 @@ class _SessionMixin(MixinBase):
             return
 
         rest = args.strip()[len(sub) :].strip()
-        db_dispatch: dict[str, Callable[[], None]] = {
-            "export": lambda: self._session_export(rest),
-            "stats": self._db_session_stats,
-            "health": self._db_session_ops.health,
-            "checkpoint": lambda: self._db_session_ops.checkpoint(
-                rest.strip().upper() or None
+        db_dispatch: dict[str, Callable[[], Awaitable[None]]] = {
+            "export": lambda: asyncio.to_thread(self._session_export, rest),
+            "stats": lambda: asyncio.to_thread(self._db_session_stats),
+            "health": lambda: asyncio.to_thread(self._db_session_ops.health),
+            "checkpoint": lambda: asyncio.to_thread(
+                self._db_session_ops.checkpoint, rest.strip().upper() or None
             ),
-            "vacuum": self._db_session_ops.vacuum,
-            "purge": lambda: self._db_session_ops.purge(rest),
-            "recover": lambda: self._db_session_ops.recover(rest.strip() or None),
-            "rag-consistency": self._rag_consistency,
-            "rag-rebuild-fts": self._rag_rebuild_fts,
-            "rag-rebuild-vec": self._rag_rebuild_vec,
+            "vacuum": lambda: asyncio.to_thread(self._db_session_ops.vacuum),
+            "purge": lambda: asyncio.to_thread(self._db_session_ops.purge, rest),
+            "recover": lambda: asyncio.to_thread(
+                self._db_session_ops.recover, rest.strip() or None
+            ),
+            "rag-consistency": lambda: asyncio.to_thread(self._rag_consistency),
+            "rag-rebuild-fts": lambda: asyncio.to_thread(self._rag_rebuild_fts),
+            "rag-rebuild-vec": lambda: asyncio.to_thread(self._rag_rebuild_vec),
         }
         handler = db_dispatch.get(sub)
         if handler is not None:
-            handler()
+            await handler()
             return
 
         self._out.write_validation_error(
