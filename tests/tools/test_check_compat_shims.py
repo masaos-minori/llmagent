@@ -7,6 +7,7 @@ from __future__ import annotations
 import re
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
@@ -616,8 +617,40 @@ class TestManifestParity:
         assert all(p.exists() for p in allowlist)
 
 
+class TestDocSymbolExitCode:
+    """--check-doc-symbols findings are blocking: each one fails the run."""
+
+    def _run(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        findings: list[SimpleNamespace],
+    ) -> int:
+        (tmp_path / "clean.py").write_text("# nothing to see here\n")
+        monkeypatch.setattr(
+            "tools.check_compat_shims.check_doc_symbols", lambda *_a, **_k: findings
+        )
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            ["check_compat_shims", "--check-doc-symbols", str(tmp_path)],
+        )
+        return main()
+
+    def test_finding_fails_the_run(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        finding = SimpleNamespace(file="docs/x.md", line_no=3, message="stale `f()`")
+        assert self._run(tmp_path, monkeypatch, [finding]) == 1
+
+    def test_no_finding_passes(
+        self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        assert self._run(tmp_path, monkeypatch, []) == 0
+
+
 class TestDocSymbolStage:
-    """check_doc_symbols() is report-only: it drops names defined under tools/
+    """check_doc_symbols() drops names defined under tools/
     and manifest allowances, reports genuine stale references, and skips
     historical-context lines. The live corpus is clean once allowances apply.
 

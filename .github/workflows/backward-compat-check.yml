@@ -36,10 +36,4 @@ jobs:
       - name: Run backward compatibility check
         run: |
           set -euo pipefail
-          python tools/check_compat_shims.py --check-removed-names
-
-      - name: Report stale doc symbol references
-        continue-on-error: true
-        run: |
-          set -euo pipefail
-          python tools/check_compat_shims.py --check-doc-symbols
+          python tools/check_compat_shims.py --check-removed-names --check-doc-symbols

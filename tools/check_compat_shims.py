@@ -245,12 +245,12 @@ def check_doc_symbols(
     docs_dir: Path,
     symbol_allowances: frozenset[str],
 ) -> list[Issue]:
-    """Report-only: warn about `func()` refs in docs with no def under scripts/.
+    """Warn about `func()` refs in docs with no def under scripts/.
 
     Reuses `tools/_docs_consistency_lib.check_function_references`, then drops
     (a) names defined under tools/ (never scanned by that helper) and (b) the
     manifest's symbol-stage allowances. Returns the remaining WARNING Issues;
-    the caller prints them and never touches the exit code.
+    main() prints them and counts each one toward the exit code.
     """
     from tools._docs_consistency_lib import (
         check_function_references,
@@ -526,15 +526,15 @@ def check_all(
     """Run all checks and return combined issues.
 
     `include_removed_names` defaults to `False` so this tool's existing
-    `.pre-commit-config.yaml` wiring (a bare `python -m tools.check_compat_shims`
-    with no flags) keeps its current pass/fail behavior unchanged.
+    default invocation (a bare `python -m tools.check_compat_shims` with no
+    flags) keeps its current pass/fail behavior unchanged; CI and pre-commit
+    pass `--check-removed-names` explicitly.
     `check_removed_name_reintroduction()` reports zero findings in the live
     corpus today: the section-scoped `ToolRouteResolver`+`server_configs`
     matcher was tightened to exempt lines that deny the stale argument
     (the corrections made by `plans/20260903-090104_plan.md`). The
-    report-only (opt-in) gating is retained per this repository's "new
-    checks stay report-only until the corpus is compliant" convention;
-    making it blocking by default is a separate decision, not done here.
+    check is opt-in via the flag and blocking wherever the flag is passed
+    (CI and pre-commit).
     """
     if is_allowlisted(filepath, allowlist):
         return []
@@ -564,17 +564,16 @@ def main() -> int:
             "see check_removed_name_reintroduction()). Off by default — the "
             "live corpus reports zero findings (the ToolRouteResolver+"
             "server_configs matcher exempts lines that deny the stale "
-            "argument), but it stays report-only (opt-in) per this "
-            "repository's convention for new checks."
+            "argument); CI and pre-commit pass this flag, so a finding blocks."
         ),
     )
     parser.add_argument(
         "--check-doc-symbols",
         action="store_true",
         help=(
-            "Report-only: warn about backtick-quoted function references in "
-            "docs/ with no matching definition under scripts/ (reuses "
-            "check_function_references; never changes the exit code)."
+            "Fail on backtick-quoted function references in docs/ with no "
+            "matching definition under scripts/ (reuses "
+            "check_function_references; each finding counts toward the exit code)."
         ),
     )
     parser.add_argument(
@@ -623,8 +622,9 @@ def main() -> int:
                 files.append(p)
         files = sorted(set(files))
 
-    # Report-only symbol stage: never affects the exit code (report-only until
-    # UNK-03 is decided). Print each remaining WARNING and move on.
+    # Symbol stage: the live corpus has zero findings, so each remaining
+    # finding is blocking.
+    total_issues = 0
     if args.check_doc_symbols:
         symbol_warnings = check_doc_symbols(
             ROOT_DIR, ROOT_DIR / "docs", symbol_allowances
@@ -634,8 +634,8 @@ def main() -> int:
                 f"[WARNING] {warning.file}:{warning.line_no}: {warning.message}",
                 file=sys.stderr,
             )
+        total_issues += len(symbol_warnings)
 
-    total_issues = 0
     for filepath in files:
         if not filepath.exists():
             continue

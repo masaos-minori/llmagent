@@ -33,6 +33,12 @@ repos:
         language: system
         pass_filenames: false
         files: ^(tools/(.*\.py|TOOL_DESCRIPTIONS\.md)|\.github/workflows/.*\.yml|\.pre-commit-config\.yaml|tox\.ini)$
+      - id: check-compat-shims
+        name: Check backward-compat leftovers and stale doc symbols
+        entry: python -m tools.check_compat_shims --check-removed-names --check-doc-symbols
+        language: system
+        pass_filenames: false
+        files: ^(scripts/.*\.py|docs/.*\.md|tests/.*\.py|tools/(check_compat_shims\.py|compat_exceptions\.toml))$
       - id: check-suppression-justification
         name: Check noqa/type:ignore/nosec suppression justifications
         entry: python -m tools.check_suppression_justification
