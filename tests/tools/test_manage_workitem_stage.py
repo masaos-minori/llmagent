@@ -5,6 +5,7 @@ Tests for tools/manage_workitem_stage.py.
 from __future__ import annotations
 
 import argparse
+import re
 from collections.abc import Callable
 from pathlib import Path
 
@@ -12,10 +13,12 @@ import git
 import git.exc
 import pytest
 
-from tools.manage_workitem_stage import _find_remote_conflict as find_remote_conflict
-from tools.manage_workitem_stage import _run_with_lock_retry as run_with_lock_retry
 from tools.manage_workitem_stage import (
+    BatchResolutionError,
+    _batch_prefix,
+    _discover_batch,
     build_parser,
+    cmd_close_batch,
     cmd_close_implementation,
     cmd_close_issue,
     cmd_close_plan,
@@ -24,6 +27,8 @@ from tools.manage_workitem_stage import (
     move_to_done,
     parse_execution_status_table,
 )
+from tools.manage_workitem_stage import _find_remote_conflict as find_remote_conflict
+from tools.manage_workitem_stage import _run_with_lock_retry as run_with_lock_retry
 
 # Well-formed `### Execution Status` table matching
 # `templates/execution-status.md`'s column structure, with one `Pending` row.
@@ -1023,3 +1028,273 @@ def test_close_issue_force_without_reason_errors(temp_git_repo: Path) -> None:
     args = build_parser().parse_args(["close-issue", str(issue), "--force"])
     assert cmd_close_issue(args) == 1
     assert issue.exists()
+
+
+# ---------------------------------------------------------------------------
+# close-batch: batch archival (REQ-001, REQ-002, REQ-003, REQ-004, REQ-005,
+# REQ-007)
+#
+# close-batch discovers its batch relative to the CWD (via _impl_root()) and
+# scans plans/ from the CWD, so every case below chdirs into the temp_git_repo
+# first. move_to_done() resolves the repository from the source file's parent,
+# so the archival move still works once the CWD is inside the temp repo.
+# ---------------------------------------------------------------------------
+
+# A clean, multi-row Execution Status table (no Pending row).
+EXECUTION_STATUS_BATCH_CLEAN = """# Batch procedure
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | First step | Completed | 20260101-000000 | 20260101-000100 | |
+| 2 | Second step | In Progress | 20260101-000100 | — | |
+"""
+
+# Same shape, but the second row is Pending — enough to trip the atomic
+# Pending pre-check across the whole batch.
+EXECUTION_STATUS_BATCH_PENDING = """# Batch procedure
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | First step | Completed | 20260101-000000 | 20260101-000100 | |
+| 2 | Second step | Pending | — | — | |
+"""
+
+
+@pytest.fixture
+def in_temp_repo(monkeypatch: pytest.MonkeyPatch, temp_git_repo: Path) -> Path:
+    """chdir into the temp repo so close-batch's CWD-relative discovery and
+    owning-plan scan resolve inside the throwaway repository."""
+    monkeypatch.chdir(temp_git_repo)
+    return temp_git_repo
+
+
+def _batch_plan_text(prefix: str = "20260101") -> str:
+    """An owning plan: an Execution Status table plus an Implementation Target
+    Files table that references ``implementations/<prefix>_`` so close-batch's
+    content-based owning-plan lookup finds it. Named ``<prefix>_plan.md`` so the
+    plan-path discovery form derives the same prefix."""
+    return f"""# Batch plan
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Plan the batch | In Progress | — | — | |
+
+## Implementation Target Files
+
+- `implementations/{prefix}_01_proc.md`
+- `implementations/{prefix}_02_proc.md`
+"""
+
+
+def _commit_procedure(
+    repo: git.Repo, root: Path, prefix: str, index: int, status_text: str
+) -> Path:
+    path = root / "implementations" / f"{prefix}_{index}_proc.md"
+    _commit_file(repo, path, status_text)
+    return path
+
+
+def _done_dir(root: Path) -> Path:
+    return root / "implementations" / "done"
+
+
+# ---------------------------------------------------------------------------
+# close-batch: discovery (REQ-001)
+# ---------------------------------------------------------------------------
+
+
+def test_close_batch_discovery_from_plan_path(in_temp_repo: Path) -> None:
+    repo = git.Repo(in_temp_repo)
+    prefix = "20260101"
+    _commit_procedure(repo, in_temp_repo, prefix, 2, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_procedure(repo, in_temp_repo, prefix, 1, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_file(
+        repo, in_temp_repo / "plans" / f"{prefix}_plan.md", _batch_plan_text(prefix)
+    )
+
+    batch_id = str(in_temp_repo / "plans" / f"{prefix}_plan.md")
+    resolved = _batch_prefix(batch_id)
+    files = _discover_batch(batch_id, resolved)
+
+    # The prefix is derived from the plan filename stem, not its table.
+    assert resolved == prefix
+    assert [p.name for p in files] == sorted(f"{prefix}_{i}_proc.md" for i in (1, 2))
+
+
+def test_close_batch_discovery_from_bare_prefix(in_temp_repo: Path) -> None:
+    repo = git.Repo(in_temp_repo)
+    prefix = "20260101"
+    _commit_procedure(repo, in_temp_repo, prefix, 1, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_procedure(repo, in_temp_repo, prefix, 2, EXECUTION_STATUS_BATCH_CLEAN)
+
+    files = _discover_batch(prefix, _batch_prefix(prefix))
+
+    assert [p.name for p in files] == sorted(f"{prefix}_{i}_proc.md" for i in (1, 2))
+
+
+def test_close_batch_unknown_batch_raises(in_temp_repo: Path) -> None:
+    # A prefix with no matching procedures resolves to an error, not a silent
+    # no-op — the caller turns this into an exit 1.
+    with pytest.raises(BatchResolutionError):
+        _discover_batch("20269999_nothing", "20269999_nothing")
+
+
+# ---------------------------------------------------------------------------
+# close-batch: atomic Pending refusal (REQ-002)
+# ---------------------------------------------------------------------------
+
+
+def test_close_batch_pending_row_refuses_and_moves_nothing(
+    in_temp_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(in_temp_repo)
+    prefix = "20260101"
+    _commit_procedure(repo, in_temp_repo, prefix, 1, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_procedure(repo, in_temp_repo, prefix, 2, EXECUTION_STATUS_BATCH_PENDING)
+    plan_path = in_temp_repo / "plans" / f"{prefix}_plan.md"
+    _commit_file(repo, plan_path, _batch_plan_text(prefix))
+    plan_before = plan_path.read_text(encoding="utf-8")
+
+    args = build_parser().parse_args(["close-batch", prefix])
+    exit_code = cmd_close_batch(args)
+
+    assert exit_code == 1
+    # No file moved: both procedures still present, nothing staged into done/.
+    assert (in_temp_repo / "implementations" / f"{prefix}_1_proc.md").exists()
+    assert (in_temp_repo / "implementations" / f"{prefix}_2_proc.md").exists()
+    assert list(_done_dir(in_temp_repo).glob("*")) == []
+    # The plan was not touched.
+    assert plan_path.read_text(encoding="utf-8") == plan_before
+    assert "Pending" in capsys.readouterr().err
+
+
+# ---------------------------------------------------------------------------
+# close-batch: idempotency (REQ-007)
+# ---------------------------------------------------------------------------
+
+
+def test_close_batch_idempotent_second_run_is_noop(
+    in_temp_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(in_temp_repo)
+    prefix = "20260101"
+    _commit_procedure(repo, in_temp_repo, prefix, 1, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_procedure(repo, in_temp_repo, prefix, 2, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_file(
+        repo, in_temp_repo / "plans" / f"{prefix}_plan.md", _batch_plan_text(prefix)
+    )
+
+    assert cmd_close_batch(build_parser().parse_args(["close-batch", prefix])) == 0
+    done = _done_dir(in_temp_repo)
+    assert (done / f"{prefix}_1_proc.md").exists()
+    assert (done / f"{prefix}_2_proc.md").exists()
+
+    # Second run on the same batch id is a no-op, not a partial re-run, and
+    # raises no error.
+    assert cmd_close_batch(build_parser().parse_args(["close-batch", prefix])) == 0
+    captured = capsys.readouterr()
+    assert "already closed" in captured.out.lower()
+    # Still exactly the two archived files; nothing duplicated or missing.
+    assert sorted(p.name for p in done.glob(f"{prefix}_*.md")) == sorted(
+        f"{prefix}_{i}_proc.md" for i in (1, 2)
+    )
+
+
+# ---------------------------------------------------------------------------
+# close-batch: dry-run (REQ-005)
+# ---------------------------------------------------------------------------
+
+
+def test_close_batch_dry_run_changes_nothing(
+    in_temp_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(in_temp_repo)
+    prefix = "20260101"
+    proc1 = _commit_procedure(
+        repo, in_temp_repo, prefix, 1, EXECUTION_STATUS_BATCH_CLEAN
+    )
+    _commit_procedure(repo, in_temp_repo, prefix, 2, EXECUTION_STATUS_BATCH_CLEAN)
+    plan_path = in_temp_repo / "plans" / f"{prefix}_plan.md"
+    _commit_file(repo, plan_path, _batch_plan_text(prefix))
+    plan_before = plan_path.read_text(encoding="utf-8")
+
+    args = build_parser().parse_args(["close-batch", prefix, "--dry-run"])
+    exit_code = cmd_close_batch(args)
+
+    assert exit_code == 0
+    # Nothing moved, plan untouched.
+    assert proc1.exists()
+    assert (in_temp_repo / "implementations" / f"{prefix}_2_proc.md").exists()
+    assert not list(_done_dir(in_temp_repo).glob("*"))
+    assert plan_path.read_text(encoding="utf-8") == plan_before
+    # Output lists every planned move and edit.
+    captured = capsys.readouterr()
+    assert f"move {proc1.relative_to(in_temp_repo)} ->" in captured.out
+    assert "edit" in captured.out
+
+
+def test_close_batch_dry_run_pending_reports_block(
+    in_temp_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(in_temp_repo)
+    prefix = "20260101"
+    _commit_procedure(repo, in_temp_repo, prefix, 1, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_procedure(repo, in_temp_repo, prefix, 2, EXECUTION_STATUS_BATCH_PENDING)
+
+    # The atomic pre-check runs even in --dry-run: a Pending row blocks before any
+    # planned-move listing, so the output reports the block rather than a clean plan.
+    args = build_parser().parse_args(["close-batch", prefix, "--dry-run"])
+    assert cmd_close_batch(args) == 1
+    captured = capsys.readouterr()
+    assert "Pending" in captured.err
+    assert "dry-run" not in captured.out.lower()
+
+
+# ---------------------------------------------------------------------------
+# close-batch: temp-git integration (REQ-003, REQ-004)
+# ---------------------------------------------------------------------------
+
+
+def test_close_batch_integration_archives_and_updates_plan(
+    in_temp_repo: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    repo = git.Repo(in_temp_repo)
+    prefix = "20260101"
+    _commit_procedure(repo, in_temp_repo, prefix, 1, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_procedure(repo, in_temp_repo, prefix, 2, EXECUTION_STATUS_BATCH_CLEAN)
+    _commit_file(
+        repo, in_temp_repo / "plans" / f"{prefix}_plan.md", _batch_plan_text(prefix)
+    )
+
+    exit_code = cmd_close_batch(build_parser().parse_args(["close-batch", prefix]))
+
+    assert exit_code == 0
+    # Both procedures moved into implementations/done/.
+    done = _done_dir(in_temp_repo)
+    assert not (in_temp_repo / "implementations" / f"{prefix}_1_proc.md").exists()
+    assert not (in_temp_repo / "implementations" / f"{prefix}_2_proc.md").exists()
+    assert (done / f"{prefix}_1_proc.md").exists()
+    assert (done / f"{prefix}_2_proc.md").exists()
+
+    # The owning plan's Execution Status rows are now Completed with
+    # YYYYMMDD-HHMMSS timestamps.
+    _, header, rows = parse_execution_status_table(
+        (in_temp_repo / "plans" / f"{prefix}_plan.md").read_text(encoding="utf-8")
+    )
+    assert header is not None and rows is not None
+    status_col = header.index("Status")
+    started_col = header.index("Started")
+    completed_col = header.index("Completed")
+    assert all(row[status_col] == "Completed" for row in rows)
+    for row in rows:
+        assert re.fullmatch(r"\d{8}-\d{6}", row[started_col])
+        assert re.fullmatch(r"\d{8}-\d{6}", row[completed_col])

@@ -39,6 +39,8 @@ Subcommands:
   close-issue           issues/{file}.md -> issues/done/{file}.md
   close-plan            plans/{file}.md -> plans/done/{file}.md
   close-implementation  implementations/{file}.md -> implementations/done/{file}.md
+  close-batch           archive every procedure of a batch (plan path or timestamp
+                          prefix), marking each Completed and its plan Completed
   set-status            set every row's Status (+ optional Started/Completed/Notes)
                          in a plan's or implementation procedure's Execution Status table
   set-step-status       same, but only for one row (--step N or --description text)
@@ -71,6 +73,7 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -710,6 +713,256 @@ def cmd_close_implementation(args: argparse.Namespace) -> int:
     return _report_move_result(source, result, extra_note)
 
 
+class BatchResolutionError(Exception):
+    """Raised when a batch id resolves to zero live procedures (unknown batch)."""
+
+
+class AlreadyClosedBatch(Exception):
+    """Raised when a batch id resolves to zero live procedures because it was
+    already archived into `implementations/done/`."""
+
+    def __init__(self, archived: list[Path]) -> None:
+        super().__init__(
+            "batch already archived: " + ", ".join(str(p) for p in archived)
+        )
+        self.files = archived
+
+
+def _impl_root() -> Path:
+    """Return the repository's `implementations/` directory (relative to cwd)."""
+    return Path("implementations")
+
+
+def _prefix_from_plan_path(plan: Path) -> str:
+    """Derive a batch's timestamp prefix from a plan file's name.
+
+    A plan is named `<timestamp>_plan.md`; the prefix is the `<timestamp>`
+    (`YYYYMMDD-HHMMSS`) that also leads its procedures' filenames. Falls back to the
+    leading `YYYYMMDD-HHMMSS` token when the name does not end in `_plan.md`.
+    """
+    name = plan.name
+    if name.endswith("_plan.md"):
+        return name[: -len("_plan.md")]
+    match = re.match(r"(\d{8}-\d{6})", name)
+    if match:
+        return match.group(1)
+    raise ValueError(f"cannot derive a batch prefix from plan filename: {name}")
+
+
+def _batch_prefix(batch_id: str) -> str:
+    """Resolve a batch id (plan path or bare prefix) to its timestamp prefix."""
+    candidate = Path(batch_id)
+    if candidate.is_file():
+        return _prefix_from_plan_path(candidate)
+    return batch_id.strip("/")
+
+
+def _discover_batch(batch_id: str, prefix: str) -> list[Path]:
+    """Return the sorted live procedure paths of the batch identified by `prefix`.
+
+    When no live procedure matches but the files exist under `implementations/done/`,
+    raise `AlreadyClosedBatch`; otherwise raise `BatchResolutionError`.
+    """
+    impl_root = _impl_root()
+    live = sorted(impl_root.glob(f"{prefix}_*.md"))
+    if live:
+        return live
+
+    archived = sorted((impl_root / "done").glob(f"{prefix}_*.md"))
+    if archived:
+        raise AlreadyClosedBatch(archived)
+    raise BatchResolutionError(
+        f"batch '{batch_id}' (prefix '{prefix}') resolved to no procedures under "
+        f"{impl_root}/ (no implementations/{prefix}_*.md)"
+    )
+
+
+def _extract_source_issue(content: str) -> str | None:
+    r"""Return the `Source issue` path cited in a workitem's Traceability section.
+
+    Matches both the plan form (`- **Source issue**: \`issues/...\``) and the
+    implementation-procedure form (`**Source issue**: \`issues/...\``); returns the
+    bare `issues/<path>` token without surrounding backticks.
+    """
+    match = re.search(r"\*\*Source issue\*\*:\s*`?([^`\s]+)`?", content)
+    return match.group(1) if match else None
+
+
+def _find_owning_plan(procedures: list[Path], prefix: str) -> Path | None:
+    """Return the plan that owns the discovered batch, or `None`.
+
+    Two signals are tried, in order:
+
+    1. A plan whose content references this batch's procedures
+       (`implementations/<prefix>_`) — the deterministic case used by tests.
+    2. A plan sharing the batch's `Source issue` — the real-world link between a plan
+       and the procedures its `plan-to-implementation-procedure` run generated (their
+       timestamps differ, so the prefix is not derivable from the plan filename).
+
+    Searches both `plans/*.md` and `plans/done/*.md` (a plan may already be archived).
+    Returns the first match, or `None` when no plan owns the batch.
+    """
+    plan_dirs = [Path("plans"), Path("plans") / "done"]
+    candidates: list[Path] = []
+
+    for plan_dir in plan_dirs:
+        if not plan_dir.is_dir():
+            continue
+        for plan in sorted(plan_dir.glob("*.md")):
+            if f"implementations/{prefix}_" in plan.read_text(encoding="utf-8"):
+                candidates.append(plan)
+    if candidates:
+        return candidates[0]
+
+    issue_tokens: set[str] = set()
+    for proc in procedures:
+        token = _extract_source_issue(proc.read_text(encoding="utf-8"))
+        if token:
+            issue_tokens.add(token)
+
+    for plan_dir in plan_dirs:
+        if not plan_dir.is_dir():
+            continue
+        for plan in sorted(plan_dir.glob("*.md")):
+            content = plan.read_text(encoding="utf-8")
+            if any(token in content for token in issue_tokens):
+                candidates.append(plan)
+
+    return candidates[0] if candidates else None
+
+
+def _current_stamp() -> str:
+    """Return the current local time as `YYYYMMDD-HHMMSS` (per templates/execution-status.md)."""
+    return datetime.now().strftime("%Y%m%d-%H%M%S")
+
+
+def cmd_close_batch(args: argparse.Namespace) -> int:
+    """Archive every procedure of a batch and mark its owning plan `Completed`.
+
+    Discovers the batch, runs an atomic `Pending` pre-check across all procedures
+    (refusing with no file moved when any row is `Pending`), marks each procedure's
+    rows `Completed`, archives each via `move_to_done()`, then updates the owning
+    plan's rows. A batch's renames always stage (never auto-commit mid-batch) so they
+    land in one real commit. `--dry-run` prints the planned moves and edits without
+    touching files. A second run on an already-closed batch is a no-op (exit 0).
+    """
+    try:
+        prefix = _batch_prefix(args.batch_id)
+        files = _discover_batch(args.batch_id, prefix)
+    except AlreadyClosedBatch as exc:
+        print(
+            f"OK: batch already closed ({len(exc.files)} file(s) already archived); "
+            f"nothing to do"
+        )
+        return 0
+    except BatchResolutionError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+    except ValueError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    # Atomic Pending pre-check across every procedure (runs even in --dry-run).
+    pending_by_file: dict[Path, list[dict[str, str]]] = {}
+    for proc in files:
+        rows = parse_execution_status_rows(proc.read_text(encoding="utf-8"))
+        if rows is None:
+            print(
+                f"ERROR: '{EXECUTION_STATUS_HEADING}' table missing or malformed "
+                f"(no 'Status' column) in {proc}",
+                file=sys.stderr,
+            )
+            return 1
+        pending = _pending_rows(rows)
+        if pending:
+            pending_by_file[proc] = pending
+
+    if pending_by_file:
+        described = "; ".join(
+            f"{proc}: {_describe_rows(pending_by_file[proc])}"
+            for proc in pending_by_file
+        )
+        print(
+            f"ERROR: blocked by Pending Execution Status row(s): {described}",
+            file=sys.stderr,
+        )
+        return 1
+
+    owning_plan = _find_owning_plan(files, prefix)
+
+    if args.dry_run:
+        print(f"[dry-run] batch {args.batch_id}: {len(files)} procedure(s)")
+        for proc in files:
+            destination = proc.parent / "done" / proc.name
+            print(f"[dry-run]   move {proc} -> {destination}")
+            print(f"[dry-run]   edit  {proc}: mark rows Completed")
+        if owning_plan is not None:
+            print(f"[dry-run]   edit  {owning_plan}: mark rows Completed")
+        else:
+            print("[dry-run]   owning plan: not found (skipped)")
+        return 0
+
+    stamp = _current_stamp()
+    # A batch's renames must land in one real commit, so we always stage rather than
+    # auto-commit each file mid-batch (the archival move still runs its hooks later).
+    stage_only = True
+
+    for proc in files:
+        if not update_execution_status(
+            source=proc,
+            kind="implementation-procedure",
+            new_status="Completed",
+            new_started=stamp,
+            new_completed=stamp,
+        ):
+            print(f"ERROR: failed to mark rows Completed in {proc}", file=sys.stderr)
+            return 1
+        result = move_to_done(
+            proc, kind="implementation procedure", stage_only=stage_only
+        )
+        if not result.success:
+            print(
+                f"ERROR: failed to archive {proc}: {result.error}",
+                file=sys.stderr,
+            )
+            return 1
+
+    if owning_plan is not None:
+        plan_rows = parse_execution_status_rows(owning_plan.read_text(encoding="utf-8"))
+        already_all_completed = bool(
+            plan_rows
+            and all(row.get("Status", "").strip() == "Completed" for row in plan_rows)
+        )
+        if already_all_completed:
+            # Idempotency guard (REQ-007): never re-stamp already-Completed rows.
+            print(f"OK: plan {owning_plan} already Closed; rows not re-stamped")
+        elif not update_execution_status(
+            source=owning_plan,
+            kind="plan",
+            new_status="Completed",
+            new_started=stamp,
+            new_completed=stamp,
+        ):
+            print(
+                f"ERROR: failed to mark plan rows Completed in {owning_plan}",
+                file=sys.stderr,
+            )
+            return 1
+        else:
+            print(f"OK: plan {owning_plan} marked Completed")
+    else:
+        print(
+            f"NOTE: owning plan for batch {args.batch_id} not found; "
+            f"plan status not updated"
+        )
+
+    detail = f"{len(files)} procedure(s) archived"
+    if owning_plan is not None:
+        detail += f", plan {owning_plan} marked Completed"
+    print(f"OK: closed batch {args.batch_id}: {detail}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Archive workflow-stage transitions via git mv",
@@ -763,6 +1016,27 @@ def build_parser() -> argparse.ArgumentParser:
         "--stage-only",
         action="store_true",
         help="Stage (not commit) an uncommitted source before the move",
+    )
+
+    close_batch_parser = subparsers.add_parser(
+        "close-batch",
+        help="Archive every procedure of a batch and mark its plan Completed",
+    )
+    close_batch_parser.add_argument(
+        "batch_id",
+        help="Batch id: a plan path or a bare YYYYMMDD-HHMMSS timestamp prefix",
+    )
+    close_batch_parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Print the planned moves and edits without changing any file",
+    )
+    close_batch_parser.add_argument(
+        "--stage-only",
+        action="store_true",
+        default=True,
+        help="Stage (not commit) the archival moves; close-batch always stages so a "
+        "batch's renames land in one real commit",
     )
 
     # set-status: update all rows' Status column
@@ -1070,6 +1344,8 @@ def main(argv=None):
         return cmd_close_plan(args)
     elif args.subcommand == "close-implementation":
         return cmd_close_implementation(args)
+    elif args.subcommand == "close-batch":
+        return cmd_close_batch(args)
     elif args.subcommand == "set-status":
         return cmd_set_status(args)
     elif args.subcommand == "set-step-status":
