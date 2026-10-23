@@ -73,10 +73,10 @@ Implementing the tool, the `routing.md` and `rules/toolchain.md` pointers, and t
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | REQ-008; tools/TOOL_DESCRIPTIONS.md |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: docs-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | check_tool_descriptions_sync.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-24 | 2026-10-24 | row added to Work Items table; Index bumped 52->53; run_validation_gates.py backticked |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-24 | 2026-10-24 | N/A: docs-only, no tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-24 | 2026-10-24 | check_tool_descriptions_sync.py: No issues found (exit 0); check_workitem_structure.py on this doc: No findings |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-24 | 2026-10-24 | index count + listing kept in sync with live tools/*.py |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

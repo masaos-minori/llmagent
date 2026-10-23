@@ -4,8 +4,8 @@ Create `tools/run_validation_gates.py` — a new thin orchestration entry point 
 
 ## Scope
 
-- **In-Scope**: create `tools/run_validation_gates.py` only (a new file under `tools/`).
-- **Out-of-Scope**: registering the tool in `tools/TOOL_DESCRIPTIONS.md` (seq 02), adding the pointer to `routing.md` (seq 03), adding the pointer to `rules/toolchain.md` (seq 04), writing the tests (that is `tests/tools/test_run_validation_gates.py`, seq 02 of the plan's sibling row), changing any gate or its thresholds, or modifying `.github/workflows/ci.yml` / `.pre-commit-config.yaml` hook sets.
+- **In-Scope**: create `tools/run_validation_gates.py` and its unit tests `tests/tools/test_run_validation_gates.py` — both belong to the `tools/run_validation_gates.py` row of `plans/done/20261023-231525_plan.md` (that plan's Implementation Target Files lists the test file under this row, and its Implementation steps 1-3 each include unit tests).
+- **Out-of-Scope**: registering the tool in `tools/TOOL_DESCRIPTIONS.md` (seq 02), adding the pointer to `routing.md` (seq 03), adding the pointer to `rules/toolchain.md` (seq 04), changing any gate or its thresholds, or modifying `.github/workflows/ci.yml` / `.pre-commit-config.yaml` hook sets.
 
 ## Assumptions
 
@@ -42,6 +42,8 @@ Implement in four phases mirroring the plan's Implementation steps.
 **Phase 3 — Drift check.** Expose a drift check that fails when a checker listed in `routing.md` has no mapping entry.
 
 **Phase 4 — Registration** is covered by seq 02/03/04; this file's part is the code plus its own validation sequence (see Validation plan).
+
+**Commit coordination.** `run_validation_gates.py` is a new `tools/` file, so the `tool-descriptions-sync` pre-commit hook (which runs `check_tool_descriptions_sync.py`) fails on this file's first commit until the tool is documented. This procedure therefore implements and validates the tool and its tests but defers the *commit* until `tools/TOOL_DESCRIPTIONS.md` gains its row (seq 02) in the same change, so the tool, its tests, and its documentation row land in one commit. The drift check (`run_validation_gates.py drift`) needs no documentation and can be run now as evidence.
 
 ### Method
 
@@ -89,17 +91,17 @@ Delete the new file. Single-file, additive change; `git checkout -- tools/run_va
 
 ## Out of Scope
 
-The `tools/TOOL_DESCRIPTIONS.md` registration row, the `routing.md` and `rules/toolchain.md` pointers, the test file, and any change to CI/pre-commit hook sets or gate thresholds.
+The `tools/TOOL_DESCRIPTIONS.md` registration row, the `routing.md` and `rules/toolchain.md` pointers, and any change to CI/pre-commit hook sets or gate thresholds. The test file (`tests/tools/test_run_validation_gates.py`) is IN-scope (see `## Scope` above); listing it here was a mistake and has been removed.
 
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: gate inventory from toolchain.md/routing.md/pre-commit/ci/tox; embed path-to-gate mapping data | Pending | — | — | REQ-002; tools/run_validation_gates.py |
-| 2 | Phase 2: git diff discovery, fast/full modes, ordered runner, vocabulary summary | Pending | — | — | REQ-001, REQ-003, REQ-004, REQ-005; tools/run_validation_gates.py |
-| 3 | Phase 3: drift test against real routing.md | Pending | — | — | REQ-006; tools/run_validation_gates.py |
-| 4 | Phase 4: validation sequence (ruff/mypy/bandit); registration is seq 02/03/04 | Pending | — | — | REQ-007, REQ-008; tools/run_validation_gates.py |
+| 1 | Phase 1: gate inventory from toolchain.md/routing.md/pre-commit/ci/tox; embed path-to-gate mapping data | Completed | 2026-10-24 | 2026-10-24 | mapping embedded from toolchain.md + routing.md; smoke run current tree + d388529d1 both exit 0 |
+| 2 | Phase 2: git diff discovery, fast/full modes, ordered runner, vocabulary summary | Completed | 2026-10-24 | 2026-10-24 | discovery/fast+full modes/runner verified via smoke runs; placeholder cmds classify Not available |
+| 3 | Phase 3: drift test against real routing.md | Completed | 2026-10-24 | 2026-10-24 | drift OK: 29 routing.md checkers all mapped (exit 0) |
+| 4 | Phase 4: validation sequence (ruff/mypy/bandit); registration is seq 02/03/04 | Completed | 2026-10-24 | 2026-10-24 | ruff format/check + mypy + bandit clean; 18/18 unit tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
