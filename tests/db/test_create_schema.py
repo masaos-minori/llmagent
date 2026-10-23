@@ -19,6 +19,7 @@ import db.create_schema as cs
 import pytest
 from db.config import DbConfig
 from db.helper import SQLiteHelper
+from db.schema_sql import build_eventbus_schema_sql, eventbus_schema_version
 
 # RAG schema without the vec0 virtual table (chunks_vec requires sqlite-vec).
 _RAG_SCHEMA_NO_VEC0 = """
@@ -972,6 +973,66 @@ class TestEventbusSchemaCreation:
         conn.close()
         assert {"events", "consumer_delivery", "consumer_offsets"} <= tables
         assert cols["acked"] == ("INTEGER", 1, "0")
+
+    def test_fresh_database_is_stamped_with_the_schema_version(
+        self, tmp_path: Path
+    ) -> None:
+        db_file = tmp_path / "eventbus_stamped.sqlite"
+        cfg = _make_db_config(db_file, "eventbus")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        conn.close()
+        assert version == eventbus_schema_version()
+
+    def test_mismatched_version_is_refused_not_migrated(self, tmp_path: Path) -> None:
+        """A database stamped with another version fails explicitly and is left as is."""
+        db_file = tmp_path / "eventbus_other_version.sqlite"
+        raw = sqlite3.connect(str(db_file))
+        raw.execute("CREATE TABLE events (seq INTEGER PRIMARY KEY, event_id TEXT)")
+        raw.execute("PRAGMA user_version = 99")
+        raw.close()
+        cfg = _make_db_config(db_file, "eventbus")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            with pytest.raises(RuntimeError, match="recreate the database"):
+                cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        columns = [r[1] for r in conn.execute("PRAGMA table_info(events)")]
+        tables = _table_names(conn)
+        conn.close()
+        assert columns == ["seq", "event_id"]
+        assert "consumer_delivery" not in tables
+
+    def test_unstamped_existing_database_is_not_stamped(self, tmp_path: Path) -> None:
+        """create_eventbus_schema() never vouches for an unverified database."""
+        db_file = tmp_path / "eventbus_unstamped.sqlite"
+        raw = sqlite3.connect(str(db_file))
+        raw.executescript(build_eventbus_schema_sql())
+        raw.execute("PRAGMA user_version = 0")
+        raw.close()
+        cfg = _make_db_config(db_file, "eventbus")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        conn.close()
+        assert version == 0
+
+    def test_unstamped_old_shape_fails_explicitly(self, tmp_path: Path) -> None:
+        """An old-shape database is not migrated: the DDL fails and nothing is stamped."""
+        db_file = tmp_path / "eventbus_old_shape.sqlite"
+        raw = sqlite3.connect(str(db_file))
+        raw.execute("CREATE TABLE events (seq INTEGER PRIMARY KEY, event_id TEXT)")
+        raw.close()
+        cfg = _make_db_config(db_file, "eventbus")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            with pytest.raises(sqlite3.OperationalError):
+                cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        version = conn.execute("PRAGMA user_version").fetchone()[0]
+        conn.close()
+        assert version == 0
 
 
 # ── DDL error propagation (behavior lock for the refactor extracting the shared ────

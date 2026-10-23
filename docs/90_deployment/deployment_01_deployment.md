@@ -296,12 +296,13 @@ bash deploy/init_db.sh
 **Responsibilities of init_db.sh:**
 - Runs `db/create_schema.py` to initialize the rag, session, workflow, and eventbus databases
 - Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts)
-- Applies the incremental migrations of `eventbus.sqlite` (idempotent); `workflow.sqlite`, `rag.sqlite` and `session.sqlite` are create-only and are not migrated
+- Creates `eventbus.sqlite` from `scripts/eventbus/schema.sql` with `PRAGMA user_version`; every database is create-only, none is migrated
+- Refuses an `eventbus.sqlite` stamped with another version
 - Verifies all mandatory tables exist; aborts if any are missing
 
 - Records the schema version
 
-Run `init_db.sh` before `setup_services.sh`, which rejects a schema-version mismatch. A workflow database older than the current schema is recreated, not migrated: archive the file first, because `init_db.sh` refuses to record the current version over a different one. The workflow definition must not contain `require_approval`; the loader rejects the key.
+Run `init_db.sh` before `setup_services.sh`, which rejects a schema-version mismatch. A workflow or EventBus database older than the current schema is recreated, not migrated: archive it first (`rotate_all_dbs()`), delete it, then run `init_db.sh`. `init_db.sh` refuses to record the current version over a different one; the EventBus service refuses a different version or table shape. The workflow definition must not contain `require_approval`; the loader rejects the key.
 
 **Recreating `session.sqlite`.** `session.sqlite` has no incremental migration, so a schema change to it (for example the `sessions.undo_floor_message_id` column of the `/undo` compression boundary) requires recreating the file. The recreated file is empty, and the memory tables recover separately.
 
