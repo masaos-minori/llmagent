@@ -53,6 +53,8 @@ tests/
 When finding or adding a test, mirror the target module's path under `scripts/`
 (or `tools/`), not a flat `tests/test_<module>.py` layout.
 
+A fixture that repairs production wiring must be paired with a wiring-level test. `_make_bare_repl` (`tests/agent/test_repl.py`) bypasses `AgentREPL.__init__` (`AgentREPL.__new__` plus a hand-supplied shutdown event) so its doubles stand in for config, terminal, LLM and MCP services; because it supplies what `__init__` does not, it must be paired with `TestWiringGuard`, which runs the real constructor and asserts one `asyncio.Event` is held across the objects that own it. Every wiring-repairing fixture in the suite carries such a paired guard and names it in its docstring — see the wiring-guard and mock-state rule in `SKILL.md`.
+
 ## Step 1: Classify the Testing Task
 
 Before reading any test file, classify:

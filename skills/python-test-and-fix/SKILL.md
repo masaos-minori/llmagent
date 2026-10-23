@@ -20,6 +20,7 @@ Add, repair, and improve Python tests; reproduce the problem clearly; fix the sm
 - **Do Not Fix Tests by Blindly Changing Expectations**: If a test fails, MUST NOT modify the assertions to match the current broken output. You MUST verify whether the implementation or the test violates the system contract.
 - **Strictly Forbid Flaky Fix Anti-Patterns**: Never use arbitrary `time.sleep()` to fix timing or race conditions in async or multi-threaded tests. Use synchronization primitives, event-loop waits, or `pytest-asyncio` lifecycles.
 - **Ensure Mock Cleanliness**: Always patch/mock dependencies using context managers or pytest fixtures that guarantee automatic cleanup. MUST NOT leave leakage or side-effects that affect later tests.
+- **Wiring-Guard and Mock-State Prohibition**: A component constructed in `__init__` and shared with other objects (e.g. `AgentREPL`'s shutdown event, held by `ReplInputLoop` and `SignalHandler`) MUST have a wiring-level guard test that runs the real constructor and asserts the production handoff; and a test MUST NOT assert on state the test itself assigned to a `MagicMock` — asserting self-assigned mock state hides the very defect (wrong or missing wiring) this rule exists to catch.
 - **No Tool Hallucination**: applies to `mutmut`, `freezegun`, `respx`, `hypothesis`, `pytest-testmon` — see `skills/DESIGN.md` Tool availability guard (fallback: standard `pytest`/`unittest.mock`).
 
 ## Task Routing (Step 1 Classification & Phase Guide)

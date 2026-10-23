@@ -27,7 +27,11 @@ from agent.startup_banner import StartupBanner
 
 
 def _make_bare_repl() -> AgentREPL:
-    """Return an AgentREPL instance bypassing __init__ to avoid real deps."""
+    """Return an AgentREPL instance bypassing __init__ to avoid real deps.
+
+    Bypasses `AgentREPL.__init__` and hand-supplies the shutdown event and its holders;
+    the paired wiring guard that runs the real constructor is `TestWiringGuard`.
+    """
     repl = AgentREPL.__new__(AgentREPL)
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
@@ -333,39 +337,50 @@ class TestReplLoop:
 
     @pytest.mark.asyncio
     async def test_signal_mid_turn_exits_within_graceful_timeout(self) -> None:
-        """When SIGTERM fires while _dispatch_line hangs, _repl_loop exits within _GRACEFUL_TIMEOUT_S."""
+        """A signal while _dispatch_line hangs takes the cancel branch of _repl_loop.
+
+        _make_bare_repl supplies a real asyncio.Event, so the race branch runs: the hung
+        dispatch is cancelled and the loop exits. Removing that cancel makes the test
+        fail with a TimeoutError instead of being swallowed.
+        """
         repl = _make_bare_repl()
         dispatch_hang = asyncio.Event()
+        dispatch_cancelled = asyncio.Event()
 
         async def _hang_dispatch(*args, **kwargs):
-            await dispatch_hang.wait()
+            try:
+                await dispatch_hang.wait()  # left unset so the dispatch stays pending
+            except asyncio.CancelledError:
+                dispatch_cancelled.set()
+                raise
 
         repl._orchestrator.handle_turn = AsyncMock(side_effect=_hang_dispatch)
-
-        start = time.time()
 
         async def _set_shutdown_after_delay():
             await asyncio.sleep(0.02)
             repl._shutdown_event.set()
-            dispatch_hang.set()
 
-        asyncio.ensure_future(_set_shutdown_after_delay())
+        signal_task = asyncio.ensure_future(_set_shutdown_after_delay())
 
         mock_banner = MagicMock()
         mock_persister = AsyncMock()
+        start = time.monotonic()
         with patch.object(
             repl._input_loop, "_read_input", new=AsyncMock(return_value="test input")
         ):
-            try:
-                await asyncio.wait_for(
-                    repl._input_loop.run(mock_banner, mock_persister), timeout=5.0
-                )
-            except TimeoutError:
-                pass  # Should not happen if graceful shutdown works
+            await asyncio.wait_for(
+                repl._input_loop.run(mock_banner, mock_persister), timeout=5.0
+            )
+        elapsed = time.monotonic() - start
+        await signal_task
 
-        elapsed = time.time() - start
-        assert elapsed < 2.0, f"Loop took {elapsed:.1f}s to exit; expected ~0.05s"
-        assert dispatch_hang.is_set() or True  # may or may not have been cancelled
+        # Without the explicit cancel the loop only ends when the outer wait_for cancels it.
+        assert elapsed < 1.0, f"loop took {elapsed:.1f}s; the cancel branch must end it"
+
+        assert dispatch_cancelled.is_set(), (
+            "the race branch must cancel the hung dispatch"
+        )
+        assert mock_persister.await_count == 1, "the post-loop persist hook runs once"
 
     @pytest.mark.asyncio
     async def test_signal_before_turn_starts_still_exits(self) -> None:
@@ -617,7 +632,11 @@ class TestPersistSessionDiagnostics:
 
 
 def _make_repl_for_shutdown() -> AgentREPL:
-    """Return an AgentREPL instance with a shutdown event for _read_input tests."""
+    """Return an AgentREPL instance with a shutdown event for _read_input tests.
+
+    Bypasses `AgentREPL.__init__` and hand-supplies the event; the paired wiring guard
+    that runs the real constructor is `TestWiringGuard`.
+    """
     repl = AgentREPL.__new__(AgentREPL)
     ctx = MagicMock()
     ctx.conv.shutdown_requested = False
@@ -773,15 +792,22 @@ def _make_real_wired_repl() -> AgentREPL:
         return AgentREPL()
 
 
-class TestAgentREPLOwnsOneShutdownEvent:
-    """The fixtures bypass __init__, which would hide an input loop built with no event."""
+class TestWiringGuard:
+    """AgentREPL.__init__ and run() wire ONE asyncio.Event.
+
+    `_make_bare_repl` and `_make_repl_for_shutdown` bypass `AgentREPL.__init__` and
+    hand-supply the event, so they cannot show an input loop or signal handler built
+    with no event. This guard runs the real constructor with only the three heavy
+    collaborators substituted at the use site, and asserts the event exists before any
+    identity comparison (an `is` check alone would pass on two Nones).
+    """
 
     def test_consumers_share_the_event_created_at_construction(self) -> None:
         repl = _make_real_wired_repl()
 
-        assert repl._input_loop._shutdown_event is not None
-        assert repl._input_loop._shutdown_event is repl._signal._shutdown_event
+        assert isinstance(repl._shutdown_event, asyncio.Event)
         assert repl._input_loop._shutdown_event is repl._shutdown_event
+        assert repl._signal._shutdown_event is repl._shutdown_event
 
     @pytest.mark.asyncio
     async def test_run_neither_recreates_nor_rebinds_the_event(self) -> None:
