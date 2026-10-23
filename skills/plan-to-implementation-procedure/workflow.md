@@ -5,7 +5,7 @@
 See `routing.md`, section 'Document workflow directories' for this pipeline; this
 skill produces the `implementations/` step.
 
-- Input: `plans/{filename}_plan.md`
+- Input: `plans/{filename}.md`
 - Output: `implementations/{timestamp}_{seq}_{target_file_slug}.md`, where
   `target_file_slug` is `target_file_path` with `/` and any non-alphanumeric/`_`/`-`/
   `.` character replaced by `_`, `timestamp` is shared across every document
@@ -25,7 +25,7 @@ This is a document-only phase. Allowed operations:
 - Move the processed plan file to `plans/done/` once Step 3's validation passes —
   no human approval is required, per `rules/workflow-lifecycle.md` Validation
   Reporting.
-- Correct the Plan file itself (`plans/{filename}_plan.md`, via Edit) when Step 3's
+- Correct the Plan file itself (`plans/{filename}.md`, via Edit) when Step 3's
   adversarial verification finds an unconfirmed item or an inconsistency — the
   document-only constraint applies to source code and `docs/*.md`, not to the Plan
   document under active revision.
@@ -97,7 +97,7 @@ Apply `rules/ai-execution.md`, section 'Required File Validation'.
 ## Step 1: Identify the Target Plan File(s)
 
 Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) and Current-Target
-Loading in full. This workflow's target files: `plans/{filename}_plan.md`; archive
+Loading in full. This workflow's target files: `plans/{filename}.md`; archive
 directory: `plans/done/`.
 
 ---
@@ -156,7 +156,7 @@ Plan:
   Plan missing required section(s): {list}` — structural completeness is
   `issue-to-plan`'s responsibility; the Plan should be regenerated or corrected there.
 - **(b) Correct in place, with the user's explicit approval**: only when the user
-  explicitly approves for this specific Plan, rewrite `plans/{filename}_plan.md` (via
+  explicitly approves for this specific Plan, rewrite `plans/{filename}.md` (via
   Write/Edit) to add the missing section(s), grounding every added claim (Requirements,
   Implementation Target Files rows, Traceability values) in repository evidence per
   Step 3a's Adversarial Verification procedure below — MUST NOT fabricate a Requirement,
@@ -202,7 +202,7 @@ against this same file at its current content within this cycle.
 
 If adversarial verification finds an unconfirmed item or an inconsistency (a stale
 claim, a missing Requirement, a newly discovered dead-code reference, a duplicate or
-superseded Plan, etc.), correct the Plan document itself (`plans/{filename}_plan.md`,
+superseded Plan, etc.), correct the Plan document itself (`plans/{filename}.md`,
 via Edit) in the same cycle — update whichever sections apply (Background,
 Requirements, Acceptance criteria, Assumptions, Risks, Requirement Traceability,
 Execution Status) rather than silently working around the discrepancy — and reflect
@@ -216,7 +216,7 @@ Apply `rules/workflow-lifecycle.md` Correction-and-Recheck Cycle Bound (re-runni
 Step 3a against the corrected Plan); the `{artifact}` in that bound's `Blocked`
 message is "Plan ... for {row}".
 
-If this correction requires reverting a prior edit to `plans/{filename}_plan.md`, see
+If this correction requires reverting a prior edit to `plans/{filename}.md`, see
 `rules/workflow-lifecycle.md` Plan-Document Correction Handling for whether `AGENTS.md`
 Rollback Directive applies (it does not) — and, if a revert is nonetheless performed,
 see the timestamp-marker preservation requirement in Step 3b.
@@ -250,7 +250,7 @@ the pass timestamp itself via a marker in the Plan file (see Allowed file operat
 so every invocation against the same `--source-plan` reuses the same value regardless
 of invocation order or a resumed session.
 
-If `plans/{filename}_plan.md` is reverted (in whole or in part) during an active Step 3
+If `plans/{filename}.md` is reverted (in whole or in part) during an active Step 3
 pass for any reason, the existing `_PASS_TIMESTAMP_MARKER_RE` marker line (format:
 `<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: {timestamp}
 -->`) MUST be preserved — re-add it if a full-file revert removed it. MUST NOT let it
@@ -415,7 +415,7 @@ If any of the above does not hold, MUST NOT proceed to the move — report `Bloc
 resolve the discrepancy first.
 
 This workflow MUST update the Plan's own `### Execution Status` table (in
-`plans/{filename}_plan.md`) before the move — MUST NOT leave any row `Pending` once
+`plans/{filename}.md`) before the move — MUST NOT leave any row `Pending` once
 its outcome is known: mark an `Implementation Target Files` row's corresponding
 Execution Status row `In Progress` once its procedure document is newly generated
 this cycle, or `Completed` if matched as `Already implemented`. Use `uv run python
@@ -432,8 +432,8 @@ outcome genuinely cannot be determined this cycle, report `Blocked` instead of
 leaving it `Pending` silently.
 
 Apply `rules/workflow-lifecycle.md` Archival Move (`plan-to-impl-procedure` row) and
-Completion Criteria in full. This workflow's move: `plans/{filename}_plan.md` to
-`plans/done/{filename}_plan.md`, using `git mv` only.
+Completion Criteria in full. This workflow's move: `plans/{filename}.md` to
+`plans/done/{filename}.md`, using `git mv` only.
 
 **This cycle is complete when, and only when**: the move above has succeeded and been
 verified (both locations checked, per Archival Move), or this Plan's cycle ended in a
@@ -442,7 +442,7 @@ progress report once, then (per Multi-file processing) begin Step 1 for the next
 target Plan, or end the batch if none remain.
 
 Prefer `uv run python tools/manage_workitem_stage.py close-plan
-plans/{filename}_plan.md` over a direct `git mv` — it auto-commits the Plan file
+plans/{filename}.md` over a direct `git mv` — it auto-commits the Plan file
 first if it has uncommitted changes (commonly this Step's own Execution Status
 update above, or an earlier Step 3a correction), then performs the move; it refuses
 (non-zero exit, no move) only if the source is missing or the destination already

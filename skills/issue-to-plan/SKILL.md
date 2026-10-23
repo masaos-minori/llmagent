@@ -28,7 +28,9 @@ files, and moving the processed issue file to `issues/done/`. It MUST NOT modify
 code files or `docs/*.md`.
 
 Issue filenames follow `{timestamp}_{id}_{slug}.md` (defined in `skills/issue-creator`
-Issue Filename Generation), enabling automatic duplicate detection via Step 2.
+Issue Filename Generation). Duplicate-Plan detection (`workflow.md` Step 1b) is
+content-based — it matches the Issue's path in a Plan's Traceability — and does not parse
+the filename.
 
 ---
 
@@ -38,15 +40,15 @@ Issue Filename Generation), enabling automatic duplicate detection via Step 2.
 |---|---|---|
 | 0 | Load required instructions | Read routing, rules, templates, and this skill before starting. |
 | 1 | Identify target Issues | Confirm every specified `issues/{filename}.md` path exists before any processing. Then check for an existing Plan (`workflow.md` Step 1b): a Plan that is not `Frozen` never allows the Issue to be moved. |
-| 2 | Assess the current Issue | Read the Issue in full, verify its claims against current source, and classify each extracted item's evidence basis. If already resolved or no longer applicable, stop and report; MUST NOT write a Plan. |
+| 2 | Assess the current Issue | Read the Issue in full, verify its claims against current source, and classify each extracted item's evidence basis. If already resolved or no longer applicable, report the evidence and MUST NOT write a Plan; skip Steps 3-8, emit Step 9's reduced report, and move the Issue per Step 10's no-Plan case. |
 | 3 | Inspect related files | Classify the Issue as Path A or B (see Routing below), then inspect related source, tests, config, and docs at the depth the Path calls for. |
 | 4 | Map Issue information to Plan information | Build an explicit mapping from every extracted Issue item to its Plan destination before writing anything. |
-| 5 | Create the Plan | Apply Path B's broader analysis if applicable, then generate `plans/{timestamp}_plan.md` with stable Requirement IDs. |
+| 5 | Create the Plan | Apply Path B's broader analysis if applicable, then generate `plans/{timestamp}_{slug}.md` (`{slug}` = the Issue filename's slug) with stable Requirement IDs. |
 | 6 | Analyze Unknowns and Risks | Resolve what evidence allows; file unresolved blocking items as issues. |
 | 7 | Add Traceability | Fill the canonical Traceability fields and the per-Requirement Requirement Traceability table. |
 | 8 | Validate information completeness | Confirm no Issue information was dropped, every Requirement ID is traceable, and `Implementation Target Files` passes validation and is marked `Frozen`. `Fail`/`Partial` or a not-`Frozen` section re-enters Step 8 (see `workflow.md` Step 8c); the Issue is not moved. |
 | 9 | Final validation | Confirm all Step 8 checks pass (including `Frozen`); report the outcome. On `Fail`/`Partial`/`Blocked`, stop here; MUST NOT proceed to Step 10. |
-| 10 | Move the Issue | `git mv` only, once Step 9 passes and the Plan is `Frozen` (never for a `Draft` Plan or a `Blocked` cycle); no human approval required; no fallback. |
+| 10 | Move the Issue | `git mv` only (via `close-issue` or the direct command; no other method), once the case's gate in `workflow.md` Step 10 holds — for a generated Plan: Step 9 passes and the Plan is `Frozen` (never for a `Draft` Plan or a `Blocked` cycle); no human approval required. |
 
 See `workflow.md` for the per-step procedure and multi-file processing rules.
 See `workflow-path-b.md` for the Path B-only toolchain and analysis (load it at Step 5, only when
@@ -59,6 +61,14 @@ Step 3 determined Path B).
 Before any analysis step, execute **Step 3's classification** (this skill's task-size
 assessment, carried forward unchanged from its predecessor). Assess the current Issue
 against the following criteria to determine the execution path.
+
+The classification is provisional until Step 5: decide it from the Issue's
+`Target Files or Areas` and Step 2's verification, count every file that would need
+modification (source, test, configuration, schema, deployment, and documentation files
+each count, matching the Plan's one-file-per-row rule), and when unsure whether an
+interface is public/runtime-facing, classify Path B. If inspection or Step 5 then reveals
+a Path B criterion, reclassify to Path B, record the change, and load `workflow-path-b.md`
+before continuing.
 
 ### [Path A] Small Task
 **Criteria (MUST satisfy ALL):**
@@ -98,8 +108,11 @@ quality analysis. MUST NOT skip any analysis.
   verified via environment tools per `rules/workflow-lifecycle.md` Implementation Target
   Files Validation (Plan Freeze); MUST NOT guess filenames or directory structures.
 - **Isolate Unknowns**: If you lack context or code access to answer a question, mark it
-  as `BLOCKING: True` in Step 6 and ask the user for clarification before generating the
-  final implementation steps.
+  as `BLOCKING: True` in Step 6 and ask the user for clarification. Step 5 has already
+  written the Plan by then, so the cycle ends `Blocked` with that Plan left in `plans/`
+  unfrozen (`Draft`) and the Issue left in `issues/`; MUST NOT freeze the Plan or move
+  the Issue until the blocking Unknown is resolved (a later run re-enters through `workflow.md` Step 1b
+  and resumes at Step 8 against that Plan, after the Unknown is resolved in it).
 - **Incrementalism**: Design implementation steps in small, reviewable increments; reuse
   this skill's Path A ≤3-file threshold (see Routing above) as the size bound per step,
   where applicable. Each step MUST leave the codebase in a testable state.
@@ -118,7 +131,8 @@ quality analysis. MUST NOT skip any analysis.
 
 ## Output format
 
-Generate `plans/{timestamp}_plan.md` (e.g. `plans/20260702-120000_plan.md`) using the
+Generate `plans/{timestamp}_{slug}.md` (e.g. `plans/20260702-120000_dlq-requeue-transactional.md`
+for the Issue `issues/20260701-090000_eventbus001_dlq-requeue-transactional.md`) using the
 exact Markdown structure defined in `templates/plan.md`. MUST NOT omit any section. The
 plan file is the working document: update it as scope changes. MUST NOT implement
 directly from it; the next pipeline phase is `plan-to-implementation-procedure`, which

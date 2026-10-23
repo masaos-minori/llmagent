@@ -47,8 +47,8 @@ covers the need; Step 1 and Step 7 state the fallback if the tool is unavailable
 - Correct the implementation procedure file itself (`implementations/{filename}.md`,
   via Edit) when Step 3's adversarial verification finds an unconfirmed item or an
   inconsistency, in addition to its `## Execution Status` section.
-- Update the source Plan's own `### Execution Status` table (`plans/{filename}_plan.md`
-  or `plans/done/{filename}_plan.md` if already archived) — the row matching this
+- Update the source Plan's own `### Execution Status` table (`plans/{filename}.md`
+  or `plans/done/{filename}.md` if already archived) — the row matching this
   implementation procedure's Traceability `Related target files` value — to
   `Completed`, once Step 7's move succeeds. This is the other half of
   `plan-to-implementation-procedure` Step 4's own `In Progress` update for that row.

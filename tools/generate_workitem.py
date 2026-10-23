@@ -35,18 +35,20 @@ invocations, including a resumed session.
 
 Usage:
     python tools/generate_workitem.py --kind issue --id nc020 --title "Fix the thing"
-    python tools/generate_workitem.py --kind plan
+    python tools/generate_workitem.py --kind plan \\
+        --source-issue issues/20260901-100000_nc020_fix-the-thing.md
     python tools/generate_workitem.py --kind implementation-procedure \\
-        --source-plan plans/20260901-105731_plan.md \\
+        --source-plan plans/20260901-105731_fix-the-thing.md \\
         --target-file-path tools/generate_workitem.py --seq 01
     python tools/generate_workitem.py --kind implementation-procedure \\
-        --source-plan plans/20260901-105731_plan.md \\
+        --source-plan plans/20260901-105731_fix-the-thing.md \\
         --target-file-path tools/manage_workitem_stage.py --seq 02
     python tools/generate_workitem.py --kind implementation-procedure \\
-        --source-plan plans/20260901-105731_plan.md --all-rows
+        --source-plan plans/20260901-105731_fix-the-thing.md --all-rows
     python tools/generate_workitem.py --kind unknowns
     python tools/generate_workitem.py --kind risks --seq 01
-    python tools/generate_workitem.py --kind plan --estimate-tokens
+    python tools/generate_workitem.py --kind plan --estimate-tokens \\
+        --source-issue issues/20260901-100000_nc020_fix-the-thing.md
 
 Batch mode (`--all-rows`, implementation-procedure only): generates one
 placeholder skeleton per row of the source Plan's own `## Implementation
@@ -84,6 +86,9 @@ IMPLEMENTATIONS_DIR = REPO_ROOT / "implementations"
 _FENCE_OPEN_RE = re.compile(r"^```markdown\s*$")
 _FENCE_CLOSE_RE = re.compile(r"^```\s*$")
 _NON_PATH_SLUG_RE = re.compile(r"[^A-Za-z0-9_.-]")
+_TIMESTAMP_PREFIX_RE = re.compile(r"^\d{8}-\d{6}_")
+_ISSUE_STEM_RE = re.compile(r"^\d{8}-\d{6}_[a-z0-9]+_(?P<slug>.+)$")
+_PLAN_SLUG_RE = re.compile(r"[a-z0-9_-]+")
 _PASS_TIMESTAMP_MARKER_RE = re.compile(
     r"^<!-- tools/generate_workitem\.py implementation-procedure-pass "
     r"timestamp: (\d{8}-\d{6}) -->$"
@@ -164,9 +169,36 @@ def issue_output_path(timestamp: str, issue_id: str, title: str) -> Path:
     return ISSUES_DIR / f"{timestamp}_{issue_id}_{slugify_title(title)}.md"
 
 
-def plan_output_path(timestamp: str) -> Path:
-    """`plans/{timestamp}_plan.md` per `templates/plan.md` Step 5."""
-    return PLANS_DIR / f"{timestamp}_plan.md"
+def slug_from_issue_filename(issue_filename: str) -> str:
+    """Return the `{slug}` of an Issue file named `{timestamp}_{id}_{slug}.md`.
+
+    `{id}` never contains `_` (see `skills/issue-creator/SKILL.md`), so the slug is
+    everything after the second `_`. A file without that shape (e.g. the
+    `{timestamp}_unknowns.md` follow-up files) falls back to everything after the
+    leading timestamp. Raises GenerationError when no slug in `[a-z0-9_-]+` results.
+    """
+    stem = issue_filename.removesuffix(".md")
+    match = _ISSUE_STEM_RE.match(stem)
+    if match:
+        slug = match.group("slug")
+    else:
+        fallback = _TIMESTAMP_PREFIX_RE.match(stem)
+        slug = stem[fallback.end() :] if fallback else stem
+    _require(
+        bool(_PLAN_SLUG_RE.fullmatch(slug)),
+        f"cannot derive a plan slug in [a-z0-9_-]+ from issue filename: {issue_filename}",
+    )
+    return slug
+
+
+def plan_output_path(timestamp: str, slug: str, seq: str | None = None) -> Path:
+    """`plans/{timestamp}_{slug}.md`, or `plans/{timestamp}_{seq}_{slug}.md` when a
+    zero-padded sequence is supplied, per `templates/plan.md` and
+    `skills/issue-to-plan/workflow.md` Step 5.
+    """
+    if seq:
+        return PLANS_DIR / f"{timestamp}_{seq}_{slug}.md"
+    return PLANS_DIR / f"{timestamp}_{slug}.md"
 
 
 def implementation_procedure_output_path(
@@ -335,9 +367,16 @@ def render_issue(args: argparse.Namespace, timestamp: str) -> tuple[str, Path]:
     return skeleton, output_path
 
 
-def render_plan(_args: argparse.Namespace, timestamp: str) -> tuple[str, Path]:
+def render_plan(args: argparse.Namespace, timestamp: str) -> tuple[str, Path]:
+    _require(bool(args.source_issue), "--kind plan requires --source-issue")
+    source_issue_path = _resolve_repo_path(args.source_issue)
+    _require(
+        source_issue_path.exists(),
+        f"--source-issue path does not exist: {args.source_issue}",
+    )
     skeleton = extract_fenced_skeleton(TEMPLATE_PLAN)
-    return skeleton, plan_output_path(timestamp)
+    slug = slug_from_issue_filename(source_issue_path.name)
+    return skeleton, plan_output_path(timestamp, slug, args.seq)
 
 
 def render_implementation_procedure(
@@ -400,6 +439,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
     parser.add_argument("--id", help="Issue mode: short identifier, e.g. 'nc020'.")
     parser.add_argument("--title", help="Issue mode: issue title.")
     parser.add_argument(
+        "--source-issue",
+        help=(
+            "Plan mode: path to the Issue file being planned. The plan filename's "
+            "slug is the Issue filename's slug (`{timestamp}_{id}_{slug}.md`)."
+        ),
+    )
+    parser.add_argument(
         "--source-plan",
         help=(
             "Implementation-procedure mode: path to the source plan file. "
@@ -419,9 +465,9 @@ def build_arg_parser() -> argparse.ArgumentParser:
             "Implementation-procedure mode: the row's 1-indexed, zero-padded "
             "position within the plan's Implementation Target Files table "
             "(e.g. '01'). Not derived by this tool — supply it directly. "
-            "Unknowns/risks mode: optional zero-padded sequence (e.g. '01') to "
-            "retry after a collision, per skills/issue-to-plan/workflow.md "
-            "Step 6 — omit for the first attempt."
+            "Plan/unknowns/risks mode: optional zero-padded sequence (e.g. '01') "
+            "to retry after a collision, per skills/issue-to-plan/workflow.md "
+            "Step 5/Step 6 — omit for the first attempt."
         ),
     )
     parser.add_argument(

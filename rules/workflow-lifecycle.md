@@ -19,7 +19,7 @@ document-generation workflows, do not perform the following:
 Each workflow file must explicitly define:
 - **workflow phase** name (e.g., issue-to-plan)
 - **input path** pattern (e.g., `issues/{filename}.md`)
-- **output path** pattern (e.g., `plans/{timestamp}_plan.md`)
+- **output path** pattern (e.g., `plans/{timestamp}_{slug}.md`)
 - **archive path** pattern (e.g., `issues/done/`)
 - **allowed file operations** (what may be created/moved/modified)
 

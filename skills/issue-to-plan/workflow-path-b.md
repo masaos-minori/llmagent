@@ -29,15 +29,16 @@ Lightweight alternatives are always available; heavy tools only if installed —
 
 Per `rules/ai-execution.md` Repository Tool Usage #8: for every command below, an
 empty output is evidence of "nothing found" only after confirming the command targeted
-an existing file/path (e.g. the `<module>`/`<PID>`/`<PORT>` placeholder was resolved to
-a real value); an empty result from a mistyped or non-existent target looks identical.
+an existing file/path (e.g. the `<path>`/`<dotted>`/`<PID>`/`<PORT>` placeholder was
+resolved to a real value; `<path>` and `<dotted>` are defined in `workflow.md` Step 3);
+an empty result from a mistyped or non-existent target looks identical.
 
 ---
 
 ## Architecture analysis
 
 ```bash
-rg "^from|^import" scripts/<module>.py | sort -u
+rg "^from|^import" <path> | sort -u
 lint-imports
 cat .importlinter
 ```
@@ -48,7 +49,7 @@ analysis if installed — see the Toolchain table for tool roles.
 ## Dependency graphing
 
 ```bash
-rg "from <module> import" scripts/
+rg "from <dotted> import" scripts/
 rg "def <function>" scripts/
 ast-grep --pattern '<Class>($$$)' --lang python scripts/
 ```

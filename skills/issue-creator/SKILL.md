@@ -15,7 +15,22 @@ implementation only when the user explicitly asks for it.
 
 Exception to `skills/DESIGN.md` Output language: write issue bodies in English (GitHub issues are consumed by AI coding agents and international tooling), unless the user requests another language. If the target design or documentation must be Japanese, state that inside the issue.
 
-See `workflow.md` Phase 9 for markdown-safety rules.
+Output: one Markdown file per issue under `issues/` (the pipeline entry point — see
+`routing.md` Document workflow directories). This skill does not post to GitHub or run
+`gh issue create`; filing on GitHub is a separate step the user must request.
+
+See `workflow.md` Step 9b for markdown-safety rules.
+
+## Required reading
+
+`routing.md` loads only this file and `workflow.md` for issue creation. Also read before drafting:
+
+- `templates/issue.md` — the canonical issue structure
+- `skills/DESIGN.md` — Analysis-only phase constraint, Output language, Evidence labels,
+  Confidence levels, No secrets in output, Avoid implementation-reference duplication,
+  Docs content policy — remove
+- `rules/ai-execution.md` — Sequential Target Processing (Base), Repository Tool Usage
+- `rules/filename-collision.md` — Collision Retry Bound
 
 ## When to use
 
@@ -47,7 +62,10 @@ MUST NOT use this skill for:
   manual.
 
 When requirements are unclear, use this skill, but follow `workflow.md` Phase 1: mark
-assumptions and open questions instead of inventing missing requirements.
+assumptions and open questions instead of inventing missing requirements. Every such item is
+also reported to the user as `不明` in the final report (`workflow.md` Phase 10), which is how
+this skill meets `AGENTS.md` Policy's "state 不明 and ask" without blocking: an issue is itself
+the vehicle for unresolved questions, and it is not implementation.
 
 ---
 
@@ -55,13 +73,15 @@ assumptions and open questions instead of inventing missing requirements.
 
 1. Classify and Frame: identify the work's source, scope, and whether assumptions are needed
 2. Task Grouping: split into multiple issues or group into one
-3. Draft Reason and Intent: write Background, Problem, Reason for Change, and Implementation Intent
+3. Draft Reason and Intent: write Title, Summary, Background, Problem, Reason for Change, and Implementation Intent
 4. Scope and Boundaries: define Target Files, Required Changes, Constraints, Out of Scope, and Dependencies
 5. Acceptance Criteria and Testing: define verifiable criteria and testing expectations
 6. Documentation Impact: assess doc impact and apply documentation cleanup rules
 7. Priority Assignment: assign High / Medium / Low
 8. AI Implementation Instruction: write concise constraints for an AI coding agent
-9. Evidence, Markdown Safety, Final Checklist: verify evidence, copy-paste safety, and completeness
+9. Evidence, Markdown Safety, Final Checklist: verify evidence, copy-paste safety, and completeness of the draft
+10. Write and Verify the File: scaffold the file, fill every placeholder (including Traceability),
+    run the structure checker, and report to the user
 
 See `workflow.md` for detailed phase content, task grouping rules, documentation cleanup
 rules, markdown safety rules, and the final checklist.
@@ -79,28 +99,38 @@ rules, markdown safety rules, and the final checklist.
 - Acceptance criteria MUST be concrete and verifiable.
 - Out-of-scope items MUST be explicit.
 - Testing expectations MUST be included when code behavior may change.
-- Documentation-related issues MUST follow `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove.
+- An issue that asks implementers to change `docs/*.md` MUST NOT request content that
+  `skills/DESIGN.md` "Avoid implementation-reference duplication" or "Docs content policy — remove" forbids.
 - Follow `skills/DESIGN.md` No secrets in output.
 
 ## Issue Filename Generation
 
-Every issue file MUST follow this naming convention (enables duplicate detection in
-`skills/issue-to-plan` Step 2).
+Every issue file MUST follow this naming convention (stable, sortable, human-readable names),
+except the Unknown/Risk follow-up files that `skills/issue-to-plan` Step 6 generates, which
+use `issues/{timestamp}[_{NN}]_unknowns.md` / `_risks.md` per `templates/unknowns-issue.md`
+and `templates/risks-issue.md`.
+Duplicate detection in `skills/issue-to-plan` Step 1b is content-based (it matches the Issue's
+path in a Plan's Traceability), so it does not parse the filename.
 
 ### Naming convention
 
 Format: `{timestamp}_{id}_{slug}.md`
 
 - **`{timestamp}`** — `YYYYMMDD-HHmmss`, generated at issue creation time (e.g., `20260828-155804`).
-- **`{id}`** — Short alphanumeric identifier derived from the issue's domain or component
-  (e.g., `nc019`, `mcp003`, `doc005`, `refactor_001`). MUST be unique within the project.
-- **`{slug}`** — Lowercase-with-dashes slug derived from the issue title, at most 6 words
-  (drop articles and filler words first if the title exceeds that).
+- **`{id}`** — Short identifier derived from the issue's domain or component, matching
+  `[a-z0-9]+` (no underscores or dashes, so the `_` separators stay unambiguous; e.g.,
+  `nc019`, `mcp003`, `doc005`, `refactor001`). The full filename, not `{id}` alone, MUST be
+  unique — checked in `issues/` and `issues/done/` (see `workflow.md` Phase 10).
+- **`{slug}`** — Slug derived from the issue title, lowercase, matching `[a-z0-9_-]+`: at most
+  4 words, articles and other filler words dropped, and no symbols other than `_` and `-`.
+  If the title has no ASCII words (e.g. a non-English title), write an English slug of the
+  same meaning.
 
-Example: `20260828-155804_nc019_git_mcp_command_specific_guards.md`
+Example: `20260828-155804_nc019_git-mcp-command-guards.md`
 
 If no meaningful `{id}` exists, use a generic prefix such as `todo` or `misc` plus a short
-sequence number (e.g., `todo_001`). Never omit the `{id}` — it is required for cross-skill deduplication.
+sequence number (e.g., `todo001`). Never omit the `{id}` — `tools/generate_workitem.py`
+requires it and readers expect the three-part format.
 
 ---
 

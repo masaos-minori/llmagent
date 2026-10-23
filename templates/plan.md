@@ -1,6 +1,7 @@
 # Plan Output Template (Canonical)
 
-Use this exact Markdown structure when generating `plans/{timestamp}_plan.md` in the
+Use this exact Markdown structure when generating `plans/{timestamp}_{slug}.md` (`{slug}` is
+the source Issue filename's slug; `plans/{timestamp}_{NN}_{slug}.md` on a collision) in the
 `issue-to-plan` workflow (see `skills/issue-to-plan/workflow.md` Step 5). Do not omit
 any section. Write every section's body text in English, regardless of the chat
 language (see `skills/issue-to-plan/SKILL.md` Core Execution Rules).
@@ -15,6 +16,7 @@ High / Medium / Low
 ## Scope
 - **In-Scope**: [List of explicit items to be implemented]
 - **Out-of-Scope**: [List of items explicitly excluded from this task]
+- **Dependencies**: [The Issue's Dependencies, including fix order against sibling issues or plans; `N/A: none` if there are none]
 
 ## Background
 [Why this requirement exists]

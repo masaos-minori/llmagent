@@ -9,6 +9,15 @@ several issues' Phase 3-8 content before running Phase 9/10 on any of them. This
 prevents filename collisions, since Phase 10's uniqueness check sees each prior issue's file
 already written.
 
+## Input from review findings
+
+When called by `python-code-review` (Step 10b), map each finding as follows:
+
+- Priority: assign by Phase 7's criteria, not by copying the finding's severity label.
+- Finding location -> `Target Files or Areas`; cite the evidence under `Background`.
+- Evidence label / confidence below confirmed -> `Unresolved Questions` (per Step 9a).
+- Suggested fix -> `Implementation Intent` at the responsibility level, not as a code patch.
+
 ## Phase 1: Classify and Frame
 
 Identify the source of the work:
@@ -57,7 +66,12 @@ tasks — a pair matching a "Group" criterion is not also split, and vice versa)
 
 ---
 
-## Phase 3: Draft Background, Problem, Reason for Change, and Implementation Intent
+## Phase 3: Draft Title, Summary, Background, Problem, Reason for Change, and Implementation Intent
+
+**Title** — the `# <Issue Title>` line: a short statement of the task's outcome. The filename
+slug (Phase 10) is derived from it.
+
+**Summary** — a brief description of the task and the intended outcome, per `templates/issue.md`.
 
 **Background** — why this requirement exists: prior context, history, related decisions.
 Use `N/A: covered by Summary` when `Summary` already says everything relevant.
@@ -65,9 +79,10 @@ Use `N/A: covered by Summary` when `Summary` already says everything relevant.
 **Problem** — the concrete problem being solved, stated separately from the general
 `Summary`. Use `N/A: {short reason}` for proposals that are not problem-driven.
 
-**Reason for Change** — explain why the change is needed. Include relevant context: current
+**Reason for Change** — explain why the change is needed now. Include relevant context: current
 problem, maintenance risk, operational risk, correctness risk, documentation/code mismatch,
-user or developer impact.
+user or developer impact. If nothing makes the change time-sensitive, say so; timing belongs
+here, severity belongs in Priority (Phase 7).
 
 **Implementation Intent** — explain the high-level approach. Focus on responsibility
 boundaries, minimal change, expected design direction, what should be preserved, and what
@@ -75,8 +90,8 @@ should not be changed. Name a specific file, function, or line number only when 
 itself is the design decision (see `skills/DESIGN.md` Avoid implementation-reference
 duplication) — otherwise describe the responsibility, not the location.
 
-**Completed when**: Background, Problem, Reason for Change, and Implementation Intent
-are each filled or explicitly marked `N/A` with a stated reason.
+**Completed when**: Title and Summary are written, and Background, Problem, Reason for
+Change, and Implementation Intent are each filled or explicitly marked `N/A` with a stated reason.
 
 ---
 
@@ -92,20 +107,22 @@ repository. Use `Unknown` if the exact file is not confirmed.
 
 **Out of Scope** — list what must not be changed in this issue.
 
+**Sibling-issue check** — run this before filling Dependencies. List the open issues under
+`issues/`, the in-flight plans under `plans/`, and the recently archived issues under
+`issues/done/` that touch the same files, tests, or failure group (e.g. several issues split
+from one red test run); search by Target Files and keywords. Record each overlapping open
+issue or plan as a Dependency with the fix order. When a sibling's fix may remove this issue's
+cause, state in `Background` that this issue must be re-verified against current source after
+the sibling is resolved. MUST NOT file an issue whose problem a sibling already fully covers:
+in that case stop, do not write the file, and report the sibling's path to the user.
+
 **Dependencies** — other issues, plans, or external work this issue depends on, or
-that depend on it. Use `N/A: none` if there are none.
+that depend on it, including the siblings found above. Use `N/A: none` if there are none.
 
-**Sibling-issue check** — before filling Dependencies, list the open issues under `issues/`
-(not `issues/done/`) that touch the same files, tests, or failure group (e.g. several
-issues split from one red test run). Record each as a Dependency with the fix order. When a
-sibling's fix may remove this issue's cause, state in `Background` that this issue must be
-re-verified against current source after the sibling is resolved. MUST NOT file an issue whose
-problem a sibling already fully covers.
-
-**Completed when**: Target Files or Areas, Required Changes, Constraints, Out of
-Scope, and Dependencies are each filled or explicitly marked `N/A`/`Unknown` per the
-template's convention, and the sibling-issue check is recorded in Dependencies (or
-`N/A: none` because no open issue overlaps).
+**Completed when**: the sibling-issue check has run and its result is recorded in
+Dependencies (or `N/A: none` because nothing overlaps), and Target Files or Areas, Required
+Changes, Constraints, Out of Scope, and Dependencies are each filled or explicitly marked
+`N/A`/`Unknown` per the template's convention.
 
 ---
 
@@ -136,8 +153,9 @@ For documentation-related issues, focus on: design intent, responsibility bounda
 constraints, design decisions, operational notes, failure behavior, Known Issues, Needs
 Confirmation items.
 
-Apply `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy —
-remove to what implementers are asked to add.
+Apply `skills/DESIGN.md` "Avoid implementation-reference duplication" and "Docs content
+policy — remove" to the documentation changes this issue asks implementers to make: the issue
+MUST NOT request adding any content those sections forbid.
 
 If implementation-derived details are currently present, prefer in this order: remove,
 compress, replace with source reference, move to Known Issues, move to Needs Confirmation.
@@ -166,6 +184,14 @@ that affects AI or developer usability.
 Tasks such as: wording cleanup, small metadata cleanup, minor formatting improvements,
 opportunistic link descriptions, non-blocking consistency improvements.
 
+### Tie-breaking
+
+- When a task matches more than one tier, assign the highest tier whose criterion is
+  supported by evidence cited in the issue — not by speculation.
+- "Critical" documentation/code mismatch means the mismatch can make an operator or
+  implementer take a wrong action (e.g. a wrong command, a wrong safety rule, a wrong
+  startup step). A mismatch that only misleads understanding is Medium.
+
 **Completed when**: exactly one of High/Medium/Low is assigned, matching the criteria
 stated above for that tier.
 
@@ -186,7 +212,8 @@ implementer must follow (not a generic restatement of Phase 4's Out of Scope).
 ## Phase 9: Evidence, Markdown Safety, and Final Checklist
 
 This phase has three sub-steps, applied in order: verify evidence (9a), verify markdown
-safety (9b), then run the final checklist (9c).
+safety (9b), then run the final checklist (9c). It checks the drafted issue before the file
+exists; Phase 10 Step 10.4 re-verifies the written file.
 
 ### Step 9a: Evidence and assumptions
 
@@ -203,7 +230,8 @@ review/investigation) or explicitly marked as an assumption/open question.
 
 ### Step 9b: Markdown safety rules
 
-- Emit each issue as a separate Markdown block when requested.
+- When the user asks for issue text in chat instead of (or in addition to) a file, emit each
+  issue as a separate Markdown block.
 - Avoid nested triple-backtick blocks inside issue bodies.
 - If code examples are unavoidable, prefer indented examples or short inline snippets.
 - MUST NOT put large code blocks inside Markdown tables.
@@ -237,39 +265,82 @@ distinct unchecked item; if it still fails, stop and report
 
 ---
 
-## Phase 10: Generate Issue Filename
+## Phase 10: Write and Verify the Issue File
 
-After the issue body is finalized, generate the filename using the convention defined in
-`SKILL.md` Issue Filename Generation.
+Phase 9 verified the draft; this phase writes it to `issues/` and verifies the written file.
+Steps 1-5 apply per issue (see Multi-file processing).
 
-Prefer `uv run python tools/generate_workitem.py --kind issue --id {id} --title
-{title}` to scaffold the file — it generates the `{timestamp}_{id}_{slug}.md`
-filename and refuses (non-zero exit, no write) on a path collision rather than
-auto-incrementing; treat that refusal as the trigger for the retry-with-disambiguator
-step (step 6 below), not as a workflow failure.
-After a `0` exit, independently verify the reported output path exists and contains
-the expected `## ` section headings before filling in its content — per
-`rules/ai-execution.md` Repository Tool Usage item 8, a `0` exit alone MUST NOT be
-treated as proof the file was written correctly.
-If the tool is unavailable, use the manual procedure below:
+### Step 10.1: Derive `{id}` and `{slug}`
 
-1. Extract or assign an `{id}` from the issue content (e.g., `NC-019` → `nc019`).
-   If no meaningful ID exists, use a generic prefix + sequence number (e.g., `todo_001`).
-2. Generate `{timestamp}` as `YYYYMMDD-HHmmss` at creation time.
-3. Derive `{slug}` from the issue title: lowercase, replace spaces with dashes, remove
-   non-alphanumeric characters except dashes.
-4. Assemble: `{timestamp}_{id}_{slug}.md`
-5. Verify uniqueness against existing files in `issues/` before writing — check via `ls
-   issues/{timestamp}_*` or equivalent; an empty result means no collision only if the
-   command actually targeted the `issues/` directory (confirm it exists first).
-6. If a collision is found, regenerate with the next available disambiguator (e.g. a
-   numeric suffix on `{id}` or `{slug}`) and re-check uniqueness, applying
-   `rules/filename-collision.md` Collision Retry Bound.
+Per `SKILL.md` Issue Filename Generation:
 
-Do NOT create issues without following this naming convention.
+- `{id}`: matches `[a-z0-9]+` (e.g., `NC-019` -> `nc019`). If no meaningful ID exists, use a
+  generic prefix + sequence number (e.g., `todo001`).
+- `{slug}`: derived from the issue title; lowercase, matches `[a-z0-9_-]+`, at most 4 words
+  with articles and other filler words dropped, and no symbols other than `_` and `-`.
+  If the title has no ASCII words, write an English slug of the same meaning.
 
-**This task is complete when, and only when**: the issue file has been written to
-`issues/` at its verified-unique filename, or the cycle ended in a `Blocked` state per
-Phase 9c or this Phase's own stop condition — in either case, for a Multi-file batch (see
-Multi-file processing above), proceed to Phase 3 for the next issue only after this one's
-outcome (written or `Blocked`) is settled.
+### Step 10.2: Scaffold the file
+
+Prefer `uv run python tools/generate_workitem.py --kind issue --id {id} --title {slug}`.
+
+- The tool's `--title` is used only to build the filename, and it only lowercases and replaces
+  spaces with dashes. Pass the already-normalized `{slug}` from Step 10.1, not the raw title;
+  otherwise punctuation or uppercase leaks into the filename.
+- The tool writes `templates/issue.md`'s skeleton verbatim (placeholders only). It does not
+  set the `# <Issue Title>` line, `Generated at`, or any other field.
+- It refuses (non-zero exit, no write) when the path already exists in `issues/` or
+  `issues/done/`. Treat that refusal as the trigger for the retry in Step 10.2a, not as a
+  workflow failure.
+- After a `0` exit, independently verify the reported output path exists and contains the
+  expected `## ` section headings before filling it in — per `rules/ai-execution.md`
+  Repository Tool Usage item 8, a `0` exit alone MUST NOT be treated as proof the file was
+  written correctly.
+
+If the tool is unavailable, use the manual procedure:
+
+1. Generate `{timestamp}` as `YYYYMMDD-HHmmss` with `date +%Y%m%d-%H%M%S`.
+2. Assemble `issues/{timestamp}_{id}_{slug}.md`.
+3. Confirm `issues/` exists, then verify that exact path does not exist in `issues/` or
+   `issues/done/` before writing (a glob on `{timestamp}_*` is not a substitute: it does not
+   cover `issues/done/`). Create the file from the `templates/issue.md` skeleton.
+
+### Step 10.2a: On a collision
+
+Regenerate with the next available disambiguator — append digits to `{id}` or a word to
+`{slug}`, keeping both within their character classes — and re-check, applying
+`rules/filename-collision.md` Collision Retry Bound.
+
+### Step 10.3: Fill every placeholder
+
+Write the Phase 1-8 content into the scaffold, replacing every placeholder — including the
+`# <Issue Title>` line and the Traceability fields:
+
+- `Workflow phase`: the workflow that produced this issue (`issue-creator`, or the caller such
+  as `python-code-review`), or `N/A: manually filed`.
+- `Generated at`: the `{timestamp}` of the filename (the same value, not a second `date` call).
+- `Source plan` / `Source implementation procedure`: per `templates/issue.md` Field notes.
+- `Related target files`: restates `Target Files or Areas`; do not keep a divergent list.
+
+### Step 10.4: Verify the written file
+
+- Run `uv run python tools/check_workitem_structure.py --file issues/{filename}.md`. It checks
+  that every required `## ` section is present; it does not judge content, so the Phase 9c
+  checklist still applies to the filled text.
+- Confirm no template placeholder (`{...}`, `<Issue Title>`) remains.
+
+### Step 10.5: Report to the user
+
+Return, in Japanese:
+
+- the written path(s), or the `Blocked` reason
+- each issue's Priority and one-line Summary
+- every Unresolved Question and assumption, labeled `不明` where applicable, so the user can
+  confirm or correct them
+
+**This task is complete when, and only when**: the issue file has been written to `issues/`
+at its verified-unique filename, passed Step 10.4, and been reported in Step 10.5, or the
+cycle ended in a `Blocked` state per Phase 9c, the sibling-issue check in Phase 4, or this
+Phase's own stop condition — in either case, for a Multi-file batch (see Multi-file
+processing above), proceed to Phase 3 for the next issue only after this one's outcome
+(written or `Blocked`) is settled.

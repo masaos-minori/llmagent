@@ -31,7 +31,7 @@ processed plan file to `plans/done/`. This skill MUST NOT modify source code fil
 | Step | Name | Goal / AI Action |
 |---|---|---|
 | 0 | Load required instructions | Read routing, rules, templates, and this skill before starting. |
-| 1 | Identify the target plan file(s) | Confirm every specified `plans/{filename}_plan.md` path exists before starting any processing. |
+| 1 | Identify the target plan file(s) | Confirm every specified `plans/{filename}.md` path exists before starting any processing. |
 | 2 | Read the target plan file | Read the plan in full and extract its own `Source issue` value for reuse downstream. |
 | 3 | Create implementation procedure documents | For each row in the Plan's `Implementation Target Files` table, check whether it is already implemented; if not, generate a new document per `templates/implementation-procedure.md`. |
 | 4 | Move the completed plan file | `git mv` only, once Step 3 passes; no human approval required; verify pre- and post-conditions. |

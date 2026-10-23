@@ -5,7 +5,7 @@
 See `routing.md`, section 'Document workflow directories', for the full pipeline.
 
 - Input: `issues/{filename}.md`
-- Output: `plans/{timestamp}_plan.md`
+- Output: `plans/{timestamp}_{slug}.md` (`{slug}` is the Issue filename's slug)
 - Optional outputs: `issues/{timestamp}_unknowns.md`, `issues/{timestamp}_risks.md`
 - Archive destination: `issues/done/`
 - Workflow phase: `issue-to-plan`
@@ -74,8 +74,11 @@ Report an interim update only when a sub-investigation's outcome is Blocking (se
 Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 `rules/toolchain.md`, `rules/ai-execution.md`, `rules/workflow-lifecycle.md`,
 `rules/filename-collision.md`, `templates/traceability.md`,
-`templates/requirement-traceability.md`, `templates/issue.md`, `templates/plan.md`,
-`SKILL.md` (this skill), and this file.
+`templates/requirement-traceability.md`, `templates/execution-status.md`,
+`templates/issue.md`, `templates/plan.md`, `skills/DESIGN.md` (Output language,
+Change-impact table, Out-of-scope paths, Tool availability guard), `SKILL.md` (this
+skill), and this file. Load `templates/unknowns-issue.md` / `templates/risks-issue.md` at
+Step 6, only when a standalone Unknown/Risk file is actually filed.
 MUST NOT load `workflow-path-b.md` here — see Step 5, which loads it only once Step 3
 determines Path B.
 
@@ -106,11 +109,12 @@ duplicate plans when multiple agents process the same Issue concurrently.
   `- **Source issue**: {issue_path}` line inside the `## Traceability` section of any
   file in `plans/*.md` or `plans/done/*.md` (e.g.
   `grep -rl -- "- \*\*Source issue\*\*: {issue_path}" plans/*.md plans/done/*.md`).
-- **If a matching plan exists**: record the existing plan's path in the Traceability section
-  and MUST NOT create a duplicate Plan. Then branch on that Plan's state:
+- **If a matching plan exists**: MUST NOT create a duplicate Plan, and MUST NOT edit the
+  existing Plan. Record the existing plan's path in this cycle's report (Step 9's
+  existing-Plan form below). Then branch on that Plan's state:
   - In `plans/done/`, or in `plans/` with `Freeze status` read back as `Frozen`: note that
-    this Issue has been addressed elsewhere and proceed to Step 10 to move the Issue to
-    `issues/done/`.
+    this Issue has been addressed elsewhere, skip Steps 2-8, emit Step 9's reduced report,
+    and proceed to Step 10's existing-Plan case to move the Issue to `issues/done/`.
   - In `plans/` with `Freeze status` `Draft` (or any state other than `Frozen`): MUST NOT
     move the Issue. Resume at Step 8 against that Plan (8a and 8b); the Issue moves only
     after Step 8 reports `Pass` and the section is `Frozen`. If Step 8 cannot reach
@@ -141,10 +145,12 @@ duplicate plans when multiple agents process the same Issue concurrently.
   `rules/workflow-lifecycle.md`'s workflow-level Completion Criteria, which gates the
   whole cycle.
 - Extract the fields defined in `templates/issue.md` (the canonical Issue shape shared
-  with `skills/issue-creator`): title, priority, target files, background, problem,
-  reason for change, implementation intent, implementation instructions, constraints,
-  acceptance criteria, tests, dependencies, and unresolved questions. Treat an
-  explicit `N/A` field as `Explicit in issue`, not as missing information.
+  with `skills/issue-creator`), by that template's own names: title, Priority, Summary,
+  Background, Problem, Reason for Change, Implementation Intent, Target Files or Areas,
+  Required Changes, Constraints, Acceptance Criteria, Testing Expectations, Documentation
+  Impact, Out of Scope, Dependencies, Unresolved Questions, and AI Implementation
+  Instruction. Treat an explicit `N/A` field as `Explicit in issue`, not as missing
+  information.
 - Classify each extracted item as one of: `Explicit in issue`, `Confirmed by repository
   evidence`, `Derived from confirmed evidence`, `Needs confirmation`. MUST NOT invent
   missing requirements.
@@ -163,8 +169,9 @@ duplicate plans when multiple agents process the same Issue concurrently.
   name — MUST NOT re-derive it there. This classification is also the source for the
   Requirement Traceability table's Status column in Step 7.
 - If the Issue is already resolved, cannot be reproduced, or no longer applies: report
-  the supporting evidence, MUST NOT create a Plan, and proceed to Step 10 to move it to
-  `issues/done/` (same `git mv`-only procedure, no separate path).
+  the supporting evidence, MUST NOT create a Plan, skip Steps 3-8 (there is no Plan to
+  analyze, validate, or freeze), emit Step 9's reduced no-Plan report, and proceed to
+  Step 10's no-Plan case to move it to `issues/done/` (same `git mv`-only procedure, no separate path).
 - If the Issue is too vague to act on (no identifiable target files or problem
   statement), stop and ask the user for clarification before proceeding.
 
@@ -173,19 +180,23 @@ duplicate plans when multiple agents process the same Issue concurrently.
 ## Step 3: Inspect Related Files — Task-Size Classification
 
 Classify the Issue as Path A or Path B per `SKILL.md`'s Routing (AI Task Size
-Assessment) section, **before** inspecting.
+Assessment) section, **before** inspecting. That classification is provisional: reclassify
+as `SKILL.md` Routing says if the inspection reveals a Path B criterion.
 
 - **Path A**: limit this step to direct verification of the target files and their
-  immediate dependencies. Derive `<module>` from the Issue's target files (its
-  repository-relative path with `/` replaced by `.` and the `.py` suffix removed, e.g.
-  `scripts/agent/foo.py` → `agent.foo`) — run the commands below once per target file,
-  not once for the whole Issue:
+  immediate dependencies. For each target file, take `<path>` as its repository-relative
+  path (e.g. `scripts/agent/foo.py`) and `<dotted>` as that path with the leading
+  `scripts/` and the `.py` suffix removed and `/` replaced by `\.` (e.g. `agent\.foo`) —
+  run the commands below once per target file, not once for the whole Issue:
 
   ```bash
-  rg "^from|^import" scripts/<module>.py | sort -u
-  rg "from <module> import\|import <module>" scripts/ | sort -u
+  rg "^from|^import" <path> | sort -u
+  rg "from <dotted> import|import <dotted>" scripts/ | sort -u
   ```
 
+  `rg` uses Rust regex: alternation is a bare `|`, and `\|` matches a literal pipe. The
+  second command does not match `from <package> import <name>` or relative-import forms,
+  so zero matches means "none found by this pattern", not proof of no callers.
   Zero matches from the first command means the target file has no imports — confirm
   this by checking the file exists and is non-empty (per Repository Tool Usage #8)
   before treating it as evidence of "no dependencies," rather than a failed pattern
@@ -222,19 +233,22 @@ Create an explicit mapping before writing the Plan:
 
 | Issue item | Plan destination |
 |---|---|
-| Title | Goal |
+| Title, Summary | Goal |
 | Priority | Priority |
-| Target files | Implementation Target Files, Reference Files (Affected areas and Traceability's Related target files are derived from Implementation Target Files, not mapped independently) |
+| Target Files or Areas | Implementation Target Files, Reference Files (Affected areas and Traceability's Related target files are derived from Implementation Target Files, not mapped independently) |
 | Background | Background |
 | Problem | Problem |
-| Reason for change | Reason for change |
-| Implementation intent | Implementation intent, Design |
-| Implementation instructions | Requirements, Implementation steps |
-| Acceptance criteria | Acceptance criteria, Validation plan |
-| Tests | Tests, Validation plan |
+| Reason for Change | Reason for Change |
+| Implementation Intent | Implementation Intent, Design |
+| Required Changes | Requirements, Implementation steps |
+| AI Implementation Instruction | Implementation steps (as per-step constraints) |
+| Acceptance Criteria | Acceptance Criteria, Validation plan |
+| Testing Expectations | Tests, Validation plan |
 | Documentation Impact | Documentation Impact |
 | Constraints | Scope, Assumptions, Risks |
-| Unresolved questions | Unknowns |
+| Out of Scope | Scope (Out-of-Scope) |
+| Dependencies | Scope (Dependencies), Risks (when an ordering dependency can fail) |
+| Unresolved Questions | Unknowns |
 | Repository evidence (Step 2/3) | Design, Risks, Validation plan |
 | Source Issue path | Traceability |
 
@@ -264,7 +278,7 @@ Using the Path A/B classification from Step 3:
 #### Validation quality analysis (baseline — run regardless of Path A/B)
 
 ```bash
-radon cc scripts/<module>.py -s
+radon cc <path> -s    # once per target file under scripts/ (<path> as in Step 3)
 vulture scripts/ --min-confidence 80
 bandit -r scripts/ -c pyproject.toml
 ```
@@ -281,15 +295,21 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 - Output language: see `skills/DESIGN.md` §Output language.
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`.
-- Save as `plans/{timestamp}_plan.md`. If that path already exists, use the lowest
-  available zero-padded sequence (`plans/{timestamp}_01_plan.md`,
-  `plans/{timestamp}_02_plan.md`, ...), applying `rules/filename-collision.md`
+- Derive `{slug}` from the Issue's filename `{timestamp}_{id}_{slug}.md` (see
+  `skills/issue-creator/SKILL.md` Issue Filename Generation): everything after the second
+  `_`, copied unchanged. An Issue file without that shape (e.g. a
+  `{timestamp}_unknowns.md` follow-up file) uses everything after its leading timestamp.
+  The slug MUST match `[a-z0-9_-]+`; otherwise stop and report `Blocked`.
+- Save as `plans/{timestamp}_{slug}.md`. If that path already exists, use the lowest
+  available zero-padded sequence (`plans/{timestamp}_01_{slug}.md`,
+  `plans/{timestamp}_02_{slug}.md`, ...), applying `rules/filename-collision.md`
   Collision Retry Bound.
 - Optionally scaffold the empty file first with `uv run python
-  tools/generate_workitem.py --kind plan` — it reproduces `templates/plan.md`'s current
-  field order exactly. The tool refuses (non-zero exit, no write) on a path collision
+  tools/generate_workitem.py --kind plan --source-issue issues/{filename}.md` — it
+  derives `{slug}` as above and reproduces `templates/plan.md`'s current field order
+  exactly. The tool refuses (non-zero exit, no write) on a path collision
   rather than auto-incrementing; treat that refusal as the trigger for the zero-padded
-  sequence rule above, not as a workflow failure.
+  sequence rule above (retry with `--seq {NN}`), not as a workflow failure.
   After a `0` exit, independently verify the reported output path exists and contains
   the expected `## ` section headings before filling in its content — per
   `rules/ai-execution.md` Repository Tool Usage item 8, a `0` exit alone MUST NOT be
@@ -342,7 +362,9 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 ## Step 6: Analyze Unknowns and Risks
 
 - Write any generated `issues/{timestamp}_unknowns.md` / `issues/{timestamp}_risks.md`
-  file in English (see `SKILL.md` Core Execution Rules), same as the Plan. Optionally
+  file in English (see `SKILL.md` Core Execution Rules), same as the Plan. These names
+  are a deliberate exception to `skills/issue-creator`'s `{timestamp}_{id}_{slug}.md`
+  convention: they follow `templates/unknowns-issue.md` / `templates/risks-issue.md`. Optionally
   scaffold the empty file first with `uv run python tools/generate_workitem.py --kind
   unknowns` / `--kind risks` — it reproduces `templates/unknowns-issue.md` /
   `templates/risks-issue.md`'s current field order exactly. The tool refuses (non-zero
@@ -431,9 +453,14 @@ marked `N/A`.
 
 Verify the `Risks` section: every Risk entry has a corresponding Mitigation.
 
+Run `uv run python tools/check_workitem_structure.py --file plans/{filename}.md` on the
+filled Plan (per `routing.md` Tools → "When to run which tool"). It checks only that every
+required `## ` section is present; the content checks above still apply.
+
 **Completed when**: every item in the preserved-information list above is present in the
 Plan, and every Requirement ID is traceable to all four of its required links. The
-`Affected areas` and `Risks` checks above MUST also pass.
+`Affected areas` and `Risks` checks above MUST also pass, and the structure checker
+reports no findings.
 
 ### Step 8b: Validate and freeze Implementation Target Files
 
@@ -489,7 +516,12 @@ has a full table; risks are stated with mitigations.
 
 ## Step 9: Final Validation
 
-Report: generated Plan path; generated Unknown/Risk files (or `None`); number of
+When no Plan was generated this cycle, report only: the Issue path; the case (`already
+resolved / no longer applies` with the supporting evidence, or `existing Plan` with that
+Plan's path and its `Frozen` read-back); and the Issue pending move. The Plan-specific
+fields below do not apply.
+
+Otherwise report: generated Plan path; generated Unknown/Risk files (or `None`); number of
 Requirements; number of `Implementation Target Files` rows; Path A/B classification
 (one word; rationale is in the Plan's Design section, MUST NOT restate);
 information-completeness result; traceability result; `Implementation Target Files`
@@ -519,20 +551,28 @@ This step MUST NOT be skipped. Apply `rules/workflow-lifecycle.md` Archival Move
 (issue-to-plan section) — same before/after verification checklist and `Blocked`-on-
 failure rule.
 
-- Move the Issue once Step 9 confirms information completeness is `Pass` and all
-  required validations are `Pass`, and — read back from the Plan file, not assumed —
-  the Plan's `Implementation Target Files` `Freeze status` is `Frozen` and no
-  `BLOCKING: True` Unknown remains unresolved. If any of these does not hold (Plan is
-  `Draft`, or the cycle is `Blocked`), MUST NOT move the Issue.
+- Gate, by case:
+  - Plan generated this cycle: move once Step 9 confirms information completeness is
+    `Pass` and all required validations are `Pass`, and — read back from the Plan file,
+    not assumed — the Plan's `Implementation Target Files` `Freeze status` is `Frozen`
+    and no `BLOCKING: True` Unknown remains unresolved. If any of these does not hold
+    (Plan is `Draft`, or the cycle is `Blocked`), MUST NOT move the Issue.
+  - No-Plan case (Step 2 found the Issue resolved / no longer applicable): move once the
+    supporting evidence has been reported. No Plan exists, so the `Frozen` and
+    Step 8 checks do not apply.
+  - Existing-Plan case (Step 1b): move only when that Plan is in `plans/done/` or reads
+    back `Frozen` in `plans/`.
 - Prefer `uv run python tools/manage_workitem_stage.py close-issue
-  issues/{filename}.md` — it auto-commits the issue file first if it has
-  uncommitted changes (e.g. a Step 2 correction earlier in this cycle), then
-  performs the same `git mv issues/{filename}.md issues/done/{filename}.md` move;
-  it refuses (non-zero exit, no move) if the source is missing, the destination
-  already exists, or a Plan in `plans/` for this Issue is not `Frozen` (MUST NOT
-  work around this with `--force`; resume at Step 8 instead). The fallback
-  command does not run this check, so the Frozen gate above applies to it too. Fall back to the direct command below only if the
-  tool is unavailable.
+  issues/{filename}.md`. If the Issue file has uncommitted changes, the tool commits
+  it first (`chore: auto-commit ...`); pass `--stage-only` to stage it instead, so the
+  rename lands in the next real commit. It then performs the same
+  `git mv issues/{filename}.md issues/done/{filename}.md` move.
+- The tool refuses (non-zero exit, no move) if the source is missing, the destination
+  already exists, or a Plan in `plans/` for this Issue is not `Frozen`. MUST NOT work
+  around the last refusal with `--force`; resume at Step 8 instead. An Issue with no
+  matching Plan moves normally. The direct command below does not run the `Frozen`
+  check, so the gate above applies to it too. Fall back to it only if the tool is
+  unavailable.
 - Direct command (fallback): `git mv issues/{filename}.md
   issues/done/{filename}.md`. No `mv`, `cp` + `rm`, file-copy APIs, or other
   fallback beyond these two.

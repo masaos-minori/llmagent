@@ -157,8 +157,15 @@ def _case(kind: str, tmp_path: Path) -> tuple[list[str], str, re.Pattern[str], P
             TEMPLATE_ISSUE,
         )
     if kind == "plan":
-        argv = ["--kind", "plan"]
-        return argv, "plans", re.compile(r"^\d{8}-\d{6}_plan\.md$"), TEMPLATE_PLAN
+        source_issue = tmp_path / "20260901-100000_nc020_fix-the-thing.md"
+        source_issue.write_text("dummy issue content\n", encoding="utf-8")
+        argv = ["--kind", "plan", "--source-issue", str(source_issue)]
+        return (
+            argv,
+            "plans",
+            re.compile(r"^\d{8}-\d{6}_fix-the-thing\.md$"),
+            TEMPLATE_PLAN,
+        )
     if kind == "implementation-procedure":
         source_plan = tmp_path / "source_plan.md"
         source_plan.write_text("dummy plan content\n", encoding="utf-8")
@@ -270,12 +277,15 @@ class TestCollisionRejection:
     @pytest.mark.parametrize("collision_location", ["target_dir", "done_dir"])
     def test_existing_file_is_not_overwritten(
         self,
+        tmp_path: Path,
         workitem_dirs: dict[str, Path],
         fixed_timestamp: str,
         collision_location: str,
     ) -> None:
         plans_dir = workitem_dirs["plans"]
-        expected_name = f"{fixed_timestamp}_plan.md"
+        source_issue = tmp_path / "20260901-100000_nc020_fix-the-thing.md"
+        source_issue.write_text("dummy issue content\n", encoding="utf-8")
+        expected_name = f"{fixed_timestamp}_fix-the-thing.md"
         direct_path = plans_dir / expected_name
         colliding_path = (
             direct_path
@@ -285,12 +295,77 @@ class TestCollisionRejection:
         original_content = "pre-existing content, must not be overwritten\n"
         colliding_path.write_text(original_content, encoding="utf-8")
 
-        returncode = gw.main(["--kind", "plan"])
+        returncode = gw.main(["--kind", "plan", "--source-issue", str(source_issue)])
 
         assert returncode == 1
         assert colliding_path.read_text(encoding="utf-8") == original_content
         if collision_location == "done_dir":
             assert not direct_path.exists()
+
+
+class TestPlanSlugFromIssue:
+    """The plan filename is `{timestamp}_{slug}.md`, where `{slug}` is the
+    source Issue filename's slug (`{timestamp}_{id}_{slug}.md`).
+    """
+
+    @pytest.mark.parametrize(
+        ("issue_filename", "expected_slug"),
+        [
+            (
+                "20261023-154325_eventbus001_dlq-requeue-transactional.md",
+                "dlq-requeue-transactional",
+            ),
+            ("20260828-155804_nc019_git_mcp-guards.md", "git_mcp-guards"),
+            ("20261023-154326_unknowns.md", "unknowns"),
+            ("20261023-154326_01_risks.md", "risks"),
+        ],
+    )
+    def test_slug_is_derived_from_issue_filename(
+        self, issue_filename: str, expected_slug: str
+    ) -> None:
+        assert gw.slug_from_issue_filename(issue_filename) == expected_slug
+
+    @pytest.mark.parametrize(
+        "issue_filename",
+        ["20261023-154325_nc001_Upper-Case.md", "20261023-154325_nc001_a b.md"],
+    )
+    def test_slug_outside_allowed_charset_is_rejected(
+        self, issue_filename: str
+    ) -> None:
+        with pytest.raises(gw.GenerationError):
+            gw.slug_from_issue_filename(issue_filename)
+
+    def test_missing_source_issue_argument_is_rejected(
+        self, workitem_dirs: dict[str, Path], capsys: pytest.CaptureFixture[str]
+    ) -> None:
+        assert gw.main(["--kind", "plan"]) == 1
+        assert "--source-issue" in capsys.readouterr().err
+        assert list(workitem_dirs["plans"].glob("*.md")) == []
+
+    def test_nonexistent_source_issue_is_rejected(
+        self, tmp_path: Path, workitem_dirs: dict[str, Path]
+    ) -> None:
+        missing = tmp_path / "20260901-100000_nc020_missing.md"
+        assert gw.main(["--kind", "plan", "--source-issue", str(missing)]) == 1
+        assert list(workitem_dirs["plans"].glob("*.md")) == []
+
+    def test_seq_retry_after_collision_inserts_sequence_before_slug(
+        self,
+        tmp_path: Path,
+        workitem_dirs: dict[str, Path],
+        fixed_timestamp: str,
+    ) -> None:
+        source_issue = tmp_path / "20260901-100000_nc020_fix-the-thing.md"
+        source_issue.write_text("dummy issue content\n", encoding="utf-8")
+        base = workitem_dirs["plans"] / f"{fixed_timestamp}_fix-the-thing.md"
+        base.write_text("existing\n", encoding="utf-8")
+        argv = ["--kind", "plan", "--source-issue", str(source_issue)]
+
+        assert gw.main(argv) == 1
+        assert gw.main([*argv, "--seq", "01"]) == 0
+        assert (
+            workitem_dirs["plans"] / f"{fixed_timestamp}_01_fix-the-thing.md"
+        ).exists()
 
 
 class TestMissingSourcePlan:

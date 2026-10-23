@@ -97,7 +97,8 @@ may remain unmapped; this mapping runs identically for Path A and Path B.
 
 Follow `skills/issue-to-plan/workflow.md` Step 5 in full: apply the Path A/B-gated
 analysis, generate the base timestamp (`date +%Y%m%d-%H%M%S`), save to
-`plans/{timestamp}_plan.md` (or the next zero-padded sequence if that path exists, per
+`plans/{timestamp}_{slug}.md` with `{slug}` taken from the Issue filename (or
+`plans/{timestamp}_{NN}_{slug}.md` with the next zero-padded sequence if that path exists, per
 `templates/plan.md`), and assign a stable Requirement ID to every requirement.
 
 The Plan must be detailed enough for `prompts/02_plan-to-implementation-procedure.md`
