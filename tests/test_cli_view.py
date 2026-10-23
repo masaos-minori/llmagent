@@ -9,6 +9,8 @@ calls are patched so tests run without a real terminal or history file.
 from __future__ import annotations
 
 import asyncio
+import logging
+import threading
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock, patch
 
@@ -133,6 +135,33 @@ class TestReadMultiline:
             result = loop.run_until_complete(view.read_multiline(loop, "partial\\"))
             loop.close()
         assert result == "partial"
+
+
+class TestReadMultilineTimeout:
+    def test_input_timeout_raises_keyboard_interrupt(
+        self,
+        view: CLIView,
+        monkeypatch: pytest.MonkeyPatch,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        monkeypatch.setattr("agent.cli_view._INPUT_TIMEOUT_S", 0.2)
+        release = threading.Event()
+        non_daemon_before = {t for t in threading.enumerate() if not t.daemon}
+        loop = asyncio.new_event_loop()
+        try:
+            with (
+                patch(
+                    "builtins.input", side_effect=lambda p: (release.wait(5), "x")[1]
+                ),
+                caplog.at_level(logging.WARNING, logger="agent.cli_view"),
+                pytest.raises(KeyboardInterrupt),
+            ):
+                loop.run_until_complete(view.read_multiline(loop, "hello\\"))
+        finally:
+            release.set()
+            loop.close()
+        assert "Multiline input timed out" in caplog.text
+        assert {t for t in threading.enumerate() if not t.daemon} == non_daemon_before
 
 
 # ── display helpers ────────────────────────────────────────────────────────────

@@ -44,17 +44,9 @@ async def test_rapid_successive_approvals_no_race() -> None:
     for r in responses:
         await q.enqueue(r)
 
-    call_count = 0
+    read_mock = q.make_input_mock()
 
-    async def _mock_to_thread(func, *args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return await func(*args, **kwargs)
-
-    with (
-        patch("asyncio.to_thread", side_effect=_mock_to_thread),
-        patch("builtins.input", side_effect=q.make_input_mock()),
-    ):
+    with patch("agent.tool_approval._approval_read", read_mock):
         results = []
         for i in range(len(responses)):
             if i < len(responses) - 1:
@@ -64,7 +56,7 @@ async def test_rapid_successive_approvals_no_race() -> None:
             results.append(result)
 
     assert results == [True, False, True]
-    assert call_count == len(responses)
+    assert read_mock.call_count == len(responses)
 
 
 @pytest.mark.asyncio
@@ -84,17 +76,9 @@ async def test_rapid_mixed_approvals_no_race() -> None:
     for resp, _ in responses:
         await q.enqueue(resp)
 
-    call_count = 0
+    read_mock = q.make_input_mock()
 
-    async def _mock_to_thread(func, *args, **kwargs):
-        nonlocal call_count
-        call_count += 1
-        return await func(*args, **kwargs)
-
-    with (
-        patch("asyncio.to_thread", side_effect=_mock_to_thread),
-        patch("builtins.input", side_effect=q.make_input_mock()),
-    ):
+    with patch("agent.tool_approval._approval_read", read_mock):
         results = []
         for resp, risk in responses:
             result = await _prompt_user_approval(risk)
@@ -102,7 +86,7 @@ async def test_rapid_mixed_approvals_no_race() -> None:
 
     expected = [True, False, True, False]
     assert results == expected
-    assert call_count == len(responses)
+    assert read_mock.call_count == len(responses)
 
 
 @pytest.mark.asyncio
@@ -113,23 +97,14 @@ async def test_high_risk_requires_full_yes_not_abbreviated() -> None:
     q = _QueueInput()
     await q.enqueue("y")
 
-    async def _mock_to_thread(func, *args, **kwargs):
-        return await func(*args, **kwargs)
-
-    with (
-        patch("asyncio.to_thread", side_effect=_mock_to_thread),
-        patch("builtins.input", side_effect=q.make_input_mock()),
-    ):
+    with patch("agent.tool_approval._approval_read", q.make_input_mock()):
         result = await _prompt_user_approval(RiskLevel.HIGH)
 
     assert result is False
 
     await q.enqueue("YES")
 
-    with (
-        patch("asyncio.to_thread", side_effect=_mock_to_thread),
-        patch("builtins.input", side_effect=q.make_input_mock()),
-    ):
+    with patch("agent.tool_approval._approval_read", q.make_input_mock()):
         result = await _prompt_user_approval(RiskLevel.HIGH)
 
     assert result is True

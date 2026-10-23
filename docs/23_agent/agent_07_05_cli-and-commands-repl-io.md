@@ -37,10 +37,11 @@ Documents the design intent and operational decisions for the REPL input/output 
 - **Multi-line Input:** Lines ending with `\` → continued with `... ` prompt
 - **EOF / Ctrl-D:** Graceful shutdown (REPL input returns `None` and exits the loop)
 - **Ctrl-C:** Caught within input; during input wait, it leads to REPL termination similar to EOF (asserted by `TestSignalDuringPromptEndsLoop`)
+- **Input Reader:** Every interactive prompt read runs on a daemon reader thread owned by its caller, not on the loop executor, so a read that is cancelled or still pending when the loop exits does not hold the process open (`TestPromptReadDoesNotUseAnExecutor`, `TestAbandonedReadDoesNotDelayProcessExit`)
 
 ### Shutdown Behavior
 
-- On a signal the `shutdown_requested` flag and the shared shutdown event are set. At the prompt this ends the loop immediately (`TestSignalDuringPromptEndsLoop`); during a turn the in-flight dispatch is cancelled and the wait for that cancellation is bounded by `_GRACEFUL_TIMEOUT_S` before the loop exits (`TestMidTurnSignalIsBounded`). `/exit` and the shutdown flag both end the loop (Explicit in code — `scripts/agent/repl.py`).
+- On a signal the `shutdown_requested` flag and the shared shutdown event are set. At the prompt this ends the loop immediately (`TestSignalDuringPromptEndsLoop`); during a turn the in-flight dispatch is cancelled and the wait for that cancellation is bounded by `_GRACEFUL_TIMEOUT_S` before the loop exits (`TestMidTurnSignalIsBounded`). `/exit` and the shutdown flag both end the loop (Explicit in code — `scripts/agent/repl.py`). Process exit time is bounded by this shutdown path, not by a keystroke arriving at an idle prompt (`TestAbandonedReadDoesNotDelayProcessExit`).
 
 ## Responsibility Boundary
 

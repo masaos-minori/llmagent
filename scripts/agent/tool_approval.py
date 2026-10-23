@@ -8,13 +8,13 @@ dependency on tool_runner.
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING, Any
 
 from shared.json_utils import dumps as _json_dumps
 from shared.tool_constants import GITHUB_DANGEROUS_TOOLS, GITHUB_WRITE_TOOLS
 
+from agent.stdin_reader import StdinReader
 from agent.tool_audit import audit_approval
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_exceptions import (
@@ -120,14 +120,23 @@ async def _build_preview_with_dry_run(
     return preview
 
 
+_approval_reader: StdinReader | None = None
+
+
+async def _approval_read(prompt: str) -> str:
+    """Read one approval answer on the module's daemon reader thread."""
+    global _approval_reader
+    if _approval_reader is None:
+        _approval_reader = StdinReader()
+    return await _approval_reader.read(prompt=prompt)
+
+
 async def _prompt_user_approval(risk: RiskLevel) -> bool:
     """Prompt the user interactively; HIGH requires full word 'yes'."""
     if risk == RiskLevel.HIGH:
-        answer = (
-            (await asyncio.to_thread(input, "  Execute? [yes/no]: ")).strip().lower()
-        )
+        answer = (await _approval_read("  Execute? [yes/no]: ")).strip().lower()
         return answer == "yes"
-    answer = (await asyncio.to_thread(input, "  Execute? [y/N]: ")).strip().lower()
+    answer = (await _approval_read("  Execute? [y/N]: ")).strip().lower()
     return answer == "y"
 
 

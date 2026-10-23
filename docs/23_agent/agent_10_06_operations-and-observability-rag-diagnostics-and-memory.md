@@ -62,7 +62,7 @@ The standalone ingestion pipeline prints progress and one `inserted N/M chunks: 
 ## Graceful Shutdown
 
 - `SIGTERM` → handled by the signal handler, which sets the shutdown flag and the shutdown event
-- Shutdown flag set → REPL input competes between blocking stdin read calls and `_shutdown_event` (using `asyncio.wait(FIRST_COMPLETED)`). If the shutdown event completes first, stdin read returns `None` immediately without waiting for next keypress. The executor thread for the remaining stdin read is not interrupted and terminates upon process exit.
+- Shutdown flag set → REPL input competes between blocking stdin read calls and `_shutdown_event` (using `asyncio.wait(FIRST_COMPLETED)`). If the shutdown event completes first, stdin read returns `None` immediately without waiting for next keypress. The prompt read runs on a daemon reader thread that is not interrupted and is not joined at interpreter exit, so an abandoned read does not delay process exit (`TestAbandonedReadDoesNotDelayProcessExit`).
 - `finally` block:
   - Session diagnostics persistence → writes runtime summary to `session_diagnostics` table via `DiagnosticStore.save(kind="session_summary")`
   - `memory.on_session_stop()` → extraction and persistence of memory

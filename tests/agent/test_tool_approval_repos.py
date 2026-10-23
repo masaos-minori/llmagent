@@ -117,7 +117,9 @@ class TestCheckApprovalGitHubAllowlist:
         cfg = _make_cfg(approval_github_allowed_repos=["org/repo"])
         ctx = _make_ctx(cfg=cfg)
 
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
+        ):
             result = await check_approval(
                 ctx, "github_push_files", {"owner": "org", "repo": "repo"}
             )

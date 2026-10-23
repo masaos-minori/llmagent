@@ -13,6 +13,7 @@ from typing import TYPE_CHECKING, Any, cast
 
 from agent.output_tags import OutputTag
 from agent.session import SchemaMissingError
+from agent.stdin_reader import StdinReader
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
@@ -65,6 +66,7 @@ class ReplInputLoop:
         self._shutdown_event = shutdown_event
         self._turn_active: bool = False
         self._input_coro: asyncio.Task[str] | None = None
+        self._stdin_reader = StdinReader(prompt="> ")
         self._cmds: CommandRegistry | None = None
         self._orchestrator: Orchestrator | None = None
 
@@ -141,7 +143,7 @@ class ReplInputLoop:
             async def _input_task() -> str:
                 """Read one line of user input via executor."""
                 try:
-                    return await loop.run_in_executor(None, lambda: input("> "))
+                    return await self._stdin_reader.read()
                 except (KeyboardInterrupt, SystemExit) as exc:
                     raise _InputAborted from exc
 
@@ -188,7 +190,7 @@ class ReplInputLoop:
                 return None
         else:
             try:
-                raw = await loop.run_in_executor(None, lambda: input("> "))
+                raw = await self._stdin_reader.read()
             except (EOFError, KeyboardInterrupt):
                 self._view.write_turn_end()
                 return None

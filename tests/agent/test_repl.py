@@ -707,6 +707,59 @@ class TestReadInputShutdownRace:
         assert result is None
 
 
+class TestPromptReadDoesNotUseAnExecutor:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("with_shutdown_event", [True, False])
+    async def test_read_input_never_calls_run_in_executor(
+        self, with_shutdown_event: bool
+    ) -> None:
+        repl = _make_repl_for_shutdown()
+        if not with_shutdown_event:
+            repl._input_loop._shutdown_event = None
+        loop = asyncio.get_running_loop()
+        non_daemon_before = {t for t in threading.enumerate() if not t.daemon}
+        with (
+            patch("builtins.input", return_value="hello"),
+            patch.object(loop, "run_in_executor") as spy,
+        ):
+            result = await repl._input_loop._read_input(loop)
+        spy.assert_not_called()
+        assert result == "hello"
+        assert {t for t in threading.enumerate() if not t.daemon} == non_daemon_before
+
+
+class TestPromptInterruptAndEofUnchanged:
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("error", [EOFError, KeyboardInterrupt, SystemExit])
+    async def test_event_branch_returns_none_and_aborts_once(
+        self, error: type[BaseException]
+    ) -> None:
+        repl = _make_repl_for_shutdown()
+        loop = asyncio.get_running_loop()
+        with (
+            patch("builtins.input", side_effect=error),
+            patch.object(
+                repl._input_loop,
+                "_abort_input",
+                wraps=repl._input_loop._abort_input,
+            ) as abort,
+        ):
+            assert await repl._input_loop._read_input(loop) is None
+        abort.assert_called_once()
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("error", [EOFError, KeyboardInterrupt])
+    async def test_fallback_branch_returns_none_and_ends_the_turn_display(
+        self, error: type[BaseException]
+    ) -> None:
+        repl = _make_repl_for_shutdown()
+        repl._input_loop._shutdown_event = None
+        loop = asyncio.get_running_loop()
+        with patch("builtins.input", side_effect=error):
+            assert await repl._input_loop._read_input(loop) is None
+        repl._view.write_turn_end.assert_called_once()
+
+
 # ── AgentREPL owns one shutdown event shared with its consumers ───────────────
 
 

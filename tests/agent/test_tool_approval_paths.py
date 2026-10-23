@@ -119,7 +119,9 @@ class TestCheckApprovalAllowedRoot:
             )
         )
 
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
             result = await check_approval(
                 ctx, "write_file", {"path": f"{root}/file.txt"}
             )
@@ -142,7 +144,9 @@ class TestCheckApprovalAllowedRoot:
             )
         )
 
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
             result = await check_approval(ctx, "write_file", {"path": outside})
 
         assert result is True

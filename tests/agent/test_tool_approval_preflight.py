@@ -112,7 +112,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is True
 
@@ -128,7 +130,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="n")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="n")
+        ):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is False
 
@@ -144,7 +148,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
+        ):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
 
@@ -161,7 +167,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is False
 
@@ -179,7 +187,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
             await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         audit.info.assert_called_once()
         logged = audit.info.call_args[0][0]
@@ -200,7 +210,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="n")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="n")
+        ):
             await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         logged = audit.info.call_args[0][0]
         assert "denied" in logged
@@ -229,21 +241,27 @@ class TestCheckApproval:
             )
         )
         # Should not raise even with no audit logger
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is True
 
     @pytest.mark.asyncio
     async def test_medium_risk_empty_input_denied(self) -> None:
         ctx = _make_ctx()
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="")
+        ):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is False
 
     @pytest.mark.asyncio
     async def test_medium_risk_input_with_whitespace_approved(self) -> None:
         ctx = _make_ctx()
-        with patch("asyncio.to_thread", new=AsyncMock(return_value=" y ")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value=" y ")
+        ):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is True
 
@@ -259,7 +277,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="")
+        ):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is False
 
@@ -275,7 +295,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value=" yes ")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value=" yes ")
+        ):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
 
@@ -292,7 +314,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
+        ):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
 
@@ -311,7 +335,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
             with pytest.raises(RuntimeError, match="audit error"):
                 await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
 
@@ -327,7 +353,9 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="Y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="Y")
+        ):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is True
 
@@ -343,14 +371,18 @@ class TestCheckApproval:
                 server_key="",
             )
         )
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="YES")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="YES")
+        ):
             result = await check_approval(ctx, "delete_file", {"path": "/tmp/f.txt"})
         assert result is True
 
     @pytest.mark.asyncio
     async def test_medium_risk_full_word_yes_is_insufficient(self) -> None:
         ctx = _make_ctx()
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
+        ):
             result = await check_approval(ctx, "write_file", {"path": "/tmp/f.txt"})
         assert result is False
 
@@ -463,7 +495,9 @@ class TestCheckApprovalDryRun:
         printed: list[str] = []
         with (
             patch("builtins.print", side_effect=lambda *a: printed.append(str(a))),
-            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+            patch(
+                "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+            ),
         ):
             result = await check_approval(
                 ctx, "write_file", {"path": "/tmp/f.txt", "content": "hi"}
@@ -492,7 +526,9 @@ class TestCheckApprovalDryRun:
         printed: list[str] = []
         with (
             patch("builtins.print", side_effect=lambda *a: printed.append(str(a))),
-            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+            patch(
+                "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+            ),
         ):
             result = await check_approval(
                 ctx, "create_directory", {"path": "/tmp/newdir"}
@@ -510,7 +546,9 @@ class TestCheckApprovalDryRun:
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock()
 
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="yes")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="yes")
+        ):
             await check_approval(ctx, "shell_run", {"command": "rm /tmp/x"})
 
         ctx.services_required.tools.execute.assert_not_awaited()
@@ -527,7 +565,9 @@ class TestCheckApprovalDryRun:
 
         with (
             patch("builtins.print"),
-            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+            patch(
+                "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+            ),
         ):
             result = await check_approval(
                 ctx, "write_file", {"path": "/tmp/f.txt", "content": "hi"}
@@ -553,7 +593,9 @@ class TestCheckApprovalDryRun:
         printed: list[str] = []
         with (
             patch("builtins.print", side_effect=lambda *a: printed.append(str(a))),
-            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+            patch(
+                "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+            ),
         ):
             result = await check_approval(
                 ctx, "create_directory", {"path": "/tmp/newdir"}
@@ -585,7 +627,9 @@ class TestCheckApprovalDryRun:
         printed: list[str] = []
         with (
             patch("builtins.print", side_effect=lambda *a: printed.append(str(a))),
-            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+            patch(
+                "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+            ),
         ):
             result = await check_approval(
                 ctx,
@@ -609,7 +653,9 @@ class TestCheckApprovalDryRun:
         ctx.services_required.tools = MagicMock()
         ctx.services_required.tools.execute = AsyncMock()
 
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="y")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+        ):
             await check_approval(
                 ctx,
                 "github_get_issue",
@@ -648,7 +694,9 @@ class TestCheckApprovalDryRun:
 
         with (
             patch("builtins.print"),
-            patch("asyncio.to_thread", new=AsyncMock(return_value="y")),
+            patch(
+                "agent.tool_approval._approval_read", new=AsyncMock(return_value="y")
+            ),
         ):
             result = await check_approval(
                 ctx, "write_file", {"path": "/tmp/f.txt", "content": "hi"}
@@ -826,7 +874,9 @@ class TestRunApprovalChecks:
         ctx = _make_ctx(cfg)
         ctx.services_required.audit_logger = MagicMock()
         prepared = [_pc("write_file", {"path": "/tmp/f"})]
-        with patch("asyncio.to_thread", new=AsyncMock(return_value="n")):
+        with patch(
+            "agent.tool_approval._approval_read", new=AsyncMock(return_value="n")
+        ):
             approved, denied = await run_approval_checks(ctx, prepared)
         assert approved == []
         assert denied == ["call_1"]
@@ -845,7 +895,7 @@ class TestRunApprovalChecks:
         assert approved == []
         assert denied == ["call_1"]
         # Should not prompt the user
-        with patch("asyncio.to_thread") as mock_thread:
+        with patch("agent.tool_approval._approval_read") as mock_thread:
             mock_thread.assert_not_called()
 
     @pytest.mark.asyncio

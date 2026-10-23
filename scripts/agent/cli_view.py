@@ -10,7 +10,6 @@ Writer functionality is now provided via delegation to an OutputPort instance.
 """
 
 import asyncio
-import concurrent.futures
 import logging
 import readline
 from abc import ABC
@@ -18,6 +17,7 @@ from pathlib import Path
 from typing import Protocol, runtime_checkable
 
 from agent.commands.output_port import CliOutputPort, OutputPort
+from agent.stdin_reader import StdinReader
 
 logger = logging.getLogger(__name__)
 
@@ -109,13 +109,7 @@ class CLIView(WriterBase):
         self._port = port or CliOutputPort()
         self._spinner_task: asyncio.Task[None] | None = None
         self._stop_spinner_event: asyncio.Event | None = None
-        self._input_executor: concurrent.futures.ThreadPoolExecutor | None = None
-
-    def __del__(self) -> None:
-        """Clean up the input executor on garbage collection."""
-        if self._input_executor is not None:
-            self._input_executor.shutdown(wait=False)
-            self._input_executor = None
+        self._stdin_reader = StdinReader(prompt="... ")
 
     @property
     def port(self) -> OutputPort:
@@ -274,21 +268,16 @@ class CLIView(WriterBase):
         Strips the trailing backslash and joins all parts with newlines.
         Stops on a line without trailing backslash, an empty line, or EOF.
 
-        Timeout protection: wraps the executor submission with asyncio.wait_for()
-        to prevent indefinite hangs when the default ThreadPoolExecutor is
-        saturated during shutdown. On TimeoutError, raises KeyboardInterrupt
-        to allow user interruption rather than silently swallowing the error.
+        Timeout protection: wraps the read with asyncio.wait_for() so a blocked read
+        cannot hang the caller; the read runs on a daemon thread, so an abandoned read
+        does not delay process exit. On TimeoutError, raises KeyboardInterrupt to allow
+        user interruption rather than silently swallowing the error.
         """
         parts = [first_line[:-1]]
         while True:
             try:
-                if self._input_executor is None:
-                    self._input_executor = concurrent.futures.ThreadPoolExecutor(
-                        max_workers=1
-                    )
-                future = self._input_executor.submit(lambda: input("... "))
                 cont = await asyncio.wait_for(
-                    asyncio.wrap_future(future), timeout=_INPUT_TIMEOUT_S
+                    self._stdin_reader.read(prompt="... "), timeout=_INPUT_TIMEOUT_S
                 )
             except TimeoutError:
                 logger.warning("Multiline input timed out")

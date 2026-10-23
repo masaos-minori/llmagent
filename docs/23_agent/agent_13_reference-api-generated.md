@@ -132,6 +132,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 | `scripts/agent/startup_prompt_setup.py` | `PromptSetup` | `class PromptSetup` | Owns system prompt and memory setup. |
 | `scripts/agent/startup_reporter.py` | `ReadinessReporter` | `class ReadinessReporter` | Owns pipeline result display and readiness reporting. |
 | `scripts/agent/startup_validation.py` | `StartupValidationPipeline` | `class StartupValidationPipeline` | Owns the full service-validation pipeline. |
+| `scripts/agent/stdin_reader.py` | `StdinReader` | `class StdinReader` | Owns one daemon thread that performs one blocking read per request. |
 | `scripts/agent/tool_approval.py` | `check_approval` | `async def check_approval(ctx, tool_name, args) -> bool` | Return True when the tool call may proceed. |
 |  | `run_approval_checks` | `async def run_approval_checks(ctx, prepared_calls) -> tuple[list[PreparedToolCall], list[str]]` | Run plan-mode block and interactive approval for each prepared tool call. |
 | `scripts/agent/tool_arg_validator.py` | `ValidationResult` | `class ValidationResult` | Result of validating tool call arguments against an MCP input schema. |
