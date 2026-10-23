@@ -117,10 +117,10 @@ No other file touched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261023-154555 | 20261023-154555 |  |
+| 2 | Add or update tests per Validation plan | Completed | 20261023-154555 | 20261023-154555 |  |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261023-154555 | 20261023-154555 | 32 command tests pass; new test verified fails w/o production check; ruff clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261023-154555 | 20261023-154555 | N/A: test-only change, no doc update |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
