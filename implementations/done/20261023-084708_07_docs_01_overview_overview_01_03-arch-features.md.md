@@ -64,6 +64,8 @@ the inline `elapsed > 5` at `:73`, row 1), `scripts/agent/resource_shutdown_coor
   `tools/check_docs_content_policy.py`, `tools/check_docs_consistency.py --domain agent`.
 
 ## Compatibility considerations
+Correction: the `elapsed > 5` check is deleted by REQ-003, so the rewritten item does not describe it; it states that PASSIVE falls back to TRUNCATE when it raises, that a zero-frame PASSIVE and a blocked TRUNCATE are recorded as shutdown errors, and that the backup runs when the checkpoint does not succeed.
+
 
 - Doc-only; no code change. Stays accurate through rows 1/2's step rewrite.
 
@@ -94,8 +96,8 @@ zero-frame checkpoint over a non-empty WAL is recorded; all four doc checks pass
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite item 3 (`:69`) to measured PASSIVE→TRUNCATE-on-failure + backup-on-raise behaviour | Pending | — | — | Gated on rows 1/2 |
-| 2 | Run doc checks (`routing.md`) | Pending | — | — | |
+| 1 | Rewrite item 3 (`:69`) to measured PASSIVE→TRUNCATE-on-failure + backup-on-raise behaviour | Completed | 20261023-144458 | 20261023-144458 | Gated on rows 1/2 implemented; full suite 9836 passed; procedures corrected (counts field names, step methods, TRUNCATE busy handling, single 30s bound, write_warning, mock counts) |
+| 2 | Run doc checks (`routing.md`) | Completed | 20261023-144458 | 20261023-144458 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

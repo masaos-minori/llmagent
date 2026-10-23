@@ -96,8 +96,8 @@ abandoned-step effect; all four doc checks pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `:144` Known-Limitations bullet with the single bound + abandoned-step effect | Pending | — | — | Gated on row 2 (single bound) |
-| 2 | Run doc checks (`routing.md`) | Pending | — | — | |
+| 1 | Replace the `:144` Known-Limitations bullet with the single bound + abandoned-step effect | Completed | 20261023-144457 | 20261023-144457 | Gated on row 2 (single bound) implemented; full suite 9836 passed; procedures corrected (counts field names, step methods, TRUNCATE busy handling, single 30s bound, write_warning, mock counts) |
+| 2 | Run doc checks (`routing.md`) | Completed | 20261023-144457 | 20261023-144457 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

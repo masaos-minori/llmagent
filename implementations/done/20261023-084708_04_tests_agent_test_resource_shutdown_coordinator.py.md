@@ -140,9 +140,9 @@ no integration-marked case runs in the default suite.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Relabel the two `TestSettlementBlockRemoved` docstrings to state they exercise stubs | Pending | — | — | REQ-011 |
-| 2 | Add one unstubbed real-contended-step-is-bounded test (AC-1, AC-6) | Pending | — | — | Gated on row 1; bound shortening needs row 2/3 |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Relabel the two `TestSettlementBlockRemoved` docstrings to state they exercise stubs | Completed | 20261023-144455 | 20261023-144455 | REQ-011 implemented; full suite 9836 passed; procedures corrected (counts field names, step methods, TRUNCATE busy handling, single 30s bound, write_warning, mock counts) |
+| 2 | Add one unstubbed real-contended-step-is-bounded test (AC-1, AC-6) | Completed | 20261023-144455 | 20261023-144455 | Gated on row 1; bound shortening needs row 2/3 |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-144455 | 20261023-144455 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

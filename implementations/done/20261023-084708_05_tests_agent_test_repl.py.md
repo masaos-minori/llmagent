@@ -67,6 +67,8 @@ assertions are kept. Reference reads: `scripts/agent/resource_shutdown_coordinat
   does not conflict (region-disjoint: this is one method's docstring).
 
 ## Compatibility considerations
+Correction: the TRUNCATE-fallback test's `MagicMock` counts read as busy once `busy` is honoured (`int(MagicMock())` is 1), which made it spend a real 3 s on retry backoff; its `checkpoint` stub now returns `WalCheckpointCounts(0, 0, 0)` for TRUNCATE.
+
 
 - Purely additive docstring text; the method's runtime behaviour is unchanged.
 
@@ -99,8 +101,8 @@ assertions are unchanged, the real bounded-await assertion now lives in row 3, a
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Relabel `test_checkpoint_timeout_records_error_and_still_runs_backup` docstring to state it exercises a stub | Pending | — | — | REQ-011 |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Relabel `test_checkpoint_timeout_records_error_and_still_runs_backup` docstring to state it exercises a stub | Completed | 20261023-144456 | 20261023-144456 | REQ-011 implemented; full suite 9836 passed; procedures corrected (counts field names, step methods, TRUNCATE busy handling, single 30s bound, write_warning, mock counts) |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-144456 | 20261023-144456 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

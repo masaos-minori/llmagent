@@ -95,8 +95,8 @@ exists.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add REQ-011 bullet to Core Testing Rules | Pending | — | — | Conditional; rule absent at HEAD |
-| 2 | Run skill checks (`routing.md`) | Pending | — | — | |
+| 1 | Add REQ-011 bullet to Core Testing Rules | Completed | 20261023-144459 | 20261023-144459 | Conditional; rule absent at HEAD implemented; full suite 9836 passed; procedures corrected (counts field names, step methods, TRUNCATE busy handling, single 30s bound, write_warning, mock counts) |
+| 2 | Run skill checks (`routing.md`) | Completed | 20261023-144459 | 20261023-144459 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

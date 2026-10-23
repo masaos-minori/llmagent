@@ -72,6 +72,8 @@ Two independent edits, applied in this order:
   `wait_for` calls reference the single name.
 
 ## Compatibility considerations
+Corrections found while implementing: the repl001 gate is satisfied (that plan is implemented); `CLIView` exposes `write_warning` and `write_fatal` but no `write_error`, so the summary uses `write_warning`; the single bound `_SHUTDOWN_TIMEOUT_S` is 30.0 for both steps, which loosens the backup bound from 10 s to 30 s (recorded in the module docstring), and the timeout entries now name the bound.
+
 
 - Call shapes unchanged; only the timeout source and the error-summary side effect
   change. The live system's success path is unaffected.
@@ -116,9 +118,9 @@ and the module docstring states the single bound and its meaning. All gates pass
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route error summary through `self._view` (REQ-007) | Pending | — | — | Not gated on repl001 |
-| 2 | Collapse to one named bound; delete `_GRACEFUL_TIMEOUT_S` and the two literals (REQ-003) | Pending | — | — | Gated on repl001 |
-| 3 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Route error summary through `self._view` (REQ-007) | Completed | 20261023-144453 | 20261023-144453 | Not gated on repl001 implemented; full suite 9836 passed; procedures corrected (counts field names, step methods, TRUNCATE busy handling, single 30s bound, write_warning, mock counts) |
+| 2 | Collapse to one named bound; delete `_GRACEFUL_TIMEOUT_S` and the two literals (REQ-003) | Completed | 20261023-144453 | 20261023-144453 | Gated on repl001 |
+| 3 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-144453 | 20261023-144453 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

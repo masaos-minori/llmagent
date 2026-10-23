@@ -112,8 +112,8 @@ stated, and no integration-marked case runs in the default suite.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `test_wal_checkpoint_manager.py` with the four real-body cases | Pending | — | — | REQ-001, REQ-005, REQ-006 |
-| 2 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Create `test_wal_checkpoint_manager.py` with the four real-body cases | Completed | 20261023-144454 | 20261023-144454 | REQ-001, REQ-005, REQ-006 implemented; full suite 9836 passed; procedures corrected (counts field names, step methods, TRUNCATE busy handling, single 30s bound, write_warning, mock counts) |
+| 2 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-144454 | 20261023-144454 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

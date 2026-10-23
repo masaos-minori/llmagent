@@ -97,6 +97,8 @@ plan's phases; keep signatures, return types, and imports otherwise intact.
   out" means "not rolled back", never "left clean".
 
 ## Compatibility considerations
+Corrections found while implementing: `WalCheckpointCounts` has `busy`, `log_size`, `pages_checkpointed` (no `log`); the step bodies are methods (`_checkpoint_step`, `_backup_step`) rather than module-level functions because they use `self._ctx` and `_is_db_path_allowed`; PASSIVE copying zero frames over a non-empty WAL returns `(False, errors)` so the coordinator runs the defensive backup; a TRUNCATE that returns `busy != 0` (blocked by a reader, no exception) is treated as a failed attempt; the inline `elapsed > 5` branch is deleted as REQ-003 requires.
+
 
 - Signatures and return types are unchanged, so `resource_shutdown_coordinator.py:72`
   / `:91` call shapes are preserved; no caller edit.
@@ -146,10 +148,10 @@ gone, and the module docstring states the abandoned-step effect. All gates above
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: wrap both `*_sync` bodies in `asyncio.to_thread` workers, move `time.sleep` inside the worker | Pending | — | — | REQ-001, REQ-002, REQ-008 |
-| 2 | Phase 2: read `WalCheckpointCounts`, record zero-frame-under-contention error, update module docstring | Pending | — | — | REQ-005, REQ-006, REQ-010 |
-| 3 | Phase 3: fold inline `elapsed > 5` and the two constants into the coordinator's single bound | Pending | — | — | Gated on repl001 (REQ-003) |
-| 4 | Run validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Phase 1: wrap both `*_sync` bodies in `asyncio.to_thread` workers, move `time.sleep` inside the worker | Completed | 20261023-144450 | 20261023-144450 | REQ-001, REQ-002, REQ-008 implemented; full suite 9836 passed; procedures corrected (counts field names, step methods, TRUNCATE busy handling, single 30s bound, write_warning, mock counts) |
+| 2 | Phase 2: read `WalCheckpointCounts`, record zero-frame-under-contention error, update module docstring | Completed | 20261023-144450 | 20261023-144450 | REQ-005, REQ-006, REQ-010 |
+| 3 | Phase 3: fold inline `elapsed > 5` and the two constants into the coordinator's single bound | Completed | 20261023-144450 | 20261023-144450 | Gated on repl001 (REQ-003) |
+| 4 | Run validation sequence (`rules/toolchain.md`) | Completed | 20261023-144450 | 20261023-144450 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
