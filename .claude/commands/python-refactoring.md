@@ -11,5 +11,10 @@ Read the following files before starting:
 - `skills/python-refactoring/report-template.md` — final report structure and completion gate
 - `rules/coding.md` — coding conventions
 - `rules/toolchain.md` — validation sequence
+- `rules/ai-execution.md` — execution rules
+- `skills/DESIGN.md` — shared design rules
+
+Load `discovery.md` at Step 2 and only the one `path-*.md` matching the classification
+(`workflow.md` Step 0 is the authoritative load list).
 
 Then apply the skill to this task: $ARGUMENTS

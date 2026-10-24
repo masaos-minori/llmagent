@@ -7,8 +7,8 @@ Load this file only after `workflow.md` Step 2 classifies the change as Path A (
 
 ## Step 3 depth: Preparation
 
-- `rg` and the `deploy.sh` reference check MUST run every time — see `workflow.md`
-  Refactoring-Specific Guidance.
+- `rg` and the deploy-reference search (`deploy/`, `conf.d/`, `init.d/`) MUST run every
+  time — see `workflow.md` Step 2 and Refactoring-Specific Guidance.
 - Skip `pydeps`, `import-linter`, and `ast-grep`; record `N/A: Path A` for each in the
   impact scope table.
 

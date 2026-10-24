@@ -1,6 +1,7 @@
 # Python Refactoring — Discovery Vocabulary, Technical Debt, Drift, Responsibility
 
-Load this file at Step 2 (unconditionally — applies to every Path A/B/C target file).
+Load this file at Step 2 (unconditionally — applies to every Path A/B/C target file);
+`workflow.md` Step 0 deliberately does not list it.
 It defines the vocabulary and investigation subsections used throughout Steps 2-10.
 
 ---
@@ -86,7 +87,12 @@ should be divided), report it using the Proposal format (Discovery Vocabulary ab
 
 ## Documentation Drift Detection (Step 3)
 
-Applies regardless of Path A/B/C classification (uniform across all paths).
+Applies regardless of Path A/B/C classification, scaled to the Path:
+
+- **Path A**: compare only the documents that directly mention the target module or its
+  public symbols (find them with `rg -l "<module or symbol>" docs/ routing.md AGENTS.md
+  rules/ config/`), not all seven sources.
+- **Path B and Path C**: compare against all seven document sources below.
 
 While investigating the target file (Steps 2-10), compare relevant implementation
 details against these seven document sources: `routing.md`, `AGENTS.md`, README,

@@ -33,10 +33,10 @@ This is a reactive workflow — see Core rules below.
 
 | Step | Name | Goal / AI Action |
 |---|---|---|
-| 0 | Load required instructions | Read routing, rules, this skill, `workflow.md`, `discovery.md`, `validation.md`, `report-template.md` before starting. |
+| 0 | Load required instructions | Read the files `workflow.md` Step 0 lists (rules, this skill, `workflow.md`, `validation.md`, `report-template.md`); `discovery.md` is loaded at Step 2, the matching `path-*.md` after classification. |
 | 1 | Identify target files | Confirm every specified target file path exists before starting; process one file (or approved atomic migration group) at a time. |
-| 2 | Refactoring intent declaration | Declare goal, expected behavior change, and Path A/B/C classification (see Routing below); stop and record as a proposal if any behavior change is expected. |
-| 3 | Preparation | Map blast radius at the depth the Path classification calls for (`path-a.md`/`path-b.md`/`path-c.md`); run Technical Debt Discovery, Responsibility Analysis, and Documentation Drift Detection (`discovery.md`). |
+| 2 | Refactoring intent declaration | Run the preliminary `rg` caller/deploy search, declare goal, expected behavior change, and Path A/B/C classification (see Routing below); stop and record as a proposal if any behavior change is expected. |
+| 3 | Preparation | Map blast radius at the depth the Path classification calls for (`path-a.md`/`path-b.md`/`path-c.md`), re-classifying upward if needed; run Technical Debt Discovery, Responsibility Analysis, and Documentation Drift Detection (`discovery.md`, scaled to the Path). |
 | 4 | Behavior lock | Establish coverage/characterization baseline at the depth the Path classification calls for; capture Architecture Baseline for Path C (`path-c.md`). |
 | 5 | Side-effect inventory | Record the pre-transformation side-effect baseline (`validation.md`). |
 | 6 | Transformation | Apply the Deletion-First Evaluation before any new abstraction, then transform with AST-safe tooling. |
@@ -52,25 +52,33 @@ rules.
 
 ## Routing (Path Classification)
 
-Classify the change as Path A, Path B, or Path C in Step 2, before Step 3. This gates
-how much tooling depth Steps 3 and 4 apply — it does not skip Steps 3, 4, or 7
-themselves, nor reduce Step 7's Required validation, nor skip the Completion gate.
+Classify the change as Path A, Path B, or Path C in Step 2, before Step 3, using the
+preliminary `rg` caller/deploy-reference search that `workflow.md` Step 2 requires. This
+gates how much tooling depth Steps 3 and 4 apply — it does not skip Steps 3, 4, or 7
+themselves, nor reduce Step 7's Required validation, nor skip the Completion gate. If
+Step 3's full impact mapping meets a higher Path's criteria, re-classify upward and
+re-declare per `workflow.md` Step 3; never downgrade.
+
+"Files affected" below counts source files only; characterization tests added under
+`tests/` for the target (`workflow.md` Step 4) do not by themselves raise the Path.
+"Referenced in deploy scripts" means the target's module path or symbol appears under
+`deploy/`, `conf.d/`, or `init.d/` (`deploy/deploy.sh` is the main file).
 
 ### [Path A] Minor change
 **Criteria (Must satisfy ALL):**
-- [ ] Affects a single target file
+- [ ] Affects a single target source file
 - [ ] No import boundary changes (no new cross-layer imports)
 - [ ] `Expected behavior change: none` (per the Step 2 declaration)
-- [ ] Not referenced in `deploy.sh`
+- [ ] Not referenced in deploy scripts
 
 **Execution path:** load `path-a.md` — skip `pydeps`/`import-linter`/`ast-grep` (Step 3)
 and `mutmut` (Step 4); Steps 3, 4, 7, and the Completion gate still run.
 
 ### [Path B] Higher-impact change
 **Criteria (Satisfies ANY):**
-- [ ] Affects more than one file
+- [ ] Affects more than one source file
 - [ ] Changes an import boundary or module layer
-- [ ] Referenced in `deploy.sh`
+- [ ] Referenced in deploy scripts
 - [ ] Touches shared/extracted logic used by more than one caller
 
 **Execution path:** load `path-b.md` — run `pydeps`/`import-linter`/`ast-grep` (Step 3)
@@ -102,9 +110,11 @@ Completion Requirements (Step 10 addendum) it defines.
 
 ### Core rules
 - Change only one feature or one responsibility at a time.
-- Keep every change small — as a concrete bound, keep every touched function at or
-  below `rules/toolchain.md`'s `radon cc -n C` grade-C-or-worse threshold (a change
-  that pushes a function past that grade is not small).
+- Keep every change small — as a concrete bound, never worsen the `radon cc` grade of a
+  touched function (`rules/toolchain.md` reports grade C or worse with `-n C`). A function
+  already at grade C or worse that the target requires touching is refactored toward a
+  lower grade only for the part in scope; restructuring the whole function is recorded
+  as a Proposal.
 - If a change may alter behavior, MUST NOT implement it — record it as a proposal
   instead (see `report-template.md` "Proposals not implemented").
 - Minimize changes to exception handling, state, side effects, I/O, and concurrency.
@@ -112,11 +122,13 @@ Completion Requirements (Step 10 addendum) it defines.
   workflow is reactive, not proactive.
 
 ### Refactoring rules
-- Give each function one responsibility.
-- MUST NOT mix fetching, transformation, decision logic, and persistence in one
-  function — extract each concern into its own function.
-- Reduce nesting, branching, and long functions — "long" means at or above
-  `rules/toolchain.md`'s `radon cc -n C` grade-C-or-worse threshold; reduce below it.
+- For the function(s) this task targets, give each one responsibility: MUST NOT leave
+  fetching, transformation, decision logic, and persistence mixed in a targeted
+  function — extract each concern. Untouched functions are out of scope (one
+  responsibility change at a time, per Core rules).
+- Reduce nesting and branching in targeted functions. Complexity is measured by
+  `radon cc` grade (cyclomatic complexity, not line count); lower it where the
+  targeted change allows, and MUST NOT raise it.
 - Prefer early returns and small helper functions when they improve clarity.
 - Use clear and explicit names.
 - Extract shared logic only when it should evolve together later.
@@ -124,11 +136,13 @@ Completion Requirements (Step 10 addendum) it defines.
 
 ### Type safety rules
 - Add explicit type annotations where needed.
-- Add boundary checks where types are unclear.
-- MUST NOT use `Any`, unnecessary casts, or unsafe assertions — add an explicit type
-  annotation or a runtime boundary check that narrows the type safely.
-- Prevent invalid `None` flow.
-- Keep input validation separate from internal logic.
+- A runtime boundary check or `None` guard is allowed only when it provably leaves
+  exception types, messages, ordering, and return values unchanged (`validation.md`
+  Exception behavior freeze); otherwise record it as a Proposal and use a static
+  annotation only.
+- MUST NOT introduce `Any`, unnecessary casts, or unsafe assertions — existing ones in
+  untouched code stay as they are (record as a Finding if relevant).
+- Keep input validation separate from internal logic, within the targeted functions.
 
 ### Process rules
 - **One file at a time**: see `workflow.md` Multi-file processing (atomic migration
@@ -158,6 +172,8 @@ See `report-template.md` for the final report structure and completion gate.
 ## Composes with
 
 ### Run after this skill
+- `git-commit-and-sync` — when the user asks to stage, commit, or push the result;
+  this skill never commits on its own (`workflow.md` Step 8).
 - `deploy` — run `deploy`'s Phase 2-3 after `workflow.md` Step 9 (CI gate) if
   `scripts/` files were added, removed, or renamed.
 - `python-documentation` — if public interfaces or module names changed, update

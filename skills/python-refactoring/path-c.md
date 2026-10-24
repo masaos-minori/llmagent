@@ -17,9 +17,9 @@ A Path C change requires all of the following before implementation begins:
 4. Migration strategy
 5. Rollback strategy
 6. Documentation impact
-7. ADR requirement — an ADR MUST exist or be referenced before implementation; this
-   requirement does not define the ADR template or process itself (see ADR Requirement
-   below)
+7. ADR requirement — an ADR MUST exist, be referenced, or be presented as an inline
+   draft (ADR Requirement below) and approved together with this checklist before
+   implementation; this requirement does not define the ADR template or process itself
 
 Per `discovery.md` Discovery Vocabulary, an unapproved Path C idea is a Proposal only and
 MUST NOT be transformed in `workflow.md` Step 6; it becomes an Approved Change only with
@@ -65,7 +65,7 @@ following fields:
   diagram (`scripts/{agent,db,eventbus,mcp_servers,rag,shared}/`) as the default
   ownership unit (the owning layer/module directory).
 - **Dependency direction**: run `pydeps` (import graph) and `import-linter`/
-  `lint-imports` against `.importlinter`'s contracts — the same tools `path-b.md`
+  `PYTHONPATH=scripts uv run lint-imports` against `.importlinter`'s contracts — the same tools `path-b.md`
   already runs at Path B/C depth — cross-checked against `rules/env.md` Architecture's
   layer diagram.
 - **Entry points**: no single established repository command covers all entry-point
@@ -82,10 +82,12 @@ following fields:
 - **Configuration dependencies**: `rg` against `config/*.toml` and
   `shared/config_loader.py` usages, consistent with `rules/env.md`'s statement that
   `config/agent.toml` is the configuration SSOT.
-- **Routing or registration**: `rg "ToolRouteResolver\|tool_names" scripts/shared/` —
-  the exact command already named in `workflow.md` Special Cases.
-- **Deployment references**: reuse `workflow.md` Step 3's existing "referenced in
-  `deploy.sh`" check verbatim; MUST NOT define a second deploy-reference check.
+- **Routing or registration**: `rg "ToolRouteResolver|tool_names" scripts/shared/` —
+  the exact command already named in `workflow.md` Special Cases (plain `|`; ripgrep
+  treats `\|` as a literal pipe and would match nothing).
+- **Deployment references**: reuse `workflow.md` Step 2's deploy-reference search
+  (`rg -ln ... deploy/ conf.d/ init.d/`) verbatim; MUST NOT define a second
+  deploy-reference check.
 
 Module ownership, entry points, and lifecycle ownership are manual-capture fields with
 no established repository tooling — record them explicitly as such rather than applying
@@ -158,8 +160,10 @@ template; any suggested field with no direct equivalent in the existing conventi
 folded into its nearest existing section rather than added as a new top-level header.
 
 `workflow.md`'s Allowed file operations rule ("MUST NOT edit documentation unless
-explicitly instructed") governs where this ADR content is written: Step 10 MUST produce
-the ADR content, in the reconciled shape above, inline in the report as a draft.
+explicitly instructed") governs where this ADR content is written: the ADR content, in
+the reconciled shape above, MUST be presented inline as a draft with the pre-implementation
+approval request (Architectural Refactoring Requirements item 7), and Step 10 reports its
+final state inline in the report.
 Creating the file under `docs/10_adr/adr_02_{group}_{next-number}_{group-word}-{slug}.md`
 (group number and word come from the group registry in `docs/10_adr/adr_00_document-guide.md`)
 and registering it in `docs/10_adr/adr_01_index.md`'s existing "ADR List" table and dependency graph happens

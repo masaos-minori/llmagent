@@ -8,7 +8,10 @@ complete.
 
 ## Report Structure (Step 10)
 
-Keep diffs minimal. Populate every field below from what Steps 2-9 already recorded —
+Keep diffs minimal. For Path A, the fields that are not applicable to a single-file
+change (Architecture Baseline, Architecture Before and After, Migration and Rollback
+Evidence, ADR Status) are each reported as one line `Not applicable`; every other field
+still applies. Populate every field below from what Steps 2-9 already recorded —
 MUST NOT re-run `mutmut` or any other check merely to produce this report. For each file
 (or approved atomic migration group, per `path-c.md`), report:
 

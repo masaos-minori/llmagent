@@ -124,5 +124,5 @@ boundaries there).
 If mutation testing is not configured, report `Not run`. MUST NOT invent mutation results.
 Per `rules/ai-execution.md` Repository Tool Usage #8, 0 surviving mutants out of 0 total
 mutants generated means the target paths were not mutated (e.g. an empty
-`--paths-to-mutate` match), not that the refactored code is behavior-locked — confirm a
+`source_paths` match), not that the refactored code is behavior-locked — confirm a
 non-zero total mutant count before treating a mutation run as evidence.

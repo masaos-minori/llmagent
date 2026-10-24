@@ -18,10 +18,18 @@ follow-up work (see `SKILL.md` Composes with / Called by).
 
 - Modify only the target file(s) — see `AGENTS.md` Global Rule 5, the canonical
   statement of this scope-discipline restriction.
+- Scoped exceptions (nothing else widens the scope):
+  - characterization tests Step 4 requires, in the existing test file for the target
+    under `tests/` (or a new one mirroring the target's path);
+  - for a rename or move that Path B/C approved, the call sites and imports listed in
+    the approved affected-file scope.
+- Config, deploy, routing, and documentation changes the refactor may imply (see Special
+  Cases) are recorded as Proposals unless the user explicitly instructs them.
 - MUST NOT change external behavior, public APIs, or visible output.
 - MUST NOT edit documentation unless explicitly instructed (one scoped exception: see
-  `path-c.md` ADR Requirement — Step 10 MUST draft ADR content inline in the report;
-  only writing it under `docs/10_adr/` requires explicit instruction).
+  `path-c.md` ADR Requirement — the ADR draft is presented inline, before
+  implementation and again in the Step 10 report; only writing it under `docs/10_adr/`
+  requires explicit instruction).
 
 ## Out of Scope
 
@@ -57,12 +65,13 @@ If not already loaded, read the following before starting:
 - `skills/DESIGN.md`
 - `SKILL.md` (this skill)
 - this file
-- `discovery.md`
 - `validation.md`
 - `report-template.md`
 
-MUST NOT eagerly load `path-a.md` / `path-b.md` / `path-c.md` — Step 2 loads only the
-one matching the Path classification decided there.
+MUST NOT eagerly load `discovery.md` or `path-a.md` / `path-b.md` / `path-c.md` — Step 2
+loads `discovery.md` and only the one `path-*.md` matching the Path classification
+decided there. This list is the one authoritative load list; `AGENTS.md` Global Rule 1
+(selective loading) is satisfied by deferring those files.
 
 ---
 
@@ -93,6 +102,17 @@ Before making any edit to the target file, report the following in Markdown:
 - Expected validation commands
 - Path classification (A, B, or C) — see `SKILL.md` Routing
 
+Before classifying, run the preliminary search needed by the Routing criteria:
+
+```bash
+rg -n "<target module or symbol>" scripts/ tests/    # callers
+rg -ln "<target module or symbol>" deploy/ conf.d/ init.d/    # deploy references
+```
+
+Use the results for the "more than one caller" and "referenced in deploy scripts"
+criteria; confirm each `rg` searched the intended paths (a zero-match result from a wrong
+path is not evidence of absence).
+
 If `Expected behavior change` is anything other than `none`, stop. MUST NOT implement it.
 Record it under `report-template.md`'s `Proposals not implemented` format instead, and
 MUST NOT proceed to Step 3 for this idea. Only continue transforming the parts of the
@@ -118,18 +138,26 @@ approved change scope.
 Depth depends on the Path classification from Step 2 — see `path-a.md` or `path-b.md`
 (Path C applies at least Path B's depth per `path-c.md`) for the exact tool list.
 
-Record the impact scope in a table, marking any tool skipped for either reason (Path A
-or unavailability) as `N/A` or `Not run` respectively — the row MUST NOT be omitted.
+Record the impact scope in a table with the columns `Check | Command | Result | Status`
+(`Status` is `Done`, `N/A: Path A`, or `Not run: <reason>`), one row per tool — the row
+MUST NOT be omitted when a tool is skipped.
+
+If this mapping shows the change meets a higher Path's criteria than the Step 2
+classification (e.g. more callers, a deploy reference, or an import-boundary change),
+re-classify upward, load the matching `path-*.md`, and re-issue the Step 2 declaration
+for the new Path before continuing. Never downgrade a Path during a cycle.
 
 In addition, regardless of Path, perform `discovery.md`'s Technical Debt Discovery,
-Responsibility Analysis, and Documentation Drift Detection while reading the target
-file.
+Responsibility Analysis, and Documentation Drift Detection (the latter scaled to the Path
+as `discovery.md` defines) while reading the target file.
 
 ---
 
 ## Step 4: Behavior Lock
 
-- Record baseline coverage with `pytest-cov`.
+- Record baseline coverage with `pytest-cov`, scoped to the target:
+  `uv run pytest <tests mirroring the target> --cov=<target module> --cov-report=term-missing`
+  (confirm the run collected tests and measured the target; see `validation.md`).
 - If coverage is below 80%, add characterization tests.
   - Note: 80% is a judgment threshold specific to this procedure, not a project-wide
     standard.
@@ -205,27 +233,42 @@ Step 2's behavior-change stop rule.
 
 - Use `libcst` for symbol-level refactoring when needed. When a change MUST preserve
   comments, formatting, or docstrings during a rename/structural edit, use a
-  CST-preserving transform, not regex-based text replacement, e.g.:
+  CST-preserving transform, not regex-based text replacement. Apply it only to the
+  explicit file path(s) in the approved scope (never a directory glob), and restrict the
+  rename to the intended symbol: a bare `Name` match also rewrites unrelated
+  identifiers (keyword arguments, attributes, same-named locals), so match the
+  definition, its imports, and its references selectively, e.g. for a top-level class:
 
   ```python
+  import sys
+  from pathlib import Path
+
   import libcst as cst
-  import pathlib
 
   class RenameClass(cst.CSTTransformer):
+      def leave_ClassDef(
+          self, original_node: cst.ClassDef, updated_node: cst.ClassDef
+      ) -> cst.ClassDef:
+          if updated_node.name.value == "OldName":
+              return updated_node.with_changes(name=cst.Name("NewName"))
+          return updated_node
+
       def leave_Name(
           self, original_node: cst.Name, updated_node: cst.Name
       ) -> cst.Name:
-          if updated_node.value == "OldName":
-              return updated_node.with_changes(value="NewName")
+          # Reference sites only: add checks (ScopeProvider / parent node) so attributes,
+          # keyword arguments, and shadowing locals named "OldName" are left alone.
           return updated_node
 
-  for path in pathlib.Path("scripts").glob("*.py"):
-      source = path.read_text()
-      tree = cst.parse_module(source)
-      new_tree = tree.visit(RenameClass())
-      if new_tree.code != source:
-          path.write_text(new_tree.code)
+  path = Path(sys.argv[1])  # one explicit target file
+  source = path.read_text(encoding="utf-8")
+  new_code = cst.parse_module(source).visit(RenameClass()).code
+  if new_code != source:
+      path.write_text(new_code, encoding="utf-8")
   ```
+
+  After the edit, review `git diff` for the file: every changed hunk must be the intended
+  symbol.
 
 - Run `ruff format` and `ruff check --fix` after each transformation.
 - Ensure no legacy symbol names remain — verify with `rg "OldName" <scope>`.
@@ -275,25 +318,37 @@ pass.
   - If the user explicitly requests staging: `git add -p` (interactive) or `lazygit`
     may be used to stage per-hunk at that point — this is an opt-in action, not a
     required step of this workflow.
-  - If the user explicitly requests committing: create one rollback-safe commit per
-    logical unit, ensure each commit passes the Step 10 completion gate
-    (`report-template.md`) before it is committed, and avoid interactive commands
-    (e.g. `git rebase -i`) unless the environment explicitly supports them.
+  - If the user explicitly requests committing or pushing: hand off to the
+    `git-commit-and-sync` skill, one rollback-safe commit per logical unit, and ensure
+    each commit passes the Step 10 completion gate (`report-template.md`) before it is
+    committed. Interactive or history-rewriting commands (`git rebase -i`, `--amend`)
+    are forbidden by that skill and MUST NOT be used.
 
 ---
 
 ## Step 9: CI Gate
 
-Refer to `rules/toolchain.md` for the full validation sequence. At minimum:
-- Run `pre-commit run --all-files`.
-- Run `lint-imports`.
-- Run `diff-cover`.
+Refer to `rules/toolchain.md` for the full validation sequence (and run it as a whole via
+`uv run python tools/run_validation_gates.py`, with `--full` for the complete run, which
+selects the gates the changed files need). At minimum:
+- Run `pre-commit run --files <changed files>`; use `--all-files` only when the change
+  touches shared configuration or the user asks for a full-repo run.
+- Run `PYTHONPATH=scripts uv run lint-imports` (the exact form in `rules/toolchain.md`).
+- Generate `coverage.xml` with the scoped test run (`--cov-report=xml`), then run
+  `uv run diff-cover coverage.xml --compare-branch=master`.
+- When a module was split, merged, or grew: `uv run python tools/check_module_size.py`
+  (`routing.md` Tools). When the code under a generated-reference domain changed:
+  `uv run python tools/generate_reference_table.py --check`.
+- When the target is under `tools/` rather than `scripts/`, use `routing.md` "Adding a new
+  tool" validation (pass the file path explicitly to `mypy`) instead of the `scripts/`
+  scoped commands above.
 - Review changes with `git log` and `git diff`.
 - Ensure no legacy symbol names remain.
 
 **On a failure**: return to Step 6 (Transformation) to fix the specific violation
 reported — MUST NOT re-derive the Step 2 intent or Step 4 behavior lock — then re-run
-only this Step 9 CI gate, not Steps 1-8. Per `AGENTS.md` Loop Prevention > Attempt
+Step 7's Required validation (the fix may have changed behavior or the public API) and
+this Step 9 CI gate, not Steps 1-6. Per `AGENTS.md` Loop Prevention > Attempt
 Limit, at most 3 Step 6/Step 9 round-trips for the same file (or atomic migration
 group); if the gate still fails after 3 attempts, stop, apply Rollback (see `AGENTS.md`
 Loop Prevention > Rollback Directive), and report `Blocked: {file} still fails the CI
@@ -316,20 +371,24 @@ C Completion Requirements.
   re-run `mypy`/`pyright`/`ruff`/`pydeps`/`import-linter`/`mutmut`/`rg` against an
   unchanged target expecting a different result — only re-run a check after the
   specific fix it depends on (see Step 6/Step 9 fix-and-recheck rules).
-- Perform Step 3 (preparation/investigation) sequentially; `rg` and the `deploy.sh`
-  reference check MUST run every time regardless of Path, and `pydeps`/`import-linter`/
+- Perform Step 3 (preparation/investigation) sequentially; `rg` and the deploy-reference
+  search MUST run every time regardless of Path, and `pydeps`/`import-linter`/
   `ast-grep` only when Path B or C applies (see `path-a.md`/`path-b.md`), retaining only
-  the resulting impact scope table, not the raw tool output.
+  the resulting impact scope table, not the raw tool output. The deploy-reference check
+  is the `rg -ln ... deploy/ conf.d/ init.d/` search from Step 2.
 - Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g.
   via `grep` for failures) rather than full successful-run output.
 - Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever
   possible, rather than the whole repository.
-- Scope `mutmut` to the changed paths only (`--paths-to-mutate`), not the whole repo.
+- `mutmut` (3.x here) takes its mutation scope from `[tool.mutmut]` `source_paths` in
+  `pyproject.toml`; it has no `--paths-to-mutate`. Run `uv run mutmut run`, optionally
+  naming specific mutants (`mutmut run <MUTANT_NAMES>`) and `--max-children`, then read
+  `uv run mutmut results` and filter the report to the refactored module's mutants. If
+  a run cannot be limited to the target in reasonable time, report `Not run` with the
+  reason rather than running an unbounded whole-repo mutation.
 - In Step 8, run the full mypy/test/ruff check once per logical diff group identified
   via `git diff` rather than after every single hunk; use a lighter check (e.g. `ruff`
   only) when inspecting individual hunks.
-- In Step 9, `pre-commit` SHOULD be scoped to the changed files over `--all-files` when
-  the CI gate does not require a full-repo run.
 - When multiple target files are specified, run each Steps 1-10 cycle sequentially so
   one file's tool output and investigation results do not accumulate in the next file's
   context.
@@ -346,11 +405,12 @@ C Completion Requirements.
   `ToolRouteResolver` prefix mappings or `tool_names` config keys change (this is the
   exact command `path-c.md` Architecture Baseline's "Routing or registration" field
   reuses).
-- If required, update `config/agent.toml`.
-- If modules are added or removed, update:
-  - `deploy.sh`
-  - `routing.md`
-  - `AGENTS.md`
+- If `config/agent.toml` would need to change, or modules are added or removed such that
+  `deploy/deploy.sh` (and the other `deploy/*.sh` scripts), `routing.md`, or `AGENTS.md`
+  would need updates, do not edit them (see Allowed file operations): record each as a
+  Proposal in the Step 10 report, or make the edit only when the user explicitly
+  instructs it. Run `deploy`'s Phase 2-3 afterwards when `scripts/` files were added,
+  removed, or renamed (`SKILL.md` Composes with).
 
 ## Output format
 
