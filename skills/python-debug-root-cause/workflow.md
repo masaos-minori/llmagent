@@ -82,7 +82,9 @@ Before any tool use, identify:
 - where it happens: this working tree / an isolated test, or the running production services
   under `/opt/llm` (this decides which `SKILL.md` Production Safety confirmations apply)
 
-State unknowns explicitly.
+State unknowns explicitly. Record `git status --short` as the working-tree baseline before any
+edit: changes already present (another session's edits, earlier work) are not this task's, and
+Phase 7's bisect rule and Phase 9c rely on it.
 
 **Completed when**: observed behavior, expected behavior, affected input/environment, and
 reproducibility are all recorded — each either as a confirmed value or an explicit unknown.
@@ -118,8 +120,9 @@ Rules for reading and quoting logs:
   `tail -N`, and confirm the log covers the failure time (the first line's date).
 - Logs can contain secrets (tokens, authorization headers, production values). Before quoting a
   snippet in the report, replace each secret with `<redacted>` (`skills/DESIGN.md` No secrets in
-  output); keep the rest of the text exact. Use `lnav` only when
-plain filtering cannot narrow the window (e.g. correlating across log files by time). Use
+  output); keep the rest of the text exact.
+
+Use `lnav` only when plain filtering cannot narrow the window (e.g. correlating across log files by time). Use
 `multitail` only when several services must be watched live as the failure reproduces (not for
 a historical failure). Use `sentry-sdk` only if the project already configures a DSN — it
 captures future occurrences; it does not analyze a failure that already produced a log.
@@ -197,10 +200,14 @@ routing); the Execution model axis only selects tools inside a phase.
 
 ## Phase 4: Focused Reproduction
 
-Before the first test run, confirm production isolation as `python-test-and-fix` requires
-(the guard in `tests/conftest.py` covers the production paths in `rules/env.md`; use
-`-m "not integration"` unless the failure is in an integration test). If a production path is
-unguarded, do not run the tests; record `Needs confirmation`.
+Before the first test run, apply `python-test-and-fix` Core rule "Verify Production Isolation
+Before Running Tests": record what the guard in `tests/conftest.py` covers and does not (it
+fails a test that opens a SQLite database or a `FileHandler` under `/opt/llm`; it does not guard
+ports or other kinds of write), and stop only when no mechanism exists for a production path the
+tests you run reach (record `Needs confirmation`). Default to
+`-m "not integration and not production_paths_allowed"`: `integration` tests start real
+subprocesses and `production_paths_allowed` tests are exempt from the guard. Run either group only
+when the failure is in it and the user agrees.
 
 #### pytest (direct — preferred)
 
@@ -287,10 +294,13 @@ curl -s http://127.0.0.1:<PORT>/health
 
 #### MCP server health check (from agent REPL)
 
-If the agent REPL is running, use the built-in probe (probes `/health` and `/v1/tools` of all configured HTTP-transport servers):
+If the agent REPL is running, use the built-in probes: `/mcp status` checks each configured
+server's health, and `/mcp tools` lists the tools they report (`/mcp` alone is the same as
+`/mcp status`):
 
 ```
-/mcp
+/mcp status
+/mcp tools
 ```
 
 ---
@@ -503,7 +513,7 @@ cd <scratchpad dir>/bisect-<sha>
 git bisect start
 git bisect bad
 git bisect good <last-known-good-sha>
-git bisect run env PYTHONPATH=scripts uv run pytest tests/<package>/test_<module>.py -x -q
+git bisect run env PYTHONPATH=scripts uv run pytest tests/<package>/test_<module>.py -x -q -m "not integration and not production_paths_allowed"
 git bisect reset
 cd - && git worktree remove <scratchpad dir>/bisect-<sha>
 ```
@@ -549,6 +559,9 @@ found but not fixed is recorded as an Issue via `issue-creator`.
 - write or adjust a failing test that captures the defect **before** changing code (the
   hypothesis Validated in Phase 6 states what it must assert; for a performance bug, a time or
   allocation bound)
+- before the first edit that changes the failing test or its implementation, write
+  `python-test-and-fix`'s Test Fix Strategy Record (`python-test-and-fix` Step 12); the fix gate
+  above does not replace it
 - apply the smallest effective code change (see `AGENTS.md` Global Rule 5 for the
   broader unrelated-refactoring/scope-expansion prohibition)
 - explain why the fix addresses the root cause (not just the symptom)
@@ -566,15 +579,20 @@ Apply 9a, 9b, 9c in order.
 
 ### Phase 9a: Run tests
 
-After the Phase 4 isolation check still holds (use `-m "not integration"` unless needed):
+After the Phase 4 isolation check still holds (use `-m "not integration and not production_paths_allowed"` unless needed):
 
 ```bash
 uv run pytest tests/<package>/test_<module>.py -v
-uv run pytest -m "not integration" -q                 # wider suite
+uv run pytest -m "not integration and not production_paths_allowed" -q                 # wider suite (see below)
 uv run ruff check <changed files>
-uv run mypy <changed files>
+uv run mypy --no-namespace-packages <changed files>
 uv run python tools/run_validation_gates.py           # project gates for the changed files
 ```
+
+For the wider suite, follow `python-test-and-fix` Step 10: run it in the background with output
+in a temporary directory outside the repository, check `pgrep -af "pytest|mutmut"` first so
+another session's run is not using the same checkout, and compare `git rev-parse HEAD` and
+`git status --short` before and after.
 
 **Completed when**: both pytest runs collected at least one test and passed (a 0-collected,
 exit-0 run is not a pass — per `rules/ai-execution.md` Repository Tool Usage #8), and
@@ -607,7 +625,7 @@ behavior (`import ipdb`/`ipdb.set_trace()` calls, temporary debug logging or `pr
 `viztracer`/`tracemalloc`/`aiomonitor` instrumentation, Sentry DSN). Also delete generated trace
 output you wrote (`result.json`, `profile.svg`) if it is inside the repository.
 
-**Completed when**: `git diff` shows none of those artifacts remain.
+**Completed when**: `git diff <the files this task touched>` shows none of those artifacts remain (a hunk that was already in the Phase 1 baseline is not this task's).
 
 ---
 
@@ -623,7 +641,7 @@ cycle ended in a `Blocked` state per Phase 6b or Phase 9a's own stop condition.
 - every `Inconclusive` hypothesis and every unavailable-tool check is stated as residual uncertainty
 - fix applied or proposed with justification
 - failing test added or adjusted to cover the defect
-- the wider suite (`uv run pytest -m "not integration"`) and the targeted test pass, and the project gates pass or each unrelated failure is recorded
+- the wider suite (`uv run pytest -m "not integration and not production_paths_allowed"`) and the targeted test pass, and the project gates pass or each unrelated failure is recorded
 - services restarted if production code changed and the user confirmed; if the user declined or no production code changed, say so (not an unmet item)
 - debug artifacts removed
 - every quoted log, request, or output snippet has its secrets redacted
@@ -643,6 +661,7 @@ Populate every item from what earlier Phases recorded — MUST NOT re-derive or 
 6. fix applied or proposed
 7. validation (pytest output, service status after restart)
 8. residual uncertainty
+9. next steps: any changes are uncommitted, so `git-commit-and-sync` commits them on request; findings recorded instead of fixed (and the Issue filed via `issue-creator`, when the user asked)
 
 ---
 

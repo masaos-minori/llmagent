@@ -86,6 +86,12 @@ resolve it, and carry it into the report's residual uncertainty.
 ## See Also
 See `workflow.md` for phase details; `rules/env.md` for service ports and status commands.
 
+## Called by
+
+- `python-test-and-fix` — when a failure's cause is unclear after its Steps 2-3.
+- `code-implementation` — Step 4, only when a failure's cause is not immediately obvious.
+- `test-audit` — to fix a confirmed production-code-bug Finding.
+
 ## Composes with
 
 - `python-test-and-fix` — Phase 8 (Minimal Fix) delegates test writing and fix validation; its Path D handles an intermittent failure of a test itself.
