@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.context import ConversationState
-from agent.history import CompressResult
+from agent.history import CompressResult, HistoryCompressionError
 from agent.llm_turn_executor import LlmTurnExecutor
 from agent.message_schema import ValidationResult
 from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
@@ -159,6 +159,21 @@ def _make_err(
         retryable=retryable,
         partial_text=partial_text,
     )
+
+
+def _wire_entry_services(ctx: MagicMock) -> MagicMock:
+    """Wire memory + MDQ/RAG mode so the real _prepare_turn_input runs cleanly.
+
+    Returns the injected memory mock so tests can assert on_user_prompt counts.
+    """
+    ctx.cfg.mdq_rag_mode = "rag"  # deterministic hint, bypasses classifier heuristics
+    ctx.conv.system_prompt_content = ""  # no system-prompt sync noise in this test
+    memory = AsyncMock()
+    snippet = MagicMock()
+    snippet.text = "remembered fact"
+    memory.on_user_prompt = AsyncMock(return_value=[snippet])
+    ctx.services_required.memory = memory
+    return memory
 
 
 # ── handle_turn: mandatory WorkflowEngine.run() invocation ───────────────────
@@ -324,7 +339,7 @@ class TestHandleTurnInvokesWorkflowEngine:
         orch._workflow_adapter._workflow_engine._wdef = orch._workflow_def
 
         # Patch _activate_workflow/_deactivate_workflow to set workflow state properly
-        # so _process_turn has valid task_id/workflow_id for the execute stage
+        # so _run_execute_stage has valid task_id/workflow_id for the execute stage
         def _fake_activate(ctx_obj, task):
             ctx_obj.workflow.current_task_id = task.task_id
             ctx_obj.workflow.workflow_id = task.workflow_id
@@ -449,7 +464,424 @@ class TestHandleTurnInvokesWorkflowEngine:
             await orch.handle_turn("hello")
 
 
-# ── handle_turn: LLMTransportError paths ─────────────────────────────────────
+# ── execute-stage retry runs turn-entry preparation once (AC-1/2/3) ──────────
+
+
+class TestExecuteStageRetryRunsTurnEntryOnce:
+    """The execute stage may retry on failure, but turn-entry preparation runs once."""
+
+    @pytest.mark.asyncio
+    async def test_retry_runs_turn_entry_once(self, tmp_path, monkeypatch) -> None:
+        """Three execute-stage retries advance turn-entry state exactly once (AC-1/2/3).
+
+        Leaving current_turn_id empty forces the real LLM half to raise RuntimeError
+        on every attempt, so the retryable execute stage retries max_attempts times.
+        The witness that the boundary moved: stat_turns advances by 1, not 3.
+        """
+        from agent.workflow.state_store import StateStore
+        from agent.workflow.workflow_engine import WorkflowEngine
+        from db.config import DbConfig
+        from db.create_schema import create_workflow_schema
+
+        db_path = str(tmp_path / "retry_workflow.sqlite")
+        rag_path = str(tmp_path / "retry_rag.sqlite")
+        session_path = str(tmp_path / "retry_session.sqlite")
+
+        with patch(
+            "db.helper.build_db_config",
+            return_value=DbConfig(
+                rag_db_path=rag_path,
+                session_db_path=session_path,
+                workflow_db_path=db_path,
+            ),
+        ):
+            create_workflow_schema()
+
+        class TempStateStore(StateStore):
+            def __init__(self) -> None:
+                from db.helper import SQLiteHelper
+
+                self._db = SQLiteHelper(db_path=db_path)
+                self._db.open(write_mode=True, row_factory=True)
+
+        monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
+        )
+        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
+
+        ctx = _make_ctx()
+        memory = _wire_entry_services(ctx)
+
+        # Classify-and-inject-mode runs during the prepared step; count invocations.
+        classify_mock = AsyncMock()
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", classify_mock
+        )
+
+        # Keep current_turn_id empty so the LLM half raises RuntimeError every attempt.
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_start", AsyncMock())
+
+        # Clear-ephemeral is sync; wrap to count invocations.
+        clear_spy = MagicMock(
+            side_effect=orch._conversation_manager.clear_previous_turn_ephemeral_messages
+        )
+        orch._conversation_manager.clear_previous_turn_ephemeral_messages = clear_spy
+
+        stages = [
+            StageDefinition(id="plan", timeout_sec=5, retryable=False),
+            StageDefinition(id="execute", timeout_sec=60, retryable=True),
+            StageDefinition(id="verify", timeout_sec=5, retryable=False),
+        ]
+        policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        orch._workflow_def = WorkflowDef(
+            name="default", version="1.0.0", stages=stages, retry_policy=policy
+        )
+        orch._workflow_adapter._workflow_engine._wdef = orch._workflow_def
+
+        def _fake_activate(ctx_obj, task):
+            ctx_obj.workflow.current_task_id = task.task_id
+            ctx_obj.workflow.workflow_id = task.workflow_id
+            ctx_obj.workflow.current_workflow_version = orch._workflow_def.version
+            ctx_obj.workflow.active = True
+
+        def _fake_deactivate(ctx_obj):
+            ctx_obj.workflow.active = False
+            ctx_obj.workflow.current_task_id = None
+            ctx_obj.workflow.workflow_id = None
+
+        with (
+            patch.object(
+                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+            ),
+            patch.object(
+                orch._workflow_adapter,
+                "deactivate_workflow",
+                side_effect=_fake_deactivate,
+            ),
+        ):
+            start_turns = ctx.stats.stat_turns
+            await orch._workflow_adapter.execute_turn("retry me", 0.0, "")
+
+        # Entry preparation ran exactly once despite three execute-stage attempts.
+        assert classify_mock.await_count == 1
+        assert memory.on_user_prompt.await_count == 1
+        assert clear_spy.call_count == 1
+        assert ctx.stats.stat_turns == start_turns + 1
+
+        user_msgs = [m for m in ctx.conv.history if m.get("role") == "user"]
+        assert len(user_msgs) == 1
+        assert user_msgs[0]["content"] == "retry me"
+
+        # A stage halt surfaces via on_error as a WorkflowHaltError (REQ-003).
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+        statuses = orch._state_store.get_connection().fetchall(
+            "SELECT status FROM tasks"
+        )
+        assert statuses[0]["status"] == "halted"
+
+
+# ── entry-work failure is not retried (AC-5) ─────────────────────────────────
+
+
+class TestEntryWorkFailureIsNotRetried:
+    """A turn-entry failure halts immediately: no retries, no attempts row (AC-5)."""
+
+    @pytest.mark.asyncio
+    async def test_entry_failure_not_retried(self, tmp_path, monkeypatch) -> None:
+        """HistoryCompressionError from the prepared step halts without retrying."""
+        from agent.workflow.state_store import StateStore
+        from agent.workflow.workflow_engine import WorkflowEngine
+        from db.config import DbConfig
+        from db.create_schema import create_workflow_schema
+
+        db_path = str(tmp_path / "entry_workflow.sqlite")
+        rag_path = str(tmp_path / "entry_rag.sqlite")
+        session_path = str(tmp_path / "entry_session.sqlite")
+
+        with patch(
+            "db.helper.build_db_config",
+            return_value=DbConfig(
+                rag_db_path=rag_path,
+                session_db_path=session_path,
+                workflow_db_path=db_path,
+            ),
+        ):
+            create_workflow_schema()
+
+        class TempStateStore(StateStore):
+            def __init__(self) -> None:
+                from db.helper import SQLiteHelper
+
+                self._db = SQLiteHelper(db_path=db_path)
+                self._db.open(write_mode=True, row_factory=True)
+
+        monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
+        )
+        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
+
+        ctx = _make_ctx()
+        _wire_entry_services(ctx)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+
+        async def _raise_history_error() -> None:
+            raise HistoryCompressionError("context compression failed")
+
+        orch._conversation_manager.handle_history_compression = _raise_history_error
+
+        stages = [
+            StageDefinition(id="plan", timeout_sec=5, retryable=False),
+            StageDefinition(id="execute", timeout_sec=60, retryable=True),
+            StageDefinition(id="verify", timeout_sec=5, retryable=False),
+        ]
+        policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        orch._workflow_def = WorkflowDef(
+            name="default", version="1.0.0", stages=stages, retry_policy=policy
+        )
+        orch._workflow_adapter._workflow_engine._wdef = orch._workflow_def
+
+        with (
+            patch.object(
+                orch._workflow_adapter,
+                "activate_workflow",
+                side_effect=lambda ctx_obj, task: None,
+            ),
+            patch.object(
+                orch._workflow_adapter,
+                "deactivate_workflow",
+                side_effect=lambda ctx_obj: None,
+            ),
+        ):
+            await orch._workflow_adapter.execute_turn("boom entry", 0.0, "")
+
+        # No retry loop touched the entry step: zero attempts rows were written.
+        attempts = orch._state_store.get_connection().fetchall(
+            "SELECT COUNT(*) AS n FROM attempts"
+        )
+        assert int(attempts[0]["n"]) == 0
+
+        # At most one user row exists and the halt surfaced via on_error.
+        user_msgs = [m for m in ctx.conv.history if m.get("role") == "user"]
+        assert len(user_msgs) <= 1
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+        statuses = orch._state_store.get_connection().fetchall(
+            "SELECT status FROM tasks"
+        )
+        assert statuses[0]["status"] == "halted"
+
+
+# ── entry work runs outside the execute-stage timeout (AC-4 / REQ-006) ────────
+
+
+class TestEntryWorkOutsideStageTimeout:
+    """Turn-entry preparation is not bounded by the execute stage's timeout."""
+
+    @pytest.mark.asyncio
+    async def test_entry_longer_than_stage_timeout_still_completes(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Entry work exceeding the stage timeout completes the turn (no timeout)."""
+        from agent.workflow.state_store import StateStore
+        from agent.workflow.workflow_engine import WorkflowEngine
+        from db.config import DbConfig
+        from db.create_schema import create_workflow_schema
+
+        db_path = str(tmp_path / "timeout_workflow.sqlite")
+        rag_path = str(tmp_path / "timeout_rag.sqlite")
+        session_path = str(tmp_path / "timeout_session.sqlite")
+
+        with patch(
+            "db.helper.build_db_config",
+            return_value=DbConfig(
+                rag_db_path=rag_path,
+                session_db_path=session_path,
+                workflow_db_path=db_path,
+            ),
+        ):
+            create_workflow_schema()
+
+        class TempStateStore(StateStore):
+            def __init__(self) -> None:
+                from db.helper import SQLiteHelper
+
+                self._db = SQLiteHelper(db_path=db_path)
+                self._db.open(write_mode=True, row_factory=True)
+
+        monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
+        )
+        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
+
+        ctx = _make_ctx()
+        _wire_entry_services(ctx)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        # execute_turn() does not call emit_turn_start(); set the attempt id so the
+        # real LLM half has a non-empty workflow context.
+        ctx.turn.current_turn_id = "turn-test"
+
+        orch = _make_orchestrator(ctx)
+
+        async def _slow_compress() -> None:
+            # Entry work takes longer than the execute stage timeout below.
+            await asyncio.sleep(0.3)
+
+        orch._conversation_manager.handle_history_compression = _slow_compress
+
+        async def _instant_stream(*_args: object, **_kwargs: object) -> LLMResponse:
+            return LLMResponse(
+                message=LLMMessage(role="assistant", content="ok"),
+                finish_reason="stop",
+            )
+
+        ctx.services_required.llm.stream = _instant_stream
+
+        stages = [
+            StageDefinition(id="plan", timeout_sec=5, retryable=False),
+            StageDefinition(id="execute", timeout_sec=0.1, retryable=True),
+            StageDefinition(id="verify", timeout_sec=5, retryable=False),
+        ]
+        policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        orch._workflow_def = WorkflowDef(
+            name="default", version="1.0.0", stages=stages, retry_policy=policy
+        )
+        orch._workflow_adapter._workflow_engine._wdef = orch._workflow_def
+
+        def _fake_activate(ctx_obj, task):
+            ctx_obj.workflow.current_task_id = task.task_id
+            ctx_obj.workflow.workflow_id = task.workflow_id
+            ctx_obj.workflow.current_workflow_version = orch._workflow_def.version
+            ctx_obj.workflow.active = True
+
+        def _fake_deactivate(ctx_obj):
+            ctx_obj.workflow.active = False
+            ctx_obj.workflow.current_task_id = None
+            ctx_obj.workflow.workflow_id = None
+
+        with (
+            patch.object(
+                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+            ),
+            patch.object(
+                orch._workflow_adapter,
+                "deactivate_workflow",
+                side_effect=_fake_deactivate,
+            ),
+        ):
+            # Turn-entry completion must not raise even though entry (0.3s) >
+            # execute-stage timeout (0.1s): entry work is outside the stage timeout.
+            await orch._workflow_adapter.execute_turn("slow entry", 0.0, "")
+
+        statuses = orch._state_store.get_connection().fetchall(
+            "SELECT status FROM tasks"
+        )
+        assert statuses[0]["status"] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_llm_stage_still_bounded_by_timeout(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """A slow LLM stage still raises WorkflowTimeoutError inside the engine."""
+        from agent.workflow.state_store import StateStore
+        from agent.workflow.workflow_engine import WorkflowEngine
+        from db.config import DbConfig
+        from db.create_schema import create_workflow_schema
+
+        db_path = str(tmp_path / "llm_timeout_workflow.sqlite")
+        rag_path = str(tmp_path / "llm_timeout_rag.sqlite")
+        session_path = str(tmp_path / "llm_timeout_session.sqlite")
+
+        with patch(
+            "db.helper.build_db_config",
+            return_value=DbConfig(
+                rag_db_path=rag_path,
+                session_db_path=session_path,
+                workflow_db_path=db_path,
+            ),
+        ):
+            create_workflow_schema()
+
+        class TempStateStore(StateStore):
+            def __init__(self) -> None:
+                from db.helper import SQLiteHelper
+
+                self._db = SQLiteHelper(db_path=db_path)
+                self._db.open(write_mode=True, row_factory=True)
+
+        monkeypatch.setattr("agent.orchestrator.StateStore", TempStateStore)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine
+        )
+        monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
+
+        ctx = _make_ctx()
+        _wire_entry_services(ctx)
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        ctx.turn.current_turn_id = "turn-test"
+
+        async def _slow_stream(*_args: object, **_kwargs: object) -> LLMResponse:
+            await asyncio.sleep(0.3)
+            return LLMResponse(
+                message=LLMMessage(role="assistant", content="ok"),
+                finish_reason="stop",
+            )
+
+        ctx.services_required.llm.stream = _slow_stream
+
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+        stages = [
+            StageDefinition(id="plan", timeout_sec=5, retryable=False),
+            StageDefinition(id="execute", timeout_sec=0.1, retryable=True),
+            StageDefinition(id="verify", timeout_sec=5, retryable=False),
+        ]
+        policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        orch._workflow_def = WorkflowDef(
+            name="default", version="1.0.0", stages=stages, retry_policy=policy
+        )
+        orch._workflow_adapter._workflow_engine._wdef = orch._workflow_def
+
+        def _fake_activate(ctx_obj, task):
+            ctx_obj.workflow.current_task_id = task.task_id
+            ctx_obj.workflow.workflow_id = task.workflow_id
+            ctx_obj.workflow.current_workflow_version = orch._workflow_def.version
+            ctx_obj.workflow.active = True
+
+        def _fake_deactivate(ctx_obj):
+            ctx_obj.workflow.active = False
+            ctx_obj.workflow.current_task_id = None
+            ctx_obj.workflow.workflow_id = None
+
+        with (
+            patch.object(
+                orch._workflow_adapter, "activate_workflow", side_effect=_fake_activate
+            ),
+            patch.object(
+                orch._workflow_adapter,
+                "deactivate_workflow",
+                side_effect=_fake_deactivate,
+            ),
+        ):
+            # execute_turn handles the timeout internally and returns normally.
+            await orch._workflow_adapter.execute_turn("slow llm", 0.0, "")
+
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowTimeoutError)
 
 
 class TestHandleTurnLLMTransportError:
@@ -1164,7 +1596,7 @@ class TestNoApprovalStage:
         orch = _make_orchestrator(ctx, on_error=on_error)
         process = AsyncMock(return_value=("ok", None, False))
 
-        with patch.object(orch._workflow_adapter, "_process_turn", new=process):
+        with patch.object(orch._workflow_adapter, "_run_execute_stage", new=process):
             await orch.handle_turn("write a file")
             await orch.handle_turn("write another file")
 
@@ -1190,7 +1622,7 @@ class TestAllowedToolsOverride:
 
     @pytest.mark.asyncio
     async def test_allowed_tools_override_applied_during_turn(self) -> None:
-        """ctx.cfg.tool.allowed_tools is overridden to the instance list during _process_turn."""
+        """ctx.cfg.tool.allowed_tools is overridden to the instance list during the execute stage."""
         ctx = _make_ctx()
         ctx.cfg.tool.allowed_tools = []
         captured: list[list[str]] = []
@@ -1488,8 +1920,14 @@ class TestEphemeralMessageLifecycle:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        _answer, error_kind, _is_partial = await orch._workflow_adapter._process_turn(
-            "what headings are here?", ctx, 0.0
+        adapter = orch._workflow_adapter
+        await adapter._prepare_turn_input("what headings are here?", ctx)
+        _answer, error_kind, _is_partial = await adapter._run_execute_stage(
+            ctx,
+            ctx.workflow.workflow_id,
+            ctx.session.session_id,
+            ctx.workflow.current_task_id,
+            0.0,
         )
 
         assert error_kind is None
@@ -1526,8 +1964,23 @@ class TestEphemeralMessageLifecycle:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        await orch._workflow_adapter._process_turn("what headings are here?", ctx, 0.0)
-        await orch._workflow_adapter._process_turn("second turn", ctx, 0.0)
+        adapter = orch._workflow_adapter
+        await adapter._prepare_turn_input("what headings are here?", ctx)
+        _answer, error_kind, _is_partial = await adapter._run_execute_stage(
+            ctx,
+            ctx.workflow.workflow_id,
+            ctx.session.session_id,
+            ctx.workflow.current_task_id,
+            0.0,
+        )
+        await adapter._prepare_turn_input("second turn", ctx)
+        _answer, error_kind, _is_partial = await adapter._run_execute_stage(
+            ctx,
+            ctx.workflow.workflow_id,
+            ctx.session.session_id,
+            ctx.workflow.current_task_id,
+            0.0,
+        )
 
         assert len(seen_payloads) == 2
         second_payload = seen_payloads[1]
@@ -1906,7 +2359,7 @@ class TestHandleTurnPauseGuard:
 
         with patch.object(
             orch._workflow_adapter,
-            "_process_turn",
+            "_run_execute_stage",
             new=AsyncMock(return_value=("ok", None, False)),
         ):
             await orch.handle_turn("do something")
@@ -2035,7 +2488,7 @@ class TestHandleWorkflowEngineStatusPreservation:
             ),
             patch.object(
                 orch._workflow_adapter,
-                "_process_turn",
+                "_run_execute_stage",
                 new=AsyncMock(return_value=("ok", None, False)),
             ),
             patch.object(orch._workflow_adapter, "_deactivate_workflow"),
@@ -2079,7 +2532,7 @@ class TestHandleWorkflowEngineStatusPreservation:
             patch.object(orch._workflow_adapter, "_deactivate_workflow"),
             patch.object(
                 orch._workflow_adapter,
-                "_process_turn",
+                "_run_execute_stage",
                 new=AsyncMock(return_value=("ok", "execute", False)),
             ),
             patch("agent.orchestrator.StateStore", return_value=mock_store),

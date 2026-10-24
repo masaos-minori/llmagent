@@ -159,19 +159,10 @@ class WorkflowEngineAdapter:
                 return None
 
             async def execute_fn() -> str | None:
-                """Process the user turn via process_turn and log stage completion."""
+                """Run one execute-stage attempt and return its result."""
                 nonlocal answer, error_kind, is_partial
-                answer, error_kind, is_partial = await self._process_turn(
-                    line, self._ctx, turn_started_at
-                )
-                elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
-                audit_stage_completed(
-                    self._ctx,
-                    task.task_id,
-                    "execute",
-                    elapsed_ms,
-                    workflow_id=workflow_id,
-                    session_id=session_id,
+                answer, error_kind, is_partial = await self._run_execute_stage(
+                    self._ctx, workflow_id, session_id, task.task_id, turn_started_at
                 )
                 return None
 
@@ -182,7 +173,22 @@ class WorkflowEngineAdapter:
                 )
                 return None
 
-            await engine.run(task, plan_fn, execute_fn, verify_fn)
+            with self._tool_override(self._allowed_tools):
+                try:
+                    await self._prepare_turn_input(line, self._ctx)
+                except (WorkflowHaltError, WorkflowTimeoutError):
+                    raise
+                except Exception as prepared_exc:
+                    # A turn-entry failure must surface exactly as a stage failure
+                    # does today (REQ-003): mark the task halted and route it
+                    # through the existing halt handler so on_error receives a
+                    # WorkflowHaltError — identical end state to a stage halt.
+                    if task is not None and task.task_id:
+                        self._state_store.update_task_status(task.task_id, "halted")
+                    raise WorkflowHaltError(
+                        f"Turn-entry preparation failed: {prepared_exc}"
+                    ) from prepared_exc
+                await engine.run(task, plan_fn, execute_fn, verify_fn)
         except (WorkflowHaltError, WorkflowTimeoutError) as exc:
             engine_status_handled = True
             self._handle_workflow_halt(exc)
@@ -320,39 +326,65 @@ class WorkflowEngineAdapter:
         if self._on_error:
             self._on_error(exc)
 
-    async def _process_turn(
-        self, line: str, ctx: AgentContext, turn_started_at: float
+    async def _prepare_turn_input(self, line: str, ctx: AgentContext) -> None:
+        """Run turn-entry input preparation once, before the engine runs.
+
+        Clears the previous turn's ephemeral messages, injects memory, classifies
+        the turn mode, appends the user message, and compresses history. Runs once
+        per execute_turn() regardless of execute-stage retries (REQ-001). Called
+        from execute_turn() inside the single self._tool_override scope that also
+        wraps engine.run(), so the mode-classified allowed_tools is in force for
+        the LLM stage (REQ-004).
+        """
+        self._conversation_manager.clear_previous_turn_ephemeral_messages()
+        await self._conversation_manager.handle_memory_injection(line)
+        await classify_and_inject_mode(line, ctx)
+        await self._conversation_manager.append_user_message(line)
+        await self._conversation_manager.handle_history_compression()
+
+    async def _run_execute_stage(
+        self,
+        ctx: AgentContext,
+        workflow_id: str,
+        session_id: str,
+        task_id: str,
+        turn_started_at: float,
     ) -> tuple[str, str | None, bool]:
-        """Process a turn and return (answer, error_kind, is_partial)."""
-        answer = ""
-        error_kind = None
+        """Perform one execute-stage attempt: LLM/tool execution, error and
+        partial-answer classification, assistant persistence, and
+        audit_stage_completed. Per-attempt only; turn-entry preparation lives in
+        _prepare_turn_input (REQ-002). Returns (answer, error_kind, is_partial)
+        with the same contract as the removed _process_turn().
+        """
+        result = await self._llm_executor.handle_llm_turn(
+            ctx.conv.llm_url,
+            workflow_id=ctx.workflow.workflow_id or "",
+            task_id=ctx.workflow.current_task_id or "",
+            stage_id="execute",
+            attempt_id=ctx.turn.current_turn_id or "",
+        )
+        answer = result.answer
+        error_kind: str | None = None
         is_partial = False
+        if result.action != "continue":
+            error_kind = result.error_kind or result.reason or result.action
+            if (
+                isinstance(result.exception, LLMTransportError)
+                and result.exception.partial_text
+            ):
+                is_partial = True
+        elif result.persist_as_assistant:
+            ctx.session.save("assistant", answer)
 
-        with self._tool_override(self._allowed_tools):
-            self._conversation_manager.clear_previous_turn_ephemeral_messages()
-            await self._conversation_manager.handle_memory_injection(line)
-            await classify_and_inject_mode(line, ctx)
-            await self._conversation_manager.append_user_message(line)
-            await self._conversation_manager.handle_history_compression()
-
-            result = await self._llm_executor.handle_llm_turn(
-                ctx.conv.llm_url,
-                workflow_id=ctx.workflow.workflow_id or "",
-                task_id=ctx.workflow.current_task_id or "",
-                stage_id="execute",
-                attempt_id=ctx.turn.current_turn_id or "",
-            )
-            answer = result.answer
-            if result.action != "continue":
-                error_kind = result.error_kind or result.reason or result.action
-                if (
-                    isinstance(result.exception, LLMTransportError)
-                    and result.exception.partial_text
-                ):
-                    is_partial = True
-            elif result.persist_as_assistant:
-                ctx.session.save("assistant", answer)
-
+        elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
+        audit_stage_completed(
+            ctx,
+            task_id,
+            "execute",
+            elapsed_ms,
+            workflow_id=workflow_id,
+            session_id=session_id,
+        )
         return answer, error_kind, is_partial
 
     @contextmanager

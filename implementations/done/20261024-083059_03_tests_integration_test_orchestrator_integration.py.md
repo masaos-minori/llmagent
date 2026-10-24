@@ -122,10 +122,10 @@ is not called), patch `agent.orchestrator.StateStore` and `audit_workflow_start`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | migrate :665, :706-707 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | add TestResumedTaskPreparesOnce |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | include check_mock_patch_targets.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-24 | 2026-10-24 | migrate :665, :706-707 |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-24 | 2026-10-24 | add TestResumedTaskPreparesOnce |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-24 | 2026-10-24 | include check_mock_patch_targets.py |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-24 | 2026-10-24 | N/A: test-only file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

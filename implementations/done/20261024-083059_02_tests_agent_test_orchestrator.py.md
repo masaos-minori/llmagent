@@ -71,8 +71,10 @@ gives a real engine.
   before the fix the `stat_turns` delta equals the attempt count (3), after it is 1.
 - **`TestEntryWorkFailureIsNotRetried`** (AC-5): make `handle_history_compression` raise
   `HistoryCompressionError` (`scripts/agent/history.py:35`) from the prepared step. Assert the task
-  ends `failed`, `on_error` is called exactly once, at most one user row exists, and there is **no**
-  `attempts` row for the entry step (entry work is outside the retry loop).
+  ends `halted` (not `failed`): a turn-entry failure is routed through the same halt handler as a
+  stage failure (REQ-003), so the observable end state matches the pre-split behavior; `on_error` is
+  called exactly once, at most one user row exists, and there is **no** `attempts` row for the entry
+  step (entry work is outside the retry loop).
 - **`TestEntryWorkOutsideStageTimeout`** (AC-4 boundary for REQ-006): with `execute.timeout_sec` set
   below the entry-work delay, the turn still completes and does not raise `WorkflowTimeoutError`; with
   the LLM stage slower than the timeout it still raises. Proves entry work left the stage timeout while
@@ -172,10 +174,10 @@ no-op mock here. Keep the payload assertions at `:1496-1502` and the turn-bounda
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | See migration mapping above |
-| 2 | Add or update tests per Validation plan | Pending | — | — | 3 new classes + 7 migrated sites |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | include check_mock_patch_targets.py |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only file |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-24 | 2026-10-24 | See migration mapping above |
+| 2 | Add or update tests per Validation plan | Completed | 2026-10-24 | 2026-10-24 | 3 new classes + 7 migrated sites |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-24 | 2026-10-24 | include check_mock_patch_targets.py |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-24 | 2026-10-24 | N/A: test-only file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

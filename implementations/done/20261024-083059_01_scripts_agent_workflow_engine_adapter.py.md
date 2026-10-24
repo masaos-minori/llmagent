@@ -19,7 +19,7 @@ LLM/tool execution, error/partial classification, assistant persistence, and its
 ## Assumptions
 
 - Everything entry work produces already reaches the LLM stage through `ctx` (`ctx.conv.history`
-  via `llm_turn_executor.py:64`, `ctx.cfg.tool.allowed_tools` via `_build_tool_defs`), so nothing
+  via `llm_turn_executor.py:64`, `ctx.cfg.tool.allowed_tools` via the tool-override scope), so nothing
   needs to cross the new boundary as an argument (`ASSUM-01`, `REQ-001`).
 - `ctx.turn.current_turn_id` is set before the stage runs, so `workflow_id`/`task_id`/`attempt_id`
   are non-empty and `LLMTurnRunner.run()` does not raise `RuntimeError` (`REQ-005`).
@@ -35,7 +35,7 @@ LLM/tool execution, error/partial classification, assistant persistence, and its
   already encodes (`:106-119`). Consequence: a stage retry re-runs only LLM/tool execution; entry
   failures are no longer retried and leave the stage timeout (`REQ-006`).
 - **DR-002** One `self._tool_override(self._allowed_tools)` scope spans both halves. It moves out of
-  `_process_turn()` into `execute_turn()`, wrapping `prepare_turn_input` and `engine.run`.
+  `_process_turn()` into `execute_turn()`, wrapping `_prepare_turn_input` (new) (new) and `engine.run`.
   `classify_and_inject_mode()` assigns `ctx.cfg.tool.allowed_tools` permanently
   (`mode_classification.py:289`), so a second, separate `with` around each half would revert it
   between the halves and silently lose the mode decision (`REQ-004`).
@@ -66,13 +66,13 @@ LLM/tool execution, error/partial classification, assistant persistence, and its
 1. Add `_prepare_turn_input(self, line, ctx)` containing the five entry calls currently at
    `:332-336`, inside its own body but WITHOUT a `with self._tool_override(...)` block (the scope
    now lives in `execute_turn()` — see DR-002).
-2. Add `_run_execute_stage(...)` containing the per-attempt half: `handle_llm_turn` (`:338-344`),
+2. Add `_run_execute_stage(...)` (new) containing the per-attempt half: `handle_llm_turn` (`:338-344`),
    the `result.action` / `is_partial` / `persist_as_assistant` logic (`:345-354`), and the
    `audit_stage_completed` block moved from `execute_fn` (`:167-175`). Returns
    `(answer, error_kind, is_partial)`.
 3. Remove `_process_turn()` entirely (`:323-356`). No surviving method is named `_process_turn`
    (`REQ-002`, `AC-7`).
-4. In `execute_turn()`: replace the `execute_fn` body so it awaits `_run_execute_stage(...)` instead
+4. In `execute_turn()`: replace the `execute_fn` body so it awaits `_run_execute_stage(...)` (new) instead
    of `_process_turn(...)`, and move the `with self._tool_override(self._allowed_tools):` block from
    inside the old `_process_turn()` up to wrap `await self._prepare_turn_input(...)` and
    `await engine.run(...)` as one scope.
@@ -102,7 +102,7 @@ async def execute_fn() -> str | None:
     return None
 ```
 
-New `execute_fn` — the audit block leaves `execute_fn` and enters `_run_execute_stage`; only the
+New `execute_fn` — the audit block leaves `execute_fn` and enters `_run_execute_stage` (new); only the
 `nonlocal` assignment and the call remain:
 
 ```python
@@ -222,7 +222,7 @@ Notes that keep this behavior-preserving:
   LLM half reads (`conv.llm_url`, `workflow.workflow_id`, `workflow.current_task_id`,
   `turn.current_turn_id`).
 - `UNK-03` resolves itself: the old `turn_started_at` parameter was unused in `:325-356`; it is now
-  used by `_run_execute_stage`.
+  used by `_run_execute_stage` (new).
 - Module size (`UNK-04`): the split adds two methods and removes one; measure with
   `check_module_size.py` after the change (gate 16384 B, current 14798 B, no baseline entry). If it
   fails, move the preparation method to a small private helper module under `scripts/agent/` — a
@@ -252,14 +252,14 @@ Notes that keep this behavior-preserving:
 Behavior (drive the real engine with the shipped `config/workflows/default.json` policy — never
 mock the retry):
 
-- New `TestExecuteStageRetryRunsTurnEntryOnce`: forced failing first attempt, second succeeds;
+- New `TestExecuteStageRetryRunsTurnEntryOnce` (new): forced failing first attempt, second succeeds;
   assert exactly one user message in `ctx.conv.history`, exactly one `kind='user'` row via
   `fetch_messages()`, `stat_turns` +1, memory injection / `classify_and_inject_mode` called once,
   `allowed_tools` correct during the stage and restored after (`AC-1`..`AC-3`, `AC-6`). Real-engine
   temp-DB harness at `tests/agent/test_orchestrator.py:360-399`.
-- New `TestEntryWorkFailureIsNotRetried`: `HistoryCompressionError` → task `failed`, `on_error` once,
+- New `TestEntryWorkFailureIsNotRetried` (new): `HistoryCompressionError` → task `failed`, `on_error` once,
   one user row at most, no `attempts` row for the entry step (`AC-5`).
-- New `TestEntryWorkOutsideStageTimeout`: `execute.timeout_sec` below the entry delay still
+- New `TestEntryWorkOutsideStageTimeout` (new): `execute.timeout_sec` below the entry delay still
   completes without `WorkflowTimeoutError`; a slower LLM stage still raises (`AC-4` boundary for
   `REQ-006`).
 - Migrated call sites keep every existing assertion (`AC-7`).
@@ -311,10 +311,10 @@ on retried entry work, stop and reopen `REQ-006` before Phase 2.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the split of `_process_turn` into `_prepare_turn_input` + `_run_execute_stage`; restructure `execute_turn` so one tool-override scope spans both halves | Pending | — | — | DR-001/DR-002/DR-003; see Implementation > Method |
-| 2 | Add `TestExecuteStageRetryRunsTurnEntryOnce`, `TestEntryWorkFailureIsNotRetried`, `TestEntryWorkOutsideStageTimeout`; migrate the 7 test call sites | Pending | — | — | Row 2 covers the test file |
-| 3 | Run the validation sequence (`rules/toolchain.md`) + `check_mock_patch_targets.py` | Pending | — | — | Baselines in Validation plan |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Doc rows handle agent_03_03/agent_03_01 |
+| 1 | Implement the split of `_process_turn` into `_prepare_turn_input` (new) + `_run_execute_stage` (new); restructure `execute_turn` so one tool-override scope spans both halves | Completed | 2026-10-24 | 2026-10-24 | DR-001/DR-002/DR-003; see Implementation > Method |
+| 2 | Add `TestExecuteStageRetryRunsTurnEntryOnce` (new), `TestEntryWorkFailureIsNotRetried` (new), `TestEntryWorkOutsideStageTimeout` (new); migrate the 7 test call sites | Completed | 2026-10-24 | 2026-10-24 | Row 2 covers the test file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) + `check_mock_patch_targets.py` | Completed | 2026-10-24 | 2026-10-24 | Baselines in Validation plan |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-24 | 2026-10-24 | Doc rows handle agent_03_03/agent_03_01 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

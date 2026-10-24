@@ -18,6 +18,7 @@ from agent.message_schema import ValidationResult
 from agent.orchestrator import Orchestrator
 from agent.tool_loop_guard import ToolLoopGuard
 from agent.turn_result import TurnResult
+from agent.workflow import WorkflowHaltError
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
 
@@ -662,8 +663,14 @@ class TestToolCallFlow:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        _answer, error_kind, _is_partial = await orch._workflow_adapter._process_turn(
-            "what headings are here?", ctx, 0.0
+        adapter = orch._workflow_adapter
+        await adapter._prepare_turn_input("what headings are here?", ctx)
+        _answer, error_kind, _is_partial = await adapter._run_execute_stage(
+            ctx,
+            ctx.workflow.workflow_id,
+            ctx.session.session_id,
+            ctx.workflow.current_task_id,
+            0.0,
         )
 
         assert error_kind is None
@@ -703,8 +710,23 @@ class TestToolCallFlow:
 
         ctx.services_required.llm.stream = _mock_stream
 
-        await orch._workflow_adapter._process_turn("first turn", ctx, 0.0)
-        await orch._workflow_adapter._process_turn("second turn", ctx, 0.0)
+        adapter = orch._workflow_adapter
+        await adapter._prepare_turn_input("first turn", ctx)
+        await adapter._run_execute_stage(
+            ctx,
+            ctx.workflow.workflow_id,
+            ctx.session.session_id,
+            ctx.workflow.current_task_id,
+            0.0,
+        )
+        await adapter._prepare_turn_input("second turn", ctx)
+        await adapter._run_execute_stage(
+            ctx,
+            ctx.workflow.workflow_id,
+            ctx.session.session_id,
+            ctx.workflow.current_task_id,
+            0.0,
+        )
 
         assert len(seen_payloads) == 2
         second_payload = seen_payloads[1]
@@ -790,6 +812,132 @@ class TestWorkflowResumeWithRealDB:
                     ctx, "test-session", existing_task_id="halted-task-id"
                 )
             mock_create.assert_not_called()
+
+    @pytest.mark.asyncio
+    async def test_resumed_task_prepares_once(self) -> None:
+        """Resuming a reused task performs entry preparation exactly once."""
+        existing_task = MagicMock()
+        existing_task.task_id = "existing-task-id"
+        existing_task.workflow_id = "existing-wf-id"
+
+        ctx = _make_ctx()
+        ctx.cfg.mdq_rag_mode = "rag"
+        ctx.conv.system_prompt_content = ""
+        memory = AsyncMock()
+        snippet = MagicMock()
+        snippet.text = "remembered fact"
+        memory.on_user_prompt = AsyncMock(return_value=[snippet])
+        ctx.services_required.memory = memory
+        ctx.turn.current_turn_id = "turn-test"
+        ctx.services_required.llm.stream = AsyncMock(
+            return_value=LLMResponse(
+                message=LLMMessage(role="assistant", content="ok"),
+                finish_reason="stop",
+            )
+        )
+
+        with (
+            patch(
+                "agent.workflow_engine_adapter.get_task_by_id",
+                return_value=existing_task,
+            ),
+            patch("agent.workflow_engine_adapter.create_task") as mock_create,
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.workflow_engine_adapter.audit_workflow_start"),
+        ):
+            orch = Orchestrator(ctx)
+            orch._workflow_def = MagicMock(version="test-v1")
+
+            # Witness that entry prep runs once: count append_user_message calls.
+            append_spy = AsyncMock(
+                side_effect=orch._conversation_manager.append_user_message
+            )
+            orch._conversation_manager.append_user_message = append_spy
+
+            async def _engine_run(task, plan_fn, execute_fn, verify_fn):
+                await plan_fn()
+                await execute_fn()
+                await verify_fn()
+
+            engine = MagicMock()
+            engine.run = AsyncMock(side_effect=_engine_run)
+            orch._workflow_adapter._workflow_engine = engine
+
+            answer, error_kind, _ = await orch._workflow_adapter.execute_turn(
+                "resumed line",
+                0.0,
+                "test-session",
+                existing_task_id="existing-task-id",
+            )
+
+        assert error_kind is None
+        mock_create.assert_not_called()
+        assert append_spy.call_count == 1
+
+    @pytest.mark.asyncio
+    async def test_resumed_task_prepares_once_under_execute_retry(self) -> None:
+        """Entry prep runs once even when the execute stage retries (AC-1)."""
+        existing_task = MagicMock()
+        existing_task.task_id = "existing-task-id"
+        existing_task.workflow_id = "existing-wf-id"
+
+        ctx = _make_ctx()
+        ctx.cfg.mdq_rag_mode = "rag"
+        ctx.conv.system_prompt_content = ""
+        memory = AsyncMock()
+        snippet = MagicMock()
+        snippet.text = "remembered fact"
+        memory.on_user_prompt = AsyncMock(return_value=[snippet])
+        ctx.services_required.memory = memory
+        # Empty current_turn_id forces the real LLM half to raise RuntimeError on
+        # every attempt, so the execute stage retries before halting.
+        ctx.turn.current_turn_id = None
+
+        on_error = MagicMock()
+
+        with (
+            patch(
+                "agent.workflow_engine_adapter.get_task_by_id",
+                return_value=existing_task,
+            ),
+            patch("agent.workflow_engine_adapter.create_task") as mock_create,
+            patch("agent.orchestrator.StateStore"),
+            patch("agent.workflow_engine_adapter.audit_workflow_start"),
+        ):
+            orch = Orchestrator(ctx, on_error=on_error)
+            orch._workflow_def = MagicMock(version="test-v1")
+
+            append_spy = AsyncMock(
+                side_effect=orch._conversation_manager.append_user_message
+            )
+            orch._conversation_manager.append_user_message = append_spy
+
+            async def _retry_then_halt(task, plan_fn, execute_fn, verify_fn):
+                # Mirror the real engine: swallow each failed execute attempt and
+                # halt after exhausting them.
+                for _ in range(3):
+                    try:
+                        await execute_fn()
+                    except Exception:  # noqa: BLE001 — engine swallows per-attempt errors
+                        pass
+                raise WorkflowHaltError("execute stage halted after 3 attempts")
+
+            engine = MagicMock()
+            engine.run = AsyncMock(side_effect=_retry_then_halt)
+            orch._workflow_adapter._workflow_engine = engine
+
+            await orch._workflow_adapter.execute_turn(
+                "resumed line",
+                0.0,
+                "test-session",
+                existing_task_id="existing-task-id",
+            )
+
+        # Prep ran once despite three failed execute-stage attempts.
+        assert append_spy.call_count == 1
+        mock_create.assert_not_called()
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
 
     @pytest.mark.asyncio
     async def test_handle_turn_invokes_workflow_engine_run(self) -> None:

@@ -76,8 +76,13 @@ The startup banner prints this value, or `unknown` when no `Orchestrator` exists
 | Stage | Responsibility | Mandatory |
 |---|---|---|
 | plan | Idempotency/bookkeeping only before execution; no LLM calls | Yes |
-| execute | Memory injection, mode classification, LLM invocation, tool execution loop | Yes |
+| execute | LLM invocation, tool execution loop (per-attempt; retried per the retry policy) | Yes |
 | verify | LLM verifies execution results | Yes |
+
+> Turn-entry preparation — clearing the previous turn's ephemeral messages, injecting memory,
+> classifying the turn mode, appending the user message, and compressing history — runs once per
+> turn before the engine runs. It is not a stage and is not re-run when the `execute` stage is
+> retried.
 
 ### Retry Mechanism
 
@@ -86,6 +91,10 @@ All `plan`/`execute`/`verify` stages go through the same retry loop function. St
 - `max_attempts`: Maximum number of attempts
 - Backoff strategy is currently implemented as "fixed" only
 - `backoff_sec`: Delay between retries
+
+> A retry of the `execute` stage re-runs only LLM/tool execution. Turn-entry preparation runs once
+> per turn before the engine runs; it is not re-run on a retry, is not retried itself, and is not
+> bounded by `execute.timeout_sec`. Memory search and history compression keep their own timeouts.
 
 ### Workflow Loader Validation Rules
 

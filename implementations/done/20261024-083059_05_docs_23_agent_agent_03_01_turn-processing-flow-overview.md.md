@@ -148,10 +148,10 @@ Both must report no finding (`AC-9`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | relabel :47/:61, fix :83, rewrite :106 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 2026-10-24 | 2026-10-24 | relabel :47/:61, fix :83, rewrite :106 |
 | 2 | Add or update tests per Validation plan | N/A: documentation-only | — | — | — |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | docs checkers below |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | this file |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 2026-10-24 | 2026-10-24 | docs checkers below |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 2026-10-24 | 2026-10-24 | this file |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

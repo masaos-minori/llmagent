@@ -44,7 +44,7 @@ User input (line)
         │    → Start WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)
         │         (plan_fn does nothing; turn start processing is already completed here)
         │
-        ② Memory Injection and Mode Classification          [Within WorkflowEngine's execute stage]
+        ② Memory Injection and Mode Classification          [Once-per-turn entry step, before WorkflowEngine.run()]
         │    → MemoryInjectionService.on_user_prompt() retrieves relevant memories
         │    → Inject memory snippets as "system" role messages
         │    → classify_and_inject_mode(): Classifies query into MDQ/RAG and injects hints as "_ephemeral" system messages
@@ -58,7 +58,7 @@ User input (line)
          │    → HistoryManager.compress(history)
          │    → If character/token limit exceeded, replace oldest turns with LLM summary
          │
-         ⑤ LLM Turn Processing
+         ⑤ LLM Turn Processing                    [WorkflowEngine's execute stage — per-attempt, retried per policy]
           │    → LlmTurnExecutor.handle_llm_turn(llm_url)
          │         ├─ LLMClient.stream(url, history, tool_defs)
          │         │    → SSE streaming → on_token callback → CLIView.write_token()
@@ -80,7 +80,7 @@ User input (line)
 
 ### Implementation note: Always goes through the workflow engine
 
-A workflow definition load failure makes `Orchestrator` construction fail, so `handle_turn()` always has a definition. Steps ①–⑥ run as the `plan`/`execute`/`verify` stage callbacks; `plan_fn` is intentionally a no-op. For stage composition, see [agent_03_03_turn-processing-flow-workflow-engine.md](agent_03_03_turn-processing-flow-workflow-engine.md).
+A workflow definition load failure makes `Orchestrator` construction fail, so `handle_turn()` always has a definition. Steps ②③④ are the once-per-turn entry step and run before the engine; step ⑤ is the `execute` stage callback (per-attempt, retried per the policy); `plan_fn` and `verify_fn` cover turn start and end. For stage composition, see [agent_03_03_turn-processing-flow-workflow-engine.md](agent_03_03_turn-processing-flow-workflow-engine.md).
 
 ### Background Task Failure Threshold Notification and Pausing
 
@@ -103,7 +103,7 @@ The session title generation task scheduled on the first turn manages consecutiv
 
 ### MDQ/RAG Mode Classification
 
-- `classify_and_inject_mode()` runs in the same `execute` stage as memory injection, before user message addition.
+- `classify_and_inject_mode()` runs in the once-per-turn entry step (with memory injection), before the user message is added and before the engine runs.
 - If `ctx.cfg.mdq_rag_mode` is anything other than `"auto"`, that setting is prioritized; otherwise, it uses keyword heuristics to determine MDQ vs RAG.
 - Even if identified as MDQ mode, if an MCP server with the `search_docs` tool is unavailable, it falls back to RAG.
 - A hint string is added as a `"system"` role message with `_ephemeral: true` based on the classification result.
