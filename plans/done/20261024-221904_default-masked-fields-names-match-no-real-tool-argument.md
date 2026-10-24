@@ -82,6 +82,52 @@ or which sinks are masked. Apply the deployed-copy change only through the gated
   2026-10-24 at `plan-to-implementation-procedure` Step 3a), so that split is kept as written, not
   re-authored (closed-Plan `REQ-001` decision).
 
+## Reviewer Verdict
+
+Adversarial validation re-run 2026-10-25 against HEAD `9331b337a` (probes below). The plan
+is sound and remains actionable in its frozen form. Findings:
+
+- **Corrected claim (deployed copy)**: the "byte-identical" premise for
+  `/opt/llm/config/agent.toml` no longer holds — the deployed copy has drifted from the
+  local file in three unrelated places (`embed_url` host at `:10`, one `startup_mode` block
+  at `:413`, and the local `[[tool_definitions]]` sections absent from the deployed copy).
+  The `masked_fields = ["file_content"]` line itself is present and identical at `:98` in
+  both files. Phase 4 must therefore apply a targeted single-line edit to the deployed
+  file, not a whole-file rsync, and must not overwrite the deployed embed_url/startup_mode
+  values.
+- **Name drift note (non-blocking)**: row 2 labels the fallback site "ToolConfigBuilder.build";
+  the verified function name is `_build_tool_config` (`config_section_builders.py:180`,
+  fallback call at `:204-205`). Snippet and line numbers in the table are correct.
+- All other table entries, requirements, acceptance criteria, test strategy, and the AC-4
+  checker substitution re-verified as recorded below.
+
+No blocking findings; Frozen status stands with the two notes above.
+
+## Revalidation record (2026-10-25, HEAD 9331b337a)
+
+| # | Claim under test | Probe | Result |
+| --- | --- | --- | --- |
+| 1 | `config_dataclasses.py:182` dataclass default `["file_content"]` | read `:154` class `ToolConfig`, field at `:182` | Confirmed |
+| 2 | `config_section_builders.py:204-205` fallback `_get_or_default(cfg, "masked_fields", _get_list, ["file_content"])` | read `:204-205` (inside `_build_tool_config`, `:180`) | Confirmed (label name corrected, see Verdict) |
+| 3 | `config/agent.toml:98` flat `masked_fields = ["file_content"]` | read `:98`; first table region `[diagnostics]` at `:230` | Confirmed |
+| 4 | Deployed `/opt/llm/config/agent.toml` byte-identical to local | `diff` 2026-10-25 | **Corrected**: differs at `embed_url` (`:10`), `startup_mode`/`required` (`:413-414`), and local-only `[[tool_definitions]]` (`553-1124`); `masked_fields` line identical at `:98` in both |
+| 5 | Nested masking prerequisite landed | `git log 3cdacc601` present | Confirmed |
+| 6 | `test_config_builders.py:155` pins the default; `:192` override independent | read `_TOOL_DEFAULTS` (`:148-176`) and override fixture (`:192`) | Confirmed |
+| 7 | No other test depends on the old default value | repo-wide grep `masked_fields` across `tests/` | Confirmed (all others `[]` or explicit names) |
+| 8 | `test_tool_result_formatter.py` exercises `mask_args`; `test_empty_masked_fields_returns_unchanged` at `:59` | read file | Confirmed |
+| 9 | `test_tool_approval_preflight.py:417`/`:432` use `masked_fields=["secret"]` | read both tests | Confirmed |
+| 10 | Real argument names are `content`/`old_text`/`new_text` | `write_tools.py:22` (`content`), `:55` (`old_text`), `:59` (`new_text`), `:64` required pair | Confirmed |
+| 11 | GitHub file tools use `content` | `tools_file.py:94`, `:108`, `:138`, `:143` | Confirmed |
+| 12 | AC-4 checker substitution | `ls tools/check_config_keys.py tools/check_config_defaults.py` → missing; `tools/check_docs_consistency.py` exists | Confirmed |
+| 13 | Docs churn 18 commits/30d for `agent_08_03` | `git log --since` count = 18 | Confirmed |
+| 14 | Docs bullet at `agent_08_03:32` (+ obsolete inertness sub-bullet at `:34`) | read `:32-34` | Confirmed |
+| 15 | `agent_13_reference-api-generated.md:184` (generated `mask_args` row) needs no edit | read `:184` — signature-level entry, no default value stated | Confirmed |
+
+Probe notes: default-path test strategy refined during revalidation — the test helpers
+`_cfg` (`test_tool_result_formatter.py:18`) and `_make_cfg` (`test_tool_approval_preflight.py:44`)
+hardcode `masked_fields` (`[]`), so the default path is exercised by constructing `ToolConfig()`
+directly; recorded in the procedure docs (rows 5-6), no plan change needed.
+
 ## Implementation Target Files
 **Freeze status**: Frozen (validated 2026-10-24 per `rules/workflow-lifecycle.md` Implementation
 Target Files Validation (Plan Freeze) — all rows `Verified`).
@@ -89,7 +135,7 @@ Target Files Validation (Plan Freeze) — all rows `Verified`).
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
 | `scripts/agent/config_dataclasses.py` | Change `ToolConfig.masked_fields` default factory | One of the two code defaults; pins the value used when `ToolConfig()` is constructed directly | REQ-001, REQ-003; AC-1 | `masked_fields: list[str] = field(default_factory=lambda: ["file_content"])` measured at `:182` (2026-10-24) | `tests/agent/test_config_builders.py` | Verified |
-| `scripts/agent/config_section_builders.py` | Change `ToolConfigBuilder.build` fallback default | The other code default; must match the dataclass default | REQ-001; AC-1 | `_get_or_default(cfg, "masked_fields", _get_list, ["file_content"])` measured at `:204-205` (2026-10-24) | `tests/agent/test_config_builders.py` | Verified |
+| `scripts/agent/config_section_builders.py` | Change `ToolConfigBuilder.build` fallback default (verified name: `_build_tool_config`, `:180`) | The other code default; must match the dataclass default | REQ-001; AC-1 | `_get_or_default(cfg, "masked_fields", _get_list, ["file_content"])` measured at `:204-205` (2026-10-24) | `tests/agent/test_config_builders.py` | Verified |
 | `config/agent.toml` | Change `masked_fields` value in place | The repo config ships the same inert default; deployments inherit it | REQ-002, REQ-003; AC-1 | `masked_fields = ["file_content"]` at `:98` in the flat `# ── Security ──` region; first table `[diagnostics]` at `:230` (read 2026-10-24) | `tests/agent/test_config_builders.py` (builder path with repo file available in tree) | Verified |
 | `tests/agent/test_config_builders.py` | Update the pinned default expectation | `:155` pins `["file_content"]` in the `DEFAULTS` dict; AC-2 requires the new value asserted | REQ-004; AC-2 | `"masked_fields": ["file_content"],` measured at `:155`; the explicit-override case at `:192` is unaffected (read 2026-10-24) | this file | Verified |
 | `tests/agent/test_tool_result_formatter.py` | Add default-config end-to-end masking tests | The Issue's Testing Expectations: default-built config, `write_file`/`edit_file`-shaped args, `***` at real key names; this file already tests `mask_args` | REQ-005; AC-3 | File exists and exercises `mask_args` (`test_empty_masked_fields_returns_unchanged` at `:59`, read 2026-10-24); `mask_args` masks at any depth (commit `3cdacc601`) | this file | Verified |
@@ -108,7 +154,7 @@ Target Files Validation (Plan Freeze) — all rows `Verified`).
 | `docs/23_agent/agent_13_reference-api-generated.md` (`:184`) | Second `masked_fields` mention (Issue claimed the `agent_08_03` bullet is the only one); it is a generated API table naming the `mask_args` parameter — signature unchanged, no edit needed; regeneration via `tools/generate_reference_table.py` stays consistent | Documentation Impact |
 | `implementations/done/20261024-124138_01_scripts_agent_tool_result_formatter.py.md` (`_02` sibling) | Proof the nested-masking prerequisite already landed and is archived | Dependencies |
 | `plans/done/20261023-072425_plan.md` | Source `UNK-01`, the frozen six rows this issue must not disturb, and the logs/audit-only boundary (`REQ-001`) | Scope, Out-of-Scope |
-| `/opt/llm/config/agent.toml` (`:98`) | Deployed copy verified identical to `config/agent.toml` 2026-10-24; changed only via the gated deploy step (Phase 4), never a direct edit in this work | REQ-002 (Phase 4 gate) |
+| `/opt/llm/config/agent.toml` (`:98`) | Deployed copy verified identical to `config/agent.toml` 2026-10-24 (corrected 2026-10-25: copies now differ in unrelated lines, `masked_fields` line still identical at `:98`; see Revalidation record row 4); changed only via the gated deploy step (Phase 4), never a direct edit in this work | REQ-002 (Phase 4 gate) |
 
 ## Acceptance Criteria
 - AC-1 (REQ-001, REQ-002, REQ-003): `grep -n "file_content" scripts/agent/config_dataclasses.py
@@ -201,7 +247,11 @@ Required, one bullet, driven by REQ-006:
 - **TOML region constraint (verified)**: `config/agent.toml:98` lives in the flat top-level region
   under `# ── Security ──`; the first table header is `[diagnostics]` at `:230`. The edit replaces the
   value in place; no key move, no `[tool]` re-verification needed.
-- **Deployed copy**: `/opt/llm/config/agent.toml:98` is verified identical today. It is shared
+- **Deployed copy**: `/opt/llm/config/agent.toml:98` was verified identical 2026-10-24.
+  Revalidation 2026-10-25 corrected this: the copies now differ in unrelated lines —
+  `embed_url`, one `startup_mode` block, local-only `[[tool_definitions]]`; the
+  `masked_fields` line is still identical at `:98`, and Phase 4 sync must be a targeted
+  single-line edit, not a whole-file copy (see Revalidation record row 4). It is shared
   production config: Phase 4 syncs it only after explicit user confirmation (the Issue's own gate),
   matching `deploy.sh`'s config rsync path. No direct edit during Phases 1-3.
 - **Prerequisite state (Issue constraint corrected)**: the Issue's constraint cites a top-level-only

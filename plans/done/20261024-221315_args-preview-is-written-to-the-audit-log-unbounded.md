@@ -82,6 +82,41 @@ serialized preview. Document the cap in the chapter that owns agent-side audit e
 - `REQ-006`: `docs/23_agent/agent_10_02_operations-and-observability-audit-and-otel.md` states the
   cap value, the envelope shape, and that truncation applies after masking.
 
+## Reviewer Verdict
+
+- Decision: **Frozen** (already frozen 2026-10-24 with all target rows `Verified`; adversarial revalidation
+  2026-10-25 confirms the plan is actionable as written).
+- Confirmed unchanged: REQ-001..REQ-006 contracts and cap decision (1500 chars, module constant), Path A
+  task size (3 target files), sink enumeration, mask-before-bound ordering, out-of-scope list, P2 priority.
+- Corrected in place: one Reference Files attribution (`test_audit_log_format.py` is the MCP-side format
+  gate, not an agent-side contract test); see probe table row 6.
+
+## Revalidation record (2026-10-25, HEAD 9331b337a)
+
+**Probe results**
+
+| # | Claim under test | Result | Evidence (2026-10-25) |
+|---|---|---|---|
+| 1 | REQ-001/REQ-002: unbounded `args_preview=masked` at both writers | Confirmed | `tool_audit.py:58`, `:169`; `_json_dumps` already imported (`:14`); `models.py:23`, `:55` unbounded dict fields |
+| 2 | Sink enumeration complete | Confirmed | `grep -rn "args_preview" scripts/` = writers + models + `tool_approval.py:221-222` only; `write_round_exec` (`:182-215`) builds a plain dict with no `args_preview` key (direct read); `tool_approval.py:221-222` is the UI `emit_plan_blocked` path |
+| 3 | Production measurement | Confirmed | `/opt/llm/logs/audit.log` 123,795 bytes, every line exactly 134 chars (re-measured; matches the plan's 2026-10-24 figure) |
+| 4 | REQ-005: no existing length-boundary test | Confirmed | `tests/agent/test_tool_audit.py` has 12 tests, none measures serialized length and no payload exceeds 1500 chars; `grep -rn "AUDIT_ARGS_PREVIEW_MAX_CHARS\|1500" tests/agent/` = 0 relevant hits |
+| 5 | Boundary virtualization does not break REQ-005 | Confirmed, no coupling | The 1500/1501 boundary does not exist in any suite yet -- REQ-005 creates it. Existing audit tests stay green because (a) none measures serialized length, (b) every existing payload is far under the cap so the envelope never triggers, (c) the envelope keeps `args_preview` a dict. The repo's "overshoot" boundary semantics belong to the history-compression subsystem (`plans/done/20261023-183637_plan.md`, `implementations/20261024-061024_*`, `tests/agent/test_history_selection_policy.py`) and touch neither `tool_audit` nor `args_preview` |
+| 6 | `test_audit_log_format.py` as agent-side contract test | **Corrected** | File tests the MCP-side audit format (`session_id`/`request_id`/`action`/`target`/`outcome`, read `:85-129`); `grep args_preview` in it = 0 hits. Stays valid as a shared-log regression gate (Phase 2 command), attribution corrected in Reference Files |
+| 7 | Existing key assertions the envelope must not break | Confirmed | `test_tool_audit.py:133-147` (`tool_exec` line contains `operation_type`/`resource_scope`), `:186-225` (`round_exec` parsed fields), `test_tool_approval_preflight.py:394-443` (`TestAuditApproval`: `event`/`tool`/`risk`/`decision`/`ts`, small payloads). No existing test names `args_preview` |
+| 8 | Boundary-test precedent | Confirmed | `scripts/mcp_servers/git/format_output.py` `GIT_SHOW_OUTPUT_MAX_CHARS` + `tests/mcp_servers/git/test_format_output.py:253-258` (cap+500 payload, `len(result) == cap`); reuse this shape in REQ-005 tests |
+| 9 | Churn figures | Confirmed | `tool_audit.py` 1 commit/90 d; `agent_10_02` 13 commits/30 d |
+
+**Reviewer notes**
+
+- Non-serializable values: `_json_dumps(masked)` inside the helper raises `TypeError` at the same point today's
+  `_json_dumps(dataclasses.asdict(evt))` would; the helper moves the identical failure marginally earlier and
+  adds no new failure mode. No fallback is specified by REQ-001 and none is added (frozen scope).
+- Masked `"***"` values count toward the cap because the bound runs after masking (Design "Order"); a truncated
+  prefix can therefore contain masking output. Accepted consequence, already stated in Design and Risks.
+- Cap boundary tests must derive both sides from `AUDIT_ARGS_PREVIEW_MAX_CHARS` (never hardcode 1500) and pad
+  payloads from the serialized length, per the git `test_format_output.py` precedent.
+
 ## Implementation Target Files
 **Freeze status**: Frozen (validated 2026-10-24 per `rules/workflow-lifecycle.md` Implementation
 Target Files Validation (Plan Freeze) — all rows `Verified`).
@@ -100,7 +135,7 @@ Target Files Validation (Plan Freeze) — all rows `Verified`).
 | `scripts/agent/shared/models.py` | `args_preview: dict[str, object]` (`:23`, `:55`) stays unchanged by design; envelope is still a dict | REQ-003 |
 | `scripts/agent/tool_approval.py` (`:221-222`) | Plan-mode blocked notice: `masked_preview` goes to `emit_plan_blocked` → `OutputPort` UI write (`scripts/agent/tool_output.py:49-55`), not the audit logger — verified non-sink, stays unmodified | Scope exclusion, recorded in Design |
 | `scripts/agent/repository_gateway.py` (`:109-110`), `scripts/agent/tool_audit.py` `write_round_exec` (`:182-215`), `scripts/agent/audit_event_emitter.py`, `scripts/agent/commands/cmd_memory.py` | All other `audit_logger.info` call sites enumerated 2026-10-24; none persists `args_preview` — sink enumeration complete per the Issue's Required Changes | REQ-002 |
-| `tests/agent/test_audit_log_format.py` | Contract test asserting required fields of agent-side JSON-lines events; must stay green with the envelope shape | REQ-003 |
+| `tests/agent/test_audit_log_format.py` | Regression gate only: verified 2026-10-25 to test the MCP-side `audit.log` format (`session_id`/`request_id`/`action`/`outcome`) and never reference `args_preview`; must stay green with the envelope shape | REQ-003 |
 | `docs/22_mcp/mcp_06_05_reading-audit-logs.md` | Documents the shared `audit.log` including agent-side `tool_exec` example rows; its jq/grep usage examples filter on `event`/`tool`, not on `args_preview` sub-keys, so the envelope breaks no documented usage; unmodified unless the docs gate requires a cross-reference | REQ-006 |
 | `plans/done/20261023-072425_plan.md` (`AC-2`, `Assumptions`) | Source of the ordering constraint (masking before bounding) and the recursive-masking dependency that has already landed | REQ-002 |
 

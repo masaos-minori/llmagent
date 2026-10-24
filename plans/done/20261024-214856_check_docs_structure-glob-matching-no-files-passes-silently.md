@@ -63,9 +63,53 @@ codes for non-empty runs, stdout/stderr split, per-file finding format, and the
 - `REQ-005`: `tools/TOOL_DESCRIPTIONS.md` and `docs/00_governance/governance_04_documentation-checks.md`
   state that an empty/partial match set is an error.
 
+## Reviewer Verdict
+
+- **Reviewer:** plan-adversarial-validator (memo2 adversarial validation)
+- **Conducted:** 2026-10-24 (HEAD `9331b337a`)
+- **Result:** Pass with baseline correction: every claim re-verified against the current source; the
+  Design section's radon baseline was stale and is corrected below.
+
+### Revalidation record (2026-10-24, HEAD `9331b337a`)
+
+The plan was generated in the HEAD commit itself; no target file changed since. All probes re-run:
+
+- Defect reproduced: `uv run python tools/check_docs_structure.py "23_agent/agent_13_*.md"` →
+  exit `0`, `All checks passed` (pattern matched 0 files).
+- AC-2 baseline confirmed: `uv run python tools/check_docs_structure.py "docs/**/*.md"` → exit `0`,
+  `All checks passed`.
+- Code anchors: `main()` at `tools/check_docs_structure.py:451`; glob resolution
+  (`patterns = args.globs or ["docs/**/*.md"]`, `files.update(ROOT_DIR.glob(pattern))`) at `:480-483`;
+  tail exit path (`total_issues` summary, `All checks passed`, `return 0`) at `:517-521`.
+- Test harness: `uv run pytest tests/tools/test_check_docs_structure.py -q` → 79 passed (77 test
+  functions). None of them invokes `main()` — all call module functions directly with `tmp_path`
+  fixtures. The three new cases must therefore drive `main()` via monkeypatched `sys.argv`, a
+  `tmp_path`-patched `ROOT_DIR`/`DOCS_DIR`, and a monkeypatched `load_front_matter_schema` returning
+  the permissive loader result (`load_front_matter_schema(<nonexistent tmp path>)`, the fallback
+  idiom already used by existing fixtures), so they stay independent of repo docs state. Revalidation
+  correction 2026-10-24: the original phrasing "nonexistent `--schema` path" is wrong for `main()` —
+  a nonexistent `--schema` path raises `FileNotFoundError` (`check_docs_structure.py:491-493`), and
+  omitting `--schema` is default-on against the canonical `schemas/doc_front_matter.json`
+  (`tools/_front_matter_schema.py:26`, default-on branch `:494-499`); monkeypatching the loader is
+  the correct skip mechanism.
+- Gate classification confirmed: `tools/run_validation_gates.py:33-35` treats argv tokens containing
+  `[` as placeholders; `requires_context` (`:101-102`) classifies the `check_docs_structure` gate
+  (`:642-655`) as `Not available`; it is never auto-invoked.
+- CI invocations re-confirmed at `.github/workflows/governance-docs-consistency.yml:89` and `:95`
+  (`docs/**/*.md`).
+- `docs/00_governance/governance_04_documentation-checks.md` §8 at `:167` (validation list
+  `:169-175`, usage block `:178-181`) and `tools/TOOL_DESCRIPTIONS.md` rows `:34`/`:114` confirmed to
+  carry no empty-match statement.
+- Baseline correction: `radon cc tools/check_docs_structure.py` at HEAD reports pre-existing C-rank
+  blocks — `check_related_links` `C (17)`, `check_adr_related_coverage` `C (17)`, `main` `C (15)`,
+  `check_schema_compliance` `C (13)` — not "max grade A (complexity 3)". `rules/toolchain.md`'s
+  radon gate covers `scripts/` only, so `tools/` is ungated; the `main()` exit-path addition adds
+  ~2 decision points and introduces no new rank. Corrected in `Design`.
+
 ## Implementation Target Files
 **Freeze status**: Frozen (validated 2026-10-24 per `rules/workflow-lifecycle.md` Implementation
-Target Files Validation (Plan Freeze) — all rows `Verified`).
+Target Files Validation (Plan Freeze) — all rows `Verified`; revalidated 2026-10-24 at HEAD
+`9331b337a`, see `Revalidation record`).
 
 | File Path | Change Responsibility | Reason for Modification | Related Requirement / Acceptance Criterion | Repository Evidence | Related Tests | Validation Status |
 |---|---|---|---|---|---|---|
@@ -162,8 +206,12 @@ Required, two entries, driven by REQ-005:
   altered. The message names the unmatched patterns so the caller sees the mistake.
 - **Default glob**: `docs/**/*.md` stays the implicit default when no glob is given (current
   behavior; CI and the governance-04 usage block depend on it).
-- **Validation baseline** (recorded 2026-10-24): `radon cc tools/check_docs_structure.py` max
-  grade A (complexity 3); `vulture scripts/ --min-confidence 80` → 3 pre-existing findings, all
+- **Validation baseline** (recorded 2026-10-24, radon line corrected 2026-10-24 revalidation):
+  `radon cc tools/check_docs_structure.py` max grade C — four pre-existing C-rank blocks
+  (`check_related_links` 17, `check_adr_related_coverage` 17, `main` 15, `check_schema_compliance`
+  13; the original "max grade A (complexity 3)" claim was stale — see `Revalidation record`; the
+  `rules/toolchain.md` radon gate applies to `scripts/` only); `vulture scripts/ --min-confidence
+  80` → 3 pre-existing findings, all
   outside `tools/` (recorded, out of scope); `bandit -r scripts/ -c pyproject.toml` → Low 46,
   Medium 0, High 0; `diff-cover coverage.xml --compare-branch=master` on the existing
   2026-10-19 `coverage.xml` → "No lines with coverage information in this diff" (no measurable
