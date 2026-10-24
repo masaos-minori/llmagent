@@ -18,6 +18,29 @@ When called by `python-code-review` (Step 10b), map each finding as follows:
 - Evidence label / confidence below confirmed -> `Unresolved Questions` (per Step 9a).
 - Suggested fix -> `Implementation Intent` at the responsibility level, not as a code patch.
 
+### From test-audit Tasks
+
+One issue per Task (`Workflow phase`: `test-audit`). Priority by Phase 7, not the Task's `P1`.
+
+- Goal -> `Title` and `Summary`.
+- The Findings the Task `Addresses` (why the tests are insufficient, the uncovered risk) ->
+  `Problem` and `Background`; cite the Task ID and Finding IDs there.
+- Actions -> `Required Changes`; Acceptance Criteria -> `Acceptance Criteria`.
+- Affected Files -> `Target Files or Areas`; Depends On -> `Dependencies` (as paths).
+- The Task's Test Cases -> `Testing Expectations`.
+
+### From python-refactoring Proposals
+
+One issue per Proposal (`Workflow phase`: `python-refactoring`). A Proposal is a change that
+was not made because it may alter behavior, so state in `Constraints` that the behavior
+change is intended here.
+
+- Title -> `Title`; Reason -> `Reason for Change`.
+- Behavior risk -> `Constraints` and `Unresolved Questions`.
+- Affected files -> `Target Files or Areas`.
+- Suggested follow-up issue -> `Summary` and `Implementation Intent`.
+- Recommended validation -> `Testing Expectations` and `Acceptance Criteria`.
+
 ## Phase 1: Classify and Frame
 
 Identify the source of the work:
@@ -110,8 +133,20 @@ repository. Use `Unknown` if the exact file is not confirmed.
 **Sibling-issue check** — run this before filling Dependencies. List the open issues under
 `issues/`, the in-flight plans under `plans/`, and the recently archived issues under
 `issues/done/` that touch the same files, tests, or failure group (e.g. several issues split
-from one red test run); search by Target Files and keywords. Record each overlapping open
-issue or plan as a Dependency with the fix order. When a sibling's fix may remove this issue's
+from one red test run); search by Target Files and keywords. For example:
+
+```bash
+rg -l -F "<target path>" issues plans            # open issues and in-flight plans
+ls issues/done | rg "^<yyyymmdd>"                # archived issues by date prefix
+rg -l -F "<target path>" issues/done/<matching files>
+```
+
+`issues/done/` is large (over a thousand files), so narrow it by the filename's timestamp
+prefix first; this skill treats the last 30 days as recent (a proposed window; widen it when
+the failure group is older). Record each overlapping open issue or plan as a Dependency with
+the fix order. Write each Dependency as the other item's repository-relative path, the
+direction (`depends on` or `blocks`), and the required order, because `issue-to-plan` looks
+dependencies up by path or slug (an `{id}` alone is not unique). When a sibling's fix may remove this issue's
 cause, state in `Background` that this issue must be re-verified against current source after
 the sibling is resolved. MUST NOT file an issue whose problem a sibling already fully covers:
 in that case stop, do not write the file, and report the sibling's path to the user.
@@ -275,7 +310,8 @@ Steps 1-5 apply per issue (see Multi-file processing).
 Per `SKILL.md` Issue Filename Generation:
 
 - `{id}`: matches `[a-z0-9]+` (e.g., `NC-019` -> `nc019`). If no meaningful ID exists, use a
-  generic prefix + sequence number (e.g., `todo001`).
+  generic prefix + sequence number (e.g., `todo001`). The number follows `SKILL.md`
+  Numbering: three digits, sequential within the batch from `001`.
 - `{slug}`: derived from the issue title; lowercase, matches `[a-z0-9_-]+`, at most 4 words
   with articles and other filler words dropped, and no symbols other than `_` and `-`.
   If the title has no ASCII words, write an English slug of the same meaning.
@@ -296,6 +332,16 @@ Prefer `uv run python tools/generate_workitem.py --kind issue --id {id} --title 
   expected `## ` section headings before filling it in — per `rules/ai-execution.md`
   Repository Tool Usage item 8, a `0` exit alone MUST NOT be treated as proof the file was
   written correctly.
+- The tool validates neither `--id` nor the slug (it only lowercases `--title` and turns
+  spaces into dashes), so verify the name yourself:
+
+  ```bash
+  basename <path> | rg -c -x '[0-9]{8}-[0-9]{6}_[a-z0-9]+_[a-z0-9_-]+\.md'   # prints 1 on a match
+  echo "<slug>" | tr '_-' '\n\n' | rg -c .                                   # word count, at most 4
+  ```
+
+  A name that fails either check is wrong: remove the scaffold file you just created
+  (single path) and regenerate with a corrected `{id}` or `{slug}`.
 
 If the tool is unavailable, use the manual procedure:
 
@@ -327,7 +373,21 @@ Write the Phase 1-8 content into the scaffold, replacing every placeholder — i
 - Run `uv run python tools/check_workitem_structure.py --file issues/{filename}.md`. It checks
   that every required `## ` section is present; it does not judge content, so the Phase 9c
   checklist still applies to the filled text.
-- Confirm no template placeholder (`{...}`, `<Issue Title>`) remains.
+- Confirm no template placeholder (`{...}`, `<Issue Title>`) remains. The checker cannot see
+  the template's instruction sentences under each heading (for example `High / Medium /
+  Low` or `Briefly describe the task and the intended outcome.`), so replace each of them
+  with real content and then check that none survives verbatim:
+
+  ```bash
+  tmp=$(mktemp)
+  sed -n '/^```markdown/,/^```$/p' templates/issue.md | sed '1d;$d' | rg -v '^(#|- |$)' > "$tmp"
+  rg -n -F -x -f "$tmp" issues/{filename}.md    # any output is a leftover template line
+  rm "$tmp"
+  ```
+
+  (On a filled issue this prints nothing; on the unfilled scaffold it prints every
+  instruction line.) For `{...}`, run `rg -n '\{[^}]*\}|<Issue Title>' issues/{filename}.md`
+  and judge each hit: braces that belong to the issue's own content are fine.
 
 ### Step 10.5: Report to the user
 
@@ -337,6 +397,8 @@ Return, in Japanese:
 - each issue's Priority and one-line Summary
 - every Unresolved Question and assumption, labeled `不明` where applicable, so the user can
   confirm or correct them
+- next steps: the new issue files are uncommitted, so `git-commit-and-sync` commits them;
+  `issue-to-plan` then takes each issue. This skill does neither itself.
 
 **This task is complete when, and only when**: the issue file has been written to `issues/`
 at its verified-unique filename, passed Step 10.4, and been reported in Step 10.5, or the

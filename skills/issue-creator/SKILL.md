@@ -132,6 +132,13 @@ If no meaningful `{id}` exists, use a generic prefix such as `todo` or `misc` pl
 sequence number (e.g., `todo001`). Never omit the `{id}` — `tools/generate_workitem.py`
 requires it and readers expect the three-part format.
 
+**Numbering.** The id is the domain prefix plus a three-digit, zero-padded sequence number
+(`eventbus001`). Number the issues of one batch (filed together from one source)
+sequentially from `001`. Numbers restart with each batch — the repository's history already
+reuses ids such as `eventbus001` in several files, with mixed widths (`eventbus01`) — so
+`{id}` never identifies an issue by itself. Cite another issue by its full
+repository-relative path (Dependencies, and `issue-to-plan`'s dependency lookup).
+
 ---
 
 ## Issue Structure
@@ -157,6 +164,10 @@ See `workflow.md` Phase 7 for the High / Medium / Low criteria.
 
 - `python-code-review` — GitHub Issue Conversion step
 - `python-documentation` — when documentation cleanup work should be tracked as issues rather than performed immediately
+- `test-audit` — the `P1` Tasks the user wants tracked (`workflow.md` "From test-audit Tasks")
+- `python-refactoring` — its Step 10 Proposals, on the user's request (`workflow.md` "From python-refactoring Proposals")
+- `python-debug-root-cause` — a root cause whose fix is out of scope or declined
+- `git-commit-and-sync` — a tool defect found during validation that this skill does not fix
 
 ---
 

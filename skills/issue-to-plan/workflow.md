@@ -407,7 +407,8 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 - Include the items carried forward from Step 2's `Needs confirmation` classifications
   as Unknowns, in addition to any Unknowns identified during Steps 3-5.
 - Check every Issue `Dependencies` entry that names another Issue or Plan: find it with
-  `rg -l "<id or slug>" issues/ plans/` (the `done/` subdirectories included). It is open
+  `rg -l -F "<path or slug>" issues/ plans/` (the `done/` subdirectories included; an `{id}`
+  alone is not unique, so look it up by path or slug). It is open
   when its Issue is still in `issues/`, or its Plan still has a row that is not
   `Completed` (read those rows and judge whether this Plan needs them done first). Record
   an open dependency as an Unknown with `Blocking? = True` when this Plan cannot be
