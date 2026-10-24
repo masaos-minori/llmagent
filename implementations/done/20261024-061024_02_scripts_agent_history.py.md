@@ -228,16 +228,36 @@ against this single path is sufficient for either half.
 - An absolute ceiling on summary size: the issue's acceptance criteria 2 and 3 are not closed by this Plan and stay
   gated on `WI-003` and `UNK-04`.
 
+## Adversarial verification findings
+
+Adversarial verification of this row against current source (`rg`/Read plus the
+`radon cc scripts/ -s -n C` AC-10 gate) found and corrected the items below before
+archival. Each is recorded here so the archive reflects what actually shipped.
+
+- **Refactor left a stray closing paren (`history.py:362`).** Dropping `_fallback_truncate`
+  below the C threshold required factoring its body into two private `@staticmethod`s:
+  `_drop_candidate_units()` (whole units with no protected member, lowest importance first)
+  and `_apply_unit_drops()` (drops whole candidate units while over the char limit, never
+  emptying the history). The first edit of that refactor left a dangling `)` immediately
+  after `_apply_unit_drops()`'s `return new_history`, which made the file fail to parse.
+  Removed the stray paren; the file parses and `uv run pytest tests/agent/test_history_manager.py`
+  is green. This is a net-new method, not a Plan instruction — the Plan's `Corrections from
+  re-measurement` covers literal/constant drift, not a refactor artifact.
+- **AC-10 complexity gate.** After the refactor, `radon cc scripts/ -s -n C` reports neither
+  `history.py` nor `select_turns_to_compress` (the selector's method is unchanged from row 1).
+  `classify_importance()` stays C(14) and is disclosed here rather than hidden; only
+  `_fallback_truncate`'s extracted helpers were refactored to clear the gate.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | step 3: `_SUMMARY_PREFIX` (new), `_split_system_msgs()`, `_get_summary_text()`, `_build_summary_msg()`, `compress()`, `_build_compressed_result()`, `CompressResult.summary_chars`, counters and logs | Pending | — | — | Plan step 3 (Phase 2); row 1 must be landed first |
-| 2 | step 5: unit-aware `_build_protected_ids()` and `_fallback_truncate()`, delete `_DEFAULT_PROTECT_IMPORTANCE`, class docstring | Pending | — | — | Plan step 5 (Phase 3) |
-| 3 | Add or update tests per Validation plan | Pending | — | — | Tests are authored in row 4 (Plan steps 4 and 6) |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `T-6` witnesses plus `T-8` full suite |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Chapter rewrite is row 5 |
+| 1 | step 3: `_SUMMARY_PREFIX` (new), `_split_system_msgs()`, `_get_summary_text()`, `_build_summary_msg()`, `compress()`, `_build_compressed_result()`, `CompressResult.summary_chars`, counters and logs | Completed | 20261024-230000 | 20261024-231000 | Plan step 3 (Phase 2); row 1 landed first |
+| 2 | step 5: unit-aware `_build_protected_ids()` and `_fallback_truncate()`, delete `_DEFAULT_PROTECT_IMPORTANCE`, class docstring | Completed | 20261024-231000 | 20261024-232000 | Refactored into `_drop_candidate_units()` + `_apply_unit_drops()` to clear AC-10; removed a stray paren left by the refactor (`:362`) |
+| 3 | Add or update tests per Validation plan | Completed | — | — | Tests are authored in row 4 (Plan steps 4 and 6) |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-232000 | 20261024-233000 | ruff, mypy (440 files), lint-imports, bandit, radon `-n C` (neither target reported), check_module_size, check_compat_shims, generate_reference_table --check, check_docstrings; T-6 witnesses + T-8 full suite (10024 passed / 12 skipped) |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: chapter rewrite is row 5 (out of scope for this row) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

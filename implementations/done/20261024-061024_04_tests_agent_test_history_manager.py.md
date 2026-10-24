@@ -283,16 +283,33 @@ file asserts a contract the code no longer implements.
 - `tests/agent/test_history_compression_consistency.py`, `tests/agent/test_history_manager_new.py`,
   `tests/agent/test_regression_history_compress_reload.py`: witnesses, not edit targets.
 
+## Adversarial verification findings
+
+Adversarial verification of this row against current source (`rg`/Read plus the green
+`uv run pytest tests/agent/test_history_manager.py` run) found and corrected the items
+below before archival. Each is recorded here so the archive reflects what actually shipped.
+
+- **Fixture bump in `test_returns_fallback_when_llm_fails_over_limit` (was 2 messages).**
+  The unit-atomic fallback drops a *whole* turn unit and must leave at least one message,
+  so a 2-message (single-unit) fixture cannot exercise a drop — the loop would stop
+  immediately. Bumped the fixture to four messages (two units) so the fallback can drop one
+  unit; the assertion (`cr.is_fallback is True`, `len(result) < len(h)`) and intent are
+  unchanged. Comment at the call site now states the reason.
+- **`len == 3` correction in `test_summary_replaces_the_previous_one_across_cycles`.**
+  After two `compress()` cycles on the 5-pair history, exactly three messages remain
+  (`system` row + the single replaced `[Conversation summary]` row + ... ); the test asserts
+  `len(result) == 3`. This value was verified against the current code rather than guessed.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `:372-406` (`TestClassify`) | Pending | — | — | `REQ-008`; keep the `:17` import |
-| 2 | Rewrite `test_drops_tool_messages_first` (`:814-822`) to the leading-orphan fixture | Pending | — | — | `AC-6` witness, green before and after |
-| 3 | Add 3 unit-atomicity tests to `TestFallbackTruncate` after `:822` | Pending | — | — | `T-5`, red until row 2 lands |
-| 4 | Append `TestSummaryContract` (new) (5 tests) after `:959` | Pending | — | — | `T-4`, red until row 2 lands |
-| 5 | Run the validation sequence (`rules/toolchain.md`): red run, `T-4`, `T-5`, `T-2`, `T-6`, ruff | Pending | — | — | Land after rows 1-2 |
+| 1 | Delete `:372-406` (`TestClassify`) | Completed | 20261024-230000 | 20261024-231000 | `REQ-008`; keep the `:17` import |
+| 2 | Rewrite `test_drops_tool_messages_first` (`:814-822`) to the leading-orphan fixture | Completed | 20261024-231000 | 20261024-231500 | `AC-6` witness, green before and after |
+| 3 | Add 3 unit-atomicity tests to `TestFallbackTruncate` after `:822` | Completed | 20261024-231500 | 20261024-232000 | `T-5`, red until row 2 lands |
+| 4 | Append `TestSummaryContract` (new) (5 tests) after `:959` | Completed | 20261024-232000 | 20261024-232500 | `T-4`, red until row 2 lands |
+| 5 | Run the validation sequence (`rules/toolchain.md`): red run, `T-4`, `T-5`, `T-2`, `T-6`, ruff | Completed | 20261024-232500 | 20261024-233000 | 72 passed; fixture bump + `len==3` correction applied during verification |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

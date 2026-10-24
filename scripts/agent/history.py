@@ -28,8 +28,7 @@ from agent.history_selection_policy import (
 
 logger = logging.getLogger(__name__)
 
-# Threshold: messages scoring >= this value are protected from compression (0–1 scale)
-_DEFAULT_PROTECT_IMPORTANCE: float = 0.7
+_SUMMARY_PREFIX = "[Conversation summary]"
 
 
 class HistoryCompressionError(RuntimeError):
@@ -45,17 +44,21 @@ class CompressResult:
     summary_added: bool
     is_fallback: bool = False
     error: str | None = None
+    summary_chars: int = 0
 
 
 class HistoryManager:
     """Manages conversation history size via LLM-based compression.
 
-    When the total character count of self._history exceeds char_limit,
-    the oldest compress_turns * 2 messages are summarised into a single
-    system message to keep the context window manageable.
+    When the total character count exceeds char_limit, whole turn units are
+    selected for compression in chronological order and the oldest are
+    summarised into exactly one [Conversation summary] system message that
+    replaces any previous summary. Fallback truncation drops whole turn units
+    (never splitting one) to bring context under the limit.
 
-    protect_turns: number of most-recent user/assistant turn pairs to exclude
-    from compression candidates (prevents the latest context from being lost).
+    protect_turns: number of most-recent user/assistant turn pairs excluded
+    from compression/fallback candidates (prevents the latest context from
+    being lost).
     """
 
     def __init__(
@@ -228,6 +231,25 @@ class HistoryManager:
         except (httpx.HTTPError, ValueError, KeyError, TypeError) as e:
             raise HistoryCompressionError(f"Context compression failed: {e}") from e
 
+    def _split_system_msgs(
+        self, system_msgs: list[LLMMessage]
+    ) -> tuple[list[LLMMessage], list[str]]:
+        """Split system messages into preserved rows and prior summary texts.
+
+        Summary rows (content starting with _SUMMARY_PREFIX) are removed from the
+        returned history and handed back as texts in input order, so several legacy
+        summary rows collapse into one condensed block for the model.
+        """
+        preserved: list[LLMMessage] = []
+        prior: list[str] = []
+        for msg in system_msgs:
+            content = str(msg.get("content") or "")
+            if content.startswith(_SUMMARY_PREFIX):
+                prior.append(content)
+            else:
+                preserved.append(msg)
+        return preserved, prior
+
     def _build_history_text(self, messages: list[LLMMessage]) -> str:
         """Render messages as a plain-text transcript for LLM summarisation."""
         return "\n".join(
@@ -235,28 +257,9 @@ class HistoryManager:
         )
 
     @staticmethod
-    def _build_summary_msg(
-        system_msgs: list[LLMMessage], summary_text: str
-    ) -> LLMMessage:
-        """Return a system message containing summary_text.
-
-        Appends to an existing [Conversation summary] message when present;
-        otherwise creates a new one.
-        """
-        existing = next(
-            (
-                m
-                for m in system_msgs
-                if isinstance(m.get("content"), str)
-                and str(m.get("content", "")).startswith("[Conversation summary]")
-            ),
-            None,
-        )
-        if existing:
-            new_content = f"{existing.get('content', '')}\n\n{summary_text}"
-        else:
-            new_content = f"[Conversation summary]\n{summary_text}"
-        return {"role": "system", "content": new_content}
+    def _build_summary_msg(summary_text: str) -> LLMMessage:
+        """Return a single [Conversation summary] system message containing summary_text."""
+        return {"role": "system", "content": f"{_SUMMARY_PREFIX}\n{summary_text}"}
 
     async def compress(
         self, history: list[LLMMessage]
@@ -278,7 +281,8 @@ class HistoryManager:
         if split is None:
             self._log_skip_warning(history, token_count)
             return history, _no_op
-        summary_text = await self._get_summary_text(split.to_compress)
+        preserved_system, prior_summaries = self._split_system_msgs(split.system_msgs)
+        summary_text = await self._get_summary_text(split.to_compress, prior_summaries)
         if summary_text is None:
             if self._is_over_char_limit(history):
                 return self._fallback_truncate(history)
@@ -288,7 +292,7 @@ class HistoryManager:
                 summary_added=False,
                 error="compression returned None",
             )
-        return self._build_compressed_result(split, summary_text)
+        return self._build_compressed_result(split, summary_text, preserved_system)
 
     def _is_over_char_limit(self, history: list[LLMMessage]) -> bool:
         """Return True when history exceeds the character limit."""
@@ -297,22 +301,15 @@ class HistoryManager:
     def _fallback_truncate(
         self, history: list[LLMMessage]
     ) -> tuple[list[LLMMessage], CompressResult]:
-        """Drop low-value messages to bring context under char limit.
+        """Drop whole turn units to bring context under char limit.
 
-        Drop order: lowest importance first (tool-role messages score 0.3).
-        Preserves system messages and the most-recent protect_turns turn pairs.
+        Lowest-importance units drop first; a unit holding a protected message is
+        never split, so a tool row is never orphaned and the history is never
+        emptied. Preserves system messages and the most-recent protect_turns pairs.
         """
         protected_ids = self._build_protected_ids(history)
-        candidates = sorted(
-            (m for m in history if id(m) not in protected_ids),
-            key=HistorySelectionPolicy.classify_importance,
-        )
-        new_history = list(history)
-        for msg in candidates:
-            if not self._is_over_char_limit(new_history) or len(new_history) <= 1:
-                break
-            new_history = [m for m in new_history if m is not msg]
-
+        drop_candidates = self._drop_candidate_units(history, protected_ids)
+        new_history = self._apply_unit_drops(history, drop_candidates)
         self.stat_fallback_truncate_count += 1
         dropped = len(history) - len(new_history)
         if self._is_over_char_limit(new_history):
@@ -329,13 +326,53 @@ class HistoryManager:
             is_fallback=True,
         )
 
+    def _drop_candidate_units(
+        self,
+        history: list[LLMMessage],
+        protected_ids: set[int],
+    ) -> list[list[LLMMessage]]:
+        """Whole turn units with no protected member, lowest importance first."""
+        turn_msgs = [m for m in history if m["role"] != "system"]
+        units = self._selection_policy.group_turn_messages(turn_msgs)
+        candidates = [
+            unit for unit in units if not any(id(m) in protected_ids for m in unit)
+        ]
+        candidates.sort(key=self._selection_policy.group_importance)
+        return candidates
+
+    def _apply_unit_drops(
+        self,
+        history: list[LLMMessage],
+        drop_candidates: list[list[LLMMessage]],
+    ) -> list[LLMMessage]:
+        """Drop whole candidate units while over limit, never emptying the history."""
+        new_history = list(history)
+        for unit in drop_candidates:
+            if (
+                self._is_over_char_limit(new_history)
+                and len(new_history) - len(unit) >= 1
+            ):
+                for m in unit:
+                    new_history = [x for x in new_history if x is not m]
+            else:
+                break
+        return new_history
+
     def _build_protected_ids(self, history: list[LLMMessage]) -> set[int]:
-        """Return IDs of messages protected from truncation."""
+        """Return IDs of messages protected from truncation.
+
+        System messages and the outward-rounded tail of whole turn units cover
+        ``protect_turns`` pairs; a whole unit holding a protected member is never
+        dropped, so a tool row is never orphaned and the history is never emptied.
+        """
         n_protect = self._protect_turns * 2
         protected_ids: set[int] = {id(m) for m in history if m["role"] == "system"}
         turn_msgs = [m for m in history if m["role"] != "system"]
-        for m in turn_msgs[-n_protect:] if n_protect > 0 else []:
-            protected_ids.add(id(m))
+        units = self._selection_policy.group_turn_messages(turn_msgs)
+        protect_from = self._selection_policy._protect_tail_start(units, n_protect)
+        for unit in units[protect_from:]:
+            for m in unit:
+                protected_ids.add(id(m))
         return protected_ids
 
     def _reset_for_testing(self) -> None:
@@ -369,30 +406,61 @@ class HistoryManager:
             self._token_limit,
         )
 
-    async def _get_summary_text(self, to_compress: list[LLMMessage]) -> str | None:
-        """Send compressed history to LLM and return summary text, or None on failure."""
+    async def _get_summary_text(
+        self, to_compress: list[LLMMessage], prior_summaries: list[str]
+    ) -> str | None:
+        """Send compressed history to LLM and return summary text, or None on failure.
+
+        Prepends the prior summary rows (if any) as a PREVIOUS SUMMARY block so the
+        model condenses several legacy summary rows into one.
+        """
         try:
-            return await self._call_compress_llm(self._build_history_text(to_compress))
+            if prior_summaries:
+                prefix = f"PREVIOUS SUMMARY:\n{'\n\n'.join(prior_summaries)}\n\n"
+                history_text = prefix + self._build_history_text(to_compress)
+            else:
+                history_text = self._build_history_text(to_compress)
+            return await self._call_compress_llm(history_text)
         except HistoryCompressionError as e:
             logger.warning("History compression failed, returning original: %s", e)
             return None
 
     def _build_compressed_result(
-        self, split: SelectionResult, summary_text: str
+        self,
+        split: SelectionResult,
+        summary_text: str,
+        preserved_system: list[LLMMessage],
     ) -> tuple[list[LLMMessage], CompressResult]:
-        """Build the compressed history list and CompressResult."""
-        system_msgs = split.system_msgs
+        """Build the compressed history list and CompressResult.
+
+        Replaces every prior summary row with a single new summary row and reports
+        the summary block size via summary_chars.
+        """
         remaining = split.remaining
         n = len(split.to_compress)
-        protected = len(remaining) - len(system_msgs)
+        protected = len(remaining)
         self.stat_compress_count += 1
-        logger.info("History compressed: %s messages summarized", n)
+        summary_msg = self._build_summary_msg(summary_text)
+        summary_chars = len(str(summary_msg["content"]))
+        compressed_chars = self.count_chars(split.to_compress)
+        logger.info(
+            "History compressed: %d messages summarized, summary_chars=%d",
+            n,
+            summary_chars,
+        )
+        if summary_chars >= compressed_chars:
+            logger.warning(
+                "History compressed: summary_chars=%d >= compressed chars=%d; "
+                "the summary did not shrink the context.",
+                summary_chars,
+                compressed_chars,
+            )
         if self._on_compress:
             self._on_compress(n)
-        summary_msg = self._build_summary_msg(system_msgs, summary_text)
         result = CompressResult(
             compressed_count=n,
             protected_count=protected,
             summary_added=True,
+            summary_chars=summary_chars,
         )
-        return system_msgs + [summary_msg] + remaining, result
+        return preserved_system + [summary_msg] + remaining, result

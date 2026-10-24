@@ -193,8 +193,14 @@ class TestCompressWithLLM:
         mock_http = AsyncMock(spec=httpx.AsyncClient)
         mock_http.post.side_effect = httpx.RequestError("connection refused")
         # char_limit=1 ensures we are over the limit. compress_turns=1 needs 2 msgs.
+        # Four messages (two units) so the unit-atomic fallback can drop one.
         mgr = _make_manager(char_limit=1, compress_turns=1, http=mock_http)
-        h = _history(("user", "q"), ("assistant", "a"))
+        h = _history(
+            ("user", "q"),
+            ("assistant", "a"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+        )
         result, cr = await mgr.compress(h)
         # Since it's over limit and LLM failed, it should fall back to truncation
         assert cr.is_fallback is True
@@ -367,41 +373,6 @@ class TestProtectTurns:
         roles = [m["role"] for m in result]
         assert "system" in roles
         assert len(result) < len(h)
-
-
-# ── _classify() ───────────────────────────────────────────────────────────────
-
-
-class TestClassify:
-    def test_tool_role_is_temporary(self) -> None:
-        msg: LLMMessage = {"role": "tool", "content": "result"}
-        assert HistorySelectionPolicy.classify(msg) == "temporary"
-
-    def test_system_role_is_factual(self) -> None:
-        msg: LLMMessage = {"role": "system", "content": "You are helpful."}
-        assert HistorySelectionPolicy.classify(msg) == "factual"
-
-    def test_assistant_with_tool_calls_is_temporary_reasoning(self) -> None:
-        msg: LLMMessage = {
-            "role": "assistant",
-            "content": None,
-            "tool_calls": [
-                {
-                    "id": "x",
-                    "type": "function",
-                    "function": {"name": "f", "arguments": "{}"},
-                }
-            ],
-        }
-        assert HistorySelectionPolicy.classify(msg) == "temporary_reasoning"
-
-    def test_assistant_without_tool_calls_is_history(self) -> None:
-        msg: LLMMessage = {"role": "assistant", "content": "I can help with that."}
-        assert HistorySelectionPolicy.classify(msg) == "history"
-
-    def test_user_role_is_history(self) -> None:
-        msg: LLMMessage = {"role": "user", "content": "What is Python?"}
-        assert HistorySelectionPolicy.classify(msg) == "history"
 
 
 # ── count_tokens() ────────────────────────────────────────────────────────────
@@ -816,10 +787,95 @@ class TestFallbackTruncate:
         tool_msg = self._msg("tool", "x" * 20)
         user_msg = self._msg("user", "x" * 20)
         assistant_msg = self._msg("assistant", "x" * 20)
-        h = [user_msg, tool_msg, assistant_msg]
+        # The orphan tool row is a turn unit of its own (REQ-001).
+        h = [tool_msg, user_msg, assistant_msg]
         result, cr = mgr._fallback_truncate(h)
         assert cr.is_fallback is True
+        assert cr.compressed_count == 1
         assert tool_msg not in result
+        assert result == [user_msg, assistant_msg]
+
+    def test_drops_whole_units_and_leaves_no_partial_unit(self) -> None:
+        # A drop removes whole turn units only; no unit is split mid-way (AC-6).
+        mgr = self._mgr(char_limit=40, protect_turns=0)
+        u0 = self._msg("user", "x" * 20)
+        a0 = self._msg("assistant", "x" * 20)
+        t0 = self._msg("tool", "OK: done")
+        recent = self._msg("user", "recent")
+        newest = self._msg("assistant", "newest")
+        h = [u0, a0, t0, recent, newest]
+        result, cr = mgr._fallback_truncate(h)
+        assert cr.compressed_count == 3
+        assert result == [recent, newest]
+
+    def test_protected_tail_is_never_split(self) -> None:
+        # The protected tail rounds outward to whole units, so it is never split
+        # (REQ-006 first clause).
+        tool_call = {
+            "id": "x",
+            "type": "function",
+            "function": {"name": "f", "arguments": "{}"},
+        }
+        mgr = self._mgr(char_limit=1, protect_turns=1)
+        old_user = self._msg("user", "x" * 20)
+        old_asst = self._msg("assistant", "x" * 20)
+        recent_user = self._msg("user", "recent question")
+        recent_asst = {
+            "role": "assistant",
+            "content": "recent answer",
+            "tool_calls": [tool_call],
+        }
+        recent_tool = self._msg("tool", "OK: done")
+        h = [old_user, old_asst, recent_user, recent_asst, recent_tool]
+        result, cr = mgr._fallback_truncate(h)
+        assert len(result) == 3
+        assert [m["role"] for m in result] == ["user", "assistant", "tool"]
+        assert cr.compressed_count == 2
+        assert cr.protected_count == 3
+
+    def test_never_leaves_an_orphan_tool_row(
+        self,
+        caplog: pytest.LogCaptureFixture,
+    ) -> None:
+        # A dropped unit never leaves a tool row whose declaring assistant is
+        # gone (AC-6, the turn006_probe3c.out shape).
+        import logging
+
+        tool_call = {
+            "id": "call_1",
+            "type": "function",
+            "function": {"name": "f", "arguments": "{}"},
+        }
+        mgr = self._mgr(char_limit=60, protect_turns=0)
+        q0 = self._msg("user", "q0")
+        a1 = self._msg("assistant", "a1")
+        q2 = self._msg("user", "must always keep this")
+        a2 = {
+            "role": "assistant",
+            "content": "Always prefer explicit typing.",
+            "tool_calls": [tool_call],
+        }
+        t_ok = self._msg("tool", "OK: done")
+        t_ok["tool_call_id"] = "call_1"
+        t_ok2 = self._msg("tool", "OK: done2")
+        t_ok2["tool_call_id"] = "call_1"
+        h = [q0, a1, q2, a2, t_ok, t_ok2]
+        with caplog.at_level(logging.WARNING, logger="history_manager"):
+            result, cr = mgr._fallback_truncate(h)
+        assert result == h[2:]
+        assert cr.compressed_count == 2
+        assert cr.summary_chars == 0
+        assistant_ids = {
+            tc["id"]
+            for m in result
+            if m.get("role") == "assistant"
+            for tc in m.get("tool_calls") or []
+        }
+        for tool_msg in (m for m in result if m.get("role") == "tool"):
+            assert tool_msg.get("tool_call_id") in assistant_ids
+        assert any(r.levelno == logging.WARNING for r in caplog.records), (
+            "soft-limit WARNING must still fire when a unit cannot reach the limit"
+        )
 
     def test_preserves_system_messages(self) -> None:
         mgr = self._mgr(char_limit=1, protect_turns=0)
@@ -957,3 +1013,190 @@ class TestFallbackTruncate:
 
         assert cr.is_fallback is True
         assert len(result) < len(h)
+
+
+# ── summary contract (REQ-005, REQ-007) ────────────────────────────────────
+
+
+class TestSummaryContract:
+    def _mock_http(self, summaries: list[str]) -> httpx.AsyncClient:
+        queue = list(summaries)
+        mock_http = AsyncMock(spec=httpx.AsyncClient)
+
+        async def _post(url: str, json: object = None, **kwargs: object) -> object:
+            text = queue.pop(0)
+            resp = MagicMock()
+            resp.content = orjson.dumps({"choices": [{"message": {"content": text}}]})
+            resp.raise_for_status = MagicMock()
+            return resp
+
+        mock_http.post = AsyncMock(side_effect=_post)
+        return mock_http
+
+    @pytest.mark.asyncio
+    async def test_compression_emits_exactly_one_summary_message(self) -> None:
+        # Exactly one summary row replaces the oldest turns (AC-5).
+        mock_http = self._mock_http(["Summary one."])
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, protect_turns=1, http=mock_http
+        )
+        system_msg: LLMMessage = {"role": "system", "content": "You are helpful."}
+        h = [system_msg] + _history(
+            ("user", "question one"),
+            ("assistant", "answer one"),
+            ("user", "question two"),
+            ("assistant", "answer two"),
+            ("user", "question three"),
+            ("assistant", "answer three"),
+            ("user", "question four"),
+            ("assistant", "answer four"),
+        )
+        result, cr = await mgr.compress(h)
+        summaries = [
+            m
+            for m in result
+            if isinstance(m.get("content"), str)
+            and m.get("content").startswith("[Conversation summary]")
+        ]
+        assert len(summaries) == 1
+        assert result[0] == system_msg
+        assert result[1]["role"] == "system"
+        assert len(result) == 6
+        assert cr.compressed_count == 4
+        assert cr.protected_count == 4
+        assert cr.summary_added is True
+
+    @pytest.mark.asyncio
+    async def test_summary_replaces_the_previous_one_across_cycles(self) -> None:
+        # A second compression replaces the prior summary row instead of
+        # accumulating it (AC-5, the turn006_probe2.out repair).
+        mock_http = self._mock_http(["Summary one.", "Summary two."])
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, protect_turns=1, http=mock_http
+        )
+        h = _history(
+            ("user", "question one"),
+            ("assistant", "answer one"),
+            ("user", "question two"),
+            ("assistant", "answer two"),
+            ("user", "question three"),
+            ("assistant", "answer three"),
+            ("user", "question four"),
+            ("assistant", "answer four"),
+            ("user", "question five"),
+            ("assistant", "answer five"),
+        )
+        result, _ = await mgr.compress(h)
+        result, cr = await mgr.compress(result)
+        summaries = [
+            m
+            for m in result
+            if isinstance(m.get("content"), str)
+            and m.get("content").startswith("[Conversation summary]")
+        ]
+        assert len(summaries) == 1
+        assert summaries[0]["content"] == "[Conversation summary]\nSummary two."
+        assert len(result) == 3
+        assert cr.summary_added is True
+        assert mgr.stat_compress_count == 2
+
+    @pytest.mark.asyncio
+    async def test_prior_summary_block_is_in_the_llm_prompt(self) -> None:
+        # The prior summary is fed to the model in the prompt, not concatenated
+        # by code (DR-002).
+        mock_http = self._mock_http(["Summary one.", "Summary two."])
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, protect_turns=1, http=mock_http
+        )
+        h = _history(
+            ("user", "question one"),
+            ("assistant", "answer one"),
+            ("user", "question two"),
+            ("assistant", "answer two"),
+            ("user", "question three"),
+            ("assistant", "answer three"),
+            ("user", "question four"),
+            ("assistant", "answer four"),
+            ("user", "question five"),
+            ("assistant", "answer five"),
+        )
+        result, _ = await mgr.compress(h)
+        result, _ = await mgr.compress(result)
+        prompts = [
+            call.kwargs["json"]["messages"][0]["content"]
+            for call in mock_http.post.call_args_list
+        ]
+        assert "PREVIOUS SUMMARY" not in prompts[0]
+        assert "PREVIOUS SUMMARY:" in prompts[1]
+        assert "[Conversation summary]\nSummary one." in prompts[1]
+
+    @pytest.mark.asyncio
+    async def test_legacy_multiple_summary_rows_collapse_to_one(self) -> None:
+        # Several legacy summary rows collapse into one condensed block (AC-5,
+        # DR-002's repair path).
+        mock_http = self._mock_http(["Summary one."])
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, protect_turns=1, http=mock_http
+        )
+        old_one: LLMMessage = {
+            "role": "system",
+            "content": "[Conversation summary]\nOld one.",
+        }
+        old_two: LLMMessage = {
+            "role": "system",
+            "content": "[Conversation summary]\nOld two.",
+        }
+        plain: LLMMessage = {"role": "system", "content": "You are helpful."}
+        h = [old_one, old_two, plain] + _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+            ("user", "q3"),
+            ("assistant", "a3"),
+            ("user", "q4"),
+            ("assistant", "a4"),
+        )
+        result, cr = await mgr.compress(h)
+        summaries = [
+            m
+            for m in result
+            if isinstance(m.get("content"), str)
+            and m.get("content").startswith("[Conversation summary]")
+        ]
+        assert len(summaries) == 1
+        system_rows = [m for m in result if m.get("role") == "system"]
+        assert plain in system_rows
+        assert len(result) == 6
+        assert cr.compressed_count == 4
+        assert cr.protected_count == 4
+
+    @pytest.mark.asyncio
+    async def test_summary_chars_is_reported_and_the_no_shrink_warning_fires(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        # summary_chars is reported and a WARNING fires when the summary did not
+        # shrink the context (AC-7).
+        import logging
+
+        mock_http = self._mock_http(["Summary."])
+        mgr = _make_manager(
+            char_limit=1, compress_turns=2, protect_turns=0, http=mock_http
+        )
+        h = _history(
+            ("user", "q1"),
+            ("assistant", "a1"),
+            ("user", "q2"),
+            ("assistant", "a2"),
+        )
+        with caplog.at_level(logging.INFO, logger="history_manager"):
+            result, cr = await mgr.compress(h)
+        assert len(result) == 1
+        assert result[0]["content"].startswith("[Conversation summary]")
+        assert cr.summary_chars == 31
+        assert any("summary_chars=31" in r.message for r in caplog.records)
+        assert any(
+            "summary_chars" in r.message
+            for r in caplog.records
+            if r.levelno == logging.WARNING
+        )
