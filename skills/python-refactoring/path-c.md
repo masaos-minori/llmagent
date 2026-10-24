@@ -82,9 +82,11 @@ following fields:
 - **Configuration dependencies**: `rg` against `config/*.toml` and
   `shared/config_loader.py` usages, consistent with `rules/env.md`'s statement that
   `config/agent.toml` is the configuration SSOT.
-- **Routing or registration**: `rg "ToolRouteResolver|tool_names" scripts/shared/` —
+- **Routing or registration**: `rg -ln "RuntimeToolRegistry|ToolRouteResolver" scripts/` —
   the exact command already named in `workflow.md` Special Cases (plain `|`; ripgrep
-  treats `\|` as a literal pipe and would match nothing).
+  treats `\|` as a literal pipe and would match nothing). `tool_names` is not routing
+  evidence (`RuntimeToolRegistry` is the sole routing authority); a change to that config
+  key belongs to the Configuration dependencies field.
 - **Deployment references**: reuse `workflow.md` Step 2's deploy-reference search
   (`rg -ln ... deploy/ conf.d/ init.d/`) verbatim; MUST NOT define a second
   deploy-reference check.

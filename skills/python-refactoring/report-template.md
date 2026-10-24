@@ -23,6 +23,8 @@ MUST NOT re-run `mutmut` or any other check merely to produce this report. For e
   unchanged.
 - The Step 7 public API stability check result (`validation.md`).
 - The Step 7 exception behavior freeze result (`validation.md`).
+- The Step 7 complexity check: grade before and after for each touched function
+  (`validation.md`).
 - The Step 7 import boundary evidence, if imports changed (`validation.md`).
 - The Step 8 diff classification summary.
 - **Conditional tool status** (`validation.md` Conditional Validation):
@@ -55,7 +57,8 @@ MUST NOT re-run `mutmut` or any other check merely to produce this report. For e
   - Reason:
   - Behavior risk:
   - Affected files:
-  - Suggested follow-up issue:
+  - Suggested follow-up issue: (filed on request via `issue-creator`; see `workflow.md`
+    Step 10)
   - Recommended validation:
 - **Technical Debt Findings**: report every Finding recorded by `discovery.md`
   Technical Debt Discovery for the current target file/migration group, or
@@ -99,7 +102,8 @@ The refactoring is complete only when all of the following are true:
 - Public APIs are unchanged.
 - Visible output is unchanged.
 - No new side effects are introduced.
-- No unrelated files are modified.
+- No unrelated files are modified (compared against the Step 1 working-tree baseline).
+- No touched function's `radon cc` grade got worse.
 - Required validation passes.
 - Conditional validation items are reported with their actual status (`Not run` or `Blocked`).
 - The final report includes behavior preservation evidence.

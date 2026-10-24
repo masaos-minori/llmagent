@@ -37,12 +37,12 @@ This is a reactive workflow — see Core rules below.
 | 1 | Identify target files | Confirm every specified target file path exists before starting; process one file (or approved atomic migration group) at a time. |
 | 2 | Refactoring intent declaration | Run the preliminary `rg` caller/deploy search, declare goal, expected behavior change, and Path A/B/C classification (see Routing below); stop and record as a proposal if any behavior change is expected. |
 | 3 | Preparation | Map blast radius at the depth the Path classification calls for (`path-a.md`/`path-b.md`/`path-c.md`), re-classifying upward if needed; run Technical Debt Discovery, Responsibility Analysis, and Documentation Drift Detection (`discovery.md`, scaled to the Path). |
-| 4 | Behavior lock | Establish coverage/characterization baseline at the depth the Path classification calls for; capture Architecture Baseline for Path C (`path-c.md`). |
+| 4 | Behavior lock | Establish coverage/characterization baseline and the `radon cc` complexity baseline at the depth the Path classification calls for; capture Architecture Baseline for Path C (`path-c.md`). |
 | 5 | Side-effect inventory | Record the pre-transformation side-effect baseline (`validation.md`). |
 | 6 | Transformation | Apply the Deletion-First Evaluation before any new abstraction, then transform with AST-safe tooling. |
 | 7 | Validation | Run Required and Conditional validation (`validation.md`), plus Path C's Architecture Comparison Validation (`path-c.md`). |
 | 8 | Incremental migration | Classify diff hunks and keep each logical group independently rollback-safe. |
-| 9 | CI gate | Run the full repository validation sequence. |
+| 9 | CI gate | Run the gates the change requires: scoped `pre-commit`, `lint-imports`, and diff-cover at 90% on changed lines (`workflow.md` Step 9). |
 | 10 | Report results | Report per `report-template.md`; the refactor is complete only once its Completion Gate passes. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file/atomic-migration-group
@@ -79,7 +79,8 @@ and `mutmut` (Step 4); Steps 3, 4, 7, and the Completion gate still run.
 - [ ] Affects more than one source file
 - [ ] Changes an import boundary or module layer
 - [ ] Referenced in deploy scripts
-- [ ] Touches shared/extracted logic used by more than one caller
+- [ ] Touches shared/extracted logic used by more than one caller (callers are counted per
+      `workflow.md` Step 2: distinct non-test files that use a symbol the refactor changes)
 
 **Execution path:** load `path-b.md` — run `pydeps`/`import-linter`/`ast-grep` (Step 3)
 and `mutmut` when available (Step 4), each subject to `validation.md` Conditional
@@ -111,7 +112,8 @@ Completion Requirements (Step 10 addendum) it defines.
 ### Core rules
 - Change only one feature or one responsibility at a time.
 - Keep every change small — as a concrete bound, never worsen the `radon cc` grade of a
-  touched function (`rules/toolchain.md` reports grade C or worse with `-n C`). A function
+  touched function (baseline: `workflow.md` Step 4; check: `validation.md` Complexity
+  check; `rules/toolchain.md` reports grade C or worse with `-n C`). A function
   already at grade C or worse that the target requires touching is refactored toward a
   lower grade only for the part in scope; restructuring the whole function is recorded
   as a Proposal.
@@ -174,8 +176,10 @@ See `report-template.md` for the final report structure and completion gate.
 ### Run after this skill
 - `git-commit-and-sync` — when the user asks to stage, commit, or push the result;
   this skill never commits on its own (`workflow.md` Step 8).
-- `deploy` — run `deploy`'s Phase 2-3 after `workflow.md` Step 9 (CI gate) if
-  `scripts/` files were added, removed, or renamed.
+- `deploy` — after `git-commit-and-sync` (it deploys a pushed HEAD), when `scripts/` files
+  were added, removed, or renamed (`workflow.md` Special Cases). Only on the user's
+  request; this skill never starts it.
+- `issue-creator` — to file the report's Proposals and Findings, when the user asks.
 - `python-documentation` — if public interfaces or module names changed, update
   corresponding docs.
 

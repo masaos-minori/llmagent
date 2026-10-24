@@ -38,6 +38,7 @@ Run repository-defined validation for:
 - public API stability
 - exception behavior
 - side effects
+- complexity (`radon cc` grade against the Step 4 baseline)
 - import boundaries when imports change
 
 At minimum:
@@ -82,6 +83,12 @@ In addition, perform and record the following checks:
   proposal.
 
 - **Side-effect inventory recheck** — confirm the Step 5 inventory above is unchanged.
+
+- **Complexity check** — re-run `uv run radon cc <target file> -s` and compare each
+  function with the Step 4 baseline. A function whose grade got worse MUST be fixed or
+  recorded as a Proposal (`SKILL.md` Core rules); an improvement is reported, not
+  required. A function that did not exist in the baseline (a new helper) is compared
+  against the grade of the code it was extracted from.
 
 - **Import boundary evidence** — when imports are changed, record:
   - Imports added

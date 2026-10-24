@@ -85,6 +85,13 @@ decided there. This list is the one authoritative load list; `AGENTS.md` Global 
   exist.
 - Files MUST be refactored one at a time, in the order given (see Multi-file
   processing above for the atomic-migration-group exception).
+- Record the working-tree baseline once per cycle: `git status --short`. Changes already
+  present (another session's edits, earlier work) are not this cycle's; Step 8 and the
+  Completion Gate's "No unrelated files are modified" compare against this baseline. If
+  the target file itself already has uncommitted changes, stop and ask: its diff cannot be
+  attributed to this refactor. A `pre-commit` run in another session can stash unstaged
+  files for a short time (`skills/git-commit-and-sync/workflow.md` Phase 6), so re-check
+  before concluding that a file changed or vanished.
 
 ---
 
@@ -112,6 +119,12 @@ rg -ln "<target module or symbol>" deploy/ conf.d/ init.d/    # deploy reference
 Use the results for the "more than one caller" and "referenced in deploy scripts"
 criteria; confirm each `rg` searched the intended paths (a zero-match result from a wrong
 path is not evidence of absence).
+
+Counting callers: a caller is a distinct non-test source file, other than the target, that
+imports or calls a symbol this refactor will change in signature, location, or body. A
+symbol used only inside the target, or one the refactor leaves untouched, adds no caller.
+(This is a definition proposed to keep Path A reachable; adjust it in `SKILL.md` Routing
+if the intent differs.)
 
 If `Expected behavior change` is anything other than `none`, stop. MUST NOT implement it.
 Record it under `report-template.md`'s `Proposals not implemented` format instead, and
@@ -158,9 +171,17 @@ as `discovery.md` defines) while reading the target file.
 - Record baseline coverage with `pytest-cov`, scoped to the target:
   `uv run pytest <tests mirroring the target> --cov=<target module> --cov-report=term-missing`
   (confirm the run collected tests and measured the target; see `validation.md`).
+  - Tests mirroring the target: `tests/<path below scripts/>/test_<name>.py` when it
+    exists, plus the files `rg -l "<target module>" tests/` finds.
+  - `<target module>` is the dotted module name below `scripts/` (for example
+    `shared.route_resolver`). A file path in `--cov=` ran the tests here but printed no
+    coverage table, so it measured nothing; confirm the table lists the target.
 - If coverage is below 80%, add characterization tests.
   - Note: 80% is a judgment threshold specific to this procedure, not a project-wide
-    standard.
+    standard. The project's own gate is diff-cover at 90% on changed lines (Step 9).
+- Record the complexity baseline: `uv run radon cc <target file> -s` (no `-n`, so every
+  function is listed). Keep the grade of each function Step 6 may touch; Step 7 compares
+  against it (`validation.md` Complexity check).
 - Mutation-testing depth depends on the Path classification — see `path-a.md` or
   `path-b.md` (Path C applies at least Path B's depth per `path-c.md`).
 - Produce a behavior lock manifest covering:
@@ -172,6 +193,7 @@ as `discovery.md` defines) while reading the target file.
   - Side effects covered
   - Existing tests used
   - Characterization tests added
+  - Complexity baseline (`radon cc` grade per function Step 6 may touch)
   - Known uncovered behavior
 - MUST NOT proceed to Step 6 (Transformation) if important behavior is uncovered and no
   characterization test or explicit exception is recorded for it in `Known uncovered
@@ -292,7 +314,9 @@ pass.
 ## Step 8: Incremental Migration
 
 - By default, MUST NOT stage or commit anything. Classify changes directly from
-  non-interactive `git diff` output, hunk by hunk, without invoking `git add`.
+  non-interactive `git diff` output, hunk by hunk, without invoking `git add`. Hunks in
+  files that were already modified in the Step 1 baseline are not this cycle's changes;
+  do not classify them.
 - Classify every hunk as one of:
   - rename only
   - extraction only
@@ -303,6 +327,7 @@ pass.
   - validation fix
   - import cleanup
   - formatting
+  - lint autofix (a change `ruff check --fix` made that the refactor did not intend)
   - metadata update
 
   Any hunk that does not fit these categories MUST be explained explicitly.
@@ -311,6 +336,15 @@ pass.
   individually to run these checks.
 - Ensure every logical group identified via `git diff` is rollback-safe on its own (it
   could be committed or reverted independently without breaking the others).
+  - Independence can only be shown by applying a group alone. When the diff has more than
+    one group and the user asked for per-group commits, verify each group in a throwaway
+    worktree: `git worktree add <scratchpad dir>/rb HEAD`, `git apply` a patch holding
+    only that group's hunks (copied verbatim from `git diff`), run the scoped tests,
+    `ruff`, and `mypy` there, then `git worktree remove <scratchpad dir>/rb`.
+  - Without that request, report the suggested boundaries in Step 10 labelled
+    `independence not verified`; do not present them as verified.
+  - After a Step 9 failure and its Step 6 fix, redo this classification for the changed
+    hunks.
 - Staging and committing are both opt-in, never default:
   - If the user has not requested staging or committing: leave the working tree
     unstaged, organize the logical diff groups above, and report the suggested commit
@@ -334,8 +368,13 @@ selects the gates the changed files need). At minimum:
 - Run `pre-commit run --files <changed files>`; use `--all-files` only when the change
   touches shared configuration or the user asks for a full-repo run.
 - Run `PYTHONPATH=scripts uv run lint-imports` (the exact form in `rules/toolchain.md`).
-- Generate `coverage.xml` with the scoped test run (`--cov-report=xml`), then run
-  `uv run diff-cover coverage.xml --compare-branch=master`.
+- Generate `coverage.xml` the way `rules/toolchain.md` section 7 does
+  (`uv run coverage run -m pytest tests/`, then `uv run coverage xml`), then run
+  `uv run diff-cover coverage.xml --compare-branch=master --fail-under=90`. It passes
+  only at 90% on changed lines, and only when every changed source file appears in the
+  diff-cover report. A `coverage.xml` from a scoped run may under-report or omit changed
+  lines (not verified here), so do not report it as this gate's result; when the full run
+  is impractical, report `Not run: {reason}` (`validation.md` Conditional Validation).
 - When a module was split, merged, or grew: `uv run python tools/check_module_size.py`
   (`routing.md` Tools). When the code under a generated-reference domain changed:
   `uv run python tools/generate_reference_table.py --check`.
@@ -362,6 +401,10 @@ Follow `report-template.md` in full: the report structure for each file (or appr
 atomic migration group), and the Completion Gate that decides whether the cycle may be
 reported complete. Path C additionally requires `path-c.md`'s ADR Requirement and Path
 C Completion Requirements.
+
+Proposals and Findings live only in this report. When it lists any, offer to file them with
+`issue-creator` ("Input from review findings"); this skill writes no issue files itself
+(Allowed file operations).
 
 ---
 
@@ -400,17 +443,25 @@ C Completion Requirements.
 
 ## Special Cases
 
-- If refactoring `tool_executor.py` or `route_resolver.py`, perform extra verification
-  for MCP routing: `rg "ToolRouteResolver|tool_names" scripts/shared/` — check if
-  `ToolRouteResolver` prefix mappings or `tool_names` config keys change (this is the
-  exact command `path-c.md` Architecture Baseline's "Routing or registration" field
-  reuses).
+- If refactoring `tool_executor.py`, `route_resolver.py`, or `runtime_tool_registry.py`,
+  perform extra verification for MCP routing: `rg -ln "RuntimeToolRegistry|ToolRouteResolver" scripts/`
+  — check that how tools are registered and resolved is unchanged (this is the exact
+  command `path-c.md` Architecture Baseline's "Routing or registration" field reuses).
+  `ToolRouteResolver` takes `RuntimeToolRegistry` (populated from live `/v1/tools`
+  discovery) as its sole routing authority (`scripts/shared/route_resolver.py`), so the
+  `tool_names` config key is not routing evidence.
 - If `config/agent.toml` would need to change, or modules are added or removed such that
   `deploy/deploy.sh` (and the other `deploy/*.sh` scripts), `routing.md`, or `AGENTS.md`
   would need updates, do not edit them (see Allowed file operations): record each as a
   Proposal in the Step 10 report, or make the edit only when the user explicitly
-  instructs it. Run `deploy`'s Phase 2-3 afterwards when `scripts/` files were added,
-  removed, or renamed (`SKILL.md` Composes with).
+  instructs it.
+- When `scripts/` files were added, removed, or renamed, the change reaches production
+  only through `git-commit-and-sync` (a pushed HEAD) and then `deploy` (Phases 1-4,
+  including Phase 1b when an MCP server binary is affected). This skill never starts
+  `deploy` itself; mention it in the Step 10 report. Renaming or moving an MCP server
+  module also changes `ENTRIES` (`deploy/build_binaries.sh`), `BINARY_NAMES`
+  (`deploy/deploy.sh`), `BINARY_SOURCES` (`tools/manage_binaries.py`), and `cmd` in
+  `config/agent.toml`; record each as a Proposal.
 
 ## Output format
 
