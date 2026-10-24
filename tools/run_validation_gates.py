@@ -64,6 +64,9 @@ MODE_FAST = "fast"
 MODE_FULL = "full"
 
 _ROUTING_HEADING = "### When to run which tool"
+# The orchestrator has its own row in that table, but it cannot be a gate of itself, so
+# the drift check ignores that row.
+_SELF_CHECKER_ID = Path(__file__).stem
 # Tokens that mark a command as needing a concrete runtime argument.
 _PLACEHOLDER_TOKEN_RE = re.compile(r"[\<\[\]\.\.]+")
 # A git ref we will hand to `git diff`: alphanumerics plus . _ / -. Anything else is
@@ -423,11 +426,12 @@ def drift_report(routing_text: str) -> tuple[int, list[str]]:
     """Compare routing.md's checkers against this tool's mapping.
 
     Returns ``(error_count, messages)``. Every routing.md checker must have a mapping entry
-    and every mapping entry must come from routing.md; either drift is an error.
+    and every mapping entry must come from routing.md; either drift is an error. The row
+    that names this orchestrator itself is not a checker and is excluded.
     """
     expected = {
         _checker_id_from_cell(cell) for cell in _parse_routing_run_cells(routing_text)
-    }
+    } - {_SELF_CHECKER_ID}
     actual = {gate.checker_id for gate in ROUTING_GATES}
     errors: list[str] = [
         f"routing.md checker has no mapping entry: {missing}"

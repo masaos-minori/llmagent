@@ -188,6 +188,18 @@ def test_drift_reports_unmapped_checker() -> None:
     assert any("nonexistent_checker_xyz" in message for message in errors)
 
 
+def test_drift_ignores_the_orchestrators_own_row() -> None:
+    """The row naming run_validation_gates itself is not a checker, so it needs no mapping."""
+    synthetic = (
+        "### When to run which tool\n\n"
+        "| Situation | Run | Notes |\n"
+        "|---|---|---|\n"
+        "| Run the gates | `uv run python tools/run_validation_gates.py` | notes |\n"
+    )
+    _, errors = drift_report(synthetic)
+    assert not any("run_validation_gates" in message for message in errors)
+
+
 # --- run_gate runner injection --------------------------------------------------
 
 
