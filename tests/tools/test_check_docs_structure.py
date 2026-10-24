@@ -30,6 +30,7 @@ from tools.check_docs_structure import (
     check_status_value,
     check_tail_sections,
     check_unique_adr_ids,
+    main,
     validate_file,
 )
 
@@ -405,6 +406,60 @@ class TestDefaultGlobIsRecursive:
         _write(tmp_path / "sub" / "nested.md", "# Nested\n")
         found = set(tmp_path.glob("**/*.md"))
         assert len(found) == 2
+
+
+def _run_main(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    root: Path,
+    *globs: str,
+) -> tuple[int, str, str]:
+    """Run main() against a tmp tree and return (exit code, stdout, stderr)."""
+    monkeypatch.setattr("tools.check_docs_structure.ROOT_DIR", root)
+    monkeypatch.setattr("tools.check_docs_structure.DOCS_DIR", root / "docs")
+    monkeypatch.setattr("sys.argv", ["check_docs_structure.py", *globs])
+    code = main()
+    captured = capsys.readouterr()
+    return code, captured.out, captured.err
+
+
+class TestUnmatchedGlobs:
+    def test_zero_match_glob_fails_and_names_pattern(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        (tmp_path / "docs").mkdir()
+        code, _, err = _run_main(monkeypatch, capsys, tmp_path, "nope/*.md")
+        assert code == 1
+        assert "no files matched the given glob(s): nope/*.md" in err
+        assert "All checks passed" not in err
+
+    def test_single_valid_file_passes(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        _write(tmp_path / "docs" / "ok.md", _COMPLIANT_DOC)
+        code, _, err = _run_main(monkeypatch, capsys, tmp_path, "docs/ok.md")
+        assert code == 0
+        assert "All checks passed" in err
+
+    def test_mixed_valid_and_invalid_glob_reports_both(
+        self,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        _write(tmp_path / "docs" / "bad.md", "# Bad\n")
+        code, out, err = _run_main(
+            monkeypatch, capsys, tmp_path, "docs/bad.md", "nope/*.md"
+        )
+        assert code == 1
+        assert "bad.md" in out
+        assert "no files matched the given glob(s): nope/*.md" in err
 
 
 class TestSelfReferenceCheck:

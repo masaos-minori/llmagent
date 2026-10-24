@@ -55,8 +55,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the empty/partial-match statement to section 8 | Pending | — | — | |
-| 2 | Run the docs checkers named in Validation plan | Pending | — | — | |
+| 1 | Add the empty/partial-match statement to section 8 | Completed | — | 20261025-001640 | Step 3a: the file sits 10 bytes under the 24576-byte limit, so the statement is one short bullet in the validation list and the size-limit bullet was shortened to compensate |
+| 2 | Run the docs checkers named in Validation plan | Completed | — | 20261025-001640 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

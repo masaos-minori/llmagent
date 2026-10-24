@@ -282,9 +282,9 @@ Required, two entries, driven by REQ-005:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add failing regression tests (`tests/tools/test_check_docs_structure.py`) | In Progress | — | — | REQ-004 |
-| 2 | Phase 2: unmatched-glob failure path in `main()` (`tools/check_docs_structure.py`) | In Progress | — | — | REQ-001, REQ-002, REQ-003 |
-| 3 | Phase 3: docs sync (`tools/TOOL_DESCRIPTIONS.md`, `docs/00_governance/governance_04_documentation-checks.md`) + full validation pass | In Progress | — | — | REQ-005 |
+| 1 | Phase 1: add failing regression tests (`tests/tools/test_check_docs_structure.py`) | Completed | — | 20261025-001641 | REQ-004 |
+| 2 | Phase 2: unmatched-glob failure path in `main()` (`tools/check_docs_structure.py`) | Completed | — | 20261025-001641 | REQ-001, REQ-002, REQ-003 |
+| 3 | Phase 3: docs sync (`tools/TOOL_DESCRIPTIONS.md`, `docs/00_governance/governance_04_documentation-checks.md`) + full validation pass | Completed | — | 20261025-001641 | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

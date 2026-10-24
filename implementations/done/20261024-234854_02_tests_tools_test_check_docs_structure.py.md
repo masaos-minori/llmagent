@@ -60,9 +60,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestUnmatchedGlobs` (new) with the invocation helper and three tests | Pending | — | — | |
-| 2 | Run the new tests before and after the row 01 change | Pending | — | — | |
-| 3 | Run ruff and mypy on the file | Pending | — | — | |
+| 1 | Add `TestUnmatchedGlobs` (new) with the invocation helper and three tests | Completed | — | 20261025-001537 |  |
+| 2 | Run the new tests before and after the row 01 change | Completed | — | 20261025-001537 |  |
+| 3 | Run ruff and mypy on the file | Completed | — | 20261025-001537 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

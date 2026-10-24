@@ -167,12 +167,13 @@ Compares file names listed in `tools/TOOL_DESCRIPTIONS.md` against actual `tools
 ### 8. Documentation Structure Validation (`check_docs_structure.py`)
 
 Validates structural conventions for `docs/*.md`:
-- File size limits (a per-file exception list covers documents the owner accepted above the limit)
+- File size limits (per-file exceptions are owner-approved)
 - H1 heading count (exactly one per document)
 - Front Matter presence and required fields
 - Keywords section; no body Related section in any document (general or ADR); ADRs keep `## Related ADRs` and `## Implementation References` as ordinary sections
 - Front matter `related:` of each ADR covers the documents its body `.md` references
 - Internal `.md` link reachability
+- Globs: a pattern matching no file is an error
 
 **Usage:**
 ```bash

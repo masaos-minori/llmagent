@@ -479,8 +479,12 @@ def main() -> int:
 
     patterns = args.globs or ["docs/**/*.md"]
     files: set[Path] = set()
+    unmatched: list[str] = []
     for pattern in patterns:
-        files.update(ROOT_DIR.glob(pattern))
+        matched = set(ROOT_DIR.glob(pattern))
+        if not matched:
+            unmatched.append(pattern)
+        files.update(matched)
 
     try:
         basename_index = _build_basename_index(DOCS_DIR)
@@ -518,8 +522,15 @@ def main() -> int:
             for issue in unique_issues:
                 print(issue)
 
+    if unmatched:
+        print(
+            f"no files matched the given glob(s): {', '.join(unmatched)}",
+            file=sys.stderr,
+        )
     if total_issues:
         print(f"\n{total_issues} issue(s) found", file=sys.stderr)
+        return 1
+    if unmatched:
         return 1
     print("All checks passed", file=sys.stderr)
     return 0

@@ -62,9 +62,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the unmatched-glob tracking and exit path in `main()` | Pending | — | — | |
-| 2 | Confirm the row 02 tests now pass | Pending | — | — | |
-| 3 | Run ruff, mypy, bandit on the file and the AC-1/AC-2 invocations | Pending | — | — | |
+| 1 | Implement the unmatched-glob tracking and exit path in `main()` | Completed | 20261025-001509 | 20261025-001536 |  |
+| 2 | Confirm the row 02 tests now pass | Completed | — | 20261025-001536 |  |
+| 3 | Run ruff, mypy, bandit on the file and the AC-1/AC-2 invocations | Completed | — | 20261025-001536 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
