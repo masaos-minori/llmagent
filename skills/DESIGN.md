@@ -276,6 +276,8 @@ portion and redact the sensitive value rather than omitting the whole snippet.
 
 Applies to any skill that writes or transforms production Python code
 (`python-implementation`, `python-refactoring`, and any other skill producing code changes).
+`python-code-review` applies the same constraints as review criteria: it does not write code,
+but a change that violates them is a finding (`skills/python-code-review/workflow.md` Phases 2, 4, 5).
 
 - Never use mutable objects (`list`, `dict`, etc.) as default arguments — use `None` and
   initialize inside the function.

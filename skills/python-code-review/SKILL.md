@@ -12,7 +12,19 @@ description: |
 
 Review first; MUST NOT change code unless the user explicitly asks for implementation (see `skills/DESIGN.md` Analysis-only phase constraint).
 
-Output language: see `skills/DESIGN.md` Output language.
+Output language: see `skills/DESIGN.md` Output language. The review report itself is a
+generated document and is written in English; when it is shown in the chat, the
+surrounding conversation stays in the chat language (`AGENTS.md` Role). Files written in
+Phase 10 (`issues/*.md`) are English. Identifiers, commands, and evidence labels are never
+translated.
+
+## Required loads (Step 0)
+
+Before Phase 1, load `skills/DESIGN.md` (Evidence labels, Confidence levels, Severity
+levels, Shared Vocabulary, Pythonic safety constraints, Out-of-scope paths, No secrets in
+output, Output language) and `rules/coding.md` (conventions and Prohibited patterns). The
+other skills `routing.md` points to for a task are not loaded here; load
+`skills/issue-creator/SKILL.md` + `workflow.md` only when Phase 10 runs.
 
 ## When to use
 
@@ -43,11 +55,11 @@ MUST NOT use this skill for:
 | Phase | Name | Goal |
 |---|---|---|
 | 1 | Scope and Intake | Fix the reviewed diff/PR/file boundary and its stated intent |
-| 2 | Correctness and Data Consistency | Edge cases, state transitions, typing, import direction |
-| 3 | Architecture and Boundaries | Dependency direction, layering, unjustified abstractions |
+| 2 | Correctness and Data Consistency | Edge cases, state transitions, typing, `rules/coding.md` prohibited patterns, performance and concurrency hazards |
+| 3 | Architecture and Boundaries | Dependency direction, import cycles, layering, unjustified abstractions, project checkers |
 | 4 | Async/Sync and Resource Lifecycle | Blocking calls in async paths, resource cleanup |
-| 5 | Error Handling, Configuration, and Logging | Exceptions, retries, fail-fast/fail-open, secret exposure |
-| 6 | Tests and CI | Coverage of critical behavior, failure paths, CI gates |
+| 5 | Error Handling, Configuration, and Logging | Exceptions, retries, fail-fast/fail-open, secret exposure, trust-boundary security, SQLite/sqlite-vec usage |
+| 6 | Tests and CI | Coverage of critical behavior, failure paths, CI gates (`.github/workflows/`, pre-commit, `tox.ini`) |
 | 7 | Documentation Mismatches | Evidence-grounded doc/code contradictions |
 | 8 | Evidence, Confidence, and Severity Assignment | Attach evidence, confidence, and severity to each finding |
 | 9 | Report Writing | Produce the Output Format below |
@@ -62,10 +74,18 @@ See `workflow.md` for detailed phase content and tooling.
 - Classify findings using the Evidence labels and Confidence levels in `skills/DESIGN.md` Shared Vocabulary; MUST NOT introduce a separate fact/interpretation/issue/question system.
 - Verify a README or doc claim against the current implementation (Phase 7) before citing it as evidence.
 - Report a style-only issue (naming, formatting, import order) as Low or Informational only,
-  never as Medium or above. Report at most as many style-only findings as there are Medium+
-  findings in the same review; when there are none, report style-only findings only if the
-  user asked for them.
-- Respect project conventions (see `rules/coding.md`) and explain trade-offs.
+  never as Medium or above. Style-only findings must not crowd out substantive ones: the
+  cap is that a review reports no more style-only findings than Medium+ findings (a
+  proportionality guard against noise, a judgment threshold of this skill rather than a
+  project standard); when there are no Medium+ findings, report style-only findings only
+  if the user asked for them.
+- Respect project conventions (see `rules/coding.md`) and explain trade-offs. A change
+  that matches a `rules/coding.md` Prohibited pattern is a finding.
+- Evidence labels use the exact spelling in `skills/DESIGN.md` Evidence labels (for example
+  `Needs confirmation`); a check that could not be run or confirmed is labeled that way.
+- Severity is assessed as if the finding is true; Confidence reports how sure the review
+  is. A Critical or High finding with Low confidence MUST also appear under Open
+  Questions with the confirmation needed.
 - Follow `skills/DESIGN.md` No secrets in output.
 - Keep recommendations actionable; for tests, specify the behavior or failure mode to verify.
 
@@ -92,8 +112,8 @@ Use this format unless the user requests another format.
 - Reviewed: the diff boundary or file list
 - Not reviewed: files left out (out-of-scope paths, or skipped in a large diff) and why
 - Working tree vs reviewed head: matched, or the mismatch (`workflow.md` Phase 1)
-- Commands run: each tool with its result, or `Needs Confirmation` when it was
-  unavailable or could not be run safely
+- Commands run: each tool and project checker with its result, or `Needs confirmation`
+  when it was unavailable or could not be run safely
 
 ### Summary
 
@@ -107,11 +127,13 @@ Group by severity: Critical, High, Medium, Low, Informational.
 
 For each finding:
 
-- ID: `F-{NNN}` (zero-padded, sequential across the report); Open Questions, Suggested
-  Tests, Documentation Notes, and Phase 10 cite findings by this ID
+- ID: `F-{NNN}` (zero-padded, sequential across the report, assigned after sorting by
+  severity so `F-001` is the most severe); Open Questions, Suggested Tests,
+  Documentation Notes, and Phase 10 cite findings by this ID
 - Title:
 - Severity:
 - Confidence:
+- Evidence label:
 - Evidence:
 - Current behavior:
 - Impact:
@@ -138,6 +160,12 @@ For each finding:
 ### Final Recommendation
 
 State whether to proceed, fix first, or investigate further.
+
+When no finding survives Phase 8, still output Review Scope and Summary, write
+`Findings: none` under Findings, and state what was covered (phases run, commands and
+checkers with results) and what remains `Needs confirmation`, so a clean result is
+distinguishable from a shallow review. The Final Recommendation is then `proceed` only if
+no check is left unconfirmed in a high-risk area; otherwise `investigate further`.
 
 ---
 

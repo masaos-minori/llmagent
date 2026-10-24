@@ -14,6 +14,24 @@
 | `bandit` | 5 | Confirm security findings with static analysis where available |
 | `pytest` | 6 | Confirm claimed test coverage or failure actually reproduces, only after Phase 6's isolation check |
 | `uv run python tools/check_docs_consistency.py --domain <domain>` | 7 | Ground a doc/code mismatch in config keys, ports, and symbols (see `routing.md` Tools) |
+| Project checkers (table below) | 2–7 | Re-use the repository's own structural checks as evidence; each runs only for the diff type it covers |
+| `uv run python tools/run_validation_gates.py --base <base>` | 2–7 | One-shot alternative: selects and runs the gates the changed files need |
+
+Project checkers (from `routing.md` "When to run which tool"; run those whose trigger
+matches the diff and list each with its result under Commands run):
+
+| Diff touches | Run |
+|---|---|
+| a DB schema DDL, a `*_db_path` config key, `ATTACH`/`load_vec` | `uv run python tools/check_db_separation.py` |
+| a `scripts/**/*.py` module (new, or grown) | `uv run python tools/check_module_size.py` |
+| a `patch("module.Symbol")` in `tests/`, or a moved symbol import in `scripts/` | `uv run python tools/check_mock_patch_targets.py` |
+| a `# noqa` / `# type: ignore` / `# nosec` | `uv run python tools/check_suppression_justification.py` |
+| `scripts/agent/`, `scripts/eventbus/`, `scripts/mcp_servers/`, `scripts/db/config.py`, `config/agent.toml` | `uv run python tools/generate_reference_table.py --check` |
+| a `docs/*.md` file | `uv run python tools/check_docs_quality.py` and `uv run python tools/check_docs_structure.py` |
+| a `skills/*.md`, `rules/*.md`, or `prompts/*.md` file | `uv run python tools/check_skills_references.py` |
+
+Checkers are read-only. A checker failure is evidence for a finding (cite its output); a
+checker that cannot run is `Needs confirmation`.
 
 Apply `skills/DESIGN.md` Agent (Explore) threshold.
 Run a tool to confirm a finding before reporting it; MUST NOT present a suspected issue as confirmed without evidence.
@@ -22,8 +40,8 @@ Within a Phase, run its tools after the manual checks in that Phase's list, so a
 confirms or refutes a finding the manual checks produced rather than replacing them. Run
 Python tools through `uv run`, and pass touched files explicitly (a bare `uv run mypy`
 does not cover `tools/`). If a tool is unavailable in the current
-environment, record the affected checks as `Needs Confirmation` (per `skills/DESIGN.md`
-Shared Vocabulary) and continue with the remaining checks — MUST NOT stop the review.
+environment, record the affected checks as `Needs confirmation` (per `skills/DESIGN.md`
+Evidence labels) and continue with the remaining checks — MUST NOT stop the review.
 
 ---
 
@@ -33,7 +51,7 @@ Identify the reviewed unit: PR, diff, patch, or a named set of files.
 
 Do:
 - determine the diff boundary (`git diff <base>...<head>`, `gh pr diff` for a PR, or the stated file list)
-- confirm the working tree is at `<head>` (`git rev-parse HEAD` against the head being reviewed) before any tool runs: the tools check the working tree, not the diff. If it is not, record that the tool results describe a different version and carry them as `Needs Confirmation`
+- confirm the working tree is at `<head>` (`git rev-parse HEAD` against the head being reviewed) before any tool runs: the tools check the working tree, not the diff. If it is not, MUST NOT `git checkout`, `git switch`, or `gh pr checkout` in the user's working tree (it would change files). Either create a temporary read-only worktree outside the repository for the head (`git worktree add --detach <scratchpad dir>/review-<sha> <head>`, run the tools inside it, then remove it with `git worktree remove` — only that worktree, never `rm -rf`), or, if that is not possible, record that the tool results describe a different version and carry them as `Needs confirmation`
 - identify the change's stated intent (PR description, commit message, or user request)
 - identify out-of-scope files per `skills/DESIGN.md` Out-of-scope paths (generated code, vendored code, build outputs)
 - when the target is a file list with no diff (a review of existing code), treat every function in those files as changed for the Phases below
@@ -53,9 +71,10 @@ and continuing, not by stopping here.
 Do:
 - trace each changed function for edge cases: empty input, `None`, boundary values, concurrent access
 - check state transitions, idempotency, caching invalidation, and data consistency
-- check import direction and circular-import risk introduced by the change
-- check responsibility boundaries and cross-layer access (e.g. domain code reaching into infra directly)
-- check public contracts against `skills/DESIGN.md` Pythonic safety constraints (typing correctness, `Any` usage, optional-value handling, protocol conformance)
+- check performance and concurrency hazards in changed code: unbounded loops or growth, N+1 queries, repeated I/O in hot paths, shared mutable state without synchronization, race windows between check and use
+- check the change against `rules/coding.md` Prohibited patterns; each match is a finding
+- check public contracts against the `skills/DESIGN.md` Pythonic safety constraints, applied here as review criteria (typing correctness, `Any` usage, optional-value handling, protocol conformance)
+- import direction, circular imports, and cross-layer access are checked in Phase 3, not here
 - run `ruff check` / `mypy` or `pyright` on touched files to confirm type and lint findings
 
 **Completed when**: every check above has been applied to each changed function in
@@ -67,13 +86,18 @@ the diff, and `ruff check`/`mypy`/`pyright` have been run on touched files.
 
 Do:
 - verify dependency direction matches the repository's layering rules (e.g. `.importlinter`)
+- check import direction and circular-import risk introduced by the change
+- check responsibility boundaries and cross-layer access (e.g. domain code reaching into infra directly)
 - flag new cross-layer imports or widened public surface without justification
 - check whether the change introduces an abstraction (`Protocol`, `abc.ABC`, factory) without a concrete requirement
 - run `PYTHONPATH=scripts uv run lint-imports` to confirm the dependency-direction findings
+- run the project checkers from the Toolchain table whose trigger matches the diff
+  (`check_db_separation`, `check_module_size`, `generate_reference_table --check`, ...)
 
-**Completed when**: dependency direction and abstraction-introduction checks have
-been applied to every changed import/interface in the diff, and `lint-imports` has been
-run (or recorded as unavailable).
+**Completed when**: dependency direction, import-cycle, boundary, and abstraction-
+introduction checks have been applied to every changed import/interface in the diff,
+`lint-imports` has been run (or recorded as unavailable), and each matching project
+checker has been run or recorded `Needs confirmation`.
 
 ---
 
@@ -98,7 +122,8 @@ unsafe dynamic execution) in addition to:
 - check retries, timeouts, and fail-fast vs. fail-open behavior
 - check configuration ownership, startup-only vs. runtime-reloadable settings, and safe defaults
 - check logging and diagnostics for secret exposure risk
-- check input validation at trust boundaries (HTTP and MCP inputs, file paths, subprocess arguments)
+- check input validation at trust boundaries (HTTP and MCP inputs, file paths, subprocess arguments), and authorization or approval checks on tool-executing paths
+- check SQLite and sqlite-vec usage: parameterized queries, transaction scope and commit/rollback on error paths, connection lifetime, and the 4DB separation (no cross-DB access; see `tools/check_db_separation.py`)
 - run `bandit` where available to confirm security findings (e.g. `eval`/`exec`, `pickle`, `subprocess(shell=True)`, SQL string interpolation)
 
 **Completed when**: every changed error-handling/config/logging code path has been
@@ -114,17 +139,21 @@ Do:
   `skills/test-audit/safety.md` "Verify the test suite's own isolation before classifying
   `Safe`" (production paths from `rules/env.md`, the isolation mechanism in `conftest.py`,
   and the markers for tests that start real subprocesses); if no isolation covers a
-  production path, MUST NOT run the tests — record the affected checks as `Needs Confirmation`
+  production path, MUST NOT run the tests — record the affected checks as `Needs confirmation`
 - run `pytest` on the affected test targets: the tests under each changed file's module
   path plus any test that `rg` shows importing a changed symbol (`pytest --testmon`
   when available), to confirm the claimed pass/fail state
 - before reporting a failing test as a finding, re-run it once in isolation; a failure
-  that does not reproduce is reported as `Needs Confirmation`, not as a confirmed finding
-- check CI quality gates and type-checking coverage for the touched paths
+  that does not reproduce is reported as `Needs confirmation`, not as a confirmed finding
+- check CI quality gates and type-checking coverage for the touched paths: read the
+  workflows under `.github/workflows/` (notably `ci.yml`), `.pre-commit-config.yaml`, and
+  `tox.ini`, and confirm each touched path is covered by lint, type-check, test, and
+  `lint-imports` gates (for example, `mypy`'s configured `files` scope omits `tools/`)
 
 **Completed when**: test coverage has been checked for every critical/edge/failure
-path touched by the diff, and `pytest` has been run (or recorded `Needs Confirmation`
-because isolation could not be confirmed) to confirm the claimed pass/fail state.
+path touched by the diff, CI gate coverage has been checked for the touched paths from
+those files, and `pytest` has been run (or recorded `Needs confirmation` because
+isolation could not be confirmed) to confirm the claimed pass/fail state.
 
 ---
 
@@ -144,18 +173,23 @@ against the current implementation, not against a prior-version recollection.
 
 For every finding, attach:
 - concrete evidence per `SKILL.md` Evidence Rules
-- an evidence label and confidence level per `skills/DESIGN.md` Shared Vocabulary
-- a severity per `skills/DESIGN.md` Severity levels
+- an evidence label (exact spelling from `skills/DESIGN.md` Evidence labels) and a
+  confidence level per `skills/DESIGN.md` Confidence levels
+- a severity per `skills/DESIGN.md` Severity levels, assessed as if the finding is true
+
+A Critical or High finding with Low confidence is also copied to the report's Open
+Questions with the confirmation needed. Then sort the findings by severity and assign IDs
+`F-001`, `F-002`, ... in that order.
 
 **Completed when**: every finding carried forward from Phases 2-7 has concrete
-evidence, an evidence label/confidence level, and a severity assigned.
+evidence, an evidence label/confidence level, a severity, and an ID assigned.
 
 ---
 
 ## Phase 9: Report Writing
 
-Use the Output Format defined in `SKILL.md`. Group findings by severity. MUST NOT over-report
-style-only issues. Keep recommendations actionable; for suggested tests, specify the exact
+Use the Output Format defined in `SKILL.md`, including its no-findings form when nothing
+survives Phase 8. Group findings by severity. MUST NOT over-report style-only issues. Keep recommendations actionable; for suggested tests, specify the exact
 behavior or failure mode to verify.
 
 **Completed when**: the report follows `SKILL.md`'s Output Format, findings are
