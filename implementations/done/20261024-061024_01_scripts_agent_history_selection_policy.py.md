@@ -10,7 +10,7 @@ does not use) for this file.
 
 ## Scope
 
-One file: `scripts/agent/history_selection_policy.py` (6054 B, 160 lines at HEAD `2c2bbcce9`).
+One file: `scripts/agent/history_selection_policy.py` (6054 B, 160 lines at baseline `a3c3ea3b6`).
 - `SelectionResult` (`:18-24`) unchanged — its only readers are `scripts/agent/history.py:281` and `:384-386`.
 - `classify_importance()` (`:65-93`) and `_POLICY_KEYWORDS` (`:27-31`) unchanged (`REQ-003`, `DR-004`).
 - `select_turns_to_compress()`'s system/turn split (`:135-136`), the two counters (`:137-138`) and the guard
@@ -218,10 +218,10 @@ so a revert restores a self-consistent state.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `Sequence` import, `group_turn_messages()`, `group_importance()`; rewrite `select_turns_to_compress()`; delete `classify()`, `partition_by_class()`, `sort_by_importance()`; rewrite docstrings | Pending | — | — | Plan step 2 (Phase 1); requires row 3's tests first |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Tests are authored in row 3 (Plan step 1) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Includes `T-6` witnesses and the `agent_13` no-drift check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | Chapter rewrite is row 5; `agent_13` stays untouched |
+| 1 | Add `Sequence` import, `group_turn_messages()`, `group_importance()`; rewrite `select_turns_to_compress()`; delete `classify()`, `partition_by_class()`, `sort_by_importance()`; rewrite docstrings | Completed | 20261024-223813 | 20261024-223813 | Implemented in commit ed80d2154; verified vs current source + plan; archived per memo3.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261024-223813 | 20261024-223813 | Authored in row 3, green (24 passed) in commit ed80d2154; verified vs current source + plan; archived per memo3.md |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-223813 | 20261024-223813 | All gates green in commit ed80d2154; verified vs current source + plan; archived per memo3.md |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261024-223813 | 20261024-223813 | Chapter rewrite is row 5; `agent_13` untouched; archived per memo3.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -10,7 +10,7 @@ position-based accounting. Implements `REQ-001`..`REQ-004` as a failing specific
 
 ## Scope
 
-One file: `tests/agent/test_history_selection_policy.py` (7910 B, 210 lines, 13 test functions at HEAD `2c2bbcce9`).
+One file: `tests/agent/test_history_selection_policy.py` (7910 B, 210 lines, 13 test functions at baseline `a3c3ea3b6`).
 
 - Delete 7 tests: the `# ── partition_by_class() ──` banner (`:31`) with `TestPartitionByClass` (`:34-81`, 3 tests) and
   the `# ── sort_by_importance() ──` banner (`:84`) with `TestSortByImportance` (`:87-114`, 4 tests). Deleting `:31-116`
@@ -289,10 +289,10 @@ specification, which is why the two are not reverted independently.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the module docstring; add `_TOOL_CALLS` (new); delete `:31-116` (`TestPartitionByClass`, `TestSortByImportance`) | Pending | — | — | Plan step 1 (Phase 1), no code dependency |
-| 2 | Add `TestGroupTurnMessages` (new) (4) and `TestGroupImportance` (new) (5) | Pending | — | — | Red until row 1 lands |
-| 3 | Add the 4 selection-invariant classes (9 tests); keep `TestSelectTurnsToCompress` byte-identical | Pending | — | — | `AC-2`, `AC-3`, `AC-4` |
-| 4 | Run the validation sequence (`rules/toolchain.md`): red run, then green with row 1, ruff, `T-6` witnesses | Pending | — | — | Commit with row 1 (`T-3`) |
+| 1 | Rewrite the module docstring; add `_TOOL_CALLS` (new); delete `:31-116` (`TestPartitionByClass`, `TestSortByImportance`) | Completed | 20261024-223813 | 20261024-223813 | Authored before row 1 per Plan; green (24 passed) in commit ed80d2154; verified vs current source + plan; archived per memo3.md |
+| 2 | Add `TestGroupTurnMessages` (new) (4) and `TestGroupImportance` (new) (5) | Completed | 20261024-223813 | 20261024-223813 | Green in commit ed80d2154; verified vs current source + plan; archived per memo3.md |
+| 3 | Add the 4 selection-invariant classes (9 tests); keep `TestSelectTurnsToCompress` byte-identical | Completed | 20261024-223813 | 20261024-223813 | Green in commit ed80d2154; verified vs current source + plan; archived per memo3.md |
+| 4 | Run the validation sequence (`rules/toolchain.md`): red run, then green with row 1, ruff, `T-6` witnesses | Completed | 20261024-223813 | 20261024-223813 | All gates green in commit ed80d2154; verified vs current source + plan; archived per memo3.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
