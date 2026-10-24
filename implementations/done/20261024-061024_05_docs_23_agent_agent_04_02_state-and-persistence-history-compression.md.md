@@ -122,8 +122,9 @@ One file: `docs/23_agent/agent_04_02_state-and-persistence-history-compression.m
       `history_protect_turns * 2`; the boundary rounds outward and never splits a unit.
    5. **System messages** — every `system` message is split out before selection and is never a candidate; summary
       rows are taken out of them and recompressed with the transcript (see Compression Results).
-   6. **No selection** — returns `None` when no whole unit can be taken, and `compress()` then logs a skip warning
-      without modifying history.
+   6. **No selection** — returns `None` when the non-`system` messages number fewer than
+      `(context_compress_turns + history_protect_turns) * 2`, or when no whole unit can be taken, and `compress()` then
+      logs a skip warning without modifying history.
 
    Selection identifies messages by unit position, never by value equality, so
    `len(system_msgs) + len(to_compress) + len(remaining) == len(history)` for every input and two messages with
@@ -170,7 +171,8 @@ One file: `docs/23_agent/agent_04_02_state-and-persistence-history-compression.m
 
    Fallback truncation protects every `system` message plus the whole units covering the last `history_protect_turns`
    pairs, groups the remaining candidates into whole units, orders them by `HistorySelectionPolicy.group_importance()`
-   (the highest `classify_importance()` score inside the unit) ascending, and deletes one whole unit per iteration from
+   (the highest `classify_importance()` score inside the unit) ascending (a pinned message scores infinity, so a
+   pinned unit is dropped last, not protected), and deletes one whole unit per iteration from
    candidates that exclude the `system` role and the protected units until the character limit is met or a further drop
    would leave fewer than one message (soft-limit behavior: see Key Constraints, Character Limit Behavior). A
    `user`/`assistant` unit and its `tool` results are never split, so no `tool` row is orphaned. This path sets
@@ -192,8 +194,8 @@ One file: `docs/23_agent/agent_04_02_state-and-persistence-history-compression.m
    consults tokens only when the character limit is not already exceeded and `context_token_limit` is greater than 0.
    It never supplies `last_input_tokens`, and `config/agent.toml` sets `tokenize_url = ""`, so the trigger compares the
    category-aware estimate against `context_token_limit`. The exact per-turn count reaches `count_tokens()` only from
-   `scripts/agent/services/context_view.py`, which passes the previous turn's `last_input_tokens` for the pre-turn
-   decision.
+   `scripts/agent/services/context_view.py`, which passes the last LLM-reported input token count to build the context
+      state view.
    ```
 
    Keep the `### Token Counting` heading (`:82`). The old `:84` reads "Priority: (1) LLM's `usage.input_tokens`
@@ -208,7 +210,8 @@ One file: `docs/23_agent/agent_04_02_state-and-persistence-history-compression.m
    ```markdown
    The last `history_protect_turns` user+assistant pairs are protected as whole units: the boundary rounds outward to
    the start of the unit it enters, and `select_turns_to_compress()` and `_build_protected_ids()` apply the same rule so
-   selection and fallback protection agree. A unit containing a pinned message is never compressed and never dropped.
+   selection and fallback protection agree. A unit containing a pinned message is never selected for compression; in
+   fallback truncation it is not protected but is dropped last.
    ```
 
    The old `:103` claim is count-based, which is what let a 3-pair setting protect 3 messages instead of 3 pairs' worth
