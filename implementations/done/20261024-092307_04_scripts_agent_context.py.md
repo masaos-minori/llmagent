@@ -10,7 +10,8 @@ Delete the six dead `TurnState` members that no code in `scripts/` produces or c
   `get_tool_calls` (`:213`).
 - **Out-of-Scope**: keeping `current_turn_id` (`:198`) and `background_tasks` (`:200`); the class
   docstring ("Per-turn transient state") stays accurate and is NOT rewritten; `WorkflowState`,
-  `SessionState`, `RuntimeStats`, and `AgentContext` are not touched.
+  `RuntimeStats`, and `AgentContext` are not touched. (A previously-listed state-class name that
+  does not exist in `context.py` was removed from this scope line.)
 
 ## Assumptions
 

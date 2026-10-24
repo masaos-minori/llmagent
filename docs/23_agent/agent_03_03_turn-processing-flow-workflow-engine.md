@@ -84,6 +84,16 @@ The startup banner prints this value, or `unknown` when no `Orchestrator` exists
 > turn before the engine runs. It is not a stage and is not re-run when the `execute` stage is
 > retried.
 
+### Turn-End and Teardown Ownership
+
+The engine's `verify` stage still runs because the engine signature requires it, but turn-end work
+and workflow teardown moved out of the adapter into the Orchestrator's `_execute_turn` bracket:
+
+- `turn_end` is emitted by the Orchestrator's `_execute_turn` bracket on every exit path, not by the
+  `verify` stage.
+- `execute_turn`'s `finally` no longer deactivates the workflow; the caller's bracket does.
+- `_handle_workflow_halt` no longer clears `ctx.workflow.*`; the caller's bracket does.
+
 ### Retry Mechanism
 
 All `plan`/`execute`/`verify` stages go through the same retry loop function. Stages where `retryable` is `false` (default: `plan` and `verify`) are executed once and raise an exception immediately upon failure. For stages where `retryable` is `true` (default: `execute`), retry behavior is determined by the retry policy:

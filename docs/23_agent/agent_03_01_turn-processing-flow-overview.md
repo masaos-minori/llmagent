@@ -40,7 +40,7 @@ User input (line)
         │
         ① Turn Start Processing
         │    → Generate current_turn_id
-        │    → Issue audit log: turn_start
+        │    → Issue audit log: turn_start  (start of the Orchestrator._execute_turn bracket)
         │    → Start WorkflowEngine.run(task, plan_fn, execute_fn, verify_fn)
         │         (plan_fn does nothing; turn start processing is already completed here)
         │
@@ -74,7 +74,7 @@ User input (line)
          │              → ToolLoopGuard: Guards against duplication/cycles/retries/consecutive errors
          │
         ⑥ Turn End Processing                    [Within WorkflowEngine's verify stage]
-             → Issue audit log: turn_end (elapsed ms, token count, reconnection count, etc.)
+             → Issue audit log: turn_end on every exit path  (same _execute_turn bracket)
              → Set current_turn_id = None
 ```
 

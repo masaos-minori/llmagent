@@ -22,6 +22,7 @@ WorkflowEngine, and delegates the LLM/tool-call loop to LlmTurnExecutor.
 from __future__ import annotations
 
 import asyncio
+import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
 
@@ -163,13 +164,26 @@ class Orchestrator:
         await self._execute_turn(line)
 
     async def _execute_turn(self, line):
-        await self._audit_emitter.emit_turn_start()
-        answer, error_kind, is_partial = await self._workflow_adapter.execute_turn(
-            line, 0.0, ""
-        )
-        await self._audit_emitter.emit_turn_end(
-            line, answer, 0.0, error_kind, is_partial
-        )
+        answer: str = ""
+        error_kind: str | None = None
+        is_partial: bool = False
+        turn_started_at = time.perf_counter()
+        try:
+            await self._audit_emitter.emit_turn_start()
+            answer, error_kind, is_partial = await self._workflow_adapter.execute_turn(
+                line, turn_started_at, ""
+            )
+        except BaseException as exc:
+            error_kind = exc.__class__.__name__
+            is_partial = bool(getattr(exc, "partial_text", ""))
+            raise
+        finally:
+            try:
+                await self._audit_emitter.emit_turn_end(
+                    line, answer, turn_started_at, error_kind, is_partial
+                )
+            finally:
+                self._workflow_adapter.deactivate_workflow(self._ctx)
 
     def workflow_status(self) -> dict[str, str]:
         """Return the current workflow tracking status.

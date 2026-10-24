@@ -1202,6 +1202,159 @@ class TestHandleTurnLLMTransportError:
         )
 
 
+class TestTurnEndBracket:
+    """Witnesses the Orchestrator ``_execute_turn`` bracket: exactly one ``turn_end``
+    on every exit path, turn-relative ``elapsed_ms``, and completed teardown
+    (REQ-001, REQ-002, REQ-004)."""
+
+    @staticmethod
+    def _install_audit_capture(ctx: Any) -> list[str]:
+        captured: list[str] = []
+        ctx.services_required.audit_logger = MagicMock()
+        ctx.services_required.audit_logger.info = lambda s: captured.append(s)  # noqa: E731
+        return captured
+
+    @staticmethod
+    def _turn_end_events(captured: list[str]) -> list[dict]:
+        return [json.loads(s) for s in captured if "turn_end" in s]
+
+    @pytest.mark.asyncio
+    async def test_success_emits_single_turn_end_with_turn_relative_elapsed(
+        self,
+    ) -> None:
+        # Case A: success. One turn_end; fields populated; elapsed is turn-relative.
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        captured = self._install_audit_capture(ctx)
+
+        with patch.object(
+            orch._llm_executor,
+            "handle_llm_turn",
+            AsyncMock(return_value=TurnResult(action="continue", answer="ok")),
+        ):
+            await orch.handle_turn("hello")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1, f"expected one turn_end, got {len(events)}"
+        ev = events[0]
+        assert ev["error_kind"] is None
+        assert ev["partial_completion"] is False
+        assert ev["task_id"], "task_id must be set during the turn"
+        assert ev["workflow_id"], "workflow_id must be set at init"
+        assert 0 <= ev["elapsed_ms"] < 5000, "elapsed_ms must be turn-relative"
+        assert ctx.workflow.active is False, "workflow must be deactivated at teardown"
+
+    @pytest.mark.asyncio
+    async def test_soft_partial_error_emits_single_turn_end_with_fields(self) -> None:
+        # Case C: soft LLM transport error with partial text.
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        err = _make_err(kind="PREMATURE_EOF", partial_text="partial text here")
+        captured = self._install_audit_capture(ctx)
+
+        ctx.services_required.llm.stream = AsyncMock(side_effect=err)
+        await orch.handle_turn("test message")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1
+        ev = events[0]
+        assert ev["error_kind"] == "PREMATURE_EOF"
+        assert ev["partial_completion"] is True
+        assert ctx.workflow.active is False
+
+    @pytest.mark.asyncio
+    async def test_halt_emits_single_turn_end_and_invokes_on_error(self) -> None:
+        # Case halt: WorkflowHaltError surfaces via on_error; one turn_end emitted.
+        ctx = _make_ctx()
+        on_error = MagicMock()
+        orch = _make_orchestrator(ctx, on_error=on_error)
+        captured = self._install_audit_capture(ctx)
+
+        engine = orch._workflow_adapter._workflow_engine
+
+        async def _raise_halt(task, plan_fn, execute_fn, verify_fn) -> None:
+            raise WorkflowHaltError("stage halted")
+
+        engine.run = AsyncMock(side_effect=_raise_halt)
+        await orch.handle_turn("hello")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1
+        assert events[0]["error_kind"] is None
+        on_error.assert_called_once()
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+        assert ctx.workflow.active is False
+
+    @pytest.mark.asyncio
+    async def test_escaping_exception_emits_single_turn_end_then_reraises(
+        self,
+    ) -> None:
+        # Case G: a non-halt exception escapes; one turn_end with the class name.
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        captured = self._install_audit_capture(ctx)
+
+        engine = orch._workflow_adapter._workflow_engine
+
+        async def _raise_runtime(task, plan_fn, execute_fn, verify_fn) -> None:
+            raise RuntimeError("boom")
+
+        engine.run = AsyncMock(side_effect=_raise_runtime)
+
+        with pytest.raises(RuntimeError):
+            await orch.handle_turn("hello")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1
+        assert events[0]["error_kind"] == "RuntimeError"
+        assert ctx.turn.current_turn_id is None, "turn id cleared at teardown"
+        assert ctx.workflow.active is False
+
+    @pytest.mark.asyncio
+    async def test_cancelled_emits_single_turn_end_and_clears_turn_id(self) -> None:
+        # Case E: CancelledError at a stage boundary; one turn_end, turn id cleared.
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        captured = self._install_audit_capture(ctx)
+
+        engine = orch._workflow_adapter._workflow_engine
+
+        async def _raise_cancel(task, plan_fn, execute_fn, verify_fn) -> None:
+            raise asyncio.CancelledError()
+
+        engine.run = AsyncMock(side_effect=_raise_cancel)
+
+        with pytest.raises(asyncio.CancelledError):
+            await orch.handle_turn("hello")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1
+        assert events[0]["error_kind"] == "CancelledError"
+        assert ctx.turn.current_turn_id is None
+        assert ctx.workflow.active is False
+
+    @pytest.mark.asyncio
+    async def test_failure_before_activate_emits_single_turn_end(self) -> None:
+        # Failure raised before activation completes: one turn_end, teardown ran.
+        ctx = _make_ctx()
+        orch = _make_orchestrator(ctx)
+        captured = self._install_audit_capture(ctx)
+
+        def _raise_activate(*args: Any, **kwargs: Any) -> None:
+            raise RuntimeError("activate failed")
+
+        with patch.object(
+            orch._workflow_adapter, "_activate_workflow", side_effect=_raise_activate
+        ):
+            with pytest.raises(RuntimeError):
+                await orch.handle_turn("hello")
+
+        events = self._turn_end_events(captured)
+        assert len(events) == 1
+        assert events[0]["error_kind"] == "RuntimeError"
+        assert ctx.workflow.active is False
+
+
 # ── _handle_llm_turn: optional wait/turn callbacks ───────────────────────────
 
 

@@ -94,7 +94,7 @@ exists outside `handle_turn`.
 
 ## Validation plan
 
-- Add `TestTurnEndBracket` in `tests/agent/test_orchestrator.py` (sibling document) covering
+- Add `TestTurnEndBracket` (new) in `tests/agent/test_orchestrator.py` (sibling document) covering
   cases A (success), C (soft LLM error), halt, an escaping non-retryable exception (G),
   cancellation (E), and a failure raised before `_activate_workflow`; assert the event count is
   exactly one `turn_end` per path, the fields (`task_id`, `workflow_id`, turn-relative
@@ -124,7 +124,7 @@ old `:168` stays out of scope (`turn001` frozen `REQ-009`, `UNK-01`).
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Rewrite `_execute_turn` as the turn bracket (`Implementation > Procedure`) | Pending | — | — | witness for `AC-1`-`AC-4`, `AC-8`, `AC-9` |
-| 2 | Add `TestTurnEndBracket` per Validation plan | Pending | — | — | asserts one `turn_end` per exit path |
+| 2 | Add `TestTurnEndBracket` (new) per Validation plan | Pending | — | — | asserts one `turn_end` per exit path |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | `radon`, full agent test suite |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: no doc edit in this file | | | |
 

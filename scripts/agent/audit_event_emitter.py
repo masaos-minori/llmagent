@@ -108,7 +108,6 @@ class AuditEventEmitter:
         self,
         elapsed_ms: float,
         error_kind: str | None,
-        task_id: str | None,
         is_partial: bool = False,
     ) -> dict[str, int | float | str | None]:
         """Build turn_end audit log event dict."""
@@ -136,9 +135,7 @@ class AuditEventEmitter:
         ctx = self._ctx
         elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
         if ctx.services_required.audit_logger is not None:
-            event = self.build_turn_end_event(
-                elapsed_ms, error_kind, ctx.turn.current_turn_id, is_partial
-            )
+            event = self.build_turn_end_event(elapsed_ms, error_kind, is_partial)
             ctx.services_required.audit_logger.info(_json_dumps(event))
         if self._on_turn_end:
             self._on_turn_end()

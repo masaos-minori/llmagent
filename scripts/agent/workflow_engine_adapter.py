@@ -17,7 +17,6 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any
 
-from shared.json_utils import dumps as _json_dumps
 from shared.llm_exceptions import LLMTransportError
 
 from agent.conversation_state_manager import ConversationStateManager
@@ -167,10 +166,8 @@ class WorkflowEngineAdapter:
                 return None
 
             async def verify_fn() -> str | None:
-                """Run turn-end processing after the execute stage completes."""
-                await self._handle_turn_end(
-                    line, answer, turn_started_at, error_kind, is_partial
-                )
+                # The verify stage is required by workflow_loader.py:49; turn-end work
+                # moved to the Orchestrator's _execute_turn bracket (see its plan). No-op.
                 return None
 
             with self._tool_override(self._allowed_tools):
@@ -202,58 +199,11 @@ class WorkflowEngineAdapter:
                         self._state_store.update_task_status(_task.task_id, "completed")
             except Exception as e:  # noqa: BLE001 — updating task status on engine exit is best-effort; failure must not abort the turn
                 logger.warning("Failed to update task status on engine exit: %s", e)
-            self._deactivate_workflow(self._ctx)
             if self._owns_state_store:
                 self._state_store.close()
             self._owns_state_store = False
 
         return answer, error_kind, is_partial
-
-    def _format_session_id(self, session_id: int | None) -> str:
-        """Format session_id for audit logs, returning empty string when None."""
-        return str(session_id) if session_id is not None else ""
-
-    def _build_turn_end_event(
-        self,
-        elapsed_ms: float,
-        error_kind: str | None,
-        task_id: str | None,
-        is_partial: bool = False,
-    ) -> dict[str, int | float | str | None]:
-        """Build turn_end audit log event dict."""
-        ctx = self._ctx
-        return {
-            "event": "turn_end",
-            **self._build_turn_end_metadata(ctx),
-            "elapsed_ms": elapsed_ms,
-            "input_tokens": ctx.stats.stat_input_tokens,
-            "output_tokens": ctx.stats.stat_output_tokens,
-            **self._build_turn_end_llm_stats(ctx.services_required.llm),
-            "partial_completion": is_partial,
-            "error_kind": error_kind,
-        }
-
-    def _build_turn_end_metadata(
-        self,
-        ctx: AgentContext,
-    ) -> dict[str, str]:
-        """Build turn_end metadata (task_id, workflow_id, session_id)."""
-        return {
-            "task_id": ctx.turn.current_turn_id or "",
-            "workflow_id": ctx.workflow.workflow_id or "",
-            "session_id": self._format_session_id(ctx.session.session_id),
-        }
-
-    def _build_turn_end_llm_stats(
-        self,
-        llm: Any,
-    ) -> dict[str, int]:
-        """Build turn_end LLM stats fields."""
-        return {
-            "parse_error_count": getattr(llm, "stat_parse_errors", 0),
-            "heartbeat_timeout_count": getattr(llm, "stat_heartbeat_timeouts", 0),
-            "reconnect_count": getattr(llm, "stat_reconnects", 0),
-        }
 
     def _init_workflow_task(
         self,
@@ -318,11 +268,7 @@ class WorkflowEngineAdapter:
         self, exc: WorkflowHaltError | WorkflowTimeoutError
     ) -> None:
         """Handle workflow halt event."""
-        ctx = self._ctx
         logger.error("Turn halted by workflow engine: %s", exc)
-        ctx.workflow.active = False
-        ctx.workflow.current_task_id = None
-        ctx.workflow.workflow_id = None
         if self._on_error:
             self._on_error(exc)
 
@@ -397,21 +343,3 @@ class WorkflowEngineAdapter:
             yield
         finally:
             self._ctx.cfg.tool.allowed_tools = original
-
-    async def _handle_turn_end(
-        self,
-        line: str,
-        answer: str,
-        turn_started_at: float,
-        error_kind: str | None,
-        is_partial: bool = False,
-    ) -> None:
-        """Emit a turn_end audit event and clear the current turn ID."""
-        ctx = self._ctx
-        elapsed_ms = round((time.perf_counter() - turn_started_at) * 1000, 1)
-        if ctx.services_required.audit_logger is not None:
-            event = self._build_turn_end_event(
-                elapsed_ms, error_kind, ctx.turn.current_turn_id, is_partial
-            )
-            ctx.services_required.audit_logger.info(_json_dumps(event))
-        ctx.turn.current_turn_id = None

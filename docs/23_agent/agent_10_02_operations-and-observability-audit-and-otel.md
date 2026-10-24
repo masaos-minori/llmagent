@@ -29,7 +29,7 @@ To document the design intent and operational methods for audit logs and OTel tr
 
 ### Audit Logs
 
-Two events, `turn_start` and `turn_end`, are generated for each turn. Workflow-specific events (`workflow_start`, `stage_completed`) are additionally issued by the workflow engine.
+The Orchestrator's `_execute_turn` bracket emits exactly one `turn_end` event per user turn on every exit path (success, soft LLM error, workflow halt, escaping exception, cancellation); `AuditEventEmitter` is the single emitter of both lifecycle events. Workflow-specific events (`workflow_start`, `stage_completed`) are additionally issued by the workflow engine.
 
 Audit logs serve as a persistent record, enabling analysis even after restarts. Unlike in-session observation counters like `RuntimeStats`, they can be used for incident response and change management decisions.
 
@@ -53,7 +53,7 @@ The OTel SDK is treated as an optional dependency; the agent always falls back t
 
 ### Reading Audit Logs
 
-- `turn_start` / `turn_end` occur in every turn; `turn_end` carries the workflow context (`workflow_id`). Workflow-engine events are additional (see agent_10_03).
+- `turn_start` / `turn_end` occur in every turn; `turn_end` carries the workflow context (`workflow_id`). Workflow-engine events are additional (see agent_10_03). `turn_end` also carries `error_kind` (`None` on success; e.g. `'PREMATURE_EOF'`, `'RuntimeError'`, `'CancelledError'` on failure paths) and `partial_completion`; `elapsed_ms` is measured from turn entry (captured before `emit_turn_start`), not process uptime.
 - If no audit logger is configured, none of these events are issued.
 
 ### Reading OTel Spans
@@ -74,6 +74,7 @@ Expected span names:
 
 - OTel is an optional dependency and is typically disabled outside of production environments.
 - Because a global `TracerProvider` is not configured, tracing integration with other processes is not possible.
+- Records written before the one-`turn_end` change (batch `20261024-092307`) may contain a doubled `turn_end` count per turn and an `elapsed_ms` measured from process uptime rather than turn entry. Treat them as historical only; use the `task_id`/`workflow_id` fields to de-duplicate rather than counting `turn_end` lines.
 
 ## Keywords
 
