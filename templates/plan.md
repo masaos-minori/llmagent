@@ -105,7 +105,8 @@ separate scope-of-record.
 ## Implementation steps
 Each step description MUST cite the exact file path(s) it touches by referencing rows
 of `Implementation Target Files` above — do not restate file-level detail
-independently of that frozen table.
+independently of that frozen table. A step is a top-level numbered item (a Phase); its
+checklist items are sub-tasks, and the Execution Status table has one row per step.
 
 1. **Phase 1: Preparation / Refactoring (if needed)**
    - [ ] Step description (Requirement ID; File Path from Implementation Target Files)

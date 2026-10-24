@@ -46,7 +46,7 @@ the filename.
 | 5 | Create the Plan | Apply Path B's broader analysis if applicable, then generate `plans/{timestamp}_{slug}.md` (`{slug}` = the Issue filename's slug) with stable Requirement IDs. |
 | 6 | Analyze Unknowns and Risks | Resolve what evidence allows; file unresolved blocking items as issues. |
 | 7 | Add Traceability | Fill the canonical Traceability fields and the per-Requirement Requirement Traceability table. |
-| 8 | Validate information completeness | Confirm no Issue information was dropped, every Requirement ID is traceable, and `Implementation Target Files` passes validation and is marked `Frozen`. `Fail`/`Partial` or a not-`Frozen` section re-enters Step 8 (see `workflow.md` Step 8c); the Issue is not moved. |
+| 8 | Validate information completeness | Confirm no Issue information was dropped, every Requirement ID is traceable, and `Implementation Target Files` passes validation and is marked `Frozen`. Then check the Frozen Plan against other active Frozen Plans (`workflow.md` Step 8b); a conflict returns it to `Draft`. `Fail`/`Partial` or a not-`Frozen` section re-enters Step 8 (see `workflow.md` Step 8c); the Issue is not moved. |
 | 9 | Final validation | Confirm all Step 8 checks pass (including `Frozen`); report the outcome. On `Fail`/`Partial`/`Blocked`, stop here; MUST NOT proceed to Step 10. |
 | 10 | Move the Issue | `git mv` only (via `close-issue` or the direct command; no other method), once the case's gate in `workflow.md` Step 10 holds — for a generated Plan: Step 9 passes and the Plan is `Frozen` (never for a `Draft` Plan or a `Blocked` cycle); no human approval required. |
 
@@ -94,7 +94,7 @@ Path B) and perform its full analysis (architecture, dependency graphing, histor
 analysis, operational dependency inspection), then `workflow.md` Step 5's validation
 quality analysis. MUST NOT skip any analysis.
 
-> Tool Availability Guard: applies to `pydeps`, `radon`, `semgrep`, and any other tool
+> Tool Availability Guard: applies to `pydeps`, `radon`, and any other tool
 > used in `workflow.md` / `workflow-path-b.md` — see `skills/DESIGN.md` Tool availability
 > guard.
 

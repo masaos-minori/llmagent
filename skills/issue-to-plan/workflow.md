@@ -29,7 +29,9 @@ This is a document-only phase. Allowed operations:
 ## Toolchain
 
 Tools used by both paths: `rg`/`fd`/`ast-grep` (symbol/file search), `radon`/`vulture`/
-`semgrep`/`bandit`/`diff-cover`/`pytest-testmon` (validation quality baseline, Step 5).
+`bandit`/`diff-cover` (validation quality baseline, Step 5), and
+`tools/check_plan_target_overlaps.py` (Step 8b). `semgrep` and `pytest-testmon` are not
+part of the baseline; the commands in Step 5 are the whole baseline.
 Path B's additional architecture/dependency/historical/operational analysis tools are
 listed in `workflow-path-b.md` — loaded only when Step 3 classifies Path B, not here.
 
@@ -202,6 +204,13 @@ as `SKILL.md` Routing says if the inspection reveals a Path B criterion.
   before treating it as evidence of "no dependencies," rather than a failed pattern
   match against the wrong path.
 
+  The commands assume `scripts/**/*.py`. For a Python target under `tools/` or `tests/`,
+  take `<dotted>` relative to that directory (`tests/conftest.py` puts both `scripts/` and
+  `tools/` on `sys.path`) and search the directories that can import it. For a non-Python
+  target (`skills/`, `rules/`, `templates/`, `docs/`, `config/`), skip the import commands
+  and find its references with `rg -n "<path>" .` instead (zero matches again means "none
+  found by this pattern").
+
 - **Path B**: perform the full inspection — source files, tests, configuration,
   documentation, callers and callees, dependencies, data ownership, side effects, error
   handling, compatibility constraints, and security constraints. This inspection feeds
@@ -269,7 +278,7 @@ Using the Path A/B classification from Step 3:
 
 - **Path A**: skip architecture analysis, dependency graphing, historical analysis, and
   operational dependency inspection. Still establish the validation quality baseline
-  (radon/vulture/semgrep/bandit/diff-cover, lightweight or full as installed) — this
+  (radon/vulture/bandit/diff-cover, lightweight or full as installed) — this
   baseline is not skipped (see `SKILL.md` Path A).
 - **Path B**: load `workflow-path-b.md` now and perform all four of its analyses
   (architecture, dependency graphing, historical, operational dependency inspection)
@@ -277,8 +286,12 @@ Using the Path A/B classification from Step 3:
 
 #### Validation quality analysis (baseline — run regardless of Path A/B)
 
+Run it whenever at least one `Implementation Target Files` row is a Python file under
+`scripts/` or `tools/`. When none is (a docs-, skills-, or templates-only change), record
+the baseline as `N/A: no Python target` and run none of the commands below.
+
 ```bash
-radon cc <path> -s    # once per target file under scripts/ (<path> as in Step 3)
+radon cc <path> -s    # once per Python target file under scripts/ or tools/ (<path> as in Step 3)
 vulture scripts/ --min-confidence 80
 bandit -r scripts/ -c pyproject.toml
 ```
@@ -295,6 +308,10 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 
 - Output language: see `skills/DESIGN.md` §Output language.
 - Determine the timestamp by running: `date +%Y%m%d-%H%M%S`.
+- Immediately before writing the file, repeat Step 1b's content-based search for this
+  Issue. Another agent may have written a Plan during Steps 2-5, and a different timestamp
+  would not make the paths collide. If a match now exists, do not write; return to Step
+  1b's branches.
 - Derive `{slug}` from the Issue's filename `{timestamp}_{id}_{slug}.md` (see
   `skills/issue-creator/SKILL.md` Issue Filename Generation): everything after the second
   `_`, copied unchanged. An Issue file without that shape (e.g. a
@@ -343,13 +360,19 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 - Every claim MUST be backed by evidence gathered above (for Path A, by Step 3's direct
   verification).
 - Implementation steps MUST be small enough to be independently revertable.
-- A deploy step MUST be included if `scripts/`/`config/` changes; an MCP service map
-  update MUST be included if a new server is added.
+- A deploy step MUST be included if `scripts/`/`config/` changes. Write it as a hand-off
+  to `skills/deploy/SKILL.md` and state its prerequisite: the change is committed and
+  pushed first, and deploying is the user's decision (it has an approval gate). If a new
+  MCP server is added, the Plan's steps follow `skills/mcp-server-add/workflow.md`
+  (`config/agent.toml` entry with `auth_token`, `role` and `cmd`, the binary registration,
+  tests, and the reference-table refresh); cite that skill instead of restating its list.
 - MUST NOT include speculative steps — only steps required by the stated goal.
 - The Plan MUST be detailed enough for the next pipeline phase (per Workflow position
   above) to produce file-level implementation procedures. MUST NOT implement anything.
 - Populate the `### Execution Status` table (see `templates/execution-status.md`) with
-  one row per Implementation step just written above — same numbering, each
+  one row per Implementation step just written above. A step is a top-level numbered item
+  (a Phase in `templates/plan.md`); its checklist items are sub-tasks that share its row,
+  and the step cites every file its items touch. Same numbering, each
   `Description` a short restatement of that step, `Status` set to `Pending`, and
   `Started`/`Completed` left as `—`. Per `templates/execution-status.md` Notes, MUST NOT
   leave the template's single placeholder row in a Plan that already lists its
@@ -376,6 +399,15 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   verification as Step 5, per `rules/ai-execution.md` Repository Tool Usage item 8.
 - Include the items carried forward from Step 2's `Needs confirmation` classifications
   as Unknowns, in addition to any Unknowns identified during Steps 3-5.
+- Check every Issue `Dependencies` entry that names another Issue or Plan: find it with
+  `rg -l "<id or slug>" issues/ plans/` (the `done/` subdirectories included). It is open
+  when its Issue is still in `issues/`, or its Plan still has a row that is not
+  `Completed` (read those rows and judge whether this Plan needs them done first). Record
+  an open dependency as an Unknown with `Blocking? = True` when this Plan cannot be
+  implemented before it (otherwise `False`) and the dependency's path as the Resolution
+  Path; one that cannot be found or read is `Needs confirmation`. A closed dependency needs
+  no row. `plan-to-implementation-procedure` stops on a blocking Unknown, so recording it
+  here surfaces it a phase earlier.
 - Resolve Unknowns only when supported by repository evidence.
 - If a blocking ambiguity remains (`BLOCKING: True`), stop and request clarification; the cycle ends `Blocked` and the Issue stays in `issues/` (no move).
 - Record non-blocking Unknowns in the Plan's Unknowns table
@@ -472,6 +504,23 @@ remains `Needs confirmation` or the section is not `Frozen`.
 
 **Completed when**: every row is `Verified` and the section is marked `Frozen`.
 
+After marking the section `Frozen`, check it against the other active Plans: run
+`uv run python tools/check_plan_target_overlaps.py`. It is report-only (exit 0) and lists
+a file that appears in more than one `Frozen` Plan under `plans/`, this Plan included, so
+it only sees this Plan once it is `Frozen`. For each finding that names this Plan, read the
+other Plan's design and judge it as one of:
+- **compatible**: record it in this Plan's `Assumptions`;
+- **sequencing dependency**: record it in `Assumptions` and add the other Plan to `Scope`
+  Dependencies;
+- **conflict** (the two designs contradict each other on that file): set `Freeze status`
+  back to `Draft` (a conflicting scope is not validated), report
+  `Blocked: conflicting Plan {path} — {description}`, and leave the Issue in `issues/`
+  until the user decides the order or scope. (Setting `Draft` is this skill's own rule;
+  `rules/workflow-lifecycle.md` does not define it.)
+
+`plan-to-implementation-procedure` Step 2 runs the same tool, so an overlap missed here
+would only surface after the Plan is frozen and consumed.
+
 ### Step 8c: Report the outcome and re-entry
 
 Report one of: `Pass` / `Fail` / `Partial` / `Blocked`. If any requirement information
@@ -525,8 +574,12 @@ Otherwise report: generated Plan path; generated Unknown/Risk files (or `None`);
 Requirements; number of `Implementation Target Files` rows; Path A/B classification
 (one word; rationale is in the Plan's Design section, MUST NOT restate);
 information-completeness result; traceability result; `Implementation Target Files`
-freeze status (`Frozen` / not `Frozen` with reason); unresolved items count; and the
-Issue pending move. MUST NOT restate the Requirement Traceability evidence-classification
+freeze status (`Frozen` / not `Frozen` with reason); overlaps with other Frozen Plans and
+their Step 8b judgements (or `None`); unresolved items count; the Issue pending move; and
+next steps. Next steps: the Plan, any Unknown/Risk files, and the moved Issue are
+uncommitted (the rename is staged), so `git-commit-and-sync` commits them together; then
+`plan-to-implementation-procedure` takes the Plan. For a `Blocked` cycle, list what the
+user must decide. MUST NOT restate the Requirement Traceability evidence-classification
 breakdown (already in the Plan's table).
 
 Per `rules/ai-execution.md` Progress Reporting (Base), read every value above back from
@@ -555,8 +608,9 @@ failure rule.
   - Plan generated this cycle: move once Step 9 confirms information completeness is
     `Pass` and all required validations are `Pass`, and — read back from the Plan file,
     not assumed — the Plan's `Implementation Target Files` `Freeze status` is `Frozen`
-    and no `BLOCKING: True` Unknown remains unresolved. If any of these does not hold
-    (Plan is `Draft`, or the cycle is `Blocked`), MUST NOT move the Issue.
+    and no `BLOCKING: True` Unknown remains unresolved, and no overlap judged a conflict
+    under Step 8b remains. If any of these does not hold (Plan is `Draft`, or the cycle is
+    `Blocked`), MUST NOT move the Issue.
   - No-Plan case (Step 2 found the Issue resolved / no longer applicable): move once the
     supporting evidence has been reported. No Plan exists, so the `Frozen` and
     Step 8 checks do not apply.

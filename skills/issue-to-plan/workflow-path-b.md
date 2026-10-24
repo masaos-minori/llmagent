@@ -17,11 +17,11 @@ the Validation quality analysis baseline (`workflow.md` Step 5) suffice.
 | `pip-audit` | operational dependency inspection | Vulnerability scan of installed packages |
 | `git-fame` | historical analysis | Per-author contribution breakdown |
 | `git churn` | historical analysis | Change frequency by file |
-| `git bisect` | historical analysis | Binary search for regression commit |
-| `lsof` | operational dependency inspection | Open files and socket connections |
+| `git bisect` | historical analysis | Binary search for a regression commit; only on the user's explicit instruction, in a dedicated worktree (it moves `HEAD` and rewrites the working tree) |
+| `ss` | operational dependency inspection | Listening sockets and the processes holding them (`lsof` is not installed on this dev host) |
 
-Tools used by both paths (`rg`, `fd`, `ast-grep`, `radon`, `vulture`, `semgrep`,
-`bandit`, `diff-cover`, `pytest-testmon`) are not repeated here — see `workflow.md`
+Tools used by both paths (`rg`, `fd`, `ast-grep`, `radon`, `vulture`,
+`bandit`, `diff-cover`) are not repeated here — see `workflow.md`
 Step 3 and Step 5's Validation quality analysis baseline.
 
 Lightweight alternatives are always available; heavy tools only if installed — see
@@ -60,21 +60,24 @@ Build a concrete list: "these N files will require changes." `pydeps` /
 ## Historical analysis
 
 ```bash
-git log --oneline --diff-filter=M -- scripts/ | awk '{print $NF}' | sort | uniq -c | sort -rn | head -20
+git log --name-only --pretty=format: --since=30.days -- scripts/ | sed '/^$/d' | sort | uniq -c | sort -rn | head -20
 ```
 
-High-churn files are riskier to touch. `git bisect` for regression localization if the
-Issue describes a known regression. `git-fame` for bus-factor if installed (>70% single
+This lists each file with its number of commits in the last 30 days (the `Churn (30d)`
+column). Do not use `--oneline` with `awk '{print $NF}'`: that counts the last word of
+each commit subject, not file names. High-churn files are riskier to touch. For a known
+regression the Issue describes, localize it with `git log -S`/`git log -L` (read-only);
+`git bisect` only per the Toolchain table's condition. `git-fame` for bus-factor if installed (>70% single
 author = flag as high bus factor).
 
 ## Operational dependency inspection
 
 ```bash
-lsof -p <PID> | grep -E 'REG|IPv4|IPv6'
-lsof -i :<PORT>
+ss -ltnpH 'sport = :<PORT>'    # who listens on a port
+ss -tnp                       # established connections with their processes
 ```
 
-Before planning a change to MCP servers or the DB: confirm no process holds locks.
+Before planning a change to MCP servers or the DB: confirm no process holds locks (database files: `fuser <file>` if available; otherwise state the check as not run).
 `pip-audit` before planning any dependency upgrade.
 
 ---
