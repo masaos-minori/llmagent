@@ -29,6 +29,17 @@ consistently in Steps 2-4 and in `report-template.md`'s Report Template section 
 executed check has no result other than one of the five above — MUST NOT infer `Pass`
 from a similar command's success, from the absence of an error, or from partial output.
 
+### Commands that were never executed
+
+A command Step 2 did not clear (`safety.md`) is never run, but it still gets one Result
+and appears in the report, so that nothing is silently dropped:
+
+| Step 2 classification | Result in the report | Reason to record |
+|---|---|---|
+| `Blocked` | `Blocked` | the specific missing environment, service, or credential |
+| `Not runnable` | `Not available` | the structural limitation |
+| `Prohibited` | `Not available` | the Prohibited condition that applies |
+
 ---
 
 ## Evidence Criteria for Root Cause and Flaky Classification (Step 4)
@@ -41,10 +52,18 @@ Step 3.
 
 - Re-run the failing test in isolation at least 3 times, or use the repository's own
   flaky-detection tooling if one is configured (e.g. `pytest-rerunfailures`) — the
-  repository-defined tool SHOULD be preferred over a manual loop when one exists.
+  repository-defined tool SHOULD be preferred over a manual loop when one exists. When
+  using such a tool, record each attempt's result, not only the final one.
+- When `pytest-randomly` is active (the pytest header shows `Using --randomly-seed=N`),
+  the test order changes every run. Also re-run the failing test with the same seed
+  recorded in Step 3 (`--randomly-seed=N`) and once with `-p no:randomly`.
 - All runs fail identically (same assertion/exception) → `Deterministic`.
 - Results vary across runs → `Flaky`; record the observed ratio (e.g. "failed 2/3
   runs") as evidence.
+- Fails only under the recorded seed, or only with randomization → `Flaky
+  (order-dependent)`; record the seed as evidence.
+- Only a test that failed in Step 3 is re-run here. A flaky test that passed in Step 3
+  is not detected by this audit; state that limit under `# 9` of the report.
 - If re-running is unsafe or not possible (the test is `Blocked`/`Not runnable` above)
   → `Flaky determination: Needs confirmation` — MUST NOT guess.
 

@@ -35,6 +35,24 @@ Additionally for this workflow, MUST NOT perform any of the following:
 
 ---
 
+## Toolchain
+
+Per `rules/ai-execution.md` Repository Tool Usage, prefer repository-defined commands
+over invented ones. The candidate sources Step 1 draws from — every command still goes
+through Step 2's safety evaluation before it runs:
+
+| Source | What it supplies |
+|---|---|
+| `rules/toolchain.md` | the standard validation sequence (format, lint, type, architecture, security, test) and the coverage command sequence |
+| `routing.md` Tools → "When to run which tool" | repository checkers (docs, DB separation, module size, tool-description sync, and others) |
+| `pyproject.toml`, CI workflows | pytest configuration, markers, plugins, and the commands CI runs |
+| `tools/run_validation_gates.py` | an on-demand runner for the routing checkers (fast mode) and, with `--full`, the standard sequence including the full test suite — if used, do not also run the same commands separately |
+| `uv run pytest` options such as `--testmon` | impact-based selection, for Step 4 re-runs only |
+
+If CI and the local commands differ, report that explicitly (see Important Rules).
+
+---
+
 ## Step 0: Load Required Instructions
 
 If not already loaded, read the following before starting:
@@ -92,12 +110,26 @@ This includes, if present and cleared by Step 2:
 - config/schema consistency checks
 
 MUST NOT run only one test command if the repository clearly has multiple validation
-layers. If tests need to be run in a specific order, infer and follow that order.
+layers. If tests need to be run in a specific order, follow the order the repository
+defines (`rules/toolchain.md`, CI workflows); MUST NOT invent one.
+
+Do not enable `--reruns` (`pytest-rerunfailures`) here: a failure that passes on rerun
+would be reported as a pass and hide the flakiness Step 4 must classify.
+
+If `rules/toolchain.md` defines a coverage command sequence, include it as a candidate
+in Step 1. Once Step 2 clears it, it may serve as the run of the test suite it wraps — one
+execution, not a plain run plus a coverage run. Record the overall and per-module
+coverage figures from its summary; Step 5 reads them from there.
+
+A full run can take several minutes and exceed a foreground command's time limit. Run it
+in the background with output redirected to a file, and read only the summary line and
+the `FAIL`/`ERROR` lines.
 
 For each executed command, record: exact command, purpose, and its Result
 Classification (`evidence.md`), per `rules/ai-execution.md` Repository Tool Usage
-rule 10. For a `Fail` or `Partial` result, also record the failing test names. MUST NOT
-classify flaky-vs-deterministic or root cause here; defer to Step 4.
+rule 10. For a pytest run, also record the `--randomly-seed` value when the header
+prints one. For a `Fail` or `Partial` result, also record the failing test names. MUST
+NOT classify flaky-vs-deterministic or root cause here; defer to Step 4.
 
 ---
 

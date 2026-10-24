@@ -18,12 +18,19 @@ Inspect the repository and identify:
 - lint / typecheck / import-lint / schema-check commands
 - unit / integration / e2e / smoke test structure
 
-Inspection commands:
-- `find . -name "test_*.py" -o -name "*_test.py"` — discover test files
-- `grep -r "def test_" --include="*.py"` — discover test functions
-- `cat pyproject.toml | grep -A5 "\[tool.pytest\]"` — check pytest configuration
-- `python -m pytest --collect-only` — dry-run test collection (Discovery-safe: does
-  not execute test bodies)
+Inspection commands. Scope every search to the test directories named by `testpaths` in
+`pyproject.toml`; MUST NOT search the whole repository, because that also matches
+third-party tests under `.venv/`:
+- `rg --files tests -g 'test_*.py' -g '*_test.py'` — discover test files
+- `rg -n 'def test_' tests` — discover test functions
+- `rg -n -A12 '^\[tool\.pytest' pyproject.toml` — check pytest configuration. The section
+  is `[tool.pytest.ini_options]`, so a search for the literal `[tool.pytest]` finds
+  nothing. Note `addopts`, `markers`, and the pytest plugins declared in the dev
+  dependencies.
+
+`pytest --collect-only` is NOT run in this step: collection imports `conftest.py` and
+every test module, which executes module-level code. List it as a candidate command
+instead, so Step 2 classifies it and Step 3 runs it.
 
 If multiple test entrypoints exist, identify all of them. Output: the full candidate
 command list `safety.md`'s Step 2 will evaluate — MUST NOT execute any of them here.
@@ -37,6 +44,10 @@ inconsistencies. MUST NOT execute any new command in this step (see `SKILL.md` P
 Boundaries).
 
 ### Missing or weak tests
+
+Coverage evidence: read coverage figures from Step 3's recorded coverage summary. If no
+coverage was collected, a claim of weak or missing coverage is `Needs confirmation:
+coverage not measured` — MUST NOT infer it from file names or test counts.
 
 Look for:
 - important modules with no tests

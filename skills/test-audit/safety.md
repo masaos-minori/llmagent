@@ -27,6 +27,24 @@ instance, a cloud-service emulator) only when all of the following hold:
 A command that only needs infrastructure meeting all four bullets is classified `Safe
 with isolated infrastructure`; record the exact setup/teardown commands alongside it.
 
+### Verify the test suite's own isolation before classifying `Safe`
+
+Running the suite is itself an Execution with real side effects. Before classifying any
+test command `Safe`, confirm from files, without executing anything, that the suite
+cannot touch production state:
+- Read `rules/env.md` for the production paths, databases, and service ports.
+- Find the repository's isolation mechanism for tests (for example a guard in
+  `conftest.py` that redirects or rejects production paths, or per-test temporary
+  directories) and confirm it covers each production path from `rules/env.md`. Cite the
+  file where it was found.
+- Check the `markers` in `pyproject.toml`. A marker for tests that start real
+  subprocesses or services (this repository's `integration` marker) makes those tests a
+  separate command, classified on its own — for example `-m "not integration"` and
+  `-m integration` are two candidates.
+
+If no isolation mechanism covering a production path is found, classify the affected
+test commands `Blocked` and record which path is unguarded; MUST NOT run them.
+
 ### No test-only configuration changes
 
 MUST NOT change configuration, environment variables, feature flags, or other runtime
@@ -65,8 +83,9 @@ for a command that is running normally.
 **Abort conditions — stop the current command** (not the whole Step 3 run) and record
 it as `Blocked`, instead of letting it run to exhaustion, when any of the following
 happens mid-execution:
-- the command exceeds a clear timeout with no progress output (a hang, not a slow but
-  progressing suite),
+- the command produces no new output for 10 minutes (a hang, not a slow but progressing
+  suite; 10 minutes is the default — use a shorter or longer limit only if the user's
+  scope hint or the repository's configured timeout says so),
 - the command begins behaving in a way Safety Evaluation did not clear (e.g.
   attempting network access to a non-local host, prompting for credentials, writing
   outside the isolated test environment),

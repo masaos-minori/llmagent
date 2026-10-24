@@ -49,9 +49,9 @@ Every step above is exactly one of three phase types. MUST NOT blur them — a s
 phase type bounds what it may do.
 
 - **Discovery** — read-only inspection: reading files, `grep`/`find`, listing test
-  entry points, dry-run/collect-only commands that do not execute test bodies (e.g.
-  `pytest --collect-only`). No command with real side effects, even isolated or
-  ephemeral ones. Applies to Step 1.
+  entry points. No command with real side effects, even isolated or ephemeral ones —
+  this includes `pytest --collect-only`, which imports `conftest.py` and every test
+  module and is therefore an Execution command. Applies to Step 1.
 - **Execution** — running a command that actually exercises test/validation logic,
   with real side effects even if isolated/ephemeral. Only Steps 3 and 4 may execute
   such a command, and only one Step 2 has already classified `Safe` (or `Safe with
@@ -72,16 +72,23 @@ modify production code in any step unless the user explicitly requested it.
 ## Priority and Effort — separate vocabularies, never interchanged
 
 Two independent axes describe every Task (Step 7). MUST NOT use one vocabulary for the
-other or introduce a third.
+other or introduce a third. (A Finding's Severity is a property of the Finding, not a
+Task axis.)
 
 - **Priority** — how urgently the task should be done: `P1 (Critical)` / `P2
   (Important)` / `P3 (Nice to have)`. Criteria:
-  - `P1`: existing test failures confirmed in Step 4, or production code paths with
-    no test coverage at all (Step 5).
-  - `P2`: missing coverage for complex branches, config/reload behavior,
-    persistence, or CLI commands (Step 5).
-  - `P3`: weak assertions, test/doc inconsistencies, optional coverage improvements
-    (Step 5).
+  - `P1`: an existing test failure confirmed in Step 4, or a Finding of severity
+    `Critical` or `High`.
+  - `P2`: a Finding of severity `Medium` (e.g. missing coverage for complex branches,
+    config/reload behavior, persistence, or CLI commands; fragile tests).
+  - `P3`: a Finding of severity `Low` or `Informational` (e.g. weak assertions,
+    test/doc inconsistencies, optional coverage improvements).
+
+  Severity belongs to the Finding (Step 6, `skills/DESIGN.md` Severity levels, which this
+  skill MUST NOT replace); Priority belongs to the Task. A Task's Priority is the highest
+  tier among the Findings it addresses. A code path without tests is `Critical`/`High`
+  only when a failure there would meet that tier's definition in `skills/DESIGN.md`;
+  absence of tests alone is not enough.
 - **Effort** — how much work the task takes: `Low` (<4h) / `Medium` (4-16h) / `High`
   (>16h).
 
@@ -108,7 +115,10 @@ Task List MUST show both fields separately; neither MAY stand in for the other.
 ## Output format
 
 The output is a Markdown report. See `report-template.md` for the exact structure and
-the Optional Extra Output (GitHub Issue Drafts).
+the Optional Extra Output (GitHub Issue Drafts). Write the report in English, per
+`skills/DESIGN.md` Output language (a Japanese-language conversation does not change
+this); keep identifiers, commands, and evidence labels untranslated. The chat summary
+that accompanies it follows the chat language.
 
 ---
 

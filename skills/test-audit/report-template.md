@@ -16,7 +16,8 @@ prose inside the generated report itself.
 - (3-10 bullets)
 
 # 2. Executed Tests / Validation Commands
-- command / purpose / result / notes  (one entry per Step 3 command)
+- command / purpose / result / notes  (one entry per Step 1 command; a command Step 2
+  did not clear carries its mapped Result and reason, per `evidence.md`)
 
 # 3. Existing Test Failures
 - Finding ID / test name / file / failure type / likely cause / severity /
@@ -24,7 +25,7 @@ prose inside the generated report itself.
 
 # 4. Missing or Inconsistent Test Cases
 - Finding ID / category / affected component / why insufficient / uncovered risk /
-  evidence / confirmed-or-needs-confirmation
+  evidence / coverage figure (or `not measured`) / confirmed-or-needs-confirmation
 
 # 5. Implementation Task List
 ## P1 (Critical)
@@ -62,9 +63,11 @@ MUST NOT re-derive or re-analyze.
 
 - **# 1**: summarize overall test-suite health; mention the strongest and weakest
   areas.
-- **# 2**: one entry per Step 3 command. For `Pass`, a concise one-line summary; for
-  `Fail`/`Partial`/`Blocked`/`Not runnable`, retain the full relevant detail carried
-  from Step 3/4 (see `evidence.md` Result Classification).
+- **# 2**: one entry per Step 1 command — executed ones with their Step 3 Result, and
+  commands Step 2 did not clear with the Result mapped in `evidence.md` ("Commands that
+  were never executed"). For `Pass`, a concise one-line summary; for
+  `Fail`/`Partial`/`Blocked`/`Not available`, retain the full relevant detail carried
+  from Step 2/3/4 (see `evidence.md` Result Classification).
 - **# 3**: one entry per Step 6 Finding whose category is an execution-failure type
   (sourced from Step 4).
 - **# 4**: one entry per Step 6 Finding whose category is a gap/inconsistency type
@@ -78,7 +81,9 @@ MUST NOT re-derive or re-analyze.
   Task, or a Task with no Test Case where one is expected, MUST still appear with the
   gap visible (e.g. `Task ID(s): —`) — MUST NOT omit it.
 - **# 8**: order Task IDs and explain why (dependency chain, risk, effort).
-- **# 9**: list every unresolved `Needs confirmation` item carried from Steps 4/5.
+- **# 9**: list every unresolved `Needs confirmation` item carried from Steps 4/5, and
+  always state the audit's limits: flaky detection covers only tests that failed in
+  Step 3 (`evidence.md`), and any command classified `Blocked`/`Not available`.
 
 Determine the report destination from existing repository rules: if the repository
 defines a report directory, save the Markdown report there; if no destination is
@@ -98,12 +103,8 @@ the main report:
 - `P1` items only by default
 ```
 
-Each issue MUST contain:
-- Title
-- Summary
-- Background
-- Problem
-- Required Changes
-- Acceptance Criteria
-- Out of Scope
-- AI Implementation Instruction
+Draft each issue by applying `skills/issue-creator/SKILL.md`, with `templates/issue.md`
+as the structure — MUST NOT keep a separate field list here, so a draft can enter
+`issue-to-plan` unchanged. Assign each issue's Priority by `skills/issue-creator/workflow.md`
+Phase 7, not by copying P1/P2/P3. Cite the Task ID and its Finding IDs in `Background`
+and `Traceability`.
