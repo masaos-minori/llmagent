@@ -28,7 +28,7 @@ only `status` and `tools`); the files are created by hand.
 
 ## Existing MCP servers (reference)
 
-Port/role table (canonical): `docs/22_mcp/mcp_01_system_overview.md` Server Catalog.
+Server roles: `docs/22_mcp/mcp_01_system_overview.md` Server Catalog (role only; ports are set in `config/agent.toml`); the canonical per-server catalog is `docs/22_mcp/mcp_04_01_web-search-file-read-github.md`.
 Module paths: `scripts/mcp_servers/<name>/<name>_server.py` (plus `<name>_service.py`,
 `<name>_models.py`, `<name>_tools.py`), e.g. `scripts/mcp_servers/web_search/web_search_server.py`.
 Servers differ in the extra modules they carry; follow the closest existing server.
@@ -45,7 +45,7 @@ MUST NOT state the assigned port number in `docs/*.md` once deployed — see
   → use the next integer above that result. MUST NOT derive it from `init.d/`: its
   `--port` values belong to the LLM services, not to the MCP servers (every MCP server is
   `startup_mode = "subprocess"` and is started by the agent).
-- To start or restart the agent for verification, see Step 7.
+- To start or restart the agent for verification, see Step 8 (the token in Step 7 comes first).
 
 ## Phase overview
 
@@ -54,7 +54,7 @@ MUST NOT state the assigned port number in `docs/*.md` once deployed — see
 | 1 Create | Step 1 | Server files and the server's config file exist and are valid | Step 1's checklist fully passes |
 | 2 Register | Steps 2–4 | config copy, binary build/list/staleness entries, `config/agent.toml`, and tool registration updated | `rg` confirms the new `cp` line, the `ENTRIES`, `BINARY_NAMES`, and `BINARY_SOURCES` entries, the `[mcp_servers.<name>]` section (with `auth_token` and `cmd`), `tool_definitions`, `tool_safety_tiers`, and `shared/tool_constants.py` entries all exist |
 | 3 Verify | Step 5 | Tests and validation pass before anything is deployed | the Step 5 commands all pass |
-| 4 Run | Steps 6–9 | Binary built and deployed (the `deploy` skill's approval gate), started, authenticated, and reachable | `/mcp status` shows the new server `OK` and one of its tools was called successfully |
+| 4 Run | Steps 6–9 | Binary built and deployed (the `deploy` skill's approval gate), token confirmed set by the user (Step 7), started (Step 8), and reachable | `/mcp status` shows the new server `OK` and one of its tools was called successfully |
 | (final) | Step 10 | Completion checklist (below) confirmed | Every Completion checklist item is true, or execution stopped in a `Blocked` state |
 
 See `workflow.md` for detailed step content and idempotency notes.
@@ -79,7 +79,7 @@ execution stopped in a `Blocked` state per a `workflow.md` step's own bound, or 
 
 ## Composes with
 
-- `deploy` — Step 6 delegates to the deploy skill's Phases 1, 1b, and 2, and Step 7 to its Phase 3; these are distinct from this skill's phases
+- `deploy` — Step 6 delegates to the deploy skill's Phases 1, 1b, and 2, and Step 8 to its Phase 3; these are distinct from this skill's phases
 
 ## Called by
 

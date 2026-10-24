@@ -66,7 +66,7 @@ See `workflow.md` for phase details and failure recovery.
 
 ## Composes with
 
-- `mcp-server-add` — its Step 6 runs this skill's Phases 1, 1b, and 2 (including the Approval gate), and its Step 7 runs Phase 3; the approval gate lives here and is not duplicated there
+- `mcp-server-add` — its Step 6 runs this skill's Phases 1, 1b, and 2 (including the Approval gate), and its Step 8 runs Phase 3; the approval gate lives here and is not duplicated there
 - `python-implementation` — run after Phase 11 (Production Readiness) if scripts changed
 - `python-refactoring` — run after Step 9 (CI gate) if scripts/ files changed or removed
 

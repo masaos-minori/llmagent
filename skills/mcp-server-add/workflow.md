@@ -15,7 +15,7 @@ See `SKILL.md` Prerequisites.
 | `Bash` (`uv run python tools/generate_reference_table.py`) | Step 5 | refresh and check the generated MCP reference table |
 | `Bash` (`bash deploy/deploy.sh`) | Step 6 | deploy (delegates to `deploy` skill, after user approval) |
 | `Bash` (`curl`) | Step 9a | health endpoint check |
-| `Bash` (`rg`) | Steps 2-4, Step 8 | confirm config sections and entries exist |
+| `Bash` (`rg`) | Steps 2-4, Step 7 | confirm config sections and entries exist |
 | `Bash` (`tail`) | Step 9d | log inspection |
 
 Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: MUST NOT
@@ -29,7 +29,13 @@ overwrite an existing server directory or config file.
 
 ```bash
 ls scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml 2>/dev/null
+rg -n '^\[mcp_servers\.<name>\]' config/agent.toml
+rg -n '"<tool name>"' config/agent.toml scripts/shared/tool_constants.py     # once per planned tool
 ```
+
+A match on any of them means the server or a tool name is already registered: stop and report
+it. A duplicate tool name is rejected at registration (`ValueError`), which would otherwise
+surface only at runtime.
 
 ---
 
@@ -54,6 +60,7 @@ fix-and-recheck attempts per row; if a row still fails after 3 attempts, stop an
 |---|---|
 | `<name>_server.py` subclasses `MCPServer` (`scripts/mcp_servers/server.py`) and overrides `dispatch()` | Add the missing base class and override |
 | The `MCPServer` subclass declares `own_config_file = "<name>_mcp_server.toml"` | Add the declaration (`run_http()` then restricts `ConfigLoader` to it) |
+| It also declares `server_name`, `server_version`, `http_port`, `app_module`, and `mcp_tools` as the closest existing server does (`scripts/mcp_servers/web_search/web_search_server.py`) | Add the missing attributes; `http_port` MUST equal the assigned port (`SKILL.md` Prerequisites), because it is the port the server binds |
 | `GET /v1/tools` returns `server_key` plus every tool with the schema-2.0 fields (`mcp_03_05`) | Add the missing fields; a tool absent or invalid there is not routable |
 | `/health` is built with `make_health_response` (`scripts/mcp_servers/health_response.py`) | Use the shared builder |
 | Uses models defined in `scripts/mcp_servers/<name>/<name>_models.py` (Pydantic `BaseModel` subclasses) | Move inline request/response types into `<name>_models.py` |
@@ -132,7 +139,9 @@ Then, for every new tool:
 
 **Completed when**: `config/agent.toml` has the `[mcp_servers.<name>]` section including
 `auth_token` and `cmd`, a `[[tool_definitions]]` entry and a `tool_safety_tiers` entry for
-each new tool.
+each new tool, and the port in `url` equals the server class's `http_port`
+(`rg -n "http_port" scripts/mcp_servers/<name>/<name>_server.py`). A mismatch makes the agent
+connect to a port nothing listens on, which would otherwise surface only in Step 9.
 
 ---
 
@@ -147,7 +156,11 @@ routing registration. Also:
 - update `routing.md` if the new server needs documentation the Documentation guide does
   not yet route to (per the checklist in `mcp_06_12`)
 - update any `docs/22_mcp/` document the checklist requires, without stating the assigned
-  port (`skills/DESIGN.md` Docs content policy — remove)
+  port (`skills/DESIGN.md` Docs content policy — remove). Check whether the Server Catalog
+  table in `mcp_01_system_overview.md` (server and role only; ports live in
+  `config/agent.toml`) and the per-server catalog `mcp_04_01_web-search-file-read-github.md`
+  need an entry; the checklist decides. Make the edit through `python-documentation`
+  (scoped mode, its docs checkers, and its Needs Confirmation inventory rule)
 
 **Completed when**: every new tool name appears in `shared/tool_constants.py` (confirmed
 with `rg`), and the docs the checklist requires are updated or recorded as not required.
@@ -159,6 +172,9 @@ with `rg`), and the docs the checklist requires are updated or recorded as not r
 - Add tests for the new server under `tests/mcp_servers/<name>/`, following an existing
   server's tests and `tests/mcp_servers/conftest.py` (tests MUST NOT touch production
   state; the suite's isolation guard is in `tests/conftest.py`).
+- A test that binds a socket uses a dynamic port (0) and never the assigned port: that port
+  belongs to the production service on this host (see `skills/test-audit/safety.md`
+  "Collision with running services").
 - Run `uv run pytest tests/mcp_servers/<name>/ -q` and confirm at least one test was
   collected.
 - Run the validation sequence in `rules/toolchain.md` on the new files (pass `scripts/` and
@@ -188,7 +204,32 @@ check.
 
 ---
 
-## Step 7: Start the service (first time)
+## Step 7: Authentication token and API keys (before the first start)
+
+Every HTTP MCP server needs a non-empty token (`mcp_06_14`), and the server refuses to start
+without it, so this step comes before Step 8 starts anything. Provisioning a production secret
+changes shared infrastructure: do not write, generate, or print the token value yourself. Tell
+the user the variable name (`MCP_<NAME>_AUTH_TOKEN`) and where `mcp_06_14` says it is
+provisioned, and continue only after they confirm it is set. Set `MCP_<NAME>_AUTH_TOKEN` in
+the agent's environment: the agent's `[mcp_servers.<name>].auth_token` and the server's own
+`auth_token` resolve this same variable. A server refuses to start when it is empty or
+unset, so deploy the binaries and the configuration together. Follow the deployment
+document's section on MCP authentication tokens for how the token is provisioned in
+production. MUST NOT hardcode a token or key in any config file or in this repository.
+
+If the new server also calls an external API that needs a key, provide it the same way: an
+environment variable referenced from the server's own config file with `${ENV:<NAME>_API_KEY}`,
+read through `ConfigLoader().load(...)`.
+
+**Completed when**: the user confirmed the variable is set, and `rg` shows no hardcoded
+token or key and no `os.environ[...]` or `json.load()` access to it in the new server's
+files. Per `rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result is
+evidence only after confirming `rg` searched the new server's files (the path exists and
+`rg` exited 0 or 1 for "no match", not 2 for an error).
+
+---
+
+## Step 8: Start the service (first time)
 
 `startup_mode = "subprocess"` MCP servers are spawned by the agent itself — no separate start
 command exists. Starting the agent (`bash deploy/start_agent.sh`) starts every configured
@@ -200,29 +241,8 @@ entry needs a full restart (`skills/deploy/workflow.md` Phase 3 Step 3a). This i
 For subsequent deploys after code changes to an already-running server, use the restart
 command in `skills/deploy/workflow.md` Phase 3 Step 3b.
 
-**Completed when**: the process for the new server's port is running (first time), or has
+**Completed when**: Step 7 is done, and the process for the new server's port is running (first time), or has
 been killed and the next `/mcp status` check (Step 9) shows it respawned (subsequent deploys).
-
----
-
-## Step 8: Authentication token and API keys
-
-Every HTTP MCP server needs a non-empty token (`mcp_06_14`). Set `MCP_<NAME>_AUTH_TOKEN` in
-the agent's environment: the agent's `[mcp_servers.<name>].auth_token` and the server's own
-`auth_token` resolve this same variable. A server refuses to start when it is empty or
-unset, so deploy the binaries and the configuration together. Follow the deployment
-document's section on MCP authentication tokens for how the token is provisioned in
-production. MUST NOT hardcode a token or key in any config file or in this repository.
-
-If the new server also calls an external API that needs a key, provide it the same way: an
-environment variable referenced from the server's own config file with `${ENV:<NAME>_API_KEY}`,
-read through `ConfigLoader().load(...)`.
-
-**Completed when**: the server starts with the token set, and `rg` shows no hardcoded
-token or key and no `os.environ[...]` or `json.load()` access to it in the new server's
-files. Per `rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result is
-evidence only after confirming `rg` searched the new server's files (the path exists and
-`rg` exited 0 or 1 for "no match", not 2 for an error).
 
 ---
 
@@ -234,10 +254,18 @@ after the fix, re-run only the failed Step 9a-9d.
 
 ### Step 9a: Health endpoint
 
+The server requires the Bearer token on every request, and the authentication middleware has no
+`/health` exemption in the code that was read, so a request without the header is answered
+`401` (that already shows the server is up and authenticating). To check the body, send the
+header without printing the token (the variable must be set in the shell you run this in; this
+was not verified on a running server):
+
 ```bash
-curl -s http://localhost:<PORT>/health
+curl -s -H "Authorization: Bearer $MCP_<NAME>_AUTH_TOKEN" http://localhost:<PORT>/health
 ```
-On failure: go to Step 7's restart command, then re-check 9a only.
+
+If the variable is not available in your shell, rely on 9b.
+On failure: go to Step 8's restart command, then re-check 9a only.
 
 ### Step 9b: Agent-side discovery
 
@@ -259,7 +287,8 @@ it points to, then re-check 9c only.
 ### Step 9d: Logs
 
 ```bash
-tail -20 /opt/llm/logs/agent.log
+rg -n "<name>" /opt/llm/logs/agent.log | tail -20     # lines naming the server
+tail -20 /opt/llm/logs/agent.log                        # the most recent lines
 ```
 On any new error mentioning `<name>`: diagnose from the error message before proceeding to
 Step 10.
@@ -271,6 +300,16 @@ and report `Blocked: <name> failed end-to-end verification after 3 rounds —
 
 **Completed when, and only when**: 9a, 9b, 9c, and 9d all pass with no unresolved error, or
 the cycle above ended in a `Blocked` report.
+
+---
+
+## If the cycle ends `Blocked`
+
+Report which repository files changed and what was already deployed or started. Do not remove
+deployed binaries, edit `/opt/llm`, or stop services yourself (shared infrastructure): the
+user decides. Revert repository changes only by explicit path. How the agent behaves with a
+configured server whose binary is missing was not verified, so state that as unknown rather
+than assuming it is harmless.
 
 ---
 
