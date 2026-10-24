@@ -68,7 +68,7 @@ _ROUTING_HEADING = "### When to run which tool"
 # the drift check ignores that row.
 _SELF_CHECKER_ID = Path(__file__).stem
 # Tokens that mark a command as needing a concrete runtime argument.
-_PLACEHOLDER_TOKEN_RE = re.compile(r"[\<\[\]\.\.]+")
+_PLACEHOLDER_TOKEN_RE = re.compile(r"[<\[\]]|\.\.\.")
 # A git ref we will hand to `git diff`: alphanumerics plus . _ / -. Anything else is
 # rejected before it reaches the subprocess so it cannot be read as a git option.
 _REF_RE = re.compile(r"^[A-Za-z0-9._/-]+$")

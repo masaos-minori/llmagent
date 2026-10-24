@@ -224,3 +224,21 @@ def test_run_gate_requires_context_is_not_available() -> None:
     assert gate.requires_context is True
     # The injected runner would report Pass; the placeholder short-circuit wins instead.
     assert run_gate(gate, runner=_runner_for(0)).status == "Not available"
+
+
+def test_requires_context_ignores_plain_dots_but_flags_ellipsis() -> None:
+    """A ``.py`` path or ``--flag=1.5`` is concrete; only ``<``, ``[``, ``]`` and ``...`` mark a placeholder."""
+    concrete = Gate(
+        name="concrete",
+        command=(("uv", "run", "python", "tools/check_skills_references.py"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+    )
+    ellipsis = Gate(
+        name="ellipsis",
+        command=(("uv", "run", "python", "tools/x.py", "[glob ...]"),),
+        source=SOURCE_ROUTING,
+        mode=MODE_FAST,
+    )
+    assert concrete.requires_context is False
+    assert ellipsis.requires_context is True
