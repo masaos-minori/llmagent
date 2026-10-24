@@ -25,13 +25,16 @@ MUST NOT use this skill for:
 - new code or architecture design,
 - marketing or end-user content,
 - documentation not verified from implementation,
-- rewriting docs without reading the existing document first.
+- rewriting docs without reading the existing document first,
+- revising the procedure itself of a `skills/*.md`, `rules/*.md`, or `prompts/*.md` file (correcting a step, adding a missing branch): that is a workflow edit, not documentation of code behavior — see `routing.md` "Documentation row exception". The skill still applies to a `skills/*.md` edit that documents actual code behavior and to any `docs/*.md` edit.
 
 ---
 
 ## Documentation Language
 
-See `skills/DESIGN.md` Output language.
+See `skills/DESIGN.md` Output language. The documents written or edited are English. The Phase 10
+Final Report is chat output: write it in the conversation language (`AGENTS.md` Role), keeping
+file names, symbols, commands, and evidence labels untranslated.
 
 ---
 
@@ -50,7 +53,7 @@ See `skills/DESIGN.md` Output language.
 | 9 | Consistency Review | Remove contradictions across docs and code |
 | 10 | Final Report | Return results in a strict final format |
 
-See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, boundaries, and gates. Phase 1 chooses a scoped or full mode (`workflow.md` Mode): a scoped update of named sections skips Phases 3, 6, and 7. Phase 9 runs the docs checkers from `routing.md`, and Phase 8c registers Known Issues and Needs Confirmation items in the governance inventory.
+See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, boundaries, and gates. Phase 1 chooses a scoped or full mode (`workflow.md` Mode): a scoped update of named sections skips Phases 3, 6, and 7. Phase 9 runs the docs checkers from `routing.md`, and Phase 8c registers Known Issues and Needs confirmation items in the governance inventory.
 
 ---
 
@@ -63,7 +66,7 @@ See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, bound
 - **No line numbers, no config values, no counts**: see `skills/DESIGN.md` No source-code line numbers, No concrete configuration values, No implementation counts.
 - **Docs content policy**: remove implementation-detail content and retain design-intent content per `skills/DESIGN.md` Docs content policy — remove, Docs content policy — retain.
 - **Minimal diff**: fix errors, fill gaps, reduce duplication — see `AGENTS.md`, section "Global Rule 5" (no unrelated rewrite).
-- **Respect boundaries**: MUST NOT expand scope, expose secrets (see `skills/DESIGN.md` No secrets in output), paste long code blocks, infer behavior from `requirements.txt` alone, trust README claims unverified (verify against the actual code or config the README describes instead), or document private members as public API.
+- **Respect boundaries**: MUST NOT expand scope, expose secrets (see `skills/DESIGN.md` No secrets in output), paste long code blocks, infer behavior from `requirements.txt` alone, trust claims in any overview document (a README, if one exists, or `docs/00_index.md`) unverified (verify against the actual code or config the document describes instead), or document private members as public API.
 
 See `workflow.md` for the full rule set and evidence-tracking fields.
 
@@ -71,7 +74,7 @@ See `workflow.md` for the full rule set and evidence-tracking fields.
 
 ## Dependency Management
 
-Applies in full mode, and in scoped mode only when the section being edited describes dependencies (`workflow.md` Mode). This skill MUST stay package-manager-neutral. For any Python dependency-management system
+Applies only when the document being written or edited describes dependencies, installation, runtime, or delivery (in either mode; `workflow.md` Mode). A design-intent document that does not (for example one on component responsibilities) skips this section and the dependency items of Phases 2, 3, 6, 7, and 9. This skill MUST stay package-manager-neutral. For any Python dependency-management system
 encountered, the skill MUST:
 
 - identify the authoritative source of direct dependency declarations (e.g. `pyproject.toml`)
@@ -100,12 +103,16 @@ See `workflow.md` Evidence and Source of Truth, and Boundaries.
 ## Composes with
 
 - `python-implementation` — document new modules or changed interfaces after implementation
+- `git-commit-and-sync` — the written files stay uncommitted; use it to commit and push them on request
 
 ## Called by
 
 - `python-implementation` — when its Phase 12 (Knowledge Compression) requires documentation updates
 - `code-implementation` — Step 5, only when a changed file has a matching
   `docs/00_index.md` task-scope row
+- `python-code-review` — when its Documentation Notes require an update to existing docs
+- `python-design` — when a design task reviews or updates existing documentation
+- `prompts/08_document-sync.md` — the design-docs refactor workflow (multi-document, see `workflow.md` Multi-file processing)
 
 ---
 

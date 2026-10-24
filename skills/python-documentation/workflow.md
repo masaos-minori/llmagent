@@ -15,6 +15,15 @@ In short: English only (`skills/DESIGN.md` Output language), YAML Front Matter a
 section, and the heading, table, and code-fence rules the docs checkers enforce. A rename or
 move uses `tools/rename_doc.py` (dry-run first), not manual edits.
 
+## Dependency topics are conditional
+
+The dependency-management items in Phases 2, 3, 6, 7, and 9, the dependency categories under
+Evidence and Source of Truth, and the dependency bullets in Boundaries apply only when the
+document being written or edited describes dependencies, installation, runtime, or delivery
+(`SKILL.md` Dependency Management). For a design-intent document (component responsibilities,
+state ownership, dependency direction between components), skip them; their Gate items are
+`N/A: no dependency content`. This applies in both modes below.
+
 ## Mode: scoped or full
 
 Decide in Phase 1 and record it in the Final Report.
@@ -52,7 +61,7 @@ Decide in Phase 1 and record it in the Final Report.
 - Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run the
   same `grep`/`find` query against unchanged files expecting a different result.
 - Per `rules/ai-execution.md` Repository Tool Usage #8, a `grep`/`find` with no matches is
-  not proof of absence — record `Needs Confirmation` (see Boundaries' static-import-search
+  not proof of absence — record `Needs confirmation` (see Boundaries' static-import-search
   rule below).
 
 ---
@@ -64,7 +73,7 @@ such as `prompts/08_document-sync.md` Step 1), apply `rules/ai-execution.md` Seq
 Target Processing (Base): process one document's Phases 1-10 completely (through Phase
 10's Final Report) before starting Phase 1 for the next — MUST NOT batch-inventory
 (Phase 2) or batch-write (Phase 8) several documents before finishing any one of them.
-This keeps Known Issues/Needs Confirmation entries consistent across documents, since
+This keeps Known Issues/Needs confirmation entries consistent across documents, since
 each Phase 9 Consistency Review sees the prior document's completed edits.
 
 ## Core Principles
@@ -112,8 +121,8 @@ Build a repository map before writing anything.
 
 ### Do
 - list major directories and Python packages
-- inspect `pyproject.toml`, applicable lockfiles (e.g. `uv.lock`), legacy packaging files
-  (`setup.py`, `setup.cfg`), and `requirements*` files only when present
+- (dependency content only) inspect `pyproject.toml`, applicable lockfiles (e.g. `uv.lock`),
+  legacy packaging files (`setup.py`, `setup.cfg`), and `requirements*` files only when present
 - inspect CI/CD, Dockerfiles, build scripts, and contributor instructions for the
   dependency-management commands they actually use
 - identify test directories, CI/CD files, Docker files, migration files
@@ -140,7 +149,8 @@ Read in this order, unless the existing documentation's table of contents groups
 differently — then follow the existing document's order:
 
 1. existing target documentation
-2. `README` or project overview
+2. the documentation entry points: `docs/00_index.md` and the area's `<area>_00_document-guide.md`
+   (there is no repository-root `README.md`; read one only if the task names it)
 3. `pyproject.toml` / `setup.*`
 4. entrypoints
 5. route or command registration
@@ -260,7 +270,9 @@ Document how the code is verified and delivered.
 - verify consistency checks between dependency declarations and lockfiles
 - verify clean-environment dependency synchronization
 - verify CI/CD dependency installation commands
-- verify vulnerability and license scanning support for the repository's actual dependency format
+- vulnerability or license scanning: document it only if the repository actually configures one
+  (the `bandit` scan is code scanning, not dependency scanning); do not record the absence of a
+  scanner as a Known Issue unless the task asks for a dependency-security review
 - if any of the above cannot be confirmed, record the gap as an open question or `Known Issue`;
   MUST NOT invent a workflow
 
@@ -268,8 +280,8 @@ Document how the code is verified and delivered.
 - [ ] test strategy is documented
 - [ ] CI/CD is documented
 - [ ] quality tools are documented
-- [ ] dependency consistency checks, clean-environment sync, and dependency-related scanning are
-      documented or recorded as open questions
+- [ ] dependency consistency checks and clean-environment sync are documented or recorded as
+      open questions; scanning is documented only if configured
 
 ---
 
@@ -318,7 +330,7 @@ Normally remove, compress, or replace with source references:
 
 Keep: design intent, responsibility boundaries, architectural constraints, non-negotiable
 invariants, failure behavior (fail-fast/fail-open), security and operational constraints,
-data consistency rules, Known Issues, Needs Confirmation items, deprecated behavior relevant
+data consistency rules, Known Issues, Needs confirmation items, deprecated behavior relevant
 to migration/compatibility, behavior verified by tests, operationally observed behavior,
 component responsibility, state ownership, allowed dependency direction, and reasons for
 process/configuration separation (see `skills/DESIGN.md` Docs content policy — retain),
@@ -337,20 +349,37 @@ outside of a "Keep" category or a source reference.
 ### Step 8c: Separate uncertainty
 
 - keep important invariants explicit; separate current behavior from design intent where useful
-- move unresolved uncertainty to Needs Confirmation, unresolved conflicts to Known Issues
+- move unresolved uncertainty to Needs confirmation, unresolved conflicts to Known Issues
 - register each item in the active inventories of
   `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Known Issues in
-  Part 1, Needs Confirmation in Part 2; the entry fields are defined there). When an item
+  Part 1, Needs confirmation in Part 2; the entry fields are defined there). When an item
   is resolved, remove both the inline marker and its inventory entry.
   `tools/check_needs_confirmation_inventory.py` enforces Part 2 (Phase 9)
 
 **Completed when**: every item identified during Phases 1–7 as uncertain or conflicting
-has been placed in Needs Confirmation or Known Issues and registered in the inventory —
+has been placed in Needs confirmation or Known Issues and registered in the inventory —
 none remain stated as plain fact.
 
+### Step 8d: Register a new document
+
+Applies when the task creates a new `docs/*.md` file (an edit of an existing document needs only
+its Front Matter kept valid). Take the requirements from the governance documents for the area
+(`governance_00` to `governance_02`) and the checkers' output, not from memory:
+
+- **Front Matter**: `title`, `area`, `tags`, `related` (basenames, no self-reference, no
+  duplicates) and a `## Keywords` body section (`governance_02`); `schemas/doc_front_matter.json`
+  is the schema the checkers use.
+- **Navigation**: add the document where readers find it: the area's `<area>_00_document-guide.md`
+  and, for a task-scope row, `docs/00_index.md` "Document References by Task". An ADR is also
+  registered in `docs/10_adr/adr_01_index.md`. The exact set of required registrations is
+  whatever the governance documents and `tools/check_docs_structure.py` demand: if they do not
+  say, record the question as an Open Question instead of guessing.
+- **Links**: each internal `.md` link must resolve; a rename or move uses `tools/rename_doc.py`.
+
 ### Gate
-- [ ] required docs are covered
-- [ ] README points to detailed docs
+- [ ] every document in Phase 1's deliverables list is written or updated (coverage is judged
+      against that list)
+- [ ] a new document is registered per Step 8d, or the registration question is recorded
 - [ ] unknowns are recorded explicitly
 
 ---
@@ -376,7 +405,7 @@ When dependency files and operational commands conflict:
 - document the currently verified behavior
 - preserve documented design intent separately
 - record unresolved conflicts as `Known Issues`
-- use `Needs Confirmation` when authority or intended behavior cannot be verified
+- use `Needs confirmation` when authority or intended behavior cannot be verified
 
 ### Run the docs checkers
 
@@ -388,13 +417,21 @@ review does not substitute for them.
 A failure returns to Phase 8 for that item (Gate failure handling applies); do not edit the
 checker or its baseline to pass. Record each command and its result for Phase 10.
 
+A pass counts only if the checker actually examined the target
+(`rules/ai-execution.md` Repository Tool Usage #8): a pattern that matches no file passes
+silently (for example `check_docs_structure.py "23_agent/x_*.md"` without the `docs/` prefix; the
+issue `docs010` tracks this). Pass paths or globs exactly as the checker documents them
+(repo-root-relative, e.g. `docs/23_agent/<file>.md`), and confirm from its output or by a quick
+check (`ls <pattern>` matches at least one file) that the changed file was in scope. A pass with
+no confirmed target is recorded as `Needs confirmation`, not as passed.
+
 ### Gate
 - [ ] major inconsistencies are removed
-- [ ] the applicable docs checkers ran and pass, or each failure is recorded as an Open
-      Question with its output
+- [ ] the applicable docs checkers ran, each confirmed to have examined the changed file, and
+      pass, or each failure is recorded as an Open Question with its output
 - [ ] docs are traceable back to code
 - [ ] dependency declarations, lockfiles, and documented commands are consistent, or conflicts
-      are recorded as `Known Issues` / `Needs Confirmation`
+      are recorded as `Known Issues` / `Needs confirmation`
 
 ---
 
@@ -408,6 +445,10 @@ handling's Attempt Limit), and every section of the Final Report Format is popul
 from what Phases 1-9 already recorded — MUST NOT re-derive or re-run a check merely to produce this report.
 
 ### Final Report Format
+
+Write the report in the conversation language (`SKILL.md` Documentation Language); the documents
+themselves are English.
+
 #### Updated / Created Files
 - files created
 - files updated
@@ -428,7 +469,7 @@ from what Phases 1-9 already recorded — MUST NOT re-derive or re-run a check m
 - each docs checker command and its result (Phase 9), or `N/A` with the reason
 
 #### Inventory Changes
-- Known Issues and Needs Confirmation entries added or removed in
+- Known Issues and Needs confirmation entries added or removed in
   `governance_03_issue-and-uncertainty-management.md`, or `None`
 
 #### Mode and Next Steps
@@ -439,11 +480,14 @@ from what Phases 1-9 already recorded — MUST NOT re-derive or re-run a check m
 
 Confirm the key Phase gates listed below against the Phase gates stated above; MUST NOT re-derive:
 
-- [ ] Phase 3 gate met: setup-to-start path is traceable
-- [ ] Phase 4 gate met: entrypoints and dependencies are traceable
-- [ ] Phase 8 gate met: unknowns remain visible and registered in the inventory
+- [ ] Phase 3 gate met: setup-to-start path is traceable (`N/A: scoped` or `N/A: no dependency
+      content` when Phase 3 did not run)
+- [ ] Phase 4 gate met: major modules, their responsibilities, and the dependency flow between
+      them are explainable (entrypoints belong to Phase 3's gate)
+- [ ] Phase 8 gate met: unknowns remain visible and registered in the inventory, and a new
+      document is registered (Step 8d)
 - [ ] Phase 9 gate met: docs do not conflict with implementation and the applicable docs
-      checkers pass
+      checkers pass, each confirmed to have examined the changed file
 
 ---
 
@@ -486,7 +530,9 @@ not only declared or resolved dependency evidence.
 ### Evidence tracking during analysis
 
 During analysis, track for each meaningful item: path, kind, why it matters, confirmed facts,
-evidence label, open questions, and target document.
+evidence label, open questions, and target document. Keep this as a working list in your own
+notes (not a file in the repository); it feeds Phase 10's Confirmed Findings, Inferred Findings,
+and Open Questions. Do not paste the raw list into the documents.
 
 ---
 
@@ -502,7 +548,7 @@ inference, README trust, and private-API documentation boundaries.
 - Leave lockfiles as-is during documentation-only work; regenerate one only when dependency
   maintenance is explicitly in scope for the current task.
 - When a static import search finds no reference to a dependency, record it as
-  `Needs Confirmation` (see Evidence and Source of Truth) rather than classifying it Unused —
+  `Needs confirmation` (see Evidence and Source of Truth) rather than classifying it Unused —
   a static search alone cannot confirm dynamic or optional usage.
 - Base a "direct usage" or "production inclusion" claim on Phase 2's declared/operational
   evidence categories, not on lockfile membership alone.
