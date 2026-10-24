@@ -156,7 +156,7 @@ position; the `6fcbb7e0c` items below are kept as the historical record of what 
   were re-taken against the resulting file. If the file moves again, re-take them before editing.
 - Paired row: `implementations/20261024-144732_02_tests_agent_test_orchestrator.py.md` must land in the
   same commit, because removing the `completed` write breaks
-  `tests/agent/test_orchestrator.py:2619-2660`.
+  `tests/agent/test_orchestrator.py:2659-2699`.
 
 ### Method
 
@@ -272,14 +272,14 @@ Decision table the helper must implement (Plan `Design` `:345-352`):
 - Halts stay swallowed: `WorkflowHaltError` / `WorkflowTimeoutError` are not re-raised by the
   adapter, so `orchestrator.py:176-179` and the REPL containment are unaffected.
 - Tests that must pass **unmodified** after this change:
-  `tests/agent/test_orchestrator.py:2528-2617` (`TestHandleWorkflowEngineStatusPreservation`, halted
+  `tests/agent/test_orchestrator.py:2568-2656` (`TestHandleWorkflowEngineStatusPreservation`, halted
   and timeout cases — the adapter now writes nothing there, which is what those tests assert),
-  `tests/agent/test_orchestrator.py:2661-2702` (`test_writes_failed_on_execute_failure`, soft-error
+  `tests/agent/test_orchestrator.py:2701-2741` (`test_writes_failed_on_execute_failure`, soft-error
   downgrade preserved by `REQ-004`), `tests/agent/workflow/` (engine-side transitions),
   `tests/integration/test_orchestrator_integration.py:737` (`TestWorkflowResumeWithRealDB`).
 - Test that breaks by design and must be migrated in the same commit by `_02`:
-  `tests/agent/test_orchestrator.py:2619-2660` (`test_writes_completed_on_normal_success`, assertion
-  at `:2658`).
+  `tests/agent/test_orchestrator.py:2659-2699` (`test_writes_completed_on_normal_success`, assertion
+  at `:2698`).
 - Audit and event flow unchanged: `audit_stage_completed`, `audit_workflow_start`, `_tool_override`
   (`:336-345`), `_prepare_turn_input` (`:275-289`) and `_run_execute_stage` (`:291-334`) are not
   edited, so the `turn_end` event keeps its current shape — turn004 moved its emission to the

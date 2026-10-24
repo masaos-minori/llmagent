@@ -12,7 +12,7 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
     (new: `_ProbeStateStore` (new), `_status_harness` (new));
   - add one new test class `TestTaskStatusPerTurnOutcome` (new) with eight tests, one per row of the
     Plan's `Problem` table plus the error-level log case;
-  - migrate `test_writes_completed_on_normal_success` (`:2619-2660`) in place from the mocked engine to
+  - migrate `test_writes_completed_on_normal_success` (`:2659-2699`) in place from the mocked engine to
     that harness.
 - No other test file changes. `tests/agent/workflow/` and
   `tests/integration/test_orchestrator_integration.py` are in the Plan's forbidden edit scope and are
@@ -22,12 +22,12 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
 
 - The Plan's `Problem` table (cases A-H) is confirmed at HEAD `6fcbb7e0c`; the expected final statuses
   and `attempts` rows used by these tests are the measured ones, restated in `Details`.
-- The suite's autouse `_patch_workflow_loader` fixture (`:91-128`) replaces `WorkflowEngine` and
+- The suite's autouse `_patch_workflow_loader` fixture (`:135-172`) replaces `WorkflowEngine` and
   `create_task` inside the adapter for every test in this file, so a real-engine test must restore
-  them with `monkeypatch.setattr` the way `:406-412` does.
-- `_make_ctx()` (`:35`) and `_make_orchestrator(ctx, on_error=...)` (`:130-145`) build a real
+  them with `monkeypatch.setattr` the way `:353-357` does.
+- `_make_ctx()` (`:79-132`) and `_make_orchestrator(ctx, on_error=...)` (`:174-191`) build a real
   `Orchestrator` with a `MagicMock` context; `orch._workflow_adapter.execute_turn(...)` is the entry
-  point the existing status tests drive (`:2563`, `:2606`, `:2655`, `:2698`).
+  point the existing status tests drive (`:2603`, `:2646`, `:2695`, `:2738`).
 - The engine-side transitions are already tested independently
   (`tests/agent/workflow/test_workflow_engine.py:282`
   `test_execute_success_verify_failure_marks_task_failed`) and must keep passing unchanged.
@@ -35,24 +35,24 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
 ### Procedure-local findings
 
 - The Plan's test anchors drifted with the rebase and are re-taken here:
-  `TestHandleWorkflowEngineStatusPreservation` spans `:2528-2702`
-  (class header `:2528`, mock store at `:2539-2541`), `test_writes_completed_on_normal_success` is
-  `:2619-2660` with the `assert_called_with("task-1", "completed")` at `:2658`, and
-  `test_writes_failed_on_execute_failure` is `:2661-2702` with its assertion at `:2701`.
-- A usable real-engine + temp-DB harness exists at `:274-360`: temp DB paths and `create_workflow_schema()`
-  under `patch("db.helper.build_db_config", ...)` (`:291-298`), `class TempStateStore(StateStore)`
-  (`:299-305`), real-class restoration at `:308-312`, and real `WorkflowDef` injection at `:329-339`.
-- The file measures 2882 lines / 114107 B today and ends with `TestSingleLlmTurnExecutorOwnership`
-  (`:2869-2882`); the new class is appended after `:2882`. No test-file size gate exists
+  `TestHandleWorkflowEngineStatusPreservation` spans `:2568-2742`
+  (class header `:2568`, mock store at `:2579-2581`), `test_writes_completed_on_normal_success` is
+  `:2659-2699` with the `assert_called_with("task-1", "completed")` at `:2698`, and
+  `test_writes_failed_on_execute_failure` is `:2701-2741` with its assertion at `:2740`.
+- A usable real-engine + temp-DB harness exists at `:318-418`: temp DB paths and `create_workflow_schema()`
+  under `patch("db.helper.build_db_config", ...)` (`:334-342`), `class TempStateStore(StateStore)`
+  (`:345-351`), real-class restoration at `:353-357`, and real `WorkflowDef` injection at `:375-383`.
+- The file measures 2922 lines / 115355 B today and ends with `TestSingleLlmTurnExecutorOwnership`
+  (`:2909-2922`); the new class is appended after `:2922`. No test-file size gate exists
   (`tools/check_module_size.py` scans `scripts/` only).
 - `AC-1`'s `attempts` triple is `(stage_id, status, error_kind)` and the engine writes
   `error_kind="exception"` (`workflow_engine.py:26`, `:241`) or `"timeout"` (`:25`, `:230`). Tests must
   assert those values, not `error_msg`, which holds the exception text.
 - Only one existing test breaks when the adapter stops writing `completed`. `test_writes_failed_on_execute_failure`
-  (`:2661-2702`) keeps passing with a mocked engine because `REQ-004` preserves that write.
+  (`:2701-2741`) keeps passing with a mocked engine because `REQ-004` preserves that write.
 - `check_mock_patch_targets.py` (`T-6`): the patch target
-  `agent.workflow_engine_adapter.WorkflowEngine` is still used by the preserved tests at `:2559-2563`
-  and `:2645-2647`, so removing it from the migrated test does not orphan the target. The check must
+  `agent.workflow_engine_adapter.WorkflowEngine` is still used by the preserved tests at `:2600`, `:2643`
+  and `:2733`, so removing it from the migrated test does not orphan the target. The check must
   stay green; if it reports the target as unresolvable, the fix is to drop the stale `patch(...)` call,
   not to invent a symbol.
 - Sequencing: this row is red until
@@ -61,7 +61,7 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
   `implementations/20261024-083059_01/_02/_04` (turn002) and
   `implementations/20261024-100151_06_tests_agent_test_orchestrator.py.md` (turn005) edited this same
   file; they landed in the rebase and are archived under `implementations/done/`, and the
-  `:2619-2660` / `:2661-2702` anchors were re-taken against the result (2026-10-24).
+  `:2659-2699` / `:2701-2741` anchors were re-taken against the result (2026-10-24).
 
 ## Design decisions
 
@@ -70,12 +70,13 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
   `AC-4`).
 - Record the writes anyway (`_ProbeStateStore.calls`) so `AC-2`'s "exactly one `completed` write, made
   by the engine" is testable, and so a future re-introduction of the adapter write fails loudly.
-- Keep the migrated test's name and position (`:2619-2660`) rather than folding it into the new class:
+- Keep the migrated test's name and position (`:2659-2699`) rather than folding it into the new class:
   the Plan says it is the only test that pins the success path and must not be deleted (`T-1`).
 - Drive `orch._workflow_adapter.execute_turn(...)` directly instead of `orch.handle_turn(...)`: the
-  status question lives in the adapter, and going through `handle_turn` pulls in the LLM stream and the
-  REPL callbacks (`:392-475`) that this row must not depend on.
-- Use a real `WorkflowDef` built in the test (mirrors `:329-339`) with `backoff_sec=0` and sub-second
+  status question lives in the adapter, and going through `handle_turn` pulls in the LLM stream, the pause
+  check, the turn-start/turn-end audit bracket and the `deactivate_workflow` call
+  (`orchestrator.py:157-183`) that this row must not depend on.
+- Use a real `WorkflowDef` built in the test (mirrors `:375-383`) with `backoff_sec=0` and sub-second
   stage timeouts, so the retry-exhausted and timeout cases are fast and deterministic.
 
 ## Alternatives considered
@@ -90,15 +91,15 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
   behavior.
 - Use `executescript(build_workflow_schema_sql())` to build the temp DB (verified to reproduce all eight
   cases): rejected for the committed tests because it skips `_record_workflow_schema_version`
-  (`scripts/db/create_schema.py:99`) and diverges from the harness already in this file (`:291-298`).
+  (`scripts/db/create_schema.py:99`) and diverges from the harness already in this file (`:334-342`).
 
 ## Implementation
 ### Target file
 
 `tests/agent/test_orchestrator.py`
 
-- 2276 lines / 89977 B at HEAD `6fcbb7e0c`.
-- Regions in scope: the end of file (append after `:2882`), and the in-place migration at `:2619-2660`.
+- 2922 lines / 115355 B at HEAD `928ec31c3` (re-measured 2026-10-24; 2882 lines / 114107 B at `1471a75e8`, 2276 lines / 89977 B at `6fcbb7e0c`).
+- Regions in scope: the end of file (append after `:2922`), and the in-place migration at `:2659-2699`.
 
 ### Procedure
 
@@ -106,7 +107,7 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
   first, run them against the unmodified adapter, and record the failures on cases A, B, E and the
   log case as the witness for `AC-1`-`AC-6`, `AC-8`. Keep that failing run in the commit message or in
   `Execution Status` notes; do not commit a red suite.
-- Phase 3 step 1: migrate `test_writes_completed_on_normal_success` (`:2619-2660`) and run
+- Phase 3 step 1: migrate `test_writes_completed_on_normal_success` (`:2659-2699`) and run
   `tools/check_mock_patch_targets.py`.
 - Ordering: Phase 1 of this row runs before
   `implementations/20261024-144732_01_scripts_agent_workflow_engine_adapter.py.md` Phase 2, and Phase 3
@@ -114,7 +115,7 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
 
 ### Method
 
-1. Append, after `:2882`, the harness helpers:
+1. Append, after `:2922`, the harness helpers:
 
    ```python
    class _ProbeStateStore(StateStore):
@@ -155,16 +156,16 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
    Body of `_status_harness` (new), following the existing harness in this file:
    - create `db_path = str(tmp_path / "workflow.sqlite")` plus `rag_path` / `session_path`, and build
      the schema under `patch("db.helper.build_db_config", return_value=DbConfig(...))` calling
-     `create_workflow_schema()` exactly as `:291-298`;
+     `create_workflow_schema()` exactly as `:334-342`;
    - `store = _ProbeStateStore(db_path)`;
    - `ctx = _make_ctx()`, `orch = _make_orchestrator(ctx, on_error=on_error)`;
-   - restore the real classes the autouse fixture patched, as at `:406-412`:
+   - restore the real classes the autouse fixture patched, as at `:353-357`:
      `monkeypatch.setattr("agent.orchestrator.StateStore", _ProbeStateStore)` — pass `store` to the
      adapter instead (`orch._workflow_adapter._state_store = store`),
      `monkeypatch.setattr("agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine)`,
      `monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)`;
    - install a real `WorkflowDef` on both `orch._workflow_def` and
-     `orch._workflow_adapter._workflow_engine._wdef` (mirrors `:329-339`): `plan` `retryable=False`
+     `orch._workflow_adapter._workflow_engine._wdef` (mirrors `:375-383`): `plan` `retryable=False`
      `timeout_sec=5`, `execute` `retryable=True` `timeout_sec=execute_timeout_sec`, `verify`
      `retryable=False` `timeout_sec=5`, `RetryPolicy(max_attempts=max_attempts, backoff_sec=0)`;
    - patch `orch._workflow_adapter._process_turn` with `execute_stage` (new) and
@@ -194,7 +195,7 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
    - C: `execute_stage=AsyncMock(return_value=("partial", "CONNECT_ERROR", True))`.
    - D: `execute_stage=AsyncMock(side_effect=RuntimeError("always fails"))`, `max_attempts=2`.
    - F: `execute_stage` (new) awaits longer than `execute_timeout_sec` (new) (for example `await asyncio.sleep(0.2)`
-     with `execute_timeout_sec=0.01`), mirroring `:297-339`.
+     with `execute_timeout_sec=0.01`), mirroring `:329-383`.
    - E: `execute_stage` (new) awaits a `threading.Event`-free long sleep, then
      `task = asyncio.create_task(orch._workflow_adapter.execute_turn(...))`; `await asyncio.sleep(0.05)`;
      `task.cancel()`; `await task` inside `pytest.raises(asyncio.CancelledError)`. Cancel the adapter
@@ -206,13 +207,13 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
      so the adapter genuinely attempts a `failed` write; assert with
      `caplog.at_level(logging.ERROR, logger="agent.workflow_engine_adapter")`.
 
-3. Migrate `test_writes_completed_on_normal_success` (`:2619-2660`): keep the `@pytest.mark.asyncio`
-   decorator at `:2619`, the test name at `:2620` and the class it lives in; replace the body
-   (`:2621-2660`) with a `_status_harness` (new) call and the assertions
+3. Migrate `test_writes_completed_on_normal_success` (`:2659-2699`): keep the `@pytest.mark.asyncio`
+   decorator at `:2658`, the test name at `:2659` and the class it lives in; replace the body
+   (`:2660-2699`) with a `_status_harness` (new) call and the assertions
    `store.calls == ["running", "completed"]` and `store.task_status() == "completed"`. Update the
    docstring to state that the engine is the sole writer of `completed`. Delete the now-unneeded
-   `MagicMock` store, the `_normal_run` mock engine (`:2628-2634`) and the
-   `patch("agent.workflow_engine_adapter.WorkflowEngine", ...)` entry (`:2645-2647`) from this test only.
+   `MagicMock` store, the `_normal_run` mock engine (`:2668-2674`) and the
+   `patch("agent.workflow_engine_adapter.WorkflowEngine", ...)` entry (`:2689-2691`) from this test only.
 
 ### Details
 
@@ -239,12 +240,12 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
 
 ## Compatibility considerations
 
-- `tests/agent/test_orchestrator.py:2528-2617` and `:2661-2702` must pass unmodified
+- `tests/agent/test_orchestrator.py:2568-2656` and `:2701-2741` must pass unmodified
   (`AC-5`, `AC-7`).
 - `tests/agent/workflow/` and `tests/integration/test_orchestrator_integration.py:737-1037`
   (`TestWorkflowResumeWithRealDB`) must pass unmodified.
-- The autouse `_patch_workflow_loader` fixture (`:91-128`) must keep working for every other test in
-  the file: the new tests restore real classes with `monkeypatch` (as `:406-412` does) and must not add
+- The autouse `_patch_workflow_loader` fixture (`:135-172`) must keep working for every other test in
+  the file: the new tests restore real classes with `monkeypatch` (as `:353-357` does) and must not add
   or modify the fixture.
 - The class name `TestTaskStatusPerTurnOutcome` (new) is new; no existing test, doc, or config references it
   (verified by `grep -rn "TestTaskStatusPerTurnOutcome" .` returning nothing at HEAD `6fcbb7e0c`).
@@ -277,7 +278,7 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
   `implementations/20261024-144732_01_scripts_agent_workflow_engine_adapter.py.md` — 8 passed.
 - `uv run pytest tests/agent/test_orchestrator.py -k "TaskStatusPerTurnOutcome or HandleWorkflowEngineStatusPreservation" -q`
 - `uv run pytest tests/agent/test_orchestrator.py tests/agent/workflow/ tests/integration/test_orchestrator_integration.py -q`
-  — 217 baseline tests (measured 2026-10-24 at HEAD `6fcbb7e0c`) plus the 8 new tests.
+  — 230 baseline tests (re-measured 2026-10-24 at HEAD `928ec31c3`; 217 at `6fcbb7e0c`) plus the 8 new tests.
 - `uv run pytest tests/agent -q` — no new failure against the baseline recorded at implementation time.
 - `uv run python tools/check_mock_patch_targets.py` (`T-6`) — no finding naming
   `agent.workflow_engine_adapter.WorkflowEngine` or `agent.orchestrator.StateStore`.
@@ -328,7 +329,7 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | `083059_02` and `100151_06` edit this same file; the `:2012-2052` / `:2054-2095` anchors must be re-taken after they land | True | 2026-10-24 |
+| 1 | `083059_02` and `100151_06` landed in the rebase and are archived; the upstream turn005 commit `928ec31c3` then moved this file again, so every anchor here was re-taken at `928ec31c3` | True | 2026-10-24 |
 | 1 | Phase 1 requires a deliberately failing run before the adapter row lands; the failing run must not be committed as the suite state | False | — |
 
 ### Work Items Created
