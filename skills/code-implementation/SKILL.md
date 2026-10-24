@@ -31,7 +31,7 @@ upstream phases, this phase legitimately modifies source code and `docs/*.md`.
 | 4 | Test the feature | Determine targeted test scope, run it, then run the full suite once (retry on failure within Attempt Limit). |
 | 5 | Update documentation | Update only `docs/*.md` sections matched by `docs/00_index.md`'s Document References by Task table. |
 | 6 | Validate documentation | Check the sections edited in Step 5, or skip if none were edited. |
-| 7 | Move the completed implementation procedure file | `git mv` only, once Step 2 (stale detection) and Steps 3/4/6 pass; no human approval required. |
+| 7 | Move the completed implementation procedure file | `git mv` only, once Step 2 (stale detection) and Steps 3/4/5/6 pass; no human approval required. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file processing
 rules, and `templates/implementation-procedure.md` for the input document's
@@ -42,9 +42,10 @@ structure.
 - Code and docs are in scope, unlike `issue-to-plan` and
   `plan-to-implementation-procedure`. See `workflow.md` Allowed file operations for
   the exact boundary.
-- The move to `implementations/done/` needs no human approval; it is gated on Step 2 (stale detection) and Steps 3/4/6 passing. `rules/workflow-lifecycle.md` (scoped to
-  `issue-to-plan`/`plan-to-impl-procedure`) does not apply here. See `workflow.md`
-  Step 7.
+- The move to `implementations/done/` needs no human approval; it is gated on Step 2 (stale detection) and Steps 3/4/5/6 passing. `rules/workflow-lifecycle.md` (scoped to
+  `issue-to-plan`/`plan-to-impl-procedure`) applies here only through the two parts
+  `workflow.md` cites by name (Target Validation, Correction-and-Recheck Cycle Bound),
+  not its Archival Move or Plan Freeze rules. See `workflow.md` Step 7.
 - Documentation is routed, not guessed: only update a `docs/*.md` section that
   `docs/00_index.md`'s "Document References by Task" table maps a changed file to. A
   changed file with no matching row is a normal, non-blocking outcome.
@@ -56,10 +57,9 @@ structure.
 - Pre-execution stale detection: see `workflow.md` Step 2. Abort execution if any
   referenced construct is missing from current source. Any single mismatch
   constitutes "stale"; report all failures in a single pass.
-- Auto-archive with collision handling: see `workflow.md` Step 7. If the archive
-  destination already exists, generate a disambiguated path per
-  `rules/filename-collision.md` (zero-padded sequence suffix, max 3 retries). This
-  move also requires no human approval.
+- Archive destination already exists: see `workflow.md` Step 7. If the source is gone,
+  the cycle is already archived; if both exist, report `Blocked` — never rename to a
+  disambiguated path. The move requires no human approval.
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ## Output format

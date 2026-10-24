@@ -7,7 +7,6 @@ See `routing.md`, section 'Document workflow directories'.
 - Input: `implementations/{filename}.md`
 - Output: code changes, tests, and `docs/*.md` updates; the input file moved to `implementations/done/`
 - Archive destination: `implementations/done/`
-- Superceded archive destination: `implementations/superseded/`
 - Workflow phase: `code-implementation`
 
 Unlike the two upstream phases, this is not a document-only phase — see Allowed file
@@ -48,10 +47,11 @@ covers the need; Step 1 and Step 7 state the fallback if the tool is unavailable
   via Edit) when Step 3's adversarial verification finds an unconfirmed item or an
   inconsistency, in addition to its `## Execution Status` section.
 - Update the source Plan's own `### Execution Status` table (`plans/{filename}.md`
-  or `plans/done/{filename}.md` if already archived) — the row matching this
-  implementation procedure's Traceability `Related target files` value — to
-  `Completed`, once Step 7's move succeeds. This is the other half of
-  `plan-to-implementation-procedure` Step 4's own `In Progress` update for that row.
+  or `plans/done/{filename}.md` if already archived) — the rows, by step number, of
+  the Plan's `Implementation steps` that cite this procedure's `Related target files`
+  value — once Step 7's move succeeds, per Step 7's "Plan Execution Status update".
+  This is the other half of `plan-to-implementation-procedure` Step 4's own
+  `In Progress` update for those rows.
 - MUST NOT modify files outside the scope specified in the plan/procedure.
 - MUST NOT edit documentation before Step 5.
 
@@ -195,20 +195,13 @@ If the stale detector reports any mismatch:
 - Abort execution immediately — MUST NOT proceed to Step 3.
 - Report the findings to the user: list each stale reference type and detail
   (e.g., `"symbol_missing: Symbol '_llm_runner' not found in source"`).
-- MUST NOT correct the procedure and continue. Per REQ-003, abort and report.
+- MUST NOT correct the procedure and continue — abort and report. Any single mismatch
+  is stale, and all failures are reported in a single pass (`SKILL.md` Core Execution
+  Rules).
 
 If the stale detector reports no mismatches:
 - Proceed to Step 3 normally.
 - Record the clean check result in the Execution Status Notes for Step 2.
-
-#### Design decisions applied
-
-- Any single mismatch constitutes "stale" — the procedure cannot be reliably
-  executed if even one referenced construct is missing (REQ-002 decision).
-- Report all failures in a single pass — simpler and provides more information
-  to the operator (UNK-01 resolution).
-- Uses simple regex/string matching against the cited line ranges specified in
-  the procedure document — avoids AST parsing (REQ-002 constraint).
 
 ## Step 3: Implement the Feature
 
@@ -220,10 +213,11 @@ correct the procedure on a finding (3b), check for cross-file conflicts (3c), im
 
 Before implementing, apply `rules/ai-execution.md` Adversarial Verification (Base) to
 the procedure's claims about current source: MUST NOT assume its Procedure/Method/Details
-are still accurate — check via `rg`/Read whether the target file, symbol, line numbers,
-and call path it describes still match current source, and whether any stated
-assumption or scope boundary is stale or inconsistent with a sibling procedure document
-or the source Plan. Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule:
+are still accurate. Step 2's stale detector already aborted on a missing symbol, import,
+or cited line range, so this step covers what pattern matching cannot — check via
+`rg`/Read whether the behavior, call path, and dependencies the procedure describes still
+match current source, and whether any stated assumption or scope boundary is stale or
+inconsistent with a sibling procedure document or the source Plan. Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule:
 MUST NOT re-run a `rg`/Read check already performed against this same file at its current
 content within this cycle.
 
@@ -274,9 +268,20 @@ applied and its file list is recorded.
 Run repository-defined non-test validation: formatting, linting, type checking,
 architecture/import-boundary checks, security checks.
 
-**Completed when**: all of the above pass — for a tool with countable output (e.g.
-`pytest`'s collected-item count), confirm it actually ran against a non-empty target,
-not merely that its exit code was 0 (per `rules/ai-execution.md` Repository Tool Usage #8).
+Also, for every changed non-`docs/` file, apply the rows of `routing.md` Tools → "When to
+run which tool" its type triggers (e.g. `tools/*.py`, `scripts/**/*.py`,
+`skills/*.md`/`rules/*.md`/`prompts/*.md`, `tests/`) — Step 6 covers `docs/*.md` only.
+A changed `tools/*.py` file also follows `routing.md` "Adding a new tool": pass the file
+path to `uv run mypy` explicitly, because a bare `uv run mypy` does not cover `tools/`.
+`uv run python tools/run_validation_gates.py` (fast mode, the default) may be used to run
+the routing checkers the changed files trigger; it does not replace the tools above, and
+MUST NOT be run with `--full` here, because Step 4 owns this cycle's single full-suite
+run.
+
+**Completed when**: all of the above pass — for a tool with countable output (e.g. the
+number of files `ruff check` or `mypy` examined), confirm it actually ran against a
+non-empty target, not merely that its exit code was 0 (per `rules/ai-execution.md`
+Repository Tool Usage #8).
 **On a failure**: fix the code and re-run this same Step 3e (not Step 3a-3d) until it
 passes. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
 most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt MUST be
@@ -310,11 +315,15 @@ failure's cause is not immediately obvious, load and apply
   targeted tests above — this re-run is the one exception to "exactly once" for an
   ordinary failure; reaching the Attempt Limit without a passing full-suite run means
   applying Rollback on Failure (below), not a fourth attempt.
-  If Step 3 reported a cross-file conflict with an already-processed earlier file (see
-  Step 3), re-run the full test suite for that earlier file's implementation procedure
-  cycle before continuing the batch — this is a second, independent exception to
-  "exactly once," scoped strictly to the conflict-detected case.
-- Check the repository-defined coverage threshold if one exists.
+  If Step 3c reported a cross-file conflict with an already-processed earlier file, that
+  earlier file is already archived and the current file's cycle ended `Blocked` without
+  reaching this Step. Before continuing the batch, run the full test suite once against
+  the current working tree (which holds the earlier file's changes) — this is a second,
+  independent exception to "exactly once," scoped strictly to the conflict-detected
+  case. If it fails, report `Blocked` for that earlier file in the Final Report; its
+  archived procedure is not un-archived.
+- Check the coverage threshold defined in `rules/toolchain.md` (Completion checklist,
+  diff-cover).
 - Continue to documentation only after required tests pass.
 
 ## Step 5: Update Documentation
@@ -378,14 +387,20 @@ continuing to patch.
 This step MUST NOT be skipped.
 
 This workflow's move to `implementations/done/` does not require human approval —
-proceed once Step 2 (stale detection) and Steps 3, 4, and 6 pass, without stopping to ask the user for approval.
-`rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`
-only and does not apply to this workflow at all.
+proceed once Step 2 (stale detection) and Steps 3, 4, 5, and 6 pass, without stopping to ask the user for approval.
+`rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`:
+its Archival Move and Plan Freeze rules do not apply to this workflow. Only the two
+parts this workflow cites by name apply — Target Validation (Step 1) and the
+Correction-and-Recheck Cycle Bound (Step 3b).
 
 - Before attempting the move, check whether the destination
   `implementations/done/{filename}.md` already exists. If it does (e.g. Step 1's
   All-steps-completed check already moved this file earlier in the same session), MUST NOT attempt a second move — verify the source no longer exists at
-  `implementations/{filename}.md` and treat the cycle as already archived.
+  `implementations/{filename}.md` and treat the cycle as already archived. If the
+  destination exists and the source still exists too, stop and report
+  `Blocked: archive destination already exists — {path}`. MUST NOT rename to a
+  disambiguated path: `close-implementation` refuses an existing destination, and
+  procedure filenames are already unique per `{timestamp}_{seq}_{target_file_slug}`.
 - MUST NOT perform this step before Step 5 (documentation update) and Step 6
   (documentation validation) are complete.
 - Before proceeding, verify that:
@@ -426,21 +441,24 @@ only and does not apply to this workflow at all.
   but unarchived — then continue Multi-file processing with the next target file in
   the batch. MUST NOT halt the entire batch because one file's Archival Move failed.
 
-### Auto-archive collision handling (REQ-005)
+### Plan Execution Status update (after the move)
 
-When the destination `implementations/done/{filename}.md` already exists, apply
-`rules/filename-collision.md`: regenerate a disambiguated candidate path using a
-zero-padded sequence suffix (e.g., `{filename}-001.md`). Retry up to 3 times
-(per AGENTS.md Attempt Limit). After 3 collisions, stop and report
-`Blocked: repeated filename collision — {path}` rather than continuing to increment.
 - **After the move succeeds**, update the source Plan's own Execution Status: read
   this implementation procedure's Traceability `Source plan` and `Related target
-  files` values (already extracted in Step 2), locate that Plan file (it may already
+  files` values (already extracted in Step 2) and locate that Plan file (it may already
   be in `plans/done/` if `plan-to-implementation-procedure` archived it before this
-  cycle ran), and set the Execution Status row matching this cycle's target file to
-  `Completed` via `uv run python tools/manage_workitem_stage.py set-step-status plan
-  {plan_path} --description "{target_file_path}" Completed --completed {timestamp
-  from date +%Y%m%d-%H%M%S}`. If `Source plan` is `N/A` (no Plan produced this
+  cycle ran). The Plan's Execution Status has one row per `Implementation steps`
+  entry (same numbering), not one per target file, and each step cites the
+  `File Path`(s) it touches. So map by step number: for each step N that cites this
+  cycle's target file, set row N to `Completed` only when every file that step N cites
+  has its procedure archived (this cycle's included — check `implementations/done/`
+  for a document with the same `Source plan` and that file as `Related target files`);
+  otherwise leave row N as it is. Use `uv run python
+  tools/manage_workitem_stage.py set-step-status plan {plan_path} --step {N} Completed
+  --completed {timestamp from date +%Y%m%d-%H%M%S}` — not `--description`, which
+  updates only the first row whose Description merely contains the given text. When
+  `close-batch` closed the batch, it has already updated the owning Plan's rows: verify
+  them instead of repeating the update. If `Source plan` is `N/A` (no Plan produced this
   procedure document), skip this update — there is no Plan row to close. If the Plan
   file cannot be found at either location, report this as a non-blocking Note in the
   Final Report (`Plan Execution Status not updated: {reason}`) rather than treating
@@ -450,7 +468,16 @@ zero-padded sequence suffix (e.g., `{filename}-001.md`). Retry up to 3 times
 ## Rollback on Failure
 
 If implementation breaks existing functionality, revert changes immediately and
-report `Blocked: {description}`. Per AGENTS.md Failure Log, record the failure details
+report `Blocked: {description}`.
+
+Revert only this cycle's own changes, using the changed-file list recorded in Step 3d's
+Execution Status Notes (plus any test/doc file this cycle edited): for each tracked
+file, run `git checkout -- <path>` on that single path; for a file this cycle created,
+delete that single file. MUST NOT use a bulk form (`checkout -- .`, `restore .`,
+`reset --hard`, `clean`). In a batch, earlier cycles' changes are still uncommitted
+(Step 7's `--stage-only`), so if a path to revert was also changed by an earlier cycle in
+the same batch, MUST NOT revert it — stop and report `Blocked: {path} also changed by
+{earlier file}`, and let the user decide. Per AGENTS.md Failure Log, record the failure details
 (approach, error, reason) before considering a different approach. If reaching Attempt
 Limit (3 attempts for the same error), the revert-and-report action is required.
 
