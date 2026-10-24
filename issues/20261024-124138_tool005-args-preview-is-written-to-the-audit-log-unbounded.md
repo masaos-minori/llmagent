@@ -117,3 +117,17 @@ event format compatible with existing readers. Record the decision in documentat
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261024-124138
 - **Related target files**: `scripts/agent/tool_audit.py`, `scripts/agent/shared/models.py`, `scripts/agent/tool_approval.py`
+
+## Verification and Plan Record (2026-10-24)
+
+### Adversarial verification results
+- All code-line claims confirmed: `args_preview=masked` at `scripts/agent/tool_audit.py:58` and `:169`; `args_preview: dict[str, object]` at `scripts/agent/shared/models.py:23`, `:55`; `grep -rn "args_preview" scripts/` returns only the two writers, the model fields, and `tool_approval.py:221-222`; `grep -rn "args_preview" docs/` empty.
+- `Needs confirmation` resolved: the production sink is `factory.py:73-78` -> `shared.logger.Logger("audit", cfg.obs.audit_log_file, structured_log=True)` (default `/opt/llm/logs/audit.log`); `Logger`, `_JsonFormatter`, and `_RedactionFilter` add no size truncation (read 2026-10-24). No existing truncation exists anywhere in the chain.
+- Sink enumeration completed: only the two `tool_audit.py` writers persist `args_preview`. `tool_approval.py:221-222` is a UI write (`emit_plan_blocked` -> `OutputPort`, `tool_output.py:49-55`), not an audit sink; `repository_gateway.py:109-110`, `write_round_exec`, `audit_event_emitter.py`, `cmd_memory.py` carry no args.
+- Row-size measurement: `/opt/llm/logs/audit.log` 123,795 bytes, every line exactly 134 chars (min = max) — no bound exists, and no oversized row has appeared in recorded history.
+- Disconfirmed: "none of the current chapter titles names auditing" is false — `docs/23_agent/agent_10_02_operations-and-observability-audit-and-otel.md` is the agent-side audit chapter; it is the documentation target instead of `docs/41_db/` or `docs/40_shared/`.
+- Context correction: the closed Plan's recursive masking (`REQ-002`) has already landed — `mask_args` masks at any depth today; the mask-before-bound ordering keeps its `AC-2` satisfiable.
+
+### Plan
+- Plan: `plans/20261024-221315_args-preview-is-written-to-the-audit-log-unbounded.md` (Path A; Implementation Target Files: Frozen, all rows Verified; `check_workitem_structure.py` and `check_plan_target_overlaps.py`: no findings).
+- Decisions: cap implemented (not just documented) — `AUDIT_ARGS_PREVIEW_MAX_CHARS = 1500` module constant in `tool_audit.py`, applied via a shared `_bounded_preview()` at both writers; character-based cap on the serialized preview (Issue's char-vs-byte question closed); oversized payloads replaced by the envelope `{"preview": <prefix>, "truncated": true}`, structurally distinct from the `"***"` mask marker.
