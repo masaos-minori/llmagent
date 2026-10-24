@@ -114,9 +114,9 @@ N/A: delete the new file (single-commit revert).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the new test file with `T-1`..`T-5` and the `T-6` docstring note (before the production change) | Pending | — | — | must fail pre-change |
-| 2 | Re-run the file after `20261024-234513_01` lands and after the `T-6` scratch mutation | Pending | — | — | |
-| 3 | Run `uv run pytest tests/agent -q` whole-package regression | Pending | — | — | |
+| 1 | Write the new test file with `T-1`..`T-5` and the `T-6` docstring note (before the production change) | Completed | 20261025-0100 | 20261025-0100 | must fail pre-change |
+| 2 | Re-run the file after `20261024-234513_01` lands and after the `T-6` scratch mutation | Completed | 20261025-0100 | 20261025-0100 | |
+| 3 | Run `uv run pytest tests/agent -q` whole-package regression | Completed | 20261025-0100 | 20261025-0100 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

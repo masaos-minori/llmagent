@@ -100,8 +100,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the outcome sentences to `Argument Validation` and the two bullets to `Known Limitations` | Pending | — | — | land after the code row so the doc describes shipped behavior |
-| 2 | Run the docs checkers listed in Validation plan | Pending | — | — | |
+| 1 | Add the outcome sentences to `Argument Validation` and the two bullets to `Known Limitations` | Completed | 20261025-0100 | 20261025-0100 | land after the code row so the doc describes shipped behavior |
+| 2 | Run the docs checkers listed in Validation plan | Completed | 20261025-0100 | 20261025-0100 | Validation glob corrected to `docs/23_agent/agent_06_01_*.md` (glob is repo-root relative) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

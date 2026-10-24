@@ -1180,6 +1180,30 @@ class TestExecuteAllToolCalls:
         assert ctx.conv.history[-1]["content"] == "Tool execution denied by user."
 
     @pytest.mark.asyncio
+    async def test_call_without_id_is_answered_in_batch_position(self) -> None:
+        """A raw call lacking an id is rejected in place; the round still completes."""
+        ctx = _make_ctx(_cfg())
+        no_id_call = {"function": {"name": "read_text_file", "arguments": "{}"}}
+        valid_call = _tc("read_text_file")
+
+        with patch(
+            "agent.tool_approval.run_approval_checks",
+            new_callable=AsyncMock,
+            side_effect=lambda ctx, prepared: (prepared, []),
+        ):
+            await execute_all_tool_calls(
+                ctx, [no_id_call, valid_call], 0, guard=ToolLoopGuard(ctx)
+            )
+
+        ctx.services_required.tools.execute.assert_awaited_once_with(
+            "read_text_file", {}
+        )
+        assert len(ctx.conv.history) == 2
+        assert ctx.conv.history[0]["tool_call_id"] == ""
+        assert ctx.conv.history[0]["content"] == "tool call is missing an id"
+        assert ctx.conv.history[1]["tool_call_id"] == "call_read_text_file"
+
+    @pytest.mark.asyncio
     async def test_plan_mode_blocked_tool_is_not_executed(self) -> None:
         """Plan-mode blocked tools are not executed."""
         cfg = _cfg()

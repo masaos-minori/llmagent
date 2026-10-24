@@ -107,9 +107,9 @@ N/A: revert the single added test (single-commit revert).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the pre-change 87-pass anchor snapshot, then add the new integration test (must fail with `KeyError`) | Pending | — | — | TDD gate for this row |
-| 2 | Re-run after `20261024-234513_01` lands; anchors + new test pass | Pending | — | — | |
-| 3 | `uv run pytest tests/agent -q` and full-suite regression | Pending | — | — | |
+| 1 | Record the pre-change 87-pass anchor snapshot, then add the new integration test (must fail with `KeyError`) | Completed | 20261025-0100 | 20261025-0100 | TDD gate for this row. Test uses `_tc("read_text_file")` (id `call_read_text_file`) and patches `run_approval_checks`; the procedure's `_tc("call_b", ...)` did not match the helper signature |
+| 2 | Re-run after `20261024-234513_01` lands; anchors + new test pass | Completed | 20261025-0100 | 20261025-0100 | |
+| 3 | `uv run pytest tests/agent -q` and full-suite regression | Completed | 20261025-0100 | 20261025-0100 | |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

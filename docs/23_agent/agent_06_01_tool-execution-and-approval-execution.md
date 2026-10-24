@@ -65,6 +65,8 @@ For each call, the following steps are performed in order; failure in any step r
 
 Only calls that pass the preparation phase are passed to approval, execution, and scheduling as a `PreparedToolCall` (`call_id`/`name`/`args`/`spec`/`original_call`). `execute_one_tool_call()` and `_execute_with_dag()` only reference the `PreparedToolCall.spec` (resolved during the preparation phase) and do not perform their own argument validation or registry lookups.
 
+A preparation rejection is answered, not fatal: the rejected call contributes one `tool` message at its batch position carrying the rejection reason (a missing or empty `id` is answered with `tool_call_id == ""`), and the round completes for the remaining calls. A malformed provider tool call never aborts a turn.
+
 ### Result Reflection in History
 
 Uses verified methods via `ConversationState.append_message()` / `extend_messages()`.
@@ -85,6 +87,8 @@ A round answers every `tool_call_id` the assistant message declared: when `execu
 ## Known Limitations
 
 - Structurally invalid schemas from MCP servers may raise `jsonschema.SchemaError`, which `_check_type_validation()` does not catch.
+- A result whose `tool_call_id` is empty can only be paired positionally: it is matched to the batch entry lacking an id in declared order.
+- Repeated `tool_call_id` values in one assistant message collapse to a single answered row: a second call sharing a real id produces no second result row.
 
 ## Keywords
 

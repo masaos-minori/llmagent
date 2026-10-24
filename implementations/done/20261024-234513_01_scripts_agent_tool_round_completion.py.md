@@ -161,10 +161,10 @@ schema change is involved.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write failing tests first (procedure docs `_02` and `_03`, Plan Phase 2 order) | Pending | — | — | TDD gate for this row |
-| 2 | Add `_merge_in_declared_order()` (new) and replace `complete_round()` `:47-49` | Pending | — | — | every other statement unchanged |
-| 3 | Run targeted tests, mutation check `T-6`, `grep` guard, size/radon gates | Pending | — | — | |
-| 4 | Run the lint/types/security/architecture sequence + reference-table check | Pending | — | — | `rules/toolchain.md` |
+| 1 | Write failing tests first (procedure docs `_02` and `_03`, Plan Phase 2 order) | Completed | 20261025-0100 | 20261025-0100 | TDD gate for this row |
+| 2 | Add `_merge_in_declared_order()` (new) and replace `complete_round()` `:47-49` | Completed | 20261025-0100 | 20261025-0100 | every other statement unchanged |
+| 3 | Run targeted tests, mutation check `T-6`, `grep` guard, size/radon gates | Completed | 20261025-0100 | 20261025-0100 | |
+| 4 | Run the lint/types/security/architecture sequence + reference-table check | Completed | 20261025-0100 | 20261025-0100 | `rules/toolchain.md` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -28,6 +28,30 @@ class RoundState:
     denied_ids: list[str] = field(default_factory=list)
 
 
+def _merge_in_declared_order(
+    tool_calls: list[dict],
+    results: list[tuple],
+) -> list[tuple]:
+    """Merge collected results and preparation failures into declared batch order.
+
+    Each entry of `tool_calls` consumes, in order, the earliest not-yet-consumed
+    result whose `tool_call_id` equals the entry's id; an absent or empty id is
+    treated as `""`. Results consumed by no entry are appended last, in their
+    original relative order. Ids are never indexed strictly.
+    """
+    remaining = list(results)
+    merged: list[tuple] = []
+    for tc in tool_calls:
+        tc_id = tc.get("id") or ""
+        for i, r in enumerate(remaining):
+            if r[0] == tc_id:
+                merged.append(r)
+                del remaining[i]
+                break
+    merged.extend(remaining)
+    return merged
+
+
 async def complete_round(
     ctx: AgentContext,
     state: RoundState,
@@ -44,9 +68,9 @@ async def complete_round(
     Synthesized rows bypass stats, out_failed_keys and the empty-result guard:
     only real results go through *collect*. Rows keep the original batch order.
     """
-    call_order = {tc["id"]: i for i, tc in enumerate(tool_calls)}
-    results = [*state.collected.values(), *state.prep_failures]
-    results.sort(key=lambda r: call_order.get(r[0], 0))
+    results = _merge_in_declared_order(
+        tool_calls, [*state.collected.values(), *state.prep_failures]
+    )
     tool_msgs = await collect(ctx, results, turn, out_failed_keys)
     denied_history, denied_msgs = build_denied_messages(state.denied_ids)
     answered = {*(r[0] for r in state.prep_failures), *state.denied_ids}
