@@ -136,9 +136,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Migrate TestCreateTask / TestUpdateTaskStatus, add T-1 and T-3 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Cross-restart regression + retained-DB case |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Including grep guard and mutation check |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261024-124503 | 20261024-124503 | Migrate TestCreateTask / TestUpdateTaskStatus, add T-1 and T-3 completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261024-124503 | 20261024-124503 | Cross-restart regression + retained-DB case completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-124503 | 20261024-124503 | Including grep guard and mutation check completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

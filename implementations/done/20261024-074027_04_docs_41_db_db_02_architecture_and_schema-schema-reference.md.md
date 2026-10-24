@@ -65,9 +65,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Append §7 paragraph |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Docs checkers (quality/structure/content-policy/consistency) |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row is the documentation change |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261024-124503 | 20261024-124503 | Append §7 paragraph completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-124503 | 20261024-124503 | Docs checkers (quality/structure/content-policy/consistency) completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261024-124503 | 20261024-124503 | This row is the documentation change completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -92,10 +92,10 @@ Revert the single commit; the change is one function body plus a docstring parag
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | First docstring line frozen |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Cross-restart regression in test_workflow_state_store.py |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Including generate_reference_table.py --check |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: documentation rows are separate target files | — | — | — |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261024-124503 | 20261024-124503 | First docstring line frozen completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261024-124503 | 20261024-124503 | Cross-restart regression in test_workflow_state_store.py completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-124503 | 20261024-124503 | Including generate_reference_table.py --check completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | 20261024-124503 | 20261024-124503 | — |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

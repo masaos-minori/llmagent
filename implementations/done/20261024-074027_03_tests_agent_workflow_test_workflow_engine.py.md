@@ -74,9 +74,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Migrate the four `"s:1"` lookups |
-| 2 | Add or update tests per Validation plan | Pending | — | — | None: migration only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Including grep guard |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261024-124503 | 20261024-124503 | Migrate the four `"s:1"` lookups completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 2 | Add or update tests per Validation plan | Completed | 20261024-124503 | 20261024-124503 | None: migration only completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261024-124503 | 20261024-124503 | Including grep guard completed in commit 9b5dc2469; verified vs current source + plan execution status; archived per memo3.md |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
