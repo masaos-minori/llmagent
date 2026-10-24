@@ -17,7 +17,8 @@
 | `git fetch` | Sync | update remote-tracking refs only; never touches the working tree or current branch |
 | `git rev-parse --abbrev-ref --symbolic-full-name @{u}` | Sync | confirm an upstream branch exists |
 | `git rev-parse HEAD` / `git rev-parse @{u}` / `git merge-base HEAD @{u}` | Sync | classify the sync case: up to date, fast-forward, ahead-only, or diverged |
-| `git status --porcelain` | Sync | confirm the working tree is clean before attempting a rebase |
+| `git status --porcelain --untracked-files=no` | Sync | confirm no tracked change exists before attempting a rebase |
+| `git log --oneline @{u}..HEAD` | Push | list the commits the push will publish |
 | `git merge --ff-only @{u}` | Sync | fast-forward onto upstream when the local branch has not diverged |
 | `git rebase @{u}` | Sync | non-interactive rebase onto upstream when histories have diverged |
 | `git diff --name-only --diff-filter=U` | Sync | capture conflicted file paths before aborting a failed rebase |
@@ -140,6 +141,28 @@ re-stage explicit paths, and re-run Phase 3. If the staged change is non-code on
 workflow artifacts under `issues/`/`plans/`/`implementations/`) and the tool reports no
 applicable gate, continue.
 
+What the gates see: `tools/run_validation_gates.py` selects the staged files (diffed
+against `--base`, default `master`) plus every unstaged tracked change in the working tree
+(`_changed_files`). Another session's unstaged edits therefore also select gates and can
+make one fail. Read the summary's file list and compare it with Phase 3's staged set.
+
+Reading the output: only `Fail` and `Blocked` rows matter. `Not available` rows (a gate
+whose command needs a runtime argument) are noise and are not failures.
+
+An unrelated gate failure is a failure that this change cannot have caused. A `Fail` is
+unrelated only when both hold:
+
+- the gate's output names none of the files in the staged set (Phase 4) or in the diff the
+  sync brought in (Phase 7), or the command itself errors before checking anything (a usage
+  error, exit code 2); and
+- the same gate did not report `Pass` earlier in this run.
+
+In Phase 4, treat every `Fail` as a stop condition regardless: the staged set is yours to
+fix. In Phase 7 (post-sync), an unrelated failure does not block Phase 8; it MUST be
+reported in Phase 9 as a warning with the gate name, the command, and the exit code. If
+the classification is unclear, stop and ask. An unrelated failure of the tool itself is
+not fixed by this skill; point the user to an Issue (`issue-creator`).
+
 ---
 
 ## Phase 5: Make Commit Message
@@ -204,7 +227,8 @@ choice) and its summary describes only what is actually staged.
 git commit -m "<type>[(<scope>)]: <summary>" -m "<body>" -m "<trailer>"
 ```
 
-Omit the `-m` parts that are not needed (each `-m` adds one paragraph).
+Omit the `-m` parts that are not needed (each `-m` adds one paragraph). The trailer goes
+last, as its own `-m`, so it stays separated from the body by a blank line.
 
 Then verify:
 
@@ -212,6 +236,12 @@ Then verify:
 git status --short
 git rev-parse HEAD    # record this SHA for Phase 7's pre-push recheck and the report
 ```
+
+Compare this status with Phase 1's. A `pre-commit` run stashes unstaged tracked changes
+while it runs and restores them afterwards, so with parallel sessions an unstaged file
+can briefly look missing. If an unstaged file from Phase 1 is absent now, wait a short
+time and re-run `git status --short`. Do not recreate, revert, or `git stash pop`
+anything; if it is still absent after a few checks, stop and report.
 
 Stop if commit fails (see `rules/coding.md` Prohibited behavior (all tasks) for the
 `--no-verify` prohibition — not repeated here).
@@ -294,6 +324,9 @@ the commit exists locally but is unpushed; report:
 - the options for the user: commit or discard those changes themselves, then re-invoke
   this skill
 
+Because the histories have diverged, a push would be rejected as non-fast-forward. Skip
+Phase 8 entirely in this case (do not attempt the push) and go to Phase 9.
+
 Record the pre-rebase SHA (the `git rev-parse HEAD` output from the classification step)
 so it can be reported.
 
@@ -338,8 +371,10 @@ uv run python tools/run_validation_gates.py --base ORIG_HEAD
 ```
 
 If Python files under `scripts/` or `tests/` were touched by the fast-forward or rebase,
-also run the tests; start with the test files mirroring the touched modules, and run the
-whole suite only when the touched scope is unclear or the user asks:
+also run the tests. Start with the touched files under `tests/` plus, for each touched
+`scripts/<path>/<name>.py`, the matching `tests/<path>/test_<name>.py` when it exists
+(`git diff --name-only ORIG_HEAD HEAD` lists them). Run the whole suite only when no
+matching test file exists or the user asks:
 
 ```bash
 uv run pytest tests/ -x -q
@@ -370,7 +405,15 @@ git merge-base HEAD @{u}
 Classify again and act:
 
 - `@{u}` equals the merge-base and `HEAD` differs (upstream unchanged since Sync; local
-  ahead only) → proceed to Phase 8 (Push).
+  ahead only) → record the commits the push will publish, then proceed to Phase 8 (Push):
+
+  ```bash
+  git log --oneline @{u}..HEAD
+  ```
+
+  Any commit in this list that this run did not create (for example one a parallel
+  session committed but has not pushed, or one carried over by a rebase) is published
+  too. Do not stop for it, but list it in Phase 9 under "other commits published".
 - `HEAD` and `@{u}` identical → the commit is already on the remote (for example another
   session pushed it). Do not push. Confirm with `git branch -r --contains HEAD`, skip
   Phase 8, and report `already on upstream; no push needed` with the SHA.
@@ -395,7 +438,8 @@ Stop if:
   uncommitted local changes blocking it).
 - The rebase reports a conflict (handled above — always abort and report; see
   `skills/git-commit-and-sync/SKILL.md`, section "Core rules").
-- Post-sync validation (status/diff review, or tests) fails.
+- Post-sync validation (status/diff review, or tests) fails, unless the failure is an
+  unrelated gate failure under Phase 4's rule (report it as a warning instead).
 
 MUST NOT run the commands `SKILL.md` Core rules forbids.
 
@@ -464,8 +508,12 @@ Report:
 - pre-rebase SHA (only when a rebase ran)
 - validation result (Phase 4 gates, and status/diff review or tests after a successful
   sync)
+- unrelated gate failures ignored under Phase 4's rule (gate, command, exit code), if any
 - push result (or reason push was skipped)
-- remaining uncommitted changes
+- other commits published (commits in the pre-push `@{u}..HEAD` list that this run did
+  not create), if any
+- remaining uncommitted changes (and whether Phase 6's check found any unstaged file
+  temporarily missing)
 - stop conditions triggered, with explanation
 - warnings
 

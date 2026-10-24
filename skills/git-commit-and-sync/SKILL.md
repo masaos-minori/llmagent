@@ -44,12 +44,12 @@ Use this skill only inside a local Git repository.
 | 1 | Check Status | branch, changed files, staged/unstaged/untracked |
 | 2 | Choose Files | explicit paths by default; `git add -A` only if user says "all" |
 | 3 | Stage Files | run `git add`; verify staged set with `--cached` diff; stop on secrets/large files |
-| 4 | Check Staged | abort if nothing staged; run `tools/run_validation_gates.py` before committing |
+| 4 | Check Staged | abort if nothing staged; run `tools/run_validation_gates.py` before committing (it also sees unstaged changes of parallel sessions); any `Fail` stops here |
 | 5 | Make Commit Message | derive from staged diff; `<type>[(<scope>)]: <summary>` in English, body for the reason |
-| 6 | Commit | `git commit -m`; check status after; on hook failure fix, re-stage, new commit |
-| 7 | Sync | `git fetch`; fast-forward when possible, else automatic non-interactive rebase onto upstream when histories diverged and the tree is clean; abort and stop on rebase conflict; validate after a successful sync; re-fetch and re-classify right before push (skip if the commit is already on the remote, stop if the remote advanced) |
+| 6 | Commit | `git commit -m`; check status after (a hook's stash can make a parallel session's unstaged files look missing: wait and re-check); on hook failure fix, re-stage, new commit |
+| 7 | Sync | `git fetch`; fast-forward when possible, else automatic non-interactive rebase onto upstream when histories diverged and the tree is clean; abort and stop on rebase conflict; validate after a successful sync (a failure unrelated to this change is reported as a warning, not a stop); skip Phase 8 when a dirty tree blocks the rebase; re-fetch and re-classify right before push (skip if the commit is already on the remote, stop if the remote advanced) |
 | 8 | Push | `git push` automatically once Commit and Sync succeeded with no conflicts; stop and report on missing upstream, rejection, or a "do not push"/confirm-first instruction |
-| 9 | Report | branch, staged files, commit message, sync/push result, warnings |
+| 9 | Report | branch, staged files, commit message, sync/push result, other commits published, ignored unrelated gate failures, warnings |
 
 See `workflow.md` for detailed phase content including commands and stop conditions.
 
