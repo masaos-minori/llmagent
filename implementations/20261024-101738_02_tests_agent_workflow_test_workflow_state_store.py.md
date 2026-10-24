@@ -182,7 +182,7 @@ N/A: test-only change; the fixture stays `tmp_path`-scoped and no credential or 
 - `tests/agent/workflow/test_workflow_engine.py` — owned by
   `implementations/20261024-101738_03_tests_agent_workflow_test_workflow_engine.py.md`.
 - `scripts/agent/workflow/state_store.py` and the composite branch inside its `create_task` wrapper
-  (`state_store.py:55-58`): a Reference Files row of this Plan, uncalled in `scripts/` and `tests/`,
+  (`state_store.py:56-59`): a Reference Files row of this Plan, uncalled in `scripts/` and `tests/`,
   and outside this Plan's frozen edit scope. No test in this Plan calls `StateStore.create_task`.
 
 ## Execution Status

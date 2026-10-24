@@ -106,7 +106,7 @@ and the docstring at `:20` becomes:
   (`AC-4`).
 - `scripts/agent/workflow/state_store.py` is a Reference Files row of this Plan (`:98`), not a target
   row, and is not edited here. Its `create_task` wrapper (`state_store.py:48`) contains a copy of the
-  same composite branch (`:55-58`) and `get_task_by_idempotency_key` (`:124`) is a pass-through. The
+  same composite branch (`:56-59`) and `get_task_by_idempotency_key` (`:124`) is a pass-through. The
   wrapper has no caller in `scripts/` or `tests/` (measured: no `store.create_task(` match; the only
   production call site is `workflow_engine_adapter.py:269`, which imports `agent.workflow.task_ops`
   at `:37`), so this Plan removes the defect from the live path. The residual derivation in the
