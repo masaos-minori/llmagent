@@ -15,6 +15,12 @@
 | `libcst` | semantic refactor safety | CST-based transforms preserving comments |
 | `pre-commit` | CI consistency validation | Aggregated hook runner; final gate |
 
+Run every Python tool through `uv run` (`uv run mypy`, `uv run pyright`, `uv run ruff`, ...); the
+commands below carry the prefix. Check availability the same way, e.g.
+`uv run pyright --version`; `command -v` is wrong for `pyright`, `pyre`, and `tox`, which are not
+on PATH here but run under `uv run`. If a tool fails to start under `uv run`, apply `skills/DESIGN.md`
+Tool availability guard and record the check as `Needs confirmation`.
+
 ## Step failure handling
 
 Apply `rules/ai-execution.md` Step-Level Failure Triage (Base) to every Step below. On a
@@ -31,6 +37,24 @@ changed since that command last ran in this cycle.
 
 **Full diagnosis** — if the cause is unknown, run all tools first: `rules/toolchain.md`
 sections 1 (ruff), 2 (mypy), 3 (lint-imports), and 5 (bandit), each scoped to `scripts/`.
+When the failure is in `tools/` or `tests/`, scope the commands to those paths explicitly:
+`mypy`'s configured `files` covers only `scripts/` and CI's `ruff`/`bandit` steps also run on
+`scripts/` only, so a bare run says nothing about `tools/` (use `routing.md` "Adding a new tool"
+for a `tools/` file) or `tests/`; pre-commit hooks do cover those files.
+
+**Map a failing CI step to a Step** (the `lint` job in `.github/workflows/ci.yml` is the
+source of truth; re-read it if this table looks stale):
+
+| Failing CI step | Command | Go to |
+|---|---|---|
+| Format check | `uv run ruff format --check scripts/` | Step 2 |
+| Lint check | `uv run ruff check scripts/` | Step 2 |
+| Type check | `uv run mypy --no-namespace-packages scripts/` | Step 6 |
+| Security scan | `uv run bandit -r scripts/ -c pyproject.toml -ll` | Step 7 |
+| Architecture check | `PYTHONPATH=scripts uv run lint-imports` | Step 3 |
+| SQLite 4DB separation check, reference-docs drift, docstring format, module size | `tools/check_db_separation.py`, `tools/generate_reference_table.py --check`, `tools/check_docstrings.py`, `tools/check_module_size.py` | Step 9 (CI-only gates) |
+| Pre-commit | `uv run pre-commit run --all-files` (the failing hook's id names the check) | Step 9 |
+| Cited ADR invariant tests | `uv run python .github/run_cited_adr_tests.py` | `python-test-and-fix` |
 
 Per `rules/ai-execution.md` Repository Tool Usage #8: a clean (0-finding) result from any
 of the above is evidence only after confirming `scripts/` exists and is non-empty — not
@@ -45,10 +69,13 @@ MUST NOT fix any issue until you know which tool found it and why.
 
 #### ruff — format and lint
 
-See `rules/toolchain.md` section 1 for the standard format/lint sequence. To narrow to one file:
+See `rules/toolchain.md` section 1 for the standard format/lint sequence. To narrow to one file,
+pass the path and keep the project configuration (`pyproject.toml` selects `E, W, F, I, UP, BLE001`;
+MUST NOT override it with `--select`, which would drop `BLE001` and miss broad `except` handlers):
 
 ```bash
-ruff check scripts/<file>.py --select E,W,F,I,UP
+uv run ruff check scripts/<file>.py
+uv run ruff format --check scripts/<file>.py
 ```
 
 After auto-fix, review the diff. For each changed hunk, confirm the fixed line evaluates
@@ -57,7 +84,10 @@ it only then. A hunk touching a lambda, a chained comprehension, or an expressio
 more than one boolean operator needs this check most; a simple import-sort or
 whitespace-only hunk needs no such re-derivation. If a hunk fails this check, revert only
 that hunk (`git diff` shows it in isolation) and fix the line by hand — MUST NOT accept a
-semantically-changed auto-fix and MUST NOT re-run `ruff check --fix` on the same input.
+semantically-changed auto-fix and MUST NOT re-run `ruff check --fix` on the same input. Revert
+the hunk by editing those lines back to the original text (interactive `git checkout -p` is not
+available here, and `git stash`/reset would touch other sessions' edits); then confirm with
+`git diff <path>`.
 
 #### ast-grep — structural pattern enforcement
 
@@ -65,9 +95,12 @@ See `rules/coding.md` Constraint checks for the bare-except / print() / json.loa
 Additional pattern specific to this skill:
 
 ```bash
-# no top-level assignment patterns that indicate global state
-ast-grep --pattern '$VAR = []' --lang python scripts/
+# module-level mutable globals only: ast-grep's '$VAR = []' also matches local variables,
+# so anchor on column 0 with ripgrep instead
+rg -n '^[A-Za-z_][A-Za-z0-9_]* *(: [^=]+)?= *(\[\]|\{\}|set\(\))\s*$' scripts/
 ```
+
+Treat a match as a Finding to inspect, not an automatic defect (constants and registries are legitimate).
 
 ---
 
@@ -92,16 +125,24 @@ rg "from agent.repl import" scripts/
 ast-grep --pattern 'import $MOD' --lang python scripts/agent/commands/registry.py
 ```
 
+Then check for backward-compatibility leftovers in source and docs:
+
+```bash
+uv run python tools/check_compat_shims.py
+```
+
 **Completed when**: `lint-imports` reports no violation, either because no accidental
 import remained or because every intentional import is now covered by an explicit
-`.importlinter` contract update.
+`.importlinter` contract update, and `check_compat_shims.py` reports no new finding.
 
 ---
 
 ## Step 4: Suppression Governance
 
-Audit all existing suppressions using the commands and required format defined in
-`rules/coding.md` Suppression governance. Fix the root cause rather than suppress, unless
+Audit the suppressions this task adds or touches (the lines in your `git diff`) using the commands
+and required format defined in `rules/coding.md` Suppression governance. Unjustified suppressions
+elsewhere in the repository are out of scope (`AGENTS.md` Global Rule 5): list them in the final
+report, do not fix them. Fix the root cause rather than suppress, unless
 doing so would require a breaking public-API change or touch a file outside the current
 task's scope (`AGENTS.md` Global Rule 5) — in either of those two cases, suppress with the
 Mandatory Audit Log Template instead.
@@ -126,10 +167,16 @@ transform recipe and post-transform verification commands in
 #### mypy — primary
 
 ```bash
-mypy --no-namespace-packages scripts/
-mypy --no-namespace-packages scripts/<file>.py --strict
-mypy --no-namespace-packages scripts/ --show-error-codes   # always include error codes
+uv run mypy --no-namespace-packages scripts/
+uv run mypy --no-namespace-packages scripts/<file>.py
+uv run mypy --no-namespace-packages scripts/ --show-error-codes   # always include error codes
 ```
+
+`mypy --strict` is not the CI configuration. Use it only to inspect a file's wider type hygiene;
+errors that appear only under `--strict` are recorded as Findings and not fixed in this task
+(`SKILL.md` CI Parity rule). If `mypy`'s configuration looks stale (for example the `exclude` entry
+`scripts/agent\.py` names a file that does not exist), record it as a Finding; do not edit the
+configuration unless the failure being fixed requires it.
 
 Always pass `--no-namespace-packages` (the CI and pre-commit invocation; see `rules/toolchain.md`
 section 2). Without it, mypy can abort with `Source file found twice` and judges
@@ -170,33 +217,27 @@ def parse(line: str) -> str:
 Check availability first (per `skills/DESIGN.md` Tool availability guard):
 
 ```bash
-command -v pyright || echo "pyright not installed — skip this sub-step, mypy's result stands alone"
+uv run pyright --version || echo "pyright unavailable — skip this sub-step, mypy's result stands alone"
 ```
 
-If available:
+(`command -v pyright` would wrongly report it missing: it runs only under `uv run`.) If available:
 
 ```bash
-pyright scripts/
-pyright scripts/<file>.py
+uv run pyright scripts/
+uv run pyright scripts/<file>.py
 ```
 
 If mypy and pyright disagree: resolve to the stricter interpretation and annotate why.
 
 #### pyre — strict protocol and TypedDict inference (optional)
 
-Use pyre only when the module defines `Protocol` subclasses or `TypedDict`.
+`pyre-check` is a declared dependency, but the repository has no `.pyre_configuration`, so
+`pyre check` does not run out of the box and CI does not use it. MUST NOT run or configure pyre
+unless the user asks for it; if asked, creating the configuration is a separate, explicit change.
+Typical need: a module that defines `Protocol` subclasses or `TypedDict`
+(`rg "Protocol|TypedDict" scripts/<file>.py`).
 
-```bash
-# Check if pyre is needed:
-rg "Protocol|TypedDict" scripts/<file>.py
-# If no results: skip pyre
-
-pyre check         # one-shot
-pyre               # incremental server
-pyre stop
-```
-
-For standard application code: mypy + pyright are sufficient. MUST NOT run pyre by default.
+For standard application code: mypy + pyright are sufficient.
 
 If a type fix changed a function signature or an import, or added an annotation import
 (e.g. `from typing import ...`), re-run Step 2's `ruff check` on the changed file before
@@ -209,6 +250,8 @@ Step 7 — a type-driven edit can introduce an unused import or formatting viola
 See `rules/toolchain.md` section 5 for bandit commands.
 
 Priority findings — MUST resolve before merge: see `rules/coding.md` Bandit priority findings.
+CI gates on medium severity and above (`-ll`); a low-severity finding does not fail CI, so it is
+not fixed in this task unless the task is that finding: list it in the final report instead.
 
 **Completed when**: `bandit` has been run and every priority finding (per
 `rules/coding.md` Bandit priority findings) is resolved or suppressed with the
@@ -218,18 +261,33 @@ required justification (per `rules/coding.md` Suppression governance).
 
 ## Step 8: Diff Scope Enforcement
 
-Per `rules/toolchain.md` §7 (Diff-scoped coverage).
+The point of this step is that the diff contains only the target fixes:
 
-If coverage on changed lines is below the threshold defined there:
+```bash
+git diff <path>      # every hunk traces to a reported lint/type/security finding
+```
 
-1. Identify which changed lines are uncovered
-2. Add targeted tests for those lines
-3. Re-run `diff-cover` to confirm
+A hunk with no corresponding finding is reverted by hand (no stash/reset).
 
-MUST NOT add tests for unrelated lines to inflate coverage.
+Diff-scoped coverage (`rules/toolchain.md` §7) applies only when a fix changed runtime behavior
+(for example a type fix that altered a branch or a conversion). A formatting, import, annotation,
+or suppression change has no new behavior to cover: record `diff-cover: not applicable` and do not
+add tests. When it applies, generate the report first, then check:
 
-**Completed when**: `diff-cover` reports the changed-lines coverage at or above the
-threshold in `rules/toolchain.md` §7, using only tests scoped to the actual change.
+```bash
+uv run coverage run -m pytest tests/ -m "not integration"
+uv run coverage xml
+uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
+```
+
+(Threshold per `rules/toolchain.md` §7; run the tests only after the production-isolation check in
+`python-test-and-fix` Core rules.) If changed lines are uncovered: identify them, add targeted
+tests for those lines via `python-test-and-fix`, re-run `diff-cover`. MUST NOT add tests for
+unrelated lines to inflate coverage.
+
+**Completed when**: every hunk of the diff traces to a finding, and either `diff-cover` reports
+the changed-lines coverage at or above the threshold using only tests scoped to the actual
+change, or the step is recorded as not applicable (no behavior change).
 
 ---
 
@@ -238,10 +296,25 @@ threshold in `rules/toolchain.md` §7, using only tests scoped to the actual cha
 Run the standard validation sequence (`rules/toolchain.md`) in full, ending with the pre-commit
 gate (`rules/toolchain.md` section 8) to match CI behavior.
 
-If using tox (requires tox.ini to be configured — not in the default dev workflow):
+**CI-only gates** (the CI `lint` job runs these beyond ruff/mypy/bandit/lint-imports; run the one
+that failed, or all when unsure):
+
+| Gate | Command | Typical fix |
+|---|---|---|
+| SQLite 4DB separation | `uv run python tools/check_db_separation.py` | remove the cross-DB access, `ATTACH`, or schema-qualified name it names |
+| Generated reference docs drift | `uv run python tools/generate_reference_table.py --check` | run the generator with the `--type` it names and include the regenerated block |
+| Module docstring format | `uv run python tools/check_docstrings.py` | fix the docstring header it names (read-only checker) |
+| Module size | `uv run python tools/check_module_size.py` | split the module (never raise the baseline to pass) |
+| Pre-commit | `uv run pre-commit run --files <changed files>` (CI uses `--all-files`) | fix what the failing hook id reports; do not use `--no-verify` |
+
+An unrelated failure (output names none of your changed files, and the gate did not pass earlier in
+this run) is recorded in the final report, not fixed here.
+
+`tox.ini` defines the envs `lint`, `typecheck`, and `tests` (one Python version, with
+`skip_missing_interpreters`); it is an alternative runner, not a multi-version matrix:
 
 ```bash
-tox -e lint && tox -e typecheck && tox -e tests
+uv run tox -e lint && uv run tox -e typecheck && uv run tox -e tests
 ```
 
 An exit-0 result is proof of a passing environment only after confirming each `tox -e
@@ -255,27 +328,30 @@ Repository Tool Usage #8.
 
 Enforces `SKILL.md` Strict Diff Isolation. In addition:
 
-- MUST NOT rename symbols while fixing a type error — do them in separate commits
+- MUST NOT rename symbols while fixing a type error — a rename is a separate change set
 
-Review the diff before staging:
+Review your own diff:
 
 ```bash
 git diff scripts/<file>.py
-rg "noqa\|type: ignore\|nosec" scripts/<file>.py
+rg "noqa|type: ignore|nosec" scripts/<file>.py     # plain `|`: ripgrep treats `\|` as a literal pipe
 ```
 
-If the diff contains unrelated changes: stash them or reset those lines before committing.
+If the diff contains changes that are not part of the fix: edit those lines back by hand. MUST NOT
+`git stash` or reset in the working tree — other sessions' unstaged edits live there and would be
+swept in. This skill never stages or commits; when the user asks, use `git-commit-and-sync`
+(it stages explicit paths and one logical change per commit).
 
 ---
 
 ## Step 11: Repository Knowledge Compression
 
-After resolving issues, update project knowledge files if anything changed:
+After resolving issues, handle project knowledge files if anything changed:
 
-- **`CLAUDE.md` module table**: update if a module's role changed
-- **`.importlinter`**: commit updated contracts when boundary rules change
-- **`pyproject.toml`**: document any new `[tool.ruff.lint.per-file-ignores]` entries with justification
-- **`.pre-commit-config.yaml`**: update hook versions if upgraded
+- **`.importlinter`**: an updated contract is part of the fix when boundary rules change (Step 3); keep it in the change set
+- **`pyproject.toml`**: a new `[tool.ruff.lint.per-file-ignores]` entry needs a justification comment next to it; add it only when the failure being fixed requires it
+- **`.pre-commit-config.yaml`**: update hook versions only if the task is the upgrade
+- **Documentation** (`CLAUDE.md`, `docs/`, `routing.md`, skills): do not edit unprompted (`AGENTS.md` Global Rule 5); describe the needed update in the final report. `CLAUDE.md` has no module table, so there is nothing of that kind to keep in sync
 
 ---
 
