@@ -76,7 +76,7 @@ Address high/medium severity findings before proceeding.
 ### 6. Tests (pytest)
 
 ```bash
-uv run pytest tests/test_<affected_module>.py -v    # targeted
+uv run pytest tests/<package>/test_<affected_module>.py -v    # targeted (tests mirror scripts/; see skills/python-test-and-fix/workflow.md Test structure)
 uv run pytest -v                                     # full suite
 uv run pytest tests/mcp_servers/mdq/test_mdq_rag_boundary.py -v     # boundary enforcement (MDQ/RAG cross-DB and agent-layer direct access)
 ```

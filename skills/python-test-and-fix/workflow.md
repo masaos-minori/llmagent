@@ -5,7 +5,7 @@
 | Tool | Goal | Role |
 |---|---|---|
 | `pytest` | — | Test runner |
-| `pytest-xdist` | — | Parallel execution (`-n auto`) |
+| `pytest-xdist` | — | Parallel execution (`-n auto`). Not part of the default run (`addopts` has no `-n`); do not use it for flaky investigation (Step 3) or mutation runs, and only after confirming the isolation guard is safe under multiple workers |
 | `pytest-cov` / `coverage` | regression quality analysis | Coverage measurement |
 | `pytest-mock` | boundary virtualization | `mocker` fixture for patching |
 | `pytest-randomly` | flaky detection | Randomize test order |
@@ -18,7 +18,7 @@
 | `freezegun` | deterministic runtime | Freeze `datetime.now()` |
 | `hypothesis` | contract validation | Property-based testing |
 | `respx` | boundary virtualization | Mock `httpx` HTTP calls |
-| `factory_boy` | — | Readable, repeatable test data factories |
+| `factory_boy` | — | Test data factories (available; use only where neighboring tests already use factories) |
 | `diff-cover` | regression quality analysis | Coverage gate scoped to changed lines |
 
 ## Test structure
@@ -60,7 +60,10 @@ an exhaustive inventory.
 When finding or adding a test, mirror the target module's path under `scripts/`
 (or `tools/`), not a flat `tests/test_<module>.py` layout.
 
-A fixture that repairs production wiring must be paired with a wiring-level test. `_make_bare_repl` (`tests/agent/test_repl.py`) bypasses `AgentREPL.__init__` (`AgentREPL.__new__` plus a hand-supplied shutdown event) so its doubles stand in for config, terminal, LLM and MCP services; because it supplies what `__init__` does not, it must be paired with `TestWiringGuard`, which runs the real constructor and asserts one `asyncio.Event` is held across the objects that own it. Every wiring-repairing fixture in the suite carries such a paired guard and names it in its docstring — see the wiring-guard and mock-state rule in `SKILL.md`.
+A fixture that repairs production wiring must be paired with a wiring-level test that runs the
+real constructor, and names it in its docstring (the wiring-guard and mock-state rule in
+`SKILL.md`). Look at the existing pair for the pattern: the `_make_bare_repl` fixture and the
+`TestWiringGuard` class in `tests/agent/test_repl.py` (search for them by name; they may move).
 
 ## Step 1: Classify the Testing Task
 
@@ -111,16 +114,16 @@ Understand:
 
 ## Step 3: Flaky Detection
 
-If the failure is intermittent, run these in order (each with `uv run` and the mirrored test
-path, e.g. `tests/<package>/test_<module>.py`, never a flat `tests/test_<module>.py`; add
+If the failure is intermittent, run these in order (with the mirrored test path, e.g.
+`tests/<package>/test_<module>.py`, never a flat `tests/test_<module>.py`; every command adds
 `-m "not integration"` unless the test is an integration test); stop as soon as one gives a
-clear answer:
+clear answer. Do not use `pytest-xdist` here (it changes ordering and hides the cause):
 
 ```bash
-pytest <test path> --randomly-seed=1234 -v
-pytest <test path> --randomly-seed=0 -v
-pytest <test path> --randomly-seed=4321 -v
-pytest <test path> -p no:randomly -v      # fixed (collection) order
+uv run pytest <test path> -m "not integration" --randomly-seed=1234 -v
+uv run pytest <test path> -m "not integration" --randomly-seed=0 -v
+uv run pytest <test path> -m "not integration" --randomly-seed=4321 -v
+uv run pytest <test path> -m "not integration" -p no:randomly -v      # fixed (collection) order
 ```
 
 Run these four to separate an ordering dependency from non-determinism: each seed fixes one
@@ -133,11 +136,13 @@ passes on rerun is still flaky, and `--reruns` reports such a run as passed. To 
 rate, run the same command in a loop without `--reruns`
 (`for i in $(seq 1 10); do uv run pytest <test path> --randomly-seed=1234 -q || break; done`).
 
-Identify the ordering dependency:
+Identify the ordering dependency (keep the scope to the package under suspicion first — the
+failing test's package directory — and widen to `tests/` only if the order that fails spans
+packages):
 
 ```bash
-pytest tests/ --randomly-seed=last -v     # replay last failing order
-pytest tests/ -p no:randomly              # disable to see if it disappears
+uv run pytest <package dir> -m "not integration" --randomly-seed=last -v   # replay last failing order
+uv run pytest <package dir> -m "not integration" -p no:randomly            # disable to see if it disappears
 ```
 
 **Completed when**: the failure is confirmed either as seed-order-dependent (fails
@@ -162,8 +167,15 @@ uv run mutmut tests-for-mutant <MUTANT_NAME> # which tests exercise it
 ```
 
 Check `uv run mutmut run --help` first (only `--max-children` and the mutant-name arguments
-exist). If the run cannot be limited to the target in reasonable time (an unbounded
-whole-`scripts/` run), record `Not run` with the reason instead of running it unbounded.
+exist). The name pattern above is not documented in that help, so try it first on one module and
+read `mutmut results`: if it ran only that module's mutants, keep the pattern; if it ran others
+or errored, fall back to naming individual mutants, or record `Not run`.
+
+mutmut runs the test suite for every mutant, so it carries the same production-state risk as a
+normal run: apply the Step 2 isolation check before the first `mutmut run`, and do not combine it
+with `pytest-xdist`. Bound the effort: stop and record `Not run` with the reason if one module's
+run does not finish within a reasonable time (agree on the limit with the user when the module is
+large) or cannot be limited to the target, instead of running it unbounded.
 
 If `mutmut run` itself exits non-zero (distinct from completing and reporting
 results): treat as a tool failure per `rules/ai-execution.md` Step-Level Failure
@@ -182,6 +194,10 @@ changed, after the fix, then check `mutmut results` for those functions only.
 ## Step 5: Deterministic Runtime
 
 #### freezegun — freeze time
+
+The code examples in this file are illustrative: class, function, and log names in them
+(`SemanticCache`, `search`, `start_service`, `ToolExecutor(...)`, `cache_hit`) are placeholders,
+not repository symbols. Replace them with the real ones from the code under test.
 
 ```python
 from freezegun import freeze_time
@@ -205,11 +221,17 @@ the behavior in the target test before relying on it).
 
 #### fixed random seed
 
+`pytest-randomly` already reseeds `random` before every test from the session seed, so with it
+installed pin the seed from the command line (`--randomly-seed=1234`, Step 3) instead of adding
+an `autouse` fixture: a fixture that calls `random.seed(42)` overrides the plugin's reseeding
+and defeats order randomization. Use a local seed fixture only for a test that needs a specific
+sequence (or when the plugin is not installed):
+
 ```python
 import random
 import pytest
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def fixed_seed():
     random.seed(42)
 ```
@@ -288,8 +310,10 @@ This step is conditional (any Path): run it only when the task asserts log or au
 
 This project uses `logging.getLogger(__name__)`, so the logger name is the module's import
 path under `PYTHONPATH=scripts` (for `scripts/shared/tool_executor.py`, `shared.tool_executor`),
-not the bare file name. Take the name from the module itself instead of typing it. Skip OTel
-span validation — not adopted project-wide.
+not the bare file name. Take the name from the module itself instead of typing it. OpenTelemetry
+tracing is an optional feature here (`scripts/shared/otel_tracer.py`, a no-op tracer when
+disabled): validate spans only when the task's behavior under test is trace output, using a
+tracer built with `build_tracer`; otherwise skip OTel validation.
 
 To validate log output in tests, use pytest's `caplog` fixture:
 
@@ -327,8 +351,8 @@ async def test_no_pending_tasks_after_completion():
 #### pytest-timeout — catch hung tests
 
 ```bash
-pytest --timeout=10 tests/
-pytest --timeout=10 tests/test_agent_repl.py
+uv run pytest --timeout=10 -m "not integration" <package dir>
+uv run pytest --timeout=10 -m "not integration" tests/<package>/test_<module>.py
 ```
 
 Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or network I/O.
@@ -336,18 +360,20 @@ Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or netw
 ## Step 10: Impact-Based Execution
 
 Use `pytest --testmon` while iterating on a fix within this same session; run the
-repository's full, non-testmon `pytest` suite once before considering the task complete
+repository's full, non-testmon suite once before considering the task complete
 (Step 11) regardless of testmon results — testmon narrows re-runs during iteration, it
-does not replace the final full run.
+does not replace the final full run. The full run is `uv run pytest -m "not integration"` (the
+suite has about 10,000 tests, so expect a long run); run `-m integration` too only when the
+change touches code those tests cover or the user asks. Record the pass/fail counts.
 Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, MUST NOT re-run `pytest
 --testmon` with no source change since the last run — its result is unchanged.
 MUST NOT commit `.testmondata` (`.gitignore` already lists `.testmondata` and
 `.testmondata-*`; confirm with `git check-ignore .testmondata` and do not re-add it):
 
 ```bash
-pytest --testmon tests/                   # only tests affected by changed files
-pytest --testmon-noselect tests/          # run everything, prioritising likely failures, update DB
-pytest --testmon-forceselect tests/       # select only tests affected by changes, on top of -k/-m filters
+uv run pytest --testmon -m "not integration" tests/                   # only tests affected by changed files
+uv run pytest --testmon-noselect -m "not integration" tests/          # run everything, prioritising likely failures, update DB
+uv run pytest --testmon-forceselect -m "not integration" tests/       # select only tests affected by changes, on top of -k/-m filters
 ```
 
 `--testmon-noselect` is the testmon option that deselects nothing; `--testmon-forceselect`
@@ -356,7 +382,15 @@ narrows the selection, so it is not a full run.
 ## Step 11: Regression Quality Analysis
 
 See `rules/toolchain.md` section 7 for the diff-cover sequence, and Step 4 above for the mutmut
-commands. Target: 0 surviving mutants on the bug-fix code path (Path A) or on the new code
+commands. diff-cover needs a coverage report from a full run, which it takes from:
+
+```bash
+uv run coverage run -m pytest tests/ -m "not integration"
+uv run coverage xml
+uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
+```
+
+(Use the threshold in `rules/toolchain.md`; do not commit `coverage.xml` or `.coverage`.) Target: 0 surviving mutants on the bug-fix code path (Path A) or on the new code
 (Path B), counting only functions mutmut actually mutated. Paths C and D do not run Step 4;
 Path A/B record `Not run` when Step 4 could not run, and the target is then reported as
 unverified rather than met.
@@ -399,8 +433,11 @@ Smallest effective change rules:
 
 After adding tests, update project knowledge if patterns changed:
 
-- **`tests/conftest.py`**: add fixtures used by 2+ test files (this is test code, within the
-  task's scope)
+- **`tests/conftest.py`**: place a fixture you added in this task here when 2+ test files need
+  it (test code, within the task's scope). MUST NOT reorganize existing fixtures or move
+  fixtures out of their test files (that is unrelated refactoring), and MUST NOT modify the
+  production-isolation guard. `conftest.py` affects the whole suite: after any change to it,
+  re-run the full suite (Step 10) before completing.
 - **Documentation** (`routing.md`, `rules/coding.md`, a skill's `workflow.md`, `CLAUDE.md`):
   do not edit unprompted (`AGENTS.md` Global Rule 5). Record a new test library or pattern as
   a proposal in the final response (what to document and where), and apply it only when the
@@ -434,9 +471,11 @@ Confirm against each Step's stated criteria above; MUST NOT re-derive them:
 - Step 2: production isolation confirmed before the first test run; no test was skipped, xfailed, or deleted to get a green run
 - Step 3 (Paths A, C, D): no flakiness introduced — the target passes under the seeds used and under `-p no:randomly`, and a 10-run loop of the same seed (without `--reruns`) shows no failure. Path B: the new test file passes in randomized order and with `-p no:randomly`
 - Step 6: mock only at true I/O boundaries, no `mocker.patch` on internal helpers
-- Step 10 / 13: `.testmondata` not committed
+- Step 10: the full non-testmon suite (`-m "not integration"`) ran once after the last change and passed, with its pass/fail counts recorded (and a re-run after any `conftest.py` change)
+- Step 10 / 13: `.testmondata`, `coverage.xml`, and `.coverage` not committed
 - Step 11 target (Paths A and B): 0 surviving mutants on the fix/new code, or `Not run` recorded with the reason (then reported as unverified); Paths C and D: not applicable
-- Step 11 diff-scoped coverage: per `rules/toolchain.md` §7 (Diff-scoped coverage)
+- Step 11 diff-scoped coverage: the `diff-cover` result meets the threshold in `rules/toolchain.md` §7 (Diff-scoped coverage), or is recorded as unmet with the lines it names
+- Step 12: the Test Fix Strategy Record exists for every fix to a failing test
 
 ## Required behavior
 
