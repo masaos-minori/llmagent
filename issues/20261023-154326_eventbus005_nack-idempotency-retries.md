@@ -49,6 +49,7 @@ Yes: the NACK endpoint contract, the idempotency key scope and retention, and th
 
 ## Out of Scope
 DLQ requeue (H-01); ACK semantics.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 No open issue under `issues/` overlaps. Related memo task H-01 (DLQ promotion) and L-01 (stale ACK/NACK comments).

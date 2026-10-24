@@ -104,6 +104,7 @@ wording change is actually made.
 - Deleting `StateStore.create_task()` or `StateStore.get_task_by_idempotency_key()` (`:124`).
 - `StateStore`'s attempt, artifact, and diagnostic methods.
 - Any change to `workflow_engine_adapter.py` or the resume path.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 Depends on the implementation of `implementations/20261024-074027_01_scripts_agent_workflow_task_ops.py.md`

@@ -54,6 +54,7 @@ Yes: requeue delivery semantics, metric definitions, health tiers and the DLQ re
 
 ## Out of Scope
 Changing the SQLite durability boundary; the requeue transaction fix (H-01).
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 Related to H-01 (requeue) and H-03 (integrity check). No open issue under `issues/` overlaps. Large item: consider splitting into delivery semantics, health/metrics and DLQ recovery at plan time.

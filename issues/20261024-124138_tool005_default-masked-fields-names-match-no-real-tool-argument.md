@@ -111,6 +111,7 @@ by Task mapping for "AgentConfig / config constants"
 - Changing `plan_blocked_tools` or any other `ToolConfig` field.
 - Masking tool *results* rather than tool *arguments*.
 - Adding pattern, glob, or path-based matching to `masked_fields`.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 - Depends on the nested-masking rows of `plans/20261023-072425_plan.md`

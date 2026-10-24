@@ -53,6 +53,7 @@ Yes: the schema fingerprint policy, the startup and deployment readiness sequenc
 
 ## Out of Scope
 Schema migration support; changes to the table design itself; the authorization loader fix (H-02) except the shared preflight call.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 Depends on H-02 for a correct configuration load before the token-map preflight is meaningful, and on the readiness definition in M-02 for the deployment gate. Both are open issues in `issues/` (`eventbus002`, `eventbus007`). No other open issue overlaps.

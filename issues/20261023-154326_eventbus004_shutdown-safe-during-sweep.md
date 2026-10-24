@@ -49,6 +49,7 @@ Yes: the shutdown sequence, the connection-ownership rule and the bounded-shutdo
 
 ## Out of Scope
 The DLQ sweep logic itself; the WAL checkpoint step of the agent shutdown.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 Related memo tasks H-01 and H-05 (same connection and lock model). No open issue under `issues/` overlaps.

@@ -50,6 +50,7 @@ This issue is the documentation update.
 
 ## Out of Scope
 Behavior changes of any kind; contract decisions owned by H-01 to M-02.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 Depends on H-01 to M-02 (replacement contracts must exist first). No open issue under `issues/` overlaps.

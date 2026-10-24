@@ -53,6 +53,7 @@ Yes: the DLQ requeue invariant (one committed increment equals one redelivery ro
 
 ## Out of Scope
 Requeue delivery semantics (live push versus replay) and DLQ file reconciliation (see the M-02 issue); NACK idempotency; schema changes.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 Siblings under `issues/`: none touch EventBus. Related memo tasks: H-04 and H-05 (same lock and connection model); M-02 (requeue delivery semantics). Fix order: this issue is independent and may go first.

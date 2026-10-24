@@ -48,6 +48,7 @@ Yes if token rules are documented: one role per token, token uniqueness, mapping
 
 ## Out of Scope
 Runtime authorization updates through the admin API (the M-01 issue); schema validation and deployment gates (H-03).
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 No open issue under `issues/` overlaps. Related memo tasks: M-01 (runtime authorization updates should use the same loader-built principals) and H-03 (startup preflight reuses this validation).

@@ -86,6 +86,7 @@ empty match set is an error. No `docs/` chapter describes this checker's exit be
 - Changing `MAX_SIZE` or any `SIZE_EXCEPTIONS` entry.
 - Changing which checks the tool performs, or adding new checks.
 - Changing the CI workflow invocation.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Unresolved Questions
 - Should a partially-matching set (some globs match, some do not) fail, or only warn? The issue assumes

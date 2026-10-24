@@ -93,6 +93,7 @@ or `docs/40_shared/` chapter before editing, because none of the current chapter
   `plans/20261023-072425_plan.md`).
 - Audit-log retention, rotation, or pruning
   (`docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`).
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 - No blocking dependency on `plans/20261023-072425_plan.md`; the two changes touch different behavior.

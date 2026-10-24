@@ -56,6 +56,7 @@ An operational note is needed: schedule, delivery channel, ownership, and the ru
 - Fixing any flaky test.
 - Changing `ci.yml`, pytest plugins, or retry settings.
 - Automatically filing issues or opening pull requests from CI failures.
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 Sibling-issue check: no open issue under `issues/` covers CI monitoring (`N/A: none` overlap). Loosely related to the closed flaky-test issues listed in Background.

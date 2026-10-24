@@ -54,6 +54,7 @@ Yes: runtime-only versus persistent semantics, the audit record, and the failure
 
 ## Out of Scope
 Token uniqueness and loader fixes (H-02); startup gate (H-03).
+- Lazy loading of the Step 0 mandatory-load set — no action required: the fixed load is absorbed by the prompt cache (user decision 2026-10-24).
 
 ## Dependencies
 Depends on H-02 (loader-built principals in tests). No open issue under `issues/` overlaps.
