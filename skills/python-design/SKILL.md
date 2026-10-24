@@ -110,7 +110,7 @@ See `workflow.md` for the full rule set, evidence-label usage, and the design ch
 ## Called by
 
 - `issue-to-plan` — during planning phase when design decisions or architecture analysis are required
-- `plan-to-implementation-procedure` — narrow usage only: draws a few relevant bullets for its "Design decisions" / "Alternatives considered" / "Compatibility considerations" / "Security considerations" / "Rollback considerations" fields (produced by this skill's Decisions and Alternatives, Compatibility, Security, and Implementation Plan sections), not a full invocation of this skill's multi-section output
+- `plan-to-implementation-procedure` — narrow usage only: draws a few relevant bullets for its "Design decisions" / "Alternatives considered" / "Compatibility considerations" / "Security considerations" / "Rollback considerations" fields (taken from this skill's Design Decisions and Alternatives entries, whose Compatibility impact field and the Interface Design section feed the compatibility field; Security and Trust Boundaries; and the Implementation Plan's rollback strategy), not a full invocation of this skill's multi-section output
 
 ---
 

@@ -10,7 +10,7 @@ Read the task description and extract:
 - **Mode**: `new` (design before implementation) or `existing` (design review of, or refactoring design for, current code). In `existing` mode, apply `skills/DESIGN.md` Evidence labels to every statement about current behavior from this step on (see Evidence and Assumptions).
 - **Delivery**: confirm the default delivery described in `SKILL.md` (English design document in the chat); ask only if the user wants a file and gave no location.
 
-If Goal/Actor/Input-output/Constraints cannot be determined from the task description and available code, list specific questions instead of guessing.
+If Goal/Actor/Input-output/Constraints cannot be determined from the task description and available code, list specific questions instead of guessing. `AGENTS.md` Global Rule 4 says to stop and ask when anything is unclear; this skill applies it as follows: stop for the Goal (and, in Step 2, for the absence of any functional requirement), and for every other gap record an `UNKNOWN` or Open Question and continue, because a design document is the place to surface open questions without producing code.
 
 **Completed when**: all four items are recorded, each as a confirmed value or an explicit question, and the mode is set.
 **Stop and ask the user before Step 2 when**: Goal cannot be determined even provisionally
@@ -57,6 +57,16 @@ PYTHONPATH=scripts uv run lint-imports
 ls scripts/
 ls scripts/<package>/            # for each package named in Step 2's scope, e.g. mcp_servers, shared, eventbus
 ```
+
+Record the `lint-imports` result as the baseline. In `existing` mode, an existing violation
+is a Finding with its Evidence label; in `new` mode it is a constraint the design MUST NOT
+add to. A run that fails for a reason other than a contract (an import error, a missing
+tool) is recorded as `Not run: {reason}`, not as a baseline.
+
+When the design adds or changes an MCP server or a tool, take the constraints from
+`rules/env.md` and `skills/mcp-server-add/workflow.md` and state which apply: HTTP MCP
+servers need an `auth_token`, production runs them as binaries, and tool routing comes from
+the live `/v1/tools` through `RuntimeToolRegistry`. Do not restate those documents' steps.
 
 Define:
 - **Components**: what the major pieces are
@@ -105,6 +115,10 @@ Skip it when the design reuses an existing base class or introduces no new abstr
 ast-grep --pattern 'class $NAME(BaseModel): $$$' --lang python scripts/   # existing patterns
 ast-grep --pattern 'class $NAME(MCPServer): $$$' --lang python scripts/   # server patterns
 ```
+
+Each pattern lists every matching class in `scripts/`. Keep only the match count and the few
+matches relevant to the design (for example by piping to `head`); do not paste the full
+output.
 
 Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run the
 same `ast-grep` pattern against an unchanged target expecting a different result. Per
@@ -158,7 +172,10 @@ For each setting the design adds or changes:
 - **Trust boundaries**: where external or model-generated input enters (HTTP and MCP inputs,
   file paths, subprocess arguments, tool calls) and where it is validated
 - **Approval and permission paths**: for any tool-executing path, which existing approval or
-  permission check applies; a new path MUST NOT bypass the checks neighboring paths use
+  permission check applies; a new path MUST NOT bypass the checks neighboring paths use.
+  Find them with `rg -l "approval" scripts/agent scripts/shared` and read the modules the
+  neighboring paths go through; name the one that applies instead of saying "the existing
+  check"
 - **Secrets**: where secrets live and that they never reach logs, errors, or docs
   (`skills/DESIGN.md` No secrets in output)
 - **Serialization risks**: no `pickle` or other unsafe deserialization of untrusted data
@@ -204,9 +221,14 @@ For each module:
 Repository constraints to reflect in the strategy:
 - test files mirror `scripts/` (`tests/<package>/test_<module>.py`); the work itself is done
   with `python-test-and-fix`
-- running tests on this host can touch production state under `/opt/llm`: state that the
-  isolation guard in `tests/conftest.py` must cover any new path, DB, or port the design
-  introduces
+- running tests on this host can touch production state under `/opt/llm`. The guard in
+  `tests/conftest.py` fails a test that opens a SQLite database or a `FileHandler` under
+  `/opt/llm`, and the suite runs against a temporary root whose state directories
+  (`db`, `storage`, `offsets`, `deadletter`, `rag-src`, `logs`, `memory`) are rewritten; it
+  does not guard ports or other kinds of write. For any writable state the design
+  introduces, state that it lives under one of those directories (or that extending the
+  guard is a task in the plan). For any port, state that tests bind a dynamic port (0) and
+  never a production port
 - tests that start real subprocesses or services use the `integration` marker and are a
   separate command
 
@@ -225,7 +247,8 @@ second, competing plan document.
 ### Step 8a: List phases in dependency order
 
 1. Phase N: <name>
-   - Files to create or modify
+   - Files to create or modify (flag a phase that touches more than 3 files: the plan that
+     consumes it keeps each step within `issue-to-plan`'s 3-file bound and may split it)
    - Key change
 
 A phase depends on another only when it imports, calls, or otherwise requires a symbol the

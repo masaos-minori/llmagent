@@ -283,6 +283,13 @@ Using the Path A/B classification from Step 3:
 - **Path B**: load `workflow-path-b.md` now and perform all four of its analyses
   (architecture, dependency graphing, historical, operational dependency inspection)
   before creating the Plan.
+- **Design decisions (Path B only)**: when the Issue leaves a design choice open (a new
+  module boundary, a public contract, a data or configuration ownership question), load
+  `skills/python-design/SKILL.md` now (not in Step 0) and apply it narrowly: its Step 4
+  decision entries, and Step 8's phase list and risks for those decisions only. Do not run
+  its nine steps or write its Final Output document; the Plan is the single plan document.
+  Record each decision (alternatives, compatibility impact) in the Plan's `Design` section,
+  and a choice that stays open as an Unknown.
 
 #### Validation quality analysis (baseline — run regardless of Path A/B)
 

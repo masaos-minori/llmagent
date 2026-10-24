@@ -145,6 +145,7 @@ See `rules/env.md` for service ports, DB schema, and module decomposition.
 ## Composes with
 - `plan-to-implementation-procedure` — the next pipeline phase once the plan is approved; converts it into file-level implementation procedure documents
 - `code-implementation` — executes the resulting implementation procedure documents, applying `python-implementation`'s guidance
+- `python-design` — Path B only, narrowly (`workflow.md` Step 5 "Design decisions"), when the Issue leaves a design choice open
 - `python-refactoring` — if the plan involves structural module changes
 - `mcp-server-add` — if the plan includes adding a new MCP server
 
