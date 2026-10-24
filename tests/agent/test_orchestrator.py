@@ -7,7 +7,10 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import time
+from contextlib import contextmanager
+from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -25,7 +28,12 @@ from agent.workflow import (
     WorkflowTimeoutError,
 )
 from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
+from agent.workflow.state_store import StateStore
 from agent.workflow.task_ops import create_task
+from agent.workflow.workflow_engine import WorkflowEngine
+from db.config import DbConfig
+from db.create_schema import create_workflow_schema
+from db.helper import SQLiteHelper
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
 
@@ -2656,46 +2664,23 @@ class TestHandleWorkflowEngineStatusPreservation:
         )
 
     @pytest.mark.asyncio
-    async def test_writes_completed_on_normal_success(self) -> None:
-        """Normal completion without any exception should still write 'completed'."""
-        ctx = _make_ctx()
-        orch = _make_orchestrator(ctx)
+    async def test_writes_completed_on_normal_success(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """The engine is the sole writer of 'completed': a clean turn writes it exactly once."""
 
-        mock_store = MagicMock()
-        mock_store.update_task_status = MagicMock()
-        mock_store.close = MagicMock()
+        async def execute_stage(
+            *_a: object, **_k: object
+        ) -> tuple[str, str | None, bool]:
+            return ("answer", None, False)
 
-        async def _normal_run(task, plan_fn, execute_fn, verify_fn):
-            await plan_fn()
-            await execute_fn()
-            await verify_fn()
+        with _status_harness(
+            tmp_path, monkeypatch=monkeypatch, execute_stage=execute_stage
+        ) as (orch, store):
+            await orch._workflow_adapter.execute_turn("hello", time.time(), "sess-1")
 
-        mock_engine = MagicMock()
-        mock_engine.run = AsyncMock(side_effect=_normal_run)
-
-        with (
-            patch.object(
-                orch._workflow_adapter,
-                "_init_workflow_task",
-                return_value=("wf-1", MagicMock(task_id="task-1")),
-            ),
-            patch.object(
-                orch._workflow_adapter,
-                "_run_execute_stage",
-                new=AsyncMock(return_value=("ok", None, False)),
-            ),
-            patch.object(orch._workflow_adapter, "_deactivate_workflow"),
-            patch("agent.orchestrator.StateStore", return_value=mock_store),
-            patch(
-                "agent.workflow_engine_adapter.WorkflowEngine", return_value=mock_engine
-            ),
-        ):
-            orch._state_store = mock_store
-            orch._workflow_adapter._state_store = mock_store
-            await orch._workflow_adapter.execute_turn("test line", time.time(), "")
-
-        # The finally block should have written 'completed'
-        mock_store.update_task_status.assert_called_with("task-1", "completed")
+        assert store.calls == ["running", "completed"]
+        assert store.task_status() == "completed"
 
     @pytest.mark.asyncio
     async def test_writes_failed_on_execute_failure(self) -> None:
@@ -2920,3 +2905,304 @@ class TestSingleLlmTurnExecutorOwnership:
         assert isinstance(orch._llm_executor, LlmTurnExecutor)
         # Passed by reference to the adapter — no second instance is created.
         assert orch._workflow_adapter._llm_executor is orch._llm_executor
+
+
+# ── Task status per turn outcome (real WorkflowEngine + real StateStore) ──────
+
+
+class _ProbeStateStore(StateStore):
+    """StateStore on a temp workflow.sqlite that records every update_task_status call."""
+
+    def __init__(self, db_path: str) -> None:
+        self._db = SQLiteHelper(db_path=db_path)
+        self._db.open(write_mode=True, row_factory=True)
+        self.calls: list[str] = []
+
+    def update_task_status(self, task_id: str, status: str) -> None:
+        self.calls.append(status)
+        super().update_task_status(task_id, status)
+
+    def task_status(self) -> str | None:
+        rows = self._db.fetchall("SELECT status FROM tasks")
+        return rows[0]["status"] if rows else None
+
+    def attempt_rows(self) -> list[tuple[str, str, str | None]]:
+        rows = self._db.fetchall("SELECT stage_id, status, error_kind FROM attempts")
+        return [(r["stage_id"], r["status"], r["error_kind"]) for r in rows]
+
+
+@contextmanager
+def _status_harness(
+    tmp_path: Path,
+    *,
+    monkeypatch: pytest.MonkeyPatch,
+    execute_stage: Any,
+    on_error: Any = None,
+    max_attempts: int = 1,
+    execute_timeout_sec: float = 5,
+    execute_retryable: bool = True,
+    store_cls: type[_ProbeStateStore] = _ProbeStateStore,
+):
+    """Real WorkflowEngine + real StateStore + real adapter on a temp workflow.sqlite.
+
+    Restores the classes the autouse ``_patch_workflow_loader`` fixture patched, points the
+    single shared StateStore at a temp DB, installs a real WorkflowDef, and drives the execute
+    stage through a controlled ``_run_execute_stage`` replacement so no LLM service is required.
+    """
+    db_path = str(tmp_path / "workflow.sqlite")
+    rag_path = str(tmp_path / "rag.sqlite")
+    session_path = str(tmp_path / "session.sqlite")
+
+    with patch(
+        "db.helper.build_db_config",
+        return_value=DbConfig(
+            rag_db_path=rag_path,
+            session_db_path=session_path,
+            workflow_db_path=db_path,
+        ),
+    ):
+        create_workflow_schema()
+
+    store = store_cls(db_path)
+
+    # Restore the real classes BEFORE constructing the orchestrator so it builds the real
+    # WorkflowEngine and routes its single shared StateStore at our temp DB (factory form so
+    # StateStore() returns our pre-built probe store rather than opening a second connection).
+    monkeypatch.setattr("agent.orchestrator.StateStore", lambda: store)
+    monkeypatch.setattr("agent.workflow_engine_adapter.WorkflowEngine", WorkflowEngine)
+    monkeypatch.setattr("agent.workflow_engine_adapter.create_task", create_task)
+
+    ctx = _make_ctx()
+    orch = _make_orchestrator(ctx, on_error=on_error)
+
+    stages = [
+        StageDefinition(id="plan", timeout_sec=5, retryable=False),
+        StageDefinition(
+            id="execute", timeout_sec=execute_timeout_sec, retryable=execute_retryable
+        ),
+        StageDefinition(id="verify", timeout_sec=5, retryable=False),
+    ]
+    policy = RetryPolicy(max_attempts=max_attempts, backoff_sec=0)
+    wdef = WorkflowDef(
+        name="default", version="1.0.0", stages=stages, retry_policy=policy
+    )
+    orch._workflow_def = wdef
+    orch._workflow_adapter._workflow_engine._wdef = wdef
+
+    # Drive the execute stage without the LLM stack.
+    monkeypatch.setattr(
+        orch._workflow_adapter, "_run_execute_stage", execute_stage, raising=True
+    )
+    monkeypatch.setattr(
+        "agent.workflow_engine_adapter.audit_workflow_start", MagicMock()
+    )
+    monkeypatch.setattr(
+        "agent.workflow_engine_adapter.audit_stage_completed", MagicMock()
+    )
+
+    yield orch, store
+
+
+class TestTaskStatusPerTurnOutcome:
+    """Pins tasks.status for every exit path of WorkflowEngineAdapter.execute_turn against a
+    real WorkflowEngine and a real StateStore on a temporary workflow.sqlite."""
+
+    @pytest.mark.asyncio
+    async def test_success_writes_completed_exactly_once(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Case A: a clean turn has the engine write running then completed exactly once."""
+
+        async def execute_stage(
+            *_a: object, **_k: object
+        ) -> tuple[str, str | None, bool]:
+            return ("answer", None, False)
+
+        with _status_harness(
+            tmp_path, monkeypatch=monkeypatch, execute_stage=execute_stage
+        ) as (orch, store):
+            await orch._workflow_adapter.execute_turn("hello", time.time(), "sess-1")
+
+        assert store.task_status() == "completed"
+        assert store.calls == ["running", "completed"]
+
+    @pytest.mark.asyncio
+    async def test_execute_stage_exception_marks_failed(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Case B: a non-retryable execute-stage failure has the engine write failed.
+
+        The adapter's verify_fn is a no-op, so the adapter-visible "engine wrote failed" path is
+        reproduced here with a non-retryable execute-stage exception (the identical adapter-visible
+        outcome a verify-stage failure would produce).
+        """
+
+        async def execute_stage(*_a: object, **_k: object) -> object:
+            raise RuntimeError("stage failure")
+
+        with _status_harness(
+            tmp_path,
+            monkeypatch=monkeypatch,
+            execute_stage=execute_stage,
+            execute_retryable=False,
+        ) as (orch, store):
+            with pytest.raises(RuntimeError):
+                await orch._workflow_adapter.execute_turn(
+                    "hello", time.time(), "sess-1"
+                )
+
+        assert store.task_status() == "failed"
+        assert store.calls == ["running", "failed"]
+        assert ("execute", "failed", "exception") in store.attempt_rows()
+
+    @pytest.mark.asyncio
+    async def test_soft_turn_error_downgrades_to_failed(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Case C: a partial answer with an error_kind ends failed (adapter writes it)."""
+
+        async def execute_stage(
+            *_a: object, **_k: object
+        ) -> tuple[str, str | None, bool]:
+            return ("partial", "CONNECT_ERROR", True)
+
+        with _status_harness(
+            tmp_path, monkeypatch=monkeypatch, execute_stage=execute_stage
+        ) as (orch, store):
+            _, error_kind, is_partial = await orch._workflow_adapter.execute_turn(
+                "hello", time.time(), "sess-1"
+            )
+
+        assert is_partial is True
+        assert error_kind == "CONNECT_ERROR"
+        assert store.task_status() == "failed"
+        assert store.calls[-1] == "failed"
+
+    @pytest.mark.asyncio
+    async def test_execute_retry_exhaustion_halts(self, tmp_path, monkeypatch) -> None:
+        """Case D: a retryable execute stage that fails past max_attempts ends halted."""
+
+        async def execute_stage(*_a: object, **_k: object) -> object:
+            raise RuntimeError("always fails")
+
+        with _status_harness(
+            tmp_path,
+            monkeypatch=monkeypatch,
+            execute_stage=execute_stage,
+            max_attempts=2,
+        ) as (orch, store):
+            await orch._workflow_adapter.execute_turn("hello", time.time(), "sess-1")
+
+        assert store.task_status() == "halted"
+        assert store.calls == ["running", "halted"]
+        assert store.attempt_rows().count(("execute", "failed", "exception")) == 2
+
+    @pytest.mark.asyncio
+    async def test_execute_stage_timeout_halts(self, tmp_path, monkeypatch) -> None:
+        """Case F: an execute stage that exceeds its timeout ends halted with a timeout attempt."""
+
+        async def execute_stage(*_a: object, **_k: object) -> object:
+            await asyncio.sleep(0.2)
+            return ("", None, False)
+
+        with _status_harness(
+            tmp_path,
+            monkeypatch=monkeypatch,
+            execute_stage=execute_stage,
+            execute_timeout_sec=0.01,
+        ) as (orch, store):
+            await orch._workflow_adapter.execute_turn("hello", time.time(), "sess-1")
+
+        assert store.task_status() == "halted"
+        assert ("execute", "failed", "timeout") in store.attempt_rows()
+
+    @pytest.mark.asyncio
+    async def test_cancellation_records_halted_and_propagates(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Case E: cancelling a running turn records halted, propagates CancelledError, and
+        leaves the execute attempt row open (closing it is out of scope)."""
+
+        async def execute_stage(*_a: object, **_k: object) -> object:
+            while True:
+                await asyncio.sleep(0.01)
+
+        with _status_harness(
+            tmp_path, monkeypatch=monkeypatch, execute_stage=execute_stage
+        ) as (orch, store):
+            runner = asyncio.create_task(
+                orch._workflow_adapter.execute_turn("hello", time.time(), "sess-1")
+            )
+            await asyncio.sleep(0.05)
+            runner.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await runner
+
+        assert store.task_status() == "halted"
+        assert any(
+            stage == "execute" and status == "running"
+            for stage, status, _ in store.attempt_rows()
+        )
+
+    @pytest.mark.asyncio
+    async def test_failure_before_engine_start_keeps_pending(
+        self, tmp_path, monkeypatch
+    ) -> None:
+        """Case H: a failure inside task creation before the engine starts keeps pending."""
+
+        async def execute_stage(
+            *_a: object, **_k: object
+        ) -> tuple[str, str | None, bool]:
+            return ("", None, False)
+
+        with _status_harness(
+            tmp_path, monkeypatch=monkeypatch, execute_stage=execute_stage
+        ) as (orch, store):
+            monkeypatch.setattr(
+                "agent.workflow_engine_adapter.audit_workflow_start",
+                MagicMock(side_effect=RuntimeError("audit start failed")),
+            )
+            with pytest.raises(RuntimeError):
+                await orch._workflow_adapter.execute_turn(
+                    "hello", time.time(), "sess-1"
+                )
+
+        assert store.task_status() == "pending"
+        assert store.calls == []
+
+    @pytest.mark.asyncio
+    async def test_status_write_failure_logs_error_without_on_error(
+        self, tmp_path, monkeypatch, caplog
+    ) -> None:
+        """Log case: a failing status write is logged at ERROR, returns normally, skips on_error."""
+
+        class _FailingStatusStore(_ProbeStateStore):
+            def update_task_status(self, task_id: str, status: str) -> None:
+                if status == "failed":
+                    raise RuntimeError("db down")
+                super().update_task_status(task_id, status)
+
+        async def execute_stage(
+            *_a: object, **_k: object
+        ) -> tuple[str, str | None, bool]:
+            return ("partial", "CONNECT_ERROR", True)
+
+        with _status_harness(
+            tmp_path,
+            monkeypatch=monkeypatch,
+            execute_stage=execute_stage,
+            store_cls=_FailingStatusStore,
+        ) as (orch, store):
+            with caplog.at_level(logging.ERROR, logger="agent.workflow_engine_adapter"):
+                await orch._workflow_adapter.execute_turn(
+                    "hello", time.time(), "sess-1"
+                )
+
+            rows = store._db.fetchall("SELECT task_id FROM tasks")
+            task_id = rows[0]["task_id"]
+            assert any(
+                "failed" in rec.getMessage() and task_id in rec.getMessage()
+                for rec in caplog.records
+            )
+
+        assert store.task_status() == "completed"

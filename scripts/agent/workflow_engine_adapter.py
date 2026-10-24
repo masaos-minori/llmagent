@@ -10,6 +10,7 @@ _deactivate_workflow, _handle_workflow_halt).
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 import uuid
@@ -40,6 +41,23 @@ logger = logging.getLogger(__name__)
 if TYPE_CHECKING:
     from agent.context import AgentContext
     from agent.diagnostic_store import DiagnosticStore
+
+# ── Private helpers ───────────────────────────────────────────────────────────
+
+
+def _status_for_exit(exit_reason: str, error_kind: str | None) -> str | None:
+    """Return a status the adapter must write, or None when the engine already wrote it.
+
+    `exit_reason` (new) is one of "not-started" (the engine call was never reached),
+    "engine-started" (engine.run raised or is still unwound), "halted", "cancelled" or
+    "completed". `None` covers every exit the workflow engine already recorded.
+    """
+    if exit_reason == "cancelled":
+        return "halted"
+    if exit_reason == "completed" and error_kind is not None:
+        return "failed"
+    return None
+
 
 # ── WorkflowEngineAdapter class ───────────────────────────────────────────────
 
@@ -138,7 +156,7 @@ class WorkflowEngineAdapter:
         answer: str = ""
         error_kind: str | None = None
         is_partial: bool = False
-        engine_status_handled: bool = False
+        exit_reason: str = "not-started"
         task: TaskRecord | None = None
 
         try:
@@ -153,6 +171,7 @@ class WorkflowEngineAdapter:
                 "WorkflowEngine must be injected via constructor"
             )
             engine = self._workflow_engine
+            exit_reason = "engine-started"
 
             async def plan_fn() -> str | None:
                 return None
@@ -186,24 +205,40 @@ class WorkflowEngineAdapter:
                         f"Turn-entry preparation failed: {prepared_exc}"
                     ) from prepared_exc
                 await engine.run(task, plan_fn, execute_fn, verify_fn)
+                exit_reason = "completed"
         except (WorkflowHaltError, WorkflowTimeoutError) as exc:
-            engine_status_handled = True
+            exit_reason = "halted"
             self._handle_workflow_halt(exc)
+        except asyncio.CancelledError:
+            exit_reason = "cancelled"
+            raise
         finally:
-            try:
-                _task = task
-                if _task is not None and _task.task_id and not engine_status_handled:
-                    if error_kind is not None:
-                        self._state_store.update_task_status(_task.task_id, "failed")
-                    else:
-                        self._state_store.update_task_status(_task.task_id, "completed")
-            except Exception as e:  # noqa: BLE001 — updating task status on engine exit is best-effort; failure must not abort the turn
-                logger.warning("Failed to update task status on engine exit: %s", e)
+            self._record_exit_status(exit_reason, error_kind, task)
             if self._owns_state_store:
                 self._state_store.close()
             self._owns_state_store = False
 
         return answer, error_kind, is_partial
+
+    def _record_exit_status(
+        self, exit_reason: str, error_kind: str | None, task: TaskRecord | None
+    ) -> None:
+        """Best-effort write of the status the adapter owns for this exit.
+
+        Writes nothing when the workflow engine already recorded the outcome.
+        """
+        intended_status = _status_for_exit(exit_reason, error_kind)
+        if intended_status is None or task is None or not task.task_id:
+            return
+        try:
+            self._state_store.update_task_status(task.task_id, intended_status)
+        except Exception as exc:  # noqa: BLE001 — updating task status on engine exit is best-effort; failure must not abort the turn
+            logger.error(
+                "Failed to update task status for task %s to %s: %s",
+                task.task_id,
+                intended_status,
+                exc,
+            )
 
     def _init_workflow_task(
         self,

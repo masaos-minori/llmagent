@@ -321,9 +321,9 @@ pins the adapter's `completed` write to that harness instead of deleting it (`RE
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Phase 1 witness run must be recorded before the adapter change |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This row is the test row; migration is Phase 3 step 1 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Baseline: 230 passed, re-measured post-rebase 2026-10-24 |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-24 | 2026-10-24 | Appended `_ProbeStateStore` + `_status_harness` + `TestTaskStatusPerTurnOutcome` (8 tests) after `:2922`; migrated `test_writes_completed_on_normal_success` to the harness. `_process_turn`/`_handle_turn_end` anchors were stale (split by turn002/turn004), so the execute stage is driven by patching `_run_execute_stage`; case B reproduced via a non-retryable execute-stage exception |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-24 | 2026-10-24 | Same row; 8 new tests + migrated test all green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-24 | 2026-10-24 | 238 passed (orchestrator + workflow + integration); `tests/agent` 3670 passed / 3 skipped; `check_mock_patch_targets.py` no findings; ruff check+format clean; mutation control confirms A/B and E |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: docs rows are `_03` and `_04` | — | — | |
 
 ### Blocker Log

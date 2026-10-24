@@ -373,9 +373,9 @@ Decision table the helper must implement (Plan `Design` `:345-352`):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Blocked until `083059_01` (turn002) lands; re-take anchors afterwards |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Owned by `_02`; must land in the same commit |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Baselines measured 2026-10-24: 217 passed, 440 mypy files, 6 contracts kept |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-24 | 2026-10-24 | Anchors re-taken at HEAD `1471a75e8` after turn002/turn004. Added `_status_for_exit`, rewired `execute_turn` to `exit_reason`, added `_record_exit_status`. radon/no-worse-block, check_module_size, ruff check+format, vulture, mypy 440, lint-imports 6/0, AC-2 grep all pass. bandit B101 x2 pre-existing asserts |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-24 | 2026-10-24 | Owned by `_02`; landed in the same commit as this row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-24 | 2026-10-24 | Mutation control: re-added adapter `completed` write -> case A/B fail; removed `except asyncio.CancelledError` -> case E fails; reverted both. Full `tests/agent` 3670 passed / 3 skipped |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | N/A: docs rows are `_03` and `_04` | — | — | |
 
 ### Blocker Log
