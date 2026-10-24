@@ -107,7 +107,7 @@ apply before moving to Phase 11.
 - `python-code-review` — optional self-review of the diff after Phase 11 when the user asks
 - `mcp-server-add` — Phase 11 when a new MCP server was added
 - `git-commit-and-sync` — to stage, commit, and push on request; this skill never commits on its own
-- `deploy` — after Phase 11 if `scripts/` or `config/` changed
+- `deploy` — only on the user's request, after the change is committed and pushed (it deploys a pushed HEAD behind an approval gate), if `scripts/` or `config/` changed
 - `issue-to-plan` — if implementation starts from an approved plan in `plans/`, verify scope against the plan before Phase 5
 - `code-implementation` — calls this skill in its Step 3 (Implement the feature) when executing an approved implementation procedure from `implementations/*.md`; verify scope against that procedure document, not just the Plan, before Phase 5
 

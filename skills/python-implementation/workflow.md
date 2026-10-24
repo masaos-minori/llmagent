@@ -21,10 +21,10 @@
 | `lint-imports` | Validation Orchestration | `PYTHONPATH=scripts uv run lint-imports` (command per `rules/toolchain.md` §3) |
 | `tools/run_validation_gates.py` | Validation Orchestration | Selects and runs the project gates the changed files need |
 | `pre-commit` | Validation Orchestration | Final gate |
-
-Run every Python tool through `uv run`; commands below omit the prefix for brevity.
 | `diff-cover` | Scope Control | Coverage scoped to changed lines |
 | `pytest-benchmark` | Scope Control | Performance regression guard |
+
+Run every Python tool through `uv run`; commands below omit the prefix for brevity.
 
 ---
 
@@ -42,6 +42,10 @@ If the task is a refactor with no behavior change (structure only), stop and use
 test first (Step 5e) so the fix is verified against the failing behavior.
 
 If requirements are ambiguous, state what is unknown and proceed conservatively.
+
+Record `git status --short` as the working-tree baseline before any edit. Changes already
+present (another session's edits, earlier work) are not this task's; Phases 2, 10, and 11 rely on
+it when they review a diff.
 
 **Completed when**: task type, target scope, blast radius, and interface impact are all
 recorded, each as a determined value or an explicit unknown.
@@ -94,9 +98,12 @@ Prefer `ast-grep` over `rg` for patterns that must be structurally valid.
 #### pydeps — dependency impact analysis
 
 ```bash
-cd scripts && PYTHONPATH=. pydeps <module> --no-output --show-deps
-PYTHONPATH=scripts pydeps agent.repl --no-output --show-deps --max-bacon=3
+PYTHONPATH=scripts uv run pydeps scripts/<package>/<module>.py --no-output --show-deps
+PYTHONPATH=scripts uv run pydeps scripts/agent/repl.py --no-output --show-deps --max-bacon=3
 ```
+
+`pydeps` takes a file path: a dotted module name (`agent.repl`) fails with `No such file or
+directory`. Do not `cd` into `scripts/` (the shell keeps the directory for later commands).
 
 Assess blast radius before modifying a shared utility (a module with several importers, for
 example `scripts/shared/llm_client.py`, `scripts/rag/utils.py`, `scripts/shared/formatters.py`).
@@ -105,9 +112,11 @@ example `scripts/shared/llm_client.py`, `scripts/rag/utils.py`, `scripts/shared/
 
 ```bash
 git log --oneline -10 -- scripts/<file>.py
-git diff HEAD
-git diff HEAD~1 -- scripts/
+git log -p -3 -- scripts/<file>.py      # how the file's behavior changed recently
 ```
+
+Do not use `git diff HEAD` for history: it shows the whole working tree, including other sessions'
+uncommitted changes.
 
 **Completed when**: every symbol/module in Phase 1's target scope has a confirmed set of
 usages (`rg`/`ast-grep`), and blast radius is assessed for any shared utility touched.
@@ -260,8 +269,9 @@ can execute tools against production state. Run it only against an isolated inst
 - the server's port and base URL come from its `http_port` class variable and
   `config/agent.toml` `[mcp_servers.*]` `url` (`rules/env.md` Service endpoints and ports);
   do not copy a fixed port into the command;
-- if no isolated instance can be started (no isolation guard covering the production paths,
-  or `schemathesis` unavailable), record the check as `Needs confirmation` per
+- if no isolated instance can be started (the isolation check in `python-test-and-fix` Core
+  rules finds no mechanism for a production path the instance reaches, or `schemathesis`
+  unavailable), record the check as `Needs confirmation` per
   `skills/DESIGN.md` Tool availability guard and continue.
 
 Run this check before each MCP server change is considered complete.
@@ -329,22 +339,33 @@ with an unresolved, unjustified high/medium finding.
 See `rules/toolchain.md` for the full sequence and `rules/coding.md` Constraint checks for
 the `ast-grep` commands.
 
-Before the first test run, confirm production isolation as `python-test-and-fix` requires
-(the guard in `tests/conftest.py` covers the production paths in `rules/env.md`; use
-`-m "not integration"` unless integration tests are needed). If a production path is
-unguarded, do not run the tests; record `Needs confirmation`.
+Before the first test run, apply `python-test-and-fix` Core rule "Verify Production Isolation
+Before Running Tests": record what the guard in `tests/conftest.py` covers and does not (it fails
+a test that opens a SQLite database or a `FileHandler` under `/opt/llm`; it does not guard ports
+or other kinds of write), and stop only when no mechanism exists for a production path the tests
+you run reach (record `Needs confirmation`). Default to
+`-m "not integration and not production_paths_allowed"`: `integration` tests start real
+subprocesses and `production_paths_allowed` tests are exempt from the guard; run either group only
+when the task needs it and the user agrees.
 
 Run, in this order, each through `uv run`:
 
 ```bash
 ruff format <changed files> && ruff check <changed files>
-mypy <changed files>              # or pyright; pass paths explicitly (mypy's configured scope omits tools/)
+mypy --no-namespace-packages <changed files>              # or pyright; pass paths explicitly (mypy's configured scope omits tools/)
 PYTHONPATH=scripts lint-imports   # when imports changed
-pytest <tests for the change>     # then the wider suite per rules/toolchain.md §6
+pytest <tests for the change> -m "not integration and not production_paths_allowed"   # then the wider suite (below)
 python tools/run_validation_gates.py          # project gates for the changed files
 python tools/check_compat_shims.py
 pre-commit run --files <changed files>        # final gate (rules/toolchain.md §8)
 ```
+
+The wider suite is `uv run pytest -m "not integration and not production_paths_allowed" -q`, not the
+unfiltered `uv run pytest -v` that `rules/toolchain.md` section 6 lists (that one also runs the
+integration and guard-exempt tests). Follow `python-test-and-fix` Step 10 for it: run it in the
+background with the output in a temporary directory outside the repository, check
+`pgrep -af "pytest|mutmut"` first so another session's run is not using the same checkout, and
+compare `git rev-parse HEAD` and `git status --short` before and after.
 
 `run_validation_gates.py` reports `Fail`/`Blocked` rows that matter and `Not available` rows that
 do not; treat a `Fail` as a stop unless it is unrelated to this change (names none of the
@@ -365,7 +386,9 @@ a known failure. On a pre-existing failure, record it in Output expectations'
 
 #### diff-cover
 
-See `rules/toolchain.md` section 7.
+See `rules/toolchain.md` section 7 and `python-test-and-fix` Step 11: measure with the marker
+filter from Phase 9 and report the result as `measured with the marker filter; CI measures all
+tests` (a pass here also passes in CI; a miss here may pass in CI).
 
 #### pytest-benchmark
 
@@ -377,12 +400,15 @@ def test_floats_to_blob_perf(benchmark):
 ```
 
 ```bash
-pytest tests/ --benchmark-only
-pytest tests/ --benchmark-save=baseline
-pytest tests/ --benchmark-compare=baseline --benchmark-compare-fail=mean:10%
+uv run pytest <benchmark test file> -m "not integration and not production_paths_allowed" --benchmark-only
+uv run pytest <benchmark test file> -m "not integration and not production_paths_allowed" --benchmark-save=baseline
+uv run pytest <benchmark test file> -m "not integration and not production_paths_allowed" --benchmark-compare=baseline --benchmark-compare-fail=mean:10%
 ```
 
 Benchmark baselines are written to `.benchmarks/`, which `.gitignore` already lists; do not commit them.
+
+Review the diff only for the files this task touched (`git diff -- <files>`); a hunk that was already
+in the Phase 1 baseline is not this task's.
 
 **Completed when**: `diff-cover` coverage meets the threshold in `rules/toolchain.md`
 Completion checklist, and a `pytest-benchmark` regression check has been run for any
@@ -437,9 +463,10 @@ When removing a module: delete the file, run `rg` for dangling imports and refer
 - compatibility check result (`tools/check_compat_shims.py`)
 - documentation updated, or documentation follow-ups recorded
 - deploy.sh impact (if any)
-- MCP service map impact (if any)
+- MCP registration impact (if any: `config/agent.toml`, binary registration; see `skills/mcp-server-add/workflow.md`)
 - validation results (ruff, mypy, pytest, project gates, pre-commit)
 - unresolved questions or known limitations (including pre-existing failures and any `Needs confirmation` check)
+- next steps: the changes are uncommitted, so `git-commit-and-sync` commits them on request
 
 ---
 
