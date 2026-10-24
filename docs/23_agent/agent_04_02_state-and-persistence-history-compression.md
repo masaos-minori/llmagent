@@ -34,28 +34,60 @@ Triggered during each turn if either of the following conditions is met:
 
 ### Selection of Targets for Compression
 
-`HistorySelectionPolicy.select_turns_to_compress()` selects turns based on the following:
+`HistorySelectionPolicy.select_turns_to_compress()` groups the non-`system` messages into turn units and selects
+whole units:
 
-1. **Importance Scoring** — Pinned items → Explicit importance → Keyword-based
-2. **Category Classification**:
-   - `temporary` (`tool` role) — Highest priority for deletion
-   - `temporary_reasoning` (`assistant` with tool calls) — Second highest priority
-   - `factual` (`system`) — Retained
-   - `history` (`user`/`assistant` text) — Normal priority
-3. **Protection** — The most recent `history_protect_turns` user+assistant pairs are excluded from compression.
+1. **Unit grouping** — a unit starts at a `user` message and holds every `assistant` and `tool` message until the
+   next `user` message; messages before the first `user` message form a leading unit, so a `tool` row whose
+   `assistant` message was compressed in an earlier cycle is a unit of its own. Concatenating the units reproduces
+   the input exactly.
+2. **Oldest-first selection** — whole units are taken from the front until the cumulative message count reaches
+   `context_compress_turns * 2`; the last unit may overshoot it, so `compressed_count` can exceed the quota.
+   `to_compress` and `remaining` are returned in history order.
+3. **Pinned units** — a unit containing a message with the `pinned` key set is never selected and stays in
+   `remaining` in place.
+4. **Protection** — whole units are protected from the end until the cumulative message count reaches
+   `history_protect_turns * 2`; the boundary rounds outward and never splits a unit.
+5. **System messages** — every `system` message is split out before selection and is never a candidate; summary
+   rows are taken out of them and recompressed with the transcript (see Compression Results).
+6. **No selection** — returns `None` when no whole unit can be taken, and `compress()` then logs a skip warning
+   without modifying history.
+
+Selection identifies messages by unit position, never by value equality, so
+`len(system_msgs) + len(to_compress) + len(remaining) == len(history)` for every input and two messages with
+identical content are both accounted for. Importance scoring does not order selection; it orders fallback drops (see
+Fallback Decision on Failure).
 
 ### Compression Results
 
-Selected old turns are replaced with a single LLM summary message, and the compress counter is incremented. The result reports how many messages were replaced and how many were protected.
+The selected units are replaced by exactly one `system` message whose content starts with `[Conversation summary]`.
+The previous summary text is handed to the summariser in a `PREVIOUS SUMMARY:` block ahead of the transcript, and
+the old summary row is removed, so the summary is carried forward in place instead of accumulating rows: an input
+that already holds several summary rows produces one. `HistoryManager`'s compression counter increments, and
+`CompressResult` reports `compressed_count` (messages replaced), `protected_count` (retained turn messages),
+`summary_added=True` and `summary_chars` (new) (the length of the new summary). The INFO log names `summary_chars` (new), and a
+WARNING is logged when `summary_chars >= count_chars(to_compress)` — the summary is not smaller than the messages it
+replaced. The relative comparison is used because the summariser input caps every message at 300 characters
+(`_build_history_text()`), which is what let a 16-message history produce a 1296-character summary block.
 
 ### Fallback Decision on Failure
 
-If `HistoryManager.compress()` fails to call the summarization LLM, a `HistoryCompressionError` is raised but caught internally, returning `None` and logging a WARNING. Subsequent branching:
+If `HistoryManager.compress()` fails to call the summarization LLM, a `HistoryCompressionError` is raised but caught
+internally, returning `None` and logging a WARNING. Subsequent branching:
 
-- **If character limit is still exceeded** → Falls through to fallback truncation, performing mechanical deletion of low-importance messages without summarization.
-- **If character limit is no longer exceeded** → Returns as a no-op without modifying history (`CompressResult(compressed_count=0, ...)`).
+- **If character limit is still exceeded** → Falls through to fallback truncation, dropping whole turn units
+  without summarization.
+- **If character limit is no longer exceeded** → Returns as a no-op without modifying history
+  (`CompressResult(compressed_count=0, ...)`).
 
-Fallback truncation sorts messages by `HistorySelectionPolicy.classify_importance()` in ascending order (lowest importance first) and deletes them one by one from candidates that exclude the `system` role and the most recent `protect_turns` pairs until the character limit is met (soft-limit behavior: see Key Constraints, Character Limit Behavior). This path sets `CompressResult.is_fallback=True` and increments `HistoryManager.stat_fallback_truncate_count`.
+Fallback truncation protects every `system` message plus the whole units covering the last `history_protect_turns`
+pairs, groups the remaining candidates into whole units, orders them by `HistorySelectionPolicy.group_importance()`
+(the highest `classify_importance()` score inside the unit) ascending, and deletes one whole unit per iteration from
+candidates that exclude the `system` role and the protected units until the character limit is met or a further drop
+would leave fewer than one message (soft-limit behavior: see Key Constraints, Character Limit Behavior). A
+`user`/`assistant` unit and its `tool` results are never split, so no `tool` row is orphaned. This path sets
+`CompressResult.is_fallback=True`, `summary_added=False` and `summary_chars=0`, reports `compressed_count` as the
+number of dropped messages, and increments `HistoryManager.stat_fallback_truncate_count`.
 
 ### Compression Persistence Model
 
@@ -81,7 +113,14 @@ compression are not available for extraction.
 
 ### Token Counting
 
-Priority: (1) LLM's `usage.input_tokens` (accurate), (2) `/tokenize` endpoint (accurate), (3) Fallback to the category-aware estimate (see `scripts/shared/token_estimation.py`).
+`count_tokens_async()` prefers: (1) an exact `last_input_tokens` value supplied by the caller, (2) the `/tokenize`
+endpoint when `tokenize_url` is set, (3) the category-aware estimate in `scripts/shared/token_estimation.py` — 4.0
+characters per token for text, 2.5 for serialized tool calls, 3.5 for `system` messages. The compression trigger
+consults tokens only when the character limit is not already exceeded and `context_token_limit` is greater than 0.
+It never supplies `last_input_tokens`, and `config/agent.toml` sets `tokenize_url = ""`, so the trigger compares the
+category-aware estimate against `context_token_limit`. The exact per-turn count reaches `count_tokens()` only from
+`scripts/agent/services/context_view.py`, which passes the previous turn's `last_input_tokens` for the pre-turn
+decision.
 
 ### Data Classification
 
@@ -100,11 +139,17 @@ Priority: (1) LLM's `usage.input_tokens` (accurate), (2) `/tokenize` endpoint (a
 
 ### Ensuring Protected Pairs
 
-The most recent `history_protect_turns` user+assistant pairs are always protected.
+The last `history_protect_turns` user+assistant pairs are protected as whole units: the boundary rounds outward to
+the start of the unit it enters, and `select_turns_to_compress()` and `_build_protected_ids()` apply the same rule so
+selection and fallback protection agree. A unit containing a pinned message is never compressed and never dropped.
 
 ### Character Limit Behavior
 
-Fallback truncation drops only unprotected messages, lowest importance first, until the character limit is met. The `system` messages and the protected recent turns are never dropped, so when they alone exceed the limit the limit is a soft limit: processing continues and a WARNING is logged. Protected messages are never dropped silently to reach the limit.
+Fallback truncation drops only unprotected whole units, lowest importance first, until the character limit is met or
+a further drop would leave fewer than one message. The `system` messages (including the summary) and the protected
+recent units are never dropped, so when they alone exceed the limit the limit is a soft limit: processing continues
+and a WARNING is logged. Protected messages are never dropped silently to reach the limit. Individual messages can
+also exceed `char_limit`.
 
 ## Operational Notes
 

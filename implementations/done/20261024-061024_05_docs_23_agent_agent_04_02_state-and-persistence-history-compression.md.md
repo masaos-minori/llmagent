@@ -342,16 +342,17 @@ re-running this procedure against the reverted source is the only follow-up.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite `:35-49` (Selection of Targets, Compression Results) | Pending | — | — | Requires rows 1-2 landed |
-| 2 | Rewrite `:51-58` (Fallback Decision) and `:82-84` (Token Counting) | Pending | — | — | Keep `:53`, `:55` and the `:82` heading |
-| 3 | Rewrite `:101-107` (Ensuring Protected Pairs, Character Limit Behavior) | Pending | — | — | Soft-limit conclusion and last sentence stay |
-| 4 | Review `:109-116`, run the docs checkers and residue greps | Pending | — | — | `:109-116` recorded as unchanged with measured reasons |
+| 1 | Rewrite `:35-49` (Selection of Targets, Compression Results) | Completed | 20261025-001445 | 20261025-001445 | Requires rows 1-2 landed Applied; headings and section order preserved; temporary_reasoning/partition_by_class residue greps clean |
+| 2 | Rewrite `:51-58` (Fallback Decision) and `:82-84` (Token Counting) | Completed | 20261025-001445 | 20261025-001445 | Keep `:53`, `:55` and the `:82` heading Applied; :53/:55 branching shape and error= literal kept; :82 heading kept |
+| 3 | Rewrite `:101-107` (Ensuring Protected Pairs, Character Limit Behavior) | Completed | 20261025-001445 | 20261025-001445 | Soft-limit conclusion and last sentence stay Applied; soft-limit conclusion and last sentence kept |
+| 4 | Review `:109-116`, run the docs checkers and residue greps | Completed | 20261025-001445 | 20261025-001445 | `:109-116` recorded as unchanged with measured reasons :109-116 (Operational Notes, Known Limitations) reviewed, unchanged with measured reasons (force_compress char_limit/token_limit restore; stat_compress_count/stat_fallback_truncate_count via ctx.services.hist_mgr; memory-extraction limitation). Four docs checkers + generate_reference_table --check + residue greps clean. stale_detector temporary_reasoning symbol_missing is a false positive on the removed category name (see Blocker Log) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | 4 | `check_docs_structure.py` reported `agent_13_reference-api-generated.md: size 24961 bytes exceeds 24576 byte limit` at HEAD, and CI runs that checker as a blocking step (`BLK-001`) | Yes — owner approved a `SIZE_EXCEPTIONS` ceiling at `tools/check_docs_structure.py:114`; the accepted value is 24972, the size measured after the `20261023-072425` Plan regenerated that document, so the full `docs/**/*.md` run reports no issue | 2026-10-24 |
 | 1 | `history.py:192` docstring names `chars // 4` as the fallback estimator while the implementation uses the category-aware estimator (`BLK-002`) | No — not in any frozen row's scope; recorded so the chapter and source are not silently contradictory | — |
+| 4 | `stale_detector.py` reports `temporary_reasoning` as `symbol_missing` when run post-execution (`_check_symbol_refs`, `:609-689`) | Yes — false positive: `temporary_reasoning` is a category name cited only in this procedure's Alternatives section describing the rejected four-category model (`temporary`, `temporary_reasoning`, `factual`, `history`); rows 1 and 2 removed it from source, so it is absent from every `.py` file. It is a descriptive historical reference, not a construct the execution depends on, and this row's Completion criteria list the four docs checkers, `generate_reference_table.py --check` and the two residue greps — not the stale detector. The document deliverable passes every governance checker | 2026-10-25 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

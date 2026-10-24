@@ -30,6 +30,7 @@ related:
   - overview_02_files.md
   - deployment_01_deployment.md
   - agent_04_01_state-and-persistence-state-model.md
+  - agent_04_02_state-and-persistence-history-compression.md
   - agent_08_01_configuration-loading-agent-config.md
   - agent_11_03_memory-module-reference.md
   - agent_10_01_operations-and-observability-startup-and-health.md
@@ -151,6 +152,7 @@ Load only the necessary documents according to the task type. DO NOT load all `d
 | Session / DB persistence | `23_agent/agent_09_01_data-layer-session-db.md` + `41_db/db_04_api_and_operations-module-boundaries-and-helper.md` |
 | LLM client (streaming/retry) | `23_agent/agent_05_llm-and-streaming.md` |
 | CLI view / readline | `23_agent/agent_07_02_cli-and-commands-cliview.md` + `23_agent/agent_07_05_cli-and-commands-repl-io.md` |
+| Conversation history compression (`HistoryManager` / `HistorySelectionPolicy`) | `23_agent/agent_04_02_state-and-persistence-history-compression.md` |
 
 #### MCP
 
