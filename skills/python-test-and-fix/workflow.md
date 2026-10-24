@@ -72,8 +72,7 @@ Before reading any test file, classify:
 - **bug**: known failure; need a reproducing test + fix
 - **new test**: coverage gap; add tests for existing behavior
 - **fix broken**: test exists but fails; determine if test or impl is wrong
-- **regression**: behavior changed; find the breaking commit (`git log -S`/`git bisect` is
-  read-only research only — do not commit from it), then follow Path A
+- **regression**: behavior changed; find the breaking commit (use `git log -S`/`git log -L`, which are read-only; `git bisect` moves `HEAD` and rewrites the working tree, so run it only when the user asks, in a dedicated `git worktree`, and never commit from it), then follow Path A
 - **flaky**: intermittent failure; confirm before diagnosing
 
 Classification determines which steps to run (class → Path table in `SKILL.md` Task Routing).
@@ -101,10 +100,13 @@ Read `tests/conftest.py` (shared fixtures and the production-isolation guard) an
 tests for the target with the Read tool before writing new ones.
 
 Before the first test run, apply `SKILL.md` Core rule "Verify Production Isolation Before
-Running Tests": confirm the guard in `tests/conftest.py` covers the production paths in
-`rules/env.md` (cite the file), and check the `integration` marker in `pyproject.toml`
-(`-m "not integration"` by default). If a production path is unguarded, stop and record the
-affected commands as `Needs confirmation`; MUST NOT run them.
+Running Tests": record what the guard in `tests/conftest.py` covers and does not (cite the
+file; it fails a test that opens a SQLite database or a `FileHandler` under `/opt/llm`, and
+the suite runs against a temporary root, but it does not guard ports or other kinds of
+write), and check the `integration` marker in `pyproject.toml`. Stop and record the affected
+commands as `Needs confirmation` only when no mechanism exists for a production path the
+tests you will run reach. Tests carrying `production_paths_allowed` are exempt from the guard:
+list them with `rg -l production_paths_allowed tests` and exclude them by default.
 
 Understand:
 
@@ -114,16 +116,22 @@ Understand:
 
 ## Step 3: Flaky Detection
 
+The full sequence below applies to Path D and to a test that touches time, async scheduling,
+threads, subprocesses, network or filesystem state, or randomness, or whose failure was seen
+intermittently. For any other test in Paths A and C (a deterministic repair or a reproducing
+test), run it twice instead: once in the default randomized order and once with
+`-p no:randomly`. (This threshold is a proposed rule.)
+
 If the failure is intermittent, run these in order (with the mirrored test path, e.g.
 `tests/<package>/test_<module>.py`, never a flat `tests/test_<module>.py`; every command adds
-`-m "not integration"` unless the test is an integration test); stop as soon as one gives a
+`-m "not integration and not production_paths_allowed"` unless the test is an integration test); stop as soon as one gives a
 clear answer. Do not use `pytest-xdist` here (it changes ordering and hides the cause):
 
 ```bash
-uv run pytest <test path> -m "not integration" --randomly-seed=1234 -v
-uv run pytest <test path> -m "not integration" --randomly-seed=0 -v
-uv run pytest <test path> -m "not integration" --randomly-seed=4321 -v
-uv run pytest <test path> -m "not integration" -p no:randomly -v      # fixed (collection) order
+uv run pytest <test path> -m "not integration and not production_paths_allowed" --randomly-seed=1234 -v
+uv run pytest <test path> -m "not integration and not production_paths_allowed" --randomly-seed=0 -v
+uv run pytest <test path> -m "not integration and not production_paths_allowed" --randomly-seed=4321 -v
+uv run pytest <test path> -m "not integration and not production_paths_allowed" -p no:randomly -v      # fixed (collection) order
 ```
 
 Run these four to separate an ordering dependency from non-determinism: each seed fixes one
@@ -141,8 +149,8 @@ failing test's package directory — and widen to `tests/` only if the order tha
 packages):
 
 ```bash
-uv run pytest <package dir> -m "not integration" --randomly-seed=last -v   # replay last failing order
-uv run pytest <package dir> -m "not integration" -p no:randomly            # disable to see if it disappears
+uv run pytest <package dir> -m "not integration and not production_paths_allowed" --randomly-seed=last -v   # replay last failing order
+uv run pytest <package dir> -m "not integration and not production_paths_allowed" -p no:randomly            # disable to see if it disappears
 ```
 
 **Completed when**: the failure is confirmed either as seed-order-dependent (fails
@@ -351,8 +359,8 @@ async def test_no_pending_tasks_after_completion():
 #### pytest-timeout — catch hung tests
 
 ```bash
-uv run pytest --timeout=10 -m "not integration" <package dir>
-uv run pytest --timeout=10 -m "not integration" tests/<package>/test_<module>.py
+uv run pytest --timeout=10 -m "not integration and not production_paths_allowed" <package dir>
+uv run pytest --timeout=10 -m "not integration and not production_paths_allowed" tests/<package>/test_<module>.py
 ```
 
 Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or network I/O.
@@ -362,18 +370,20 @@ Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or netw
 Use `pytest --testmon` while iterating on a fix within this same session; run the
 repository's full, non-testmon suite once before considering the task complete
 (Step 11) regardless of testmon results — testmon narrows re-runs during iteration, it
-does not replace the final full run. The full run is `uv run pytest -m "not integration"` (the
-suite has about 10,000 tests, so expect a long run); run `-m integration` too only when the
-change touches code those tests cover or the user asks. Record the pass/fail counts.
+does not replace the final full run. The full run is `uv run pytest -m "not integration and not production_paths_allowed"` (the
+suite is large; its size was not measured when this was written, so expect a long run); run `-m integration` too only when the
+change touches code those tests cover or the user asks. Record the pass/fail counts. Run it in the background with the output redirected to a file in a temporary directory outside the repository (`mktemp -d`), and read only the summary line and the `FAIL`/`ERROR` lines.
+
+Before a full run, a `mutmut` run, or a coverage run, check that no other session is using this checkout's artifacts: `pgrep -af "pytest|mutmut"`. `.testmondata`, `mutants/`, `.coverage`, and `coverage.xml` live in the repository root and are shared by every session (that concurrent runs corrupt them was not verified); wait or ask instead of running concurrently. Record `git rev-parse HEAD` and `git status --short` before the run and compare them after; a tracked file that changed during the run makes the result `Needs confirmation`.
 Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, MUST NOT re-run `pytest
 --testmon` with no source change since the last run — its result is unchanged.
 MUST NOT commit `.testmondata` (`.gitignore` already lists `.testmondata` and
 `.testmondata-*`; confirm with `git check-ignore .testmondata` and do not re-add it):
 
 ```bash
-uv run pytest --testmon -m "not integration" tests/                   # only tests affected by changed files
-uv run pytest --testmon-noselect -m "not integration" tests/          # run everything, prioritising likely failures, update DB
-uv run pytest --testmon-forceselect -m "not integration" tests/       # select only tests affected by changes, on top of -k/-m filters
+uv run pytest --testmon -m "not integration and not production_paths_allowed" tests/                   # only tests affected by changed files
+uv run pytest --testmon-noselect -m "not integration and not production_paths_allowed" tests/          # run everything, prioritising likely failures, update DB
+uv run pytest --testmon-forceselect -m "not integration and not production_paths_allowed" tests/       # select only tests affected by changes, on top of -k/-m filters
 ```
 
 `--testmon-noselect` is the testmon option that deselects nothing; `--testmon-forceselect`
@@ -385,12 +395,12 @@ See `rules/toolchain.md` section 7 for the diff-cover sequence, and Step 4 above
 commands. diff-cover needs a coverage report from a full run, which it takes from:
 
 ```bash
-uv run coverage run -m pytest tests/ -m "not integration"
+uv run coverage run -m pytest tests/ -m "not integration and not production_paths_allowed"
 uv run coverage xml
 uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
-(Use the threshold in `rules/toolchain.md`; do not commit `coverage.xml` or `.coverage`.) Target: 0 surviving mutants on the bug-fix code path (Path A) or on the new code
+(Use the threshold in `rules/toolchain.md`; do not commit `coverage.xml` or `.coverage`.) `rules/toolchain.md` section 7 and CI measure without the marker filter. A filtered run can only miss coverage, never add it, so a pass here also passes in CI, while a miss here may pass in CI: report the result as `measured with the marker filter; CI measures all tests`. Target: 0 surviving mutants on the bug-fix code path (Path A) or on the new code
 (Path B), counting only functions mutmut actually mutated. Paths C and D do not run Step 4;
 Path A/B record `Not run` when Step 4 could not run, and the target is then reported as
 unverified rather than met.
@@ -398,7 +408,9 @@ unverified rather than met.
 ## Step 12: Fix Strategy
 
 Applies `SKILL.md` Core Testing Rules ("Do Not Fix Tests by Blindly Changing Expectations").
-Document the outcome using `SKILL.md` Mandatory Record Template.
+Document the strategy using `SKILL.md` Mandatory Record Template before the first edit that
+changes the failing test or its implementation (the Path lists place this step there); update
+the record with the outcome afterward.
 
 When a test fails:
 
@@ -469,9 +481,9 @@ Confirm against each Step's stated criteria above; MUST NOT re-derive them:
 
 - Step 1: failure classified before any code change; reproducing test written for bug-class failures
 - Step 2: production isolation confirmed before the first test run; no test was skipped, xfailed, or deleted to get a green run
-- Step 3 (Paths A, C, D): no flakiness introduced — the target passes under the seeds used and under `-p no:randomly`, and a 10-run loop of the same seed (without `--reruns`) shows no failure. Path B: the new test file passes in randomized order and with `-p no:randomly`
+- Step 3 (Paths A, C, D): no flakiness introduced — the target passes under the seeds used and under `-p no:randomly`, and, where Step 3's full sequence applies, a 10-run loop of the same seed (without `--reruns`) shows no failure. Path B: the new test file passes in randomized order and with `-p no:randomly`
 - Step 6: mock only at true I/O boundaries, no `mocker.patch` on internal helpers
-- Step 10: the full non-testmon suite (`-m "not integration"`) ran once after the last change and passed, with its pass/fail counts recorded (and a re-run after any `conftest.py` change)
+- Step 10: the full non-testmon suite (`-m "not integration and not production_paths_allowed"`) ran once after the last change and passed, with its pass/fail counts recorded (and a re-run after any `conftest.py` change)
 - Step 10 / 13: `.testmondata`, `coverage.xml`, and `.coverage` not committed
 - Step 11 target (Paths A and B): 0 surviving mutants on the fix/new code, or `Not run` recorded with the reason (then reported as unverified); Paths C and D: not applicable
 - Step 11 diff-scoped coverage: the `diff-cover` result meets the threshold in `rules/toolchain.md` §7 (Diff-scoped coverage), or is recorded as unmet with the lines it names
