@@ -35,8 +35,12 @@ changed since that command last ran in this cycle.
 
 **Fast path** — see `SKILL.md` Routing (Fast Path Assessment) for the failure-type → step mapping.
 
-**Full diagnosis** — if the cause is unknown, run all tools first: `rules/toolchain.md`
-sections 1 (ruff), 2 (mypy), 3 (lint-imports), and 5 (bandit), each scoped to `scripts/`.
+**Full diagnosis** — if the cause is unknown, run all tools first, in their check-only forms
+(the CI `lint` job's commands in the table below; they do not modify files): `rules/toolchain.md`
+sections 1 (ruff), 2 (mypy), 3 (lint-imports), and 5 (bandit), each scoped to `scripts/`. Do not
+use the section 1 forms `uv run ruff format scripts/` or `ruff check --fix` for diagnosis: they
+rewrite files before you know what failed. Before the first edit, record `git status --short`;
+changes already in the working tree are not this task's (Step 10).
 When the failure is in `tools/` or `tests/`, scope the commands to those paths explicitly:
 `mypy`'s configured `files` covers only `scripts/` and CI's `ruff`/`bandit` steps also run on
 `scripts/` only, so a bare run says nothing about `tools/` (use `routing.md` "Adding a new tool"
@@ -227,7 +231,10 @@ uv run pyright scripts/
 uv run pyright scripts/<file>.py
 ```
 
-If mypy and pyright disagree: resolve to the stricter interpretation and annotate why.
+CI runs mypy, not pyright, so pyright is a cross-check on the files this task changed (`uv run
+pyright <changed file>`), not a repository gate. If mypy and pyright disagree on a line this task
+changed: resolve to the stricter interpretation and annotate why. A pyright finding elsewhere
+(or one on an unchanged line) is recorded as a Finding, not fixed (`SKILL.md` CI Parity rule).
 
 #### pyre — strict protocol and TypedDict inference (optional)
 
@@ -275,13 +282,13 @@ or suppression change has no new behavior to cover: record `diff-cover: not appl
 add tests. When it applies, generate the report first, then check:
 
 ```bash
-uv run coverage run -m pytest tests/ -m "not integration"
+uv run coverage run -m pytest tests/ -m "not integration and not production_paths_allowed"
 uv run coverage xml
 uv run diff-cover coverage.xml --compare-branch=master --fail-under=90
 ```
 
 (Threshold per `rules/toolchain.md` §7; run the tests only after the production-isolation check in
-`python-test-and-fix` Core rules.) If changed lines are uncovered: identify them, add targeted
+`python-test-and-fix` Core rules. CI measures without the marker filter, so a pass here also passes in CI, while a miss here may pass in CI; report it as measured with the filter.) If changed lines are uncovered: identify them, add targeted
 tests for those lines via `python-test-and-fix`, re-run `diff-cover`. MUST NOT add tests for
 unrelated lines to inflate coverage.
 
@@ -293,8 +300,11 @@ change, or the step is recorded as not applicable (no behavior change).
 
 ## Step 9: CI Consistency Validation
 
-Run the standard validation sequence (`rules/toolchain.md`) in full, ending with the pre-commit
-gate (`rules/toolchain.md` section 8) to match CI behavior.
+Run the CI `lint` job's check-only commands (Step 1's table), then the pre-commit gate on the
+files you changed: `uv run pre-commit run --files <changed files>`. Do not run
+`pre-commit run --all-files` (the form in `rules/toolchain.md` section 8 and in CI): it rewrites
+files across the repository and stashes other sessions' unstaged changes, which breaks Strict
+Diff Isolation. The full `--all-files` run is CI's job.
 
 **CI-only gates** (the CI `lint` job runs these beyond ruff/mypy/bandit/lint-imports; run the one
 that failed, or all when unsure):
@@ -361,7 +371,8 @@ After resolving issues, handle project knowledge files if anything changed:
 (common to all tasks)" is satisfied in full, the item below also holds, and no Step above
 ended in an unresolved `Blocked` state.
 
-- all suppressions have inline justification
+- all suppressions have inline justification, and `uv run python tools/check_suppression_justification.py` accepts the changed files
+- `pre-commit` ran on the changed files (Step 9), and the final response lists every finding recorded instead of fixed
 
 ---
 

@@ -52,10 +52,10 @@ Before running the full sequence, check the error log for a known failure source
 | 3 | Architecture integrity | Validate layering with `PYTHONPATH=scripts uv run lint-imports` (config: `.importlinter`) against the layer contract in `skills/DESIGN.md` Import layer contract; violations MUST be fixed structurally, not suppressed. Also run `uv run python tools/check_compat_shims.py` to detect backward compatibility leftovers in source and docs. |
 | 4 | Suppression governance | **Audit step** (suppressions this task adds or touches): If any `# noqa`, `# type: ignore`, or `# nosec` is absolutely necessary, you MUST provide a rigorous, comments-based justification directly above the line. Report other unjustified suppressions; do not fix them. |
 | 5 | Semantic refactor safety | Use `LibCST` or structural modifiers for comment/formatting-preserving transformations. |
-| 6 | Type flow analysis | Run `mypy` (CI invocation) and `pyright` to ensure zero type errors. Ensure strict type flow in public interfaces. `pyre` is not used unless asked (no `.pyre_configuration`; see `workflow.md` Step 6). |
+| 6 | Type flow analysis | Run `mypy` (CI invocation) to zero errors, and `pyright` on the changed files as a cross-check (findings elsewhere are recorded, not fixed). Ensure strict type flow in public interfaces. `pyre` is not used unless asked (no `.pyre_configuration`; see `workflow.md` Step 6). |
 | 7 | Static security validation | Run `bandit`. Address high/medium severity issues (see `rules/coding.md` Bandit priority findings) before proceeding. |
 | 8 | Diff scope enforcement | Confirm the diff contains only the target fixes (`git diff <path>`); run diff-scoped coverage (`rules/toolchain.md` §7) only when a fix changed runtime behavior. |
-| 9 | CI consistency validation | Run the CI `lint` job's commands and the pre-commit gate (or `uv run tox` where the `tox.ini` envs `lint`, `typecheck`, `tests` apply); fix the CI-only gates in the table in `workflow.md`. |
+| 9 | CI consistency validation | Run the CI `lint` job's commands and `pre-commit run --files <changed files>` (never `--all-files`) (or `uv run tox` where the `tox.ini` envs `lint`, `typecheck`, `tests` apply); fix the CI-only gates in the table in `workflow.md`. |
 | 10 | Minimal change principle | Review your diff only (no stash/reset); unrelated-reformat prohibition: `AGENTS.md` Global Rule 5. Commits go through `git-commit-and-sync`. |
 | 11 | Repository knowledge compression | If configuration patterns or rule exclusions were updated, record the needed `pyproject.toml`/`.pre-commit-config.yaml`/`.importlinter` change as part of the task (it is the fix itself) and propose any documentation updates instead of editing docs unprompted. |
 
@@ -69,6 +69,15 @@ If you must suppress a lint, type, or security warning because a proper fix is t
 
 ## See Also
 See `workflow.md` for detailed phase content, commands, and options.
+
+## Called by
+
+- `code-implementation` — Step 3e's validation guidance.
+- `git-commit-and-sync` — when lint or type gates fail in pre-commit or post-sync validation.
+
+## Final response
+
+Report: the failing check and its cause; the fix; the check-only commands run and their results (confirming each examined a non-empty target); every suppression added, in the audit record format; the Step 8 result or `diff-cover: not applicable`; the findings recorded instead of fixed (stricter-run findings, unjustified suppressions elsewhere, low-severity bandit findings, unrelated gate failures); and that the changes are uncommitted, so `git-commit-and-sync` commits them on request.
 
 ## Composes with
 
