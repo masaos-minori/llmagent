@@ -4,19 +4,24 @@
 
 | Tool | Phase | Role |
 |---|---|---|
-| `Bash` (`git diff`, `git log`) | 1 Scope | Identify the reviewed diff, PR, or patch boundary |
+| `Bash` (`git diff`, `git log`, `git rev-parse`) | 1 Scope | Identify the reviewed diff, PR, or patch boundary, and confirm the working tree is at the reviewed head |
+| `Bash` (`gh pr view`, `gh pr diff`) | 1 Scope | Read a PR's description and diff when the review target is a PR |
 | `Bash` (`grep`, `rg`) | 2–7 | Cross-search symbols, call sites, config keys, and patterns |
 | `Read` | 2–7 | Read individual files in full detail before judging them |
 | `Agent` (Explore) | 2–4 | Broad search when the review spans many files or packages |
 | `ruff check`, `mypy` / `pyright` | 2, 4 | Confirm type-safety and lint findings are real, not speculative |
+| `PYTHONPATH=scripts uv run lint-imports` | 3 | Confirm dependency-direction findings against `.importlinter` (command per `rules/toolchain.md`) |
 | `bandit` | 5 | Confirm security findings with static analysis where available |
-| `pytest` | 6 | Confirm claimed test coverage or failure actually reproduces |
+| `pytest` | 6 | Confirm claimed test coverage or failure actually reproduces, only after Phase 6's isolation check |
+| `uv run python tools/check_docs_consistency.py --domain <domain>` | 7 | Ground a doc/code mismatch in config keys, ports, and symbols (see `routing.md` Tools) |
 
 Apply `skills/DESIGN.md` Agent (Explore) threshold.
 Run a tool to confirm a finding before reporting it; MUST NOT present a suspected issue as confirmed without evidence.
 
-Within a Phase, run its listed tools in the order they appear in the Phase's own `Do` list
-(each tool confirms the check immediately above it). If a tool is unavailable in the current
+Within a Phase, run its tools after the manual checks in that Phase's list, so a tool
+confirms or refutes a finding the manual checks produced rather than replacing them. Run
+Python tools through `uv run`, and pass touched files explicitly (a bare `uv run mypy`
+does not cover `tools/`). If a tool is unavailable in the current
 environment, record the affected checks as `Needs Confirmation` (per `skills/DESIGN.md`
 Shared Vocabulary) and continue with the remaining checks — MUST NOT stop the review.
 
@@ -27,11 +32,15 @@ Shared Vocabulary) and continue with the remaining checks — MUST NOT stop the 
 Identify the reviewed unit: PR, diff, patch, or a named set of files.
 
 Do:
-- determine the diff boundary (`git diff <base>...<head>` or the stated file list)
+- determine the diff boundary (`git diff <base>...<head>`, `gh pr diff` for a PR, or the stated file list)
+- confirm the working tree is at `<head>` (`git rev-parse HEAD` against the head being reviewed) before any tool runs: the tools check the working tree, not the diff. If it is not, record that the tool results describe a different version and carry them as `Needs Confirmation`
 - identify the change's stated intent (PR description, commit message, or user request)
 - identify out-of-scope files per `skills/DESIGN.md` Out-of-scope paths (generated code, vendored code, build outputs)
+- when the target is a file list with no diff (a review of existing code), treat every function in those files as changed for the Phases below
+- for a large diff, review in risk order — public contracts, persistence, async/resource handling, error handling first — and record any file left unreviewed so the report can state it
 
-**Completed when**: the diff boundary and stated intent are both recorded.
+**Completed when**: the diff boundary, the working-tree/head check, and the stated intent
+are all recorded.
 **Stop and ask the user before Phase 2 when**: no diff boundary can be determined (no PR,
 diff, or file list is identifiable); there is nothing to review. Every later Phase's
 "tool unavailable" case (see Toolchain) is handled by recording `Needs Confirmation`
@@ -60,9 +69,11 @@ Do:
 - verify dependency direction matches the repository's layering rules (e.g. `.importlinter`)
 - flag new cross-layer imports or widened public surface without justification
 - check whether the change introduces an abstraction (`Protocol`, `abc.ABC`, factory) without a concrete requirement
+- run `PYTHONPATH=scripts uv run lint-imports` to confirm the dependency-direction findings
 
 **Completed when**: dependency direction and abstraction-introduction checks have
-been applied to every changed import/interface in the diff.
+been applied to every changed import/interface in the diff, and `lint-imports` has been
+run (or recorded as unavailable).
 
 ---
 
@@ -87,6 +98,7 @@ unsafe dynamic execution) in addition to:
 - check retries, timeouts, and fail-fast vs. fail-open behavior
 - check configuration ownership, startup-only vs. runtime-reloadable settings, and safe defaults
 - check logging and diagnostics for secret exposure risk
+- check input validation at trust boundaries (HTTP and MCP inputs, file paths, subprocess arguments)
 - run `bandit` where available to confirm security findings (e.g. `eval`/`exec`, `pickle`, `subprocess(shell=True)`, SQL string interpolation)
 
 **Completed when**: every changed error-handling/config/logging code path has been
@@ -98,12 +110,21 @@ checked, and `bandit` has been run where available.
 
 Do:
 - verify tests exist for critical behavior, edge cases, and failure paths introduced or touched by the change
-- run `pytest` on the affected test targets to confirm claimed pass/fail state
+- before running any test, confirm the suite cannot touch production state, per
+  `skills/test-audit/safety.md` "Verify the test suite's own isolation before classifying
+  `Safe`" (production paths from `rules/env.md`, the isolation mechanism in `conftest.py`,
+  and the markers for tests that start real subprocesses); if no isolation covers a
+  production path, MUST NOT run the tests — record the affected checks as `Needs Confirmation`
+- run `pytest` on the affected test targets: the tests under each changed file's module
+  path plus any test that `rg` shows importing a changed symbol (`pytest --testmon`
+  when available), to confirm the claimed pass/fail state
+- before reporting a failing test as a finding, re-run it once in isolation; a failure
+  that does not reproduce is reported as `Needs Confirmation`, not as a confirmed finding
 - check CI quality gates and type-checking coverage for the touched paths
 
 **Completed when**: test coverage has been checked for every critical/edge/failure
-path touched by the diff, and `pytest` has been run to confirm the claimed pass/fail
-state.
+path touched by the diff, and `pytest` has been run (or recorded `Needs Confirmation`
+because isolation could not be confirmed) to confirm the claimed pass/fail state.
 
 ---
 
@@ -111,7 +132,7 @@ state.
 
 Do:
 - identify documentation that now contradicts the changed behavior
-- ground every mismatch claim in the current implementation, not in memory of prior versions
+- ground every mismatch claim in the current implementation, not in memory of prior versions; for config keys, ports, and symbols, run `uv run python tools/check_docs_consistency.py --domain <domain>` (domains per `routing.md` Tools)
 - avoid implementation-reference duplication: see `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove
 
 **Completed when**: every doc claim about the changed behavior has been checked
@@ -142,30 +163,41 @@ grouped by severity, and no style-only issue is over-reported.
 
 ---
 
-## Phase 10: GitHub Issue Conversion
+## Phase 10: Issue Conversion
 
 Run this phase only when the user requests issue conversion; otherwise Phase 9's report is
-the final output. Apply in order: group findings (10a), draft each issue (10b), check for
-sensitive content (10c). Delegate issue authoring to `skills/issue-creator/SKILL.md`, which
-owns the grouping/splitting criteria and the field list; this phase only decides which
-findings feed it.
+the final output. This phase writes files: `skills/issue-creator/SKILL.md` writes one
+Markdown file per issue under `issues/` (it does not post to GitHub). Writing them is this
+skill's designated output phase, not a violation of the analysis-only constraint
+(`skills/DESIGN.md`).
 
-### Step 10a: Group findings into issues
+Delegate issue authoring entirely to `skills/issue-creator/SKILL.md`: it owns the field
+list (`templates/issue.md`), the grouping/splitting criteria, the sibling-issue check, the
+filename, and the verification. When it is called from here, its "Input from review
+findings" (`skills/issue-creator/workflow.md`) defines how each finding's location,
+evidence, confidence, and suggested fix map into the issue — do not restate that mapping
+or a field list here. Apply in order: choose the findings (10a), then run `issue-creator`
+(10b), then check the written files (10c).
 
-Use one issue per actionable task; group findings only when they meet
-`skills/issue-creator/workflow.md` Phase 2's "Group tasks into one issue only when" criteria
-(e.g. same file, must be tested together) — otherwise split them.
+### Step 10a: Choose the findings that feed `issue-creator`
 
-### Step 10b: Draft each issue
+- Feed findings of severity `Critical`, `High`, and `Medium`; feed `Low` or
+  `Informational` findings only if the user asked for them.
+- A finding whose confidence is below confirmed is still fed, and `issue-creator` records
+  it under `Unresolved Questions`; an Open Question from the report is fed only if it
+  blocks a fed finding.
+- Hand the chosen findings to `issue-creator` together; its Phase 2 decides grouping and
+  splitting — do not group them here.
 
-Include reason for change, implementation intent, acceptance criteria, out of scope, and
-testing expectations, per `skills/issue-creator/SKILL.md` Issue Structure.
+### Step 10b: Run `issue-creator`
 
-### Step 10c: Check for sensitive content
+Follow `skills/issue-creator/SKILL.md` and `workflow.md` for each issue. Report each
+written path and Priority in the final answer, as its Phase 10 requires.
 
-Avoid Markdown that breaks when copied (see `skills/issue-creator/workflow.md` Step 9b
-Markdown safety rules). Follow `skills/DESIGN.md` No secrets in output; also avoid
-unnecessary code blocks in drafted issues.
+### Step 10c: Check the written files for sensitive content
 
-**Completed when**: every grouped finding from 10a has a drafted issue from 10b that has
-passed the 10c check.
+Follow `skills/DESIGN.md` No secrets in output on each written file, and confirm no code
+block or evidence excerpt copied from the review contains a secret or a production value.
+
+**Completed when**: every chosen finding is covered by a written issue file (or reported
+as `Blocked` by `issue-creator`), and each file passed the 10c check.

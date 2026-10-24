@@ -24,7 +24,7 @@ Use this skill for:
 - reviewing async/sync boundaries and resource lifecycle
 - reviewing error handling, retries, logging, configuration, tests, and CI
 - identifying documentation/code mismatches grounded in implementation evidence
-- converting review findings into actionable GitHub issues
+- converting review findings into actionable issues, when the user asks (via `issue-creator`)
 
 ## When not to use
 
@@ -51,7 +51,7 @@ MUST NOT use this skill for:
 | 7 | Documentation Mismatches | Evidence-grounded doc/code contradictions |
 | 8 | Evidence, Confidence, and Severity Assignment | Attach evidence, confidence, and severity to each finding |
 | 9 | Report Writing | Produce the Output Format below |
-| 10 | GitHub Issue Conversion | Convert findings into actionable issues |
+| 10 | Issue Conversion | Only on request: write `issues/*.md` files from findings via `issue-creator` |
 
 See `workflow.md` for detailed phase content and tooling.
 
@@ -62,8 +62,9 @@ See `workflow.md` for detailed phase content and tooling.
 - Classify findings using the Evidence labels and Confidence levels in `skills/DESIGN.md` Shared Vocabulary; MUST NOT introduce a separate fact/interpretation/issue/question system.
 - Verify a README or doc claim against the current implementation (Phase 7) before citing it as evidence.
 - Report a style-only issue (naming, formatting, import order) as Low or Informational only,
-  never as Medium or above, and never in a count that exceeds the number of Medium+ findings
-  in the same review.
+  never as Medium or above. Report at most as many style-only findings as there are Medium+
+  findings in the same review; when there are none, report style-only findings only if the
+  user asked for them.
 - Respect project conventions (see `rules/coding.md`) and explain trade-offs.
 - Follow `skills/DESIGN.md` No secrets in output.
 - Keep recommendations actionable; for tests, specify the behavior or failure mode to verify.
@@ -72,7 +73,8 @@ See `workflow.md` for detailed phase content and tooling.
 
 ## Evidence Rules
 
-Every significant finding MUST include concrete evidence such as file path; class, function,
+Every finding of severity Medium or above, and every finding a recommendation relies on,
+MUST include concrete evidence such as file path; class, function,
 method, route, command, or config key; test name or CI workflow; and observed current behavior.
 
 ## Severity
@@ -84,6 +86,14 @@ See `skills/DESIGN.md` Severity levels.
 ## Output Format
 
 Use this format unless the user requests another format.
+
+### Review Scope
+
+- Reviewed: the diff boundary or file list
+- Not reviewed: files left out (out-of-scope paths, or skipped in a large diff) and why
+- Working tree vs reviewed head: matched, or the mismatch (`workflow.md` Phase 1)
+- Commands run: each tool with its result, or `Needs Confirmation` when it was
+  unavailable or could not be run safely
 
 ### Summary
 
@@ -97,6 +107,8 @@ Group by severity: Critical, High, Medium, Low, Informational.
 
 For each finding:
 
+- ID: `F-{NNN}` (zero-padded, sequential across the report); Open Questions, Suggested
+  Tests, Documentation Notes, and Phase 10 cite findings by this ID
 - Title:
 - Severity:
 - Confidence:
@@ -134,10 +146,12 @@ State whether to proceed, fix first, or investigate further.
 - `python-implementation` — run if a finding requires a feature-level code change to fix
 - `python-refactoring` — run if a finding requires structural changes without behavior change
 - `python-documentation` — run if Documentation Notes require an update to existing docs
+- `issue-creator` — Phase 10 delegates issue authoring to it
 
 ## Called by
 
-- `issue-to-plan` — when a plan needs a review of existing code before scoping changes
+- None: no other skill invokes this skill. It is selected directly from `routing.md`
+  ("Code review / PR review").
 
 ---
 
