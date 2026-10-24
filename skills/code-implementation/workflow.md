@@ -71,6 +71,13 @@ documentation update and Step 6 validation) before starting Step 1 for the next 
 For whether a resumed batch is safe to re-run without re-executing already-completed
 files, see Step 1's All-steps-completed check.
 
+**Dependency order.** Procedures with the same `Source plan` run in filename (`seq`) order,
+which is the Plan's implementation order. When a cycle ends `Blocked` in Steps 2-6 or by
+Rollback, a later procedure of the same Plan may depend on it: stop the batch for the
+remaining procedures of that Plan and ask the user whether to continue. Procedures of
+other Plans continue. A Step 7 move failure does not stop the batch (the code is already
+applied and validated).
+
 Apply `rules/ai-execution.md` Progress Reporting (Base) for the per-step report
 cadence.
 
@@ -95,13 +102,29 @@ every Step transition or completion within Steps 3-6, whether or not a chat repo
 also made — this is the persisted record if the session is interrupted before Step 7's
 move. Use `uv run python
 tools/manage_workitem_stage.py set-step-status implementation-procedure {path}
---step {N} {status} --started {timestamp} --completed {timestamp}` (timestamps from
+--step {N} {status} --started {timestamp} --completed {timestamp}` (`{N}` is the
+procedure's own row number from the mapping below, not this workflow's Step number;
+timestamps from
 `date +%Y%m%d-%H%M%S`, per `templates/execution-status.md` Notes) rather than editing
 the table's Markdown directly — a manual Edit risks corrupting the row/column
 structure `close-implementation`'s Pending-row check parses. Also update the final
 report's Execution Status table. This update is never itself a claim about current
 source that Step 3a's Adversarial Verification would need to re-check on a later
 cycle.
+
+**Row mapping.** The procedure document's own table has the four rows of
+`templates/implementation-procedure.md`, numbered independently of this workflow's Steps:
+
+| Row | Description (template) | In Progress when | Completed when |
+|---|---|---|---|
+| 1 | Implement the change | Step 3d starts | Step 3d's change is applied and its file list recorded |
+| 2 | Add or update tests | tests are first written or run (Step 3d or 4) | targeted tests pass (Step 4); `N/A: no test change needed` in Notes if none |
+| 3 | Run the validation sequence | Step 3e starts | Step 3e passes and Step 4's full-suite run passes |
+| 4 | Update documentation | Step 5 starts | Step 6 passes, or `N/A` in Notes when no row matched |
+
+Steps 1, 2, and 7 have no procedure row; the Final Report's seven-row table records them.
+If a document's rows differ from the template (a hand-edited or legacy file), match by
+Description text instead and mention the mismatch in the Final Report.
 
 ## Step 0: Load Required Instructions
 
@@ -143,8 +166,10 @@ Apply `rules/workflow-lifecycle.md` Target Validation (Step 1) — target files 
   only if the tool is unavailable. Verify the file exists in `implementations/done/`
   after the move. Report
   `Moved to done: {filename} — all steps Completed, no further action needed`.
-  If this move fails, the same continuation policy applies: report `Blocked` for this
-  file only and continue to the next target file in the batch (see Step 7).
+  Then apply Step 7's Plan Execution Status update if the Plan rows for this file are not
+  yet `Completed`. If this move fails, the same continuation policy applies: report
+  `Blocked` for this file only and continue to the next target file in the batch (see
+  Step 7).
 - **Partial-completion resume**: if at least one row is `Completed` but not all
   (a resumed, previously-interrupted cycle), resume from the first Step whose row is
   not `Completed`. MUST NOT re-run a Step already marked `Completed` unless a later
@@ -198,6 +223,11 @@ If the stale detector reports any mismatch:
 - MUST NOT correct the procedure and continue — abort and report. Any single mismatch
   is stale, and all failures are reported in a single pass (`SKILL.md` Core Execution
   Rules).
+- Offer the user these ways forward and do none of them without their decision: (a) they
+  approve a correction to the procedure document, then re-invoke this skill; (b)
+  regenerate it with `plan-to-implementation-procedure` once they decide how to reopen the
+  Plan (it may already be in `plans/done/`; this skill does not move it); (c) drop the
+  procedure.
 
 If the stale detector reports no mismatches:
 - Proceed to Step 3 normally.
@@ -246,17 +276,27 @@ already-processed file's change in the same Multi-file-processing batch, stop an
 report `Blocked: cross-file conflict with {earlier file} — {description}` rather than
 proceeding. MUST NOT implement around the conflict silently. This is a per-file `Blocked`
 outcome, not a batch-wide stop — the current file's cycle ends here, its Execution
-Status row for this Step is marked `Blocked`, and Multi-file processing continues with
-the next target file in the batch (same continuation policy as Step 7's move failure).
+Status row for this Step is marked `Blocked`, and Multi-file processing continues per
+its Dependency order rule (it does not stop the whole batch, but it does stop the
+remaining procedures of the same Plan until the user decides).
 
 **Completed when**: no unresolved conflict with an already-processed file in this batch
 is outstanding.
 
 ### Step 3d: Implement
 
+Before the first edit, record the working-tree baseline with `git status --short`.
+Every file this cycle will edit (the target file, its tests, matched docs) that already
+shows as modified there, and was not changed by an earlier cycle of this batch, holds
+changes that are not this cycle's: stop and report
+`Blocked: {path} has uncommitted changes not from this cycle`. Another session's
+`pre-commit` run can stash unstaged files for a short time
+(`skills/git-commit-and-sync/workflow.md` Phase 6), so re-check before deciding.
+
 Implement the feature per the (possibly corrected) procedure, applying the guidance
 loaded in Step 0 from `skills/python-implementation/SKILL.md` and
-`skills/python-lint-typecheck/SKILL.md`. Record the changed file list in this Step's
+`skills/python-lint-typecheck/SKILL.md`. MUST NOT change anything the procedure's
+`## Out of Scope` lists. Record the changed file list in this Step's
 Execution Status Notes as it is produced — Final Report's `{files}` reads it back from
 there, not from `git diff` at report time.
 
@@ -267,6 +307,10 @@ applied and its file list is recorded.
 
 Run repository-defined non-test validation: formatting, linting, type checking,
 architecture/import-boundary checks, security checks.
+
+Also run each non-test check the procedure's `## Validation plan` lists that the
+repository-defined set above does not already cover. A listed check that cannot be run is
+recorded as `Not run: {reason}` in the row's Notes, never dropped silently.
 
 Also, for every changed non-`docs/` file, apply the rows of `routing.md` Tools → "When to
 run which tool" its type triggers (e.g. `tools/*.py`, `scripts/**/*.py`,
@@ -322,8 +366,14 @@ failure's cause is not immediately obvious, load and apply
   independent exception to "exactly once," scoped strictly to the conflict-detected
   case. If it fails, report `Blocked` for that earlier file in the Final Report; its
   archived procedure is not un-archived.
-- Check the coverage threshold defined in `rules/toolchain.md` (Completion checklist,
-  diff-cover).
+- Run the test commands the procedure's `## Validation plan` lists too (a listed test
+  that cannot be run is `Not run: {reason}` in Notes).
+- Make the full-suite run feed the coverage gate, so the suite still runs once:
+  `uv run coverage run -m pytest tests/`, then `uv run coverage xml` and
+  `uv run diff-cover coverage.xml --compare-branch=master --fail-under=90`
+  (`rules/toolchain.md` section 7). diff-cover reads the report; it does not run tests.
+  It passes only at 90% on changed lines with every changed source file in the report;
+  when no source file changed (docs, skills, templates only), record `N/A`.
 - Continue to documentation only after required tests pass.
 
 ## Step 5: Update Documentation
@@ -405,7 +455,9 @@ Correction-and-Recheck Cycle Bound (Step 3b).
   (documentation validation) are complete.
 - Before proceeding, verify that:
   - the implementation procedure file's own `## Execution Status` section shows
-    Completed for every step its template requires,
+    Completed for each of its rows (the four rows mapped under Progress recording),
+  - every item of the procedure's `## Completion criteria` is met; an unmet item ends
+    this cycle `Blocked: completion criterion not met — {item}` instead of the move,
   - the final report's Execution Status section accurately reflects the actual work
     performed (completed items show Completed status, blocked items have blocker
     descriptions filled in, Work Items Created includes all artifacts produced).
@@ -425,7 +477,11 @@ Correction-and-Recheck Cycle Bound (Step 3b).
   work — leave it staged and include it when the change is committed
   (`skills/git-commit-and-sync/workflow.md` Phase 2). A single-file cycle may keep the
   default auto-commit.
-- When closing an entire batch of procedures that share one plan (a shared `YYYYMMDD-HHMMSS` timestamp prefix across `implementations/<prefix>_NN_*.md`), prefer `uv run python tools/manage_workitem_stage.py close-batch <batch-id>` over issuing one `close-implementation` per file — it archives every procedure of the batch and marks the owning plan's `### Execution Status` rows `Completed` in a single step, and refuses (nothing moved) if any procedure still has a `Pending` row. See `tools/TOOL_DESCRIPTIONS.md` for the batch id form and its flags.
+- Do not use `close-batch` in this workflow. After checking only that no row is `Pending`, it sets every row of every
+  procedure and of the owning Plan to `Completed` and overwrites their timestamps (`cmd_close_batch`): a `Blocked`
+  row would become `Completed`, and Plan rows that no procedure covers would be closed. Close each cycle with
+  `close-implementation` (with `--stage-only` in a batch) and update the Plan as described under Plan Execution
+  Status update below.
 - Direct command (fallback): `git mv implementations/{filename}.md
   implementations/done/{filename}.md`. MUST NOT use `mv`, `cp` + `rm`, or any other
   fallback beyond these two.
@@ -459,9 +515,10 @@ Correction-and-Recheck Cycle Bound (Step 3b).
   is. Use `uv run python
   tools/manage_workitem_stage.py set-step-status plan {plan_path} --step {N} Completed
   --completed {timestamp from date +%Y%m%d-%H%M%S}` — not `--description`, which
-  updates only the first row whose Description merely contains the given text. When
-  `close-batch` closed the batch, it has already updated the owning Plan's rows: verify
-  them instead of repeating the update. If `Source plan` is `N/A` (no Plan produced this
+  updates only the first row whose Description merely contains the given text. If
+  `close-batch` was run on this batch outside this workflow, re-check every row it marked:
+  it overwrites all of them, so rows for work that was not done must be set back with
+  `set-step-status`. If `Source plan` is `N/A` (no Plan produced this
   procedure document), skip this update — there is no Plan row to close. If the Plan
   file cannot be found at either location, report this as a non-blocking Note in the
   Final Report (`Plan Execution Status not updated: {reason}`) rather than treating
@@ -473,8 +530,11 @@ Correction-and-Recheck Cycle Bound (Step 3b).
 If implementation breaks existing functionality, revert changes immediately and
 report `Blocked: {description}`.
 
-Revert only this cycle's own changes, using the changed-file list recorded in Step 3d's
-Execution Status Notes (plus any test/doc file this cycle edited): for each tracked
+Also apply the procedure's `## Rollback considerations` (for example a step that is not a
+file edit). Revert only this cycle's own changes, using the changed-file list recorded in
+Step 3d's Execution Status Notes (plus any test/doc file this cycle edited). Every such
+path was clean in Step 3d's baseline (a modified one stopped the cycle before editing),
+so a single-path revert cannot discard another writer's changes. For each tracked
 file, run `git checkout -- <path>` on that single path; for a file this cycle created,
 delete that single file. MUST NOT use a bulk form (`checkout -- .`, `restore .`,
 `reset --hard`, `clean`). In a batch, earlier cycles' changes are still uncommitted
@@ -530,6 +590,14 @@ no-mapping outcome, a blocker reference):
 | 5 | Update documentation per `docs/00_index.md` task-scope mapping | Pending | — | — | |
 | 6 | Validate documentation updates | Pending | — | — | |
 | 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
+
+### Next steps
+
+State that the cycle's code, test, and doc changes are uncommitted and the archival rename
+is staged, and that `git-commit-and-sync` commits them (include the staged rename). When
+`scripts/` files were added, removed, or renamed, mention `deploy`, which runs only on the
+user's request after the change is pushed. In a stopped batch, list the procedures not
+run and why.
 
 ### Blocker Log
 

@@ -52,7 +52,14 @@ structure.
 - Run the repository-defined full test suite once per cycle after targeted tests
   pass. A failure may be fixed and the suite re-run within Attempt Limit (3
   attempts). See `workflow.md` Step 4.
-- Process one procedure file at a time. See `workflow.md` Multi-file processing.
+- Process one procedure file at a time. See `workflow.md` Multi-file processing. A
+  `Blocked` cycle stops the remaining procedures of the same Plan until the user decides
+  (Dependency order).
+- The procedure's own Execution Status has the template's four rows, mapped to Steps in
+  `workflow.md` Progress recording (Row mapping). Do not use `close-batch`: it marks every
+  row `Completed` regardless of actual state (`workflow.md` Step 7).
+- The procedure's `Validation plan`, `Completion criteria`, `Rollback considerations`, and
+  `Out of Scope` sections are binding inputs to Steps 3-7, not background.
 - The move MUST NOT be skipped. See `workflow.md` Step 7.
 - Pre-execution stale detection: see `workflow.md` Step 2. Abort execution if any
   referenced construct is missing from current source. Any single mismatch
@@ -75,6 +82,8 @@ Created).
 - `python-test-and-fix` — Step 4's testing guidance
 - `python-debug-root-cause` — Step 4, only when a failure's cause is not immediately obvious
 - `python-documentation` — Step 5, only when at least one changed file has a matching `docs/00_index.md` task-scope row
+- `git-commit-and-sync` — run after the cycle(s) to commit the changes together with the staged archival rename; this skill never commits the code itself
+- `deploy` — only on the user's request, after the change is pushed, when `scripts/` files were added, removed, or renamed
 
 ## Called by
 - `plan-to-implementation-procedure` — as the next pipeline phase, once implementation procedure documents exist under `implementations/`
