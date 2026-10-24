@@ -43,12 +43,25 @@ Human approval is decided before a Tool executes, by the tool-level approval in 
 
 ### Persistence of Partial Completion
 
-If a workflow fails after some steps are completed, the workflow engine records the final task status via `StateStore.update_task_status()`:
+If a workflow stops after some steps have run, the durable outcome is recorded in the workflow task
+record through `StateStore.update_task_status()`:
 
-- `"failed"` — Workflow step raised an unhandled exception
-- `"halted"` — Workflow was stopped by `WorkflowHaltError` (retry exhaustion) or `WorkflowTimeoutError`
+- `"completed"` — every stage ran. The workflow engine is the only writer of this value.
+- `"failed"` — a stage raised an exception, or the turn reported a soft error that the engine could not
+  observe.
+- `"halted"` — a retryable stage exhausted its attempts, a stage timed out, or the turn was cancelled
+  while a stage was running. The workflow engine records the first two; the turn adapter records the
+  cancellation, because the engine does not observe it.
+- `"pending"` — the turn failed before any stage ran, so the record keeps the value it was created with.
 
-**Design judgment**: Completed steps are not persisted individually. Partial completion is **not** automatically resumed — the user must resubmit the request.
+**Canonical source**: the exit-path table and the writer for each outcome are documented in
+[agent_03_03](agent_03_03_turn-processing-flow-workflow-engine.md). This chapter states only what a
+partially completed turn leaves behind.
+
+**Design judgment**: Completed steps are not persisted individually. Partial completion is **not**
+automatically resumed — the user must resubmit the request. Adapter status writes are best-effort: a
+persistence failure is logged at error level with the task id and the intended status, and is never
+presented as an LLM error.
 
 ## Responsibility Boundary
 

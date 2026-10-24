@@ -71,6 +71,28 @@ Partial completion occurs when an LLM response stream is interrupted before all 
 
 The startup banner prints this value, or `unknown` when no `Orchestrator` exists yet.
 
+### Task Status Transitions
+
+The persisted turn outcome lives in the workflow `tasks` table. Each outcome has exactly one writer.
+
+| Turn exit | `tasks.status` | Written by | Reason |
+|---|---|---|---|
+| All stages complete | `completed` | workflow engine | so that the record is written at the moment the transition happens and no second owner has to re-derive it |
+| A stage raises and the engine re-raises it | `failed` | workflow engine | the engine observes the failing stage directly |
+| A retryable stage exhausts `max_attempts`, or a stage times out | `halted` | workflow engine | the engine stops the run itself |
+| The turn is cancelled while a stage is running | `halted` | turn adapter | the engine cannot observe cancellation, so the adapter records the stop in the existing terminal vocabulary instead of introducing a new status |
+| The engine completes but the turn reported a soft error | `failed` | turn adapter | a downgrade the engine cannot see, because the soft error never became a stage exception |
+| The turn fails before the engine starts | `pending` | neither | the row keeps the value it was created with, because no stage ever ran |
+
+- A successful turn produces exactly one `completed` write.
+- Cancellation is recorded `halted` on purpose: no `cancelled` status exists, and `halted` is already
+  the terminal, non-resumable state described in [Resuming Existing Tasks](#resuming-existing-tasks)
+  and in `## Operational Notes`.
+- Status writes made by the adapter are best-effort: a persistence failure is logged at error level
+  with the task id and the intended status, and is never reported to the user as an LLM error.
+- A cancelled turn is distinguishable from a retry-exhausted halt by the attempt records: the
+  abandoned attempt carries no error classification.
+
 ### Workflow Stages
 
 | Stage | Responsibility | Mandatory |
@@ -120,15 +142,18 @@ See also: the [Workflow Deployment Runbook](agent_10_04_operations-and-observabi
 
 ### Startup Recovery
 
-During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called. This searches for active attempts during process startup and marks them as `failed`.
+During `Orchestrator.__init__()`, `StateStore.recover_stale_attempts()` is called. This searches for active attempts during process startup and marks them as `failed`. It repairs attempt records only: it never changes the persisted task status, so a task left `running` or `halted` by an earlier process stays as it was.
 
 ## Operational Notes
 
 - The `halted` state is a terminal state reached when a retryable stage exhausts `max_attempts` or a stage times out; automatic resumption is not performed.
+- `halted` is also the recorded outcome of a cancelled turn. The adapter records it because the engine does not observe cancellation, and it uses the same terminal state so the resume guard needs no new case.
+- A persisted task status is written by one owner per outcome; see [Task Status Transitions](#task-status-transitions).
 
 ## Known Limitations
 
 - Only "fixed" backoff strategy is implemented for retries.
+- A cancelled turn leaves its in-flight attempt open until the next process start, when startup recovery closes it after the stale grace period. The task record itself is not repaired by that pass.
 
 ---
 

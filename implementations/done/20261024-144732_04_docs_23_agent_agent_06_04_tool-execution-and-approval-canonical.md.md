@@ -221,15 +221,15 @@ presented as an LLM error.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Not implemented; land with or after `_03` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-24 | 2026-10-24 | Reworded `### Persistence of Partial Completion` body (`:46-51`): names all four durable outcomes and the writer per outcome, states cancelled->halted and why the adapter records it, names `agent_03_03` as canonical source, adds best-effort status-write sentence. Front matter untouched |
 | 2 | Add or update tests per Validation plan | N/A: documentation row | — | — | Docs checkers are the validation |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Baselines recorded 2026-10-24 in Procedure-local findings |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row is a docs row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-24 | 2026-10-24 | `check_docs_structure.py` "All checks passed"; quality/content_policy(--strict)/consistency/japanese/metadata — no finding naming this file; content_similarity silent vs `agent_03_03#'Task Status Transitions'`; stale_detector not stale |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-24 | 2026-10-24 | This row is a docs row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Depends on `_03` landing first so the canonical cross-reference resolves | False | — |
+| 1 | Depends on `_03` landing first so the canonical cross-reference resolves | False | 2026-10-24 |
 | 1 | Plan `UNK-04` (index registration) has no owner decision | False | — |
 
 ### Work Items Created

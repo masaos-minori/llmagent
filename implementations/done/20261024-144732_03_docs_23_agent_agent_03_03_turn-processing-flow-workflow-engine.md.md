@@ -306,16 +306,16 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Not implemented; land after `_01`; anchors re-taken 2026-10-24 at HEAD `1471a75e8` |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-24 | 2026-10-24 | Inserted `### Task Status Transitions` after `### Workflow Status` (`:74`), amended `### Startup Recovery`, `## Operational Notes`, `## Known Limitations`. Front matter untouched. |
 | 2 | Add or update tests per Validation plan | N/A: documentation row | — | — | Docs checkers are the validation |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Baselines recorded 2026-10-24 in Procedure-local findings |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row is a docs row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-24 | 2026-10-24 | `check_docs_structure.py` "All checks passed"; quality/content_policy(--strict)/consistency/japanese/metadata — no finding naming this file; stale_detector not stale. Cross-read against `agent_06_04` pending until `_04` lands |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-24 | 2026-10-24 | This row is a docs row |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
 | 1 | Two active sibling procedures edit this same chapter (`083059_04`, `092307_09`); anchors must be re-taken after they land | True | 2026-10-24 |
-| 1 | The chapter must describe post-change behavior, so `_01` has to land first | False | — |
+| 1 | The chapter must describe post-change behavior, so `_01` has to land first | False | 2026-10-24 |
 | 1 | Plan `UNK-04` (index registration) has no owner decision | False | — |
 
 ### Work Items Created
