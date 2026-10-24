@@ -12,7 +12,7 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agent.context import ConversationState
+from agent.context import ConversationState, TurnState
 from agent.history import CompressResult, HistoryCompressionError
 from agent.llm_turn_executor import LlmTurnExecutor
 from agent.message_schema import ValidationResult
@@ -28,6 +28,50 @@ from agent.workflow.models import RetryPolicy, StageDefinition, WorkflowDef
 from agent.workflow.task_ops import create_task
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
+
+
+async def _await_raising(
+    message: str, name: str = "test_bg_task"
+) -> asyncio.Task[object]:
+    """Create a raising task, let its body run to the raise, and return it.
+
+    The exception is retained on the task (retrievable via ``task.exception()``)
+    rather than propagated, so the caller can hand the finished task to the
+    monitor without the raise escaping this helper.
+    """
+
+    async def _body() -> None:
+        raise RuntimeError(message)
+
+    task = asyncio.create_task(_body(), name=name)
+    await asyncio.sleep(0)  # yield once so the body runs and raises
+    return task
+
+
+async def _successful(name: str = "test_bg_task") -> asyncio.Task[object]:
+    """Create a task that returns normally; ``task.exception()`` is ``None``."""
+
+    async def _body() -> int:
+        return 42
+
+    task = asyncio.create_task(_body(), name=name)
+    await asyncio.sleep(0)
+    return task
+
+
+async def _make_cancelled(name: str) -> asyncio.Task[object]:
+    """Create a cancellable task, cancel it, await it to completion, and return it."""
+
+    async def _body() -> None:
+        await asyncio.Event().wait()
+
+    task = asyncio.create_task(_body(), name=name)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert task.cancelled()
+    return task
+
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
@@ -2275,20 +2319,12 @@ class TestHistoryConstructionRoutedThroughAppendMessage:
 class TestDiscardAndLogConsecutiveFailures:
     """Locks in BG_FAILURE_THRESHOLD's log-level-only effect and the
     reset-on-success / reset-on-cancellation behavior of
-    _discard_and_log()'s self._consecutive_bg_failures counter."""
+    BgTaskMonitor.on_task_done's terminal-state handling."""
 
-    @staticmethod
-    def _fake_task(exc: BaseException | None, name: str = "test_bg_task") -> MagicMock:
-        """Build a fake asyncio.Task whose .exception() returns exc directly
-        (including a CancelledError instance, rather than raising it), per
-        the implementation procedure's stated test method."""
-        task = MagicMock()
-        task.exception.return_value = exc
-        task.get_name.return_value = name
-        return task
-
-    def test_four_consecutive_failures_each_log_via_warning(self) -> None:
+    @pytest.mark.asyncio
+    async def test_four_consecutive_failures_each_log_via_warning(self) -> None:
         ctx = _make_ctx()
+        ctx.turn = TurnState()
         orch = _make_orchestrator(ctx)
 
         with (
@@ -2296,17 +2332,18 @@ class TestDiscardAndLogConsecutiveFailures:
             patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
             for _ in range(4):
-                orch._bg_task_monitor.on_task_done(
-                    self._fake_task(RuntimeError("boom"))
-                )
+                task = await _await_raising("boom")
+                orch._bg_task_monitor.on_task_done(task)
 
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 4
         # Only the first failure logs a warning; 2nd-4th are silent until threshold
         assert mock_warning.call_count == 1
         mock_error.assert_not_called()
 
-    def test_fifth_consecutive_failure_logs_via_error(self) -> None:
+    @pytest.mark.asyncio
+    async def test_fifth_consecutive_failure_logs_via_error(self) -> None:
         ctx = _make_ctx()
+        ctx.turn = TurnState()
         orch = _make_orchestrator(ctx)
 
         with (
@@ -2314,13 +2351,13 @@ class TestDiscardAndLogConsecutiveFailures:
             patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
             for _ in range(BG_FAILURE_THRESHOLD - 1):
-                orch._bg_task_monitor.on_task_done(
-                    self._fake_task(RuntimeError("boom"))
-                )
+                task = await _await_raising("boom")
+                orch._bg_task_monitor.on_task_done(task)
             # 2nd-(N-1)th failures are silent (no logging)
             assert mock_warning.call_count == 1
             assert mock_error.call_count == 0
-            orch._bg_task_monitor.on_task_done(self._fake_task(RuntimeError("boom")))
+            task = await _await_raising("boom")
+            orch._bg_task_monitor.on_task_done(task)
 
         assert (
             orch._bg_task_monitor.get_consecutive_failures("test_bg_task")
@@ -2330,65 +2367,70 @@ class TestDiscardAndLogConsecutiveFailures:
         assert mock_warning.call_count == 1
         mock_error.assert_called_once()
 
-    def test_success_after_failures_resets_counter_to_zero(self) -> None:
+    @pytest.mark.asyncio
+    async def test_success_after_failures_resets_counter_to_zero(self) -> None:
         ctx = _make_ctx()
+        ctx.turn = TurnState()
         orch = _make_orchestrator(ctx)
 
         for _ in range(3):
-            orch._bg_task_monitor.on_task_done(self._fake_task(RuntimeError("boom")))
+            task = await _await_raising("boom")
+            orch._bg_task_monitor.on_task_done(task)
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 3
 
-        orch._bg_task_monitor.on_task_done(self._fake_task(None))
+        success = await _successful()
+        orch._bg_task_monitor.on_task_done(success)
 
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 0
 
-    def test_cancelled_error_after_failures_resets_counter_and_logs_nothing(
+    @pytest.mark.asyncio
+    async def test_cancelled_error_after_failures_resets_counter_and_logs_nothing(
         self,
     ) -> None:
         ctx = _make_ctx()
+        ctx.turn = TurnState()
         orch = _make_orchestrator(ctx)
 
         for _ in range(3):
-            orch._bg_task_monitor.on_task_done(self._fake_task(RuntimeError("boom")))
+            task = await _await_raising("boom")
+            orch._bg_task_monitor.on_task_done(task)
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 3
 
         with (
             patch("agent.bg_task_monitor.logger.warning") as mock_warning,
             patch("agent.bg_task_monitor.logger.error") as mock_error,
         ):
-            orch._bg_task_monitor.on_task_done(
-                self._fake_task(asyncio.CancelledError())
-            )
+            cancelled = await _make_cancelled("test_bg_task")
+            orch._bg_task_monitor.on_task_done(cancelled)
 
         assert orch._bg_task_monitor.get_consecutive_failures("test_bg_task") == 0
         mock_warning.assert_not_called()
         mock_error.assert_not_called()
 
-    def test_threshold_reached_notifies_exactly_once_with_task_name(self) -> None:
+    @pytest.mark.asyncio
+    async def test_threshold_reached_notifies_exactly_once_with_task_name(self) -> None:
         """_notify_bg_failure_threshold() must fire exactly once, at the failure
         that makes the counter == BG_FAILURE_THRESHOLD, and the notification
         message must include the task name."""
         on_error = MagicMock()
         ctx = _make_ctx()
+        ctx.turn = TurnState()
         orch = _make_orchestrator(ctx, on_error=on_error)
 
         # First failure calls _on_error (not _notify_bg_failure_threshold) — skip it
-        orch._bg_task_monitor.on_task_done(
-            self._fake_task(RuntimeError("boom"), name="my_bg_task")
-        )
+        task = await _await_raising("boom", name="my_bg_task")
+        orch._bg_task_monitor.on_task_done(task)
         assert on_error.call_count == 1
         on_error.reset_mock()
 
         # 2nd-(N-1)th failures are silent (no logging, no notifications)
         for _ in range(BG_FAILURE_THRESHOLD - 2):
-            orch._bg_task_monitor.on_task_done(
-                self._fake_task(RuntimeError("boom"), name="my_bg_task")
-            )
+            task = await _await_raising("boom", name="my_bg_task")
+            orch._bg_task_monitor.on_task_done(task)
 
         # Nth failure (threshold) triggers _notify_bg_failure_threshold which calls _on_error
-        orch._bg_task_monitor.on_task_done(
-            self._fake_task(RuntimeError("boom"), name="my_bg_task")
-        )
+        task = await _await_raising("boom", name="my_bg_task")
+        orch._bg_task_monitor.on_task_done(task)
         assert (
             orch._bg_task_monitor.get_consecutive_failures("my_bg_task")
             == BG_FAILURE_THRESHOLD
@@ -2400,36 +2442,34 @@ class TestDiscardAndLogConsecutiveFailures:
 
         # A (N+1)th consecutive failure must not notify again (only == threshold, not >=).
         on_error.reset_mock()
-        orch._bg_task_monitor.on_task_done(
-            self._fake_task(RuntimeError("boom"), name="my_bg_task")
-        )
+        task = await _await_raising("boom", name="my_bg_task")
+        orch._bg_task_monitor.on_task_done(task)
         on_error.assert_not_called()
 
-    def test_threshold_notification_falls_back_to_critical_log_on_error_raising(
+    @pytest.mark.asyncio
+    async def test_threshold_notification_falls_back_to_critical_log_on_error_raising(
         self,
     ) -> None:
         """If _on_error itself raises inside the threshold branch, the exception
         must be caught and logged via logger.critical, never propagated out of
-        _discard_and_log()."""
+        BgTaskMonitor.on_task_done()."""
         on_error = MagicMock(side_effect=RuntimeError("notification channel down"))
         ctx = _make_ctx()
+        ctx.turn = TurnState()
         orch = _make_orchestrator(ctx, on_error=on_error)
 
         # First failure also calls _on_error — it will raise too (logged as ERROR)
-        orch._bg_task_monitor.on_task_done(
-            self._fake_task(RuntimeError("boom"), name="my_bg_task")
-        )
+        task = await _await_raising("boom", name="my_bg_task")
+        orch._bg_task_monitor.on_task_done(task)
 
         with patch("agent.bg_task_monitor.logger.critical") as mock_critical:
             # 2nd-(N-1)th failures are silent
             for _ in range(BG_FAILURE_THRESHOLD - 2):
-                orch._bg_task_monitor.on_task_done(
-                    self._fake_task(RuntimeError("boom"), name="my_bg_task")
-                )
+                task = await _await_raising("boom", name="my_bg_task")
+                orch._bg_task_monitor.on_task_done(task)
             # Nth failure triggers _notify_bg_failure_threshold which calls _on_error
-            orch._bg_task_monitor.on_task_done(
-                self._fake_task(RuntimeError("boom"), name="my_bg_task")
-            )
+            task = await _await_raising("boom", name="my_bg_task")
+            orch._bg_task_monitor.on_task_done(task)
 
         assert (
             orch._bg_task_monitor.get_consecutive_failures("my_bg_task")
@@ -2438,43 +2478,43 @@ class TestDiscardAndLogConsecutiveFailures:
         mock_critical.assert_called_once()
         assert "my_bg_task" in str(mock_critical.call_args)
 
-    def test_threshold_reached_with_pause_enabled_sets_pause_state(self) -> None:
+    @pytest.mark.asyncio
+    async def test_threshold_reached_with_pause_enabled_sets_pause_state(self) -> None:
         """When pause_on_critical_failure=True, reaching the threshold marks the
         offending task type as paused in _bg_pause_state."""
         ctx = _make_ctx()
+        ctx.turn = TurnState()
         orch = _make_orchestrator(ctx, pause_on_critical_failure=True)
 
         # First failure does NOT set pause state (only calls _on_error)
-        orch._bg_task_monitor.on_task_done(
-            self._fake_task(RuntimeError("boom"), name="my_bg_task")
-        )
+        task = await _await_raising("boom", name="my_bg_task")
+        orch._bg_task_monitor.on_task_done(task)
         assert orch._bg_task_monitor.bg_pause_state == {}
 
         # 2nd-(N-1)th failures are silent
         for _ in range(BG_FAILURE_THRESHOLD - 2):
-            orch._bg_task_monitor.on_task_done(
-                self._fake_task(RuntimeError("boom"), name="my_bg_task")
-            )
+            task = await _await_raising("boom", name="my_bg_task")
+            orch._bg_task_monitor.on_task_done(task)
 
         # Nth failure triggers _notify_bg_failure_threshold which sets pause state
-        orch._bg_task_monitor.on_task_done(
-            self._fake_task(RuntimeError("boom"), name="my_bg_task")
-        )
+        task = await _await_raising("boom", name="my_bg_task")
+        orch._bg_task_monitor.on_task_done(task)
 
         assert orch._bg_task_monitor.bg_pause_state == {"my_bg_task": True}
 
-    def test_threshold_reached_with_pause_disabled_leaves_pause_state_empty(
+    @pytest.mark.asyncio
+    async def test_threshold_reached_with_pause_disabled_leaves_pause_state_empty(
         self,
     ) -> None:
         """Default (pause_on_critical_failure=False) must not populate
         _bg_pause_state even after the threshold is reached."""
         ctx = _make_ctx()
+        ctx.turn = TurnState()
         orch = _make_orchestrator(ctx)
 
         for _ in range(5):
-            orch._bg_task_monitor.on_task_done(
-                self._fake_task(RuntimeError("boom"), name="my_bg_task")
-            )
+            task = await _await_raising("boom", name="my_bg_task")
+            orch._bg_task_monitor.on_task_done(task)
 
         assert orch._bg_task_monitor.bg_pause_state == {}
 

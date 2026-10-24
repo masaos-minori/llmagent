@@ -21,7 +21,6 @@ WorkflowEngine, and delegates the LLM/tool-call loop to LlmTurnExecutor.
 
 from __future__ import annotations
 
-import asyncio
 import time
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
@@ -87,14 +86,13 @@ class Orchestrator:
         self._pause_on_critical_failure = pause_on_critical_failure
         self._diagnostic_store = DiagnosticStore()
         ctx.diagnostics = self._diagnostic_store
-        self._background_tasks: set[asyncio.Task[object]] = set()
         self._state_store = StateStore()
         self._state_store.recover_stale_attempts(self._state_store.get_connection())
 
         # ── Component initialization (new constructor signatures) ────────────
         self._bg_task_monitor = BgTaskMonitor(
             ctx,
-            tasks=self._background_tasks,
+            tasks=ctx.turn.background_tasks,
             on_discard=self._on_discard,
             on_error=self._on_error,
             pause_on_critical_failure=pause_on_critical_failure,
@@ -111,7 +109,7 @@ class Orchestrator:
         self._conversation_manager = ConversationStateManager(
             ctx,
             diagnostic_store=self._diagnostic_store,
-            tasks=self._background_tasks,
+            tasks=ctx.turn.background_tasks,
             on_discard=self._on_discard,
             tracer=tracer,
             on_first_turn=on_first_turn,

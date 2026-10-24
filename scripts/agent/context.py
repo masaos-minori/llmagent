@@ -196,7 +196,9 @@ class TurnState:
 
     # UUID4 set by Orchestrator.handle_turn(); None between turns
     current_turn_id: str | None = None
-    # Background tasks spawned during this turn; tracked for clean shutdown
+    # Background tasks registered for this process; written by ConversationStateManager,
+    # cleared at shutdown by ResourceShutdownCoordinator. Process-lifetime: TurnState is
+    # constructed once with AgentContext (context.py:320) and is not reset between turns.
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
 
 

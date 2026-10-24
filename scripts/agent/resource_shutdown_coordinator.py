@@ -4,7 +4,8 @@
 ResourceShutdownCoordinator — resource cleanup and shutdown coordination.
 
 Responsibilities:
-  - Cancelling pending tasks in LIFO order (last-created-first-cancelled)
+  - Cancelling the tracked background tasks (their order is arbitrary; the
+    registry is an unordered set)
   - WAL checkpoint and backup during shutdown
   - Service lifecycle shutdown (HTTP client, lifecycle manager)
   - Timeout enforcement: one named bound, _SHUTDOWN_TIMEOUT_S, shared by the WAL
@@ -37,12 +38,10 @@ class ResourceShutdownCoordinator:
     task cancellation, WAL checkpoint/backup, and service lifecycle shutdown.
 
     Checkpoint-before-cancellation ordering:
-        The WAL checkpoint always completes before any pending task —
-        including a history-write task — is cancelled, satisfying the
-        checkpoint-before-cancellation guarantee. Among the remaining
-        pending tasks, cancellation then proceeds in LIFO
-        (last-created-first-cancelled) order for deterministic shutdown
-        behavior.
+        The WAL checkpoint always completes before any pending task is
+        cancelled, satisfying the checkpoint-before-cancellation guarantee.
+        Among the remaining pending tasks there is no defined order: the
+        registry is an unordered set, so cancellation order is arbitrary.
 
     Settlement period:
         No artificial delay is applied after task cancellation. All
@@ -110,31 +109,11 @@ class ResourceShutdownCoordinator:
                 errors.append(("wal_backup_error", f"{type(e).__name__}: {e}"))
                 logger.error("Unexpected error during WAL backup: %s", e)
 
-        # 2. Cancel only tracked background tasks in LIFO order (last-created-first-cancelled)
-        #    This ensures deterministic shutdown behavior: the most recently
-        #    created task is cancelled first, preventing cascading failures
-        #    when dependent tasks are still running.
-        #    Unlike asyncio.all_tasks(), this avoids cancelling critical operations
-        #    like WAL checkpoint or history flush that are not tracked as background tasks.
-        if hasattr(self._ctx, "turn") and hasattr(self._ctx.turn, "background_tasks"):
-            # Snapshot the set before clearing to prevent double-cancellation
-            pending_tasks = list(self._ctx.turn.background_tasks)
-            self._ctx.turn.background_tasks.clear()
-            if pending_tasks:
-                logger.info(
-                    "Cancelling %d tracked background tasks during shutdown",
-                    len(pending_tasks),
-                )
-                # Cancel in reverse order (LIFO) for deterministic shutdown
-                for t in reversed(pending_tasks):
-                    t.cancel()
-
-                results = await asyncio.gather(*pending_tasks, return_exceptions=True)
-                for res in results:
-                    if isinstance(res, Exception):
-                        errors.append(
-                            ("task_cancellation", f"{type(res).__name__}: {res}")
-                        )
+        # 2. Cancel only the tracked background tasks. The registry is an unordered
+        #    set, so their order is arbitrary; only registered background tasks are
+        #    cancelled here, never the WAL checkpoint or history flush that run
+        #    synchronously and are not tracked as background tasks.
+        errors.extend(await self._cancel_tracked_tasks())
 
         # 3. Concurrent Service Shutdown
         svc = self._ctx.services
@@ -162,3 +141,28 @@ class ResourceShutdownCoordinator:
             summary = "; ".join(f"{name}: {err}" for name, err in errors)
             logger.error("Resource close errors (%d): %s", len(errors), summary)
             self._view.write_warning(f"Shutdown completed with errors: {summary}")
+
+    async def _cancel_tracked_tasks(self) -> list[tuple[str, str]]:
+        """Cancel and join the tracked background tasks.
+
+        The registry is a ``set`` of ``asyncio.Task`` objects with no creation
+        order, so cancellation order is arbitrary; ``reversed()`` over the
+        snapshot is an arbitrary-order reversal, not LIFO. A clean cancellation
+        is not recorded as a shutdown error (``CancelledError`` is not an
+        ``Exception``).
+        """
+        pending_tasks = list(self._ctx.turn.background_tasks)
+        self._ctx.turn.background_tasks.clear()
+        errors: list[tuple[str, str]] = []
+        if pending_tasks:
+            logger.info(
+                "Cancelling %d tracked background tasks during shutdown",
+                len(pending_tasks),
+            )
+            for t in reversed(pending_tasks):
+                t.cancel()
+            results = await asyncio.gather(*pending_tasks, return_exceptions=True)
+            for res in results:
+                if isinstance(res, Exception):
+                    errors.append(("task_cancellation", f"{type(res).__name__}: {res}"))
+        return errors

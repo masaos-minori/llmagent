@@ -71,53 +71,75 @@ class BgTaskMonitor:
         return len(paused) > 0, paused
 
     def on_task_done(self, task: asyncio.Task[Any]) -> None:
-        """Callback invoked when a background task completes."""
+        """Handle a completed background task across all terminal states.
+
+        A cancelled task is neither a failure nor a success: its counter resets to 0
+        (DR-002) and it is discarded from the registry. A task that completes cleanly
+        (returns normally, so ``exception()`` is ``None``) also resets the streak. A
+        failed task runs the unchanged failure ladder. ``task.exception()`` is never
+        called on a cancelled task (``CancelledError`` derives from ``BaseException``
+        and would raise).
+        """
         task_name = task.get_name()
-        exc = task.exception()
         count = self._consecutive_failures.get(task_name, 0)
 
-        if exc is not None:
-            if isinstance(exc, asyncio.CancelledError):
-                count = 0
-            elif isinstance(exc, Exception):
-                count += 1
-                if count == 1:
-                    logger.warning(
-                        "First background task failure (%s): %s", task_name, exc
-                    )
-                    if self._on_error is not None:
-                        try:
-                            self._on_error(exc)
-                        except Exception as notif_err:  # noqa: BLE001 — on_error callback must never raise; catch-all prevents notification failure from crashing the turn
-                            logger.error(
-                                "Failed to notify user of background task failure: %s",
-                                notif_err,
-                            )
-                elif count >= BG_FAILURE_THRESHOLD:
-                    if (
-                        count == BG_FAILURE_THRESHOLD
-                        or (count - BG_FAILURE_THRESHOLD) % 5 == 0
-                    ):
-                        logger.error(
-                            "Consecutive background task failures (%d) for '%s': %s",
-                            count,
-                            task_name,
-                            exc,
-                        )
-                        if count == BG_FAILURE_THRESHOLD:
-                            self._notify_threshold_breach(task_name, count)
-                    else:
-                        logger.warning(
-                            "Background task failure #%d (%s): %s",
-                            count,
-                            task_name,
-                            exc,
-                        )
-        else:
+        if task.cancelled():
             count = 0
+        else:
+            exc = task.exception()
+            if exc is None:  # clean completion resets the streak
+                count = 0
+            else:
+                count = self._count_failure(task_name, exc, count)
+                if count == 1 and isinstance(exc, Exception):
+                    self._report_first_failure(task_name, exc)
+                elif count >= BG_FAILURE_THRESHOLD and isinstance(exc, Exception):
+                    self._report_threshold_failure(task_name, exc, count)
 
         self._consecutive_failures[task_name] = count
         self._tasks.discard(task)
+
+    def _count_failure(self, task_name: str, exc: BaseException, count: int) -> int:
+        if isinstance(
+            exc, asyncio.CancelledError
+        ):  # coroutine surfaced CancelledError without the task being cancelled
+            return 0
+        if not isinstance(
+            exc, Exception
+        ):  # a non-Exception BaseException leaves the streak intact
+            return count
+        return count + 1
+
+    def _report_first_failure(self, task_name: str, exc: Exception) -> None:
+        logger.warning("First background task failure (%s): %s", task_name, exc)
+        if self._on_error is not None:
+            try:
+                self._on_error(exc)
+            except Exception as notif_err:  # noqa: BLE001 — on_error callback must never raise; catch-all prevents notification failure from crashing the turn
+                logger.error(
+                    "Failed to notify user of background task failure: %s",
+                    notif_err,
+                )
+
+    def _report_threshold_failure(
+        self, task_name: str, exc: Exception, count: int
+    ) -> None:
+        if count == BG_FAILURE_THRESHOLD or (count - BG_FAILURE_THRESHOLD) % 5 == 0:
+            logger.error(
+                "Consecutive background task failures (%d) for '%s': %s",
+                count,
+                task_name,
+                exc,
+            )
+            if count == BG_FAILURE_THRESHOLD:
+                self._notify_threshold_breach(task_name, count)
+        else:
+            logger.warning(
+                "Background task failure #%d (%s): %s",
+                count,
+                task_name,
+                exc,
+            )
 
     def notify_bg_failure_threshold(self, task_name: str, count: int) -> None:
         """Guarantee the user is notified when a background task hits the failure threshold.

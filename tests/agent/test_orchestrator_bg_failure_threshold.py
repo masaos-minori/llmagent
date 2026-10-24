@@ -40,6 +40,38 @@ def _make_ctx() -> MagicMock:
     return ctx
 
 
+async def _raising_task(message: str) -> None:
+    """A task whose body raises ``RuntimeError(message)``; ``task.exception()`` returns it."""
+    raise RuntimeError(message)
+
+
+async def _cancellable_task() -> None:
+    """A task that waits forever until cancelled."""
+    await asyncio.Event().wait()
+
+
+async def _await_raising(message: str, name: str = "bg_task_0") -> asyncio.Task[object]:
+    """Create a raising task, let its body run to the raise, and return it.
+
+    The exception is retained on the task (retrievable via ``task.exception()``)
+    rather than propagated, so the caller can hand the finished task to the
+    monitor without the raise escaping this helper.
+    """
+    task = asyncio.create_task(_raising_task(message), name=name)
+    await asyncio.sleep(0)  # yield once so the body runs and raises
+    return task
+
+
+async def _make_cancelled(name: str) -> asyncio.Task[object]:
+    """Create a cancellable task, cancel it, await it to completion, and return it."""
+    task = asyncio.create_task(_cancellable_task(), name=name)
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+    assert task.cancelled()
+    return task
+
+
 class TestConsecutiveFailuresIncrement:
     @pytest.mark.asyncio
     async def test_increment_on_single_failure(self) -> None:
@@ -47,11 +79,8 @@ class TestConsecutiveFailuresIncrement:
         tasks: set[asyncio.Task[object]] = set()
         monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
-        mock_task = MagicMock(spec=asyncio.Task)
-        mock_task.get_name.return_value = "first_turn"
-        mock_task.exception.return_value = RuntimeError("connection refused")
-
-        monitor.on_task_done(mock_task)
+        task = await _await_raising("connection refused", "first_turn")
+        monitor.on_task_done(task)
 
         assert monitor.get_consecutive_failures("first_turn") == 1
 
@@ -62,10 +91,8 @@ class TestConsecutiveFailuresIncrement:
         monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
         for i in range(BG_FAILURE_THRESHOLD + 2):
-            mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = "bg_task_0"
-            mock_task.exception.return_value = RuntimeError(f"error {i}")
-            monitor.on_task_done(mock_task)
+            task = await _await_raising(f"error {i}", "bg_task_0")
+            monitor.on_task_done(task)
 
         assert monitor.get_consecutive_failures("bg_task_0") == BG_FAILURE_THRESHOLD + 2
 
@@ -76,16 +103,12 @@ class TestConsecutiveFailuresIncrement:
         monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
         for i in range(5):
-            mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = "bg_task_0"
-            mock_task.exception.return_value = RuntimeError(f"fail {i}")
-            monitor.on_task_done(mock_task)
+            task = await _await_raising(f"fail {i}", "bg_task_0")
+            monitor.on_task_done(task)
         assert monitor.get_consecutive_failures("bg_task_0") == 5
 
-        cancelled_task = MagicMock(spec=asyncio.Task)
-        cancelled_task.get_name.return_value = "cancelled_task"
-        cancelled_task.exception.return_value = asyncio.CancelledError()
-        monitor.on_task_done(cancelled_task)
+        cancelled = await _make_cancelled("cancelled_task")
+        monitor.on_task_done(cancelled)
 
         assert monitor.get_consecutive_failures("cancelled_task") == 0
         assert monitor.get_consecutive_failures("bg_task_0") == 5
@@ -112,10 +135,8 @@ class TestThresholdReachedBehavior:
 
         try:
             for i in range(BG_FAILURE_THRESHOLD):
-                mock_task = MagicMock(spec=asyncio.Task)
-                mock_task.get_name.return_value = "bg_task_0"
-                mock_task.exception.return_value = RuntimeError(f"error {i}")
-                monitor.on_task_done(mock_task)
+                task = await _await_raising(f"error {i}", "bg_task_0")
+                monitor.on_task_done(task)
 
             has_error = any(
                 "Consecutive background task failures" in msg for msg in captured_log
@@ -132,10 +153,8 @@ class TestThresholdReachedBehavior:
         monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
         for i in range(BG_FAILURE_THRESHOLD + 1):
-            mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = "bg_task_0"
-            mock_task.exception.return_value = RuntimeError(f"error {i}")
-            monitor.on_task_done(mock_task)
+            task = await _await_raising(f"error {i}", "bg_task_0")
+            monitor.on_task_done(task)
 
         assert monitor.get_consecutive_failures("bg_task_0") == BG_FAILURE_THRESHOLD + 1
 
@@ -159,10 +178,8 @@ class TestThresholdReachedBehavior:
 
         try:
             for i in range(BG_FAILURE_THRESHOLD - 1):
-                mock_task = MagicMock(spec=asyncio.Task)
-                mock_task.get_name.return_value = "bg_task_0"
-                mock_task.exception.return_value = RuntimeError(f"error {i}")
-                monitor.on_task_done(mock_task)
+                task = await _await_raising(f"error {i}", "bg_task_0")
+                monitor.on_task_done(task)
 
             has_warning = any(record == logging.WARNING for record in captured_levels)
             has_error = any(record == logging.ERROR for record in captured_levels)
@@ -186,10 +203,8 @@ class TestOnErrorCallbackExceptionHandling:
             ctx, tasks=tasks, on_discard=lambda t: None, on_error=_flaky_on_error
         )
 
-        mock_task = MagicMock(spec=asyncio.Task)
-        mock_task.get_name.return_value = "first_turn"
-        mock_task.exception.return_value = RuntimeError("original error")
-        monitor.on_task_done(mock_task)
+        task = await _await_raising("original error", "first_turn")
+        monitor.on_task_done(task)
 
         assert True
 
@@ -207,11 +222,14 @@ class TestOnErrorCallbackExceptionHandling:
             ctx, tasks=tasks, on_discard=lambda t: None, on_error=_record_then_raise
         )
 
-        mock_task = MagicMock(spec=asyncio.Task)
-        mock_task.get_name.return_value = "first_turn"
         original_err = RuntimeError("connection timeout")
-        mock_task.exception.return_value = original_err
-        monitor.on_task_done(mock_task)
+
+        async def _body() -> None:
+            raise original_err
+
+        task = asyncio.create_task(_body(), name="first_turn")
+        await asyncio.sleep(0)
+        monitor.on_task_done(task)
 
         assert captured_exc[0] is original_err
 
@@ -224,16 +242,12 @@ class TestCancelledTaskCounterReset:
         monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
         for i in range(3):
-            mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = "bg_task_0"
-            mock_task.exception.return_value = RuntimeError(f"fail {i}")
-            monitor.on_task_done(mock_task)
+            task = await _await_raising(f"fail {i}", "bg_task_0")
+            monitor.on_task_done(task)
         assert monitor.get_consecutive_failures("bg_task_0") == 3
 
-        cancelled_task = MagicMock(spec=asyncio.Task)
-        cancelled_task.get_name.return_value = "cancelled_task"
-        cancelled_task.exception.return_value = asyncio.CancelledError()
-        monitor.on_task_done(cancelled_task)
+        cancelled = await _make_cancelled("cancelled_task")
+        monitor.on_task_done(cancelled)
 
         assert monitor.get_consecutive_failures("cancelled_task") == 0
 
@@ -244,15 +258,11 @@ class TestCancelledTaskCounterReset:
         monitor = BgTaskMonitor(ctx, tasks=tasks, on_discard=lambda t: None)
 
         for i in range(5):
-            mock_task = MagicMock(spec=asyncio.Task)
-            mock_task.get_name.return_value = "bg_task_0"
-            mock_task.exception.return_value = RuntimeError(f"fail {i}")
-            monitor.on_task_done(mock_task)
+            task = await _await_raising(f"fail {i}", "bg_task_0")
+            monitor.on_task_done(task)
         assert monitor.get_consecutive_failures("bg_task_0") == 5
 
-        cancelled_task = MagicMock(spec=asyncio.Task)
-        cancelled_task.get_name.return_value = "cancelled_task"
-        cancelled_task.exception.return_value = asyncio.CancelledError()
-        monitor.on_task_done(cancelled_task)
+        cancelled = await _make_cancelled("cancelled_task")
+        monitor.on_task_done(cancelled)
 
         assert monitor.get_consecutive_failures("cancelled_task") == 0

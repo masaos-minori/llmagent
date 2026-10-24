@@ -17,6 +17,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import agent.resource_shutdown_coordinator as coordinator_module
 import pytest
+from agent.context import TurnState
+from agent.conversation_state_manager import ConversationStateManager
 from agent.http_lifecycle_errors import TerminationOutcome
 from agent.resource_shutdown_coordinator import ResourceShutdownCoordinator
 from agent.wal_checkpoint_manager import WalCheckpointManager
@@ -32,6 +34,40 @@ def _make_coordinator() -> ResourceShutdownCoordinator:
     wal.checkpoint_sync = AsyncMock(return_value=(True, []))
     wal.backup_sync = AsyncMock(return_value=("", []))
     return ResourceShutdownCoordinator(ctx, view, wal)
+
+
+async def _long_running_first_turn(_line: str) -> str:
+    """A stand-in for ``_generate_session_title``: pending long enough to be cancelled."""
+    await asyncio.sleep(30)
+    return "stubbed-title"
+
+
+async def _register_first_turn_task(ctx: MagicMock) -> set[asyncio.Task[object]]:
+    """Register one real first-turn task through the real producer."""
+    manager = ConversationStateManager(
+        ctx,
+        tasks=ctx.turn.background_tasks,
+        on_discard=lambda _task: None,
+        on_first_turn=_long_running_first_turn,
+    )
+    await manager.append_user_message("first")
+    return ctx.turn.background_tasks
+
+
+def _registry_ctx() -> MagicMock:
+    """A MagicMock ctx with a real TurnState registry and the minimal conv/stats/session
+    stubs that ``append_user_message`` touches."""
+    ctx = MagicMock()
+    ctx.services = None
+    ctx.conv = MagicMock()
+    ctx.conv.system_prompt_content = ""  # skip sync_system_prompt's validation branch
+    ctx.conv.append_message = AsyncMock()
+    ctx.stats = MagicMock()
+    ctx.stats.stat_turns = 0  # append increments to 1, firing the first-turn branch
+    ctx.session = MagicMock()
+    ctx.session.save = MagicMock()
+    ctx.turn = TurnState()  # real, empty background_tasks set
+    return ctx
 
 
 class TestSettlementBlockRemoved:
@@ -112,73 +148,60 @@ class TestHttpTerminationReported:
 
 
 class TestSelectiveTaskCancellation:
-    """Tests for REQ-001, REQ-002: Verify only tracked background tasks are cancelled."""
+    """Real tasks in a real registry: only tracked background tasks are cancelled at shutdown."""
 
     @pytest.mark.asyncio
     async def test_only_tracked_background_tasks_cancelled(self) -> None:
-        """REQ-001: Only tasks in turn.background_tasks are cancelled during shutdown."""
-        ctx = MagicMock()
-        ctx.services = None
+        """A task registered through the real producer is cancelled, joined, and released."""
+        ctx = _registry_ctx()
         view = MagicMock()
         wal = MagicMock()
         wal.checkpoint_sync = AsyncMock(return_value=(True, []))
         wal.backup_sync = AsyncMock(return_value=("", []))
 
-        # Create a mock TurnState with background_tasks set
-        turn_state = MagicMock()
-        bg_task1 = MagicMock()
-        bg_task1.cancel = MagicMock()
-        bg_task2 = MagicMock()
-        bg_task2.cancel = MagicMock()
-        turn_state.background_tasks = {bg_task1, bg_task2}
-        ctx.turn = turn_state
+        tasks = await _register_first_turn_task(ctx)
+        assert len(tasks) == 1
+        (running,) = tuple(tasks)
 
         coordinator = ResourceShutdownCoordinator(ctx, view, wal)
-        with patch(
-            "agent.resource_shutdown_coordinator.asyncio.gather", new_callable=AsyncMock
-        ):
-            await coordinator.close_resources()
+        await coordinator.close_resources()
 
-        # Both tracked tasks should have been cancelled
-        bg_task1.cancel.assert_called_once()
-        bg_task2.cancel.assert_called_once()
+        assert running.cancelled() is True
+        assert running.done() is True
+        assert ctx.turn.background_tasks == set()
+        view.write_warning.assert_not_called()  # no "Resource close errors" for a clean cancellation
+
+    @pytest.mark.asyncio
+    async def test_empty_registry_cancels_nothing_and_raises_nothing(self) -> None:
+        """An empty registry leaves shutdown intact (replaces the deleted-guard test)."""
+        ctx = _registry_ctx()  # registry intentionally empty
+        view = MagicMock()
+        wal = MagicMock()
+        wal.checkpoint_sync = AsyncMock(return_value=(True, []))
+        wal.backup_sync = AsyncMock(return_value=("", []))
+
+        coordinator = ResourceShutdownCoordinator(ctx, view, wal)
+        await coordinator.close_resources()  # must not raise
+
+        assert ctx.turn.background_tasks == set()
+        view.write_warning.assert_not_called()
 
     @pytest.mark.asyncio
     async def test_critical_operations_not_cancelled(self) -> None:
-        """REQ-002: Critical operations (not in background_tasks) are NOT cancelled."""
-        ctx = MagicMock()
-        ctx.services = None
-        view = MagicMock()
-        wal = MagicMock()
-        wal.checkpoint_sync = AsyncMock(return_value=(True, []))
-        wal.backup_sync = AsyncMock(return_value=("", []))
-
-        # Create a mock TurnState with empty background_tasks
-        turn_state = MagicMock()
-        turn_state.background_tasks = set()
-        ctx.turn = turn_state
-
-        coordinator = ResourceShutdownCoordinator(ctx, view, wal)
-        await coordinator.close_resources()
-
-        # No tasks should have been cancelled
-        # The key assertion is that no AttributeError occurs when accessing
-        # turn.background_tasks
-        assert hasattr(turn_state, "background_tasks")
-
-    @pytest.mark.asyncio
-    async def test_no_turn_attribute_no_crash(self) -> None:
-        """Verify graceful handling when turn attribute doesn't exist."""
-        ctx = MagicMock(spec=["services"])
-        ctx.services = None
+        """Untracked work (WAL checkpoint, history write) is not cancelled; the registry empties."""
+        ctx = _registry_ctx()
         view = MagicMock()
         wal = MagicMock()
         wal.checkpoint_sync = AsyncMock(return_value=(True, []))
         wal.backup_sync = AsyncMock(return_value=("", []))
 
         coordinator = ResourceShutdownCoordinator(ctx, view, wal)
-        # Should not raise even without turn attribute
         await coordinator.close_resources()
+
+        assert (
+            ctx.turn.background_tasks == set()
+        )  # nothing was registered, nothing remains
+        view.write_history.assert_called()  # the history write still ran
 
 
 class TestRealContendedStepIsBounded:
