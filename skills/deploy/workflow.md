@@ -2,7 +2,21 @@
 
 ## Phase 1: Pre-deploy check
 
-**Gate: syntax check passes; deploy.sh config and binary lists are current**
+**Gate: the revision to deploy is clean, pushed, and validated; syntax check passes; deploy.sh config and binary lists are current**
+
+Confirm what will be deployed. `deploy.sh` copies the working tree and records only the
+commit (`DEPLOYED_REV`), so a dirty tree or an unpushed commit makes that record not
+describe `/opt/llm/`:
+
+```bash
+git status --short          # must print nothing
+git rev-parse HEAD @{u}     # the two values must match (HEAD is pushed)
+```
+
+If the tree is dirty or `HEAD` is not pushed, stop and ask the user; deploy a dirty tree
+only on their explicit instruction, and report it as such. Also confirm the validation
+sequence in `rules/toolchain.md` passed for this `HEAD` (in this session or in CI); if not,
+run it before Phase 2.
 
 ```bash
 python3 -m compileall -q scripts/
@@ -10,7 +24,7 @@ python3 -m compileall -q scripts/
 
 If any file reports `SyntaxError`: fix it before proceeding (see `SKILL.md` Required behavior).
 
-**Completed when**: `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, and the config and binary list diffs below are empty or fully explained.
+**Completed when**: the working tree is clean and `HEAD` is pushed and validated (or the user explicitly accepted otherwise), `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, and the config and binary list diffs below are empty or fully explained.
 **On a repeat `SyntaxError` after a fix**: per `AGENTS.md` Loop Prevention > Attempt Limit,
 at most 3 fix-and-recheck attempts for the same file; if it still fails after 3 attempts,
 stop and report `Blocked: {file} still has a syntax error after 3 attempts`.
@@ -31,8 +45,8 @@ python3 tools/manage_binaries.py check --bin-dir /opt/llm/bin --rev auto --repo 
 ```
 
 `deploy/deploy.sh` syncs `scripts/` as a whole with `rsync -av --delete`, so added or removed
-`scripts/**/*.py` files need no copy-list entry. Only `config/*.toml` and the 11 binaries are
-listed explicitly. If a config file or an MCP server was added or removed, confirm those lists
+`scripts/**/*.py` files need no copy-list entry. Only `config/*.toml` and the binaries
+(`BINARY_NAMES`) are listed explicitly. If a config file or an MCP server was added or removed, confirm those lists
 are up to date:
 
 ```bash
@@ -64,7 +78,7 @@ BUILD_ONLY="${STALE}" bash deploy/build_binaries.sh
 the whole set into `/opt/llm/bin/` only after every requested binary passes the structural check, so a
 failed build leaves the previous binaries in place. The previous set stays in `/opt/llm/bin.prev/`.
 An empty `STALE` means nothing needs rebuilding (do not run the build with an empty `BUILD_ONLY`, which
-builds all 11). The Event Bus and ingestion run from the deployed `scripts/` source and have no binary.
+builds every binary). The Event Bus and ingestion run from the deployed `scripts/` source and have no binary.
 
 The build exports `UV_SYSTEM_CERTS=true` by default so `uv` can fetch nuitka on hosts whose certificates are only in the
 system store; set `UV_SYSTEM_CERTS=false` to turn it off.
@@ -78,7 +92,34 @@ Loop Prevention > Attempt Limit). The build host must have the Nuitka prerequisi
 
 ## Phase 2: Deploy
 
-**Gate: `bash deploy/deploy.sh` exits 0**
+**Gate: the user approved, and `bash deploy/deploy.sh` exits 0**
+
+### Preview the sync
+
+`deploy.sh` has no dry-run mode and syncs `scripts/`, `tests/`, and `docs/` with
+`rsync --delete`, which removes anything under those `/opt/llm/` directories that is not in
+the repository. Preview the three syncs from the repository root; each line starting with
+`deleting` is a removal:
+
+```bash
+rsync -avn --delete --exclude="__pycache__/" --exclude="*.pyc" --exclude="*.pyo" scripts/ /opt/llm/scripts/
+rsync -avn --delete --exclude="__pycache__/" --exclude="*.pyc" --exclude="*.pyo" tests/ /opt/llm/tests/
+rsync -avn --delete docs/ /opt/llm/docs/
+```
+
+### Approval gate
+
+Run Phase 3 Step 3a's identification first (it only reads), so the approval covers the
+restarts. Then tell the user and obtain explicit approval of: the commit to deploy
+(`git rev-parse --short HEAD`), the paths the preview shows as changed or deleted, the
+binaries Phase 1b rebuilt, and the services Step 3a selected for restart (restarting the
+agent ends the current REPL session). MUST NOT run `deploy/deploy.sh`, kill a service, or
+start the agent without it. If the user does not approve, stop and report
+`Blocked: awaiting deployment approval`. An instruction that already approves this
+specific deploy counts; an earlier deploy's approval does not carry over, and a rollback
+deploy needs its own.
+
+### Run the deploy
 
 Run from the repository root:
 
@@ -99,7 +140,7 @@ If `deploy/deploy.sh` fails:
 3. Fix the missing file or update the config/binary list in `deploy/deploy.sh`
 4. Re-run `bash deploy/deploy.sh`
 
-**Completed when**: `bash deploy/deploy.sh` exits 0.
+**Completed when**: the user approved and `bash deploy/deploy.sh` exits 0.
 **Stop and report to the user when**: the re-run at step 4 fails with the same error as the
 first attempt. Per `AGENTS.md` Loop Prevention > Attempt Limit, MUST NOT repeat this recovery loop a third time.
 
@@ -125,13 +166,18 @@ Do NOT restart `llama-agent` if:
 - Only hot-reloadable `agent.toml` fields changed → use `/reload` in the REPL instead
 
 The Event Bus runs from the deployed `scripts/` source, not a binary. If `scripts/eventbus/` changed,
-restart its process: stop it (`lsof -ti :8015 | xargs -r kill`), then run `bash deploy/setup_services.sh`,
-which checks the remote LLM health and starts the Event Bus. A repeated run without stopping the old
-process starts a second Event Bus.
+restart its process: stop its listening process (identify it as in Step 3b, using the Event Bus
+port from `rules/env.md`), then run `bash deploy/setup_services.sh`, which checks the remote LLM
+health and starts the Event Bus. A repeated run without stopping the old process starts a second
+Event Bus.
+
+The LLM inference servers (`agent-llm`, `embed-llm`) are remote services (`rules/env.md`);
+`deploy/setup_services.sh` only checks their health. This skill never restarts them, so they
+are not a Step 3a outcome.
 
 **Completed when**: every changed file/config key has been matched against the criteria
 above and assigned to exactly one outcome — restart agent, restart one MCP server,
-restart an LLM inference server, or `/reload` only.
+restart the Event Bus, or `/reload` only.
 
 ### Step 3b: Restart
 
@@ -142,14 +188,14 @@ Service names and ports: see `rules/env.md`.
 # there is no dedicated restart command: kill the process by its port and
 # ensure_ready() (agent/factory.py) restarts it automatically on the next tool call
 # to that server (see docs/22_mcp/mcp_06_07_mcp-failure-diagnosis.md).
-lsof -ti :<PORT> | xargs -r kill
+# Identify the LISTENING process and confirm its name is the expected service first.
+# MUST NOT pick the process with `lsof -ti :<PORT>`: it also matches clients connected to
+# the port, and the agent holds a connection to every MCP port.
+ss -ltnpH 'sport = :<PORT>'     # the pid is the `pid=` value in the `users:` column
+kill <pid>
 
-# LLM inference servers (embed-llm :8081 / agent-llm :8080; 10-30 seconds to load model) —
-# deploy/setup_services.sh's own startup commands for these are not yet implemented
-# (placeholder `echo` lines as of this writing); confirm the script actually starts the
-# process before relying on it, then:
-lsof -ti :<PORT> | xargs -r kill
-bash deploy/setup_services.sh
+# LLM inference servers (agent-llm / embed-llm) are remote services (`rules/env.md`):
+# this skill does not restart them, and `bash deploy/setup_services.sh` only checks their health.
 
 # Agent (stops the current REPL session — apply the restart decision criteria above first).
 # start_agent.sh runs the REPL in the foreground: stop the running process
@@ -181,7 +227,7 @@ If a service fails to start:
    ```
 2. Common causes: syntax error in a newly deployed file; missing dependency; port conflict
 3. If a syntax error slipped through: fix the file, re-run `bash deploy/deploy.sh`, restart the service
-4. If port conflict: `lsof -i :<PORT>` to identify the conflicting process
+4. If port conflict: `ss -ltnp 'sport = :<PORT>'` to identify the conflicting process
 5. If a rebuilt binary is the cause: `bash deploy/build_binaries.sh --rollback` restores the previous binary set (no Nuitka needed); restart the affected service afterwards
 
 **Completed when**: the service's `/health` endpoint returns OK after recovery.

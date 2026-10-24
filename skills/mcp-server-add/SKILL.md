@@ -52,9 +52,9 @@ MUST NOT state the assigned port number in `docs/*.md` once deployed — see
 | Phase | Steps | Goal | Gate |
 |---|---|---|---|
 | 1 Create | Step 1 | Server files and the server's config file exist and are valid | Step 1's checklist fully passes |
-| 2 Register | Steps 2–4 | deploy.sh, `config/agent.toml`, and tool registration updated | `rg` confirms the new `cp` line, `[mcp_servers.<name>]` section (with `auth_token`), `tool_definitions`, `tool_safety_tiers`, and `shared/tool_constants.py` entries all exist |
+| 2 Register | Steps 2–4 | config copy, binary build/list/staleness entries, `config/agent.toml`, and tool registration updated | `rg` confirms the new `cp` line, the `ENTRIES`, `BINARY_NAMES`, and `BINARY_SOURCES` entries, the `[mcp_servers.<name>]` section (with `auth_token` and `cmd`), `tool_definitions`, `tool_safety_tiers`, and `shared/tool_constants.py` entries all exist |
 | 3 Verify | Step 5 | Tests and validation pass before anything is deployed | the Step 5 commands all pass |
-| 4 Run | Steps 6–9 | Service deployed (with user approval), started, authenticated, and reachable | `/mcp status` shows the new server `OK` and one of its tools was called successfully |
+| 4 Run | Steps 6–9 | Binary built and deployed (the `deploy` skill's approval gate), started, authenticated, and reachable | `/mcp status` shows the new server `OK` and one of its tools was called successfully |
 | (final) | Step 10 | Completion checklist (below) confirmed | Every Completion checklist item is true, or execution stopped in a `Blocked` state |
 
 See `workflow.md` for detailed step content and idempotency notes.
@@ -63,11 +63,12 @@ See `workflow.md` for detailed step content and idempotency notes.
 
 **This task is complete when, and only when**: every item below is confirmed true, or
 execution stopped in a `Blocked` state per a `workflow.md` step's own bound, or at the
-Step 6 approval gate.
+`deploy` skill's approval gate.
 
 - the server module syntax check passes and the Step 1 checklist passes
-- `deploy/deploy.sh` has a `cp` line for the new server's `config/<name>_mcp_server.toml`
-- `config/agent.toml` has `[mcp_servers.<name>]` (with `startup_mode = "subprocess"` and `auth_token`), `[[tool_definitions]]` entries, and `tool_safety_tiers` entries for every new tool
+- `deploy/deploy.sh` has a `cp` line for the new server's `config/<name>_mcp_server.toml` and `mcp_<name>` in `BINARY_NAMES`
+- `deploy/build_binaries.sh` has the `ENTRIES` entry and `tools/manage_binaries.py` has the `BINARY_SOURCES` entry for `mcp_<name>`; `skills/deploy/workflow.md` Phase 1's list checks print no difference
+- `config/agent.toml` has `[mcp_servers.<name>]` (with `startup_mode = "subprocess"`, `auth_token`, and `cmd` pointing at the binary), `[[tool_definitions]]` entries, and `tool_safety_tiers` entries for every new tool
 - every new tool is declared in the server's `GET /v1/tools` response (schema 2.0) and in the `shared/tool_constants.py` frozenset
 - tests for the new server exist under `tests/mcp_servers/<name>/` and pass
 - the generated MCP reference table is current: `uv run python tools/generate_reference_table.py --check` exits 0
@@ -78,7 +79,7 @@ Step 6 approval gate.
 
 ## Composes with
 
-- `deploy` — Step 6 delegates to the deploy skill's own Phase 2 (Deploy) only; this is distinct from this skill's phases
+- `deploy` — Step 6 delegates to the deploy skill's Phases 1, 1b, and 2, and Step 7 to its Phase 3; these are distinct from this skill's phases
 
 ## Called by
 
@@ -92,7 +93,9 @@ Step 6 approval gate.
   `rules/coding.md`'s `config_loader.py`-only `json.load()` rule — See `rules/coding.md`,
   section "Constraint checks (run before every commit)").
 - MUST NOT deploy to `/opt/llm` or start or restart services without the user's explicit
-  approval (Step 6): this changes shared infrastructure (`AGENTS.md` Execution policy).
+  approval: this changes shared infrastructure (`AGENTS.md` Execution policy). The approval
+  gate is the `deploy` skill's (`skills/deploy/workflow.md` Phase 2); this skill does not
+  duplicate or bypass it.
 
 See `rules/coding.md` Mandatory conventions ("Module addition", "MCP server addition"
 rows) for the `deploy/deploy.sh` `cp` line and `config/agent.toml`

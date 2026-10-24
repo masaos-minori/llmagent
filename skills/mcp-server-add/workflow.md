@@ -72,19 +72,37 @@ evidence of success only together with exit code 0 — check both.
 
 ---
 
-## Step 2: Update deploy.sh
+## Step 2: Register the config copy and the binary
 
-The new server's Python files under `scripts/mcp_servers/<name>/` need no `deploy.sh` change
-(see `rules/env.md` Architecture). Only `config/*.toml` files are copied individually — add a
-`cp` line for the new server's config:
+Production runs every MCP server as a compiled binary (`skills/deploy/SKILL.md` Binary
+layout), so a new server needs these registrations, not only a config copy. The server's
+Python files under `scripts/mcp_servers/<name>/` need no `deploy.sh` copy entry (see
+`rules/env.md` Architecture).
 
-```bash
-# In deploy/deploy.sh, add alongside the other MCP server config cp lines:
-cp config/<name>_mcp_server.toml /opt/llm/config/<name>_mcp_server.toml
-```
+- Config copy — add a `cp` line in `deploy/deploy.sh` alongside the other MCP server config
+  lines:
 
-**Completed when**: `deploy/deploy.sh` contains a `cp` line for
-`config/<name>_mcp_server.toml` and the path matches the file actually created.
+  ```bash
+  cp config/<name>_mcp_server.toml /opt/llm/config/<name>_mcp_server.toml
+  ```
+
+- Binary build — add an entry to `ENTRIES` in `deploy/build_binaries.sh`, in the format of
+  the existing ones (`<module path>:<binary name>:<server class>:<config file>`):
+
+  ```
+  "mcp_servers.<name>.<name>_server:mcp_<name>:<ServerClass>:<name>_mcp_server.toml"
+  ```
+
+- Binary list — add `mcp_<name>` to `BINARY_NAMES` in `deploy/deploy.sh`.
+- Staleness table — add `"mcp_<name>": ("scripts/mcp_servers/<name>/", *_MCP_COMMON)` to
+  `BINARY_SOURCES` in `tools/manage_binaries.py`, plus every other source directory the
+  server imports (as `mcp_mdq` adds `scripts/db/`, and `mcp_rag_pipeline` adds
+  `scripts/db/` and `scripts/rag/`). Without it a change to the server is never reported
+  stale.
+
+**Completed when**: `deploy/deploy.sh` contains the `cp` line for the file actually created,
+and the two list checks in `skills/deploy/workflow.md` Phase 1 (config files and binary
+names) print no difference.
 
 ---
 
@@ -98,7 +116,12 @@ transport    = "http"
 url          = "http://127.0.0.1:<PORT>"
 startup_mode = "subprocess"
 auth_token   = "${ENV:MCP_<NAME>_AUTH_TOKEN}"
+role         = "<label>"
+cmd          = ["/opt/llm/bin/mcp_<name>"]
 ```
+
+`role` is a display label shown in `/mcp status` (`mcp_06_02`); reuse an existing value
+where one fits. `cmd` points at the binary registered in Step 2.
 
 Then, for every new tool:
 
@@ -108,7 +131,8 @@ Then, for every new tool:
   never required for routing (`mcp_03_05`)
 
 **Completed when**: `config/agent.toml` has the `[mcp_servers.<name>]` section including
-`auth_token`, a `[[tool_definitions]]` entry and a `tool_safety_tiers` entry for each new tool.
+`auth_token` and `cmd`, a `[[tool_definitions]]` entry and a `tool_safety_tiers` entry for
+each new tool.
 
 ---
 
@@ -152,19 +176,15 @@ sequence passes, and every checker above exits 0.
 
 ## Step 6: Deploy
 
-Before running anything, tell the user what will change on the production side (the files
-`deploy/deploy.sh` copies to `/opt/llm`, and that the agent will be restarted) and obtain
-explicit approval. MUST NOT deploy without it; if the user does not approve, stop and report
-`Blocked: awaiting deployment approval`.
+Delegate to the `deploy` skill's Phases 1, 1b, and 2. The new server has no binary yet, so
+Phase 1's freshness report lists `mcp_<name>` as `unknown` and Phase 1b builds it. The
+approval gate (`skills/deploy/workflow.md` Phase 2, "Approval gate") belongs to the
+`deploy` skill: do not duplicate it here and do not bypass it. If the user does not
+approve, that skill reports `Blocked: awaiting deployment approval`; stop there.
 
-Then delegate to the `deploy` skill (the deploy skill's own Phase 2 (Deploy) only — distinct from this skill's phases):
-
-```bash
-bash deploy/deploy.sh
-```
-
-**Completed when**: the user approved, and the `deploy` skill's Phase 2 Gate is met
-(`bash deploy/deploy.sh` exits 0) — not a separate check.
+**Completed when**: the `deploy` skill's Phase 1b and Phase 2 Gates are met (no stale or
+unknown binary; the user approved and `bash deploy/deploy.sh` exits 0) — not a separate
+check.
 
 ---
 
@@ -173,7 +193,9 @@ bash deploy/deploy.sh
 `startup_mode = "subprocess"` MCP servers are spawned by the agent itself — no separate start
 command exists. Starting the agent (`bash deploy/start_agent.sh`) starts every configured
 MCP server, including the one just added. A running agent MUST be restarted, not reloaded:
-`/reload` does not apply changes to `[mcp_servers.*]` (`mcp_06_14`).
+`/reload` does not apply changes to `[mcp_servers.*]` (`mcp_06_14`); a new `mcp_servers`
+entry needs a full restart (`skills/deploy/workflow.md` Phase 3 Step 3a). This is
+`deploy` Phase 3, and the restart was covered by the approval given before Phase 2.
 
 For subsequent deploys after code changes to an already-running server, use the restart
 command in `skills/deploy/workflow.md` Phase 3 Step 3b.
