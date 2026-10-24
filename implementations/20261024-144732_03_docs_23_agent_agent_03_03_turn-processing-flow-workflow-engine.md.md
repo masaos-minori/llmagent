@@ -11,13 +11,14 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
 - `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md` only, four passages:
   - new `### Task Status Transitions` inserted inside `## Responsibility Boundary`, directly after
     `### Workflow Status` (heading `:65`, body `:67-72`) and before `### Workflow Stages` (`:74`);
-  - `### Startup Recovery` (`:102-104`): one added sentence;
-  - `## Operational Notes` (`:106-108`): added bullets;
-  - `## Known Limitations` (`:110-112`): one added bullet.
+  - `### Startup Recovery` (`:121-123`): one added sentence;
+  - `## Operational Notes` (`:125-127`): added bullets;
+  - `## Known Limitations` (`:129-131`): one added bullet.
 - Front matter (`:1-16`) is not edited: no new tag, no new `related` entry, no `Status` or Metadata
   field (`GV-016`).
 - `## Design Intent` subsections, `### Partial Completion Model`, `### Workflow Stages`,
-  `### Retry Mechanism`, `### Workflow Loader Validation Rules`, `## Key Constraints` heading, and
+  `### Turn-End and Teardown Ownership` (owned by the landed `092307_09`), `### Retry Mechanism`,
+  `### Workflow Loader Validation Rules`, `## Key Constraints` heading, and
   the whole `## Turn-by-turn State Changes` region are untouched.
 - No other chapter is edited. `docs/23_agent/agent_06_04_tool-execution-and-approval-canonical.md`
   is handled by `implementations/20261024-144732_04_docs_23_agent_agent_06_04_tool-execution-and-approval-canonical.md.md`.
@@ -32,56 +33,62 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
 - The wording must describe the state machine that
   `implementations/20261024-144732_01_scripts_agent_workflow_engine_adapter.py.md` implements, so the
   six-row table in `Method` is written against the post-change behavior, not today's behavior.
-- `halted` keeps its current meaning in this chapter (`:40` resume guard, `:108` operational note); the
+- `halted` keeps its current meaning in this chapter (`:40` resume guard, `:127` operational note); the
   new content extends it to cancellation instead of redefining it, which is what `DR-001` decided.
 - Status names are a code convention, not a schema constraint, so the chapter is the place where the
   vocabulary is documented (`schema_sql.py` `tasks` DDL, `task_ops.create_task()` writes `pending`).
 
 ### Procedure-local findings
 
-- Frozen row status: **Not implemented** (no code or doc change for this row has been made) and
-  **file-level overlap with active sibling procedures** on this same chapter:
-  `implementations/20261024-083059_04_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md`
+- Frozen row status: **Not implemented** (no code or doc change for this row has been made). The two
+  sibling procedures that previously overlapped this chapter —
+  `implementations/done/20261024-083059_04_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md`
   (turn002: `### Workflow Stages` stage table, `### Retry Mechanism`) and
-  `implementations/20261024-092307_09_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md`
+  `implementations/done/20261024-092307_09_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md`
   (turn004: the `verify` stage role, `execute_turn`'s `finally` teardown, `_handle_workflow_halt` state
-  clearing). Sections are disjoint by design — `092307_09`'s Scope names
-  "the task-status state machine (turn003's `### Task Status Transitions`)" as out of scope for it —
-  so land this row **after** both and re-take the four anchors before editing.
-- Anchor check against the current file at HEAD `6fcbb7e0c`: the Plan's `### Workflow Status`
-  `:65-73`, `### Startup Recovery` `:102-104`, `## Operational Notes` `:106-108` and
-  `## Known Limitations` `:110-114` are accurate. `## Known Limitations` `:110-114` includes the
-  horizontal rule at `:114`, which separates the `## Responsibility Boundary` region from
-  `## Turn-by-turn State Changes` (`:116`); insert the new subsection before `### Workflow Stages`
-  (`:74`), never after `:114`, and never inside the `## Turn-by-turn State Changes` region.
-- `092307_09` names no section for its teardown and halt-clearing passages. If it lands in
-  `## Operational Notes`, this row's added bullets must be re-worded against the resulting text rather
-  than applied blindly; that is the only plausible textual collision between the three procedures.
-- The chapter's `### Turn State Mutation Reference` table (`:120-128`) lists per-turn state fields and
+  clearing) — landed in the rebase and are archived under `implementations/done/`. Their sections
+  (`### Workflow Stages`, `### Retry Mechanism`, `### Turn-End and Teardown Ownership`) are disjoint
+  from this row's four passages, as `092307_09`'s Scope had declared.
+- Anchor check against the current file at HEAD `1471a75e8` (re-taken 2026-10-24): `### Workflow Status`
+  `:65-72`, `### Startup Recovery` `:121-123`, `## Operational Notes` `:125-127` and
+  `## Known Limitations` `:129-131` are the current positions; the Plan's `:102-104` / `:106-108` /
+  `:110-114` anchors shifted when the sibling procedures landed. `## Known Limitations` `:129-131` is
+  followed by the horizontal rule at `:133`, which separates the `## Responsibility Boundary` region from
+  `## Turn-by-turn State Changes` (`:135`); insert the new subsection before `### Workflow Stages`
+  (`:74`), never after `:133`, and never inside the `## Turn-by-turn State Changes` region.
+- `092307_09` landed its teardown and halt-clearing passages as a dedicated `### Turn-End and Teardown
+  Ownership` subsection (`:87`), not in `## Operational Notes`, so no textual collision with this row's
+  added bullets remains.
+- The chapter's `### Turn State Mutation Reference` table (`:139-147`) lists per-turn state fields and
   does not include `tasks.status`. Adding a row there is outside the frozen row's four passages and is
   recorded as a follow-up candidate, not performed.
 - The body already links this chapter's sibling at `:46` without a matching front-matter `related`
   entry; `check_docs_structure.py`'s `check_related_links` only validates entries that exist, and does
   not require reciprocity for non-ADR documents. No front-matter change is made.
 - File size gate: `MAX_SIZE = 24576` in `tools/check_docs_structure.py` (raised from 16384). The chapter
-  measures 7060 B / 137 lines today, so the added 40-55 lines stay far under the gate.
-- Baseline measured 2026-10-24 at HEAD `6fcbb7e0c`, this file clean in every docs checker:
+  measures 8197 B / 156 lines today, so the added 40-55 lines stay far under the gate.
+- Baseline re-measured 2026-10-24 at HEAD `1471a75e8`, this file clean in every docs checker:
   `check_docs_structure.py "docs/23_agent/agent_03_03*.md"` — "All checks passed";
   `check_docs_quality.py` and `check_docs_content_policy.py` — no finding naming this file;
   `check_docs_consistency.py --domain agent` — "No issues found."; `check_docs_japanese.py` —
   "No Japanese files found."
-- Plan-evidence correction: the Plan's `Documentation Impact` rationale says
-  `docs/23_agent/agent_04_01_state-and-persistence-state-model.md:44` "defers this topic to
-  `agent_03_03`". Re-measured: `agent_04_01:44` is `### DiagnosticStore Separation Design` body text about
-  `session_diagnostics`, and `agent_04_01` references this chapter only in front matter (`:17`). There is
-  no deferral sentence, so canonicality is grounded on `agent_10_05:31`, the `docs/00_index.md:148` hub path
-  and the fact that no other chapter documents task status. The Plan's conclusion and its frozen row are
-  unchanged.
-- Heading map measured at HEAD `6fcbb7e0c` (`grep -n "^#{1,4} " <this chapter>`): Responsibility
-  Boundary `:52`, Partial Completion Model `:54`, Workflow Status `:65`, Workflow Stages `:74`, Retry
-  Mechanism `:82`, Workflow Loader Validation Rules `:90`, Key Constraints `:100`, Startup Recovery
-  `:102`, Operational Notes `:106`, Known Limitations `:110`, Turn-by-turn State Changes `:116`, Turn
-  State Mutation Reference `:120`, Keywords `:130`. No "Task Status Transitions" heading exists, and
+- Plan-evidence correction (re-measured 2026-10-24 at HEAD `1471a75e8`): the Plan's `Documentation Impact`
+  rationale says `docs/23_agent/agent_04_01_state-and-persistence-state-model.md:44` "defers this topic to
+  `agent_03_03`". At procedure-generation time `agent_04_01:44` was `### DiagnosticStore Separation Design`
+  body text with no deferral sentence. The upstream docs-dedup commits (`0d193fd60`, `92caeb0b4`) then added
+  one: `agent_04_01:44` now ends with "Regarding the partial completion model for persistence, refer to
+  [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md)", under the
+  `### DiagnosticStore Separation Design` heading (`:42`), plus the front-matter `related` entry at `:17`.
+  The Plan's claim is now true against the current tree, and canonicality is additionally grounded on
+  `agent_10_05:31`, the `docs/00_index.md:148` hub path and the fact that no other chapter documents task
+  status. The Plan's conclusion and its frozen row are unchanged; `agent_04_01` is still not edited by this
+  row.
+- Heading map re-measured at HEAD `1471a75e8` (`grep -n "^#{1,4} " <this chapter>`): Responsibility
+  Boundary `:52`, Partial Completion Model `:54`, Workflow Status `:65`, Workflow Stages `:74`, Turn-End
+  and Teardown Ownership `:87`, Retry Mechanism `:97`, Workflow Loader Validation Rules `:109`, Key
+  Constraints `:119`, Startup Recovery `:121`, Operational Notes `:125`, Known Limitations `:129`,
+  Turn-by-turn State Changes `:135`, Turn State Mutation Reference `:139`, Keywords `:149`. No "Task
+  Status Transitions" heading exists, and
   the docs structure checker has no duplicate-heading rule (its checks are size, H1 count, front
   matter, schema compliance, status value, tail sections, links, ADR IDs, related links, ADR related
   coverage), so the insertion cannot collide with an existing heading.
@@ -101,7 +108,7 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
   header avoids `Case`/`Scenario` + `Action` and `Function`/`Signature` shapes so
   `check_error_handling_table` and `check_index_table` stay silent.
 - `halted` for cancellation is stated as a deliberate design rule with its reason, in `### Task Status
-  Transitions` and again as an operational note, because `:40` and `:108` already promise `halted` is
+  Transitions` and again as an operational note, because `:40` and `:127` already promise `halted` is
   terminal and non-resumable; without the new sentence the two passages would read as contradicting
   the cancellation rule.
 - No numeric configuration value is written (the stale grace period is named, not quantified), per
@@ -130,15 +137,15 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
 
 `docs/23_agent/agent_03_03_turn-processing-flow-workflow-engine.md`
 
-- 137 lines / 7060 B at HEAD `6fcbb7e0c`; docs size gate 24576 B.
+- 156 lines / 8197 B at HEAD `1471a75e8`; docs size gate 24576 B.
 - Insertion point: after the blank line at `:73` (end of `### Workflow Status`), before `### Workflow
   Stages` at `:74`.
 
 ### Procedure
 
-1. Land `implementations/20261024-083059_04_*` and `implementations/20261024-092307_09_*` first, then
-   re-read the file and re-take the four anchors; every line number below is the HEAD `6fcbb7e0c`
-   position.
+1. `implementations/20261024-083059_04_*` and `implementations/20261024-092307_09_*` have landed and are
+   archived under `implementations/done/`; the four anchors below were re-taken against HEAD `1471a75e8`
+   and must be re-taken again if the chapter moves.
 2. Land `implementations/20261024-144732_01_scripts_agent_workflow_engine_adapter.py.md` before this
    row commits, so the documented state machine matches the shipped behavior.
 3. Insert `### Task Status Transitions` per `Method` step 1.
@@ -174,14 +181,14 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
      abandoned attempt carries no error classification.
    ```
 
-2. In `### Startup Recovery`, after the sentence at `:104`, add:
+2. In `### Startup Recovery`, after the sentence at `:123`, add:
 
    ```markdown
    It repairs attempt records only: it never changes the persisted task status, so a task left `running`
    or `halted` by an earlier process stays as it was.
    ```
 
-3. In `## Operational Notes`, after the existing bullet at `:108`, add:
+3. In `## Operational Notes`, after the existing bullet at `:127`, add:
 
    ```markdown
    - `halted` is also the recorded outcome of a cancelled turn. The adapter records it because the engine
@@ -191,7 +198,7 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
      Transitions](#task-status-transitions).
    ```
 
-4. In `## Known Limitations`, after the bullet at `:112`, add:
+4. In `## Known Limitations`, after the bullet at `:131`, add:
 
    ```markdown
    - A cancelled turn leaves its in-flight attempt open until the next process start, when startup
@@ -220,9 +227,10 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
 
 ## Compatibility considerations
 
-- The chapter has 9 inbound document links (verified by `grep -rn "agent_03_03" docs/`); headings are
-  added, not renamed, so inbound links and `related` front matter stay valid.
-- `docs/23_agent/agent_04_01_state-and-persistence-state-model.md` (front matter `:17`),
+- The chapter has 13 inbound document references (verified by `grep -rn "agent_03_03" docs/` excluding
+  the chapter itself); headings are added, not renamed, so inbound links and `related` front matter stay
+  valid.
+- `docs/23_agent/agent_04_01_state-and-persistence-state-model.md` (front matter `:17` and body `:44`),
   `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md:31` and
   `docs/23_agent/agent_03_01_turn-processing-flow-overview.md` (front matter `:10`) must keep pointing here
   consistently; they are read, not edited (`REQ-010`).
@@ -285,10 +293,12 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
   `docs/41_db/db_02_architecture_and_schema-schema-reference.md` (§7 belongs to
   `plans/20261023-084918_plan.md`).
 - The `### Workflow Stages` stage table and `### Retry Mechanism` passages — owned by
-  `implementations/20261024-083059_04_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md`.
+  `implementations/done/20261024-083059_04_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md`
+  (landed).
 - The `verify` stage role, `execute_turn` teardown and halt state-clearing passages — owned by
-  `implementations/20261024-092307_09_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md`.
-- Adding a `tasks.status` row to `### Turn State Mutation Reference` (`:120-128`).
+  `implementations/done/20261024-092307_09_docs_23_agent_agent_03_03_turn-processing-flow-workflow-engine.md.md`
+  (landed).
+- Adding a `tasks.status` row to `### Turn State Mutation Reference` (`:139-147`).
 - Any statement about resumability of a cancellation-halted task (`UNK-01`).
 
 ## Execution Status
@@ -296,7 +306,7 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Not implemented; land after `083059_04`, `092307_09` and `_01`, then re-take anchors |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | Not implemented; land after `_01`; anchors re-taken 2026-10-24 at HEAD `1471a75e8` |
 | 2 | Add or update tests per Validation plan | N/A: documentation row | — | — | Docs checkers are the validation |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Baselines recorded 2026-10-24 in Procedure-local findings |
 | 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This row is a docs row |
@@ -304,7 +314,7 @@ that startup recovery repairs attempts only (`REQ-010`; `AC-9`).
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | Two active sibling procedures edit this same chapter (`083059_04`, `092307_09`); anchors must be re-taken after they land | False | — |
+| 1 | Two active sibling procedures edit this same chapter (`083059_04`, `092307_09`); anchors must be re-taken after they land | True | 2026-10-24 |
 | 1 | The chapter must describe post-change behavior, so `_01` has to land first | False | — |
 | 1 | Plan `UNK-04` (index registration) has no owner decision | False | — |
 

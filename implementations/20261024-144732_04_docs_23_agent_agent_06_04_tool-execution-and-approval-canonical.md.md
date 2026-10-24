@@ -35,9 +35,9 @@ implying that `failed` and `halted` are the complete record (`REQ-010`; `AC-9`).
 ### Procedure-local findings
 
 - Frozen row status: **Not implemented**. No file-level overlap with active sibling procedures:
-  `check_plan_target_overlaps.py` reports no active plan naming this file, and no procedure under
-  `implementations/` names it (`grep -rln "agent_06_04" implementations/` matches only this procedure
-  set and `implementations/20261024-144732_03_*`'s Out-of-Scope reference). This file is therefore safe
+  `check_plan_target_overlaps.py` reports no active plan naming this file, and no active procedure edits it
+  (`grep -rln "agent_06_04" implementations/` excluding `implementations/done/` matches only this procedure,
+  plus out-of-scope mentions in `144732_01` and `144732_03`). This file is therefore safe
   to edit independently of the turn002/turn004 sequencing that gates `_01`-`_03`.
 - Anchor correction: the Plan cites `:46-52`; the subsection heading is at `:44` and the body is
   `:46-51` with a blank line at `:52`. `## Responsibility Boundary` follows at `:53`.
@@ -47,21 +47,24 @@ implying that `failed` and `halted` are the complete record (`REQ-010`; `AC-9`).
   approval)` (`:55`). Adding a second canonical-source line there would broaden the frozen row's scope;
   the canonical-source statement for the state machine goes in the Persistence passage body instead, and
   the untouched `Responsibility Boundary` entry is recorded as a follow-up candidate.
-- Size and cleanliness baselines measured 2026-10-24 at HEAD `6fcbb7e0c`: 73 lines / 3171 B against the
+- Size and cleanliness baselines re-measured 2026-10-24 at HEAD `1471a75e8`: 73 lines / 3171 B against the
   24576 B docs gate; `check_docs_structure.py "docs/23_agent/agent_06_04*.md"` — "All checks passed";
   `check_docs_quality.py` and `check_docs_content_policy.py` — no finding naming this file;
   `check_docs_consistency.py --domain agent` — "No issues found."; `check_docs_japanese.py` — clean.
-- Inbound links measured at HEAD `6fcbb7e0c`: `agent_06_04` is named by `agent_06_01:11`, `agent_06_02:10`
-  and `agent_06_03:13` front matter. `agent_03_03:46` links `agent_06_02`, not this chapter. No link is
-  added to or removed from either direction by this row, and no front matter change is made (`GV-016`).
-- Plan-evidence correction: the Plan's `Documentation Impact` rationale states that
-  `docs/23_agent/agent_04_01_state-and-persistence-state-model.md:44` "defers this topic to
-  `agent_03_03`". `agent_04_01:44` is `### DiagnosticStore Separation Design` body text about
-  `session_diagnostics`, and the only reference to `agent_03_03` in that chapter is its front matter at
-  `:17`; there is no deferral sentence. The Plan's conclusion still holds on other grounds
-  (`agent_10_05:31` names `agent_03_03` for the formal partial-completion model, and only `agent_03_03`
-  and `agent_06_04` document task status), so the canonicality decision is retained and the evidence is
-  restated in `Assumptions`.
+- Inbound links re-measured at HEAD `1471a75e8`: `agent_06_04` is named by `agent_06_01:11`, `agent_06_02:10`
+  and `agent_06_03:13` front matter, by `agent_06_02:27` body text, by `agent_03_03:46` body text (the latter
+  added by the upstream docs-dedup commits), and by `docs/01_overview/overview_01_02-arch-pipelines.md:82`
+  body text. No link is added to or removed from either direction by this row, and no front matter change is
+  made (`GV-016`).
+- Plan-evidence correction (re-measured 2026-10-24 at HEAD `1471a75e8`): the Plan's `Documentation Impact`
+  rationale states that `docs/23_agent/agent_04_01_state-and-persistence-state-model.md:44` "defers this
+  topic to `agent_03_03`". At procedure-generation time `agent_04_01:44` was `### DiagnosticStore Separation
+  Design` body text about `session_diagnostics` with no deferral sentence. The upstream docs-dedup commits
+  (`0d193fd60`, `92caeb0b4`) then added one: `agent_04_01:44` now ends with a pointer to
+  [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md), under the
+  `### DiagnosticStore Separation Design` heading (`:42`), plus the front-matter `related` entry at `:17`.
+  The Plan's claim is now true against the current tree; the canonicality decision is retained and the
+  evidence is restated in `Assumptions`. `agent_04_01` is not edited by this row.
 
 ## Design decisions
 
@@ -97,7 +100,8 @@ implying that `failed` and `halted` are the complete record (`REQ-010`; `AC-9`).
 
 `docs/23_agent/agent_06_04_tool-execution-and-approval-canonical.md`
 
-- 73 lines / 3171 B at HEAD `6fcbb7e0c`; docs size gate 24576 B.
+- 73 lines / 3171 B at HEAD `1471a75e8`; docs size gate 24576 B. The `### Persistence of Partial
+  Completion` anchors (`:44`, body `:46-51`) were re-taken 2026-10-24 and are unchanged.
 - Region in scope: `:44-52` (subsection heading plus its body).
 
 ### Procedure
