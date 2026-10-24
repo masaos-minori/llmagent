@@ -44,12 +44,12 @@ One file: `docs/23_agent/agent_04_02_state-and-persistence-history-compression.m
   `check_docs_consistency.py`'s function-reference check (`tools/_docs_consistency_lib.py:477-499`) reports a
   backticked `name()` with no matching definition in the source.
 - Rows 3 and 4 have landed, so the test names in the Validation plan resolve and the regression counts hold.
-- `check_docs_structure.py` reports one finding at HEAD that this procedure neither causes nor fixes:
-  `agent_13_reference-api-generated.md: size 24806 bytes exceeds 24576 byte limit` (measured 2026-10-24 at HEAD; the
-  file is byte-identical in HEAD and the working tree, and has no `SIZE_EXCEPTIONS` entry at
-  `tools/check_docs_structure.py:83-110`). That checker is a blocking step of
-  `.github/workflows/governance-docs-consistency.yml:86-89`, so "the structural checkers are clean" is not an
-  available witness for `AC-9` until the owner records a ceiling or shrinks the generated file (`BLK-001`).
+- `check_docs_structure.py "docs/**/*.md"` is clean at HEAD. Its former blocking finding
+  (`agent_13_reference-api-generated.md: size 24961 bytes exceeds 24576 byte limit`, measured 2026-10-24) was closed
+  by an owner-approved `SIZE_EXCEPTIONS` ceiling of 24972 (`tools/check_docs_structure.py:83-115`, 2026-10-24,
+  `BLK-001`), so a fully clean structural run is available as `AC-9` evidence. The ceiling is pinned to the size the
+  generated block reaches once `plans/20261023-072425_plan.md` REQ-005 regenerates it; this row's own 7030 bytes is
+  nowhere near it, and this row does not touch the generated file.
 - The other docs gates are clean at HEAD and measured: `check_docs_consistency.py --domain agent`,
   `--domain overview`, `check_docs_content_policy.py` and `check_docs_quality.py` all report no issue.
 - Document line numbers are measured against the current file. Rows 1 and 2 change only source files, so this
@@ -350,7 +350,7 @@ re-running this procedure against the reverted source is the only follow-up.
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 4 | `check_docs_structure.py` reports `agent_13_reference-api-generated.md: size 24806 bytes exceeds 24576 byte limit` at HEAD, and CI runs that checker as a blocking step (`BLK-001`) | No — owner decision needed: record a `SIZE_EXCEPTIONS` ceiling or reduce the generated file | — |
+| 4 | `check_docs_structure.py` reported `agent_13_reference-api-generated.md: size 24961 bytes exceeds 24576 byte limit` at HEAD, and CI runs that checker as a blocking step (`BLK-001`) | Yes — owner approved a `SIZE_EXCEPTIONS` ceiling at `tools/check_docs_structure.py:114`; the accepted value is 24972, the size measured after the `20261023-072425` Plan regenerated that document, so the full `docs/**/*.md` run reports no issue | 2026-10-24 |
 | 1 | `history.py:192` docstring names `chars // 4` as the fallback estimator while the implementation uses the category-aware estimator (`BLK-002`) | No — not in any frozen row's scope; recorded so the chapter and source are not silently contradictory | — |
 
 ### Work Items Created
