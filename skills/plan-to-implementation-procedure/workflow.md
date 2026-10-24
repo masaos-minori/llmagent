@@ -83,7 +83,8 @@ cadence, using this line format:
 Read, if not already loaded this session: `routing.md`, `rules/coding.md`,
 `rules/toolchain.md`, `skills/python-design/SKILL.md`,
 `skills/python-design/workflow.md`, `rules/ai-execution.md`,
-`rules/workflow-lifecycle.md`, `templates/traceability.md`, `templates/plan.md`,
+`rules/workflow-lifecycle.md`, `skills/DESIGN.md` (Output language, Out-of-scope
+paths), `templates/traceability.md`, `templates/plan.md`,
 `templates/implementation-procedure.md`, `templates/execution-status.md`,
 `SKILL.md` (this skill), and this file.
 
@@ -183,9 +184,9 @@ on filling sections for how to apply `skills/python-design/SKILL.md` +
 the few relevant bullets from that skill's broader 12-section template; MUST NOT produce
 its full architecture output here.
 
-This step has four sub-steps, applied in order per target-file row: verify the Plan's
-claims (3a), prepare the shared timestamp once per pass (3b), process the row (3c), then
-record progress (3d).
+This step has four sub-steps. Step 3b runs once, before the row loop starts. Then, for
+each target-file row in order, apply 3a (verify the Plan's claims), 3c (process the row),
+and 3d (record progress), in that order.
 
 ### Step 3a: Verify the Plan's claims (adversarial verification)
 
@@ -295,7 +296,10 @@ Execution Rules):
 - If `Already implemented`, skip this row.
 - If `Partially implemented`, create a document scoped to only the not-yet-implemented
   remainder — reference the matched existing document for the already-covered portion
-  instead of repeating it, and note the discrepancy in the progress report.
+  instead of repeating it, and note the discrepancy in the progress report. The row is
+  then covered by two documents by design (the existing one plus this cycle's remainder
+  document); Step 4's one-document-per-row checks count only documents generated this
+  cycle.
 - If traceability is missing or ambiguous, MUST NOT skip the row. Report
   `Needs confirmation`.
 - If `Not implemented`, create the document only (MUST NOT implement anything):
@@ -314,16 +318,26 @@ Execution Rules):
   - Save the document as `implementations/{timestamp}_{seq}_{target_file_slug}.md`
     (naming per Workflow position above), using this pass's shared `timestamp` and
     this row's `seq`.
+  - After writing it, run `uv run python tools/stale_detector.py {document_path}` (the
+    same check `code-implementation` runs before executing a procedure, so a stale
+    reference surfaces here instead of aborting that later cycle). For each mismatch:
+    (1) a name, import, or target file this document creates — add `(new)` after it
+    (see `templates/implementation-procedure.md` Notes); (2) a name that only an
+    earlier-`seq` row's procedure in this Plan creates — acceptable, because it will
+    exist when `code-implementation` executes the rows in order; note it in the
+    document's Assumptions; (3) anything else is a stale reference — correct the
+    document and re-run.
   - If the resulting path already exists, this can only mean an interrupted cycle is
     being resumed and the classification above did not treat it as covering this row
     (e.g. stale or partial-scope content) — it MUST NOT be overwritten. Stop and
     report `Needs confirmation` for this row instead. The tool's own collision
     refusal is the same signal, not a separate failure mode.
     This `Needs confirmation` report is terminal for this cycle, not retriable: MUST NOT
-    re-attempt the same row within the same pass. Report it once; Step 4's "every
-    row... accounted for" check is satisfied by this single stopped attempt. A human must
-    resolve the underlying interrupted-cycle state (confirm whether the existing file is
-    stale, partial, or already covers the row) before any future run revisits this row.
+    re-attempt the same row within the same pass. Report it once and continue with the
+    remaining rows; this row has no document, so Step 4's move gate does not hold. A
+    human must resolve the underlying interrupted-cycle state (confirm whether the
+    existing file is stale, partial, or already covers the row) before any future run
+    revisits this row.
 - Classify each evidence gap encountered while investigating a row as Blocking or
   Non-blocking:
   - Blocking: a safe, concrete procedure cannot be written without this evidence. Stop
@@ -335,7 +349,9 @@ Execution Rules):
   discovery** — stop immediately and report `Blocked: additional target file
   discovered — {path}`. MUST NOT generate a procedure document for this or any further
   row until the Plan has been amended (the new file added as its own `Implementation
-  Target Files` row, with evidence and a Requirement link) and revalidated/re-frozen
+  Target Files` row appended after the last existing row — never inserted earlier,
+  so no existing row's `seq` changes — with evidence and a Requirement link) and
+  revalidated/re-frozen
   per `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan
   Freeze). Once re-frozen, resume this same session's cycle from Step 3c at the row
   that discovered the gap — MUST NOT restart from Step 2's Revalidation (already
@@ -353,7 +369,10 @@ Execution Rules):
 
 **Completed when**: every row has been classified and assigned exactly one outcome —
 skipped (`Already implemented`), a scoped document created (`Partially implemented` or
-`Not implemented`), or reported (`Needs confirmation`, `Blocked`, or `Plan Gap`).
+`Not implemented`, including a non-blocking `Needs confirmation` written with a caveat),
+or reported without a document (`Blocked`, `Plan Gap`, or the terminal `Needs
+confirmation` for an existing path). A row reported without a document leaves the
+cycle unmoved: Step 4's move gate requires every row to be covered by a document.
 
 ### Step 3d: Progress recording
 
@@ -392,15 +411,16 @@ Read these values back from each row's Step 3c/3d outcome as already recorded �
 recount by rescanning `implementations/`; the in-memory listing `Procedure-Specific
 Guidance` describes maintaining through Step 3 already reflects every document this
 cycle created. Verify that:
-- every `Implementation Target Files` row in the Plan has been accounted for
-  (`Already implemented`, `Partially implemented`, newly created this cycle, or
-  explicitly reported as `Needs confirmation` / `Blocked` / `Plan Gap`);
-- the number of `Implementation Target Files` rows equals the number of
-  implementation procedure documents generated or confirmed for this Plan (counting
-  `Already implemented` matches);
-- every row maps to exactly one procedure document, and every procedure document maps
-  back to exactly one row — no row is missing a document, and no row has more than
-  one;
+- every `Implementation Target Files` row in the Plan is covered by a document
+  (`Already implemented` by an existing document, `Partially implemented` by an existing
+  document plus this cycle's remainder document, or newly created this cycle). A row
+  that ended `Blocked`, `Plan Gap`, or the terminal `Needs confirmation` has no document
+  and fails this check;
+- the number of `Implementation Target Files` rows equals the number of rows covered
+  (each counted once, including `Already implemented` matches), and the documents
+  generated this cycle number at most one per row;
+- every document generated this cycle maps back to exactly one row, and no row has more
+  than one document generated this cycle;
 - no procedure document modifies more than one file (its `Implementation > Target
   file` names exactly one path);
 - no file outside `Implementation Target Files` was added as a modification target
@@ -411,16 +431,24 @@ cycle created. Verify that:
   status, any blocked rows have blocker descriptions filled in, Work Items Created
   includes all artifacts produced).
 
-If any of the above does not hold, MUST NOT proceed to the move — report `Blocked` and
-resolve the discrepancy first.
+If any of the above does not hold, MUST NOT proceed to the move — report `Blocked`, list
+every uncovered row with its outcome (`Blocked` / `Plan Gap` / `Needs confirmation`),
+and leave the Plan in `plans/`; a later run resumes through Step 3's `Already
+implemented` classification once the cause is resolved.
 
 This workflow MUST update the Plan's own `### Execution Status` table (in
 `plans/{filename}.md`) before the move — MUST NOT leave any row `Pending` once
-its outcome is known: mark an `Implementation Target Files` row's corresponding
-Execution Status row `In Progress` once its procedure document is newly generated
-this cycle, or `Completed` if matched as `Already implemented`. Use `uv run python
-tools/manage_workitem_stage.py set-step-status plan {plan_path} --description
-"{target_file_path}" {status}` rather than editing the table directly. This is
+its outcome is known. That table has one row per Plan `Implementation steps` entry
+(same numbering — see `issue-to-plan` Step 5), not one row per `Implementation Target
+Files` row, and each step cites the `File Path`(s) it touches. So map by step number:
+for each Execution Status row N, once every `Implementation Target Files` row that step
+N cites has an outcome, mark it `In Progress` if any of those rows' procedure document
+was newly generated this cycle, or `Completed` if every one was matched as `Already
+implemented`. If a `File Path` is cited by no step, report `Plan Gap: no Implementation
+step cites {path}`. Use `uv run python tools/manage_workitem_stage.py set-step-status
+plan {plan_path} --step {N} {status}` — not `--description`, which updates only the
+first row whose Description merely contains the given text — rather than editing the
+table directly. This is
 separate from each generated document's own Execution Status table, and separate
 from `code-implementation`'s later responsibility (see that skill's own workflow)
 to mark the same row `Completed` once the corresponding implementation procedure
@@ -447,8 +475,12 @@ first if it has uncommitted changes (commonly this Step's own Execution Status
 update above, or an earlier Step 3a correction), then performs the move; it refuses
 (non-zero exit, no move) only if the source is missing or the destination already
 exists. The auto-commit stages only the Plan file itself — unrelated uncommitted
-changes elsewhere in the repository are left untouched and do not block the move. Fall
-back to the direct `git mv` command only if the tool is unavailable.
+changes elsewhere in the repository are left untouched and do not block the move. Pass
+`--stage-only` to stage the dirty Plan instead of committing it, so the rename lands in
+the next real commit with the work it belongs to and no `chore: auto-commit ...` commit is
+created (`skills/git-commit-and-sync/workflow.md` Phase 2 includes such staged renames in
+the cycle's commit). Fall back to the direct `git mv` command only if the tool is
+unavailable.
 
 After a `0` exit, independently verify the same checklist `rules/workflow-lifecycle.md`
 Archival Move requires for the manual `git mv` fallback: destination file exists,

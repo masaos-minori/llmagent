@@ -32,7 +32,7 @@ processed plan file to `plans/done/`. This skill MUST NOT modify source code fil
 |---|---|---|
 | 0 | Load required instructions | Read routing, rules, templates, and this skill before starting. |
 | 1 | Identify the target plan file(s) | Confirm every specified `plans/{filename}.md` path exists before starting any processing. |
-| 2 | Read the target plan file | Read the plan in full and extract its own `Source issue` value for reuse downstream. |
+| 2 | Read the target plan file | Check the Plan's structure, confirm `Freeze status` is `Frozen`, revalidate the frozen inventory, then read the plan in full and extract its own `Source issue` value for reuse downstream. |
 | 3 | Create implementation procedure documents | For each row in the Plan's `Implementation Target Files` table, check whether it is already implemented; if not, generate a new document per `templates/implementation-procedure.md`. |
 | 4 | Move the completed plan file | `git mv` only, once Step 3 passes; no human approval required; verify pre- and post-conditions. |
 
@@ -42,9 +42,11 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
 
 ## Core Execution Rules
 
-- **One target file = one procedure document**: exactly one document per
-  `Implementation Target Files` row; a document MUST NOT contain modification
-  instructions for more than one file.
+- **One target file = one procedure document**: each cycle generates at most one
+  document per `Implementation Target Files` row; a document MUST NOT contain
+  modification instructions for more than one file. For a `Partially implemented` row,
+  the existing document that already covers part of the row and the one remainder
+  document this cycle generates together cover the row (`workflow.md` Step 3c).
 - **No duplicate work**: a row may be skipped only when an existing document under
   `implementations/` or `implementations/done/` has both a matching `Source plan` and a
   matching `Related target files` (by `target_file_path`, not `target_file_name`).
@@ -58,7 +60,9 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   `Blocked` — MUST NOT generate further documents until the Plan is amended and
   revalidated.
 - **One plan at a time**: see `workflow.md` Multi-file processing.
-- **Move is required**: see `workflow.md` Step 4. The move MUST NOT be skipped.
+- **Move is required**: see `workflow.md` Step 4. The move MUST NOT be skipped once its
+  gate holds — every row is covered by a document — and MUST NOT happen while any row
+  ended `Blocked`, `Plan Gap`, or `Needs confirmation` without a document.
 - **No approval gate on the archival move**: the move to `plans/done/` does not require
   human approval — it is gated on Step 3's validation and Step 4's pre-move checklist
   passing instead, per `rules/workflow-lifecycle.md` Validation Reporting.
@@ -87,7 +91,8 @@ See `templates/implementation-procedure.md` for the output structure.
 - `python-design` — for the "Design decisions" / "Alternatives considered" /
   "Compatibility considerations" / "Security considerations" / "Rollback
   considerations" fields (a few relevant bullets only, not a full invocation)
-- `python-implementation` — executes the generated implementation procedure documents
+- `code-implementation` — executes the generated implementation procedure documents,
+  applying `python-implementation`'s guidance
 
 ## Called by
 - `issue-to-plan` — as the next pipeline phase once a Plan is approved
@@ -107,7 +112,7 @@ duplicate-work check produces a false positive/negative, update `workflow.md`.
 
 You are not writing an architecture document — you are converting an approved Plan
 into small, file-level, independently reviewable implementation and test procedures,
-one per target file, ready for `python-implementation` to execute.
+one per target file, ready for `code-implementation` to execute.
 
 When in doubt, this SHOULD be prioritized: no duplicate work, collision-safe naming,
 traceability back to the Plan and Issue, and the scope discipline of `AGENTS.md`
