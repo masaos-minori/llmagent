@@ -202,7 +202,7 @@ def _build_tool_config(cfg: dict[str, Any], system_prompt_tool: str) -> ToolConf
             cfg, "tool_concurrency_limits", _get_dict, {}
         ),
         masked_fields=_get_or_default(
-            cfg, "masked_fields", _get_list, ["file_content"]
+            cfg, "masked_fields", _get_list, ["content", "old_text", "new_text"]
         ),
         plan_blocked_tools=_get_or_default(
             cfg, "plan_blocked_tools", _get_list, list(_DEFAULT_PLAN_BLOCKED_TOOLS)

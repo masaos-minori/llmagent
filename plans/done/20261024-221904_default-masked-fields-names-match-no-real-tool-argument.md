@@ -329,9 +329,9 @@ Required, one bullet, driven by REQ-006:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing default-config tests (`test_tool_result_formatter.py`, `test_tool_approval_preflight.py`) | In Progress | — | — | REQ-005 |
-| 2 | Phase 2: default change in `config_dataclasses.py`, `config_section_builders.py`, `config/agent.toml`, pinned test | In Progress | — | — | REQ-001, REQ-002, REQ-003, REQ-004 |
-| 3 | Phase 3: docs bullet (`agent_08_03`) + full validation | In Progress | — | — | REQ-006 |
+| 1 | Phase 1: failing default-config tests (`test_tool_result_formatter.py`, `test_tool_approval_preflight.py`) | Completed | — | 20261025-003210 | REQ-005 |
+| 2 | Phase 2: default change in `config_dataclasses.py`, `config_section_builders.py`, `config/agent.toml`, pinned test | Completed | — | 20261025-003210 | REQ-001, REQ-002, REQ-003, REQ-004 |
+| 3 | Phase 3: docs bullet (`agent_08_03`) + full validation | Completed | — | 20261025-003210 | REQ-006 |
 | 4 | Phase 4: gated deploy sync of `/opt/llm/config/agent.toml` + runtime smoke | Blocked | — | — | Requires explicit user confirmation (shared production config) |
 
 ### Blocker Log

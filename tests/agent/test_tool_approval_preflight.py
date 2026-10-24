@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.config_builders import build_agent_config
-from agent.config_dataclasses import AgentConfig
+from agent.config_dataclasses import AgentConfig, ToolConfig
 from agent.tool_approval import check_approval, run_approval_checks
 from agent.tool_audit import audit_approval as _audit_approval
 from agent.tool_audit import audit_tool_exec as _audit_tool_exec
@@ -428,6 +428,28 @@ class TestAuditApproval:
         )
         payload: str = audit.info.call_args[0][0]
         assert "s3cr3t" not in payload
+
+    def test_default_masked_fields_hide_file_bodies(self) -> None:
+        cfg = _make_cfg(masked_fields=list(ToolConfig().masked_fields))
+        ctx = _make_ctx(cfg=cfg)
+        audit = MagicMock()
+        ctx.services_required.audit_logger = audit
+        _audit_approval(
+            ctx,
+            "write_file",
+            "medium",
+            {
+                "path": "/tmp/f",
+                "content": "file-body-secret",
+                "edits": [{"old_text": "old-secret", "new_text": "new-secret"}],
+            },
+            "approved",
+        )
+        payload: str = audit.info.call_args[0][0]
+        assert "file-body-secret" not in payload
+        assert "old-secret" not in payload
+        assert "new-secret" not in payload
+        assert "***" in payload
 
     def test_masked_fields_applied_to_nested_args(self) -> None:
         cfg = _make_cfg(masked_fields=["secret"])

@@ -179,7 +179,9 @@ class ToolConfig:
     # Per-server concurrent call limit; empty = unlimited
     tool_concurrency_limits: dict[str, int] = field(default_factory=dict)
     # Argument fields to redact in console output
-    masked_fields: list[str] = field(default_factory=lambda: ["file_content"])
+    masked_fields: list[str] = field(
+        default_factory=lambda: ["content", "old_text", "new_text"]
+    )
     # Tools blocked in plan mode in addition to every tool whose
     # tool_safety_tiers entry is not READ_ONLY (see agent.tool_policy)
     plan_blocked_tools: list[str] = field(

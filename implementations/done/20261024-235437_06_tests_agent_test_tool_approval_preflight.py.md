@@ -53,9 +53,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `test_default_masked_fields_hide_file_bodies` (new) | Pending | — | — | |
-| 2 | Run the file before and after rows `01` and `02` | Pending | — | — | |
-| 3 | Run ruff on the file | Pending | — | — | |
+| 1 | Add `test_default_masked_fields_hide_file_bodies` (new) | Completed | — | 20261025-003208 |  |
+| 2 | Run the file before and after rows `01` and `02` | Completed | — | 20261025-003208 |  |
+| 3 | Run ruff on the file | Completed | — | 20261025-003208 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

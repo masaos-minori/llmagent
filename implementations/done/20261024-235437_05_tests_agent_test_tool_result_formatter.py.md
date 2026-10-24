@@ -55,9 +55,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestMaskArgsDefaultConfig` (new) with tests A to C | Pending | — | — | |
-| 2 | Run the tests before and after rows `01` and `02` | Pending | — | — | |
-| 3 | Run ruff and mypy | Pending | — | — | |
+| 1 | Add `TestMaskArgsDefaultConfig` (new) with tests A to C | Completed | — | 20261025-003207 |  |
+| 2 | Run the tests before and after rows `01` and `02` | Completed | — | 20261025-003207 |  |
+| 3 | Run ruff and mypy | Completed | — | 20261025-003207 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

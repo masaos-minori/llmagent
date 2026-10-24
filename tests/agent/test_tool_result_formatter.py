@@ -5,7 +5,8 @@ Unit tests for agent/tool_result_formatter.py — mask_args, build_preview.
 from __future__ import annotations
 
 from agent.config_builders import build_agent_config
-from agent.config_dataclasses import AgentConfig
+from agent.config_dataclasses import AgentConfig, ToolConfig
+from agent.config_section_builders import _build_tool_config
 from agent.tool_result_formatter import (
     build_execution_failure_text,
     build_github_preview,
@@ -49,6 +50,27 @@ def _cfg(**overrides: dict) -> AgentConfig:
     }
     defaults.update(overrides)
     return build_agent_config(defaults)
+
+
+class TestMaskArgsDefaultConfig:
+    def test_write_file_content_is_masked_by_default(self) -> None:
+        result = mask_args(
+            {"path": "/tmp/f", "content": "body"}, ToolConfig().masked_fields
+        )
+        assert result == {"path": "/tmp/f", "content": "***"}
+
+    def test_edit_file_nested_keys_are_masked_by_default(self) -> None:
+        args = {"path": "/tmp/f", "edits": [{"old_text": "a", "new_text": "b"}]}
+        result = mask_args(args, ToolConfig().masked_fields)
+        assert result == {
+            "path": "/tmp/f",
+            "edits": [{"old_text": "***", "new_text": "***"}],
+        }
+
+    def test_builder_fallback_matches_dataclass_default(self) -> None:
+        tool_cfg = _build_tool_config({}, "")
+        assert tool_cfg.masked_fields == ["content", "old_text", "new_text"]
+        assert tool_cfg.masked_fields == ToolConfig().masked_fields
 
 
 class TestMaskArgs:

@@ -152,7 +152,7 @@ _TOOL_DEFAULTS = {
     "tool_error_max_consecutive": 3,
     "tool_error_retry_max": 1,
     "tool_concurrency_limits": {},
-    "masked_fields": ["file_content"],
+    "masked_fields": ["content", "old_text", "new_text"],
     "plan_blocked_tools": [
         "write_file",
         "create_directory",

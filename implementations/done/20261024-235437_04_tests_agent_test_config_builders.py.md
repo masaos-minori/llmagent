@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the pinned default at line 155 | Pending | — | — | |
-| 2 | Run `tests/agent/test_config_builders.py` and ruff | Pending | — | — | |
+| 1 | Update the pinned default at line 155 | Completed | — | 20261025-003206 |  |
+| 2 | Run `tests/agent/test_config_builders.py` and ruff | Completed | — | 20261025-003206 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

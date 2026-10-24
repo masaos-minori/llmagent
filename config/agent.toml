@@ -95,7 +95,7 @@ otel_service_name = "llm-agent"
 
 # ── Security ──────────────────────────────────────────────────────────────────
 
-masked_fields = ["file_content"]
+masked_fields = ["content", "old_text", "new_text"]
 plan_blocked_tools = [
   "write_file",
   "create_directory",

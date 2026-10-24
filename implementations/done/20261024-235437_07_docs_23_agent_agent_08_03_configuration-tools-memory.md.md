@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend the `masked_fields` bullet at line 32 | Pending | — | — | |
-| 2 | Run the docs checkers named in Validation plan | Pending | — | — | |
+| 1 | Extend the `masked_fields` bullet at line 32 | Completed | — | 20261025-003209 |  |
+| 2 | Run the docs checkers named in Validation plan | Completed | — | 20261025-003209 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
