@@ -122,9 +122,9 @@ contains raw argument values and is never masked, making the Option-2 boundary e
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `test_preview_is_never_masked` (new) to `TestBuildPreview` | Pending | — | — | No new import |
-| 2 | Run the targeted file and the agent suite | Pending | — | — | `AC-6`, `AC-8` |
-| 3 | Confirm the 7 existing `TestBuildPreview` cases are byte-identical | Pending | — | — | `AC-6` |
+| 1 | Append `test_preview_is_never_masked` (new) to `TestBuildPreview` | Completed | 20261024-175841 | 20261024-175841 | No new import verified: suite+gates green |
+| 2 | Run the targeted file and the agent suite | Completed | 20261024-175841 | 20261024-175841 | `AC-6`, `AC-8` verified: suite+gates green |
+| 3 | Confirm the 7 existing `TestBuildPreview` cases are byte-identical | Completed | 20261024-175841 | 20261024-175841 | `AC-6` verified: suite+gates green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -5,7 +5,7 @@ Tool argument masking and result preview/display helpers.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 from shared.json_utils import dumps as _json_dumps
 
@@ -39,12 +39,29 @@ def build_execution_failure_text(exc: Exception) -> str:
     return f"[Tool execution failed: {detail}]"
 
 
-def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:
-    """Return a copy of args with masked_fields values replaced by '***'.
+def _mask_value(value: object, masked_fields: list[str]) -> object:
+    """Recursively replace masked_fields keys with '***' at any depth, returning a new tree.
 
-    Used before logging to prevent sensitive data leakage.
+    Dicts are rebuilt with matching keys set to '***' and other values recursed;
+    lists are rebuilt with each item recursed; every other value is returned as-is.
     """
-    return {k: ("***" if k in masked_fields else v) for k, v in args.items()}
+    if isinstance(value, dict):
+        return {
+            k: ("***" if k in masked_fields else _mask_value(v, masked_fields))
+            for k, v in value.items()
+        }
+    if isinstance(value, list):
+        return [_mask_value(item, masked_fields) for item in value]
+    return value
+
+
+def mask_args(args: dict[str, Any], masked_fields: list[str]) -> dict[str, Any]:
+    """Return a copy of args with masked_fields keys replaced by '***' at any depth.
+
+    Masking is applied before logging and audit writes; it is not applied to the
+    interactive approval preview built by build_preview.
+    """
+    return cast(dict[str, Any], _mask_value(args, masked_fields))
 
 
 def build_github_preview(args: dict[str, Any]) -> str:

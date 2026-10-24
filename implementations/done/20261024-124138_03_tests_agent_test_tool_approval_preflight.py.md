@@ -130,9 +130,9 @@ not appear in the serialized `tool_approval` audit payload (`REQ-002`, `REQ-004`
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `test_masked_fields_applied_to_nested_args` (new) to `TestAuditApproval` | Pending | — | — | Reuses `_make_cfg` / `_make_ctx` / `MagicMock` |
-| 2 | Run the targeted file and the agent suite | Pending | — | — | Requires `_01` to be implemented |
-| 3 | Confirm the existing masking test is byte-identical | Pending | — | — | `AC-3` |
+| 1 | Append `test_masked_fields_applied_to_nested_args` (new) to `TestAuditApproval` | Completed | 20261024-175841 | 20261024-175841 | Reuses `_make_cfg` / `_make_ctx` / `MagicMock` verified: suite+gates green |
+| 2 | Run the targeted file and the agent suite | Completed | 20261024-175841 | 20261024-175841 | Requires `_01` to be implemented verified: suite+gates green |
+| 3 | Confirm the existing masking test is byte-identical | Completed | 20261024-175841 | 20261024-175841 | `AC-3` verified: suite+gates green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

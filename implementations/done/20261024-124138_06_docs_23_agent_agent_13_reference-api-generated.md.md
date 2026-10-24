@@ -140,9 +140,9 @@ generated index matches the source docstrings (`REQ-005`, `AC-7`).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Regenerate the guarded block after `_01` lands | Pending | — | — | Generator only |
-| 2 | Confirm `--check` exits 0 | Pending | — | — | `AC-7` |
-| 3 | Confirm the measured size is 24972 B and the size checker passes | Pending | — | — | Accepted ceiling at `tools/check_docs_structure.py:114` |
+| 1 | Regenerate the guarded block after `_01` lands | Completed | 20261024-175841 | 20261024-175841 | Generator only verified: suite+gates green |
+| 2 | Confirm `--check` exits 0 | Completed | 20261024-175841 | 20261024-175841 | `AC-7` verified: suite+gates green |
+| 3 | Confirm the measured size is 24972 B and the size checker passes | Completed | 20261024-175841 | 20261024-175841 | Accepted ceiling at `tools/check_docs_structure.py:114` verified: suite+gates green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

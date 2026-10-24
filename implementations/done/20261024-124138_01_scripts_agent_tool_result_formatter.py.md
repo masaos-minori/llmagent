@@ -181,10 +181,10 @@ and previews` section.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_mask_value` (new), rewire `mask_args`, rewrite its docstring within the measured first-line length | Pending | — | — | Docstring first line fixed to the 77-character measured wording |
-| 2 | Confirm the `_02`, `_03`, `_04` test rows pass against the change | Pending | — | — | `AC-1`, `AC-2`, `AC-3`, `AC-5` |
-| 3 | Run the lint / type / security / architecture / complexity / docstring gates | Pending | — | — | `rules/toolchain.md` |
-| 4 | Confirm `generate_reference_table.py --check` exits 0 after the `_06` regeneration | Pending | — | — | `AC-7`; depends on the accepted 24972 B ceiling |
+| 1 | Add `_mask_value` (new), rewire `mask_args`, rewrite its docstring within the measured first-line length | Completed | 20261024-175841 | 20261024-175841 | Docstring first line fixed to the 77-character measured wording verified: suite+gates green |
+| 2 | Confirm the `_02`, `_03`, `_04` test rows pass against the change | Completed | 20261024-175841 | 20261024-175841 | `AC-1`, `AC-2`, `AC-3`, `AC-5` verified: suite+gates green |
+| 3 | Run the lint / type / security / architecture / complexity / docstring gates | Completed | 20261024-175841 | 20261024-175841 | `rules/toolchain.md` verified: suite+gates green |
+| 4 | Confirm `generate_reference_table.py --check` exits 0 after the `_06` regeneration | Completed | 20261024-175841 | 20261024-175841 | `AC-7`; depends on the accepted 24972 B ceiling verified: suite+gates green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

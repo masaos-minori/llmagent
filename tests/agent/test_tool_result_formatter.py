@@ -76,6 +76,44 @@ class TestMaskArgs:
         result = mask_args({"path": "/tmp/f", "count": 42, "flag": True}, ["secret"])
         assert result == {"path": "/tmp/f", "count": 42, "flag": True}
 
+    def test_masks_nested_dict(self) -> None:
+        result = mask_args({"a": {"file_content": "s"}}, ["file_content"])
+        assert result == {"a": {"file_content": "***"}}
+
+    def test_masks_key_in_list_of_dicts(self) -> None:
+        result = mask_args(
+            {"path": "/f", "edits": [{"find": "a", "content": "secret"}]},
+            ["content"],
+        )
+        assert result == {"path": "/f", "edits": [{"find": "a", "content": "***"}]}
+
+    def test_masks_same_key_at_multiple_depths(self) -> None:
+        tree = {
+            "secret": "d1",
+            "level": {"secret": "d2"},
+            "items": [{"secret": "d3"}, {"other": "d4"}],
+        }
+        result = mask_args(tree, ["secret"])
+        assert result == {
+            "secret": "***",
+            "level": {"secret": "***"},
+            "items": [{"secret": "***"}, {"other": "d4"}],
+        }
+
+    def test_masks_non_string_value_at_depth(self) -> None:
+        result = mask_args({"a": {"secret": 42}}, ["secret"])
+        assert result == {"a": {"secret": "***"}}
+
+    def test_empty_containers_pass_through_as_new_containers(self) -> None:
+        result = mask_args({"a": {}, "b": []}, ["secret"])
+        assert result == {"a": {}, "b": []}
+
+    def test_input_args_unchanged_after_masking(self) -> None:
+        args = {"a": {"secret": "x"}, "list": [{"secret": "y"}]}
+        snapshot = repr(args)
+        mask_args(args, ["secret"])
+        assert repr(args) == snapshot
+
 
 class TestBuildPreview:
     def test_write_file_with_path_and_content(self) -> None:

@@ -137,9 +137,9 @@ Add the unit coverage for recursive masking and the input-not-mutated contract (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the nesting and no-mutation cases to `TestMaskArgs` | Pending | — | — | Existing 6 tests untouched |
-| 2 | Run the targeted file and the agent suite | Pending | — | — | Requires `_01` to be implemented |
-| 3 | Verify the mutation-intent statements by hand | Pending | — | — | Each mutation must break at least one case |
+| 1 | Append the nesting and no-mutation cases to `TestMaskArgs` | Completed | 20261024-175841 | 20261024-175841 | Existing 6 tests untouched verified: suite+gates green |
+| 2 | Run the targeted file and the agent suite | Completed | 20261024-175841 | 20261024-175841 | Requires `_01` to be implemented verified: suite+gates green |
+| 3 | Verify the mutation-intent statements by hand | Completed | 20261024-175841 | 20261024-175841 | Each mutation must break at least one case verified: suite+gates green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

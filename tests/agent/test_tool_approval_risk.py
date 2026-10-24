@@ -261,6 +261,15 @@ class TestBuildPreview:
         # Content preview should not include all 500 chars
         assert long_content not in preview
 
+    def test_preview_is_never_masked(self) -> None:
+        preview = _build_preview(
+            "write_file", {"path": "/f", "content": "sensitive-body-value"}
+        )
+        # The approving user must see the raw argument; masking the preview would
+        # remove the approval signal while protecting nothing (REQ-001).
+        assert "sensitive-body-value" in preview
+        assert "***" not in preview
+
 
 # ── _classify_operation_type() ───────────────────────────────────────────────
 

@@ -181,7 +181,7 @@ Generated from `scripts/agent/*.py` top-level public classes and functions. Do n
 |  | `prepare_tool_calls` | `def prepare_tool_calls(ctx, tool_calls) -> tuple[list[PreparedToolCall], list[_PrepFailure]]` | Prepare a batch of raw tool calls, in order. |
 | `scripts/agent/tool_result_formatter.py` | `turn_limit_hint` | `def turn_limit_hint(omitted_chars, omitted_lines, limit) -> str` | Build the hint shown to the LLM in place of a tool result dropped for |
 |  | `build_execution_failure_text` | `def build_execution_failure_text(exc) -> str` | Build the LLM-facing text for a tool call whose execution raised. |
-|  | `mask_args` | `def mask_args(args, masked_fields) -> dict[str, Any]` | Return a copy of args with masked_fields values replaced by '***'. |
+|  | `mask_args` | `def mask_args(args, masked_fields) -> dict[str, Any]` | Return a copy of args with masked_fields keys replaced by '***' at any depth. |
 |  | `build_github_preview` | `def build_github_preview(args) -> str` | Build preview string for github_* tools showing repo and extra args. |
 |  | `build_preview` | `def build_preview(tool_name, args) -> str` | Build a human-readable operation preview shown before approval prompts. |
 | `scripts/agent/tool_result_pairing.py` | `pair_round_results` | `def pair_round_results(declared, answered, collected, stop_reason) -> tuple[list[LLMMessage], list[tuple[str, str, None, str]]]` | Return (history entries, tool rows) for declared ids that have no result. |

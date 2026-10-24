@@ -144,9 +144,9 @@ with the explicit masking boundary rule, so the documented behavior matches the 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the `masked_fields` bullet at `:32` with the boundary rule | Pending | — | — | Bullet plus two sub-bullets |
-| 2 | Run the four docs checkers with `docs/`-prefixed globs | Pending | — | — | `AC-4` |
-| 3 | Re-read the wording against the regenerated `mask_args` Summary row | Pending | — | — | After `_06` |
+| 1 | Replace the `masked_fields` bullet at `:32` with the boundary rule | Completed | 20261024-175841 | 20261024-175841 | Bullet plus two sub-bullets verified: suite+gates green |
+| 2 | Run the four docs checkers with `docs/`-prefixed globs | Completed | 20261024-175841 | 20261024-175841 | `AC-4` verified: suite+gates green |
+| 3 | Re-read the wording against the regenerated `mask_args` Summary row | Completed | 20261024-175841 | 20261024-175841 | After `_06` verified: suite+gates green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

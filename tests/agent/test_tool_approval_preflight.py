@@ -429,6 +429,28 @@ class TestAuditApproval:
         payload: str = audit.info.call_args[0][0]
         assert "s3cr3t" not in payload
 
+    def test_masked_fields_applied_to_nested_args(self) -> None:
+        cfg = _make_cfg(masked_fields=["secret"])
+        ctx = _make_ctx(cfg=cfg)
+        audit = MagicMock()
+        ctx.services_required.audit_logger = audit
+        _audit_approval(
+            ctx,
+            "write_file",
+            "medium",
+            {
+                "path": "/tmp/f",
+                "payload": {"secret": "s3cr3t"},
+                "edits": [{"secret": "nested-list-secret"}],
+            },
+            "approved",
+        )
+        payload: str = audit.info.call_args[0][0]
+        assert "s3cr3t" not in payload
+        assert "nested-list-secret" not in payload
+        assert "***" in payload
+        assert "/tmp/f" in payload
+
     def test_operation_type_in_audit_event(self) -> None:
         ctx = _make_ctx()
         audit = MagicMock()
