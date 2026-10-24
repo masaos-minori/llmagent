@@ -3,7 +3,33 @@
 ## Project lint tools
 
 See `routing.md` Tools → "When to run which tool" for the checkers to run when modifying
-`docs/`. MUST NOT hardcode tool names or invocations here.
+`docs/`. MUST NOT hardcode tool names or invocations here. Phase 9 requires running them.
+
+## Repository documentation conventions
+
+A document under `docs/` follows `docs/00_governance/governance_00_document-guide.md`, which
+routes to the policy (`governance_01`), metadata conventions (`governance_02`), issue and
+uncertainty management (`governance_03`), and the documentation checks (`governance_04`).
+Read only the governance documents for the area being edited (`AGENTS.md` Global Rule 1).
+In short: English only (`skills/DESIGN.md` Output language), YAML Front Matter and a Keywords
+section, and the heading, table, and code-fence rules the docs checkers enforce. A rename or
+move uses `tools/rename_doc.py` (dry-run first), not manual edits.
+
+## Mode: scoped or full
+
+Decide in Phase 1 and record it in the Final Report.
+
+- **Scoped**: the task edits only sections of an existing document that describe named code,
+  for example a `code-implementation` Step 5 call for changed files matched by a
+  `docs/00_index.md` row, or a request that names a section or file. Run Phase 1; Phase 2
+  limited to the existing document, the named code, and the files the section cites; Phases 4
+  and 5 for the named area only; then Phases 8, 9, and 10. Skip Phases 3, 6, and 7 (and the
+  dependency-management inventory in Phase 2) unless the section itself describes runtime,
+  configuration, delivery, or dependencies. A skipped phase's Gate is `N/A: scoped`.
+- **Full**: a whole-document review or sync, a new document, or a task whose claims depend on
+  other areas. Run all ten phases.
+- If a scoped task finds that the section's claims depend on files outside the named area,
+  say so and widen only that part; this is not an automatic switch to full mode.
 
 ---
 
@@ -11,8 +37,8 @@ See `routing.md` Tools → "When to run which tool" for the checkers to run when
 
 | Tool | Phase | Role |
 |---|---|---|
-| `Bash` (`ls`, `find`) | 1 Scope, 2 Inventory | discover directory layout and identify target files |
-| `Bash` (`grep`) | 2 Inventory – 7 Quality | cross-search symbols, import paths, env vars, config keys |
+| `Bash` (`ls`, `fd`) | 1 Scope, 2 Inventory | discover directory layout and identify target files |
+| `Bash` (`rg`) | 2 Inventory – 7 Quality | cross-search symbols, import paths, env vars, config keys |
 | `Read` | 2 Inventory – 9 Consistency | read individual files in full detail |
 | `Agent` (Explore) | 2 Inventory, 4 Architecture | broad codebase exploration when 3+ targeted queries are needed |
 | `Write` | 8 Write Docs | create new documentation files from scratch |
@@ -70,11 +96,13 @@ Fix the target scope before analysis starts.
 - identify exclusions per `skills/DESIGN.md` Out-of-scope paths (plus repo-specific generated/vendor files)
 - identify expected deliverables
 - note whether existing docs should be updated or created
+- choose and record the mode (scoped or full; see Mode above)
 
 ### Gate
 - [ ] scope is clear
 - [ ] exclusions are clear
 - [ ] deliverables are clear
+- [ ] the mode is recorded
 
 ---
 
@@ -310,9 +338,15 @@ outside of a "Keep" category or a source reference.
 
 - keep important invariants explicit; separate current behavior from design intent where useful
 - move unresolved uncertainty to Needs Confirmation, unresolved conflicts to Known Issues
+- register each item in the active inventories of
+  `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Known Issues in
+  Part 1, Needs Confirmation in Part 2; the entry fields are defined there). When an item
+  is resolved, remove both the inline marker and its inventory entry.
+  `tools/check_needs_confirmation_inventory.py` enforces Part 2 (Phase 9)
 
 **Completed when**: every item identified during Phases 1–7 as uncertain or conflicting
-has been placed in Needs Confirmation or Known Issues — none remain stated as plain fact.
+has been placed in Needs Confirmation or Known Issues and registered in the inventory —
+none remain stated as plain fact.
 
 ### Gate
 - [ ] required docs are covered
@@ -344,8 +378,20 @@ When dependency files and operational commands conflict:
 - record unresolved conflicts as `Known Issues`
 - use `Needs Confirmation` when authority or intended behavior cannot be verified
 
+### Run the docs checkers
+
+Run every row of `routing.md` Tools → "When to run which tool" that the change triggers:
+a `docs/*.md` file added or edited, a domain's docs touched, a "Needs confirmation" marker
+added, resolved, or removed, a Front Matter gap, a rename. `AGENTS.md` Global Rule 9: manual
+review does not substitute for them.
+`uv run python tools/run_validation_gates.py` can run the ones the changed files trigger.
+A failure returns to Phase 8 for that item (Gate failure handling applies); do not edit the
+checker or its baseline to pass. Record each command and its result for Phase 10.
+
 ### Gate
 - [ ] major inconsistencies are removed
+- [ ] the applicable docs checkers ran and pass, or each failure is recorded as an Open
+      Question with its output
 - [ ] docs are traceable back to code
 - [ ] dependency declarations, lockfiles, and documented commands are consistent, or conflicts
       are recorded as `Known Issues` / `Needs Confirmation`
@@ -378,14 +424,26 @@ from what Phases 1-9 already recorded — MUST NOT re-derive or re-run a check m
 #### Next Recommended Deep-Dive
 - next modules / packages / paths to inspect
 
+#### Checks Run
+- each docs checker command and its result (Phase 9), or `N/A` with the reason
+
+#### Inventory Changes
+- Known Issues and Needs Confirmation entries added or removed in
+  `governance_03_issue-and-uncertainty-management.md`, or `None`
+
+#### Mode and Next Steps
+- the mode (scoped or full); the files are uncommitted, so `git-commit-and-sync` commits
+  them
+
 ### Final Gate
 
 Confirm the key Phase gates listed below against the Phase gates stated above; MUST NOT re-derive:
 
 - [ ] Phase 3 gate met: setup-to-start path is traceable
 - [ ] Phase 4 gate met: entrypoints and dependencies are traceable
-- [ ] Phase 8 gate met: unknowns remain visible
-- [ ] Phase 9 gate met: docs do not conflict with implementation
+- [ ] Phase 8 gate met: unknowns remain visible and registered in the inventory
+- [ ] Phase 9 gate met: docs do not conflict with implementation and the applicable docs
+      checkers pass
 
 ---
 

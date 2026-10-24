@@ -50,7 +50,7 @@ See `skills/DESIGN.md` Output language.
 | 9 | Consistency Review | Remove contradictions across docs and code |
 | 10 | Final Report | Return results in a strict final format |
 
-See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, boundaries, and gates.
+See `workflow.md` for per-phase tool guidance, lint tools, evidence rules, boundaries, and gates. Phase 1 chooses a scoped or full mode (`workflow.md` Mode): a scoped update of named sections skips Phases 3, 6, and 7. Phase 9 runs the docs checkers from `routing.md`, and Phase 8c registers Known Issues and Needs Confirmation items in the governance inventory.
 
 ---
 
@@ -71,7 +71,7 @@ See `workflow.md` for the full rule set and evidence-tracking fields.
 
 ## Dependency Management
 
-This skill MUST stay package-manager-neutral. For any Python dependency-management system
+Applies in full mode, and in scoped mode only when the section being edited describes dependencies (`workflow.md` Mode). This skill MUST stay package-manager-neutral. For any Python dependency-management system
 encountered, the skill MUST:
 
 - identify the authoritative source of direct dependency declarations (e.g. `pyproject.toml`)
@@ -99,12 +99,10 @@ See `workflow.md` Evidence and Source of Truth, and Boundaries.
 
 ## Composes with
 
-- `issue-to-plan` — document existing architecture during planning phase
 - `python-implementation` — document new modules or changed interfaces after implementation
 
 ## Called by
 
-- `issue-to-plan` — when a plan needs documentation analysis of an existing codebase
 - `python-implementation` — when its Phase 12 (Knowledge Compression) requires documentation updates
 - `code-implementation` — Step 5, only when a changed file has a matching
   `docs/00_index.md` task-scope row
