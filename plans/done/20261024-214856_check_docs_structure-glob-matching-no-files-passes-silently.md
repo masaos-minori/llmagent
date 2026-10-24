@@ -234,9 +234,9 @@ Required, two entries, driven by REQ-005:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add failing regression tests (`tests/tools/test_check_docs_structure.py`) | Pending | — | — | REQ-004 |
-| 2 | Phase 2: unmatched-glob failure path in `main()` (`tools/check_docs_structure.py`) | Pending | — | — | REQ-001, REQ-002, REQ-003 |
-| 3 | Phase 3: docs sync (`tools/TOOL_DESCRIPTIONS.md`, `docs/00_governance/governance_04_documentation-checks.md`) + full validation pass | Pending | — | — | REQ-005 |
+| 1 | Phase 1: add failing regression tests (`tests/tools/test_check_docs_structure.py`) | In Progress | — | — | REQ-004 |
+| 2 | Phase 2: unmatched-glob failure path in `main()` (`tools/check_docs_structure.py`) | In Progress | — | — | REQ-001, REQ-002, REQ-003 |
+| 3 | Phase 3: docs sync (`tools/TOOL_DESCRIPTIONS.md`, `docs/00_governance/governance_04_documentation-checks.md`) + full validation pass | In Progress | — | — | REQ-005 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -246,7 +246,10 @@ Required, two entries, driven by REQ-005:
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-234854_01_tools_check_docs_structure.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-234854_02_tests_tools_test_check_docs_structure.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261024-234854_03_tools_TOOL_DESCRIPTIONS.md.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261024-234854_04_docs_00_governance_governance_04_documentation-checks.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -266,3 +269,5 @@ Required, two entries, driven by REQ-005:
 | REQ-004 | Required Changes + Testing Expectations; existing test file read 2026-10-24 | `tests/tools/test_check_docs_structure.py` | Phase 1, Phase 2 | AC-3 | `uv run pytest tests/tools/test_check_docs_structure.py -q` | Explicit in issue |
 | REQ-005 | Documentation Impact (corrected: §8 of governance_04 exists); TOOL_DESCRIPTIONS entries read 2026-10-24 | `tools/TOOL_DESCRIPTIONS.md` | Phase 3 | AC-4 | `uv run python tools/check_tool_descriptions_sync.py` | Confirmed by repository evidence |
 | REQ-005 | §8 of governance_04 read 2026-10-24 (Issue claim "no docs chapter" disconfirmed) | `docs/00_governance/governance_04_documentation-checks.md` | Phase 3 | AC-4 | docs gates in Validation plan | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261024-234854 -->

@@ -18,10 +18,12 @@ Medium
   weakened and not edited); redundant re-reads and tool batching (perf001); Plan template section reduction and any new
   template column (perf003); the Plan Freeze criteria; baseline-tool selection in Step 5; lazy loading of the Step 0 load
   set (user decision 2026-10-24).
-- **Dependencies**: perf001 (Plan `plans/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`, steps still Pending)
-  edits `skills/issue-to-plan/workflow.md` `## Multi-file processing`, and perf003 (Issue still open) edits the same file;
-  neither changes the Steps 2, 3, 5, or 8b text this Plan edits, so the three are completable in any order, but whichever is
-  applied later MUST re-read the current file and re-anchor (30-day churn on the file: 9 commits).
+- **Dependencies**: perf001 (Plan archived at `plans/done/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`;
+  its implementation procedures exist and are not yet executed) edits `skills/issue-to-plan/workflow.md`
+  `## Multi-file processing`, and perf003 (Frozen Plan `plans/20261024-232610_lightweight-path-a-plan-template.md`) edits the
+  same file's Steps 4, 5, 8a; neither changes the Step 2, 3, 5 evidence bullet, or 8b text this Plan edits, so the three are
+  completable in any order, but whichever is applied later MUST re-read the current file and re-anchor (30-day churn on the
+  file: 9 commits).
 
 ## Background
 A 2026-10-24 investigation over the opencode session-history DB reported reasoning text of 113K-224K characters per
@@ -148,6 +150,14 @@ its Base scope statement needs no update.`
   as targeted by both Frozen Plans; judged **compatible** (disjoint sections, no contradicting design), with the
   re-anchor-when-later sequencing noted in Scope Dependencies.
 - The Step 0 load set is unchanged (user decision 2026-10-24).
+- Overlap judged at `plan-to-implementation-procedure` Step 2 (2026-10-24, `tools/check_plan_target_overlaps.py`):
+  `skills/issue-to-plan/SKILL.md` and `skills/issue-to-plan/workflow.md` are also targeted by the Frozen Plan
+  `plans/20261024-232610_lightweight-path-a-plan-template.md` (perf003: Step 4, Step 5 generation bullets, Step 8a, SKILL.md
+  Output format and Routing). Judged **sequencing dependency, compatible**: this Plan edits Step 2, Step 3, Step 5's
+  `Repository Evidence` bullet, Step 8b, and Phase overview rows 2, 5, 8; perf003 edits different text. perf003's collapsible
+  sections never include `Implementation Target Files`, so the `(checked in Step N)` tag and the collapse rule do not
+  contradict. The later-applied Plan re-anchors on the current file. `skills/issue-to-plan/workflow.md` is also targeted by
+  perf001's now-archived Plan (`## Multi-file processing` only): compatible.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -156,7 +166,7 @@ its Base scope statement needs no update.`
 | UNK-02 | What downstream rework rate (stale-row corrections found by `plan-to-implementation-procedure`) counts as an acceptable regression signal | User-defined threshold | User states it before AC-7 is judged | False |
 | UNK-03 | Whether the issue's measurements are reproducible: the local opencode DB (`~/.local/share/opencode/opencode.db`) holds 41 sessions (2026-06-05 to 2026-08-21), only 4 with reasoning text, the largest 134,791 characters (2026-08-20), against the issue's 16 plan sessions of 113K-224K; it holds no session after 2026-08-21, so a post-change cycle in another harness cannot be measured by "the same DB methodology" | The DB or host the 2026-10-24 investigation used; the harness the post-change cycles run in | User identifies the DB and harness; otherwise establish a fresh baseline before AC-7 is judged | False |
 | UNK-04 | Whether expansion trigger (b) (a target row that cannot meet a Freeze criterion inside the base order) is acceptable; the issue states only "a concrete disconfirming finding", but a row cannot be frozen as `Needs confirmation`, so without (b) a Plan could stay `Draft` | User decision | Confirm at Plan review; (b) is kept because `rules/workflow-lifecycle.md` forbids freezing a section with a `Needs confirmation` row | False |
-| UNK-05 | perf001 (its Plan `plans/20261024-215858_cut-redundant-rereads-and-turn-overhead.md` has Pending steps) and perf003 (Issue still open) edit `skills/issue-to-plan/workflow.md` | Their completion order | Re-read the file and re-anchor each edit when applied after a sibling | False |
+| UNK-05 | perf001 (its Plan is archived at `plans/done/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`, procedures not yet executed) and perf003 (Frozen Plan `plans/20261024-232610_lightweight-path-a-plan-template.md`) edit `skills/issue-to-plan/workflow.md` | Their completion order | Re-read the file and re-anchor each edit when applied after a sibling | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -245,9 +255,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the dedup rule, depth ceiling, and evidence tag to `skills/issue-to-plan/workflow.md` | Pending | — | — | |
-| 2 | Align the step summaries in `skills/issue-to-plan/SKILL.md` | Pending | — | — | |
-| 3 | Verification, regression review, and deployment check | Pending | — | — | |
+| 1 | Add the dedup rule, depth ceiling, and evidence tag to `skills/issue-to-plan/workflow.md` | In Progress | — | — |  |
+| 2 | Align the step summaries in `skills/issue-to-plan/SKILL.md` | In Progress | — | — |  |
+| 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -257,7 +267,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-235220_01_skills_issue-to-plan_workflow.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261024-235220_02_skills_issue-to-plan_SKILL.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

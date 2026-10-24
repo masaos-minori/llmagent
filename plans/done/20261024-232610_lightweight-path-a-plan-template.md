@@ -19,8 +19,9 @@ Medium
   `rules/workflow-lifecycle.md`; lazy loading of the Step 0 load set (user decision 2026-10-24); redundant re-reads and
   batching (perf001); verification-scope bounding (perf002); `templates/issue.md`, `templates/unknowns-issue.md`,
   `templates/risks-issue.md`; retro-editing archived Plans in `plans/done/`.
-- **Dependencies**: perf001 (Plan `plans/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`) and perf002 (Plan
-  `plans/20261024-220231_bound-adversarial-verification-cost.md`) are Frozen with Pending steps and edit
+- **Dependencies**: perf001 (Plan archived at `plans/done/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`) and
+  perf002 (Plan archived at `plans/done/20261024-220231_bound-adversarial-verification-cost.md`) have implementation
+  procedures generated but not yet executed, and edit
   `skills/issue-to-plan/workflow.md` (perf001 `## Multi-file processing`; perf002 Steps 2, 3, 5, 8b) and perf002 also edits
   `skills/issue-to-plan/SKILL.md` (Phase overview rows 2, 5, 8). Independent of them, but whichever is applied later
   MUST re-read the current files and re-anchor; this Plan's Step 5 and Step 8 edits sit next to perf002's.
@@ -158,6 +159,11 @@ workflow directories notes describe directories, not the Plan section contract, 
   Output format and Routing; no design contradicts another. The shared Step 5 and adjacent Step 8 sections are a
   **sequencing dependency**: whichever Plan is implemented later re-reads the file and re-anchors (see Scope Dependencies).
 - The Step 0 load set is unchanged (user decision 2026-10-24).
+- Re-judged at `plan-to-implementation-procedure` Step 2 (2026-10-24, `tools/check_plan_target_overlaps.py`): the overlap
+  with perf002 on `skills/issue-to-plan/workflow.md` and `skills/issue-to-plan/SKILL.md` is still **sequencing dependency,
+  compatible** (perf002 Plan: Steps 2, 3, 5 evidence bullet, 8b; Phase overview rows 2, 5, 8; this Plan: Step 4, Step 5
+  collapse and sizing bullets, Step 8a; Output format and Routing). perf002's `(checked in Step N)` tag lives in
+  `Implementation Target Files` rows, which this Plan never collapses.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -165,7 +171,7 @@ workflow directories notes describe directories, not the Plan section contract, 
 | UNK-01 | Whether the user accepts the single-template body-collapse mechanism over a conditional-heading template or a variant template file; the issue's Required Changes name "optional (or variant-excluded)" sections and a structure-checker update, which this mechanism does not need | User decision | Confirm at Plan review; if the AC-6 size target is missed, escalate to a variant template in a follow-up issue (it would add `tools/check_workitem_structure.py`, `tools/generate_workitem.py`, and test changes) | False |
 | UNK-02 | Which sample of post-change Path A cycles and which size target count as "measurably smaller": the issue's baseline (median 6.8 KB over 2,713 archived Plans) is not like-for-like, since only 771 of them have the current `Implementation Target Files` table (median about 17,985 bytes; at most 3 rows: about 15,062 bytes / 174 lines) | User choice of cycles and target | User names the sample and target before AC-6 is judged; this Plan proposes the corrected baseline | False |
 | UNK-03 | Whether the 2026-10-24 figures for "recent Path A cycles 14-46 KB" and "Step 6 verifies every row" hold: the first is consistent with the corrected baseline, the second does not match the workflow (row validation is Step 8b) | The investigation's session data (not in the local opencode DB, which ends 2026-08-21) | None needed to proceed; recorded so the issue's wording is not reused downstream | False |
-| UNK-04 | Completion order against perf001 and perf002, which are Frozen with Pending steps and edit the same two skills files | Their completion order | Re-read the current file and re-anchor each edit when applied after a sibling | False |
+| UNK-04 | Completion order against perf001 and perf002, whose Plans are archived in `plans/done/` with unexecuted procedures and which edit the same two skills files | Their completion order | Re-read the current file and re-anchor each edit when applied after a sibling | False |
 | UNK-05 | Whether the user accepts the existing Path A boundary (at most 3 target files, `SKILL.md` Routing) as the threshold at which a Plan stops being Path A; the issue marks the numeric threshold `Needs confirmation` and asks the user | User decision on the threshold | Confirm at Plan review; the repository already contains the 3-file boundary, so the proposal introduces no new number | False |
 
 ## Affected areas
@@ -273,9 +279,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run the consumer audit and record the Path A collapse note in `templates/plan.md` | Pending | — | — | |
-| 2 | State the collapse and sizing rules in `skills/issue-to-plan/workflow.md` and `skills/issue-to-plan/SKILL.md` | Pending | — | — | |
-| 3 | Verification with collapsed and full Plan fixtures, regression review, and deployment check | Pending | — | — | |
+| 1 | Re-run the consumer audit and record the Path A collapse note in `templates/plan.md` | In Progress | — | — |  |
+| 2 | State the collapse and sizing rules in `skills/issue-to-plan/workflow.md` and `skills/issue-to-plan/SKILL.md` | In Progress | — | — |  |
+| 3 | Verification with collapsed and full Plan fixtures, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -285,7 +291,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-235623_01_templates_plan.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261024-235623_02_skills_issue-to-plan_workflow.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235623_03_skills_issue-to-plan_SKILL.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

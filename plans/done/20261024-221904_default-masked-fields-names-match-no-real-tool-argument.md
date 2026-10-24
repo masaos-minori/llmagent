@@ -76,9 +76,11 @@ or which sinks are masked. Apply the deployed-copy change only through the gated
   (`{"path", "edits": [{"old_text", "new_text"}]}`) through `mask_args(args, cfg.tool.masked_fields)`,
   and asserts `***` at `content`, `edits[*].old_text`, and `edits[*].new_text`.
 - `REQ-006`: `docs/23_agent/agent_08_03_configuration-tools-memory.md` `masked_fields` bullet states
-  the new default key names, that they name file-write tool arguments, and the documented split:
-  masking applies to logs/audit only — interactive approval previews stay unmasked (closed-Plan
-  `REQ-001` decision).
+  the new default key names and that they name file-write tool arguments (including the GitHub
+  file-write tools). The bullet at line 32 already states any-depth masking, the masked sinks, and
+  that the interactive approval preview is the one deliberate unmasked exception (re-verified
+  2026-10-24 at `plan-to-implementation-procedure` Step 3a), so that split is kept as written, not
+  re-authored (closed-Plan `REQ-001` decision).
 
 ## Implementation Target Files
 **Freeze status**: Frozen (validated 2026-10-24 per `rules/workflow-lifecycle.md` Implementation
@@ -92,7 +94,7 @@ Target Files Validation (Plan Freeze) — all rows `Verified`).
 | `tests/agent/test_config_builders.py` | Update the pinned default expectation | `:155` pins `["file_content"]` in the `DEFAULTS` dict; AC-2 requires the new value asserted | REQ-004; AC-2 | `"masked_fields": ["file_content"],` measured at `:155`; the explicit-override case at `:192` is unaffected (read 2026-10-24) | this file | Verified |
 | `tests/agent/test_tool_result_formatter.py` | Add default-config end-to-end masking tests | The Issue's Testing Expectations: default-built config, `write_file`/`edit_file`-shaped args, `***` at real key names; this file already tests `mask_args` | REQ-005; AC-3 | File exists and exercises `mask_args` (`test_empty_masked_fields_returns_unchanged` at `:59`, read 2026-10-24); `mask_args` masks at any depth (commit `3cdacc601`) | this file | Verified |
 | `tests/agent/test_tool_approval_preflight.py` | Add a default-names audit case | The Issue's Testing Expectations: extend the masking coverage from `["secret"]` fixtures to the real default names on the audit path | REQ-005; AC-3 | `test_masked_fields_applied_to_args` (`:417`) and the nested sibling (`:432`) both use `masked_fields=["secret"]` (read 2026-10-24) | this file | Verified |
-| `docs/23_agent/agent_08_03_configuration-tools-memory.md` | Update the `masked_fields` bullet | The only prose mention of the setting; must state the new default names and the logs/audit-only split | REQ-006; AC-5 | Bullet at `:32` "masked_fields replaces configured argument keys" (read 2026-10-24); churn measured 18 commits/30d (Issue cites 17 — re-measured) | `uv run python tools/check_docs_consistency.py --domain agent` + docs gates | Verified |
+| `docs/23_agent/agent_08_03_configuration-tools-memory.md` | Update the `masked_fields` bullet | The only prose mention of the setting; must state the new default names and what they name (the logs/audit-only split is already stated in the bullet and stays) | REQ-006; AC-5 | Bullet at `:32` "masked_fields replaces configured argument keys" (read 2026-10-24); churn measured 18 commits/30d (Issue cites 17 — re-measured) | `uv run python tools/check_docs_consistency.py --domain agent` + docs gates | Verified |
 
 ## Reference Files
 | File Path | Why It Must Be Read | Related Target File or Requirement |
@@ -145,8 +147,9 @@ Target Files Validation (Plan Freeze) — all rows `Verified`).
 ## Documentation Impact
 Required, one bullet, driven by REQ-006:
 - `docs/23_agent/agent_08_03_configuration-tools-memory.md:32`: state the default key names
-  `["content", "old_text", "new_text"]`, that they name `write_file`/`edit_file` (and GitHub
-  file-write) argument keys, and the logs/audit-only split that keeps approval previews unmasked.
+  `["content", "old_text", "new_text"]` and that they name `write_file`/`edit_file` (and GitHub
+  file-write) argument keys. The bullet already states that approval previews stay unmasked; keep
+  that sentence unchanged.
 - `docs/23_agent/agent_13_reference-api-generated.md` (generated API table) needs no edit: the
   `mask_args` signature is unchanged.
 - The Issue's pointer at `docs/00_index.md` "AgentConfig / config constants" indexing (for
@@ -276,9 +279,9 @@ Required, one bullet, driven by REQ-006:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: failing default-config tests (`test_tool_result_formatter.py`, `test_tool_approval_preflight.py`) | Pending | — | — | REQ-005 |
-| 2 | Phase 2: default change in `config_dataclasses.py`, `config_section_builders.py`, `config/agent.toml`, pinned test | Pending | — | — | REQ-001, REQ-002, REQ-003, REQ-004 |
-| 3 | Phase 3: docs bullet (`agent_08_03`) + full validation | Pending | — | — | REQ-006 |
+| 1 | Phase 1: failing default-config tests (`test_tool_result_formatter.py`, `test_tool_approval_preflight.py`) | In Progress | — | — | REQ-005 |
+| 2 | Phase 2: default change in `config_dataclasses.py`, `config_section_builders.py`, `config/agent.toml`, pinned test | In Progress | — | — | REQ-001, REQ-002, REQ-003, REQ-004 |
+| 3 | Phase 3: docs bullet (`agent_08_03`) + full validation | In Progress | — | — | REQ-006 |
 | 4 | Phase 4: gated deploy sync of `/opt/llm/config/agent.toml` + runtime smoke | Blocked | — | — | Requires explicit user confirmation (shared production config) |
 
 ### Blocker Log
@@ -289,7 +292,13 @@ Required, one bullet, driven by REQ-006:
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-235437_01_scripts_agent_config_dataclasses.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235437_02_scripts_agent_config_section_builders.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235437_03_config_agent.toml.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235437_04_tests_agent_test_config_builders.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235437_05_tests_agent_test_tool_result_formatter.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261024-235437_06_tests_agent_test_tool_approval_preflight.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261024-235437_07_docs_23_agent_agent_08_03_configuration-tools-memory.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

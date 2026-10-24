@@ -18,8 +18,9 @@ Medium
   `rules/ai-execution.md` (see Design); redundant re-reads, `git` state checks, and call sequencing (perf001); validation
   re-run cost and test selection (perf004); lazy loading of the Step 0 load set (user decision 2026-10-24); other workflows
   such as `plan-to-implementation-procedure`.
-- **Dependencies**: perf001 (Plan `plans/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`) and perf004 (Plan
-  `plans/20261024-233036_bound-verification-sequence-cost.md`) are Frozen with Pending steps and edit
+- **Dependencies**: perf001 (Plan archived at `plans/done/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`) and
+  perf004 (Plan archived at `plans/done/20261024-233036_bound-verification-sequence-cost.md`) have implementation procedures
+  generated but not yet executed, and edit
   `skills/code-implementation/workflow.md` (perf001 `## Multi-file processing`; perf004 Step 3e and Step 4). Independent of
   them, but whichever is applied later MUST re-read the current file and re-anchor (30-day churn: 13 commits).
 
@@ -147,6 +148,10 @@ glob patterns, components, file groups, or vague phrases.
   edits Step 3e and Step 4, and this Plan adds a new section and a Final Report line, with a re-anchor sequencing dependency
   noted in Scope.
 - The Step 0 load set is unchanged (user decision 2026-10-24).
+- Re-judged at `plan-to-implementation-procedure` Step 2 (2026-10-24, `tools/check_plan_target_overlaps.py`): the overlap on
+  `skills/code-implementation/workflow.md` with perf001 and perf004 is still **sequencing dependency, compatible**. The
+  Final Report has subsections (`### One-line traceability summary`, `### Execution Status`, `### Next steps`, `### Blocker Log`,
+  `### Work Items Created`); the `Questions asked` line is added as its own `###` subsection there.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -154,7 +159,7 @@ glob patterns, components, file groups, or vague phrases.
 | UNK-01 | Whether the user accepts a workflow-local question policy over a shared rule in `rules/ai-execution.md`; the issue ties it to perf001's placement decision, but perf001's rules already exist in the shared file while no question section does | User decision | Confirm at Plan review; extract to a shared rule later if the other workflows' question data shows the same pattern | False |
 | UNK-02 | How much of the 27% "other" question category is procedure-document ambiguity that belongs upstream in `plan-to-implementation-procedure`; the local opencode DB holds one `question` call in total, so the issue's classification cannot be re-derived | The investigation's question-item data | User supplies the data, or classify from the `Questions asked` lines of post-change cycles | False |
 | UNK-03 | How AC-7 is measured: the issue's figures (109 `question` calls, 186 cycles) are not reproducible from the local opencode DB (one `question` call, 41 sessions dated 2026-06-05 to 2026-08-21), and the post-change harness is unknown | The DB or host the investigation used; the harness and a comparable cycle for the post-change measurement | User names the harness and the comparable cycle; otherwise take a fresh baseline before AC-7 is judged | False |
-| UNK-04 | perf001 (Frozen Plan, Pending) and perf004 (Frozen Plan, Pending) edit `skills/code-implementation/workflow.md` | Their completion order | Re-read the file and re-anchor each edit when applied after a sibling | False |
+| UNK-04 | perf001 and perf004 (Plans archived in `plans/done/`, procedures unexecuted) edit `skills/code-implementation/workflow.md` | Their completion order | Re-read the file and re-anchor each edit when applied after a sibling | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -242,9 +247,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `## Question policy` section to `skills/code-implementation/workflow.md` | Pending | — | — | |
-| 2 | Add the `Questions asked` line to the Final Report of `skills/code-implementation/workflow.md` | Pending | — | — | |
-| 3 | Verification, regression review, and deployment check | Pending | — | — | |
+| 1 | Add the `## Question policy` section to `skills/code-implementation/workflow.md` | In Progress | — | — |  |
+| 2 | Add the `Questions asked` line to the Final Report of `skills/code-implementation/workflow.md` | In Progress | — | — |  |
+| 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -254,7 +259,7 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-235904_01_skills_code-implementation_workflow.md.md` | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

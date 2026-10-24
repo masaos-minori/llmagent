@@ -16,8 +16,9 @@ Low
   (collision retry) and Step 10.4 (verification), which stay as written and mandatory on both paths; phase renumbering;
   perf006's batch-mode semantics (shared pre-investigation, merge-edit procedure); lazy loading of the Step 0 load set (user
   decision 2026-10-24).
-- **Dependencies**: perf006 (Plan `plans/20261024-233702_amortize-preinvestigation-in-batch-drafting.md`, Frozen, steps
-  Pending) edits the same two files (`skills/issue-creator/workflow.md` Batch mode and Phase 4; `skills/issue-creator/SKILL.md`
+- **Dependencies**: perf006 (Plan archived at `plans/done/20261024-233702_amortize-preinvestigation-in-batch-drafting.md`;
+  its implementation procedures `implementations/20261024-235959_01_skills_issue-creator_workflow.md.md` and
+  `implementations/20261024-235959_02_skills_issue-creator_SKILL.md.md` exist and are not yet executed) edits the same two files (`skills/issue-creator/workflow.md` Batch mode and Phase 4; `skills/issue-creator/SKILL.md`
   Phase overview pointer line). Fix order from the issue: perf006 first, then this Plan, so the drafting-flow text is not edited
   twice; whichever is applied later MUST re-read the current files and re-anchor. perf001 is a cross-reference only (same
   "Prefer / MAY ignored" pattern; different files).
@@ -142,12 +143,18 @@ glob patterns, components, file groups, or vague phrases.
   section, Phase 4, and the Phase overview pointer line, while this Plan edits Step 10.2, Step 10.3, and Phase overview item
   10; and a **sequencing dependency**: perf006 first, then this Plan, with a re-read before each edit (Scope Dependencies).
 - The Step 0 load set is unchanged (user decision 2026-10-24).
+- Dependency handling at `plan-to-implementation-procedure` Step 2 (2026-10-24): the Scope fix order (perf006 first) concerns
+  the order of executing procedures, not of generating them. perf006's procedures were generated before this Plan's in the
+  same batch (the user's list order), so the order is already honored at generation; the executing order is
+  `code-implementation`'s, over the perf006 procedures first. Overlap re-judged with
+  `tools/check_plan_target_overlaps.py`: **sequencing dependency, compatible** (this Plan: Step 10.2, Step 10.3, Phase overview
+  item 10; perf006: Batch mode, merge-edit, Phase 4, Phase overview items 2 and 4).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
 | UNK-01 | Whether the issue's measurements hold: the local opencode DB holds no session that wrote or edited an `issues/*.md` file (41 sessions dated 2026-06-05 to 2026-08-21), so the 20 `generate_workitem` invocations and the 14 unscaffolded issues cannot be re-derived; note also that the Step 10.4 structure check covers section presence only, so "all passed" does not show that the bypass reproduced collision safety or the filename format | The DB or host the investigation used | None needed to implement: REQ-002 requires the direct-write path to reproduce the uniqueness and name checks explicitly instead of relying on the structure check | False |
-| UNK-02 | Completion order against perf006, which is Frozen with Pending steps and edits the same two files; the issue asks for perf006 first | The implementation order | `plan-to-implementation-procedure` Step 2 asks the user whether to proceed when `Scope` lists a Dependency on an open Plan; re-read the files and re-anchor each edit when applied after a sibling | False |
+| UNK-02 | Completion order against perf006, whose Plan is archived with unexecuted procedures and which edits the same two files; the issue asks for perf006 first | The implementation order | `plan-to-implementation-procedure` Step 2 asks the user whether to proceed when `Scope` lists a Dependency on an open Plan; re-read the files and re-anchor each edit when applied after a sibling | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -225,9 +232,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | State the conditional scaffold policy in `skills/issue-creator/workflow.md` Steps 10.2 and 10.3 | Pending | — | — | |
-| 2 | Reword Phase overview item 10 in `skills/issue-creator/SKILL.md` | Pending | — | — | |
-| 3 | Verification, regression review, and deployment check | Pending | — | — | |
+| 1 | State the conditional scaffold policy in `skills/issue-creator/workflow.md` Steps 10.2 and 10.3 | In Progress | — | — |  |
+| 2 | Reword Phase overview item 10 in `skills/issue-creator/SKILL.md` | In Progress | — | — |  |
+| 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -237,7 +244,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261025-000056_01_skills_issue-creator_workflow.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-000056_02_skills_issue-creator_SKILL.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -21,11 +21,14 @@ Medium
   needed, see Design); Step 0 mandatory-read trimming (user decision 2026-10-24); the `question` policy (perf005);
   re-read and turn-overhead rules (perf001); validation-sequence cost (perf004); adversarial verification cost (perf002);
   review-side investigation inside `python-code-review`; turning session-measurement scripts into a tool.
-- **Dependencies**: perf001 (Plan `plans/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`) is Frozen with Pending
-  steps and resolves the shared-rule placement for the generic load-discipline rules in `rules/ai-execution.md`; this Plan
-  keeps the batch-mode contract workflow-local (it is specific to `issue-creator`) and does not depend on that file edit.
-  perf004 and perf005 target other files. The `issue-creator` files are edited often (5 and 3 commits in 30 days), so the
-  implementer MUST re-read the current content and re-anchor before editing.
+- **Dependencies**: perf001 (Plan archived at `plans/done/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`,
+  procedures generated, not yet executed) resolves the shared-rule placement for the generic load-discipline rules in
+  `rules/ai-execution.md`; this Plan keeps the batch-mode contract workflow-local (it is specific to `issue-creator`) and does
+  not depend on that file edit. perf004 and perf005 target other files. perf007 (Frozen Plan
+  `plans/20261024-234023_align-scaffold-policy-with-practice.md`) edits Phase 10 Step 10.2 and 10.3 of the same
+  `skills/issue-creator/workflow.md` and Phase overview item 10 of `skills/issue-creator/SKILL.md`; independent of this Plan
+  (different sections), but whichever is applied later MUST re-read the current content and re-anchor. The `issue-creator`
+  files are edited often (5 and 3 commits in 30 days).
 
 ## Background
 A 2026-10-24 investigation over the opencode session history reported, for 5 `issue-creator` sessions that wrote 34 issues,
@@ -158,8 +161,13 @@ glob patterns, components, file groups, or vague phrases.
   problem (stop and report) is kept.
 - The issue's "Phase 2 / Phase 4 integration check" is read as Phase 4's sibling-issue check: Phase 2 is Task Grouping and does
   not read existing issues.
-- No overlap with other Frozen Plans on the two target files is expected: perf001 to perf005 target other files. Confirm at
-  freeze (`tools/check_plan_target_overlaps.py`).
+- Overlap judged at `plan-to-implementation-procedure` Step 2 (2026-10-24, `tools/check_plan_target_overlaps.py`):
+  `skills/issue-creator/SKILL.md` and `skills/issue-creator/workflow.md` are also targeted by the Frozen Plan
+  `plans/20261024-234023_align-scaffold-policy-with-practice.md` (perf007: Step 10.2 and 10.3; Phase overview item 10). Judged
+  **sequencing dependency, compatible**: this Plan adds the `## Batch mode` and merge-edit sections, rewrites Phase 4's
+  sibling check, and adds a Phase overview pointer for the batch pass and sibling check (items 2 to 4 region); perf007 edits
+  Step 10.2 and 10.3 and Phase overview item 10. The Phase 10 steps stay unchanged by this Plan (AC-4), so the two designs do
+  not contradict. The later-applied Plan re-anchors.
 - The Step 0 load set is unchanged (user decision 2026-10-24).
 
 ## Unknowns
@@ -263,10 +271,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `## Batch mode` section to `skills/issue-creator/workflow.md` | Pending | — | — | |
-| 2 | Rewrite Phase 4's sibling check and add the merge-edit procedure in `skills/issue-creator/workflow.md` | Pending | — | — | |
-| 3 | Add the Phase overview pointer in `skills/issue-creator/SKILL.md` | Pending | — | — | |
-| 4 | Verification, regression review, and deployment check | Pending | — | — | |
+| 1 | Add the `## Batch mode` section to `skills/issue-creator/workflow.md` | In Progress | — | — |  |
+| 2 | Rewrite Phase 4's sibling check and add the merge-edit procedure in `skills/issue-creator/workflow.md` | In Progress | — | — |  |
+| 3 | Add the Phase overview pointer in `skills/issue-creator/SKILL.md` | In Progress | — | — |  |
+| 4 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -276,7 +284,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-235959_01_skills_issue-creator_workflow.md.md` | 1, 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235959_02_skills_issue-creator_SKILL.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

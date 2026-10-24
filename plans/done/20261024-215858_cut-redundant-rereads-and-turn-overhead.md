@@ -241,9 +241,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Strengthen the shared rule in `rules/ai-execution.md` | Pending | — | — | |
-| 2 | Reference the rule from `skills/issue-to-plan/workflow.md` and `skills/code-implementation/workflow.md` | Pending | — | — | |
-| 3 | Verification, regression review, and deployment check | Pending | — | — | |
+| 1 | Strengthen the shared rule in `rules/ai-execution.md` | In Progress | — | — |  |
+| 2 | Reference the rule from `skills/issue-to-plan/workflow.md` and `skills/code-implementation/workflow.md` | In Progress | — | — |  |
+| 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -253,7 +253,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-235107_01_rules_ai-execution.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261024-235107_02_skills_issue-to-plan_workflow.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235107_03_skills_code-implementation_workflow.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

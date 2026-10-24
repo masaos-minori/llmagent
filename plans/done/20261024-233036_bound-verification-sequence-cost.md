@@ -21,10 +21,11 @@ Medium
   and call sequencing (perf001); question-call count and wait policy (perf005); lazy loading of the Step 0 load set (user
   decision 2026-10-24); toolchain changes (pytest configuration, CI, coverage thresholds, `rules/toolchain.md` gate
   definitions).
-- **Dependencies**: perf001 (Plan `plans/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`, Frozen, steps Pending)
-  edits `skills/code-implementation/workflow.md` `## Multi-file processing`, and perf005 (Issue still open) will edit the same
-  file; neither touches Step 3e or Step 4, so they are completable in any order, but whichever is applied later MUST re-read
-  the current file and re-anchor (30-day churn on the file: 13 commits).
+- **Dependencies**: perf001 (Plan archived at `plans/done/20261024-215858_cut-redundant-rereads-and-turn-overhead.md`,
+  procedures generated, not yet executed) edits `skills/code-implementation/workflow.md` `## Multi-file processing`, and perf005
+  (Frozen Plan `plans/20261024-233356_cut-blocking-question-waits.md`) adds a `## Question policy` section and a Final Report
+  line to the same file; neither touches Step 3e or Step 4, so they are completable in any order, but whichever is applied
+  later MUST re-read the current file and re-anchor (30-day churn on the file: 13 commits).
 
 ## Background
 A 2026-10-24 investigation over the opencode session-history DB reported, for 186 `code-implementation` cycles, 34.8 shell
@@ -67,7 +68,13 @@ skill that the workflow cites.
 - `REQ-005`: In `skills/python-test-and-fix/workflow.md` Step 10 and `skills/python-test-and-fix/SKILL.md` Phase overview row
   10, correct the testmon commands and wording: testmon selection is deactivated whenever `-m` is given, so the example forms
   that combine `--testmon` with `-m` run everything; use `--testmon-forceselect` together with `-m`, and replace "if
-  available" with the condition that actually applies.
+  available" with the condition that actually applies. Re-verified 2026-10-24 (Step 3a of
+  `plan-to-implementation-procedure`): Step 10 already carries a `--testmon-forceselect -m ...` example and its description
+  (added earlier the same day), so only the remaining plain-`--testmon` forms (the `--testmon ... -m` example line and the
+  opening "Use `pytest --testmon`" and "MUST NOT re-run `pytest --testmon`" prose) and the missing "`-m` deactivates plain
+  `--testmon`" note are changed; the existing forceselect and noselect lines stay. Measured again 2026-10-24 on
+  `tests/tools/test_check_workitem_structure.py`: `--testmon -m ...` printed "selection automatically deactivated because -m
+  was used" (7 passed); `--testmon-forceselect -m ...` printed "7 deselected".
 
 ## Implementation Target Files
 **Freeze status**: Frozen
@@ -157,6 +164,10 @@ inventory already lists pytest --testmon.`
   as also targeted by perf001's Plan; judged **compatible** (perf001 edits `## Multi-file processing`, this Plan edits Step 3e
   and Step 4) with a re-anchor sequencing dependency noted in Scope.
 - The Step 0 load set is unchanged (user decision 2026-10-24).
+- Re-judged at `plan-to-implementation-procedure` Step 2 (2026-10-24, `tools/check_plan_target_overlaps.py`):
+  `skills/code-implementation/workflow.md` is also targeted by `plans/20261024-233356_cut-blocking-question-waits.md` (perf005:
+  new `## Question policy` section and a Final Report line) and the archived perf001 Plan (`## Multi-file processing`).
+  Judged **sequencing dependency, compatible**: this Plan edits Step 3e and Step 4 only; the later-applied Plan re-anchors.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -164,7 +175,7 @@ inventory already lists pytest --testmon.`
 | UNK-01 | Why `--testmon` was never called in the measured cycles: runtime works here (cold run succeeded, warm run deselected), and the cause is not reproducible from the local opencode DB (0 testmon calls among 131 pytest commands in 9 sessions, 2026-06 to 2026-08), so the historical cause (instruction ambiguity versus the `-m` deactivation in the documented command forms) is unconfirmed | The measured 186 cycles' sessions | None needed to implement: the Plan removes both candidate causes (explicit selector, no "when available") | False |
 | UNK-02 | Cost and validity of the first testmon run in a checkout: a cold `.testmondata` makes the first run select everything, and `.testmondata` is one file shared by every session in the repository root (`skills/python-test-and-fix/workflow.md` Step 10 states that concurrent corruption was not verified) | Cold-run duration on the full suite; behavior under concurrent sessions | Measure the first cold run during implementation; keep the `pgrep` pre-check that `skills/python-test-and-fix/workflow.md` Step 10 already requires before runs that use shared artifacts | False |
 | UNK-03 | How AC-7 is measured: the issue's figures (186 cycles, 3.0 min `pytest` per cycle) are not reproducible from the local opencode DB (131 pytest commands in 9 sessions, newest session 2026-08-21), and the harness of the post-change cycle is unknown | The DB or host the investigation used; the harness for post-change cycles; the baseline cycle | User names the harness and the comparable cycle; otherwise take a fresh baseline before AC-7 is judged | False |
-| UNK-04 | perf001 (Frozen Plan, Pending) and perf005 (Issue open) edit `skills/code-implementation/workflow.md` | Their completion order | Re-read the file and re-anchor each edit when applied after a sibling | False |
+| UNK-04 | perf001 (Plan archived in `plans/done/`, procedures unexecuted) and perf005 (Frozen Plan `plans/20261024-233356_cut-blocking-question-waits.md`) edit `skills/code-implementation/workflow.md` | Their completion order | Re-read the file and re-anchor each edit when applied after a sibling | False |
 
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
@@ -264,9 +275,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the testmon commands in `skills/python-test-and-fix/workflow.md` and `skills/python-test-and-fix/SKILL.md` | Pending | — | — | |
-| 2 | Update Steps 3e and 4 of `skills/code-implementation/workflow.md` | Pending | — | — | |
-| 3 | Verification, regression review, and deployment check | Pending | — | — | |
+| 1 | Correct the testmon commands in `skills/python-test-and-fix/workflow.md` and `skills/python-test-and-fix/SKILL.md` | In Progress | — | — |  |
+| 2 | Update Steps 3e and 4 of `skills/code-implementation/workflow.md` | In Progress | — | — |  |
+| 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -276,7 +287,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-235802_01_skills_code-implementation_workflow.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235802_02_skills_python-test-and-fix_workflow.md.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261024-235802_03_skills_python-test-and-fix_SKILL.md.md` | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

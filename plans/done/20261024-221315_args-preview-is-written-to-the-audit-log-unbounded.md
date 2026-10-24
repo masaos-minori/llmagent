@@ -252,9 +252,9 @@ Required, one entry, driven by REQ-006:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add cap regression tests (`tests/agent/test_tool_audit.py`) | Pending | — | — | REQ-005 |
-| 2 | Phase 2: `AUDIT_ARGS_PREVIEW_MAX_CHARS` + `_bounded_preview()` at both writers (`scripts/agent/tool_audit.py`) | Pending | — | — | REQ-001, REQ-002, REQ-003, REQ-004 |
-| 3 | Phase 3: docs update (`agent_10_02`) + full validation + deploy sync | Pending | — | — | REQ-006 |
+| 1 | Phase 1: add cap regression tests (`tests/agent/test_tool_audit.py`) | In Progress | — | — | REQ-005 |
+| 2 | Phase 2: `AUDIT_ARGS_PREVIEW_MAX_CHARS` + `_bounded_preview()` at both writers (`scripts/agent/tool_audit.py`) | In Progress | — | — | REQ-001, REQ-002, REQ-003, REQ-004 |
+| 3 | Phase 3: docs update (`agent_10_02`) + full validation + deploy sync | In Progress | — | — | REQ-006 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -264,7 +264,9 @@ Required, one entry, driven by REQ-006:
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261024-235311_01_scripts_agent_tool_audit.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261024-235311_02_tests_agent_test_tool_audit.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261024-235311_03_docs_23_agent_agent_10_02_operations-and-observability-audit-and-otel.md.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
