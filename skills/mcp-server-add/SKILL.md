@@ -2,22 +2,36 @@
 name: mcp-server-add
 description: |
   Use this skill PROACTIVELY when adding a new MCP (Model Context Protocol) server
-  to this project. Use this when the task involves creating a new MCP server module,
-  wiring it into the agent, or running
-  /mcp install <name> from the agent REPL.
+  to this project. Use this when the task involves creating a new MCP server module
+  and wiring it into the agent: config files, tool registration, tests, deployment,
+  and end-to-end verification.
 ---
 
 # MCP Server Add Skill
 
 ## Purpose
 
-Add a new MCP server end-to-end: skeleton files, service registration, agent routing, reachability verification.
+Add a new MCP server end-to-end: server files, config and registration, tests,
+deployment, reachability verification. There is no installer or wizard (`/mcp` accepts
+only `status` and `tools`); the files are created by hand.
+
+## Required reading
+
+`routing.md` loads this skill's files, `rules/env.md`, and two MCP docs. Also read:
+
+- `docs/22_mcp/mcp_06_12_new-mcp-server-addition-checklist.md` — the canonical addition
+  checklist. This skill orders and verifies it; it MUST NOT replace or restate it.
+- `docs/22_mcp/mcp_03_05_lifecycle-and-new-server.md` — tool registration; the live
+  `/v1/tools` response is the sole routing basis, and `tool_names` is not a routing input.
+- `docs/22_mcp/mcp_06_14_mcp-authentication-setup.md` — the `auth_token` every HTTP MCP
+  server needs.
 
 ## Existing MCP servers (reference)
 
 Port/role table (canonical): `docs/22_mcp/mcp_01_system_overview.md` Server Catalog.
 Module paths: `scripts/mcp_servers/<name>/<name>_server.py` (plus `<name>_service.py`,
 `<name>_models.py`, `<name>_tools.py`), e.g. `scripts/mcp_servers/web_search/web_search_server.py`.
+Servers differ in the extra modules they carry; follow the closest existing server.
 
 New servers MUST use the next free port above every port currently assigned — derive it at
 task time (see Prerequisites), per `skills/DESIGN.md` No concrete configuration values.
@@ -26,36 +40,45 @@ MUST NOT state the assigned port number in `docs/*.md` once deployed — see
 
 ## Prerequisites
 
-- For Option A (wizard): agent REPL MUST be running (`ps aux | grep agent.py`)
-- Next free port (the "assigned port"): `grep -r '\-\-port' init.d/ | grep -oP '\d{4,}' | sort -n | tail -1` → use the next integer above that result
+- The assigned port: the highest MCP server port in `config/agent.toml` plus one.
+  `rg -o 'url\s*=\s*"http://127\.0\.0\.1:(\d+)"' -r '$1' config/agent.toml | sort -n | tail -1`
+  → use the next integer above that result. MUST NOT derive it from `init.d/`: its
+  `--port` values belong to the LLM services, not to the MCP servers (every MCP server is
+  `startup_mode = "subprocess"` and is started by the agent).
+- To start or restart the agent for verification, see Step 7.
 
 ## Phase overview
 
 | Phase | Steps | Goal | Gate |
 |---|---|---|---|
-| 1 Generate | Option A or B → Step 1 verify | Skeleton files exist and are valid | Step 1's structure checklist fully passes |
-| 2 Wire | Steps 2–4 | deploy.sh, service map, tool routing updated | `rg` confirms the new `cp` line, `[mcp_servers.<name>]` section, and (if needed) `tool_names` entry all exist |
-| 3 Run | Steps 5–8 | Service deployed, started, and reachable | `/mcp` in agent REPL shows the new server healthy |
-| (final) | Step 9 | Completion checklist (below) confirmed | Every Completion checklist item is true, or execution stopped in a `Blocked` state |
+| 1 Create | Step 1 | Server files and the server's config file exist and are valid | Step 1's checklist fully passes |
+| 2 Register | Steps 2–4 | deploy.sh, `config/agent.toml`, and tool registration updated | `rg` confirms the new `cp` line, `[mcp_servers.<name>]` section (with `auth_token`), `tool_definitions`, `tool_safety_tiers`, and `shared/tool_constants.py` entries all exist |
+| 3 Verify | Step 5 | Tests and validation pass before anything is deployed | the Step 5 commands all pass |
+| 4 Run | Steps 6–9 | Service deployed (with user approval), started, authenticated, and reachable | `/mcp status` shows the new server `OK` and one of its tools was called successfully |
+| (final) | Step 10 | Completion checklist (below) confirmed | Every Completion checklist item is true, or execution stopped in a `Blocked` state |
 
-See `workflow.md` for detailed step content, failure recovery, and idempotency notes.
+See `workflow.md` for detailed step content and idempotency notes.
 
 ## Completion checklist
 
 **This task is complete when, and only when**: every item below is confirmed true, or
-execution stopped in a `Blocked` state per `workflow.md` Step 1/Step 8's own bound, or at the Option A failure-recovery deletion-confirmation gate.
+execution stopped in a `Blocked` state per a `workflow.md` step's own bound, or at the
+Step 6 approval gate.
 
-- `scripts/mcp_servers/<name>/<name>_server.py` syntax check passes
-- `deploy/deploy.sh` updated with a `cp` line for the new server's `config/<name>_mcp_server.toml` (see `workflow.md` Step 2 for why)
-- `config/agent.toml` section `[mcp_servers.<name>]` added (verified with `rg`)
-- service running and reachable (verify port health)
-- `/mcp` in agent REPL shows the new server as healthy
-- no errors in `agent.log` during tool invocation
-- MCP doc consistency check passes: `uv run python tools/check_docs_consistency.py --domain mcp` (see `routing.md` Tools → "When to run which tool")
+- the server module syntax check passes and the Step 1 checklist passes
+- `deploy/deploy.sh` has a `cp` line for the new server's `config/<name>_mcp_server.toml`
+- `config/agent.toml` has `[mcp_servers.<name>]` (with `startup_mode = "subprocess"` and `auth_token`), `[[tool_definitions]]` entries, and `tool_safety_tiers` entries for every new tool
+- every new tool is declared in the server's `GET /v1/tools` response (schema 2.0) and in the `shared/tool_constants.py` frozenset
+- tests for the new server exist under `tests/mcp_servers/<name>/` and pass
+- the generated MCP reference table is current: `uv run python tools/generate_reference_table.py --check` exits 0
+- the other applicable `routing.md` Tools → "When to run which tool" checkers pass (Step 5)
+- `uv run python tools/check_docs_consistency.py --domain mcp` passes when docs were edited
+- the service is running, `/mcp status` shows the new server `OK`, and one tool of the new server was called successfully
+- no errors mentioning the server in `agent.log`
 
 ## Composes with
 
-- `deploy` — Step 5 delegates to the deploy skill's own Phase 2 (Deploy) only; this is distinct from this skill's Phase 1-3
+- `deploy` — Step 6 delegates to the deploy skill's own Phase 2 (Deploy) only; this is distinct from this skill's phases
 
 ## Called by
 
@@ -63,17 +86,20 @@ execution stopped in a `Blocked` state per `workflow.md` Step 1/Step 8's own bou
 
 ## Required behavior
 
-- Use the port computed in Prerequisites; re-run its `grep` immediately before assigning it,
-  because another change may have taken it.
+- Use the port computed in Prerequisites; re-run its command immediately before assigning
+  it, because another change may have taken it.
 - Use `ConfigLoader().load(...)` to read the new server's config module (an instance of
   `rules/coding.md`'s `config_loader.py`-only `json.load()` rule — See `rules/coding.md`,
   section "Constraint checks (run before every commit)").
+- MUST NOT deploy to `/opt/llm` or start or restart services without the user's explicit
+  approval (Step 6): this changes shared infrastructure (`AGENTS.md` Execution policy).
 
 See `rules/coding.md` Mandatory conventions ("Module addition", "MCP server addition"
-rows) for the `deploy/deploy.sh` `cp` line and `config/agent.toml
-[mcp_servers.<name>]` requirements.
+rows) for the `deploy/deploy.sh` `cp` line and `config/agent.toml`
+`[mcp_servers.<name>]` requirements.
 
 ## Improvement feedback
 
-If the wizard generated invalid skeleton code or a step was missing: update `workflow.md`
-with the recovery procedure and note which pattern changed.
+If a step was missing or a registration point changed: update `workflow.md`, and update
+`docs/22_mcp/mcp_06_12_new-mcp-server-addition-checklist.md` when the change is to the
+checklist itself.

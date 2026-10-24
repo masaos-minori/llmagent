@@ -8,14 +8,15 @@ See `SKILL.md` Prerequisites.
 
 | Tool | Step | Role |
 |---|---|---|
-| `Bash` (`ls`) | Idempotency note, Step 1, Failure recovery | check for existing/partial files before (re-)creating |
-| `Bash` (`/mcp install`, agent REPL) | Option A | generate skeleton files |
-| `Write`/`Edit` | Option B, Step 1 fixes, Steps 2-4 | create/fix skeleton files, deploy.sh, agent.toml |
-| `Bash` (`python3 -m compileall -q`, `tomllib`) | Step 1 | syntax/TOML validity check |
-| `Bash` (`bash deploy/deploy.sh`) | Step 5 | deploy (delegates to `deploy` skill) |
-| `Bash` (`curl`) | Step 8a | health endpoint check |
-| `Bash` (`rg`) | Step 3 verification, Step 7, Step 8b | confirm config sections/secrets pattern exist |
-| `Bash` (`tail`) | Step 8c | log inspection |
+| `Bash` (`ls`) | Idempotency note, Step 1 | check for existing files before creating |
+| `Write`/`Edit` | Steps 1-4 | create the server files, deploy.sh, agent.toml, and registration entries |
+| `Bash` (`uv run python -m compileall -q`, `tomllib`) | Step 1 | syntax/TOML validity check |
+| `Bash` (`uv run pytest`, `ruff`, `mypy`, `bandit`, `lint-imports`) | Step 5 | tests and validation (`rules/toolchain.md`) |
+| `Bash` (`uv run python tools/generate_reference_table.py`) | Step 5 | refresh and check the generated MCP reference table |
+| `Bash` (`bash deploy/deploy.sh`) | Step 6 | deploy (delegates to `deploy` skill, after user approval) |
+| `Bash` (`curl`) | Step 9a | health endpoint check |
+| `Bash` (`rg`) | Steps 2-4, Step 8 | confirm config sections and entries exist |
+| `Bash` (`tail`) | Step 9d | log inspection |
 
 Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: MUST NOT
 re-run the same `rg`/`curl`/`tail` check against an unchanged target; re-run only after the
@@ -23,67 +24,26 @@ specific fix it depends on.
 
 ## Idempotency note
 
-The wizard does NOT check for existing files and will overwrite them.
-Before re-running: confirm no server already uses the same name or port.
+Before creating anything, confirm no server already uses the same name or port. MUST NOT
+overwrite an existing server directory or config file.
 
 ```bash
-ls scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
+ls scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml 2>/dev/null
 ```
 
 ---
 
-## Option A: Use the agent REPL wizard (preferred)
+## Step 1: Create and verify the server files
 
-From the running agent REPL:
+Create the files by hand, following the models / service / server split of the closest
+existing server (for example `scripts/mcp_servers/web_search/`, `scripts/mcp_servers/mdq/`,
+or `scripts/mcp_servers/file/`):
 
-```
-/mcp install <name>
-```
-
-This calls the MCP installer and generates:
-- `scripts/mcp_servers/<name>/<name>_server.py` — skeleton server module
-- `scripts/mcp_servers/<name>/<name>_service.py` — service logic
-- `scripts/mcp_servers/<name>/<name>_models.py` — Pydantic request/response models
-- `scripts/mcp_servers/<name>/<name>_tools.py` — tool definitions
-- `config/<name>_mcp_server.toml` — server config
-- `init.d/<name>` — optional startup script (subprocess management)
-
-After the wizard completes, continue from Step 1 below.
-
-### Failure recovery (partial wizard run)
-
-If `/mcp install` fails partway through:
-
-1. Check which files were created:
-   ```bash
-   ls scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name> 2>/dev/null
-   ```
-2. List the partially created paths found in step 1 to the user and obtain explicit user
-   confirmation (`AGENTS.md` Policy: recursive deletion requires confirmation). If the user
-   does not confirm, MUST NOT delete; stop and report `Blocked: partial files of <name>
-   remain — awaiting deletion confirmation`. After confirmation, remove them before
-   retrying:
-   ```bash
-   rm -rf scripts/mcp_servers/<name>/ config/<name>_mcp_server.toml init.d/<name>
-   ```
-3. Retry the wizard or switch to Option B. Per `AGENTS.md` Loop Prevention > Attempt Limit,
-   at most 3 wizard retries for the same server name; if it still fails after 3 attempts,
-   switch to Option B (MUST NOT retry the wizard a 4th time) and report
-   `Blocked: /mcp install <name> failed 3 times — {last error}`.
-
----
-
-## Option B: Manual creation
-
-If the agent is not running, create the files manually following the models / service / server
-split pattern in `scripts/mcp_servers/file/` (e.g. `scripts/mcp_servers/file/read_models.py`,
-`scripts/mcp_servers/file/read_service.py`, `scripts/mcp_servers/file/read_server.py`) and,
-if the server needs subprocess management, an init script under `init.d/` following the
-`<name>-mcp` naming pattern (e.g. `init.d/mdq-mcp`).
-
----
-
-## Step 1: Verify generated files
+- `scripts/mcp_servers/<name>/<name>_server.py`, `<name>_service.py`, `<name>_models.py`,
+  `<name>_tools.py`, and `__init__.py`
+- `config/<name>_mcp_server.toml`
+- an init script under `init.d/` only if the server needs separate process management;
+  most servers need none, because the agent starts them
 
 Confirm each item below. On failure, apply the fix in the same row, then re-check only that
 row before moving to the next. Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3
@@ -92,14 +52,18 @@ fix-and-recheck attempts per row; if a row still fails after 3 attempts, stop an
 
 | Check | On failure |
 |---|---|
-| `<name>_server.py` inherits from `MCPServer` base class (`scripts/mcp_servers/server.py`) | Add the missing base class import and inheritance |
+| `<name>_server.py` subclasses `MCPServer` (`scripts/mcp_servers/server.py`) and overrides `dispatch()` | Add the missing base class and override |
+| The `MCPServer` subclass declares `own_config_file = "<name>_mcp_server.toml"` | Add the declaration (`run_http()` then restricts `ConfigLoader` to it) |
+| `GET /v1/tools` returns `server_key` plus every tool with the schema-2.0 fields (`mcp_03_05`) | Add the missing fields; a tool absent or invalid there is not routable |
+| `/health` is built with `make_health_response` (`scripts/mcp_servers/health_response.py`) | Use the shared builder |
 | Uses models defined in `scripts/mcp_servers/<name>/<name>_models.py` (Pydantic `BaseModel` subclasses) | Move inline request/response types into `<name>_models.py` |
 | Uses `ConfigLoader().load('<name>_mcp_server.toml')` (not `json.load()`) | Replace the `json.load()` call — see `SKILL.md` Required behavior |
 | Uses `logger = logging.getLogger(__name__)` (standard library logging) | Add the standard logger declaration |
 | Comments and log messages are in English | Translate non-English comments/log messages |
-| `config/<name>_mcp_server.toml` is valid TOML | Run `python3 -c "import tomllib; tomllib.load(open('config/<name>_mcp_server.toml','rb'))"`; fix the reported syntax error |
-| `init.d/<name>` includes the correct `--port` argument | Add or correct the `--port` argument to match the assigned port (`SKILL.md` Prerequisites, Next free port) |
-| Syntax check passes | Run `python3 -m compileall -q scripts/mcp_servers/<name>/`; fix the reported file |
+| `config/<name>_mcp_server.toml` is valid TOML and holds every setting the server needs (it does not refer to `agent.toml`) | Run `uv run python -c "import tomllib; tomllib.load(open('config/<name>_mcp_server.toml','rb'))"`; add the missing setting or fix the syntax error |
+| `config/<name>_mcp_server.toml` carries `auth_token` as a `"${ENV:MCP_<NAME>_AUTH_TOKEN}"` reference (`mcp_06_14`) | Add it; the server refuses to start with an empty token |
+| If an `init.d/` script exists, its `--port` matches the assigned port (`SKILL.md` Prerequisites) | Correct the `--port` argument |
+| Syntax check passes | Run `uv run python -m compileall -q scripts/mcp_servers/<name>/`; fix the reported file |
 
 Per `rules/ai-execution.md` Repository Tool Usage #8, `compileall -q`'s empty stdout is
 evidence of success only together with exit code 0 — check both.
@@ -126,116 +90,168 @@ cp config/<name>_mcp_server.toml /opt/llm/config/<name>_mcp_server.toml
 
 ## Step 3: Update config/agent.toml
 
-Add a new entry to the `mcp_servers` section:
+Add the server section to `config/agent.toml`:
 
 ```toml
 [mcp_servers.<name>]
-transport = "http"
-url = "http://127.0.0.1:<PORT>"
-# Optional: explicit tool routing (falls back to prefix rules if omitted)
-# tool_names = ["my_tool_a", "my_tool_b"]
+transport    = "http"
+url          = "http://127.0.0.1:<PORT>"
+startup_mode = "subprocess"
+auth_token   = "${ENV:MCP_<NAME>_AUTH_TOKEN}"
 ```
 
-Also add tool definitions to the `tool_definitions` array so the agent knows about the new tools.
+Then, for every new tool:
 
-**Completed when**: `config/agent.toml` has the new `[mcp_servers.<name>]` entry
-and a `tool_definitions` array entry for each of the new server's tools.
+- add a `[[tool_definitions]]` entry (OpenAI function-calling format) so the LLM can call it
+- add a `tool_safety_tiers` entry; every tool must declare its safety tier
+- optionally list the tool in the section's `tool_names` — drift-validation metadata only,
+  never required for routing (`mcp_03_05`)
 
----
-
-## Step 4: Update tool routing (if needed)
-
-`ToolRouteResolver` (`shared/route_resolver.py`) resolves: `tool_names` config-map → static prefix fallback.
-If the new server's tools do not use a unique prefix, add them to `tool_names` in `config/agent.toml`.
-
-**Completed when**: the new server's tools resolve via the existing static prefix
-fallback (no change needed), or `tool_names` in `config/agent.toml` explicitly lists them.
+**Completed when**: `config/agent.toml` has the `[mcp_servers.<name>]` section including
+`auth_token`, a `[[tool_definitions]]` entry and a `tool_safety_tiers` entry for each new tool.
 
 ---
 
-## Step 5: Deploy
+## Step 4: Register the tools
 
-Delegate to the `deploy` skill (the deploy skill's own Phase 2 (Deploy) only — distinct from this skill's Phase 1-3):
+Routing is built from the live `GET /v1/tools` responses (`RuntimeToolRegistry`), not from
+`tool_names` or a prefix rule (`mcp_03_05`, ADR-003), so Step 1's `/v1/tools` row is the
+routing registration. Also:
+
+- add each tool name to the matching frozenset in `shared/tool_constants.py` — the static
+  seed for drift detection, not a routing input
+- update `routing.md` if the new server needs documentation the Documentation guide does
+  not yet route to (per the checklist in `mcp_06_12`)
+- update any `docs/22_mcp/` document the checklist requires, without stating the assigned
+  port (`skills/DESIGN.md` Docs content policy — remove)
+
+**Completed when**: every new tool name appears in `shared/tool_constants.py` (confirmed
+with `rg`), and the docs the checklist requires are updated or recorded as not required.
+
+---
+
+## Step 5: Tests and validation (before any deployment)
+
+- Add tests for the new server under `tests/mcp_servers/<name>/`, following an existing
+  server's tests and `tests/mcp_servers/conftest.py` (tests MUST NOT touch production
+  state; the suite's isolation guard is in `tests/conftest.py`).
+- Run `uv run pytest tests/mcp_servers/<name>/ -q` and confirm at least one test was
+  collected.
+- Run the validation sequence in `rules/toolchain.md` on the new files (pass `scripts/` and
+  `tests/` paths explicitly).
+- Run the `routing.md` Tools → "When to run which tool" checkers the change triggers:
+  `uv run python tools/generate_reference_table.py --type mcp` to refresh the MCP table,
+  then `uv run python tools/generate_reference_table.py --check`;
+  `uv run python tools/check_module_size.py` for the new modules; and, when docs were edited,
+  the docs checkers including `uv run python tools/check_docs_consistency.py --domain mcp`.
+
+**Completed when**: the new tests pass with a non-zero collected count, the validation
+sequence passes, and every checker above exits 0.
+
+---
+
+## Step 6: Deploy
+
+Before running anything, tell the user what will change on the production side (the files
+`deploy/deploy.sh` copies to `/opt/llm`, and that the agent will be restarted) and obtain
+explicit approval. MUST NOT deploy without it; if the user does not approve, stop and report
+`Blocked: awaiting deployment approval`.
+
+Then delegate to the `deploy` skill (the deploy skill's own Phase 2 (Deploy) only — distinct from this skill's phases):
 
 ```bash
 bash deploy/deploy.sh
 ```
 
-**Completed when**: the `deploy` skill's Phase 2 Gate is met (`bash deploy/deploy.sh`
-exits 0) — not a separate check.
+**Completed when**: the user approved, and the `deploy` skill's Phase 2 Gate is met
+(`bash deploy/deploy.sh` exits 0) — not a separate check.
 
 ---
 
-## Step 6: Start the service (first time)
+## Step 7: Start the service (first time)
 
-`startup_mode="subprocess"` MCP servers are spawned by the agent itself — no separate start
+`startup_mode = "subprocess"` MCP servers are spawned by the agent itself — no separate start
 command exists. Starting the agent (`bash deploy/start_agent.sh`) starts every configured
-MCP server, including the one just added.
+MCP server, including the one just added. A running agent MUST be restarted, not reloaded:
+`/reload` does not apply changes to `[mcp_servers.*]` (`mcp_06_14`).
 
 For subsequent deploys after code changes to an already-running server, use the restart
 command in `skills/deploy/workflow.md` Phase 3 Step 3b.
 
 **Completed when**: the process for the new server's port is running (first time), or has
-been killed and the next `/mcp` check (Step 8) shows it respawned (subsequent deploys).
+been killed and the next `/mcp status` check (Step 9) shows it respawned (subsequent deploys).
 
 ---
 
-## Step 7: Add API key
+## Step 8: Authentication token and API keys
 
-Run this step only when the new server calls an external API that requires authentication;
-otherwise skip directly to Step 8.
+Every HTTP MCP server needs a non-empty token (`mcp_06_14`). Set `MCP_<NAME>_AUTH_TOKEN` in
+the agent's environment: the agent's `[mcp_servers.<name>].auth_token` and the server's own
+`auth_token` resolve this same variable. A server refuses to start when it is empty or
+unset, so deploy the binaries and the configuration together. Follow the deployment
+document's section on MCP authentication tokens for how the token is provisioned in
+production. MUST NOT hardcode a token or key in any config file or in this repository.
 
-Check whether an existing MCP server config uses a `[secrets]` section
-(`rg '\[secrets\]' config/*.toml`). If one does, follow that pattern. If none does, read the key from an environment variable via `ConfigLoader().load(...)`,
-named `<NAME>_API_KEY` (uppercase server name).
+If the new server also calls an external API that needs a key, provide it the same way: an
+environment variable referenced from the server's own config file with `${ENV:<NAME>_API_KEY}`,
+read through `ConfigLoader().load(...)`.
 
-**Completed when**: the new server can read its API key through `ConfigLoader().load(...)` —
-confirmed by `rg` showing no `os.environ[...]` or `json.load()` access to the key. Per
-`rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result is evidence
-only after confirming `rg` searched the new server's file (path exists, `rg` exited 0 not
-1-for-"no file") — a zero match from a wrong/missing path is not evidence of absence.
+**Completed when**: the server starts with the token set, and `rg` shows no hardcoded
+token or key and no `os.environ[...]` or `json.load()` access to it in the new server's
+files. Per `rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result is
+evidence only after confirming `rg` searched the new server's files (the path exists and
+`rg` exited 0 or 1 for "no match", not 2 for an error).
 
 ---
 
-## Step 8: Verify end-to-end
+## Step 9: Verify end-to-end
 
-Three checks, in order — stop at the first that fails and fix it before continuing. Each
+Four checks, in order — stop at the first that fails and fix it before continuing. Each
 fix routes back only to the earlier step named below, not to Step 1 or a full restart;
-after the fix, re-run only the failed Step 8a/8b/8c.
+after the fix, re-run only the failed Step 9a-9d.
 
-### Step 8a: Health endpoint
+### Step 9a: Health endpoint
 
 ```bash
 curl -s http://localhost:<PORT>/health
 ```
-On failure: go to Step 6's restart command, then re-check 8a only.
+On failure: go to Step 7's restart command, then re-check 9a only.
 
-### Step 8b: Agent-side discovery
+### Step 9b: Agent-side discovery
 
 ```
-/mcp
+/mcp status
+/mcp tools
 ```
-in the agent REPL. On failure (server missing or unhealthy in the listing): re-verify
-Step 3's `[mcp_servers.<name>]` section with `rg`, then re-check 8b only.
+in the agent REPL. `/mcp status` shows the new server `OK`; `/mcp tools` lists each new
+tool in the runtime registry. On failure (server missing or unhealthy, or a tool missing):
+re-verify Step 3's `[mcp_servers.<name>]` section and Step 1's `/v1/tools` row, then
+re-check 9b only.
 
-### Step 8c: Logs
+### Step 9c: Call a tool
+
+Have the agent call one tool of the new server — prefer a read-only tier tool — and
+confirm the result is correct. On failure: diagnose from the error, fix the earlier step
+it points to, then re-check 9c only.
+
+### Step 9d: Logs
 
 ```bash
 tail -20 /opt/llm/logs/agent.log
 ```
 On any new error mentioning `<name>`: diagnose from the error message before proceeding to
-Step 9.
+Step 10.
 
 Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3 fix-and-recheck round-trips
-across 8a-8c combined for the same server; if verification still fails after 3 rounds, stop
+across 9a-9d combined for the same server; if verification still fails after 3 rounds, stop
 and report `Blocked: <name> failed end-to-end verification after 3 rounds —
 {last failing check and error}`.
 
-**Completed when, and only when**: 8a, 8b, and 8c all pass with no unresolved error, or
+**Completed when, and only when**: 9a, 9b, 9c, and 9d all pass with no unresolved error, or
 the cycle above ended in a `Blocked` report.
 
 ---
 
-## Step 9: Completion checklist
+## Step 10: Completion checklist
 
 See `SKILL.md` Completion checklist.
