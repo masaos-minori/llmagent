@@ -45,8 +45,14 @@ MUST NOT use this skill for:
 - direct implementation-only requests
 - greenfield design without code to review
 - tiny syntax fixes
-- non-Python targets
+- a review whose whole target is non-Python (for example only shell or TOML files)
 - speculative findings without evidence
+
+In a mixed diff, review the Python files fully. Configuration (`config/*.toml`, `conf.d/`,
+`init.d/`) and deploy scripts (`deploy/*.sh`) are reviewed under Phase 5 (configuration) and
+Phase 6 (CI and delivery) for what they set and whom they affect; a file type with no
+available check (for example shell syntax) is listed under Not reviewed in the report with
+that reason.
 
 ---
 
@@ -54,11 +60,11 @@ MUST NOT use this skill for:
 
 | Phase | Name | Goal |
 |---|---|---|
-| 1 | Scope and Intake | Fix the reviewed diff/PR/file boundary and its stated intent |
-| 2 | Correctness and Data Consistency | Edge cases, state transitions, typing, `rules/coding.md` prohibited patterns, performance and concurrency hazards |
+| 1 | Scope and Intake | Fix the reviewed diff/PR/file boundary and its stated intent; check uncommitted edits and the working-tree/head match |
+| 2 | Correctness and Data Consistency | Intent-vs-diff match, edge cases, state transitions, typing, `rules/coding.md` prohibited patterns, performance and concurrency hazards |
 | 3 | Architecture and Boundaries | Dependency direction, import cycles, layering, unjustified abstractions, project checkers |
 | 4 | Async/Sync and Resource Lifecycle | Blocking calls in async paths, resource cleanup |
-| 5 | Error Handling, Configuration, and Logging | Exceptions, retries, fail-fast/fail-open, secret exposure, trust-boundary security, SQLite/sqlite-vec usage |
+| 5 | Error Handling, Configuration, and Logging | Exceptions, retries, fail-fast/fail-open, secret exposure, trust-boundary security, SQLite/sqlite-vec usage, dependency changes |
 | 6 | Tests and CI | Coverage of critical behavior, failure paths, CI gates (`.github/workflows/`, pre-commit, `tox.ini`) |
 | 7 | Documentation Mismatches | Evidence-grounded doc/code contradictions |
 | 8 | Evidence, Confidence, and Severity Assignment | Attach evidence, confidence, and severity to each finding |
@@ -88,6 +94,13 @@ See `workflow.md` for detailed phase content and tooling.
   Questions with the confirmation needed.
 - Follow `skills/DESIGN.md` No secrets in output.
 - Keep recommendations actionable; for tests, specify the behavior or failure mode to verify.
+- Review the reviewed head, not the working tree's other edits: parallel sessions leave
+  uncommitted changes, so a finding is attributed to the reviewed change only after checking
+  the file's content at that head (`workflow.md` Phase 1).
+- Stay read-only toward GitHub: MUST NOT post a PR review, comment, or issue to GitHub
+  (`gh pr review`, `gh pr comment`, `gh issue create`) unless the user explicitly asks for
+  that specific post and approves its content. The default deliverable is the report in the
+  chat; Phase 10 writes local `issues/*.md` files only.
 
 ---
 
@@ -96,6 +109,12 @@ See `workflow.md` for detailed phase content and tooling.
 Every finding of severity Medium or above, and every finding a recommendation relies on,
 MUST include concrete evidence such as file path; class, function,
 method, route, command, or config key; test name or CI workflow; and observed current behavior.
+
+Cite code by `path` and the class/function/method name. A line number may be added in the
+review report only together with the reviewed commit (`path:line @ <short sha>`), since the
+report is a point-in-time document (the `skills/DESIGN.md` No source-code line numbers rule
+governs design documents, not this report). In `issues/*.md` written in Phase 10, use symbol
+names only and do not copy line numbers.
 
 ## Severity
 
@@ -178,8 +197,11 @@ no check is left unconfirmed in a high-risk area; otherwise `investigate further
 
 ## Called by
 
-- None: no other skill invokes this skill. It is selected directly from `routing.md`
-  ("Code review / PR review").
+- Normally selected directly from `routing.md` ("Code review / PR review" and "Review a tool").
+- `python-design` — its existing-codebase design review uses this skill for the
+  evidence-based review of the current code.
+- Offered by `python-implementation` and `python-lint-typecheck` as an optional self-review
+  of the diff when the user asks.
 
 ---
 

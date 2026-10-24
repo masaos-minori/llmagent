@@ -9,9 +9,9 @@
 | `Bash` (`grep`, `rg`) | 2–7 | Cross-search symbols, call sites, config keys, and patterns |
 | `Read` | 2–7 | Read individual files in full detail before judging them |
 | `Agent` (Explore) | 2–4 | Broad search when the review spans many files or packages |
-| `ruff check`, `mypy` / `pyright` | 2, 4 | Confirm type-safety and lint findings are real, not speculative |
+| `uv run ruff check`, `uv run mypy --no-namespace-packages`, `uv run pyright` | 2, 4 | Confirm type-safety and lint findings are real, not speculative (mypy in the CI form; `rules/toolchain.md` section 2) |
 | `PYTHONPATH=scripts uv run lint-imports` | 3 | Confirm dependency-direction findings against `.importlinter` (command per `rules/toolchain.md`) |
-| `bandit` | 5 | Confirm security findings with static analysis where available |
+| `uv run bandit -r <paths> -c pyproject.toml -ll` | 5 | Confirm security findings with static analysis where available (the CI form; medium severity and above) |
 | `pytest` | 6 | Confirm claimed test coverage or failure actually reproduces, only after Phase 6's isolation check |
 | `uv run python tools/check_docs_consistency.py --domain <domain>` | 7 | Ground a doc/code mismatch in config keys, ports, and symbols (see `routing.md` Tools) |
 | Project checkers (table below) | 2–7 | Re-use the repository's own structural checks as evidence; each runs only for the diff type it covers |
@@ -50,18 +50,23 @@ Evidence labels) and continue with the remaining checks — MUST NOT stop the re
 Identify the reviewed unit: PR, diff, patch, or a named set of files.
 
 Do:
-- determine the diff boundary (`git diff <base>...<head>`, `gh pr diff` for a PR, or the stated file list)
-- confirm the working tree is at `<head>` (`git rev-parse HEAD` against the head being reviewed) before any tool runs: the tools check the working tree, not the diff. If it is not, MUST NOT `git checkout`, `git switch`, or `gh pr checkout` in the user's working tree (it would change files). Either create a temporary read-only worktree outside the repository for the head (`git worktree add --detach <scratchpad dir>/review-<sha> <head>`, run the tools inside it, then remove it with `git worktree remove` — only that worktree, never `rm -rf`), or, if that is not possible, record that the tool results describe a different version and carry them as `Needs confirmation`
+- determine the diff boundary (`git diff <base>...<head>`, `gh pr diff` for a PR, or the stated file list); define a diff as **large** when it touches more than about 20 files or 800 changed lines (`git diff --shortstat`) — a judgment threshold of this skill, not a project standard
+- check for uncommitted edits: run `git status --short` and note any modified file that is also in the reviewed set. The tools run against the working tree, so another session's unstaged edit would be reviewed as part of the change. For such a file, read the reviewed content with `git show <head>:<path>` and carry any tool result for it as `Needs confirmation`; do not stash, reset, or discard anything
+- confirm the working tree is at `<head>` (`git rev-parse HEAD` against the head being reviewed) before any tool runs: the tools check the working tree, not the diff. If it is not, MUST NOT `git checkout`, `git switch`, or `gh pr checkout` in the user's working tree (it would change files). Choose in this order:
+  1. read-only review: use `git show <head>:<path>`, `git diff`, and `rg` against that content; no tool run is needed for a finding that reading proves, and tool-based checks are recorded as `Needs confirmation`;
+  2. only when a tool result is essential, create a temporary detached worktree outside the repository (`git worktree add --detach <scratchpad dir>/review-<sha> <head>`; this writes metadata under the repository's `.git/worktrees/`, which is the one allowed exception to the read-only rule and needs the user's confirmation). The worktree has no `.venv` (it is git-ignored), so `uv run` there builds a new environment from the lockfile (slow, needs the package cache or network): run `uv sync --dev` inside it once, run the tools, then remove it with `git worktree remove <path>` — only that worktree, never `rm -rf`;
+  3. otherwise record that the tool results describe a different version and carry them as `Needs confirmation`
 - identify the change's stated intent (PR description, commit message, or user request)
 - identify out-of-scope files per `skills/DESIGN.md` Out-of-scope paths (generated code, vendored code, build outputs)
 - when the target is a file list with no diff (a review of existing code), treat every function in those files as changed for the Phases below
-- for a large diff, review in risk order — public contracts, persistence, async/resource handling, error handling first — and record any file left unreviewed so the report can state it
+- for a large diff (threshold above), review in risk order — public contracts, persistence, async/resource handling, error handling first — and record any file left unreviewed so the report can state it
+- `gh` is available for reading a PR (`gh pr view`, `gh pr diff`); it is also able to post to GitHub, which this skill never does without the explicit request and approval described in `SKILL.md` (GitHub is read-only by default)
 
-**Completed when**: the diff boundary, the working-tree/head check, and the stated intent
-are all recorded.
+**Completed when**: the diff boundary, the uncommitted-edit check, the working-tree/head
+check, and the stated intent are all recorded.
 **Stop and ask the user before Phase 2 when**: no diff boundary can be determined (no PR,
 diff, or file list is identifiable); there is nothing to review. Every later Phase's
-"tool unavailable" case (see Toolchain) is handled by recording `Needs Confirmation`
+"tool unavailable" case (see Toolchain) is handled by recording `Needs confirmation`
 and continuing, not by stopping here.
 
 ---
@@ -69,6 +74,7 @@ and continuing, not by stopping here.
 ## Phase 2: Correctness and Data Consistency
 
 Do:
+- compare the diff with the stated intent from Phase 1: record each change the intent does not explain (scope creep, unrelated edits) and each part of the intent the diff does not implement (missing pieces); both are Finding candidates, assessed by their risk
 - trace each changed function for edge cases: empty input, `None`, boundary values, concurrent access
 - check state transitions, idempotency, caching invalidation, and data consistency
 - check performance and concurrency hazards in changed code: unbounded loops or growth, N+1 queries, repeated I/O in hot paths, shared mutable state without synchronization, race windows between check and use
@@ -122,6 +128,8 @@ unsafe dynamic execution) in addition to:
 - check retries, timeouts, and fail-fast vs. fail-open behavior
 - check configuration ownership, startup-only vs. runtime-reloadable settings, and safe defaults
 - check logging and diagnostics for secret exposure risk
+- check configuration and deployment files in the diff (`config/*.toml`, `conf.d/`, `init.d/`, `deploy/*.sh`): what they set, who is affected, whether a default is unsafe, whether a secret or production value appears
+- check dependency changes (`pyproject.toml`, `uv.lock`): whether each new or upgraded dependency is needed by the change, is declared in the right group (runtime vs dev), is pinned consistently with neighbors, and does not duplicate an existing library; a lockfile change with no declaration change (or the reverse) is a Finding candidate. Licenses and advisories are checked only if the repository configures a scanner
 - check input validation at trust boundaries (HTTP and MCP inputs, file paths, subprocess arguments), and authorization or approval checks on tool-executing paths
 - check SQLite and sqlite-vec usage: parameterized queries, transaction scope and commit/rollback on error paths, connection lifetime, and the 4DB separation (no cross-DB access; see `tools/check_db_separation.py`)
 - run `bandit` where available to confirm security findings (e.g. `eval`/`exec`, `pickle`, `subprocess(shell=True)`, SQL string interpolation)
@@ -145,6 +153,10 @@ Do:
   when available), to confirm the claimed pass/fail state
 - before reporting a failing test as a finding, re-run it once in isolation; a failure
   that does not reproduce is reported as `Needs confirmation`, not as a confirmed finding
+- when a failure does reproduce, classify its cause before reporting it: a code defect in the
+  reviewed change (a Finding), a pre-existing failure the change did not touch (note it, do not
+  attribute it), or an environment limitation (a missing extension such as sqlite-vec, a missing
+  service, no network) — an environment limitation is `Needs confirmation`, not a code Finding
 - check CI quality gates and type-checking coverage for the touched paths: read the
   workflows under `.github/workflows/` (notably `ci.yml`), `.pre-commit-config.yaml`, and
   `tox.ini`, and confirm each touched path is covered by lint, type-check, test, and
@@ -189,8 +201,10 @@ evidence, an evidence label/confidence level, a severity, and an ID assigned.
 ## Phase 9: Report Writing
 
 Use the Output Format defined in `SKILL.md`, including its no-findings form when nothing
-survives Phase 8. Group findings by severity. MUST NOT over-report style-only issues. Keep recommendations actionable; for suggested tests, specify the exact
-behavior or failure mode to verify.
+survives Phase 8. Group findings by severity. MUST NOT over-report style-only issues.
+Keep recommendations actionable; for suggested tests, specify the exact behavior or failure
+mode to verify. Deliver the report in the chat; do not post it to GitHub unless the user asks
+(`SKILL.md` GitHub read-only rule).
 
 **Completed when**: the report follows `SKILL.md`'s Output Format, findings are
 grouped by severity, and no style-only issue is over-reported.
