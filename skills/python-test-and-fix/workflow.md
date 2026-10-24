@@ -48,7 +48,14 @@ tests/
   tools/test_<module>.py            # mirrors tools/<module>.py
   integration/                      # cross-module tests with no single scripts/ mirror
   docs/                             # doc-consistency checks with no single scripts/ mirror
+  deploy/test_<module>.py           # checks for deploy/ scripts (no scripts/ mirror)
+  test_<topic>.py                   # top-level cross-cutting tests (e.g. test_production_isolation.py)
 ```
+
+A new test for a `scripts/` module goes at the mirrored path. Only a cross-cutting test with
+no single module (isolation, lint-style invariants) goes at the top level of `tests/`.
+Check the real tree with `ls tests/<package>` before adding a file; the list above is a map, not
+an exhaustive inventory.
 
 When finding or adding a test, mirror the target module's path under `scripts/`
 (or `tools/`), not a flat `tests/test_<module>.py` layout.
@@ -62,10 +69,12 @@ Before reading any test file, classify:
 - **bug**: known failure; need a reproducing test + fix
 - **new test**: coverage gap; add tests for existing behavior
 - **fix broken**: test exists but fails; determine if test or impl is wrong
-- **regression**: behavior changed; find the breaking commit
+- **regression**: behavior changed; find the breaking commit (`git log -S`/`git bisect` is
+  read-only research only — do not commit from it), then follow Path A
 - **flaky**: intermittent failure; confirm before diagnosing
 
-Classification determines which steps to run. MUST NOT run the full sequence for every task.
+Classification determines which steps to run (class → Path table in `SKILL.md` Task Routing).
+MUST NOT run the full sequence for every task.
 
 **Completed when**: the task is classified as bug / new test / fix broken / regression /
 flaky, and the matching Path (A/B/C/D, see `SKILL.md` Task Routing) is selected.
@@ -82,11 +91,19 @@ Step if none applies) instead of stopping the whole task.
 ```bash
 rg "<symbol_under_test>" scripts/         # find usages
 rg "<symbol_under_test>" tests/           # find existing tests
-cat tests/conftest.py                     # read shared fixtures
-fd --glob "test_*" tests/                 # list all test files
+fd --glob "test_*" tests/<package>/       # list the target package's test files
 ```
 
-Read the existing tests before writing new ones. Understand:
+Read `tests/conftest.py` (shared fixtures and the production-isolation guard) and the existing
+tests for the target with the Read tool before writing new ones.
+
+Before the first test run, apply `SKILL.md` Core rule "Verify Production Isolation Before
+Running Tests": confirm the guard in `tests/conftest.py` covers the production paths in
+`rules/env.md` (cite the file), and check the `integration` marker in `pyproject.toml`
+(`-m "not integration"` by default). If a production path is unguarded, stop and record the
+affected commands as `Needs confirmation`; MUST NOT run them.
+
+Understand:
 
 - available fixtures
 - established mock boundaries
@@ -94,20 +111,29 @@ Read the existing tests before writing new ones. Understand:
 
 ## Step 3: Flaky Detection
 
-If the failure is intermittent, run these in order; stop as soon as one gives a clear answer:
+If the failure is intermittent, run these in order (each with `uv run` and the mirrored test
+path, e.g. `tests/<package>/test_<module>.py`, never a flat `tests/test_<module>.py`; add
+`-m "not integration"` unless the test is an integration test); stop as soon as one gives a
+clear answer:
 
 ```bash
-pytest tests/test_<module>.py --randomly-seed=1234 -v
-pytest tests/test_<module>.py --randomly-seed=0 -v
-pytest tests/test_<module>.py --reruns 10 --reruns-delay 0.2
+pytest <test path> --randomly-seed=1234 -v
+pytest <test path> --randomly-seed=0 -v
+pytest <test path> --randomly-seed=4321 -v
+pytest <test path> -p no:randomly -v      # fixed (collection) order
 ```
 
-The first two seeds check for an ordering dependency; the third checks for true
-non-determinism (timing, external state) independent of seed. Confirm flakiness by
-reproducing with at least 3 different seeds.
-If the test fails only on certain seeds: the test has an ordering dependency.
+Run these four to separate an ordering dependency from non-determinism: each seed fixes one
+order, so a failure that appears for some seeds and not others is an ordering dependency; a
+failure that varies across repeated runs of the same seed is true non-determinism (timing,
+external state). Use `--randomly-seed=last` to replay the last failing order.
 
-Identify the dependency:
+`--reruns` is a confirmation aid only, not evidence of stability: a test that fails and then
+passes on rerun is still flaky, and `--reruns` reports such a run as passed. To measure the
+rate, run the same command in a loop without `--reruns`
+(`for i in $(seq 1 10); do uv run pytest <test path> --randomly-seed=1234 -q || break; done`).
+
+Identify the ordering dependency:
 
 ```bash
 pytest tests/ --randomly-seed=last -v     # replay last failing order
@@ -115,19 +141,29 @@ pytest tests/ -p no:randomly              # disable to see if it disappears
 ```
 
 **Completed when**: the failure is confirmed either as seed-order-dependent (fails
-only on certain seeds) or as true non-determinism independent of seed (fails under
-`--reruns` regardless of seed), with the dependency (if any) identified via the
-replay commands above.
+only on certain seeds, reproducibly) or as true non-determinism (varies across repeated runs
+of the same seed), with the dependency (if any) identified via the replay commands above.
 
 ## Step 4: Mutation Testing
 
 Before trusting an existing test suite for regression protection:
 
+This repository uses mutmut 3.x (`mutmut --version`). Its mutation scope comes from
+`[tool.mutmut] source_paths` in `pyproject.toml` (currently `scripts`); there is no
+`--paths-to-mutate` or `--use-coverage` option. Mutant names are the dotted module path
+under `source_paths` plus the function (for `scripts/shared/tool_executor.py`, names start
+with `shared.tool_executor.`); `mutants/` holds the generated output and is git-ignored.
+
 ```bash
-mutmut run --paths-to-mutate scripts/<module>.py
-mutmut results
-mutmut show <id>                           # inspect surviving mutant
+uv run mutmut run "shared.tool_executor.*"   # limit the run to one module's mutants (name pattern)
+uv run mutmut results                        # list survived/killed mutants
+uv run mutmut show <MUTANT_NAME>             # inspect one surviving mutant
+uv run mutmut tests-for-mutant <MUTANT_NAME> # which tests exercise it
 ```
+
+Check `uv run mutmut run --help` first (only `--max-children` and the mutant-name arguments
+exist). If the run cannot be limited to the target in reasonable time (an unbounded
+whole-`scripts/` run), record `Not run` with the reason instead of running it unbounded.
 
 If `mutmut run` itself exits non-zero (distinct from completing and reporting
 results): treat as a tool failure per `rules/ai-execution.md` Step-Level Failure
@@ -140,11 +176,8 @@ Repository Tool Usage #8, 0 surviving out of 0 total means the target was not mu
 not that the suite is strong.
 Add targeted tests to kill surviving mutants before declaring the suite reliable.
 
-For a bug fix path: run mutmut specifically on the changed lines after the fix.
-
-```bash
-mutmut run --paths-to-mutate scripts/<module>.py --use-coverage
-```
+For a bug fix path (Path A): run the same name-scoped `mutmut run` for the function(s) the fix
+changed, after the fix, then check `mutmut results` for those functions only.
 
 ## Step 5: Deterministic Runtime
 
@@ -162,7 +195,13 @@ def test_cache_expiry():
         assert cache.get("q") is None
 ```
 
-Use `freezegun` whenever the function under test calls `datetime.now()`, `time.time()`, or `time.sleep()`.
+Use `freezegun` whenever the function under test reads the clock (`datetime.now()`,
+`time.time()`). It does not skip `time.sleep()`: a code path that really sleeps must have the
+sleep removed from the path under test (inject the delay or patch the sleeping call at the
+boundary) rather than being "frozen". For async code, wait on events or futures; do not
+combine a frozen monotonic clock with `asyncio` waits without checking, because a loop whose
+clock is frozen can wait forever (freezegun's `real_asyncio` option exists for this; verify
+the behavior in the target test before relying on it).
 
 #### fixed random seed
 
@@ -223,18 +262,20 @@ from hypothesis import strategies as st
 @given(st.text())
 @settings(max_examples=500)
 def test_normalize_unicode_is_idempotent(text):
-    from rag_utils import normalize_unicode
+    from rag.utils import normalize_unicode  # real module path: scripts/rag/utils.py
     once = normalize_unicode(text)
     twice = normalize_unicode(once)
     assert once == twice
 
-@given(st.floats(allow_nan=False, allow_infinity=False))
+@given(st.floats(width=32, allow_nan=False, allow_infinity=False))
 def test_floats_to_blob_roundtrip(f):
+    # width=32 generates only float32-representable values, so packing is lossless
+    # and exact equality holds; unbounded float64 would overflow or lose precision.
     import struct
-    from rag_utils import floats_to_blob
+    from rag.utils import floats_to_blob
     blob = floats_to_blob([f])
     recovered = struct.unpack("<f", blob)[0]
-    assert abs(recovered - f) < 1e-5
+    assert recovered == f
 ```
 
 **Completed when**: a property-based test has been written for each function
@@ -243,15 +284,22 @@ in scope meets both conditions).
 
 ## Step 8: Observability Validation
 
-This project uses `logging.getLogger(__name__)`. Skip OTel span validation — not adopted project-wide.
+This step is conditional (any Path): run it only when the task asserts log or audit output.
+
+This project uses `logging.getLogger(__name__)`, so the logger name is the module's import
+path under `PYTHONPATH=scripts` (for `scripts/shared/tool_executor.py`, `shared.tool_executor`),
+not the bare file name. Take the name from the module itself instead of typing it. Skip OTel
+span validation — not adopted project-wide.
 
 To validate log output in tests, use pytest's `caplog` fixture:
 
 ```python
 import logging
 
+from shared import tool_executor
+
 def test_tool_executor_logs_cache_hit(caplog):
-    with caplog.at_level(logging.INFO, logger="tool_executor"):
+    with caplog.at_level(logging.INFO, logger=tool_executor.logger.name):
         executor = ToolExecutor(...)
         executor.call("search_web", {"query": "test"})
         executor.call("search_web", {"query": "test"})
@@ -270,7 +318,9 @@ import asyncio
 async def test_no_pending_tasks_after_completion():
     # replace with a real async function under test (e.g. Orchestrator.handle_turn)
     await some_async_function_under_test()
-    pending = [t for t in asyncio.all_tasks() if not t.done()]
+    # all_tasks() includes the running test task itself; exclude it or the list is never empty
+    current = asyncio.current_task()
+    pending = [t for t in asyncio.all_tasks() if t is not current and not t.done()]
     assert len(pending) == 0, f"Leaked tasks: {pending}"
 ```
 
@@ -291,19 +341,25 @@ repository's full, non-testmon `pytest` suite once before considering the task c
 does not replace the final full run.
 Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, MUST NOT re-run `pytest
 --testmon` with no source change since the last run — its result is unchanged.
-MUST NOT commit `.testmondata`:
+MUST NOT commit `.testmondata` (`.gitignore` already lists `.testmondata` and
+`.testmondata-*`; confirm with `git check-ignore .testmondata` and do not re-add it):
 
 ```bash
 pytest --testmon tests/                   # only tests affected by changed files
-pytest --testmon --testmon-forceselect    # force full run, update DB
+pytest --testmon-noselect tests/          # run everything, prioritising likely failures, update DB
+pytest --testmon-forceselect tests/       # select only tests affected by changes, on top of -k/-m filters
 ```
 
-Add `.testmondata` to `.gitignore`.
+`--testmon-noselect` is the testmon option that deselects nothing; `--testmon-forceselect`
+narrows the selection, so it is not a full run.
 
 ## Step 11: Regression Quality Analysis
 
 See `rules/toolchain.md` section 7 for the diff-cover sequence, and Step 4 above for the mutmut
-commands. Target: 0 surviving mutants on the bug-fix code path.
+commands. Target: 0 surviving mutants on the bug-fix code path (Path A) or on the new code
+(Path B), counting only functions mutmut actually mutated. Paths C and D do not run Step 4;
+Path A/B record `Not run` when Step 4 could not run, and the target is then reported as
+unverified rather than met.
 
 ## Step 12: Fix Strategy
 
@@ -319,7 +375,10 @@ When a test fails:
    impl is correct by re-running the corrected test — MUST NOT re-open the contract
    judgment unless the re-run surfaces new evidence
 
-MUST NOT change both the test and the implementation in the same commit.
+MUST NOT change both the test and the implementation in the same change set, except the
+Path A case: a reproducing test written for a bug plus the fix that makes it pass (the test
+first fails without the fix, then passes with it). Any other combination needs an explicit
+plan in the Step 12 record. This skill never commits; use `git-commit-and-sync` on request.
 
 If the re-run after a fix still fails, return to list item 1 and re-derive the contract
 judgment from that new failure (list item 1's original judgment may have been wrong) — MUST NOT
@@ -340,9 +399,15 @@ Smallest effective change rules:
 
 After adding tests, update project knowledge if patterns changed:
 
-- **`tests/conftest.py`**: add fixtures used by 2+ test files
-- **`CLAUDE.md` test library table**: document any new test library with its use case
-- **`.gitignore`**: add `.testmondata` if not present (see Step 10)
+- **`tests/conftest.py`**: add fixtures used by 2+ test files (this is test code, within the
+  task's scope)
+- **Documentation** (`routing.md`, `rules/coding.md`, a skill's `workflow.md`, `CLAUDE.md`):
+  do not edit unprompted (`AGENTS.md` Global Rule 5). Record a new test library or pattern as
+  a proposal in the final response (what to document and where), and apply it only when the
+  user asks. `CLAUDE.md` currently has no test library table; the library list is the
+  Toolchain table above and `pyproject.toml`.
+- **`.gitignore`**: `.testmondata` and `mutants/` are already ignored; add an entry only for
+  a new generated artifact the task introduces.
 
 Fixture naming conventions:
 
@@ -366,10 +431,11 @@ task ended in a `Blocked` state per Step 12's own stop condition.
 Confirm against each Step's stated criteria above; MUST NOT re-derive them:
 
 - Step 1: failure classified before any code change; reproducing test written for bug-class failures
-- Step 3: no flakiness introduced (`pytest --reruns 5` passes)
+- Step 2: production isolation confirmed before the first test run; no test was skipped, xfailed, or deleted to get a green run
+- Step 3 (Paths A, C, D): no flakiness introduced — the target passes under the seeds used and under `-p no:randomly`, and a 10-run loop of the same seed (without `--reruns`) shows no failure. Path B: the new test file passes in randomized order and with `-p no:randomly`
 - Step 6: mock only at true I/O boundaries, no `mocker.patch` on internal helpers
 - Step 10 / 13: `.testmondata` not committed
-- Step 11 target met: 0 surviving mutants on bug-fix path
+- Step 11 target (Paths A and B): 0 surviving mutants on the fix/new code, or `Not run` recorded with the reason (then reported as unverified); Paths C and D: not applicable
 - Step 11 diff-scoped coverage: per `rules/toolchain.md` §7 (Diff-scoped coverage)
 
 ## Required behavior
@@ -379,10 +445,12 @@ Confirm against each Step's stated criteria above; MUST NOT re-derive them:
 - Write each test so it passes under any execution order — verify with
   `pytest -p no:randomly` vs. the default randomized order (Step 3).
 - MUST NOT commit `.testmondata`, per Step 10.
-- Use `freezegun` or `asyncio.timeout()` for timing-dependent tests, per Step 5 — never
-  `time.sleep()`.
+- Use `freezegun` for clock-dependent tests and events/futures (with `asyncio.timeout()` only
+  as a failure bound, not as the timing source) for async waits, per Step 5 — never
+  `time.sleep()` as a fix.
 - Assert on the function's public contract (return value, raised exception, observable
   side effect) — never on an internal variable name, private attribute, or call count to
   a helper that isn't the boundary under test.
-- Change test and implementation in the same commit only when Step 12 explicitly plans
-  both (e.g. the test itself had a bug) — otherwise change one, verify, then the other.
+- Change test and implementation in the same change set only for a Path A reproducing
+  test plus its fix, or when Step 12 explicitly plans both (e.g. the test itself had a
+  bug) — otherwise change one, verify, then the other.

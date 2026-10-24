@@ -20,7 +20,9 @@ Add, repair, and improve Python tests; reproduce the problem clearly; fix the sm
 - **Do Not Fix Tests by Blindly Changing Expectations**: If a test fails, MUST NOT modify the assertions to match the current broken output. You MUST verify whether the implementation or the test violates the system contract.
 - **Strictly Forbid Flaky Fix Anti-Patterns**: Never use arbitrary `time.sleep()` to fix timing or race conditions in async or multi-threaded tests. Use synchronization primitives, event-loop waits, or `pytest-asyncio` lifecycles.
 - **Ensure Mock Cleanliness**: Always patch/mock dependencies using context managers or pytest fixtures that guarantee automatic cleanup. MUST NOT leave leakage or side-effects that affect later tests.
-- **Wiring-Guard and Mock-State Prohibition**: A component constructed in `__init__` and shared with other objects (e.g. `AgentREPL`'s shutdown event, held by `ReplInputLoop` and `SignalHandler`) MUST have a wiring-level guard test that runs the real constructor and asserts the production handoff; and a test MUST NOT assert on state the test itself assigned to a `MagicMock` — asserting self-assigned mock state hides the very defect (wrong or missing wiring) this rule exists to catch.
+- **Never Turn a Failure Green by Removing the Check**: MUST NOT add `pytest.mark.skip`/`skipif`/`xfail`, delete a test, loosen a test to vacuity, or widen a `--deselect`/`-k` filter to make a failing test pass. A skip or xfail is allowed only when the user asks for it or the cause is a documented, tracked environment limitation (cite the Issue); record it in the final response.
+- **Verify Production Isolation Before Running Tests**: running the suite has real side effects on this host. Before the first test run, confirm the isolation mechanism in `tests/conftest.py` (and `tests/test_production_isolation.py`) covers the production paths in `rules/env.md`, per `skills/test-audit/safety.md` "Verify the test suite's own isolation before classifying `Safe`". If a production path is unguarded, MUST NOT run the tests. Tests marked `integration` start real subprocesses: run them only on request (`-m integration`); use `-m "not integration"` otherwise.
+- **Wiring-Guard and Mock-State Prohibition**: A component constructed in `__init__` and shared with other objects MUST have a wiring-level guard test that runs the real constructor and asserts the production handoff; and a test MUST NOT assert on state the test itself assigned to a `MagicMock` — asserting self-assigned mock state hides the very defect (wrong or missing wiring) this rule exists to catch. A project example is in `workflow.md` Test structure.
 - **Build Timeout / Branch Tests off the Production Body**: A test that asserts a branch fired (e.g. a timeout, a fallback) MUST exercise the real production step body, not a stub whose `await` behaviour the production method lacks. A stub whose await differs from production is the same defect class as an assertion that cannot fail.
 - **No Tool Hallucination**: applies to `mutmut`, `freezegun`, `respx`, `hypothesis`, `pytest-testmon` — see `skills/DESIGN.md` Tool availability guard (fallback: standard `pytest`/`unittest.mock`).
 
@@ -28,47 +30,61 @@ Add, repair, and improve Python tests; reproduce the problem clearly; fix the sm
 
 Classify the task in **Step 1** and strictly follow the assigned path. MUST NOT skip mandatory steps.
 
-### [Path A] Bug Fix Verification
-- **Criteria**: Reproducing and fixing an implementation bug.
-- **Path**: 1 -> 2 -> 3 -> 5 -> 6 -> 9 -> 10 -> 11 -> 12 -> 13
-- *Skip*: 4 (mutmut), 7 (hypothesis), 8 (observability)
+Step 1 classification maps to a Path as follows (every classification has exactly one Path):
 
-### [Path B] New Feature Test
+| Step 1 class | Path |
+|---|---|
+| bug | A |
+| regression (behavior changed; find the breaking commit first, then reproduce and fix) | A |
+| new test | B |
+| fix broken (test exists but fails) | C |
+| flaky | D |
+
+### [Path A] Bug Fix Verification (classes: bug, regression)
+- **Criteria**: Reproducing and fixing an implementation bug or regression.
+- **Path**: 1 -> 2 -> 3 -> 4 (scoped to the fix, after it) -> 5 -> 6 -> 9 -> 10 -> 11 -> 12 -> 13
+- *Skip*: 7 (hypothesis)
+- Step 4 is scoped to the changed lines; if `mutmut` is unavailable or cannot be scoped, record `Not run` with the reason (the 0-surviving-mutants target is then unverified, not met).
+
+### [Path B] New Feature Test (class: new test)
 - **Criteria**: Adding test coverage for a newly implemented feature.
 - **Path**: 1 -> 2 -> 4 -> 5 -> 6 -> 7 -> 9 -> 10 -> 11 -> 12 -> 13
-- *Skip*: 3 (flaky detection), 8 (observability)
+- *Skip*: 3 (flaky detection) — instead run the new test file once in the default randomized order and once with `-p no:randomly`
 
-### [Path C] Fix Broken Test
+### [Path C] Fix Broken Test (class: fix broken)
 - **Criteria**: Repairing a test that is broken due to recent code changes or regressions.
 - **Path**: 1 -> 2 -> 3 -> 5 -> 6 -> 7 -> 9 -> 10 -> 11 -> 12 -> 13
-- *Skip*: 4 (mutmut), 8 (observability)
+- *Skip*: 4 (mutmut)
 
-### [Path D] Flaky Test Investigation
+### [Path D] Flaky Test Investigation (class: flaky)
 - **Criteria**: Debugging non-deterministic or intermittent test failures.
 - **Path**: 1 -> 2 -> 3 (Mandatory multiple runs) -> 5 -> 6 -> 9 -> 10 -> 11 -> 12 -> 13
-- *Skip*: 4 (mutmut), 7 (hypothesis), 8 (observability)
+- *Skip*: 4 (mutmut), 7 (hypothesis)
+
+### Conditional step (any Path)
+- **Step 8 (observability)** runs only when the behavior under test is a log or audit record that the task asserts; otherwise it is not applicable and is not reported as skipped.
 
 ## Phase overview
 
 | Step | Name | Goal / AI Action |
 |---|---|---|
-| 1 | Classify the testing task | Classify task into Bug / New Test / Fix Broken / Regression / Flaky. Select Path A, B, C, or D. |
+| 1 | Classify the testing task | Classify task into bug / new test / fix broken / regression / flaky; map it to Path A, B, C, or D (table above). |
 | 2 | Inspect before changing | Scan usages via `rg`, analyze `conftest.py`, and inspect existing fixtures to match repository testing patterns. |
 | 3 | Flaky detection | Use `pytest-randomly` for seed randomization and run with `--reruns` or loops to confirm failure determinism. |
 | 4 | Mutation testing | Run `mutmut` on the modified paths to validate that tests actually catch logical mutations. |
 | 5 | Deterministic runtime | Enforce time determinism using `freezegun` for time-dependent assertions and use fixed random seeds. |
 | 6 | Boundary virtualization | Use `pytest-subprocess`, `respx`, or `mocker`. Isolate the test environment and mock *only* at true external boundaries. |
 | 7 | Contract validation | Use `hypothesis` for invariant-based property testing (restrict to pure functions like parsers or serializers). |
-| 8 | Observability validation | Capture logging output using pytest's `caplog` fixture. Skip OTel unless project-wide patterns exist. |
+| 8 | Observability validation | Conditional: when the task asserts log/audit output, capture it with pytest's `caplog` fixture. Skip OTel unless project-wide patterns exist. |
 | 9 | Resource leak detection | Audit `pytest-asyncio` lifecycles and use `pytest-timeout` to catch unclosed resources or hanging loops. |
 | 10 | Impact-based execution | Leverage `pytest-testmon` if available for rapid, incremental test execution during local feedback loops. |
 | 11 | Regression quality analysis | Apply `rules/toolchain.md` §7 (Diff-scoped coverage) and check that the specific bug-fix or new path achieves complete logical coverage. |
 | 12 | Fix strategy | **Audit step**: Formulate the smallest possible fix. If implementation behavior is correct, fix the test; otherwise, fix the implementation. |
-| 13 | Repository test policy compression | Update shared test utilities in `conftest.py`; record new patterns in `routing.md` or the skill's `workflow.md`. |
+| 13 | Repository test policy compression | Move fixtures used by 2+ test files into `conftest.py`; propose (do not apply unprompted) any `routing.md`/skill/`rules/` documentation updates for new patterns. |
 
 ## Mandatory Record Template for Step 12 (Fix Strategy)
 
-Before committing any fix for a broken or failing test, the AI MUST document its strategy in the thought process or final response using this format:
+Before changing any file to fix a broken or failing test (and before any commit of it), the AI MUST document its strategy in the thought process or final response using this format:
 
 ### [Test Fix Strategy Record]
 - **Failure Symptom**: (Paste the exact error message or stack trace here)
@@ -81,11 +97,16 @@ Before committing any fix for a broken or failing test, the AI MUST document its
 
 ## See Also
 See `workflow.md` for detailed phase content, plugin flags, and CLI commands.
-Run tests via `uv run pytest` (see `AGENTS.md` Development); MUST NOT use `~/.local/bin/pytest`.
+Run every Python tool through `uv run` (`uv run pytest`, `uv run mutmut`; see `AGENTS.md` Development); MUST NOT use `~/.local/bin/pytest`. Commands in `workflow.md` are written without the prefix for brevity; always add it.
+
+This skill does not stage, commit, or push. When the user asks for that, use `git-commit-and-sync`. A reproducing test and its fix may be delivered in one change set; any other test-plus-implementation mix needs the Step 12 plan.
 
 ## Composes with
 - `python-implementation` — if Step 12 determines that the fix requires modifying application logic beyond the test suite.
 - `python-refactoring` — if resolving the failure or adding the test exposes architectural debt requiring a structural rewrite.
+- `python-debug-root-cause` — if the failure's cause is unclear after Step 2-3 (the Root Cause Analysis in the Step 12 record cannot be filled).
+- `test-audit` — for a whole-suite review rather than a single failing test or new test.
+- `git-commit-and-sync` — to commit and push the result on request.
 
 ## Improvement feedback
 After running this skill, if a skip criterion was wrong or a step was missing for a specific task type, update the Task Routing section in this file.
