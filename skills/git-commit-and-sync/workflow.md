@@ -23,6 +23,7 @@
 | `git diff --name-only --diff-filter=U` | Sync | capture conflicted file paths before aborting a failed rebase |
 | `git rebase --abort` | Sync | abandon a conflicted rebase and restore the pre-rebase state |
 | `git status --short` / `git diff --stat` | Sync | validate repository state after a successful fast-forward or rebase |
+| `git fetch` + `git rev-parse HEAD`/`@{u}` + `git merge-base HEAD @{u}` + `git branch -r --contains` | Sync (Pre-push recheck) | re-read remote state right before Phase 8; detect a concurrent push or an already-pushed commit |
 | `git push` | Push | push to remote automatically once Commit and Sync succeed with no conflicts |
 | `git push --set-upstream origin <branch>` | Push | set upstream if missing (suggestion only) |
 
@@ -209,6 +210,7 @@ Then verify:
 
 ```bash
 git status --short
+git rev-parse HEAD    # record this SHA for Phase 7's pre-push recheck and the report
 ```
 
 Stop if commit fails (see `rules/coding.md` Prohibited behavior (all tasks) for the
@@ -350,8 +352,45 @@ If validation fails after a rebase, the branch stays in its rebased state and is
 pushed. MUST NOT roll back with `reset --hard`; report the pre-rebase SHA recorded above
 and the failing output, and let the user decide.
 
+### Pre-push recheck (last step of Phase 7, runs on every path that reaches Phase 8)
+
+Another session or writer may have pushed (or rebased and pushed this very commit)
+between the Sync decision and the push, so re-read the remote state once more right
+before Phase 8. This includes the "already up to date" and "ahead only" paths and the
+paths where the rebase/fast-forward just succeeded. It does not apply when no upstream
+exists (Phase 8 stops on that case itself):
+
+```bash
+git fetch
+git rev-parse HEAD
+git rev-parse @{u}
+git merge-base HEAD @{u}
+```
+
+Classify again and act:
+
+- `@{u}` equals the merge-base and `HEAD` differs (upstream unchanged since Sync; local
+  ahead only) → proceed to Phase 8 (Push).
+- `HEAD` and `@{u}` identical → the commit is already on the remote (for example another
+  session pushed it). Do not push. Confirm with `git branch -r --contains HEAD`, skip
+  Phase 8, and report `already on upstream; no push needed` with the SHA.
+- `HEAD` is an ancestor of `@{u}` (`HEAD` equals the merge-base, upstream has new
+  commits) and `git branch -r --contains <commit SHA recorded in Phase 6>` lists the
+  upstream branch → the commit reached the remote, possibly rebased under a different
+  SHA by another writer. Do not push; report both SHAs and which upstream commit contains
+  the change (compare subject lines with `git log --oneline @{u} -n 20`).
+- Otherwise, when `@{u}` moved since Sync (it is no longer the merge-base of a local-
+  ahead state, or histories diverged again) → stop before Phase 8 and report that the
+  remote advanced after Sync, with the old and new `@{u}` SHAs. MUST NOT push into a
+  predictable non-fast-forward rejection, MUST NOT re-run Sync automatically, and MUST
+  NOT force; re-invoking this skill is the remedy (same as the transient rejection
+  handling in Phase 8).
+
+Record the commit SHA from Phase 6 (`git rev-parse HEAD` right after the commit) so this
+recheck can identify the commit even if its SHA changes.
+
 Stop if:
-- `git fetch` fails.
+- `git fetch` fails (including the recheck's fetch).
 - The fast-forward merge fails for a reason other than needing a rebase (e.g.
   uncommitted local changes blocking it).
 - The rebase reports a conflict (handled above — always abort and report; see
@@ -364,8 +403,9 @@ MUST NOT run the commands `SKILL.md` Core rules forbids.
 
 ## Phase 8: Push
 
-Push automatically once Phase 6 (Commit) and Phase 7 (Sync) have both succeeded
-with no conflicts — no approval prompt is required for this step by default.
+Push automatically once Phase 6 (Commit) and Phase 7 (Sync, including its Pre-push
+recheck) have both succeeded with no conflicts and the recheck allowed proceeding — no
+approval prompt is required for this step by default.
 
 ```bash
 git push
@@ -400,6 +440,8 @@ the remote settles is then the likely remedy.
 MUST NOT proceed to `git push` at all if:
 - Phase 7 aborted a rebase due to a conflict (defense-in-depth reminder; Phase 7 already
   stops before this phase).
+- Phase 7's Pre-push recheck found the commit already on the remote, or the remote
+  advanced after Sync.
 - Post-sync validation (Phase 7) failed.
 - The user's current instructions say not to push, or ask for confirmation before
   pushing — follow that instruction instead of this phase's default (see `SKILL.md`
@@ -414,6 +456,8 @@ Report:
 - branch and commit SHA
 - staged files
 - commit message
+- pre-push recheck result (proceeded, already on upstream, or remote advanced — with the
+  SHAs involved)
 - sync result (already up to date, fast-forwarded, rebased onto upstream, aborted
   due to a rebase conflict — with the conflicted file paths, or skipped because no
   upstream exists)

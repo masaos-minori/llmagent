@@ -47,7 +47,7 @@ Use this skill only inside a local Git repository.
 | 4 | Check Staged | abort if nothing staged; run `tools/run_validation_gates.py` before committing |
 | 5 | Make Commit Message | derive from staged diff; `<type>[(<scope>)]: <summary>` in English, body for the reason |
 | 6 | Commit | `git commit -m`; check status after; on hook failure fix, re-stage, new commit |
-| 7 | Sync | `git fetch`; fast-forward when possible, else automatic non-interactive rebase onto upstream when histories diverged and the tree is clean; abort and stop on rebase conflict; validate after a successful sync |
+| 7 | Sync | `git fetch`; fast-forward when possible, else automatic non-interactive rebase onto upstream when histories diverged and the tree is clean; abort and stop on rebase conflict; validate after a successful sync; re-fetch and re-classify right before push (skip if the commit is already on the remote, stop if the remote advanced) |
 | 8 | Push | `git push` automatically once Commit and Sync succeeded with no conflicts; stop and report on missing upstream, rejection, or a "do not push"/confirm-first instruction |
 | 9 | Report | branch, staged files, commit message, sync/push result, warnings |
 
@@ -82,6 +82,7 @@ Phase 8's push is rejected.
   - If Phase 7's rebase reported a conflict, Phase 7 already stopped before Phase 8 — never push after an aborted rebase.
   - Never resolve a rebase or merge conflict automatically to force a push through.
   - Never use `push --force`, `push --force-with-lease`, `push -f`, or any other history-rewriting operation to make a push succeed (see the "Never run" list above — unchanged).
+  - Phase 7's Pre-push recheck runs immediately before Phase 8; if it shows the commit is already on the remote, do not push, and if it shows the remote advanced after Sync, stop (no automatic re-sync, no force).
   - If `git push` is rejected for any reason (including a non-fast-forward rejection from a remote that advanced again after Phase 7's sync) or the push destination cannot be determined safely (e.g. no upstream), stop and report the problem — MUST NOT retry, force, or re-run Sync automatically.
   - If the user's current instructions say not to push, or ask for confirmation before pushing, follow that instruction instead of this default — a live, narrower instruction always overrides this skill's own default per `rules/ai-execution.md` Instruction Precedence.
 
