@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the args-preview bound paragraph to `### Audit Logs` | Pending | — | — | |
-| 2 | Run the docs checkers named in Validation plan | Pending | — | — | |
+| 1 | Add the args-preview bound paragraph to `### Audit Logs` | Completed | — | 20261025-002450 |  |
+| 2 | Run the docs checkers named in Validation plan | Completed | — | 20261025-002450 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

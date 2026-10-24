@@ -61,10 +61,10 @@ N/A: revert the commit; no persisted state depends on the envelope.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the constant and `_bounded_preview` (new) helper | Pending | — | — | |
-| 2 | Route both `args_preview` assignments through the helper | Pending | — | — | |
-| 3 | Run the targeted audit tests | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add the constant and `_bounded_preview` (new) helper | Completed | — | 20261025-002448 |  |
+| 2 | Route both `args_preview` assignments through the helper | Completed | — | 20261025-002448 |  |
+| 3 | Run the targeted audit tests | Completed | — | 20261025-002448 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261025-002448 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

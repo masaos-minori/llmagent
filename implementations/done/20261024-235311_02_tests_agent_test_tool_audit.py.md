@@ -58,9 +58,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestArgsPreviewBound` (new) with the helper and cases | Pending | — | — | |
-| 2 | Run the tests before and after row `01` | Pending | — | — | |
-| 3 | Run ruff and mypy on the file | Pending | — | — | |
+| 1 | Add `TestArgsPreviewBound` (new) with the helper and cases | Completed | — | 20261025-002449 |  |
+| 2 | Run the tests before and after row `01` | Completed | — | 20261025-002449 |  |
+| 3 | Run ruff and mypy on the file | Completed | — | 20261025-002449 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -287,9 +287,9 @@ Required, one entry, driven by REQ-006:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add cap regression tests (`tests/agent/test_tool_audit.py`) | In Progress | — | — | REQ-005 |
-| 2 | Phase 2: `AUDIT_ARGS_PREVIEW_MAX_CHARS` + `_bounded_preview()` at both writers (`scripts/agent/tool_audit.py`) | In Progress | — | — | REQ-001, REQ-002, REQ-003, REQ-004 |
-| 3 | Phase 3: docs update (`agent_10_02`) + full validation + deploy sync | In Progress | — | — | REQ-006 |
+| 1 | Phase 1: add cap regression tests (`tests/agent/test_tool_audit.py`) | Completed | — | 20261025-002451 | REQ-005 |
+| 2 | Phase 2: `AUDIT_ARGS_PREVIEW_MAX_CHARS` + `_bounded_preview()` at both writers (`scripts/agent/tool_audit.py`) | Completed | — | 20261025-002451 | REQ-001, REQ-002, REQ-003, REQ-004 |
+| 3 | Phase 3: docs update (`agent_10_02`) + full validation + deploy sync | Completed | — | 20261025-002451 | REQ-006 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

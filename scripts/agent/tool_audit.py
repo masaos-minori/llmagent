@@ -22,6 +22,19 @@ from agent.tool_result_formatter import mask_args
 if TYPE_CHECKING:
     from agent.context import AgentContext
 
+AUDIT_ARGS_PREVIEW_MAX_CHARS = 1500
+
+
+def _bounded_preview(masked: dict) -> dict:
+    """Bound the serialized args preview; oversized payloads become an envelope."""
+    serialized = _json_dumps(masked)
+    if len(serialized) <= AUDIT_ARGS_PREVIEW_MAX_CHARS:
+        return masked
+    return {
+        "preview": serialized[:AUDIT_ARGS_PREVIEW_MAX_CHARS],
+        "truncated": True,
+    }
+
 
 def _extract_resource_scope(ctx: AgentContext, masked: dict) -> dict[str, str]:
     """Pull path/branch keys from masked args for audit events."""
@@ -55,7 +68,7 @@ def audit_approval(
         resource_scope=resource_scope,
         risk=str(risk),
         decision=str(decision),
-        args_preview=masked,
+        args_preview=_bounded_preview(masked),
         ts=time.time(),
         workflow_id=ctx.workflow.workflow_id,
         session_id=str(ctx.session.session_id) if ctx.session.session_id else "",
@@ -166,7 +179,7 @@ def audit_tool_exec(
         resource_scope=resource_scope,
         mcp_request_id=mcp_request_id,
         is_error=is_error,
-        args_preview=masked,
+        args_preview=_bounded_preview(masked),
         ts=time.time(),
         source=source if source else "agent",
         error_type=error_type,

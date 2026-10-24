@@ -8,9 +8,11 @@ import json
 from typing import Any
 from unittest.mock import MagicMock
 
+import pytest
 from agent.config_builders import build_agent_config
 from agent.config_dataclasses import AgentConfig
 from agent.tool_audit import (
+    AUDIT_ARGS_PREVIEW_MAX_CHARS,
     audit_approval,
     audit_tool_exec,
     log_approval_decision,
@@ -18,6 +20,7 @@ from agent.tool_audit import (
 )
 from agent.tool_enums import ApprovalDecisionType, RiskLevel
 from agent.tool_models import ApprovalOutcome
+from shared.json_utils import dumps as _json_dumps
 
 from tests.agent._config_test_defaults import (
     ALL_TOOL_NAMES,
@@ -181,6 +184,55 @@ class TestAuditToolExec:
         ctx.services_required.audit_logger.info.assert_called_once()
         logged = ctx.services_required.audit_logger.info.call_args[0][0]
         assert '"source":"agent"' in logged or '"source": "agent"' in logged
+
+
+def _args_preview_after_write(writer: str, args: dict[str, Any]) -> dict[str, Any]:
+    """Run one audit writer with a mock sink and return the logged args_preview."""
+    ctx = _make_ctx()
+    ctx.services_required.audit_logger = MagicMock()
+    ctx.cfg.tool.masked_fields = ["secret"]
+    ctx.cfg.approval.approval_resource_keys = {}
+    if writer == "approval":
+        audit_approval(ctx, "write_file", RiskLevel.MEDIUM, args, "approved")
+    else:
+        audit_tool_exec(ctx, "write_file", args, False, "req-1")
+    logged = ctx.services_required.audit_logger.info.call_args[0][0]
+    preview: dict[str, Any] = json.loads(logged)["args_preview"]
+    return preview
+
+
+def _args_of_serialized_length(length: int) -> dict[str, Any]:
+    """Build args whose serialized form is exactly ``length`` characters."""
+    base = len(_json_dumps({"k": ""}))
+    return {"k": "x" * (length - base)}
+
+
+@pytest.mark.parametrize("writer", ["approval", "exec"])
+class TestArgsPreviewBound:
+    def test_oversized_value_becomes_envelope(self, writer: str) -> None:
+        preview = _args_preview_after_write(writer, {"k": "x" * 5000})
+        assert preview["truncated"] is True
+        assert len(preview["preview"]) <= AUDIT_ARGS_PREVIEW_MAX_CHARS
+        assert "k" not in preview
+
+    def test_exactly_at_cap_is_unchanged(self, writer: str) -> None:
+        args = _args_of_serialized_length(AUDIT_ARGS_PREVIEW_MAX_CHARS)
+        assert _args_preview_after_write(writer, args) == args
+
+    def test_one_over_cap_becomes_envelope(self, writer: str) -> None:
+        args = _args_of_serialized_length(AUDIT_ARGS_PREVIEW_MAX_CHARS + 1)
+        preview = _args_preview_after_write(writer, args)
+        assert preview["truncated"] is True
+        assert len(preview["preview"]) == AUDIT_ARGS_PREVIEW_MAX_CHARS
+
+    def test_masked_value_survives_prefix_and_marker_is_distinct(
+        self, writer: str
+    ) -> None:
+        args = {"secret": "RAW-SECRET-VALUE", "z": "x" * 5000}
+        preview = _args_preview_after_write(writer, args)
+        assert preview["truncated"] is True
+        assert "***" in preview["preview"]
+        assert "RAW-SECRET-VALUE" not in preview["preview"]
 
 
 class TestWriteRoundExec:

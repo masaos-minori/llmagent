@@ -33,6 +33,8 @@ The Orchestrator's `_execute_turn` bracket emits exactly one `turn_end` event pe
 
 Audit logs serve as a persistent record, enabling analysis even after restarts. Unlike in-session observation counters like `RuntimeStats`, they can be used for incident response and change management decisions.
 
+The `args_preview` field of agent-side `tool_approval` and `tool_exec` events is bounded after masking: a preview whose serialized form exceeds the limit (1500 characters) is replaced by an object holding a `preview` string cut to that limit and a boolean `truncated` key set to true. Treat a row carrying `truncated: true` as structurally reduced; the marker is distinct from the masked string value. Rows within the limit are unchanged, and MCP-side audit records are not bounded by this rule.
+
 ### OTel Tracing
 
 The OTel SDK is treated as an optional dependency; the agent always falls back to a NoOp implementation so it can start even in environments where it is not installed. A global `TracerProvider` is intentionally not configured to allow multiple tracer instances to coexist within a process and to prevent contamination between tests.
