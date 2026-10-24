@@ -104,6 +104,14 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # documented; base size was already 38 bytes under MAX_SIZE, so this necessary content
     # pushes it over. The ceiling equals the accepted size, so further growth fails.
     "adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md": 24726,
+    # The generated agent-class reference table was already 24961 bytes (2026-10-24), over
+    # MAX_SIZE before any new plan touched it. `plans/20261023-072425_plan.md` REQ-005
+    # regenerates it with a longer `mask_args` summary row, which lands at 24972 bytes. The
+    # owner accepted this ceiling instead of splitting the generated document or raising
+    # MAX_SIZE. It equals that accepted size, so any further growth (a longer docstring first
+    # line, or a new module row from a later plan) fails here and must be re-accepted rather
+    # than absorbed silently.
+    "agent_13_reference-api-generated.md": 24972,
 }
 
 
