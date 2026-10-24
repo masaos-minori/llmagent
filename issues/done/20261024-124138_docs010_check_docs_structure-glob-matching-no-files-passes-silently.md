@@ -111,3 +111,18 @@ same change so `check_tool_descriptions.py` stays consistent.
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261024-124138
 - **Related target files**: `tools/check_docs_structure.py`, `tests/tools/test_check_docs_structure.py`, `tools/TOOL_DESCRIPTIONS.md`
+
+## Verification and Plan Record (2026-10-24)
+
+### Adversarial verification results
+- Reproduced core claim: `uv run python tools/check_docs_structure.py "23_agent/agent_13_*.md"` -> exit 0, `All checks passed` (0 files matched).
+- Glob counts measured: `23_agent/agent_13_*.md` -> 0; `docs/03_tools/tool_07_*.md` -> 1; `docs/18_knowledge/knowledge_06_*.md` -> 172; `docs/**/*.md` -> 172.
+- CI invokes the tool only with `docs/**/*.md` (`.github/workflows/governance-docs-consistency.yml` lines 89, 95); the gate row in `tools/run_validation_gates.py` carries a `[glob ...]` placeholder, is classified `Not available`, and is never auto-invoked.
+- Disconfirmed: the claim "no `docs/` chapter describes this checker" is false. `docs/00_governance/governance_04_documentation-checks.md` §8 documents its checks and usage, so it becomes a 4th plan target file (Path B).
+- Corrected: AC-4 names `tools/check_tool_descriptions.py`; the actual tool is `tools/check_tool_descriptions_sync.py`.
+- Import graph (grimp): no `tools/` module imports `check_docs_structure.py`; it imports only `tools._front_matter_schema`; its only Python importer is `tests/tools/test_check_docs_structure.py`.
+- Churn (30 days): `check_docs_structure.py` 23, test file 12, `TOOL_DESCRIPTIONS.md` 66, `governance_04` 63 commits; single author on all four.
+
+### Plan
+- Plan: `plans/20261024-214856_check_docs_structure-glob-matching-no-files-passes-silently.md` (Implementation Target Files: Frozen, all rows Verified; `check_workitem_structure.py` and `check_plan_target_overlaps.py`: no findings).
+- Key decision (UNK-01 closed): partial no-match gets the same failure treatment as all-no-match (non-zero exit, message names the unmatched glob). CI safety confirmed: no zero-match glob exists in the current tree under `docs/**/*.md`.
