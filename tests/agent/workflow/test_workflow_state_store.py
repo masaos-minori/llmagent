@@ -8,6 +8,7 @@ from __future__ import annotations
 import sqlite3
 import threading
 import time
+import uuid
 from pathlib import Path
 from unittest.mock import patch
 
@@ -17,6 +18,7 @@ from agent.workflow.attempt_ops import count_attempts, finish_attempt, start_att
 from agent.workflow.idempotency_ops import begin_stage_if_new, is_event_processed
 from agent.workflow.task_ops import (
     create_task,
+    get_task_by_id,
     get_task_by_idempotency_key,
     update_task_status,
 )
@@ -70,16 +72,20 @@ class TestCreateTask:
         assert task.turn_number == 1
         assert task.workflow_version == "1.0.0"
         assert task.status == "pending"
-        assert task.idempotency_key == "sess1:1"
+        assert uuid.UUID(task.idempotency_key)  # UUID4, not a composite
+        assert task.idempotency_key != "sess1:1"
 
-    def test_idempotency_key_unique(self, store) -> None:
-        create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
-        with pytest.raises(sqlite3.IntegrityError):
-            create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+    def test_same_session_turn_across_runs_no_collision(self, store) -> None:
+        """T-1 / AC-1: two simulated runs with the same (session, turn) must not collide."""
+        t1 = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        t2 = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
+        assert t1.idempotency_key != t2.idempotency_key
+        assert uuid.UUID(t1.idempotency_key)
+        assert uuid.UUID(t2.idempotency_key)
 
     def test_get_by_idempotency_key(self, store) -> None:
         original = create_task(store._db, "sess2", 5, "1.0.0", "wf-test")
-        found = get_task_by_idempotency_key(store._db, "sess2:5")
+        found = get_task_by_idempotency_key(store._db, original.idempotency_key)
         assert found is not None
         assert found.task_id == original.task_id
 
@@ -92,12 +98,28 @@ class TestCreateTask:
         assert task.turn_number is None
         assert task.status == "pending"
 
+    def test_retained_db_compatibility(self, store) -> None:
+        """T-3 / AC-4: a pre-existing composite-key row stays readable after a normal insert."""
+        old_key = ":0"
+        store._db.execute(
+            "INSERT INTO tasks (task_id, session_id, turn_number, idempotency_key, status, workflow_version, workflow_id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            ("old-task", "sess-old", 0, old_key, "pending", "1.0.0", "wf-old"),
+        )
+        store._db.commit()
+        fresh = create_task(store._db, "sess-new", 1, "1.0.0", "wf-new")
+        old_row = get_task_by_idempotency_key(store._db, old_key)
+        assert old_row is not None
+        assert old_row.task_id == "old-task"
+        fresh_row = get_task_by_id(store._db, fresh.task_id)
+        assert fresh_row is not None
+        assert fresh_row.task_id == fresh.task_id
+
 
 class TestUpdateTaskStatus:
     def test_update_status(self, store) -> None:
         task = create_task(store._db, "sess1", 1, "1.0.0", "wf-test")
         update_task_status(store._db, task.task_id, "running")
-        found = get_task_by_idempotency_key(store._db, "sess1:1")
+        found = get_task_by_idempotency_key(store._db, task.idempotency_key)
         assert found is not None
         assert found.status == "running"
 

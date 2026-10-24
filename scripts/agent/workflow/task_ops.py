@@ -17,11 +17,17 @@ def create_task(
     workflow_version: str,
     workflow_id: str,
 ) -> TaskRecord:
-    """Create a new task record."""
-    if session_id is not None and turn_number is not None:
-        idempotency_key = f"{session_id}:{turn_number}"
-    else:
-        idempotency_key = str(uuid.uuid4())
+    """Create a new task record.
+
+    The `idempotency_key` is a globally unique opaque identifier (UUID4) generated here
+    for this task row; it is never derived from caller-supplied fields. `session_id` and
+    `turn_number` are recorded metadata only; `turn_number` is a process-local counter
+    (`agent/conversation_state_manager.py`, incremented in `append_user_message`) and is
+    not part of task identity. The `tasks.idempotency_key` UNIQUE constraint therefore
+    stays inert (a backstop against a future key-derivation regression), and resume across
+    a retained `workflow.sqlite` uses `task_id`, not this key.
+    """
+    idempotency_key = str(uuid.uuid4())
     task_id = str(uuid.uuid4())
     now = _now()
     db.execute(
