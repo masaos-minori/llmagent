@@ -39,9 +39,19 @@ below omit the prefix for brevity. Use mirrored test paths (`tests/<package>/tes
 
 ### Tool availability and fallbacks
 
-Several tools are optional and absent on some hosts (at the time of writing `lnav`, `multitail`,
-`strace`, `py-spy`, `http` (httpie), and `tox` were not installed on this host; `jq` and `sqlite3`
-were). Check with `command -v <tool>` before relying on one. If it is missing, apply
+Tools come in two kinds, and the availability check differs (checking the wrong way gives a
+false "missing"):
+
+- **Python-package tools** (`viztracer`, `py-spy`, `mitmproxy`, `http` from httpie, `tox`,
+  `pyright`, `ipdb`, `aiomonitor`, ...) are installed in the project environment, not on PATH.
+  Run them as `uv run <tool> ...` and check with `uv run <tool> --version`. Libraries without a
+  command (`aiomonitor`, `ipdb`, `rich`, `stackprinter`) are checked by importing them:
+  `uv run python -c "import aiomonitor"`. On this host, `viztracer`, `py-spy`, `mitmproxy`, `http`,
+  and `tox` run under `uv run` although `command -v` finds none of them.
+- **System tools** (`strace`, `lnav`, `multitail`, `jq`, `sqlite3`, `rg`) are checked with
+  `command -v <tool>`; they may be absent.
+
+Re-check on each host rather than trusting this list. If the correct check fails, apply
 `skills/DESIGN.md` Tool availability guard and use the fallback, recording the check as
 `Needs confirmation` when the fallback gives weaker evidence:
 
@@ -55,6 +65,9 @@ were). Check with `command -v <tool>` before relying on one. If it is missing, a
 | `httpie` (`http`) | `curl` (or `uv run python -c` with `httpx`) |
 | `tox` | `uv run pytest` directly |
 | `aiomonitor` | `PYTHONASYNCIODEBUG=1`, `asyncio.all_tasks()` dump from a test, `faulthandler` |
+
+`py-spy --pid` and `strace -p` additionally need ptrace permission on the target process; a
+permission error is an observation to record, not a reason to escalate privileges.
 
 ---
 
@@ -91,7 +104,21 @@ tail -3 /opt/llm/logs/agent.log
 `agent.log` is text by default: `YYYY-MM-DD HH:MM:SS,mmm LEVEL [function] message`
 (`scripts/shared/logger.py`). It is JSON-lines (keys `ts`, `level`, `func`, `msg`, plus
 `session_id`, `turn_id`, ... when set) only when the agent's `structured_log` setting is on.
-`structlog` is not used for these logs. Pick the matching block below. Use `lnav` only when
+`structlog` is not used for these logs. Pick the matching block below. Besides `agent.log`,
+`/opt/llm/logs/` holds other logs the failure may have left traces in (list them with
+`ls /opt/llm/logs/`): `audit.log` (turn-level events, JSON-lines), the per-service MCP logs
+(`<server>-mcp.log`), and the ingestion logs (`ingest.log`, `chunk.log`, `crawl.log`). Pick the
+log of the component that failed, not only `agent.log`.
+
+Rules for reading and quoting logs:
+
+- Tracebacks span several lines, and a one-line `rg " ERROR "` returns only the first. Add
+  context: `rg -A 15 " ERROR "` (or `-B 2 -A 15` around the match).
+- Rotation is not documented here. Prefer a time window (`rg "^<date> <hour>:"`) over a fixed
+  `tail -N`, and confirm the log covers the failure time (the first line's date).
+- Logs can contain secrets (tokens, authorization headers, production values). Before quoting a
+  snippet in the report, replace each secret with `<redacted>` (`skills/DESIGN.md` No secrets in
+  output); keep the rest of the text exact. Use `lnav` only when
 plain filtering cannot narrow the window (e.g. correlating across log files by time). Use
 `multitail` only when several services must be watched live as the failure reproduces (not for
 a historical failure). Use `sentry-sdk` only if the project already configures a DSN — it
@@ -100,7 +127,7 @@ captures future occurrences; it does not analyze a failure that already produced
 #### Text format (default): rg / grep
 
 ```bash
-tail -2000 /opt/llm/logs/agent.log | rg " (ERROR|WARNING) "
+tail -2000 /opt/llm/logs/agent.log | rg -A 15 " (ERROR|WARNING) "       # -A 15: keep multi-line tracebacks
 tail -2000 /opt/llm/logs/agent.log | rg "tool_called"
 tail -2000 /opt/llm/logs/agent.log | rg "<session id>"
 tail -2000 /opt/llm/logs/agent.log | awk '{print $3, $4}' | sort | uniq -c | sort -rn | head   # level + function
@@ -155,16 +182,16 @@ and none did.
 | Axis | Classification | Implication |
 |---|---|---|
 | Reproducibility | **Deterministic** | Reproduce with fixed pytest case; use `ipdb` / `viztracer` |
-| Reproducibility | **Intermittent** | Run with `--reruns 10`; check races, asyncio scheduling, TTL edge cases |
+| Reproducibility | **Intermittent** | Measure the failure rate by looping the command without `--reruns` (Phase 6b; `--reruns` can hide it); check races, asyncio scheduling, TTL edge cases |
 | Execution model | **Sync** | `ipdb`, `stackprinter`, `py-spy` (or the fallback) |
 | Execution model | **Async** | `PYTHONASYNCIODEBUG=1`, `aiomonitor` (or the fallback), `asyncio.timeout()` |
-
-The route is chosen from the Reproducibility and Failure domain axes (`SKILL.md` Phase
-routing); the Execution model axis only selects tools inside a phase.
 | Failure domain | **Logic** | Wrong output; `hypothesis` to minimize, `ipdb` to trace |
 | Failure domain | **I/O** | File/DB/socket errors; `strace`, `sqlite3` CLI, `httpie` |
 | Failure domain | **Network** | MCP/LLM failures; `mitmproxy`, `respx`, service health check |
 | Failure domain | **Performance** | Latency/memory; `py-spy`, `viztracer`, `tracemalloc` |
+
+The route is chosen from the Reproducibility and Failure domain axes (`SKILL.md` Phase
+routing); the Execution model axis only selects tools inside a phase.
 
 ---
 
@@ -184,21 +211,38 @@ PYTHONPATH=scripts uv run pytest tests/<package>/test_<module>.py -v
 
 Run the one failing test first; run a wider set only to confirm scope.
 
-#### tox (only if installed — `command -v tox`)
+#### tox (only if available — `uv run tox --version`)
 
 ```bash
-tox -e tests
-tox --recreate -e tests
+uv run tox -e tests
+uv run tox --recreate -e tests
 ```
 
-If `tox` is missing, use `uv run pytest` directly (see Tool availability and fallbacks).
+If `tox` does not run under `uv run`, use `uv run pytest` directly (see Tool availability and fallbacks).
+
+#### Running the agent itself (needs confirmation)
+
+Starting `python -m agent` — alone, behind `mitmproxy`, or under `viztracer`/`strace` — is not an
+isolated reproduction even when launched from the working tree: the repository configuration
+points at `/opt/llm`, so the process would use the production session database, write the
+production logs, and start MCP servers on the configured ports (which may already be in use). The
+test suite avoids this with a temporary root that holds a copy of `config/` and `schemas/` with
+the state paths rewritten, and the environment variables `LLMAGENT_CONFIG_DIR`,
+`EVENTBUS_CONFIG_PATH`, `EVENTBUS_SCHEMA_PATH`, and `LLMAGENT_LOG_DIR` (see the header of
+`tests/conftest.py`). The repository does not document that setup as a supported way to launch the
+agent, so an isolated launch is unverified. Therefore:
+
+1. Prefer reproducing in a test that builds the real component under the test-suite isolation.
+2. Launch the agent only when the user confirms, states which of the production side effects above
+   are acceptable, and (if they want isolation) provides or approves the redirected configuration;
+   record the launch as `Needs confirmation` about isolation.
 
 #### mitmproxy (needs confirmation — it changes how the agent connects)
 
-Run the agent from the working tree, not the production copy, and only after the user confirms:
+Only after the user confirms (and only with a confirmed agent launch, above):
 
 ```bash
-mitmproxy --listen-port 8080
+uv run mitmproxy --listen-port 8080
 HTTP_PROXY=http://localhost:8080 HTTPS_PROXY=http://localhost:8080 \
   PYTHONPATH=scripts uv run python -m agent
 ```
@@ -210,9 +254,14 @@ Prefer a `respx`-based capture in a test (no proxy, no live traffic) when the hy
 Use read-only requests against a live server:
 
 ```bash
-http GET http://127.0.0.1:<PORT>/health Accept:application/json     # or: curl -s http://127.0.0.1:<PORT>/health
-http GET http://127.0.0.1:<PORT>/v1/tools                          # tool list, read-only
+uv run http GET http://127.0.0.1:<PORT>/health Accept:application/json     # or: curl -s http://127.0.0.1:<PORT>/health
+uv run http GET http://127.0.0.1:<PORT>/v1/tools                          # tool list, read-only
 ```
+
+The agent expects MCP authentication tokens (`MCP_*_AUTH_TOKEN`, see `deploy/start_agent.sh`), so a
+server may answer `401`/`403` to these requests. Record such a response as an observation (it can
+be the failure itself); never read the token from the environment into the report or add it to a
+command line you quote.
 
 `POST /v1/call_tool` (body `{"name": "<tool>", "args": {...}}`; the field is `name`, not
 `tool_name`) can execute a tool and change state. MUST NOT send it to a running service without
@@ -250,28 +299,37 @@ If the agent REPL is running, use the built-in probe (probes `/health` and `/v1/
 
 Select the tool(s) using Phase 3's classification table (Execution model / Failure
 domain columns) — MUST NOT try tools in the order listed below without that basis. Check each
-tool with `command -v` first and use the fallback table when it is missing.
+tool first with the check that matches its kind (Tool availability and fallbacks: `uv run <tool>
+--version` for Python-package tools, `command -v` for system tools) and use the fallback table
+when the right check fails.
 
 Attaching to a running process (`py-spy --pid`, `strace -p`, `aiomonitor`) needs the user's
-confirmation (`SKILL.md` Production Safety); prefer starting a fresh process from the working
-tree under the tool. The agent entry point is `PYTHONPATH=scripts uv run python -m agent`
-(`scripts/agent/__main__.py`); there is no `scripts/agent.py`.
+confirmation (`SKILL.md` Production Safety). Starting a fresh agent process under a tool is not a
+safe alternative: it needs the confirmation and caveats in Phase 4 "Running the agent itself". The
+agent entry point is `PYTHONPATH=scripts uv run python -m agent` (`scripts/agent/__main__.py`);
+there is no `scripts/agent.py`. Prefer profiling or tracing the suspect component inside a test
+under the test-suite isolation (for example `uv run viztracer -m pytest <test path>`, or
+`cProfile` around the call).
 
 #### viztracer
 
 ```bash
-PYTHONPATH=scripts uv run viztracer -m agent
+uv run viztracer -m pytest tests/<package>/test_<module>.py -x -q              # preferred: inside a test
+# only with a confirmed agent launch (Phase 4):
 PYTHONPATH=scripts uv run viztracer --ignore_frozen --include_files scripts/ -m agent
-vizviewer result.json
+uv run vizviewer result.json
 ```
 
 #### py-spy
 
 ```bash
-py-spy top --pid <PID>
-py-spy record -o profile.svg --pid <PID> --duration 30
-py-spy dump --pid <PID>
+uv run py-spy top --pid <PID>
+uv run py-spy record -o profile.svg --pid <PID> --duration 30
+uv run py-spy dump --pid <PID>
 ```
+
+(Attaching to `<PID>` needs confirmation and ptrace permission; for a test process you started
+yourself, `uv run py-spy record -- uv run pytest <test path>` needs no attach.)
 
 #### OpenTelemetry
 
@@ -286,11 +344,12 @@ setting in a local run, or in a test construct a tracer with `build_tracer` and 
 
 ```bash
 strace -p <PID> -e trace=openat,read,write,connect 2>&1 | head -100
-PYTHONPATH=scripts strace -e trace=network uv run python -m agent 2>&1 | grep -v ENOENT
-PYTHONPATH=scripts strace -e trace=openat uv run python -m agent 2>&1 | grep '/opt/llm'
+strace -f -e trace=network uv run pytest tests/<package>/test_<module>.py -x -q 2>&1 | grep -v ENOENT
+strace -f -e trace=openat uv run pytest tests/<package>/test_<module>.py -x -q 2>&1 | grep '/opt/llm'
 ```
 
-(`strace` may be absent; use the fallback table.)
+(`strace` may be absent; use the fallback table. The last command is also a check that a test does
+not open production paths. Tracing `python -m agent` itself needs the Phase 4 confirmation.)
 
 #### tracemalloc
 
@@ -453,6 +512,14 @@ The test command must exit non-zero only on the target failure (a test that fail
 reason at an older commit misdirects the search); test isolation (Phase 4) applies inside the
 worktree too.
 
+The worktree has no `.venv` (it is git-ignored), so run `uv sync --dev` inside it once before
+`git bisect run`. `uv run` re-syncs the environment when `uv.lock` differs between the commits
+being tested; that is slow and can fail for reasons unrelated to the bug. If the bisect range
+crosses a dependency change, either test with a fixed environment (reuse one `uv sync`ed
+environment and skip re-sync with `uv run --frozen`/`--no-sync`) or treat a failure at those
+commits as inconclusive rather than "bad" (these `uv` behaviors are not verified here; confirm with
+`uv run --help` first).
+
 #### Log time window
 
 ```bash
@@ -536,8 +603,9 @@ user declined; record that as residual uncertainty).
 ### Phase 9c: Remove debug artifacts
 
 Before committing, remove every debug artifact listed in `rules/coding.md` Prohibited
-behavior (`import ipdb`/`ipdb.set_trace()` calls, temporary `structlog` debug calls,
-`viztracer`/`tracemalloc` instrumentation, Sentry DSN).
+behavior (`import ipdb`/`ipdb.set_trace()` calls, temporary debug logging or `print` calls,
+`viztracer`/`tracemalloc`/`aiomonitor` instrumentation, Sentry DSN). Also delete generated trace
+output you wrote (`result.json`, `profile.svg`) if it is inside the repository.
 
 **Completed when**: `git diff` shows none of those artifacts remain.
 
@@ -555,9 +623,10 @@ cycle ended in a `Blocked` state per Phase 6b or Phase 9a's own stop condition.
 - every `Inconclusive` hypothesis and every unavailable-tool check is stated as residual uncertainty
 - fix applied or proposed with justification
 - failing test added or adjusted to cover the defect
-- full pytest suite passes
-- services restarted if production code changed
+- the wider suite (`uv run pytest -m "not integration"`) and the targeted test pass, and the project gates pass or each unrelated failure is recorded
+- services restarted if production code changed and the user confirmed; if the user declined or no production code changed, say so (not an unmet item)
 - debug artifacts removed
+- every quoted log, request, or output snippet has its secrets redacted
 - residual uncertainty stated explicitly
 
 ---
@@ -579,8 +648,9 @@ Populate every item from what earlier Phases recorded — MUST NOT re-derive or 
 
 ## Prohibited behavior
 
-- MUST NOT claim certainty without evidence
+The rules stated in `SKILL.md` Core Debugging Rules (evidence, observations vs assumptions,
+production safety, secrets) apply throughout. Additionally:
+
 - MUST NOT skip reproduction analysis when feasible
 - MUST NOT apply multiple speculative fixes at once
-- MUST NOT mix observations and assumptions without labeling them
 - MUST NOT hide uncertainty

@@ -20,9 +20,9 @@ Investigate Python failures systematically; reproduce with evidence; separate ob
 
 ## Core Debugging Rules (Strictly Enforced for AI)
 
-- **No Tool Hallucination**: applies to every optional tool in `workflow.md` Toolchain (`lnav`, `multitail`, `strace`, `py-spy`, `viztracer`, `mitmproxy`, `httpie`, `tox`, `aiomonitor`, ...), several of which are not installed on every host (check with `command -v <tool>`) — see `skills/DESIGN.md` Tool availability guard. Use the fallback in `workflow.md` Toolchain and record the check as `Needs confirmation` when no fallback gives equal evidence.
-- **Evidence-Driven**: Every bug report MUST be backed by an actual log snippet, stack trace, or test failure output. MUST NOT assume the cause without copying the exact error message.
-- **Production Safety (read-only by default)**: the observation tools run against a host whose configuration points at `/opt/llm`. Reading logs and files is allowed. The following need the user's explicit confirmation before they run, and an isolated alternative is preferred: attaching to a running process (`strace -p`, `py-spy --pid`, `aiomonitor`), routing the agent through a proxy (`mitmproxy`), any request that can execute a tool or write state (`POST /v1/call_tool`), `git bisect` in the working tree, restarting a service, and running the test suite before the production-isolation check (`python-test-and-fix` Core rules). A confirmation covers the one action named, not later ones.
+- **No Tool Hallucination**: applies to every optional tool in `workflow.md` Toolchain (`lnav`, `multitail`, `strace`, `py-spy`, `viztracer`, `mitmproxy`, `httpie`, `tox`, `aiomonitor`, ...) — see `skills/DESIGN.md` Tool availability guard. Check availability by how the tool is installed, not by a fixed list: Python-package tools (`viztracer`, `py-spy`, `mitmproxy`, `http`, `tox`, `pyright`, ...) live in the project environment and are not on PATH, so test them with `uv run <tool> --version`; system tools (`strace`, `lnav`, `multitail`) with `command -v <tool>`. A `command -v` miss on a Python-package tool does NOT mean it is missing. Use the fallback in `workflow.md` Toolchain only when the right check fails, and record the check as `Needs confirmation` when the fallback gives weaker evidence.
+- **Evidence-Driven**: Every bug report MUST be backed by an actual log snippet, stack trace, or test failure output. MUST NOT assume the cause without copying the exact error message — after redacting secrets: production logs and requests can contain tokens, authorization headers, and production values, so apply `skills/DESIGN.md` No secrets in output to every quoted snippet (replace the secret with a marker such as `<redacted>`; the surrounding exact text stays).
+- **Production Safety (read-only by default)**: the observation tools run against a host whose configuration points at `/opt/llm`. Reading logs and files is allowed. The following need the user's explicit confirmation before they run, and an isolated alternative is preferred: attaching to a running process (`strace -p`, `py-spy --pid`, `aiomonitor`), routing the agent through a proxy (`mitmproxy`), starting the agent itself (`python -m agent`, including under `viztracer`/`strace`; from the working tree it still uses the `/opt/llm` configuration, so it writes to the production session database and logs and starts MCP servers on the configured ports), any request that can execute a tool or write state (`POST /v1/call_tool`), `git bisect` in the working tree, restarting a service, and running the test suite before the production-isolation check (`python-test-and-fix` Core rules). A confirmation covers the one action named, not later ones.
 
 ---
 
@@ -54,6 +54,7 @@ axis does not change the route; it selects the tools within a phase (`workflow.m
   - Phase 6 is not skipped: Phase 8's failing test needs a stated hypothesis (for a performance bug, a bound such as a time or allocation budget).
 - **Intermittent**: 1 → 2 → 3 → 4 → 6 (repeated runs/freezegun) → 7 (bisect) → 8 → 9
   - *Skip*: 5 unless the hypotheses need a trace (then run only the one tool the hypothesis names)
+  - When the intermittent failure is **a test's own** (a test that sometimes fails in the suite), do not duplicate its procedure here: hand the flaky-detection steps (seed and order runs, rate measurement, ordering dependencies) to `python-test-and-fix` Path D, and use this route for intermittent failures of the running system or of code under test (races, timeouts, external state) once the test is known to be stable.
 - **Deterministic × Logic**: 1 → 2 → 3 → 4 → 6 (hypothesis/ipdb) → 8 → 9
   - *Skip*: 5 (viztracer/strace); 7 (bisect) unless Phase 2 or Phase 4 points to a recent change — then run it
 - **Deterministic × I/O**: 1 → 2 → 3 → 4 (sqlite3/httpie) → 5 (strace or the fallback) → 6 (a short table of the I/O hypotheses) → 8 → 9
@@ -87,7 +88,8 @@ See `workflow.md` for phase details; `rules/env.md` for service ports and status
 
 ## Composes with
 
-- `python-test-and-fix` — Phase 8 (Minimal Fix) delegates test writing and fix validation.
+- `python-test-and-fix` — Phase 8 (Minimal Fix) delegates test writing and fix validation; its Path D handles an intermittent failure of a test itself.
+- `git-commit-and-sync` — to commit and push the fix on request; this skill never stages or commits on its own.
 - `python-implementation` — If the root cause requires a feature-level code change.
 - `python-refactoring` — If the root cause is a structural issue (Phase 8).
 - `python-lint-typecheck` — If Phase 9's `ruff`/`mypy` gates fail for reasons the fix caused.
