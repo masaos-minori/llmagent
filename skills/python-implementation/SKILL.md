@@ -22,7 +22,8 @@ Use this skill by default for production Python work.
 
 - documentation-only or configuration-only work with no code change
 - structural refactoring with no behavior change — see `routing.md` Task → skill
-  mapping (Refactor / rename / CST row)
+  mapping (Refactor / rename / CST row); if Phase 1 classifies the task that way, stop
+  and hand it to `python-refactoring`
 
 ---
 
@@ -30,18 +31,18 @@ Use this skill by default for production Python work.
 
 | Phase | Name | Goal |
 |---|---|---|
-| 1 | Task Classification | task type; interface / runtime / security impact |
-| 2 | Repository Intelligence | modules, entry points, tests, downstream dependencies |
+| 1 | Task Classification | task type (structural-only refactors go to `python-refactoring`); interface / runtime / security impact |
+| 2 | Repository Intelligence | modules, entry points, tests, downstream dependencies, blast radius (`rules/toolchain.md` Impact-radius check) |
 | 3 | Architecture Boundary Analysis | layer boundaries, dependency direction violations |
-| 4 | Convention Extraction | naming, typing (PEP 484/526), error handling, test style |
-| 5 | Semantic Safe Modification | smallest change (see `workflow.md` Phase 5 Step 5c "keep diffs small and intentional"); preserve unrelated behavior; apply modern Python features |
-| 6 | Runtime Contract Validation | request/response contracts, MCP endpoint compatibility (MCP changes only) |
-| 7 | Observability Injection | structured logging (using `logging` framework) / tracing (skip unless project pattern exists) |
-| 8 | Security Validation | Apply `skills/DESIGN.md` Pythonic safety constraints (dynamic execution); also check SQL injection, unvalidated serialization |
-| 9 | Validation Orchestration | Run validation tools: `pytest`, `ruff check`, `mypy`/`pyright`; run `python tools/check_compat_shims.py` to detect backward compatibility leftovers; separate task-caused from pre-existing failures |
+| 4 | Convention Extraction | naming, typing (PEP 484/526), error handling, logging helpers, test style |
+| 5 | Semantic Safe Modification | smallest change (see `workflow.md` Phase 5 Step 5c "keep diffs small and intentional"); preserve unrelated behavior; Step 5e adds the tests for the change (delegated to `python-test-and-fix`) |
+| 6 | Runtime Contract Validation | request/response contracts, MCP endpoint compatibility (MCP changes only; isolated instance only, never a live service) |
+| 7 | Observability Injection | structured logging via the repository's `fmt_kvlog` helper and `logging`; tracing only through the existing optional `shared/otel_tracer.py` (skip unless the task needs it) |
+| 8 | Security Validation | Apply `skills/DESIGN.md` Pythonic safety constraints (dynamic execution); `bandit`; manual check of SQL string building and unvalidated deserialization where `bandit` cannot see |
+| 9 | Validation Orchestration | After the production-isolation check, run `pytest`, `ruff check`, `mypy`/`pyright`, `lint-imports`, the project gates (`tools/run_validation_gates.py`), `tools/check_compat_shims.py`, and `pre-commit`; separate task-caused from pre-existing failures |
 | 10 | Scope Control | diff proportional to task; Per `rules/toolchain.md` §7 (Diff-scoped coverage); benchmark only on hot paths |
 | 11 | Production Readiness | Apply `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug artifacts); strict typing; docstrings updated for non-obvious or public-facing APIs only (PEP 257) |
-| 12 | Knowledge Compression | routing.md, docs/, deploy.sh updated |
+| 12 | Knowledge Compression | report documentation needs; edit docs only when the task requires it or the user asks (then via `python-documentation` and the docs checkers) |
 
 See `workflow.md` for phase details, commands, and tools.
 
@@ -50,14 +51,14 @@ See `workflow.md` for phase details, commands, and tools.
 ## Fast path
 
 Use only for small, self-contained bug fixes satisfying ALL of:
-- ≤ 2 files changed
+- ≤ 2 source files changed (a reproducing test does not count)
 - no public or runtime-facing interface change
-- no architecture boundary change
+- no architecture boundary change: no import statement added, removed, or moved (this is checkable without Phase 3; if any import changes, leave the Fast path and run Phase 3)
 - no MCP endpoint change
 - no performance benchmarking needed
 
-Run phases: 1 → 2 → 4 → 5 → 8 → 9 → 11 → 12. Skip 3, 6, 7, 10 benchmark.
-Even in Fast path, passing `ruff` and `mypy/pyright` in Phase 9 is mandatory.
+Run phases: 1 → 2 → 4 → 5 (including Step 5e, the reproducing test) → 8 → 9 → 10 (diff-cover only, no benchmark) → 11 → 12. Skip 3, 6, 7, and Phase 10's benchmark.
+Even in Fast path, passing `ruff`, `mypy/pyright`, and the tests in Phase 9 is mandatory, as is the Phase 10 diff-cover threshold.
 
 ---
 
@@ -72,7 +73,12 @@ Even in Fast path, passing `ruff` and `mypy/pyright` in Phase 9 is mandatory.
   uncertainty is a signal to investigate, not approval of any interpretation
 - Extract naming, typing, and error-handling conventions from nearby code (Phase 4); MUST NOT
   assume a convention applies
-- Treat the task as complete only after Phase 9 validation (`pytest`, `ruff`, `mypy`) passes
+- Treat the task as complete only after Phase 9 validation (`pytest`, `ruff`, `mypy`, plus
+  the other Phase 9 gates) passes
+- Compatibility policy: keep the existing public interface working unless the task
+  allows changing it, but do not add compatibility shims, aliases, or dead re-exports to do
+  so — when an interface changes, update every caller in the same change
+  (`tools/check_compat_shims.py` fails on leftovers)
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 
 ### Pythonic Code Quality & Safety Constraints
@@ -94,8 +100,13 @@ apply before moving to Phase 11.
 
 ## Composition rules
 
-- `python-lint-typecheck` — Phase 9 reveals lint/type errors not caused by the task
-- `python-test-and-fix` — Phase 9 reveals test failures not caused by the task
+- `python-lint-typecheck` — Phase 9 reveals lint/type errors (task-caused: fix; pre-existing: record)
+- `python-test-and-fix` — Step 5e writes the tests for the change (bug: Path A; new feature: Path B); also Phase 9 test failures
+- `python-refactoring` — Phase 1 classifies the task as structure-only
+- `python-documentation` — Phase 12 when documentation must change (task requires it or the user asks)
+- `python-code-review` — optional self-review of the diff after Phase 11 when the user asks
+- `mcp-server-add` — Phase 11 when a new MCP server was added
+- `git-commit-and-sync` — to stage, commit, and push on request; this skill never commits on its own
 - `deploy` — after Phase 11 if `scripts/` or `config/` changed
 - `issue-to-plan` — if implementation starts from an approved plan in `plans/`, verify scope against the plan before Phase 5
 - `code-implementation` — calls this skill in its Step 3 (Implement the feature) when executing an approved implementation procedure from `implementations/*.md`; verify scope against that procedure document, not just the Plan, before Phase 5
