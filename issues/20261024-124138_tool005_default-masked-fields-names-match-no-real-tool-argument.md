@@ -144,3 +144,19 @@ in `rules/toolchain.md` because both a dataclass default and a TOML value change
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261024-124138
 - **Related target files**: `scripts/agent/config_dataclasses.py`, `scripts/agent/config_section_builders.py`, `config/agent.toml`, `/opt/llm/config/agent.toml`, `tests/agent/test_config_builders.py`, `docs/23_agent/agent_08_03_configuration-tools-memory.md`
+
+## Verification and Plan Record (2026-10-24)
+
+### Adversarial verification results
+- All three default definitions confirmed: `config_dataclasses.py:182`, `config_section_builders.py:204-205`, `config/agent.toml:98`; the deployed copy `/opt/llm/config/agent.toml:98` verified identical (read 2026-10-24).
+- Real argument names confirmed against `scripts/mcp_servers/file/write_tools.py` as the Issue instruction requires: `content` (`:22`, required `:31`), `old_text`/`new_text` inside `edits` list items (`:55`, `:59`, required `:64`). `file_content` matches no argument key in any registered tool schema (re-verified repo-wide).
+- Context correction: the Issue's Constraint premise is outdated — `mask_args` already masks at any depth (commit `3cdacc601`; `_mask_value` recursion at `tool_result_formatter.py:42-55`), and the nested-masking procedures this Issue depends on are already implemented and archived in `implementations/done/` (`20261024-124138_01..06`). The ordering requirement is already satisfied; no sequencing phase is needed.
+- Pinned-test claim confirmed: `tests/agent/test_config_builders.py:155` pins `["file_content"]`; all other test fixtures override `masked_fields` explicitly (`tests/integration/test_agent_integration.py:38`, approval tests use `["secret"]`); `tests/agent/commands/test_cmd_config_char.py` snapshot assertions are substring matches and pass unchanged (verified 2026-10-24).
+- Disconfirmed: `docs/23_agent/agent_08_03...md:32` is not the only prose mention — `docs/23_agent/agent_13_reference-api-generated.md:184` names the `mask_args` parameter in a generated API table; signature unchanged, no edit needed there.
+- Corrected: AC-4 names `tools/check_config_keys.py` and `tools/check_config_defaults.py`, which do not exist in this repository (verified by `tools/` listing and repo-wide `find`). Substituted gates in the Plan: `tools/check_docs_consistency.py --domain agent`, the config test suite, and the full `rules/toolchain.md` sequence.
+- Churn re-measured: `agent_08_03` shows 18 commits/30d (Issue cites 17, from `docs/00_index.md:325`).
+- Deployed-copy constraint preserved: `/opt/llm/config/agent.toml` is changed only via a confirmation-gated Phase 4 deploy sync, never a direct edit.
+
+### Plan
+- Plan: `plans/20261024-221904_default-masked-fields-names-match-no-real-tool-argument.md` (Path B, 7 target files; Implementation Target Files: Frozen, all rows Verified; `check_workitem_structure.py` and `check_plan_target_overlaps.py`: no findings).
+- Decisions: `file_content` replaced outright, not kept (matches no argument key); `content` masked in logs/audit despite unmasked approval previews (logs/audit-only boundary from the closed Plan; split documented explicitly); new default is exactly `["content", "old_text", "new_text"]`; both code defaults (dataclass factory and builder fallback) changed in lockstep.
