@@ -1,6 +1,8 @@
 """
 tests/test_history_selection_policy.py
-Unit tests for HistorySelectionPolicy — pure classification/sorting logic.
+Unit tests for HistorySelectionPolicy — whole-turn-unit selection: chronological
+whole-unit compression, unit atomicity across the partition boundary, pinned
+protection by unit, and position-based accounting.
 """
 
 from __future__ import annotations
@@ -28,90 +30,98 @@ def _msg(
     return m
 
 
-# ── partition_by_class() ──────────────────────────────────────────────────────
+_TOOL_CALLS = [
+    {"id": "x", "type": "function", "function": {"name": "f", "arguments": "{}"}}
+]
 
 
-class TestPartitionByClass:
-    def test_partitions_all_categories(self) -> None:
+def _index_of(history: list[LLMMessage], msg: LLMMessage) -> int:
+    """Return the input index of msg by identity, not by value.
+
+    Duplicate-content messages compare equal, so list.index() would collapse
+    them; selection asserts on input position, which requires identity.
+    """
+    for i, m in enumerate(history):
+        if m is msg:
+            return i
+    raise ValueError(f"{msg!r} is not in history")
+
+
+# ── group_turn_messages() ──────────────────────────────────────────────────
+
+
+class TestGroupTurnMessages:
+    def test_units_reproduce_their_input(self) -> None:
         msgs = [
-            _msg("tool", "result"),
-            _msg(
-                "assistant",
-                content="planning",
-                tool_calls=[
-                    {
-                        "id": "x",
-                        "type": "function",
-                        "function": {"name": "f", "arguments": "{}"},
-                    }
-                ],
-            ),
-            _msg("system", "You are helpful."),
-            _msg("user", "hello"),
+            _msg("tool", "orphan"),
+            _msg("user", "q1"),
+            _msg("assistant", "a1", tool_calls=_TOOL_CALLS),
+            _msg("tool", "OK: done"),
+            _msg("tool", "OK: done2"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
         ]
-        temporary, temporary_reasoning, factual, history = (
-            HistorySelectionPolicy.partition_by_class(msgs)
-        )
-        assert len(temporary) == 1
-        assert temporary[0]["role"] == "tool"
-        assert len(temporary_reasoning) == 1
-        assert temporary_reasoning[0]["role"] == "assistant"
-        assert len(factual) == 1
-        assert factual[0]["role"] == "system"
-        assert len(history) == 1
-        assert history[0]["role"] == "user"
+        units = HistorySelectionPolicy.group_turn_messages(msgs)
+        assert [m for unit in units for m in unit] == msgs
+        assert [len(u) for u in units] == [1, 4, 2]
 
-    def test_empty_list(self) -> None:
-        temporary, temporary_reasoning, factual, history = (
-            HistorySelectionPolicy.partition_by_class([])
-        )
-        assert temporary == []
-        assert temporary_reasoning == []
-        assert factual == []
-        assert history == []
-
-    def test_all_history(self) -> None:
-        msgs = [_msg("user", "a"), _msg("assistant", "b"), _msg("user", "c")]
-        temporary, temporary_reasoning, factual, history = (
-            HistorySelectionPolicy.partition_by_class(msgs)
-        )
-        assert temporary == []
-        assert temporary_reasoning == []
-        assert factual == []
-        assert len(history) == 3
-
-
-# ── sort_by_importance() ───────────────────────────────────────────────────────
-
-
-class TestSortByImportance:
-    def test_returns_empty_for_empty_input(self) -> None:
-        assert HistorySelectionPolicy.sort_by_importance([]) == []
-
-    def test_sorts_descending_by_importance(self) -> None:
+    def test_unit_absorbs_assistant_and_tool_rows(self) -> None:
         msgs = [
-            _msg("tool", "success result"),  # 0.3
-            _msg("user", "hello"),  # 0.5
-            _msg("system", "You are helpful."),  # 1.0
+            _msg("user", "q1"),
+            _msg("assistant", "a1", tool_calls=_TOOL_CALLS),
+            _msg("tool", "OK: done"),
+            _msg("tool", "OK: done2"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
         ]
-        sorted_msgs = HistorySelectionPolicy.sort_by_importance(msgs)
-        assert sorted_msgs[0]["role"] == "system"
-        assert sorted_msgs[1]["role"] == "user"
-        assert sorted_msgs[2]["role"] == "tool"
+        units = HistorySelectionPolicy.group_turn_messages(msgs)
+        assert [len(u) for u in units] == [4, 2]
 
-    def test_pinned_is_first(self) -> None:
+    def test_leading_non_user_messages_form_a_leading_unit(self) -> None:
         msgs = [
-            _msg("user", "hello"),
-            _msg("user", "important", pinned=True),
+            _msg("tool", "orphan"),
+            _msg("user", "q1"),
+            _msg("assistant", "a1"),
         ]
-        sorted_msgs = HistorySelectionPolicy.sort_by_importance(msgs)
-        assert sorted_msgs[0]["role"] == "user"
-        assert sorted_msgs[0].get("pinned") is True
+        units = HistorySelectionPolicy.group_turn_messages(msgs)
+        assert [len(u) for u in units] == [1, 2]
+        assert units[0][0] is msgs[0]
 
-    def test_preserves_original_messages(self) -> None:
-        msgs = [_msg("user", "a"), _msg("assistant", "b")]
-        sorted_msgs = HistorySelectionPolicy.sort_by_importance(msgs)
-        assert len(sorted_msgs) == 2
+    def test_consecutive_user_messages_open_their_own_units(self) -> None:
+        msgs = [
+            _msg("user", "q1"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
+        ]
+        units = HistorySelectionPolicy.group_turn_messages(msgs)
+        assert [len(u) for u in units] == [1, 2]
+
+
+# ── group_importance() ─────────────────────────────────────────────────────
+
+
+class TestGroupImportance:
+    def test_group_score_is_the_max_member_score(self) -> None:
+        unit = [
+            _msg("assistant", "a1", tool_calls=_TOOL_CALLS),
+            _msg("tool", "OK: done"),
+        ]
+        assert HistorySelectionPolicy.group_importance(unit) == 0.6
+
+    def test_plain_pair_scores_half(self) -> None:
+        unit = [_msg("user", "hello"), _msg("assistant", "hi")]
+        assert HistorySelectionPolicy.group_importance(unit) == 0.5
+
+    def test_explicit_importance_participates_in_the_max(self) -> None:
+        unit = [_msg("user", "x", importance=0.95), _msg("assistant", "y")]
+        assert HistorySelectionPolicy.group_importance(unit) == 0.95
+
+    def test_pinned_member_makes_the_unit_infinite(self) -> None:
+        unit = [_msg("user", "a"), _msg("user", "b", pinned=True)]
+        assert HistorySelectionPolicy.group_importance(unit) == float("inf")
+
+    def test_empty_group_scores_zero(self) -> None:
+        assert HistorySelectionPolicy.group_importance([]) == 0.0
 
 
 # ── select_turns_to_compress() ─────────────────────────────────────────────────
@@ -208,3 +218,170 @@ class TestSelectTurnsToCompress:
         assert memory_msg not in result.to_compress
         assert ephemeral_msg not in result.remaining
         assert memory_msg not in result.remaining
+
+
+# ── chronological whole-unit selection (REQ-002, REQ-004) ──────────────────
+
+_CHRONO = [
+    _msg("user", "q1"),
+    _msg("assistant", "a1"),
+    _msg("user", "q2"),
+    _msg("assistant", "a2"),
+    _msg("user", "You must always follow the rule"),
+    _msg("assistant", "a3"),
+    _msg("user", "q4"),
+    _msg("assistant", "a4"),
+]
+
+
+class TestSelectionIsChronological:
+    def test_oldest_units_are_compressed_first(self) -> None:
+        policy = HistorySelectionPolicy(compress_turns=2, protect_turns=1)
+        result = policy.select_turns_to_compress(_CHRONO)
+        assert result is not None
+        to_compress = [_index_of(_CHRONO, m) for m in result.to_compress]
+        assert to_compress == [0, 1, 2, 3]
+        remaining_idx = [_index_of(_CHRONO, m) for m in result.remaining]
+        assert 4 not in to_compress
+        assert 4 in remaining_idx
+
+    def test_both_partitions_keep_input_index_order(self) -> None:
+        history = [
+            _msg("user", "q1"),
+            _msg("assistant", "a1", tool_calls=_TOOL_CALLS),
+            _msg("tool", "OK: done"),
+            _msg("tool", "OK: done2"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
+        ]
+        policy = HistorySelectionPolicy(compress_turns=2, protect_turns=0)
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        to_compress = [_index_of(history, m) for m in result.to_compress]
+        remaining = [_index_of(history, m) for m in result.remaining]
+        assert to_compress == [0, 1, 2, 3]
+        assert remaining == [4, 5]
+
+    def test_protected_tail_is_the_newest_units(self) -> None:
+        policy = HistorySelectionPolicy(compress_turns=2, protect_turns=1)
+        result = policy.select_turns_to_compress(_CHRONO)
+        assert result is not None
+        remaining = [_index_of(_CHRONO, m) for m in result.remaining]
+        assert remaining == [4, 5, 6, 7]
+
+
+class TestSelectionUnitAtomicity:
+    def test_tool_round_never_splits_across_partitions(self) -> None:
+        history = [
+            _msg("user", "q1"),
+            _msg("assistant", "a1", tool_calls=_TOOL_CALLS),
+            _msg("tool", "OK: done"),
+            _msg("tool", "OK: done2"),
+            _msg("user", "You must always follow the rule"),
+            _msg("assistant", "a2"),
+        ]
+        policy = HistorySelectionPolicy(compress_turns=1, protect_turns=1)
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        to_compress = [_index_of(history, m) for m in result.to_compress]
+        remaining = [_index_of(history, m) for m in result.remaining]
+        assert to_compress == [0, 1, 2, 3]
+        assert remaining == [4, 5]
+        assert all(m["role"] != "tool" for m in result.remaining)
+
+    def test_last_unit_may_overshoot_the_compress_target(self) -> None:
+        history = [
+            _msg("user", "q1"),
+            _msg("assistant", "a1", tool_calls=_TOOL_CALLS),
+            _msg("tool", "OK: done"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
+        ]
+        policy = HistorySelectionPolicy(compress_turns=1, protect_turns=0)
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        assert len(result.to_compress) == 3
+        assert len(result.remaining) == 2
+
+
+class TestPinnedUnitProtection:
+    def test_pinned_unit_stays_in_remaining(self) -> None:
+        history = [
+            _msg("user", "q1", pinned=True),
+            _msg("assistant", "a1"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
+            _msg("user", "q3"),
+            _msg("assistant", "a3"),
+        ]
+        policy = HistorySelectionPolicy(compress_turns=2, protect_turns=0)
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        to_compress = [_index_of(history, m) for m in result.to_compress]
+        remaining = [_index_of(history, m) for m in result.remaining]
+        assert to_compress == [2, 3, 4, 5]
+        assert remaining == [0, 1]
+        assert all(m.get("pinned") is not True for m in result.to_compress)
+
+    def test_returns_none_when_every_candidate_unit_is_pinned(self) -> None:
+        history = [_msg("user", "q1", pinned=True), _msg("assistant", "a1")]
+        policy = HistorySelectionPolicy(compress_turns=1, protect_turns=0)
+        result = policy.select_turns_to_compress(history)
+        assert result is None
+
+
+class TestPositionBasedAccounting:
+    def test_every_message_is_accounted_for(self) -> None:
+        history = [
+            _msg("user", "q1"),
+            _msg("assistant", "a1"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
+            _msg("user", "same"),
+            _msg("assistant", "a3"),
+            _msg("user", "q4"),
+            _msg("assistant", "a4"),
+            _msg("user", "same"),
+            _msg("assistant", "a5"),
+            _msg("user", "q6"),
+            _msg("assistant", "a6"),
+            _msg("user", "q7"),
+            _msg("assistant", "a7"),
+            _msg("user", "q8"),
+            _msg("assistant", "a8"),
+        ]
+        policy = HistorySelectionPolicy(compress_turns=2, protect_turns=2)
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        assert (
+            len(result.system_msgs) + len(result.to_compress) + len(result.remaining)
+            == 16
+        )
+        to_compress = [_index_of(history, m) for m in result.to_compress]
+        remaining = [_index_of(history, m) for m in result.remaining]
+        assert to_compress == [0, 1, 2, 3]
+        assert remaining == list(range(4, 16))
+
+    def test_identical_content_messages_are_both_retained(self) -> None:
+        history = [
+            _msg("user", "q1"),
+            _msg("assistant", "a1"),
+            _msg("user", "q2"),
+            _msg("assistant", "a2"),
+            _msg("user", "same"),
+            _msg("assistant", "a3"),
+            _msg("user", "same"),
+            _msg("assistant", "a4"),
+            _msg("user", "q6"),
+            _msg("assistant", "a5"),
+            _msg("user", "q7"),
+            _msg("assistant", "a6"),
+            _msg("user", "q8"),
+            _msg("assistant", "a7"),
+            _msg("user", "q9"),
+            _msg("assistant", "a8"),
+        ]
+        policy = HistorySelectionPolicy(compress_turns=2, protect_turns=2)
+        result = policy.select_turns_to_compress(history)
+        assert result is not None
+        assert result.remaining.count({"role": "user", "content": "same"}) == 2

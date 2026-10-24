@@ -1,7 +1,11 @@
 #!/usr/bin/env python3
 """scripts/agent/history_selection_policy.py
 
-HistorySelectionPolicy — importance-based compression candidate selection.
+HistorySelectionPolicy — whole-turn-unit compression candidate selection.
+
+Turn units open at each user message and absorb the following assistant and
+tool rows; selection compresses whole oldest units in chronological order and
+never splits a unit. Importance scores only order the fallback path.
 
 Extracted from HistoryManager so the selection logic can be tested and
 configured independently of the HTTP/LLM compression pipeline.
@@ -10,6 +14,7 @@ configured independently of the HTTP/LLM compression pipeline.
 from __future__ import annotations
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 from shared.types import LLMMessage
@@ -42,27 +47,6 @@ class HistorySelectionPolicy:
     # ── Static classification helpers ────────────────────────────────────────
 
     @staticmethod
-    def classify(msg: LLMMessage) -> str:
-        """Classify a message into a compression-priority category.
-
-        Categories (from highest to lowest compression priority):
-          'temporary'          — tool result messages (role='tool'); ephemeral context
-          'temporary_reasoning'— assistant messages containing tool_calls (planning turns)
-          'factual'            — system messages; structural / long-lived context
-          'history'            — regular user/assistant conversation turns
-        """
-        role = msg.get("role", "")
-        match role:
-            case "tool":
-                return "temporary"
-            case "system":
-                return "factual"
-            case "assistant" if msg.get("tool_calls"):
-                return "temporary_reasoning"
-            case _:
-                return "history"
-
-    @staticmethod
     def classify_importance(msg: LLMMessage) -> float:
         """Return importance score 0.0–1.0 (or inf for pinned) for compression priority.
 
@@ -93,30 +77,28 @@ class HistorySelectionPolicy:
         return 0.5
 
     @staticmethod
-    def partition_by_class(
-        turn_msgs: list[LLMMessage],
-    ) -> tuple[
-        list[LLMMessage],
-        list[LLMMessage],
-        list[LLMMessage],
-        list[LLMMessage],
-    ]:
-        """Partition turn messages into (temporary, temporary_reasoning, factual, history)."""
-        classified = [(HistorySelectionPolicy.classify(m), m) for m in turn_msgs]
-        temporary = [m for cls, m in classified if cls == "temporary"]
-        temporary_reasoning = [
-            m for cls, m in classified if cls == "temporary_reasoning"
-        ]
-        factual = [m for cls, m in classified if cls == "factual"]
-        history_msgs = [m for cls, m in classified if cls == "history"]
-        return temporary, temporary_reasoning, factual, history_msgs
+    def group_turn_messages(turn_msgs: Sequence[LLMMessage]) -> list[list[LLMMessage]]:
+        """Split turn messages into chronological turn units.
+
+        A unit opens at a user message and absorbs every assistant and tool message
+        until the next user message. Messages before the first user message form the
+        leading unit, so an orphan tool row is a unit of its own. Concatenating the
+        units reproduces turn_msgs exactly.
+        """
+        units: list[list[LLMMessage]] = []
+        for msg in turn_msgs:
+            if msg.get("role") == "user" or not units:
+                units.append([msg])
+            else:
+                units[-1].append(msg)
+        return units
 
     @staticmethod
-    def sort_by_importance(msgs: list[LLMMessage]) -> list[LLMMessage]:
-        """Return msgs sorted by importance score descending (high = preserve first)."""
-        scored = [(HistorySelectionPolicy.classify_importance(m), m) for m in msgs]
-        scored.sort(key=lambda x: x[0], reverse=True)
-        return [msg for _, msg in scored]
+    def group_importance(unit: Sequence[LLMMessage]) -> float:
+        """Score a turn unit by its most important member."""
+        return max(
+            (HistorySelectionPolicy.classify_importance(m) for m in unit), default=0.0
+        )
 
     def select_turns_to_compress(
         self,
@@ -127,10 +109,10 @@ class HistorySelectionPolicy:
         Returns None when there are not enough turns to compress.
         """
         # All system-role messages (including _ephemeral/_memory_injected ones)
-        # are pulled out here, before classify() ever runs on turn_msgs below.
-        # classify()'s "system" branch is therefore correctly unreachable from
-        # this method — do not wire it in to make ephemeral messages
-        # compressible; they must never be summarized (see
+        # are pulled out here, before any scoring runs on turn_msgs below.
+        # They are never part of a turn unit, so they can never be compressed;
+        # do not wire them in to make ephemeral messages compressible — they
+        # must never be summarized (see
         # requires/20260716_15_require.md).
         system_msgs = [m for m in history if m["role"] == "system"]
         turn_msgs = [m for m in history if m["role"] != "system"]
@@ -139,22 +121,70 @@ class HistorySelectionPolicy:
         if len(turn_msgs) < n_compress + n_protect:
             return None
 
-        temporary, temporary_reasoning, factual, history_msgs = self.partition_by_class(
-            turn_msgs
-        )
-        compressible = self.sort_by_importance(
-            temporary + temporary_reasoning + history_msgs
-        )
-
-        protected_tail = turn_msgs[-n_protect:] if n_protect > 0 else []
-        compressible = [m for m in compressible if m not in protected_tail]
-
-        to_compress = compressible[:n_compress]
-        remaining = [
-            m for m in compressible[n_compress:] if m not in protected_tail
-        ] + protected_tail
-        remaining = factual + remaining
-
+        units = self.group_turn_messages(turn_msgs)
+        protect_from = self._protect_tail_start(units, n_protect)
+        window = self._compressible_window(units, protect_from, n_compress)
+        if not window:
+            return None
+        to_compress, remaining = self._split_units(units, window)
         return SelectionResult(
             system_msgs=system_msgs, to_compress=to_compress, remaining=remaining
         )
+
+    @staticmethod
+    def _protect_tail_start(
+        units: list[list[LLMMessage]],
+        n_protect: int,
+    ) -> int:
+        """Index of the first unit kept in the protected tail.
+
+        Rounds outward from the end, accumulating whole units until
+        ``n_protect`` messages are covered. ``n_protect == 0`` protects nothing.
+        """
+        protect_from = len(units)
+        tail = 0
+        for i in range(len(units) - 1, -1, -1):
+            if tail >= n_protect:
+                break
+            tail += len(units[i])
+            protect_from = i
+        return protect_from
+
+    @staticmethod
+    def _compressible_window(
+        units: list[list[LLMMessage]],
+        protect_from: int,
+        n_compress: int,
+    ) -> list[int]:
+        """Whole-unit indices to compress, oldest first.
+
+        Stops as soon as ``n_compress`` messages are covered (the last unit may
+        overshoot); a unit holding a ``pinned`` message is skipped so it stays in
+        ``remaining``.
+        """
+        window: list[int] = []
+        taken = 0
+        for i in range(protect_from):
+            if taken >= n_compress:
+                break
+            if any(m.get("pinned") for m in units[i]):
+                continue
+            window.append(i)
+            taken += len(units[i])
+        return window
+
+    @staticmethod
+    def _split_units(
+        units: list[list[LLMMessage]],
+        window: list[int],
+    ) -> tuple[list[LLMMessage], list[LLMMessage]]:
+        """Partition units into (compressed, remaining) in chronological order."""
+        wanted = set(window)
+        to_compress: list[LLMMessage] = []
+        remaining: list[LLMMessage] = []
+        for i, unit in enumerate(units):
+            if i in wanted:
+                to_compress.extend(unit)
+            else:
+                remaining.extend(unit)
+        return to_compress, remaining
