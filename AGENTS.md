@@ -104,3 +104,8 @@ destructive operations: deleting one file, `git reset` or `git checkout` against
 Exceptions that require user confirmation: pushing to remote repos, modifying shared
 infrastructure, sending messages to external services, and multi-file/recursive destructive
 commands per Policy above (`rm -rf`, `git clean -fdx`, deleting a directory tree).
+
+Exception to the push confirmation above: the `git-commit-and-sync` skill (Phase 8) pushes
+without a separate approval once its commit, sync, and validation all succeed with no
+conflicts, never with force. A live user instruction not to push, or to confirm first,
+overrides it. No other workflow gains this exemption.

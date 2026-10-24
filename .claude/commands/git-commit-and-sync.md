@@ -2,8 +2,9 @@
 description: |
   Use this skill when managing a complete Git commit and sync workflow.
   Covers: status check, selective staging, conventional commit message creation,
-  fast-forward pull, simple conflict resolution, validation, and push with approval.
-  Forbids destructive commands, history rewrite, force push, and unsafe merge.
+  fetch-based sync (fast-forward or non-interactive rebase onto upstream, aborted and
+  reported on conflict), validation, and automatic push once everything succeeds.
+  Forbids destructive commands, interactive/arbitrary rebase, force push, and unsafe merge.
 ---
 
 Read the following files before starting:

@@ -11,6 +11,8 @@
 | `git add -A` | Stage Files | stage all changes, only when the user explicitly says "all changes" — See `skills/git-commit-and-sync/SKILL.md`, section "Core rules". |
 | `git diff --cached --stat` | Check Staged | verify staged set before commit |
 | `git diff --cached --name-only` | Check Staged | list staged file paths |
+| `git restore --staged <path>` | Stage Files | unstage one unexpected file by explicit path (never `.`) |
+| `uv run python tools/run_validation_gates.py` | Check Staged / Sync | run the gates the change requires (`--base ORIG_HEAD` after a sync) |
 | `git commit -m` | Commit | create conventional commit |
 | `git fetch` | Sync | update remote-tracking refs only; never touches the working tree or current branch |
 | `git rev-parse --abbrev-ref --symbolic-full-name @{u}` | Sync | confirm an upstream branch exists |
@@ -40,10 +42,21 @@ Report:
 - current branch
 - changed files (modified, staged, untracked)
 
+Detect an abnormal state with these checks (any hit means stop):
+
+```bash
+git status                                  # "rebase in progress", "You have unmerged paths", "All conflicts fixed"
+git diff --name-only --diff-filter=U        # unmerged paths remain
+test -e "$(git rev-parse --git-path MERGE_HEAD)" && echo merge-in-progress
+test -e "$(git rev-parse --git-path BISECT_LOG)" && echo bisect-in-progress
+```
+
+An empty `git branch --show-current` means detached HEAD.
+
 Stop if:
 - not a Git repository
-- branch name cannot be determined
-- Git state is unclear (detached HEAD, bisect, rebase in progress)
+- branch name cannot be determined (empty `git branch --show-current`)
+- Git state is unclear (detached HEAD, bisect, merge or rebase in progress, unmerged paths)
 
 ---
 
@@ -67,8 +80,13 @@ produced them: MUST NOT unstage them, and include them in the commit for that cy
 change. `git commit` records the whole index, so check them in Phase 1's status output
 before committing.
 
+A file already staged before this skill started (other than the archival renames above) is
+not part of the chosen set unless the current instruction changed it; Phase 3 reports it as
+a mismatch rather than silently committing it.
+
 **Completed when**: every file the current instruction changed is identified as a path to
-stage (or the `-A` condition applies).
+stage (or the `-A` condition applies). The chosen set is that list plus any pre-staged
+archival renames.
 
 ---
 
@@ -85,10 +103,18 @@ git diff --cached --stat
 git diff --cached --name-only
 ```
 
+Also inspect the staged set for files that must not be committed: secrets and credentials
+(`.env*`, `*.pem`, `*.key`, tokens in the diff), local databases, and unexpectedly large or
+binary files (check `git diff --cached --stat`). A hit is a stop condition — report the path
+and ask; MUST NOT commit it.
+
 **Completed when**: `git diff --cached --name-only`'s output exactly matches the file set
-chosen in Phase 2.
+chosen in Phase 2 (explicit paths plus pre-staged archival renames).
 **Stop and report when**: it does not match (a Phase 2 file is missing from the staged
 list, or an extra file appears) — MUST NOT proceed to Phase 4 with an unexplained mismatch.
+An extra file that this instruction did not change may be removed from the index with an
+explicit path only (`git restore --staged <path>`, never `.`), then re-verify; if the extra
+file is an archival rename or its origin is unclear, stop and ask instead.
 
 ---
 
@@ -98,6 +124,20 @@ If `git diff --cached --name-only` returns no output, stop.
 
 Report:
 - No staged changes found. Nothing to commit.
+
+Pre-commit validation: run the gates the staged change requires, before committing.
+
+```bash
+uv run python tools/run_validation_gates.py
+```
+
+It maps changed files to the checkers in `routing.md` "When to run which tool" and
+`rules/toolchain.md` (fast mode by default; `--full` only when the user asks). It also
+satisfies `AGENTS.md` Global Rule 9 for `docs/` and `tools/` changes. A `Fail` or `Blocked`
+summary is a stop condition; fix the cause (delegating per `SKILL.md` Composition rules),
+re-stage explicit paths, and re-run Phase 3. If the staged change is non-code only (e.g.
+workflow artifacts under `issues/`/`plans/`/`implementations/`) and the tool reports no
+applicable gate, continue.
 
 ---
 
@@ -131,8 +171,21 @@ choice (one combined message, or split into separate commits) once acknowledged.
 Format:
 
 ```
-<type>: <summary>
+<type>[(<scope>)]: <summary>
+
+[body: why the change was made]
+
+[trailer lines required by the session, e.g. Co-Authored-By]
 ```
+
+- Write the message in English (matches the existing history).
+- `(<scope>)` is optional; use it when the change belongs to a tracked work item or module,
+  e.g. `plan(125756): re-take test anchors`. Keep the summary within about 72 characters.
+- Add a body when the reason is not obvious from the summary (`AGENTS.md` Global Rule 6: a
+  commit needs a clear message explaining the reason). A summary-only message is acceptable
+  only for a self-explanatory change.
+- Append any trailer the session's attribution instruction requires (for example
+  `Co-Authored-By`); omit it when no such instruction exists. Never invent one.
 
 Example: `fix: handle missing upstream branch`
 
@@ -147,8 +200,10 @@ choice) and its summary describes only what is actually staged.
 ## Phase 6: Commit
 
 ```bash
-git commit -m "<type>: <summary>"
+git commit -m "<type>[(<scope>)]: <summary>" -m "<body>" -m "<trailer>"
 ```
+
+Omit the `-m` parts that are not needed (each `-m` adds one paragraph).
 
 Then verify:
 
@@ -158,6 +213,17 @@ git status --short
 
 Stop if commit fails (see `rules/coding.md` Prohibited behavior (all tasks) for the
 `--no-verify` prohibition — not repeated here).
+
+A pre-commit hook failure means no commit was created (so there is nothing to amend;
+`commit --amend` stays forbidden). Recovery:
+
+1. Read the hook output and fix the cause (if a hook reformatted files, the changes are in
+   the working tree but not staged).
+2. Re-stage the affected files with explicit paths and re-run Phase 3's verification.
+3. Create a new commit with the same message.
+
+Each repeat of the same hook failure counts toward `AGENTS.md` Attempt Limit (3); after
+that, stop and report what was tried.
 
 ---
 
@@ -211,12 +277,23 @@ non-fast-forward merge or a rebase for this case.
 
 Before rebasing, confirm both preconditions hold:
 
-- **Working tree is clean**: `git status --porcelain` returns no output for tracked
-  changes (re-check; MUST NOT assume Phase 6 made it true).
+- **Working tree is clean**: `git status --porcelain --untracked-files=no` returns no
+  output (tracked changes only; untracked files do not block a rebase). Re-check; MUST NOT
+  assume Phase 6 made it true.
 - **Upstream branch exists**: already confirmed above.
 
 If either precondition fails, stop and report why the rebase cannot proceed — MUST NOT
-rebase against a dirty tree and MUST NOT rebase without a resolvable upstream.
+rebase against a dirty tree and MUST NOT rebase without a resolvable upstream. No
+`stash`/`autostash` workaround is allowed.
+
+A dirty tree is expected when Phase 2 left unrelated modified files unstaged. In that case
+the commit exists locally but is unpushed; report:
+- `Committed locally; sync skipped because tracked files are modified: <paths>.`
+- the options for the user: commit or discard those changes themselves, then re-invoke
+  this skill
+
+Record the pre-rebase SHA (the `git rev-parse HEAD` output from the classification step)
+so it can be reported.
 
 ```bash
 git rebase @{u}
@@ -252,14 +329,26 @@ git status --short
 git diff --stat
 ```
 
-If Python files were touched by the fast-forward or rebase, run:
+Then run the gates for what the sync brought in (`ORIG_HEAD` points at the pre-sync tip):
+
+```bash
+uv run python tools/run_validation_gates.py --base ORIG_HEAD
+```
+
+If Python files under `scripts/` or `tests/` were touched by the fast-forward or rebase,
+also run the tests; start with the test files mirroring the touched modules, and run the
+whole suite only when the touched scope is unclear or the user asks:
 
 ```bash
 uv run pytest tests/ -x -q
 ```
 
-Delegate to `python-test-and-fix` if validation fails, or to `python-lint-typecheck`
-for lint/type checks, per `SKILL.md` Composition rules.
+Delegate to `python-test-and-fix` if tests fail, or to `python-lint-typecheck` if
+lint/type gates fail, per `SKILL.md` Composition rules.
+
+If validation fails after a rebase, the branch stays in its rebased state and is not
+pushed. MUST NOT roll back with `reset --hard`; report the pre-rebase SHA recorded above
+and the failing output, and let the user decide.
 
 Stop if:
 - `git fetch` fails.
@@ -288,6 +377,11 @@ If upstream is missing, stop. Report:
 > Suggested command: `git push --set-upstream origin <branch>`
 
 MUST NOT run the suggestion without user approval.
+
+If an upstream exists but `git push` fails because the push target cannot be resolved
+(for example `push.default=simple` with an upstream branch name that differs from the local
+name), stop and report the exact message and `git config --get push.default`; MUST NOT
+pass an explicit refspec or change the configuration on the user's behalf.
 
 If `git push` is rejected for any other reason — most commonly a non-fast-forward
 rejection because the remote advanced again after Phase 7's sync completed — apply
@@ -323,7 +417,8 @@ Report:
 - sync result (already up to date, fast-forwarded, rebased onto upstream, aborted
   due to a rebase conflict — with the conflicted file paths, or skipped because no
   upstream exists)
-- validation result (if status/diff review or tests were run after a successful
+- pre-rebase SHA (only when a rebase ran)
+- validation result (Phase 4 gates, and status/diff review or tests after a successful
   sync)
 - push result (or reason push was skipped)
 - remaining uncommitted changes

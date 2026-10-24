@@ -43,10 +43,10 @@ Use this skill only inside a local Git repository.
 |---|---|---|
 | 1 | Check Status | branch, changed files, staged/unstaged/untracked |
 | 2 | Choose Files | explicit paths by default; `git add -A` only if user says "all" |
-| 3 | Stage Files | run `git add`; verify staged set with `--cached` diff |
-| 4 | Check Staged | abort if nothing staged |
-| 5 | Make Commit Message | derive from staged diff; use conventional commit format |
-| 6 | Commit | `git commit -m`; check status after |
+| 3 | Stage Files | run `git add`; verify staged set with `--cached` diff; stop on secrets/large files |
+| 4 | Check Staged | abort if nothing staged; run `tools/run_validation_gates.py` before committing |
+| 5 | Make Commit Message | derive from staged diff; `<type>[(<scope>)]: <summary>` in English, body for the reason |
+| 6 | Commit | `git commit -m`; check status after; on hook failure fix, re-stage, new commit |
 | 7 | Sync | `git fetch`; fast-forward when possible, else automatic non-interactive rebase onto upstream when histories diverged and the tree is clean; abort and stop on rebase conflict; validate after a successful sync |
 | 8 | Push | `git push` automatically once Commit and Sync succeeded with no conflicts; stop and report on missing upstream, rejection, or a "do not push"/confirm-first instruction |
 | 9 | Report | branch, staged files, commit message, sync/push result, warnings |
@@ -74,11 +74,11 @@ Phase 8's push is rejected.
 - Always check status first.
 - Use explicit file paths for `git add` by default; never use `git add .`.
 - `git add -A` only when the user explicitly says "all changes".
-- Never run dangerous commands: `reset --hard`, `clean -fd`, `clean -fdx`, `checkout -- .`, `restore .`, `restore --staged .`. Unlike `AGENTS.md` Policy's confirmation-based exception for multi-file/recursive destructive commands, there is no confirmation path here; treat them as forbidden, not "ask first". Recover a clean state with Phase 1's status check plus Phase 2's explicit-path staging, without discarding work.
+- Never run dangerous commands: `reset --hard`, `clean -fd`, `clean -fdx`, `checkout -- .`, `restore .`, `restore --staged .`. Unlike `AGENTS.md` Policy's confirmation-based exception for multi-file/recursive destructive commands, there is no confirmation path here; treat them as forbidden, not "ask first". Recover a clean state with Phase 1's status check plus Phase 2's explicit-path staging, without discarding work. The only permitted unstaging is `git restore --staged <explicit path>` for a single unexpected file (Phase 3); the whole-tree forms `restore .` and `restore --staged .` stay forbidden.
 - Never run history-rewriting or unsafe sync commands: `rebase -i`/`rebase --interactive`, `rebase --onto` (or any rebase target other than the current branch's upstream), `rebase --continue`, `rebase --skip`, `commit --amend`, `merge` (other than the fast-forward `merge --ff-only @{u}` step in Phase 7 Sync), `merge --abort`, `pull` (any form — Phase 7 Sync decomposes this into `fetch` followed by fast-forward or rebase), `push --force`, `push --force-with-lease`, `push -f`.
 - Phase 7 Sync replaces `git pull --ff-only`: run `git fetch`, then fast-forward (`git merge --ff-only @{u}`) when the local branch has not diverged, or run a single non-interactive `git rebase @{u}` when histories have diverged — only when the working tree is clean and an upstream branch exists. If the rebase reports a conflict, immediately run `git rebase --abort`, stop without pushing, and report the conflicted files (captured before the abort). Never run `git rebase --continue`, `git rebase --skip`, or resolve a rebase conflict manually — this skill never resolves rebase conflicts automatically.
 - After a successful fast-forward or rebase, run `git status --short`, `git diff --stat`, and applicable validation (see Composition rules) before proceeding to Phase 8 (Push).
-- Push automatically (Phase 8) once Commit and Sync have both succeeded with no conflicts — no approval prompt is required by default; this is a deliberate, narrower exception to `AGENTS.md` Execution policy's general confirmation expectation for pushing to remote repos, scoped to this skill's own push step. These safety conditions still apply and are never skipped:
+- Push automatically (Phase 8) once Commit and Sync have both succeeded with no conflicts — no approval prompt is required by default; this is a deliberate, narrower exception to `AGENTS.md` Execution policy's general confirmation expectation for pushing to remote repos, scoped to this skill's own push step and recorded in `AGENTS.md` Execution policy. These safety conditions still apply and are never skipped:
   - If Phase 7's rebase reported a conflict, Phase 7 already stopped before Phase 8 — never push after an aborted rebase.
   - Never resolve a rebase or merge conflict automatically to force a push through.
   - Never use `push --force`, `push --force-with-lease`, `push -f`, or any other history-rewriting operation to make a push succeed (see the "Never run" list above — unchanged).
@@ -89,8 +89,8 @@ Phase 8's push is rejected.
 
 ## Composition rules
 
-- `python-test-and-fix` — if validation fails after a fast-forward or rebase, delegate to this skill
-- `python-lint-typecheck` — run lint/type checks as part of post-sync validation when Python files are involved
+- `python-test-and-fix` — if tests fail in pre-commit or post-sync validation, delegate to this skill
+- `python-lint-typecheck` — if lint/type gates reported by `tools/run_validation_gates.py` fail (pre-commit or post-sync) and Python files are involved, delegate to this skill
 
 ---
 
