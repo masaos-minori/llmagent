@@ -19,11 +19,27 @@ any broad reorganization across the whole `docs/` tree, or work scoped to the wh
 out of scope for this workflow; if it is needed, report it as separate work rather
 than performing it here.
 
-"Stable structure" means the document already has Purpose/Scope/Background/Design
-Decisions/etc. sections, is maintained by a team/process (not ad-hoc), and has been
-reviewed at least once against code. A document that is a single large file covering
-multiple concerns, lacks consistent section headers, or is being created for the
-first time has "unstable structure" and is out of scope for this workflow.
+"Stable structure" is judged by checks, not by impression. A target document has a stable
+structure when all of these hold:
+
+- it has Front Matter and a `## Keywords` section, and
+  `uv run python tools/check_docs_structure.py docs/<path>` passes for it (confirm the checker
+  examined the file; see Step 5),
+- its body already uses consistent section headings (for example Purpose, Scope, Design
+  Decisions) rather than one undifferentiated block, and
+- it is an existing file tracked in git with prior history (`git log --oneline -- <path>` lists
+  commits).
+
+A document that is a single large file covering multiple concerns, lacks consistent section
+headers or Front Matter, fails the structure check for reasons other than the content being
+synchronized, or is being created for the first time has "unstable structure" and is out of
+scope for this workflow.
+
+Relationship to `skills/python-documentation/`: this prompt orchestrates a multi-document
+synchronization and adds the intent-focused content rules (Steps 3-4) and the per-run summary
+(Step 7). For how to write, verify, and report a single document (evidence rules, minimal diff,
+Front Matter, the docs checkers, the `Needs confirmation` inventory), follow that skill's
+phases; where the two differ on such a document-level rule, the skill governs.
 
 - Do not rewrite documents from scratch.
 - Do not invent new architecture.
@@ -72,8 +88,14 @@ Apply `rules/ai-execution.md` Progress Reporting (Base).
 
 #### Step 0: Discover tools and load required files
 
-- Discovery: list the files directly under `tools/` and in subdirectories relevant to the target document. If `tools/` does not exist, record it as `Not available` instead of stopping with an error.
-- Build a compact Tool Inventory for each relevant tool candidate, with:
+- Validation checkers are not discovered by browsing: they are the rows of `routing.md` Tools →
+  "When to run which tool" that a `docs/*.md` change triggers (Step 5 lists them). Use those; do not
+  write a replacement script (`routing.md`).
+- Discovery applies only to the helpers for mapping a document to source, symbols, config, and
+  tests (Step 2): list the files directly under `tools/` and in subdirectories relevant to the
+  target document, narrowing by `tools/TOOL_DESCRIPTIONS.md` first. If `tools/` does not exist,
+  record it as `Not available` instead of stopping with an error.
+- Build a compact Tool Inventory for each relevant mapping-tool candidate, with:
   - Path
   - Purpose
   - Usage source (README / help output / usage example / comment / related rule)
@@ -90,13 +112,16 @@ If not already loaded, read the following before starting:
 - `routing.md`
 - `skills/python-documentation/SKILL.md`
 - `skills/python-documentation/workflow.md`
+- `skills/DESIGN.md` (Output language, Evidence labels, Docs content policy)
 - `rules/ai-execution.md`
+- `docs/00_governance/governance_03_issue-and-uncertainty-management.md` — where the centralized
+  Needs confirmation and Known Issues inventories live (Step 4 registers items there)
 
 Apply `rules/ai-execution.md`, section "Required File Validation".
 
 #### Step 1: Identify target design documents
 
-- Objective: synchronize the design documents under `docs/` with the implementation under `script/`, per the Authority policy below (Step 1b).
+- Objective: synchronize the design documents under `docs/` with the implementation under `scripts/` (and `config/` and `tests/` where they bear on behavior), per the Authority policy below (Step 1b).
 - Work document-by-document. Do not read the entire repository, all documentation files, or all source files at once.
 - If multiple target documents are specified, process them in filename (lexicographic) order.
 - Use a search-first workflow: search → identify → inspect → update.
@@ -162,10 +187,12 @@ preventing stale-state corruption."
 
 #### Step 3b: Current-Specification-Only Governance Review
 
-Apply this review when a target document contains unresolved claims,
-implementation/documentation discrepancies, governance rules, architecture,
-operational policy, invariants, or canonical-source declarations — otherwise skip
-this Step entirely. See `prompts/document-sync-governance-review.md` for the full
+Apply this review only when, while performing Steps 2-3, the target document is found to
+contain (a) a claim whose truth could not be established from code, tests, or an Accepted ADR,
+(b) an implementation/documentation discrepancy that was not resolved by the edit itself, or
+(c) a canonical-source declaration or governance rule that the change touches. A document that
+merely contains architecture, policy, or invariant statements which Step 3 confirmed against code
+does not trigger it. Otherwise skip this Step entirely. See `prompts/document-sync-governance-review.md` for the full
 procedure (inventory consistency, untracked uncertainty detection, design-intent and
 canonical-source validation, Current-Specification-Only compliance, governance-tool
 consistency, finding classification, and reporting/prioritization).
@@ -177,17 +204,26 @@ Structure:
 - Do not remove content unless it is clearly wrong and contradicted by implementation.
 - Keep existing headings where possible. If a section already exists, extend it instead of duplicating it.
 
-Use English headings only:
+Use English headings only. Prefer the document's existing headings: extend a section that
+already covers the topic. Introduce one of the headings below only when the document has no
+section for that content, and do not duplicate content across them:
 - Implementation Intent
 - Current Implemented Behavior
-- Inferred Intent
 - Boundary and Ownership
 - Failure Behavior
 - Operational Rationale
 - Why This Exists
 - Non-Responsibilities
 
-Classify inferred intent with an evidence classification.
+Inferred intent is not a section. Place it inline next to the statement it qualifies, with its
+evidence label (`skills/DESIGN.md` Evidence labels). Intent that cannot be verified is marked with
+the literal `Needs confirmation` and registered as described below; do not collect uncertainty in
+a section of its own.
+
+Needs confirmation items: the inline marker in the document and an entry in the centralized
+inventory in `docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Part 2; Known
+Issues in Part 1), per the entry fields defined there. Recording an item only in a report is not
+registration. `uv run python tools/check_needs_confirmation_inventory.py` enforces this (Step 5).
 
 Content to avoid:
 - generic textbook explanations,
@@ -204,21 +240,30 @@ Format:
 - Preserve existing navigation and cross-references.
 
 Separate document content from synchronization history:
-- Target documents contain current behavior, design intent, boundaries, constraints, and lasting operational notes.
-- `docs/99_documentation_sync_report.md` contains changes made during the run, mismatches, removed or moved content, evidence classifications, and human review items.
+- Target documents contain current behavior, design intent, boundaries, constraints, and lasting operational notes (the Current-Specification-Only policy: no change history in `docs/`).
+- The run's history — changes made, mismatches, removed or moved content, evidence classifications, and human review items — goes in the final report (Step 7), not in a file under `docs/`. The former `docs/99_documentation_sync_report.md` was deliberately removed from the repository; do not recreate it (a file under `docs/` would also be subject to the docs checkers' Front Matter, structure, and content-policy rules).
 
 Style:
 - Output language: see `skills/DESIGN.md` §Output language.
 - Use concise, professional Markdown. Do not bloat the documents — content already
-  covered by a source-code/config reference, or by the synchronization history in
-  `docs/99_documentation_sync_report.md`, does not belong in the target document; keep
-  the target document to design intent, boundaries, constraints, and operational notes
-  only (see "Separate document content from synchronization history" above).
+  covered by a source-code/config reference, or that is synchronization history (reported in
+  Step 7), does not belong in the target document; keep the target document to design intent,
+  boundaries, constraints, and operational notes only (see "Separate document content from
+  synchronization history" above).
 
 #### Step 5: Validate the updated document
 
 - Treat this as an independent step, run after the document update (Step 4).
-- If a document-validation tool exists under `tools/`, run it against the updated document.
+- Run the checkers that `routing.md` Tools → "When to run which tool" assigns to a `docs/*.md`
+  change — at least `tools/check_docs_quality.py`, `tools/check_docs_structure.py docs/<path>`,
+  `tools/check_docs_content_policy.py`, `tools/check_docs_japanese.py`,
+  `tools/check_docs_consistency.py --domain <domain>` for the touched domain, and
+  `tools/check_needs_confirmation_inventory.py` when a marker was added, resolved, or removed —
+  or `uv run python tools/run_validation_gates.py`, which selects them from the changed files
+  (`AGENTS.md` Global Rule 9: manual review does not substitute). A checker that matches no file
+  passes silently (the issue `docs010` for `check_docs_structure.py`): pass paths exactly as the
+  checker documents them (repo-root-relative, `docs/...`) and confirm from its output that the
+  changed file was examined; otherwise record `Needs confirmation`, not Pass.
 - Within what the available tools support, validate:
   - Markdown syntax
   - Heading structure
@@ -254,21 +299,27 @@ Per-file report, for each updated file:
 - evidence classification (Explicit in code / Strongly implied by code / Needs confirmation),
 - any mismatches noted between docs and code.
 
-Run summary: create or update `docs/99_documentation_sync_report.md` covering the whole run:
+Run summary: deliver it in the final response (the Step 7 report is chat output; write it in
+the conversation language, with identifiers, commands, and evidence labels untranslated). Do not
+write it to a file under `docs/`. If the user asks for a persisted copy, ask where; a location
+under `docs/` is a documentation change the user must request explicitly. The summary covers the
+whole run:
 - updated files,
 - major discrepancies found,
 - removed outdated content,
 - newly documented behavior,
 - evidence classifications used (Explicit in code / Strongly implied by code / Needs confirmation),
-- Needs Confirmation items,
-- areas requiring human review.
+- Needs confirmation items (each with the inventory entry registered in Step 4),
+- areas requiring human review,
+- the checkers run and their results (Step 5), and the files left uncommitted: `git-commit-and-sync`
+  commits and pushes them on request.
 
 ##### Governance Summary
 
 Only when Step 3b was applied to at least one target document this run — otherwise
-omit this subsection entirely. In `docs/99_documentation_sync_report.md`, summarize:
+omit this subsection entirely. In the final response, summarize:
 
-- Active Needs Confirmation count relevant to the target documents
+- Active Needs confirmation count relevant to the target documents
 - Newly discovered untracked uncertainty
 - Unassigned or missing owners
 - Missing ADR decisions
@@ -285,3 +336,4 @@ Separate these findings from ordinary synchronization findings and list High-pri
 - Locate related callers/callees via `rg`/`grep` first, then read only the relevant range, rather than reading full files.
 - In Step 6, cite only the minimal code evidence (the relevant line or signature) needed to support a classification, not full function bodies.
 - In Step 7, aggregate the run summary from the per-file reports' key points; do not re-quote full evidence already recorded there.
+- When the work is finished and the user wants it committed, use `git-commit-and-sync`; this workflow does not stage, commit, or push.

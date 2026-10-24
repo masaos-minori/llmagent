@@ -9,16 +9,19 @@ target document.
 ## Objective
 
 Verify that the target documents remain compliant with the Current-Specification-Only
-Policy. The objective is not to reduce the number of Needs Confirmation items, but to
+Policy. The objective is not to reduce the number of Needs confirmation items, but to
 prevent unresolved uncertainty from silently becoming part of the effective
 specification.
 
 ## Inventory consistency
 
-Read the centralized Needs Confirmation inventory and the relevant target documents. Verify that:
+Read the centralized Needs confirmation inventory — Part 2 of
+`docs/00_governance/governance_03_issue-and-uncertainty-management.md` (Known Issues are Part 1) — and the
+relevant target documents. The label is spelled `Needs confirmation` (the spelling the inventory checker
+detects). Verify that:
 
 - Every active inventory entry represents a genuine unresolved matter.
-- Every inline Needs Confirmation marker is represented by an inventory entry.
+- Every inline Needs confirmation marker is represented by an inventory entry.
 - Resolved or no-longer-applicable items are handled according to the documented lifecycle.
 - Entry headings, required fields, status values, ownership values, priorities, and resolution targets conform to the governance specification.
 - Resolution notes do not contradict the active-item lifecycle.
@@ -27,7 +30,7 @@ Do not treat an explicitly permitted value such as `Unassigned` as invalid. Repo
 
 ## Untracked uncertainty detection
 
-Do not search only for the literal phrase `Needs Confirmation`. Use search candidates such as `unconfirmed`, `unclear whether`, `unknown behavior`, `design decision pending`, `owner review required`, `requires investigation`, `requires validation`, `rationale not confirmed`, `TBD`, `target design`, and `intended behavior`.
+Do not search only for the literal phrase `Needs confirmation`. Use search candidates such as `unconfirmed`, `unclear whether`, `unknown behavior`, `design decision pending`, `owner review required`, `requires investigation`, `requires validation`, `rationale not confirmed`, `TBD`, `target design`, and `intended behavior`.
 
 These expressions are candidates, not proof. Inspect context and exclude policy definitions, templates, examples, headings, and claims already supported by evidence. For each genuine unresolved claim, determine whether it is tracked and whether inventory registration is required.
 
@@ -35,11 +38,11 @@ These expressions are candidates, not proof. Inspect context and exclude policy 
 
 Verify that active design intent is supported by an Accepted ADR, active Specification, Governance Policy, or current Operational Policy. Do not infer missing rationale from incidental implementation details.
 
-When a canonical source contains unresolved behavior, verify corresponding ADR, Needs Confirmation, and Known Issue coverage. Report untracked uncertainty as a governance defect. Use `Needs Confirmation` when the intent cannot be verified.
+When a canonical source contains unresolved behavior, verify corresponding ADR, Needs confirmation, and Known Issue coverage. Report untracked uncertainty as a governance defect. Use `Needs confirmation` when the intent cannot be verified.
 
 ## Current-Specification-Only compliance
 
-Verify that active documents contain only current behavior, active architecture, active constraints, active policies, and active operational requirements. Identify historical migration decisions, superseded architecture, deprecated features, compatibility-only explanations, resolved investigations, resolved Needs Confirmation items, and historical implementation behavior.
+Verify that active documents contain only current behavior, active architecture, active constraints, active policies, and active operational requirements. Identify historical migration decisions, superseded architecture, deprecated features, compatibility-only explanations, resolved investigations, resolved Needs confirmation items, and historical implementation behavior.
 
 Before removal, preserve every still-current requirement, constraint, invariant, rationale, and verification rule in the appropriate active canonical document. Recommend one preferred disposition:
 
@@ -47,7 +50,7 @@ Before removal, preserve every still-current requirement, constraint, invariant,
 - Resolve by ADR decision
 - Resolve by specification update
 - Convert to Known Issue
-- Retain as Needs Confirmation
+- Retain as Needs confirmation
 - Remove obsolete content
 
 Moving content to historical documentation is permitted only when the repository already defines an approved historical-document location and policy. Do not create a new archive unless explicitly in scope.
@@ -82,7 +85,7 @@ Classify each finding as one of:
 
 ## Reporting and prioritization
 
-Add a `Current-Specification-Only Review` subsection to `docs/99_documentation_sync_report.md`. For each finding include Type, Source File, Section, Evidence, Description, Impact, Recommended Action, and Priority (High / Medium / Low). Keep temporary governance analysis out of target design documents unless it represents lasting current-specification content.
+Report a `Current-Specification-Only Review` subsection in the final response (the run summary of `prompts/08_document-sync.md` Step 7; no file is written under `docs/`). For each finding include Type, Source File, Section, Evidence, Description, Impact, Recommended Action, and Priority (High / Medium / Low). Keep temporary governance analysis out of target design documents unless it represents lasting current-specification content.
 
 Escalate to High when:
 
@@ -92,7 +95,7 @@ Escalate to High when:
 - The uncertainty affects security, authorization, approval, audit, persistence, data integrity, or system invariants.
 - Implementation would require guessing because intent cannot be established from code, tests, ADRs, or active specifications.
 
-Do not remove a Needs Confirmation item merely to reduce the count. Remove it only after a formal decision, when it no longer applies, after conversion to the appropriate ADR/Known Issue/Specification, or after removal of the underlying feature. Record required out-of-scope changes as follow-up work.
+Do not remove a Needs confirmation item merely to reduce the count. Remove it only after a formal decision, when it no longer applies, after conversion to the appropriate ADR/Known Issue/Specification, or after removal of the underlying feature. Record required out-of-scope changes as follow-up work.
 
 ## Back to the caller
 
