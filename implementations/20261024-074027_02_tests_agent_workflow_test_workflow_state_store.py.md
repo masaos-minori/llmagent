@@ -28,7 +28,7 @@ N/A: single-file, test-only change with no public-contract, persistence, or secu
 ### Procedure
 1. Add `import uuid` to the top-of-file imports (after `import sqlite3`).
 2. In `TestCreateTask.test_create_returns_task_record` (`:67-73`): replace `assert task.idempotency_key == "sess1:1"` with a format + non-literal assertion.
-3. Replace `TestCreateTask.test_idempotency_key_unique` (`:75-78`, asserts today's collision) with `test_same_session_turn_across_runs_no_collision` (`T-1`).
+3. Replace `TestCreateTask.test_idempotency_key_unique` (`:75-78`, asserts today's collision) with `test_same_session_turn_across_runs_no_collision` (new) (`T-1`).
 4. In `TestCreateTask.test_get_by_idempotency_key` (`:80-84`): look up `original.idempotency_key` instead of the literal `"sess2:5"`.
 5. In `TestUpdateTaskStatus.test_update_status` (`:97-102`): look up `task.idempotency_key` instead of the literal `"sess1:1"`.
 6. Add `TestCreateTask.test_retained_db_compatibility` (`T-3`): seed a raw-SQL `tasks` row carrying an old composite-style key, then `create_task()` normally on the same file, and confirm both rows remain readable.
@@ -86,7 +86,7 @@ with:
         found = get_task_by_idempotency_key(store._db, task.idempotency_key)
 ```
 
-Add `test_retained_db_compatibility` inside `TestCreateTask` (`T-3` / AC-4):
+Add `test_retained_db_compatibility` (new) inside `TestCreateTask` (`T-3` / AC-4):
 ```python
     def test_retained_db_compatibility(self, store) -> None:
         """T-3 / AC-4: a pre-existing composite-key row stays readable after a normal insert."""

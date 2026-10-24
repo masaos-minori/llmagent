@@ -6,13 +6,13 @@ Medium
 ## Summary
 `StateStore.create_task()` in `scripts/agent/workflow/state_store.py` builds `idempotency_key` from
 `f"{session_id}:{turn_number}"` in its own copy of the task-insert code. The plan
-`plans/done/20261023-084918_plan.md` and its procedures `implementations/20261024-101738_01` to `_05`
+`plans/done/20261023-084918_plan.md` and its procedures `implementations/20261024-074027_01` to `_05`
 remove that derivation only from `agent.workflow.task_ops.create_task()`, which is the function the
 production path calls. The wrapper keeps a second, uncalled copy of the defect, so a future caller of
 `StateStore.create_task()` reintroduces the restart collision the closed plan removed.
 
 ## Background
-Measured at HEAD `2044b0ad1` (2026-10-24):
+Measured at HEAD `2044b0ad1` (2026-10-24), re-verified on the tree rebased onto `f18e1a6fe`:
 
 - `scripts/agent/workflow/state_store.py:48` `def create_task(...)`, with the composite branch at
   `:56-59` (the f-string is `:57`) and its own `INSERT INTO tasks` at `:65`. It does not call
@@ -23,7 +23,7 @@ Measured at HEAD `2044b0ad1` (2026-10-24):
   only `asyncio.create_task` hits, and `grep -rn "store\.create_task" tests/ scripts/` is empty.
 - `StateStore` re-implements task and attempt SQL inline in general (`:65`, `:97`, `:119`, `:126`, `:166`,
   `:190`, `:198`), so this issue is about the duplicated key derivation only, not about the pattern.
-- `plans/20261023-084918_plan.md` treats `state_store.py` as a Reference Files row (`:98`) and records this
+- `plans/done/20261023-084918_plan.md` treats `state_store.py` as a Reference Files row (`:98`) and records this
   residual in its `Corrections from re-measurement`. `plans/20261023-093153_plan.md` targeted it as its
   own row 2 and recorded it as known debt (`UNK-03`); that plan is closed as a duplicate and archived to
   `plans/done/20261023-093153_plan.md`.
@@ -73,8 +73,10 @@ Add the missing test coverage for the wrapper either way.
   must keep `PYTHONPATH=scripts uv run lint-imports` green (`.importlinter`).
 - `scripts/agent/workflow/state_store.py` is 12174 B, under the 20480 B gate
   (`tools/check_module_size.py:38`); `create_task` is A-rank in `radon cc`.
-- Sequencing: land after `implementations/20261024-101738_01` and `_02` are implemented, because both edit
-  the same two files this issue touches.
+- Sequencing: land after `implementations/20261024-074027_01` and `_02` are implemented. `_01` removes the
+  composite derivation from the live path, which is what makes the residual in this wrapper visible as the
+  last copy, and `_02` owns `tests/agent/workflow/test_workflow_state_store.py`, the file this issue adds a
+  test to.
 
 ## Acceptance Criteria
 - No composite key derivation remains anywhere under `scripts/agent/workflow/`.
@@ -88,7 +90,8 @@ Add the missing test coverage for the wrapper either way.
   `store` fixture (`:57`).
 - Mutation check: restore the composite branch in a scratch copy of `state_store.py` and confirm the new
   test fails.
-- `uv run pytest tests/agent/workflow -q` before and after (baseline at HEAD `2044b0ad1`: 90 passed).
+- `uv run pytest tests/agent/workflow -q` before and after (baseline 90 passed, re-measured on the tree
+  rebased onto `f18e1a6fe`).
 
 ## Documentation Impact
 None expected if the wrapper only stops deriving a key: `docs/41_db/db_02_architecture_and_schema-schema-reference.md`
@@ -103,8 +106,8 @@ wording change is actually made.
 - Any change to `workflow_engine_adapter.py` or the resume path.
 
 ## Dependencies
-Depends on the implementation of `implementations/20261024-101738_01_scripts_agent_workflow_task_ops.py.md`
-and `implementations/20261024-101738_02_tests_agent_workflow_test_workflow_state_store.py.md`; both are
+Depends on the implementation of `implementations/20261024-074027_01_scripts_agent_workflow_task_ops.py.md`
+and `implementations/20261024-074027_02_tests_agent_workflow_test_workflow_state_store.py.md`; both are
 generated and not yet executed. Sibling check: the closed duplicate plan
 `plans/done/20261023-093153_plan.md` was the only other work item targeting this file.
 
@@ -126,6 +129,6 @@ docstring line of `create_task` unchanged so the generated-reference guard stays
 - **Workflow phase**: `issue-creator`
 - **Source issue**: N/A: this document is the issue
 - **Source requirement**: N/A: no standalone requirement document is generated
-- **Source plan**: `plans/20261023-084918_plan.md` (residual recorded in its `Corrections from re-measurement`),
+- **Source plan**: `plans/done/20261023-084918_plan.md` (residual recorded in its `Corrections from re-measurement`),
   `plans/done/20261023-093153_plan.md` target row 2 and `UNK-03`
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
