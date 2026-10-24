@@ -4,10 +4,10 @@
 
 | Tool | Phase | Role |
 |---|---|---|
-| `structlog` + `jq` | Initial Observability | Structured log emission and filtering |
+| `rg` / `grep` + `jq` | Initial Observability | Filter `agent.log` (text by default; `jq` only for the JSON-lines format) |
 | `lnav` | Initial Observability | Interactive log navigator |
 | `multitail` | Initial Observability | Follow multiple log files simultaneously |
-| `sentry-sdk` | Initial Observability | Exception capture with context |
+| `sentry-sdk` | Initial Observability | Exception capture with context (only if the project already configures a DSN) |
 | `tox` | Focused Reproduction | Reproduce failures in isolated env |
 | `mitmproxy` | Focused Reproduction | Intercept live HTTP traffic |
 | `httpie` | Focused Reproduction | Ad-hoc endpoint testing |
@@ -34,6 +34,28 @@ Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: M
 re-run a log/trace command against the same file at the same offset without new evidence
 (e.g. the same `tail`/`jq` filter twice).
 
+Run every Python tool through `uv run` (`uv run pytest`, not a bare `pytest`); the commands
+below omit the prefix for brevity. Use mirrored test paths (`tests/<package>/test_<module>.py`).
+
+### Tool availability and fallbacks
+
+Several tools are optional and absent on some hosts (at the time of writing `lnav`, `multitail`,
+`strace`, `py-spy`, `http` (httpie), and `tox` were not installed on this host; `jq` and `sqlite3`
+were). Check with `command -v <tool>` before relying on one. If it is missing, apply
+`skills/DESIGN.md` Tool availability guard and use the fallback, recording the check as
+`Needs confirmation` when the fallback gives weaker evidence:
+
+| Missing tool | Fallback |
+|---|---|
+| `lnav`, `multitail` | `rg`/`grep` with a time-window filter on the log; `tail -f` for one file |
+| `strace` | `python -X faulthandler`, `lsof -p <PID>` / `/proc/<PID>/fd` for open files, application logs |
+| `py-spy` | `faulthandler.dump_traceback_later`, `cProfile`, `tracemalloc` for memory |
+| `viztracer` | `cProfile` / `python -X importtime` |
+| `mitmproxy` | an `httpx` event hook or `respx` in a test to capture the request/response |
+| `httpie` (`http`) | `curl` (or `uv run python -c` with `httpx`) |
+| `tox` | `uv run pytest` directly |
+| `aiomonitor` | `PYTHONASYNCIODEBUG=1`, `asyncio.all_tasks()` dump from a test, `faulthandler` |
+
 ---
 
 ## Phase 1: Problem Framing
@@ -44,6 +66,8 @@ Before any tool use, identify:
 - expected behavior
 - affected input or environment
 - whether the issue is deterministic, intermittent, or unknown
+- where it happens: this working tree / an isolated test, or the running production services
+  under `/opt/llm` (this decides which `SKILL.md` Production Safety confirmations apply)
 
 State unknowns explicitly.
 
@@ -58,19 +82,37 @@ Phase 2 proceeds to gather evidence for it.
 
 ## Phase 2: Initial Observability
 
-Use `structlog`+`jq` first. Use `lnav` only when `jq` filtering alone cannot narrow the
-window (e.g. correlating across log files by time). Use `multitail` only when several
-services must be watched live as the failure reproduces (not for a historical failure).
-Use `sentry-sdk` only if `SENTRY_DSN` is already configured — it captures future
-occurrences; it does not analyze a failure that already produced a log.
-
-#### structlog + jq
+Read the logs (read-only). First check the format, because it decides the filter:
 
 ```bash
-tail -200 /opt/llm/logs/agent.log | jq 'select(.level == "error")'
-tail -500 /opt/llm/logs/agent.log | jq 'select(.event | contains("tool_called"))'
+tail -3 /opt/llm/logs/agent.log
+```
+
+`agent.log` is text by default: `YYYY-MM-DD HH:MM:SS,mmm LEVEL [function] message`
+(`scripts/shared/logger.py`). It is JSON-lines (keys `ts`, `level`, `func`, `msg`, plus
+`session_id`, `turn_id`, ... when set) only when the agent's `structured_log` setting is on.
+`structlog` is not used for these logs. Pick the matching block below. Use `lnav` only when
+plain filtering cannot narrow the window (e.g. correlating across log files by time). Use
+`multitail` only when several services must be watched live as the failure reproduces (not for
+a historical failure). Use `sentry-sdk` only if the project already configures a DSN — it
+captures future occurrences; it does not analyze a failure that already produced a log.
+
+#### Text format (default): rg / grep
+
+```bash
+tail -2000 /opt/llm/logs/agent.log | rg " (ERROR|WARNING) "
+tail -2000 /opt/llm/logs/agent.log | rg "tool_called"
+tail -2000 /opt/llm/logs/agent.log | rg "<session id>"
+tail -2000 /opt/llm/logs/agent.log | awk '{print $3, $4}' | sort | uniq -c | sort -rn | head   # level + function
+```
+
+#### JSON-lines format (`structured_log` on): jq
+
+```bash
+tail -200 /opt/llm/logs/agent.log | jq 'select(.level == "ERROR")'
+tail -500 /opt/llm/logs/agent.log | jq 'select(.msg | contains("tool_called"))'
 tail -1000 /opt/llm/logs/agent.log | jq 'select(.session_id == "abc123")'
-tail -1000 /opt/llm/logs/agent.log | jq -r '.event' | sort | uniq -c | sort -rn
+tail -1000 /opt/llm/logs/agent.log | jq -r '.func' | sort | uniq -c | sort -rn
 ```
 
 #### lnav
@@ -88,8 +130,9 @@ multitail /opt/llm/logs/agent.log /opt/llm/logs/file-mcp.log /opt/llm/logs/web-s
 
 #### sentry-sdk (optional — requires DSN in environment)
 
-Only use if `SENTRY_DSN` is configured in `/etc/conf.d/llama-agent`; read the DSN from
-`os.environ["SENTRY_DSN"]` only — never hardcode it into a script.
+Only use if the project's service environment already defines `SENTRY_DSN` (no such setting is
+recorded in this repository; confirm with the user first — otherwise skip this block); read the
+DSN from `os.environ["SENTRY_DSN"]` only — never hardcode it into a script.
 
 ```python
 import os, sentry_sdk
@@ -113,8 +156,11 @@ and none did.
 |---|---|---|
 | Reproducibility | **Deterministic** | Reproduce with fixed pytest case; use `ipdb` / `viztracer` |
 | Reproducibility | **Intermittent** | Run with `--reruns 10`; check races, asyncio scheduling, TTL edge cases |
-| Execution model | **Sync** | `ipdb`, `stackprinter`, `py-spy` |
-| Execution model | **Async** | `PYTHONASYNCIODEBUG=1`, `aiomonitor`, `asyncio.timeout()` |
+| Execution model | **Sync** | `ipdb`, `stackprinter`, `py-spy` (or the fallback) |
+| Execution model | **Async** | `PYTHONASYNCIODEBUG=1`, `aiomonitor` (or the fallback), `asyncio.timeout()` |
+
+The route is chosen from the Reproducibility and Failure domain axes (`SKILL.md` Phase
+routing); the Execution model axis only selects tools inside a phase.
 | Failure domain | **Logic** | Wrong output; `hypothesis` to minimize, `ipdb` to trace |
 | Failure domain | **I/O** | File/DB/socket errors; `strace`, `sqlite3` CLI, `httpie` |
 | Failure domain | **Network** | MCP/LLM failures; `mitmproxy`, `respx`, service health check |
@@ -124,41 +170,63 @@ and none did.
 
 ## Phase 4: Focused Reproduction
 
+Before the first test run, confirm production isolation as `python-test-and-fix` requires
+(the guard in `tests/conftest.py` covers the production paths in `rules/env.md`; use
+`-m "not integration"` unless the failure is in an integration test). If a production path is
+unguarded, do not run the tests; record `Needs confirmation`.
+
 #### pytest (direct — preferred)
 
 ```bash
-PYTHONPATH=scripts pytest tests/ -x -q
-PYTHONPATH=scripts pytest tests/test_<module>.py -v
+PYTHONPATH=scripts uv run pytest tests/<package>/test_<module>.py -x -q
+PYTHONPATH=scripts uv run pytest tests/<package>/test_<module>.py -v
 ```
 
-#### tox (if installed and tox.ini is configured)
+Run the one failing test first; run a wider set only to confirm scope.
+
+#### tox (only if installed — `command -v tox`)
 
 ```bash
 tox -e tests
 tox --recreate -e tests
 ```
 
-#### mitmproxy
+If `tox` is missing, use `uv run pytest` directly (see Tool availability and fallbacks).
+
+#### mitmproxy (needs confirmation — it changes how the agent connects)
+
+Run the agent from the working tree, not the production copy, and only after the user confirms:
 
 ```bash
 mitmproxy --listen-port 8080
 HTTP_PROXY=http://localhost:8080 HTTPS_PROXY=http://localhost:8080 \
-  python3 /opt/llm/scripts/agent.py
+  PYTHONPATH=scripts uv run python -m agent
 ```
 
-#### httpie
+Prefer a `respx`-based capture in a test (no proxy, no live traffic) when the hypothesis allows.
+
+#### httpie / curl
+
+Use read-only requests against a live server:
 
 ```bash
-http POST http://localhost:8005/v1/call_tool \
-  tool_name=read_file args:='{"path": "/opt/llm/config/agent.toml"}'
-http GET http://localhost:8004/health Accept:application/json
+http GET http://127.0.0.1:<PORT>/health Accept:application/json     # or: curl -s http://127.0.0.1:<PORT>/health
+http GET http://127.0.0.1:<PORT>/v1/tools                          # tool list, read-only
 ```
 
-#### sqlite3 CLI
+`POST /v1/call_tool` (body `{"name": "<tool>", "args": {...}}`; the field is `name`, not
+`tool_name`) can execute a tool and change state. MUST NOT send it to a running service without
+the user's confirmation; reproduce tool behavior in a test with the real server class under the
+test-suite isolation instead. Get `<PORT>` from the server's `http_port` class variable or
+`config/agent.toml` `[mcp_servers.*]` `url` (`rules/env.md`), never from memory.
+
+#### sqlite3 CLI (read-only)
+
+Open production databases read-only so an inspection cannot write or checkpoint:
 
 ```bash
-sqlite3 <path/to/rag|session|workflow|eventbus>.sqlite   # see rules/env.md SQLite schema
-# .tables  .schema <table>  PRAGMA integrity_check;  PRAGMA wal_checkpoint;
+sqlite3 "file:<path/to/rag|session|workflow|eventbus>.sqlite?mode=ro" -cmd ".tables"   # see rules/env.md SQLite schema
+# .schema <table>   PRAGMA integrity_check;   (PRAGMA wal_checkpoint writes: only on a copy)
 ```
 
 #### Service status
@@ -181,13 +249,19 @@ If the agent REPL is running, use the built-in probe (probes `/health` and `/v1/
 ## Phase 5: Runtime / Trace Inspection
 
 Select the tool(s) using Phase 3's classification table (Execution model / Failure
-domain columns) — MUST NOT try tools in the order listed below without that basis.
+domain columns) — MUST NOT try tools in the order listed below without that basis. Check each
+tool with `command -v` first and use the fallback table when it is missing.
+
+Attaching to a running process (`py-spy --pid`, `strace -p`, `aiomonitor`) needs the user's
+confirmation (`SKILL.md` Production Safety); prefer starting a fresh process from the working
+tree under the tool. The agent entry point is `PYTHONPATH=scripts uv run python -m agent`
+(`scripts/agent/__main__.py`); there is no `scripts/agent.py`.
 
 #### viztracer
 
 ```bash
-viztracer python3 scripts/agent.py
-viztracer --ignore_frozen --include_files scripts/ python3 scripts/agent.py
+PYTHONPATH=scripts uv run viztracer -m agent
+PYTHONPATH=scripts uv run viztracer --ignore_frozen --include_files scripts/ -m agent
 vizviewer result.json
 ```
 
@@ -201,21 +275,22 @@ py-spy dump --pid <PID>
 
 #### OpenTelemetry
 
-```python
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import SimpleSpanProcessor, ConsoleSpanExporter
-provider = TracerProvider()
-provider.add_span_processor(SimpleSpanProcessor(ConsoleSpanExporter()))
-trace.set_tracer_provider(provider)
-```
+Tracing in this project is built by `scripts/shared/otel_tracer.py` (`build_tracer`, wired in
+`scripts/agent/factory.py`; the SDK is optional and a no-op tracer is used when disabled).
+MUST NOT call `trace.set_tracer_provider()` for debugging (the module deliberately avoids the
+global provider to prevent cross-test pollution). To see spans, enable the existing tracer
+setting in a local run, or in a test construct a tracer with `build_tracer` and a
+`ConsoleSpanExporter` on its own provider.
 
 #### strace
 
 ```bash
 strace -p <PID> -e trace=openat,read,write,connect 2>&1 | head -100
-strace -e trace=network python3 scripts/agent.py 2>&1 | grep -v ENOENT
-strace -e trace=openat python3 scripts/agent.py 2>&1 | grep '/opt/llm'
+PYTHONPATH=scripts strace -e trace=network uv run python -m agent 2>&1 | grep -v ENOENT
+PYTHONPATH=scripts strace -e trace=openat uv run python -m agent 2>&1 | grep '/opt/llm'
 ```
+
+(`strace` may be absent; use the fallback table.)
 
 #### tracemalloc
 
@@ -240,8 +315,13 @@ async def main():
 ```
 
 ```bash
-telnet localhost 20101   # tasks / task <id> / cancel <id> / exit
+# connect to the monitor's terminal port: use the port aiomonitor prints at startup or the one
+# passed to start_monitor (the default differs between aiomonitor versions; do not assume it)
+telnet localhost <MONITOR_PORT>   # tasks / task <id> / cancel <id> / exit
 ```
+
+`aiomonitor` is not used by `scripts/` today; this block instruments a local debugging run only
+(removed in Phase 9c). Attaching it to a production process is out of scope.
 
 #### ipdb
 
@@ -249,7 +329,7 @@ telnet localhost 20101   # tasks / task <id> / cancel <id> / exit
 import ipdb; ipdb.set_trace()
 ```
 ```bash
-PYTHONBREAKPOINT=ipdb.set_trace pytest tests/test_<module>.py -s
+PYTHONBREAKPOINT=ipdb.set_trace uv run pytest tests/<package>/test_<module>.py -s
 ```
 
 #### rich + stackprinter
@@ -271,22 +351,28 @@ Build the hypothesis table (6a), then falsify each entry (6b).
 
 ### Phase 6a: Build the hypothesis table
 
+Start from the observations of Phases 2-5: each hypothesis names the observation that
+suggests it (the "Suggested by" column of the matrix). The list below is a prompt for common
+causes, not a fixed checklist; add only rows an observation supports, and drop rows no
+observation points to.
+
 | Hypothesis | How to falsify |
 |---|---|
-| ConfigLoader path mismatch | Print `ConfigLoader().load(...)` output |
-| MCP server down / port mismatch | `curl -s http://127.0.0.1:<PORT>/health` |
-| LLM endpoint unavailable | Check `agent.log` for retry events; mock with `respx` |
+| Config path or key mismatch | Print the loaded value via `shared/config_loader.py`'s loader in a test or REPL |
+| MCP server down / port mismatch | `curl -s http://127.0.0.1:<PORT>/health` (port from `http_port` / `config/agent.toml`) |
+| LLM endpoint unavailable | Look for retry events in `agent.log`; mock with `respx` |
 | SQLite extension load failure | `sqlite3 :memory: ".load /opt/llm/sqlite-vec/vec0.so"` |
-| Embedding dimension mismatch | `len(blob) == dim * 4` in `rag_utils.py` |
+| Embedding dimension mismatch | `len(blob) == dim * 4` for `floats_to_blob` (`scripts/rag/utils.py`) |
 | Memory leak in embedding loop | `tracemalloc` growth test over 100 iterations |
-| Asyncio task hang | `aiomonitor` task list; `PYTHONASYNCIODEBUG=1` |
-| TTL cache stale result | `freezegun`; check `stat_cache_hits` |
-| `None` propagation | `assert x is not None` at boundary + pytest |
-| Wire format mismatch | `mitmproxy` to capture actual request/response |
-| Performance regression | `py-spy record` + `viztracer` |
+| Asyncio task hang | `asyncio.all_tasks()` dump in a test; `PYTHONASYNCIODEBUG=1`; `aiomonitor` if installed |
+| TTL cache stale result | `freezegun`; inspect the cache's own hit/miss counters in the module under test |
+| `None` propagation | `assert x is not None` at the boundary + pytest |
+| Wire format mismatch | `respx` capture in a test; `mitmproxy` only with confirmation |
+| Performance regression | `py-spy record` + `viztracer`, or `cProfile` as the fallback |
 
 **Completed when**: every plausible hypothesis for the classified failure domain (Phase 3)
-has a row above, using `SKILL.md`'s Hypothesis Analysis Matrix format.
+has a row in the matrix, each with the observation that suggested it, using `SKILL.md`'s
+Hypothesis Analysis Matrix format.
 
 ### Phase 6b: Falsify each hypothesis with its matching tool
 
@@ -307,7 +393,7 @@ async def test_reproduce_deadlock():
 ```
 
 ```bash
-PYTHONASYNCIODEBUG=1 pytest tests/test_agent_repl.py -v -s
+PYTHONASYNCIODEBUG=1 uv run pytest tests/<package>/test_<module>.py -v -s
 ```
 
 #### freezegun
@@ -323,13 +409,19 @@ here to falsify a wire-format or status-code hypothesis.
 #### pytest-rerunfailures + pytest-timeout
 
 ```bash
-pytest --reruns 10 --reruns-delay 0.2 tests/test_<module>.py
-pytest --timeout=10 tests/
+uv run pytest --reruns 10 --reruns-delay 0.2 tests/<package>/test_<module>.py
+uv run pytest --timeout=10 tests/<package>/test_<module>.py
 ```
 
-**Completed when**: every row in 6a's table is marked Validated or Invalidated with an
-observed result (per `SKILL.md`'s Mandatory Output Template) — not left blank.
-**If every row is Invalidated**: return to Phase 6a and add new hypotheses informed by
+`--reruns` re-runs a failing test and reports a later pass as a pass, so it can hide
+intermittency. To measure a failure rate, loop the same command without `--reruns`
+(`for i in $(seq 1 100); do uv run pytest <test path> -x -q || echo "fail $i"; done`).
+
+**Completed when**: every row in 6a's table is marked Validated, Invalidated, or Inconclusive
+with an observed result (per `SKILL.md`'s Mandatory Output Template) — not left blank. At least
+one Validated row is required before Phase 8; if none is, follow the all-Invalidated rule below
+(an `Inconclusive` row does not count as Validated).
+**If no row is Validated** (every row Invalidated or Inconclusive): return to Phase 6a and add new hypotheses informed by
 what was ruled out — MUST NOT re-test an already-Invalidated row. Per `AGENTS.md` Attempt
 Limit, at most 3 Phase 6a/6b round-trips; if no hypothesis validates within that bound,
 stop and report `Blocked: no hypothesis validated after 3 rounds — {all ruled-out
@@ -341,18 +433,31 @@ hypotheses}` rather than continuing to add rows indefinitely.
 
 #### git bisect run
 
+`git bisect` checks out other commits, which rewrites the working tree. MUST NOT run it in the
+user's working tree when `git status --short` shows any change (parallel sessions leave
+unstaged edits), and it needs the user's confirmation otherwise. Run it in a separate worktree
+outside the repository instead, and remove only that worktree afterwards:
+
 ```bash
+git worktree add --detach <scratchpad dir>/bisect-<sha> <bad-sha>
+cd <scratchpad dir>/bisect-<sha>
 git bisect start
 git bisect bad
 git bisect good <last-known-good-sha>
-git bisect run pytest tests/test_<module>.py -x -q
+git bisect run env PYTHONPATH=scripts uv run pytest tests/<package>/test_<module>.py -x -q
 git bisect reset
+cd - && git worktree remove <scratchpad dir>/bisect-<sha>
 ```
 
-#### lnav — time window
+The test command must exit non-zero only on the target failure (a test that fails for another
+reason at an older commit misdirects the search); test isolation (Phase 4) applies inside the
+worktree too.
+
+#### Log time window
 
 ```bash
-lnav /opt/llm/logs/agent.log
+rg -n "^<YYYY-MM-DD> <HH>:" /opt/llm/logs/agent.log | rg " (ERROR|WARNING) "     # text format: fill in the date/hour
+lnav /opt/llm/logs/agent.log                                       # only if installed
 # :goto <timestamp>  /pattern  n/N  :filter-in error  :zoom-to 1h
 ```
 
@@ -360,14 +465,23 @@ lnav /opt/llm/logs/agent.log
 
 ```bash
 rg "<symbol or log string>" scripts/
-rg "cache_key\|stat_cache_hits"
+rg "cache_key|<other symbol>" scripts/        # plain `|`: ripgrep treats `\|` as a literal pipe
 ```
 
 ---
 
 ## Phase 8: Minimal Fix
 
-- write or adjust a failing test that captures the defect **before** changing code
+**Fix gate (before any file is changed)**: report to the user the root cause with its
+confidence (`skills/DESIGN.md` Confidence levels), the evidence (Validated hypothesis and the
+observation behind it), residual uncertainty, and the proposed fix with its scope. Proceed to the
+steps below when the user asked for a fix in the original request or approves the proposal; if the
+request was investigation only, stop here and deliver the Output format report. A root cause
+found but not fixed is recorded as an Issue via `issue-creator`.
+
+- write or adjust a failing test that captures the defect **before** changing code (the
+  hypothesis Validated in Phase 6 states what it must assert; for a performance bug, a time or
+  allocation bound)
 - apply the smallest effective code change (see `AGENTS.md` Global Rule 5 for the
   broader unrelated-refactoring/scope-expansion prohibition)
 - explain why the fix addresses the root cause (not just the symptom)
@@ -385,15 +499,20 @@ Apply 9a, 9b, 9c in order.
 
 ### Phase 9a: Run tests
 
+After the Phase 4 isolation check still holds (use `-m "not integration"` unless needed):
+
 ```bash
-pytest tests/test_<module>.py -v
-pytest -v
-ruff check scripts/
+uv run pytest tests/<package>/test_<module>.py -v
+uv run pytest -m "not integration" -q                 # wider suite
+uv run ruff check <changed files>
+uv run mypy <changed files>
+uv run python tools/run_validation_gates.py           # project gates for the changed files
 ```
 
 **Completed when**: both pytest runs collected at least one test and passed (a 0-collected,
 exit-0 run is not a pass — per `rules/ai-execution.md` Repository Tool Usage #8), and
-`ruff check` passes.
+`ruff check`, `mypy`, and the project gates pass (a gate failure unrelated to this change is
+recorded, not fixed here). Lint or type failures the fix caused go to `python-lint-typecheck`.
 **On a failure**: return to Phase 8 and revise the fix — MUST NOT re-run this Phase 9a
 against an unchanged fix hoping for a different result. Per `AGENTS.md` Attempt Limit,
 at most 3 Phase 8/9a cycles for the same failure; if a clean pass is not reached within
@@ -401,16 +520,18 @@ that bound, stop and report `Blocked: fix requires more than 3 attempts — {sum
 
 ### Phase 9b: Restart services
 
-Run only if production code changed:
+Run only if production code changed, and only with the user's confirmation: a restart
+interrupts the running services and can drop in-flight state. The changed code reaches
+`/opt/llm` only through the `deploy` skill, so hand the restart to it:
 
 ```bash
-# Restart only the service(s) whose code changed (per skills/deploy/workflow.md
-# Phase 3 Step 3a decision criteria) — see skills/deploy/workflow.md Phase 3 Step 3b
-# for the actual restart commands
+# Use the `deploy` skill (skills/deploy/workflow.md Phase 3 Step 3a decision criteria for which
+# service(s) restart, Step 3b for the restart commands); do not restart by hand from here.
 ```
 
-**Completed when**: every service selected by the decision criteria above is restarted
-and healthy, or this sub-step was skipped because no production code changed.
+**Completed when**: the user confirmed and every service selected by the decision criteria above
+is restarted and healthy, or this sub-step was skipped because no production code changed (or the
+user declined; record that as residual uncertainty).
 
 ### Phase 9c: Remove debug artifacts
 
@@ -430,6 +551,8 @@ cycle ended in a `Blocked` state per Phase 6b or Phase 9a's own stop condition.
 - observations stated separately from hypotheses
 - failure classified (reproducibility / execution model / domain)
 - most likely root cause stated with confidence level (see `skills/DESIGN.md` Confidence levels)
+- no confirmation-gated action (attach, proxy, state-changing request, bisect in the working tree, restart) ran without the user's confirmation
+- every `Inconclusive` hypothesis and every unavailable-tool check is stated as residual uncertainty
 - fix applied or proposed with justification
 - failing test added or adjusted to cover the defect
 - full pytest suite passes
