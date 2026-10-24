@@ -24,7 +24,7 @@ Status options: Pending / In Progress / Blocked / Completed
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
 
-Type options: Test / Code Change / Doc Change / Issue
+Type options: Test / Code Change / Doc Change / Procedure / Issue
 ```
 
 ## Notes

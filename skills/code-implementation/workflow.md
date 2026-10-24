@@ -449,11 +449,14 @@ Correction-and-Recheck Cycle Bound (Step 3b).
   be in `plans/done/` if `plan-to-implementation-procedure` archived it before this
   cycle ran). The Plan's Execution Status has one row per `Implementation steps`
   entry (same numbering), not one per target file, and each step cites the
-  `File Path`(s) it touches. So map by step number: for each step N that cites this
-  cycle's target file, set row N to `Completed` only when every file that step N cites
-  has its procedure archived (this cycle's included — check `implementations/done/`
-  for a document with the same `Source plan` and that file as `Related target files`);
-  otherwise leave row N as it is. Use `uv run python
+  `File Path`(s) it touches. So map by step number, and only for steps that modify a
+  cited file: a step that only runs checks or gates, records a baseline, deploys, or
+  waits for a user decision is not completed by archiving a procedure, so leave its row
+  as it is. For each step N that modifies this cycle's target file, set row N to
+  `Completed` only when every file that step N modifies has its procedure archived
+  (this cycle's included — check `implementations/done/` for a document with the same
+  `Source plan` and that file as `Related target files`); otherwise leave row N as it
+  is. Use `uv run python
   tools/manage_workitem_stage.py set-step-status plan {plan_path} --step {N} Completed
   --completed {timestamp from date +%Y%m%d-%H%M%S}` — not `--description`, which
   updates only the first row whose Description merely contains the given text. When

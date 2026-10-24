@@ -32,9 +32,9 @@ processed plan file to `plans/done/`. This skill MUST NOT modify source code fil
 |---|---|---|
 | 0 | Load required instructions | Read routing, rules, templates, and this skill before starting. |
 | 1 | Identify the target plan file(s) | Confirm every specified `plans/{filename}.md` path exists before starting any processing. |
-| 2 | Read the target plan file | Check the Plan's structure, confirm `Freeze status` is `Frozen`, revalidate the frozen inventory, then read the plan in full and extract its own `Source issue` value for reuse downstream. |
+| 2 | Read the target plan file | Check the Plan's structure, confirm `Freeze status` is `Frozen`, check the Plan-level start conditions (no `Blocking? = True` Unknown, no open Dependency, Frozen-Plan overlaps judged), revalidate the frozen inventory, then read the plan in full and extract its own `Source issue` value for reuse downstream. |
 | 3 | Create implementation procedure documents | For each row in the Plan's `Implementation Target Files` table, check whether it is already implemented; if not, generate a new document per `templates/implementation-procedure.md`. |
-| 4 | Move the completed plan file | `git mv` only, once Step 3 passes; no human approval required; verify pre- and post-conditions. |
+| 4 | Move the completed plan file | Update the Plan's Execution Status (mapped steps only) and `Work Items Created`, then `git mv` only, once Step 3 passes; no human approval required; verify pre- and post-conditions; emit the final report. |
 
 See `workflow.md` for the detailed per-step procedure and multi-file processing rules.
 
