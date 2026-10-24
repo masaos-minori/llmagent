@@ -9,6 +9,33 @@ several issues' Phase 3-8 content before running Phase 9/10 on any of them. This
 prevents filename collisions, since Phase 10's uniqueness check sees each prior issue's file
 already written.
 
+## Batch mode
+
+Entry condition: Phase 2 assigned the source's tasks to two or more issue groups. A single
+issue skips this section.
+
+- **Shared pre-investigation pass**: once, after Phase 2 and before Phase 3 of the first
+  issue, verify the batch's claims against current source once per file or claim group.
+  Phases 3-10 stay per-issue and sequential (Multi-file processing is unchanged).
+- **Session notes**: record each result as a session note — the claim or file, the source
+  evidence (path and symbol, or command), and the result (confirmed, refuted, or
+  `Needs confirmation`). The notes are not a repository artifact; do not write them to a file.
+- **Reuse**: each later draft cites the notes instead of re-reading a source. Re-read only
+  for a claim the notes do not cover, or for a file that changed since it was read. If
+  context compaction drops the notes, re-read the affected claim group once and re-note it.
+- **Evidence rules unchanged**: Step 9a still runs per issue, and each draft's Background
+  cites the notes' evidence.
+
+## Merge into an existing issue
+
+Use this only when the user asks to integrate findings into an existing open issue. The rule
+in Phase 4 for a sibling that fully covers the problem (stop and report) is unchanged.
+
+- Read the existing issue once in full.
+- Apply all edits to it in one batch, keeping every `templates/issue.md` section intact.
+- Run `uv run python tools/check_workitem_structure.py --file {issue}` once after the batch,
+  and re-check the evidence labels of the sections that changed.
+
 ## Input from review findings
 
 When called by `python-code-review` (Step 10b), map each finding as follows:
@@ -130,16 +157,23 @@ repository. Use `Unknown` if the exact file is not confirmed.
 
 **Out of Scope** — list what must not be changed in this issue.
 
-**Sibling-issue check** — run this before filling Dependencies. List the open issues under
-`issues/`, the in-flight plans under `plans/`, and the recently archived issues under
-`issues/done/` that touch the same files, tests, or failure group (e.g. several issues split
-from one red test run); search by Target Files and keywords. For example:
+**Sibling-issue check** — run this before filling Dependencies, in two tiers.
+
+Tier 1 lists candidates without reading bodies: the open issues under `issues/`, the
+in-flight plans under `plans/`, and the recently archived issues under `issues/done/` that
+touch the same files, tests, or failure group (e.g. several issues split from one red test
+run), identified by filename, title, and summary line from the listing and by Target Files
+and keywords. For example:
 
 ```bash
 rg -l -F "<target path>" issues plans            # open issues and in-flight plans
 ls issues/done | rg "^<yyyymmdd>"                # archived issues by date prefix
 rg -l -F "<target path>" issues/done/<matching files>
 ```
+
+Tier 2 reads the full body only of candidates that share a target file or failure group. In
+batch mode, run tier 1 once for the union of the batch's target files and reuse its result
+for each issue.
 
 `issues/done/` is large (over a thousand files), so narrow it by the filename's timestamp
 prefix first; this skill treats the last 30 days as recent (a proposed window; widen it when
@@ -318,7 +352,25 @@ Per `SKILL.md` Issue Filename Generation:
 
 ### Step 10.2: Scaffold the file
 
-Prefer `uv run python tools/generate_workitem.py --kind issue --id {id} --title {slug}`.
+The default path is `uv run python tools/generate_workitem.py --kind issue --id {id} --title {slug}`.
+
+Direct writing from the `templates/issue.md` skeleton is allowed only when all of these hold:
+
+- (a) the skeleton (the fenced block of `templates/issue.md`) was read in this session and
+  the template has not changed since;
+- (b) the exact target path was verified absent from `issues/` and `issues/done/`
+  immediately before the write;
+- (c) the filename passed the name checks below (pattern and at most 4 slug words) before
+  the write;
+- (d) Step 10.4 verification runs on the written file and passes.
+
+Otherwise, and whenever the tool is unavailable, use the tool path (or the manual procedure
+below). A direct write MUST reproduce what the tool guarantees: the exact-path absence check
+in both directories (never a `{timestamp}_*` glob), the skeleton verbatim (every heading of
+the fenced block, in template order, none dropped), and the name verification. The name
+verification and Step 10.2a apply to both paths.
+
+Tool path notes:
 
 - The tool's `--title` is used only to build the filename, and it only lowercases and replaces
   spaces with dashes. Pass the already-normalized `{slug}` from Step 10.1, not the raw title;
@@ -343,7 +395,7 @@ Prefer `uv run python tools/generate_workitem.py --kind issue --id {id} --title 
   A name that fails either check is wrong: remove the scaffold file you just created
   (single path) and regenerate with a corrected `{id}` or `{slug}`.
 
-If the tool is unavailable, use the manual procedure:
+Manual procedure (when the tool is unavailable, or for a direct write under the conditions above):
 
 1. Generate `{timestamp}` as `YYYYMMDD-HHmmss` with `date +%Y%m%d-%H%M%S`.
 2. Assemble `issues/{timestamp}_{id}_{slug}.md`.
@@ -359,7 +411,7 @@ Regenerate with the next available disambiguator — append digits to `{id}` or 
 
 ### Step 10.3: Fill every placeholder
 
-Write the Phase 1-8 content into the scaffold, replacing every placeholder — including the
+Write the Phase 1-8 content into the file created by either path, replacing every placeholder — including the
 `# <Issue Title>` line and the Traceability fields:
 
 - `Workflow phase`: the workflow that produced this issue (`issue-creator`, or the caller such

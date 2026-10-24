@@ -51,8 +51,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the batch-pass and two-tier clauses to items 2 and 4 | Pending | — | — | |
-| 2 | Run both skills checkers | Pending | — | — | |
+| 1 | Add the batch-pass and two-tier clauses to items 2 and 4 | Completed | — | 20261025-003523 |  |
+| 2 | Run both skills checkers | Completed | — | 20261025-003523 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

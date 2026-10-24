@@ -50,8 +50,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite Phase overview row 10 | Pending | — | — | |
-| 2 | Run both skills checkers | Pending | — | — | |
+| 1 | Rewrite Phase overview row 10 | Completed | — | 20261025-003437 |  |
+| 2 | Run both skills checkers | Completed | — | 20261025-003437 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

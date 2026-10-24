@@ -60,8 +60,8 @@ Additional context-hygiene guidance specific to this workflow:
   identical read-only command against a file confirmed unchanged — see
   `rules/ai-execution.md` Tool Usage for when such a command may be skipped.
 
-Apply `rules/ai-execution.md` Context Reading and Progress Reporting (Base) for the per-step report
-cadence.
+Apply `rules/ai-execution.md` Context Reading, Tool Usage, and Progress Reporting (Base) for the
+per-cycle load and call discipline and the per-step report cadence.
 
 ### Progress recording during Steps 3-6
 
@@ -146,6 +146,17 @@ duplicate plans when multiple agents process the same Issue concurrently.
   full pass over that field list. This complements, and does not replace,
   `rules/workflow-lifecycle.md`'s workflow-level Completion Criteria, which gates the
   whole cycle.
+- **Same-cycle dedup** (Steps 2, 3, and 8b): a claim, target file, or Implementation
+  Target Files row already verified in this cycle MUST NOT be verified again unless
+  (a) a command in this cycle modified that file, (b) a path-scoped `git status --short
+  -- <path>` or `git log -1 --format=%H -- <path>` shows a change since the check, or
+  (c) the earlier check was inconclusive (`Needs confirmation`).
+- **Depth ceiling** (Steps 2, 3, and 8b): stay within the base order of
+  `rules/ai-execution.md` Adversarial Verification (Base). Expand beyond it only when
+  (a) a disconfirming finding produced inside that order points outside it, or (b) an
+  Implementation Target Files row cannot meet one of the four Freeze criteria inside the
+  order. Any other item that cannot be settled inside the order is classified
+  `Needs confirmation` instead of being researched further.
 - Extract the fields defined in `templates/issue.md` (the canonical Issue shape shared
   with `skills/issue-creator`), by that template's own names: title, Priority, Summary,
   Background, Problem, Reason for Change, Implementation Intent, Target Files or Areas,
@@ -184,6 +195,8 @@ duplicate plans when multiple agents process the same Issue concurrently.
 Classify the Issue as Path A or Path B per `SKILL.md`'s Routing (AI Task Size
 Assessment) section, **before** inspecting. That classification is provisional: reclassify
 as `SKILL.md` Routing says if the inspection reveals a Path B criterion.
+
+Step 2's same-cycle dedup rule and depth ceiling apply to this step.
 
 - **Path A**: limit this step to direct verification of the target files and their
   immediate dependencies. For each target file, take `<path>` as its repository-relative
@@ -266,6 +279,12 @@ destination, add an appropriate Plan section instead of discarding it. This mapp
 identically for Path A and Path B; classification reduces analysis depth (Steps 3 and
 5), not mapping completeness.
 
+**Path A collapse condition.** For a Path A Plan, a section that the "Notes on Path A
+collapse" of `templates/plan.md` lists as collapsible MAY be written as a single
+`N/A: {short reason}` line only if the Issue has no content for it or its content is
+carried in a named other section, and the collapsed line keeps any statement this
+workflow requires of that section. Every `##` heading stays.
+
 A Step 2 item classified `Needs confirmation` MUST NOT be written into the Plan's
 Assumptions section as if verified — route it to Unknowns (Step 6) instead. Assumptions
 are for judgment calls made during analysis, not for unverified Issue claims.
@@ -347,7 +366,14 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   files" or "as necessary". Give a test, configuration, schema, migration, deployment,
   or documentation file its own row when it requires modification, rather than folding
   it into the row for the source file it accompanies. Every `Repository Evidence`
-  entry MUST cite what Step 3's inspection actually found — MUST NOT infer it.
+  entry MUST cite what Step 3's inspection actually found — MUST NOT infer it — and MUST
+  end with the step that performed the check, for example `(checked in Step 3)`. The tag
+  lives in the existing column; no Plan template column is added.
+- For a Path A Plan, apply Step 4's Path A collapse condition when filling the sections
+  that `templates/plan.md` lists as collapsible; Path B Plans fill every section.
+- Path A sizing: a Plan classified Path A whose `Implementation Target Files` has more
+  than 3 rows, or whose scope otherwise meets a Path B criterion in `SKILL.md` Routing,
+  is reclassified to Path B or split into separate Issues before it is frozen.
 - Generate the `Affected areas` table per `templates/plan.md`: one row for every
   `Implementation Target Files` row, so that the `File` column is a subset of those rows,
   with all six columns populated (`File`, `Change`, `Blast Radius`, `Churn (30d)`,
@@ -493,6 +519,11 @@ marked `N/A`.
 
 Verify the `Risks` section: every Risk entry has a corresponding Mitigation.
 
+A section collapsed to `N/A: {reason}` satisfies the preserved-information check only
+when Step 4's Path A collapse condition holds; otherwise it fails this check. Repeat the
+Path A sizing check from Step 5: more than 3 `Implementation Target Files` rows in a Plan
+classified Path A is reclassified or split before the Plan is frozen.
+
 Run `uv run python tools/check_workitem_structure.py --file plans/{filename}.md` on the
 filled Plan (per `routing.md` Tools → "When to run which tool"). It checks only that every
 required `## ` section is present; the content checks above still apply.
@@ -509,6 +540,10 @@ Freeze) — Initial validation, to every row of `Implementation Target Files`, i
 that section's additional checks. Mark the section `Frozen` only when every row is
 `Verified` and those additional checks pass. MUST NOT report `Pass` while any row
 remains `Needs confirmation` or the section is not `Frozen`.
+
+A row whose existence and evidence were recorded this cycle with a `(checked in Step N)`
+tag is validated from that record (Step 2's same-cycle dedup rule), and all four Freeze
+criteria still apply to it. A row without a tag is checked as before.
 
 **Completed when**: every row is `Verified` and the section is marked `Frozen`.
 

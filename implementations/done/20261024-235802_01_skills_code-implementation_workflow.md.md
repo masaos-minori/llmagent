@@ -60,9 +60,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update Step 4's iteration command and fallback | Pending | — | — | |
-| 2 | Add scoped re-validation, skip note, and targeted-before-full rule to Steps 3e and 4 | Pending | — | — | |
-| 3 | Run the iteration command twice, then both skills checkers, and review `git diff` | Pending | — | — | |
+| 1 | Update Step 4's iteration command and fallback | Completed | 20261025-003351 | 20261025-003407 |  |
+| 2 | Add scoped re-validation, skip note, and targeted-before-full rule to Steps 3e and 4 | Completed | — | 20261025-003407 |  |
+| 3 | Run the iteration command twice, then both skills checkers, and review `git diff` | Completed | — | 20261025-003407 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

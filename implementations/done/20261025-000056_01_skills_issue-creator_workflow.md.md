@@ -59,10 +59,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace Step 10.2's `Prefer` line with the conditional policy and conditions (a) to (d) | Pending | — | — | |
-| 2 | Add the reproduced-guarantees list and fold in the manual procedure | Pending | — | — | |
-| 3 | Widen Step 10.3 to both paths | Pending | — | — | |
-| 4 | Run both skills checkers, the `rg` check, and the structure checker on one issue per path | Pending | — | — | |
+| 1 | Replace Step 10.2's `Prefer` line with the conditional policy and conditions (a) to (d) | Completed | 20261025-003534 | 20261025-003541 |  |
+| 2 | Add the reproduced-guarantees list and fold in the manual procedure | Completed | — | 20261025-003541 |  |
+| 3 | Widen Step 10.3 to both paths | Completed | — | 20261025-003541 |  |
+| 4 | Run both skills checkers, the `rg` check, and the structure checker on one issue per path | Completed | — | 20261025-003541 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -40,13 +40,13 @@ the filename.
 |---|---|---|
 | 0 | Load required instructions | Read routing, rules, templates, and this skill before starting. |
 | 1 | Identify target Issues | Confirm every specified `issues/{filename}.md` path exists before any processing. Then check for an existing Plan (`workflow.md` Step 1b): a Plan that is not `Frozen` never allows the Issue to be moved. |
-| 2 | Assess the current Issue | Read the Issue in full, verify its claims against current source, and classify each extracted item's evidence basis. If already resolved or no longer applicable, report the evidence and MUST NOT write a Plan; skip Steps 3-8, emit Step 9's reduced report, and move the Issue per Step 10's no-Plan case. |
+| 2 | Assess the current Issue | Read the Issue in full, verify its claims against current source (each claim once per cycle, within a bounded investigation depth), and classify each extracted item's evidence basis. If already resolved or no longer applicable, report the evidence and MUST NOT write a Plan; skip Steps 3-8, emit Step 9's reduced report, and move the Issue per Step 10's no-Plan case. |
 | 3 | Inspect related files | Classify the Issue as Path A or B (see Routing below), then inspect related source, tests, config, and docs at the depth the Path calls for. |
 | 4 | Map Issue information to Plan information | Build an explicit mapping from every extracted Issue item to its Plan destination before writing anything. |
-| 5 | Create the Plan | Apply Path B's broader analysis if applicable, then generate `plans/{timestamp}_{slug}.md` (`{slug}` = the Issue filename's slug) with stable Requirement IDs. |
+| 5 | Create the Plan | Apply Path B's broader analysis if applicable, then generate `plans/{timestamp}_{slug}.md` (`{slug}` = the Issue filename's slug) with stable Requirement IDs; each `Repository Evidence` entry records the step that checked it. |
 | 6 | Analyze Unknowns and Risks | Resolve what evidence allows; file unresolved blocking items as issues. |
 | 7 | Add Traceability | Fill the canonical Traceability fields and the per-Requirement Requirement Traceability table. |
-| 8 | Validate information completeness | Confirm no Issue information was dropped, every Requirement ID is traceable, and `Implementation Target Files` passes validation and is marked `Frozen`. Then check the Frozen Plan against other active Frozen Plans (`workflow.md` Step 8b); a conflict returns it to `Draft`. `Fail`/`Partial` or a not-`Frozen` section re-enters Step 8 (see `workflow.md` Step 8c); the Issue is not moved. |
+| 8 | Validate information completeness | Confirm no Issue information was dropped, every Requirement ID is traceable, and `Implementation Target Files` passes validation (from the recorded checks, all four criteria kept) and is marked `Frozen`. Then check the Frozen Plan against other active Frozen Plans (`workflow.md` Step 8b); a conflict returns it to `Draft`. `Fail`/`Partial` or a not-`Frozen` section re-enters Step 8 (see `workflow.md` Step 8c); the Issue is not moved. |
 | 9 | Final validation | Confirm all Step 8 checks pass (including `Frozen`); report the outcome. On `Fail`/`Partial`/`Blocked`, stop here; MUST NOT proceed to Step 10. |
 | 10 | Move the Issue | `git mv` only (via `close-issue` or the direct command; no other method), once the case's gate in `workflow.md` Step 10 holds — for a generated Plan: Step 9 passes and the Plan is `Frozen` (never for a `Draft` Plan or a `Blocked` cycle); no human approval required. |
 
@@ -75,6 +75,9 @@ before continuing.
 - [ ] Affects ≤ 3 files
 - [ ] No public or runtime-facing interface changes
 - [ ] No database schema changes
+
+A Plan classified Path A whose `Implementation Target Files` has more than 3 rows is
+reclassified to Path B or split into separate Issues before it is frozen.
 
 **Execution Path:**
 Perform Step 3's direct-verification inspection only (no architecture/dependency/
@@ -133,7 +136,9 @@ quality analysis. MUST NOT skip any analysis.
 
 Generate `plans/{timestamp}_{slug}.md` (e.g. `plans/20260702-120000_dlq-requeue-transactional.md`
 for the Issue `issues/20260701-090000_eventbus001_dlq-requeue-transactional.md`) using the
-exact Markdown structure defined in `templates/plan.md`. MUST NOT omit any section. The
+exact Markdown structure defined in `templates/plan.md`. Every `##` heading MUST be present; a Path A
+Plan MAY collapse the sections that `templates/plan.md` lists as collapsible to `N/A: {short reason}`
+under the condition in `workflow.md` Step 4. The
 plan file is the working document: update it as scope changes. MUST NOT implement
 directly from it; the next pipeline phase is `plan-to-implementation-procedure`, which
 produces the file-level procedure documents `code-implementation` executes (see Composes with).

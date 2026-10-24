@@ -247,8 +247,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `## Question policy` section to `skills/code-implementation/workflow.md` | In Progress | — | — |  |
-| 2 | Add the `Questions asked` line to the Final Report of `skills/code-implementation/workflow.md` | In Progress | — | — |  |
+| 1 | Add the `## Question policy` section to `skills/code-implementation/workflow.md` | Completed | — | 20261025-003456 |  |
+| 2 | Add the `Questions asked` line to the Final Report of `skills/code-implementation/workflow.md` | Completed | — | 20261025-003456 |  |
 | 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log

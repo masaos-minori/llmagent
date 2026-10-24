@@ -241,8 +241,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Strengthen the shared rule in `rules/ai-execution.md` | In Progress | — | — |  |
-| 2 | Reference the rule from `skills/issue-to-plan/workflow.md` and `skills/code-implementation/workflow.md` | In Progress | — | — |  |
+| 1 | Strengthen the shared rule in `rules/ai-execution.md` | Completed | — | 20261025-001710 |  |
+| 2 | Reference the rule from `skills/issue-to-plan/workflow.md` and `skills/code-implementation/workflow.md` | Completed | — | 20261025-001710 |  |
 | 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log

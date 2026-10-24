@@ -14,6 +14,7 @@ its own workflow-specific bullets — it does not restate the paragraph above.
 ## Context Reading
 
 - Read shared files once per session in Step 0; do not re-read them for later cycles.
+- A file already read in the current session MUST NOT be re-read unless it changed since the read.
 - Read the current target file in full when its complete meaning or structure is needed.
 - Read other files only in relevant sections, unless a full read is needed to understand behavior, dependencies, lifecycle, ownership, side effects, error handling, configuration, tests, or document consistency.
 - Do not omit necessary evidence to save context.
@@ -116,12 +117,16 @@ record-and-continue) has been taken.
 
 - Before invoking a tool, check whether already-available information is sufficient.
 - Batch independent tool calls into one request instead of issuing them one at a time.
+  Independent Read, Grep, Glob, and read-only state-check calls MUST be issued as one parallel batch.
 - Use verbose, debug, or trace output only when diagnosing a problem.
 - Do not repeat a command when neither its input nor the environment has changed.
   This applies across separate target-file cycles in a Multi-file-processing workflow,
   not only within a single cycle — a side-effect-free, read-only command against a file
   confirmed unchanged (same file path, same content — git blob hash or byte-for-byte
-  match — and same command string) MAY be skipped rather than re-run. This does not permit
+  match — and same command string) MAY be skipped rather than re-run. A Read call, or a
+  read-only `git status`/`git diff`/`git log`/`git show` command, whose underlying state
+  cannot have changed since the last call MUST NOT be re-issued; a re-run needed as
+  independent evidence per Repository Tool Usage item 8 stays allowed. This does not permit
   reusing the *conclusion* drawn from a prior cycle across cycles where a workflow's own
   cycle-isolation rule forbids it (e.g. `skills/issue-to-plan/workflow.md` Multi-file
   processing) — only the command execution itself may be skipped; its output MUST still be

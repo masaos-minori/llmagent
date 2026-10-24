@@ -255,8 +255,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the dedup rule, depth ceiling, and evidence tag to `skills/issue-to-plan/workflow.md` | In Progress | — | — |  |
-| 2 | Align the step summaries in `skills/issue-to-plan/SKILL.md` | In Progress | — | — |  |
+| 1 | Add the dedup rule, depth ceiling, and evidence tag to `skills/issue-to-plan/workflow.md` | Completed | — | 20261025-001741 |  |
+| 2 | Align the step summaries in `skills/issue-to-plan/SKILL.md` | Completed | — | 20261025-001741 |  |
 | 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log

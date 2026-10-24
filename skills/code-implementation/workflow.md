@@ -78,8 +78,8 @@ remaining procedures of that Plan and ask the user whether to continue. Procedur
 other Plans continue. A Step 7 move failure does not stop the batch (the code is already
 applied and validated).
 
-Apply `rules/ai-execution.md` Progress Reporting (Base) for the per-step report
-cadence.
+Apply `rules/ai-execution.md` Context Reading and Tool Usage for the per-cycle load and
+call discipline, and Progress Reporting (Base) for the per-step report cadence.
 
 ### Progress recording during Steps 3-6
 
@@ -125,6 +125,27 @@ cycle.
 Steps 1, 2, and 7 have no procedure row; the Final Report's seven-row table records them.
 If a document's rows differ from the template (a hand-edited or legacy file), match by
 Description text instead and mention the mismatch in the Final Report.
+
+## Question policy
+
+This policy changes only when to ask the user, not what needs confirmation.
+
+- **Pre-flight**: before asking the user about pipeline state (target selection, archive
+  or close, branch or commit state, file existence), run the check that answers it —
+  `uv run python tools/manage_workitem_stage.py list` or `show` for work-item stage,
+  `git status --short` and `git log --oneline @{u}..HEAD` for git state, `ls` or Read for
+  file existence, `tools/stale_detector.py` for staleness — and adopt the single action the
+  state determines. Ask only when two or more valid actions remain.
+- **Batching**: consolidate all genuinely open decisions of one cycle into one question.
+  The batch-level decision in Multi-file processing ("ask the user whether to continue") is
+  asked once per batch. Each item states which state check was run and why it did not decide.
+- **Preserved confirmations**: the confirmations `AGENTS.md` requires (Policy and Execution
+  policy: push to remote, shared infrastructure, external messages, multi-file or recursive
+  destructive commands) are never auto-answered and are only batched; destructive or remote
+  operations are never auto-confirmed. Step 2's stop-and-ask for an ambiguous procedure or
+  unclear scope is unchanged.
+- **Commit and push** are not asked about in this cycle; the Final Report's `Next steps`
+  names `git-commit-and-sync`.
 
 ## Step 0: Load Required Instructions
 
@@ -325,12 +346,20 @@ run.
 **Completed when**: all of the above pass — for a tool with countable output (e.g. the
 number of files `ruff check` or `mypy` examined), confirm it actually ran against a
 non-empty target, not merely that its exit code was 0 (per `rules/ai-execution.md`
-Repository Tool Usage #8).
+Repository Tool Usage #8). "All of the above pass" means every validator passed against
+the final content of the files it examines.
 **On a failure**: fix the code and re-run this same Step 3e (not Step 3a-3d) until it
 passes. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
 most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt MUST be
 recorded (approach, error, reason) before trying a different approach. If the Attempt
 Limit is reached, apply Rollback on Failure below.
+
+**Scoped re-validation after a fix**: re-run only the validators whose inputs the fix
+changed — a formatting or lint fix re-runs `ruff`; a type fix, `mypy` and `ruff`; an
+import change, `lint-imports`, `mypy`, and `ruff`; a security fix, `bandit` and `ruff`.
+Re-run the complete Step 3e sequence when a fix spans these families or changes imports
+or public signatures. Record each validator skipped this way in the validation row's
+Notes as `skipped: {validator} — passed earlier, unaffected by {fix}`.
 
 ## Step 4: Test the Feature
 
@@ -338,10 +367,12 @@ Apply the guidance from `skills/python-test-and-fix/SKILL.md` (loaded in Step 0)
 failure's cause is not immediately obvious, load and apply
 `skills/python-debug-root-cause/SKILL.md` now.
 
-- Determine the targeted test scope via `pytest --testmon tests/` (impact-based
-  selection, see `skills/python-test-and-fix/workflow.md` Step 10) when available;
-  otherwise use tests under the same module path as each changed file, plus any test
-  found via `rg` to import a changed symbol.
+- Determine the targeted test scope via `uv run pytest --testmon-forceselect -m "not
+  integration and not production_paths_allowed" tests/` (impact-based selection that
+  survives the `-m` filter, see `skills/python-test-and-fix/workflow.md` Step 10). Only
+  when testmon cannot run, use tests under the same module path as each changed file,
+  plus any test found via `rg` to import a changed symbol, and record the reason in the
+  row's Notes.
 - Run targeted tests during implementation; confirm the run actually collected at least
   one test (a 0-collected, exit-0 run is not a pass — per `rules/ai-execution.md`
   Repository Tool Usage #8) before treating it as evidence either way; fix all related
@@ -350,15 +381,17 @@ failure's cause is not immediately obvious, load and apply
   recorded (approach, error, reason) before trying a different approach. If the Attempt
   Limit is reached without a passing fix, stop and apply Rollback on Failure (below) —
   MUST NOT proceed to the full-suite run with a known-failing targeted test. If a fix here
-  touched formatting, typing, or imports, re-run Step 3e before returning to this Step's
-  targeted tests — MUST NOT treat Step 3e as satisfied by its earlier pass.
+  touched formatting, typing, or imports, re-run Step 3e's validators per its scoped
+  re-validation rule before returning to this Step's targeted tests — MUST NOT treat
+  Step 3e as satisfied by its earlier pass.
 - Run the repository-defined full test suite exactly once per cycle, after targeted
   tests pass and confirmed to have collected at least one test — the only full-suite
   run for this cycle; Step 6 MUST NOT run tests again. If it fails, fixing and re-running
   the full suite is subject to the same Attempt Limit (3 attempts) and Failure Log as
   targeted tests above — this re-run is the one exception to "exactly once" for an
   ordinary failure; reaching the Attempt Limit without a passing full-suite run means
-  applying Rollback on Failure (below), not a fourth attempt.
+  applying Rollback on Failure (below), not a fourth attempt. A full-suite re-run after a
+  failure follows only a passing targeted run that includes the previously failing tests.
   If Step 3c reported a cross-file conflict with an already-processed earlier file, that
   earlier file is already archived and the current file's cycle ended `Blocked` without
   reaching this Step. Before continuing the batch, run the full test suite once against
@@ -590,6 +623,11 @@ no-mapping outcome, a blocker reference):
 | 5 | Update documentation per `docs/00_index.md` task-scope mapping | Pending | — | — | |
 | 6 | Validate documentation updates | Pending | — | — | |
 | 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
+
+### Questions asked
+
+Report the number of questions asked of the user in this cycle and, for each, the state
+check that was run and why it did not decide the question, or `Questions asked: None`.
 
 ### Next steps
 

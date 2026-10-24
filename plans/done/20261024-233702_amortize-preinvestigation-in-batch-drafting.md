@@ -271,9 +271,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the `## Batch mode` section to `skills/issue-creator/workflow.md` | In Progress | — | — |  |
-| 2 | Rewrite Phase 4's sibling check and add the merge-edit procedure in `skills/issue-creator/workflow.md` | In Progress | — | — |  |
-| 3 | Add the Phase overview pointer in `skills/issue-creator/SKILL.md` | In Progress | — | — |  |
+| 1 | Add the `## Batch mode` section to `skills/issue-creator/workflow.md` | Completed | — | 20261025-003524 |  |
+| 2 | Rewrite Phase 4's sibling check and add the merge-edit procedure in `skills/issue-creator/workflow.md` | Completed | — | 20261025-003524 |  |
+| 3 | Add the Phase overview pointer in `skills/issue-creator/SKILL.md` | Completed | — | 20261025-003524 |  |
 | 4 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log

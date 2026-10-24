@@ -61,9 +61,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the dedup rule and depth ceiling to Steps 2-3 | Pending | — | — | |
-| 2 | Add the evidence tag to Step 5 and make Step 8b consume it | Pending | — | — | |
-| 3 | Run both skills checkers and the `rg` and `git diff` checks | Pending | — | — | |
+| 1 | Add the dedup rule and depth ceiling to Steps 2-3 | Completed | — | 20261025-001733 |  |
+| 2 | Add the evidence tag to Step 5 and make Step 8b consume it | Completed | — | 20261025-001733 |  |
+| 3 | Run both skills checkers and the `rg` and `git diff` checks | Completed | — | 20261025-001733 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

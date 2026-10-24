@@ -279,8 +279,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-run the consumer audit and record the Path A collapse note in `templates/plan.md` | In Progress | — | — |  |
-| 2 | State the collapse and sizing rules in `skills/issue-to-plan/workflow.md` and `skills/issue-to-plan/SKILL.md` | In Progress | — | — |  |
+| 1 | Re-run the consumer audit and record the Path A collapse note in `templates/plan.md` | Completed | — | 20261025-003336 |  |
+| 2 | State the collapse and sizing rules in `skills/issue-to-plan/workflow.md` and `skills/issue-to-plan/SKILL.md` | Completed | — | 20261025-003336 |  |
 | 3 | Verification with collapsed and full Plan fixtures, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log

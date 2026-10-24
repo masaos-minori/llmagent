@@ -232,8 +232,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | State the conditional scaffold policy in `skills/issue-creator/workflow.md` Steps 10.2 and 10.3 | In Progress | — | — |  |
-| 2 | Reword Phase overview item 10 in `skills/issue-creator/SKILL.md` | In Progress | — | — |  |
+| 1 | State the conditional scaffold policy in `skills/issue-creator/workflow.md` Steps 10.2 and 10.3 | Completed | — | 20261025-003543 |  |
+| 2 | Reword Phase overview item 10 in `skills/issue-creator/SKILL.md` | Completed | — | 20261025-003543 |  |
 | 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log

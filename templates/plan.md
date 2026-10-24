@@ -176,3 +176,39 @@ Radius from Step 5's dependency graphing — mark `N/A` if Path A skipped that a
 Fill `deploy.sh Impact` per `skills/DESIGN.md` Change-impact table — always state it
 explicitly. Naming the target doc for a required documentation update belongs in the
 "Documentation Impact" section above, not here.
+
+## Notes on Path A collapse
+
+All 22 `##` headings above stay in every Plan. A Plan classified Path A (see
+`skills/issue-to-plan/SKILL.md` Routing) MAY write the body of a section listed under (a)
+as a single `N/A: {short reason}` line, only under the condition in
+`skills/issue-to-plan/workflow.md` Step 4: the Issue has no content for the section or its
+content is carried in a named other section, and the collapsed line keeps any statement
+the workflow requires of that section (for example the `deploy.sh Impact` value of
+`Affected areas`). Path B Plans fill every section.
+
+Audit basis (2026-10-24): for each section name, `rg -F` over
+`skills/plan-to-implementation-procedure/`, `prompts/02_plan-to-implementation-procedure.md`,
+`skills/code-implementation/`, `rules/`, and `tools/*.py`.
+
+(a) Collapsible: no downstream consumer found that reads the section by name.
+- `Goal`, `Priority`, `Problem`, `Reason for Change`, `Implementation Intent`,
+  `Documentation Impact`, `Affected areas`, `Design`, `Tests`, and the Plan's own
+  `Validation plan`. The `Validation plan` that `skills/code-implementation/workflow.md`
+  reads is the implementation procedure's, not the Plan's.
+
+(b) Must stay filled, with the consumer that reads each:
+- `Scope`: Dependencies (`skills/plan-to-implementation-procedure/workflow.md` Step 2).
+- `Background`, `Requirements`, `Acceptance Criteria`, `Assumptions`, `Risks`: corrected or
+  extended by `plan-to-implementation-procedure` Step 3a; `Assumptions` records overlap
+  judgments; `Risks` holds the blast radius (`rules/toolchain.md`); `Requirements` and
+  `Acceptance Criteria` are the link targets of the Freeze check
+  (`rules/workflow-lifecycle.md`).
+- `Implementation Target Files`, `Reference Files`: Plan Freeze and procedure generation
+  (`rules/workflow-lifecycle.md`, `tools/generate_workitem.py`,
+  `tools/check_plan_target_overlaps.py`).
+- `Unknowns`: the `Blocking?` column (`plan-to-implementation-procedure` Step 2).
+- `Implementation steps`, `Execution Status`: step-to-procedure mapping
+  (`plan-to-implementation-procedure` Step 4, `tools/manage_workitem_stage.py`).
+- `Traceability` and `Requirement Traceability`: `Source issue` and requirement links
+  (`tools/check_workitem_traceability.py`).

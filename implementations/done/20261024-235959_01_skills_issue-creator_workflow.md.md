@@ -58,10 +58,10 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `## Batch mode` with entry condition, shared pass, and notes rules | Pending | — | — | |
-| 2 | Rewrite Phase 4's sibling-issue check as two tiers | Pending | — | — | |
-| 3 | Add `## Merge into an existing issue` | Pending | — | — | |
-| 4 | Run both skills checkers, the structure checker on sample issues, and review `git diff` | Pending | — | — | |
+| 1 | Add `## Batch mode` with entry condition, shared pass, and notes rules | Completed | 20261025-003508 | 20261025-003514 |  |
+| 2 | Rewrite Phase 4's sibling-issue check as two tiers | Completed | — | 20261025-003514 |  |
+| 3 | Add `## Merge into an existing issue` | Completed | — | 20261025-003514 |  |
+| 4 | Run both skills checkers, the structure checker on sample issues, and review `git diff` | Completed | — | 20261025-003514 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

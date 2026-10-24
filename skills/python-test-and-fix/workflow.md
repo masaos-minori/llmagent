@@ -367,7 +367,7 @@ Add `@pytest.mark.timeout(5)` to individual tests that involve LLM calls or netw
 
 ## Step 10: Impact-Based Execution
 
-Use `pytest --testmon` while iterating on a fix within this same session; run the
+Use `pytest --testmon-forceselect` together with `-m` while iterating on a fix within this same session; run the
 repository's full, non-testmon suite once before considering the task complete
 (Step 11) regardless of testmon results — testmon narrows re-runs during iteration, it
 does not replace the final full run. The full run is `uv run pytest -m "not integration and not production_paths_allowed"` (the
@@ -376,18 +376,19 @@ change touches code those tests cover or the user asks. Record the pass/fail cou
 
 Before a full run, a `mutmut` run, or a coverage run, check that no other session is using this checkout's artifacts: `pgrep -af "pytest|mutmut"`. `.testmondata`, `mutants/`, `.coverage`, and `coverage.xml` live in the repository root and are shared by every session (that concurrent runs corrupt them was not verified); wait or ask instead of running concurrently. Record `git rev-parse HEAD` and `git status --short` before the run and compare them after; a tracked file that changed during the run makes the result `Needs confirmation`.
 Per `rules/ai-execution.md` Tool Usage's idempotent-command rule, MUST NOT re-run `pytest
---testmon` with no source change since the last run — its result is unchanged.
+--testmon-forceselect` with no source change since the last run — its result is unchanged.
 MUST NOT commit `.testmondata` (`.gitignore` already lists `.testmondata` and
 `.testmondata-*`; confirm with `git check-ignore .testmondata` and do not re-add it):
 
 ```bash
-uv run pytest --testmon -m "not integration and not production_paths_allowed" tests/                   # only tests affected by changed files
 uv run pytest --testmon-noselect -m "not integration and not production_paths_allowed" tests/          # run everything, prioritising likely failures, update DB
 uv run pytest --testmon-forceselect -m "not integration and not production_paths_allowed" tests/       # select only tests affected by changes, on top of -k/-m filters
 ```
 
-`--testmon-noselect` is the testmon option that deselects nothing; `--testmon-forceselect`
-narrows the selection, so it is not a full run.
+Plain `--testmon` is deactivated whenever `-m` is given (testmon prints "selection
+automatically deactivated because -m was used") and then runs every test, so always pair `-m`
+with `--testmon-forceselect`. `--testmon-noselect` is the testmon option that deselects nothing;
+`--testmon-forceselect` narrows the selection, so it is not a full run.
 
 ## Step 11: Regression Quality Analysis
 

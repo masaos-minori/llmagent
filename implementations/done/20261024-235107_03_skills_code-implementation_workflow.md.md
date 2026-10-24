@@ -53,8 +53,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the reference sentence in `## Multi-file processing` | Pending | — | — | |
-| 2 | Run both skills checkers and the `rg` no-restatement check | Pending | — | — | |
+| 1 | Add the reference sentence in `## Multi-file processing` | Completed | — | 20261025-001709 |  |
+| 2 | Run both skills checkers and the `rg` no-restatement check | Completed | — | 20261025-001709 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

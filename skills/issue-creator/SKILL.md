@@ -72,15 +72,16 @@ the vehicle for unresolved questions, and it is not implementation.
 ## Phase overview
 
 1. Classify and Frame: identify the work's source, scope, and whether assumptions are needed
-2. Task Grouping: split into multiple issues or group into one
+2. Task Grouping: split into multiple issues or group into one (two or more issues: run the shared batch pre-investigation pass before Phase 3, see `workflow.md` Batch mode)
 3. Draft Reason and Intent: write Title, Summary, Background, Problem, Reason for Change, and Implementation Intent
-4. Scope and Boundaries: define Target Files, Required Changes, Constraints, Out of Scope, and Dependencies
+4. Scope and Boundaries: define Target Files, Required Changes, Constraints, Out of Scope, and Dependencies (sibling check in two tiers: full bodies only for candidates)
 5. Acceptance Criteria and Testing: define verifiable criteria and testing expectations
 6. Documentation Impact: assess doc impact and apply documentation cleanup rules
 7. Priority Assignment: assign High / Medium / Low
 8. AI Implementation Instruction: write concise constraints for an AI coding agent
 9. Evidence, Markdown Safety, Final Checklist: verify evidence, copy-paste safety, and completeness of the draft
-10. Write and Verify the File: scaffold the file, fill every placeholder (including Traceability),
+10. Write and Verify the File: create the file (scaffold tool by default, or a direct write under
+    `workflow.md` Step 10.2's conditions), fill every placeholder (including Traceability),
     run the structure checker, and report to the user
 
 See `workflow.md` for detailed phase content, task grouping rules, documentation cleanup

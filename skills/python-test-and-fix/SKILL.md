@@ -80,7 +80,7 @@ Step 12's record is written before the first edit that changes a failing test or
 | 7 | Contract validation | Use `hypothesis` for invariant-based property testing (restrict to pure functions like parsers or serializers). |
 | 8 | Observability validation | Conditional: when the task asserts log/audit output, capture it with pytest's `caplog` fixture. Skip OTel unless project-wide patterns exist. |
 | 9 | Resource leak detection | Audit `pytest-asyncio` lifecycles and use `pytest-timeout` to catch unclosed resources or hanging loops. |
-| 10 | Impact-based execution | Leverage `pytest-testmon` if available for rapid, incremental test execution during local feedback loops. |
+| 10 | Impact-based execution | While iterating, run `pytest --testmon-forceselect` together with `-m` (plain `--testmon` is deactivated by `-m`) when `pytest-testmon` is installed and no other session uses `.testmondata`; the single full run in Step 11 is unchanged. |
 | 11 | Regression quality analysis | Apply `rules/toolchain.md` §7 (Diff-scoped coverage) and check that the specific bug-fix or new path achieves complete logical coverage. |
 | 12 | Fix strategy | **Audit step**, done before the fix (see the Path lists): Formulate the smallest possible fix. If implementation behavior is correct, fix the test; otherwise, fix the implementation. |
 | 13 | Repository test policy compression | Place a fixture you added that 2+ test files need in `conftest.py` (never reorganize existing fixtures, never touch the production-isolation guard); propose (do not apply unprompted) any `routing.md`/skill/`rules/` documentation updates for new patterns. |

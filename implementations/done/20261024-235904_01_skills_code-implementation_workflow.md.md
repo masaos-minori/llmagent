@@ -61,9 +61,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `## Question policy` with the pre-flight, batching, and preserved-confirmations text | Pending | — | — | |
-| 2 | Add the `### Questions asked` Final Report subsection | Pending | — | — | |
-| 3 | Run the named state checks, both skills checkers, and review `git diff` | Pending | — | — | |
+| 1 | Add `## Question policy` with the pre-flight, batching, and preserved-confirmations text | Completed | 20261025-003447 | 20261025-003455 |  |
+| 2 | Add the `### Questions asked` Final Report subsection | Completed | — | 20261025-003455 |  |
+| 3 | Run the named state checks, both skills checkers, and review `git diff` | Completed | — | 20261025-003455 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

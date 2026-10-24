@@ -57,9 +57,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the collapse condition to Step 4 and Step 5 | Pending | — | — | |
-| 2 | Add the sizing rule to Step 5 and the `N/A` acceptance and sizing check to Step 8a | Pending | — | — | |
-| 3 | Run both skills checkers and review `git diff` | Pending | — | — | |
+| 1 | Add the collapse condition to Step 4 and Step 5 | Completed | 20261025-003317 | 20261025-003334 |  |
+| 2 | Add the sizing rule to Step 5 and the `N/A` acceptance and sizing check to Step 8a | Completed | — | 20261025-003334 |  |
+| 3 | Run both skills checkers and review `git diff` | Completed | — | 20261025-003334 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

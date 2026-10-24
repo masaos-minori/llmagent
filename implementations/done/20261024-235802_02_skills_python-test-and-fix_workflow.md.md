@@ -56,8 +56,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the Step 10 prose and command lines and add the deactivation note | Pending | — | — | |
-| 2 | Run both skills checkers and the `rg` check | Pending | — | — | |
+| 1 | Correct the Step 10 prose and command lines and add the deactivation note | Completed | — | 20261025-003436 |  |
+| 2 | Run both skills checkers and the `rg` check | Completed | — | 20261025-003436 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

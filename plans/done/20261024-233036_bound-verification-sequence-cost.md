@@ -275,8 +275,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the testmon commands in `skills/python-test-and-fix/workflow.md` and `skills/python-test-and-fix/SKILL.md` | In Progress | — | — |  |
-| 2 | Update Steps 3e and 4 of `skills/code-implementation/workflow.md` | In Progress | — | — |  |
+| 1 | Correct the testmon commands in `skills/python-test-and-fix/workflow.md` and `skills/python-test-and-fix/SKILL.md` | Completed | — | 20261025-003438 |  |
+| 2 | Update Steps 3e and 4 of `skills/code-implementation/workflow.md` | Completed | — | 20261025-003438 |  |
 | 3 | Verification, regression review, and deployment check | Pending | — | — |  |
 
 ### Blocker Log
