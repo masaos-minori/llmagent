@@ -7,10 +7,12 @@ Read the task description and extract:
 - **Actor**: who or what uses the system
 - **Input/output**: what data enters and leaves each boundary
 - **Constraints**: performance, security, compatibility, deployment
+- **Mode**: `new` (design before implementation) or `existing` (design review of, or refactoring design for, current code). In `existing` mode, apply `skills/DESIGN.md` Evidence labels to every statement about current behavior from this step on (see Evidence and Assumptions).
+- **Delivery**: confirm the default delivery described in `SKILL.md` (English design document in the chat); ask only if the user wants a file and gave no location.
 
 If Goal/Actor/Input-output/Constraints cannot be determined from the task description and available code, list specific questions instead of guessing.
 
-**Completed when**: all four items are recorded, each as a confirmed value or an explicit question.
+**Completed when**: all four items are recorded, each as a confirmed value or an explicit question, and the mode is set.
 **Stop and ask the user before Step 2 when**: Goal cannot be determined even provisionally
 (every later step depends on it). For the other three items, record the open question and
 continue to Step 2 with them marked `UNKNOWN`.
@@ -20,6 +22,7 @@ continue to Step 2 with them marked `UNKNOWN`.
 ## Step 2: Extract Requirements
 
 List:
+- **Scope**: what is in scope, what is out of scope, and explicit non-goals
 - **Functional requirements**: what the system must do
 - **Non-functional requirements**: latency, concurrency, reliability, scalability
 - **Assumptions**: things you accept as true but cannot verify now
@@ -27,7 +30,7 @@ List:
 
 If any requirement is ambiguous, flag it as `UNKNOWN` with the information needed to resolve.
 
-**Completed when**: Functional requirements, Non-functional requirements, Assumptions, and
+**Completed when**: Scope, Functional requirements, Non-functional requirements, Assumptions, and
 Dependencies are each recorded, as concrete items or `UNKNOWN` entries.
 **Stop and ask the user before Step 3 when**: zero functional requirements can be
 determined even provisionally. Any other ambiguity is recorded as `UNKNOWN` and design continues.
@@ -36,45 +39,56 @@ determined even provisionally. Any other ambiguity is recorded as `UNKNOWN` and 
 
 ## Step 3: Define Architecture
 
-Read existing code to understand the current architecture. Always run both command groups
-below, in this order (layer contracts first):
+First read what is already decided, then the code:
+
+1. Existing design documents and ADRs: use `docs/00_index.md` "Document References by Task" to
+   find the documents for the area, and read the relevant ADRs under `docs/10_adr/` (index:
+   `docs/10_adr/adr_01_index.md`). Record each accepted decision the design must respect.
+   MUST NOT load all of `docs/` (`AGENTS.md` Global Rule 3).
+2. Layer contracts and the layer diagram: `rules/env.md` Architecture is the canonical diagram
+   (MUST NOT restate it); read `.importlinter` with the Read tool.
+3. Run both command groups below, in this order (layer contracts first):
 
 ```bash
-# Layer contracts
-lint-imports
-cat .importlinter
+# Layer contracts (command per rules/toolchain.md section 3)
+PYTHONPATH=scripts uv run lint-imports
 
-# Module decomposition
+# Module decomposition: list the real top-level layout, then the packages the design touches
 ls scripts/
-ls scripts/shared/ scripts/db/ scripts/rag/ scripts/mcp/ scripts/agent/
+ls scripts/<package>/            # for each package named in Step 2's scope, e.g. mcp_servers, shared, eventbus
 ```
 
 Define:
 - **Components**: what the major pieces are
 - **Boundaries**: which component owns what
+- **Process separation**: for each component that runs as its own process, the reason it is separate and the reason its configuration is scoped to that process (`skills/DESIGN.md` Docs content policy — retain), and the boundaries that cannot change unilaterally
 - **Control flow**: how requests or events move through the system
 - **Data flow**: what data is read, written, and transformed at each step
 
-Keep the component count at or below the number of distinct use cases identified in Step 2:
-if a proposed component's responsibility can be merged into an existing one without
-violating one-way dependency direction (Core Design Rules), merge it.
+In `new` mode, keep the component count at or below the number of distinct use cases identified
+in Step 2: if a proposed component's responsibility can be merged into an existing one without
+violating one-way dependency direction (Core Design Rules), merge it. In `existing` mode,
+describe the components that exist (with Evidence labels) and apply this rule only to
+components the design proposes to add.
 
 Include a concurrency model when relevant: synchronous, asynchronous (`asyncio`), threaded,
 multi-processed, or hybrid. State the sync/async boundary explicitly.
 
-**Completed when**: Components, Boundaries, Control flow, and Data flow are all defined and
-the component count is justified against Step 2's use cases.
+**Completed when**: Components, Boundaries, Process separation (where it applies), Control flow,
+and Data flow are all defined, the accepted ADRs/documents consulted are recorded, and (in
+`new` mode) the component count is justified against Step 2's use cases.
 
-If the component count cannot be justified against Step 2's use cases even after
-attempting to merge per the rule above: stop and report the specific components that could
-not be justified or merged, rather than proceeding.
+If a proposed component's count cannot be justified against Step 2's use cases even after
+attempting to merge per the rule above: do not stop the design. Mark the component as an
+Open Question (`UNKNOWN` justification) in Risks and Open Questions and continue; Step 9's
+YAGNI check then decides whether it stays.
 
 ---
 
 ## Step 4: Design Modules and Interfaces
 
 For each module in the design:
-- **Package path**: where it lives (e.g. `scripts/mcp/<name>/`)
+- **Package path**: where it lives (e.g. `scripts/mcp_servers/<name>/`)
 - **Responsibility**: one sentence per module
 - **Public API**: functions or classes exposed to other modules
 - **Dependency direction**: which modules it imports and which import it
@@ -98,13 +112,24 @@ same `ast-grep` pattern against an unchanged target expecting a different result
 "no conflicting pattern" only after confirming the pattern actually searched `scripts/`
 (a typo'd pattern or path also yields no matches).
 
+For every non-obvious design decision (a new abstraction, a boundary choice, a deviation from
+an existing pattern), record a decision entry:
+- **Decision**: what was chosen
+- **Alternatives considered**: at least one realistic alternative, and why it was rejected
+- **Compatibility impact**: effect on existing callers, data, and configuration keys
+- **Reversibility**: how hard it is to undo (feeds Step 8c)
+
+If a decision contradicts or extends an accepted ADR, state it as a proposed ADR change.
+
 **Completed when**: every module has a package path, one-sentence responsibility, public API,
-and dependency direction recorded, and (if applicable) the ast-grep check found no
-conflicting existing pattern.
+and dependency direction recorded, every non-obvious decision has a decision entry, and (if
+applicable) the ast-grep check found no conflicting existing pattern.
 
 ---
 
-## Step 5: Design Data and Persistence
+## Step 5: Design Data, Persistence, Configuration, and Security
+
+### Step 5a: Data and persistence
 
 For each entity:
 - **Fields and types**: `field_name: type` list
@@ -119,8 +144,29 @@ compatibility constraints, and invariants. Apply `skills/DESIGN.md` Avoid
 implementation-reference duplication — avoid exhaustive field listings unless needed to
 explain a design decision.
 
+### Step 5b: Configuration
+
+For each setting the design adds or changes:
+- **Owner and source**: which component owns it; env var, TOML (`config/agent.toml` is the SSOT
+  per `rules/env.md`), or JSON
+- **Lifetime**: startup-only or runtime-changeable; restart or hot-reload boundary
+- **Sensitivity**: whether it is security-sensitive (never logged, never in docs)
+- **Per-process scoping**: why it belongs to one process's configuration rather than a shared one
+
+### Step 5c: Security and trust boundaries
+
+- **Trust boundaries**: where external or model-generated input enters (HTTP and MCP inputs,
+  file paths, subprocess arguments, tool calls) and where it is validated
+- **Approval and permission paths**: for any tool-executing path, which existing approval or
+  permission check applies; a new path MUST NOT bypass the checks neighboring paths use
+- **Secrets**: where secrets live and that they never reach logs, errors, or docs
+  (`skills/DESIGN.md` No secrets in output)
+- **Serialization risks**: no `pickle` or other unsafe deserialization of untrusted data
+
 **Completed when**: every entity identified has Fields and types, Validation rules,
-Storage, and Serialization all specified.
+Storage, and Serialization all specified (5a); every new or changed setting has Owner, Lifetime,
+Sensitivity, and Per-process scoping (5b); and every trust boundary the design touches has
+validation and approval stated, or 5b/5c is recorded as not applicable (5c).
 
 ---
 
@@ -132,11 +178,10 @@ For each failure mode:
 - **Logging**: what context to include in the log message
 - **User visibility**: is the error shown to the user, logged only, or silently handled?
 
-Copy the standard logging pattern:
-```python
-logger = logging.getLogger(__name__)
-logger.error("descriptive_message key=value key2=%s", val)
-```
+Specify logging at the convention level, not as code: module-level `logging.getLogger(__name__)`,
+`key=value` messages, and the repository's `fmt_kvlog` helper where neighboring modules use it
+(`scripts/shared/formatters.py`; `python-implementation` Phase 7 owns the details). State only
+which context each failure log must carry.
 
 Design so the implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints
 (context managers for resource management): specify the `with`/`async with` boundary for each
@@ -156,12 +201,26 @@ For each module:
 - **Edge cases**: empty inputs, missing data, concurrent access, timeouts
 - **Failure-path tests**: what happens when a dependency fails
 
+Repository constraints to reflect in the strategy:
+- test files mirror `scripts/` (`tests/<package>/test_<module>.py`); the work itself is done
+  with `python-test-and-fix`
+- running tests on this host can touch production state under `/opt/llm`: state that the
+  isolation guard in `tests/conftest.py` must cover any new path, DB, or port the design
+  introduces
+- tests that start real subprocesses or services use the `integration` marker and are a
+  separate command
+
 **Completed when**: every module has at least one specified test category (unit,
 integration, edge case, or failure-path) matching its I/O/boundary characteristics from Step 4.
 
 ---
 
 ## Step 8: Produce an Implementation Plan
+
+When this skill is called by `issue-to-plan` (which owns the work plan) or for the narrow
+`plan-to-implementation-procedure` use, produce only the phase list and risks that feed that
+document; the full implementation plan below is for a standalone design task. MUST NOT write a
+second, competing plan document.
 
 ### Step 8a: List phases in dependency order
 
@@ -208,6 +267,11 @@ Check:
 - [ ] the implementation plan covers all modules and is small enough for independent phases
 - [ ] open questions and implementation-verification items are listed
 - [ ] design complies with `skills/DESIGN.md` Import layer contract and Pythonic safety constraints
+- [ ] design is consistent with the accepted ADRs and documents recorded in Step 3; any deviation is a proposed ADR change
+- [ ] every new or changed setting has owner, lifetime, sensitivity, and per-process scoping (Step 5b)
+- [ ] trust boundaries and approval paths are stated (Step 5c)
+- [ ] every non-obvious decision lists an alternative and its compatibility impact (Step 4)
+- [ ] (`existing` mode) every statement about current behavior carries an Evidence label
 
 If a section is not relevant, omit it instead of filling it with generic text.
 
@@ -229,6 +293,11 @@ Risks and Open Questions) instead of leaving it unchecked or retrying indefinite
 | untested or contradictory assumption | Step 2 |
 | implementation plan gap | Step 8 |
 | missing open question | Evidence and Assumptions (below) |
+| ADR/document inconsistency | Step 3 or Step 4 |
+| configuration gap | Step 5b |
+| security gap | Step 5c |
+| missing alternative or compatibility impact | Step 4 |
+| missing Evidence label (`existing` mode) | Evidence and Assumptions (below) |
 | Import layer contract / Pythonic safety violation | Step 3, Step 4, or Step 6 |
 | ast-grep found a conflicting existing pattern | Step 4 |
 
@@ -238,8 +307,10 @@ Risks and Open Questions) instead of leaving it unchecked or retrying indefinite
 
 ### Existing Codebase Design Review
 
-When reviewing or redesigning an existing Python codebase, apply `skills/DESIGN.md` Evidence
-labels and Confidence levels to describe current behavior. In addition:
+When reviewing or redesigning an existing Python codebase (mode `existing`, set in Step 1),
+apply `skills/DESIGN.md` Evidence labels and Confidence levels to describe current behavior in
+every step — components and boundaries in Step 3, interfaces in Step 4, data and configuration
+in Step 5, failure behavior in Step 6 — not only in the final document. In addition:
 - distinguish implemented behavior from desired design
 - preserve known issues and unresolved documentation/code mismatches
 
@@ -277,12 +348,17 @@ that do not apply; MUST NOT fill irrelevant sections just to satisfy the templat
 1. **Goal** — what the program or change is intended to do, what problem it solves, what value it provides.
 2. **Scope** — in scope, out of scope, assumptions, explicit non-goals.
 3. **Requirements** — functional/non-functional requirements, edge cases, Python-version and performance constraints, external dependencies, assumptions to verify later.
-4. **Architecture** — main components, responsibility/ownership boundaries, control/data flow, dependency direction, concurrency model, operational constraints.
+4. **Architecture** — main components, responsibility/ownership boundaries, process separation and its reasons, control/data flow, dependency direction, concurrency model, operational constraints.
 5. **Module Design** — package layout at responsibility level, module responsibilities, allowed/forbidden dependency direction, import boundaries, circular-import constraints.
-6. **Interface Design** — externally relevant public contracts, caller-visible behavior, input/output type boundaries, protocol/ABC usage only when justified, stability expectations.
+6. **Interface Design** — externally relevant public contracts, caller-visible behavior, input/output type boundaries, protocol/ABC usage only when justified, stability expectations, compatibility considerations for existing callers.
 7. **Data Model and Serialization** — key domain entities and ownership, data lifecycle, validation/persistence/serialization boundaries, immutability strategy.
 8. **Error Handling and Resource Lifecycle** — failure modes, exceptions, retry/timeout policy, disconnected/malformed-input behavior, logging context, resource lifecycle (files, sockets, DB connections, HTTP/async clients).
-9. **Configuration** — ownership, source boundaries (env vars, TOML, JSON), startup-only vs. runtime-changeable settings, restart/hot-reload boundaries, security-sensitive settings.
-10. **Test Strategy** — unit/integration/contract test targets, mocking and fixture strategy, external dependency isolation, type-checking expectations, regression tests for failure paths.
-11. **Implementation Plan** — ordered phases, measurable milestones, dependency-aware task order, migration path, rollback strategy, documentation update points.
-12. **Risks and Open Questions** — risks and mitigations, dynamic-typing/third-party/concurrency/operational risks, unresolved design decisions, assumptions requiring confirmation, implementation verification items.
+9. **Configuration** — ownership, source boundaries (env vars, TOML, JSON), startup-only vs. runtime-changeable settings, restart/hot-reload boundaries, security-sensitive settings, per-process scoping and its reason (Step 5b).
+10. **Security and Trust Boundaries** — trust boundaries and where input is validated, approval/permission paths, secret handling, serialization risks (Step 5c).
+11. **Test Strategy** — unit/integration/contract test targets, mocking and fixture strategy, external dependency isolation, production-isolation requirement, `integration` marker use, type-checking expectations, regression tests for failure paths.
+12. **Design Decisions and Alternatives** — each non-obvious decision with alternatives considered, compatibility impact, reversibility, the accepted ADRs/documents respected, and any proposed ADR change (Step 3 and Step 4).
+13. **Implementation Plan** — ordered phases, measurable milestones, dependency-aware task order, migration path, rollback strategy, documentation update points.
+14. **Risks and Open Questions** — risks and mitigations, dynamic-typing/third-party/concurrency/operational risks, unresolved design decisions, assumptions requiring confirmation, implementation verification items.
+
+Deliver the result as the delivery rule in `SKILL.md` describes (an English design document; a
+short Japanese summary and the open questions in the chat).

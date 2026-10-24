@@ -194,7 +194,9 @@ Generate each document using the exact structure defined in
 `templates/implementation-procedure.md` (loaded in Step 0). See that template's Notes
 on filling sections for how to apply `skills/python-design/SKILL.md` +
 `skills/python-design/workflow.md` to the Design-decisions-family fields — draw only
-the few relevant bullets from that skill's broader 12-section template; MUST NOT produce
+the few relevant bullets from that skill's broader multi-section template (its Design
+Decisions and Alternatives, Interface Design, Security and Trust Boundaries, and
+Implementation Plan sections); MUST NOT produce
 its full architecture output here.
 
 This step has four sub-steps. Step 3b runs once, before the row loop starts. Then, for
