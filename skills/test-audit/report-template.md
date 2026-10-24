@@ -13,7 +13,8 @@ prose inside the generated report itself.
 
 ```markdown
 # 1. Overall Findings
-- (3-10 bullets)
+- Audited revision: {HEAD SHA}; working tree {clean | modified: paths}
+- (3-10 further bullets)
 
 # 2. Executed Tests / Validation Commands
 - command / purpose / result / notes  (one entry per Step 1 command; a command Step 2
@@ -61,8 +62,9 @@ prose inside the generated report itself.
 Populate every section above using IDs and content already established in Steps 1-7;
 MUST NOT re-derive or re-analyze.
 
-- **# 1**: summarize overall test-suite health; mention the strongest and weakest
-  areas.
+- **# 1**: start with the audited revision from `workflow.md` Step 1's baseline (and
+  Step 3's post-run comparison, if tracked files changed during the run); then
+  summarize overall test-suite health, mentioning the strongest and weakest areas.
 - **# 2**: one entry per Step 1 command — executed ones with their Step 3 Result, and
   commands Step 2 did not clear with the Result mapped in `evidence.md` ("Commands that
   were never executed"). For `Pass`, a concise one-line summary; for
@@ -83,12 +85,17 @@ MUST NOT re-derive or re-analyze.
 - **# 8**: order Task IDs and explain why (dependency chain, risk, effort).
 - **# 9**: list every unresolved `Needs confirmation` item carried from Steps 4/5, and
   always state the audit's limits: flaky detection covers only tests that failed in
-  Step 3 (`evidence.md`), and any command classified `Blocked`/`Not available`.
+  Step 3 (`evidence.md`), any command classified `Blocked`/`Not available`, the kinds of
+  write the isolation mechanism does not cover, tests exempted from isolation that were
+  not run, and tests excluded for a port collision (`safety.md`).
 
 Determine the report destination from existing repository rules: if the repository
-defines a report directory, save the Markdown report there; if no destination is
-defined, return the report only in the final response; MUST NOT create a new report
-directory without an existing rule.
+defines a report directory, save the Markdown report there. None is defined today, and
+a report that stays in the chat is lost with the session, so when no destination is
+defined, ask the user once for a path before finishing Step 8. If they give one, save
+the report there; if they decline or do not answer, return the report only in the final
+response and say that it was not saved. MUST NOT create a new report directory without an
+existing rule or the user's instruction.
 
 ---
 

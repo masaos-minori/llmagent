@@ -30,8 +30,8 @@ The output MUST be usable directly as each of: a QA review memo, a test debt rep
 | Step | Name | Phase type | Goal / AI Action |
 |---|---|---|---|
 | 0 | Load required instructions | Discovery | Read `routing.md`, `AGENTS.md`, `rules/toolchain.md`, `rules/env.md`, `rules/ai-execution.md`, `skills/DESIGN.md`, this skill, `workflow.md`, `discovery.md`, `safety.md`, `evidence.md`, `report-template.md` before starting (list: `workflow.md` Step 0). |
-| 1 | Discover test entry points | Discovery | Identify every test/validation command the repository defines; execute nothing. |
-| 2 | Safety evaluation | Analysis | Classify every discovered command `Safe` / `Safe with isolated infrastructure` / `Blocked` / `Not runnable` / `Prohibited`, before anything runs. |
+| 1 | Discover test entry points | Discovery | Identify every test/validation command the repository defines and record the audited revision (`HEAD`, `git status --short`); execute nothing. |
+| 2 | Safety evaluation | Analysis | Classify every discovered command `Safe` / `Safe with isolated infrastructure` / `Blocked` / `Not runnable` / `Prohibited`, before anything runs: isolation scope, exempt tests, port collisions with running services, and commands that would modify tracked files. |
 | 3 | Execute safe commands | Execution | Run every command Step 2 cleared, within the Full-Suite Execution Scope and Abort Conditions. |
 | 4 | Failure reproduction confirmation | Execution | Re-run each failure to establish deterministic-vs-flaky and root cause with cited evidence. |
 | 5 | Gap analysis | Analysis | Find missing/weak and inconsistent/outdated tests against current source and docs. |

@@ -20,7 +20,10 @@ stabilization work plan, not staged through `issues/` -> `plans/` -> `implementa
 - Production code: see `SKILL.md` Phase Boundaries.
 - Writing is limited to the final Markdown report, saved per `report-template.md`
   Report Content Rules' destination logic — MUST NOT create a new report directory
-  without an existing repository rule.
+  without an existing repository rule or the user's instruction — and to command output
+  files in a temporary directory outside the repository (Step 3).
+- The audit changes no tracked file: see `safety.md` "Commands that modify the working
+  tree".
 
 ## Out of Scope
 
@@ -80,6 +83,10 @@ Report progress at the start and end of each step, including its Phase Boundarie
 Follow `discovery.md` Test Entry Point Discovery in full. Output the full candidate
 command list — MUST NOT execute any of them here.
 
+Record the audited baseline with read-only git commands: `git rev-parse HEAD` and
+`git status --short`. Step 8 reports it (`report-template.md` `# 1`), so the report says
+which code was audited.
+
 ---
 
 ## Step 2: Safety Evaluation (Analysis)
@@ -109,6 +116,9 @@ This includes, if present and cleared by Step 2:
 - formatting checks
 - config/schema consistency checks
 
+Lint and formatting run in their check-only forms (`safety.md` "Commands that modify the
+working tree"), never the `--fix` or in-place forms.
+
 MUST NOT run only one test command if the repository clearly has multiple validation
 layers. If tests need to be run in a specific order, follow the order the repository
 defines (`rules/toolchain.md`, CI workflows); MUST NOT invent one.
@@ -116,14 +126,26 @@ defines (`rules/toolchain.md`, CI workflows); MUST NOT invent one.
 Do not enable `--reruns` (`pytest-rerunfailures`) here: a failure that passes on rerun
 would be reported as a pass and hide the flakiness Step 4 must classify.
 
+Run pytest the way CI does (`.github/workflows/ci.yml`: `uv run pytest -v`, and
+`uv run coverage run -m pytest tests/` for coverage): one process, no `-n`. Do not add
+`-n` (`pytest-xdist`) in Step 3 or Step 4; it changes test ordering relative to the
+`--randomly-seed` recorded here.
+
 If `rules/toolchain.md` defines a coverage command sequence, include it as a candidate
-in Step 1. Once Step 2 clears it, it may serve as the run of the test suite it wraps — one
-execution, not a plain run plus a coverage run. Record the overall and per-module
-coverage figures from its summary; Step 5 reads them from there.
+in Step 1. Once Step 2 clears it, it MUST serve as the run of the test suite it wraps —
+one execution, not a plain run plus a coverage run. Record the overall and per-module
+coverage figures from its summary; Step 5 reads them from there. If it was not cleared,
+record coverage as not measured.
 
 A full run can take several minutes and exceed a foreground command's time limit. Run it
-in the background with output redirected to a file, and read only the summary line and
-the `FAIL`/`ERROR` lines.
+in the background with output redirected to a file in a temporary directory outside the
+repository (`mktemp -d`), and read only the summary line and the `FAIL`/`ERROR` lines.
+
+After the run, repeat `git rev-parse HEAD` and `git status --short` and compare them with
+Step 1's baseline. A tracked file that changed during the run (another session, or a
+command that wrote to it) makes every result that depends on that file `Needs
+confirmation`; if a command of this audit modified a tracked file, stop and report which
+command and file.
 
 For each executed command, record: exact command, purpose, and its Result
 Classification (`evidence.md`), per `rules/ai-execution.md` Repository Tool Usage
@@ -139,6 +161,11 @@ For every `Fail`/`Partial` result from Step 3, apply `evidence.md` Evidence Crit
 for Root Cause and Flaky Classification: re-run in isolation, record the
 deterministic/flaky determination with its evidence ratio, and record the root cause
 with its cited evidence location and confidence label.
+
+Re-run by node id (one test), not by file. When the failing set is large (a rule of thumb
+proposed here: more than 10 tests), group the failures by identical failure signature and
+re-run one representative per signature; report the others as `same signature as F-{NNN},
+not individually re-run`.
 
 For each confirmed failure, record: failing test name/file, failure type, stack trace
 summary, deterministic-or-flaky (with evidence), root cause (with evidence), and — if

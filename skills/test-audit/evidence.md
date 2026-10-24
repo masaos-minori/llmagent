@@ -88,6 +88,8 @@ Keep stack trace summaries to the minimum lines needed; MUST NOT paste full trac
 
 Tag each Step 6 Finding with one of the following categories, where applicable:
 - Existing test failure
+- Skipped or xfail test risk (a skip, `xfail`, or deselected test that hides behavior
+  worth protecting; `workflow.md` Important Rules)
 - Flaky test risk
 - Environment dependency problem
 - Missing test coverage

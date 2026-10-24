@@ -35,15 +35,55 @@ cannot touch production state:
 - Read `rules/env.md` for the production paths, databases, and service ports.
 - Find the repository's isolation mechanism for tests (for example a guard in
   `conftest.py` that redirects or rejects production paths, or per-test temporary
-  directories) and confirm it covers each production path from `rules/env.md`. Cite the
-  file where it was found.
+  directories). Cite the file where it was found, and record what it covers and what it
+  does not. Here, `tests/conftest.py` builds a temporary root (a copy of `config/` with
+  the writable-state paths rewritten) and an autouse guard that fails a test opening a
+  SQLite database or a `FileHandler` under `/opt/llm`; other kinds of write are not
+  guarded.
+- Classify `Blocked` (and MUST NOT run) only when no mechanism exists for a production
+  path that the tests reach, found with `rg` in `tests/` or in the configuration the tests
+  load. A kind of write the mechanism does not cover, but that no test reaches, is a
+  residual risk: record it for the report's `# 9`, not as a block.
+- Tests the mechanism exempts can write production state. In this repository that is the
+  `production_paths_allowed` marker (used in `tests/conftest.py`; it is not declared in
+  `pyproject.toml` `markers`). List them with `rg -l production_paths_allowed tests` and
+  treat them as a separate command, classified `Blocked` by default; run the rest with
+  `-m "not production_paths_allowed"`.
 - Check the `markers` in `pyproject.toml`. A marker for tests that start real
   subprocesses or services (this repository's `integration` marker) makes those tests a
   separate command, classified on its own — for example `-m "not integration"` and
   `-m integration` are two candidates.
 
-If no isolation mechanism covering a production path is found, classify the affected
-test commands `Blocked` and record which path is unguarded; MUST NOT run them.
+### Collision with running services
+
+The suite runs on a host whose configuration points at `/opt/llm` (see
+`tests/conftest.py`), so production services may be listening there. Before classifying
+a command that starts subprocesses or servers (the `integration` tests and any test that
+binds a socket) `Safe`, compare the ports the tests name with the ports in use:
+
+```bash
+rg -n "localhost|127\.0\.0\.1" tests --glob '*.py'    # ports the tests name
+ss -ltnH                                               # ports listening now
+```
+
+For each overlap, read the test: a URL string passed to a mocked client is harmless; a
+real bind or connect to a listening port is a collision. Classify the affected files
+`Blocked` (exclude them with `--ignore`/`--deselect`) and record the port and the
+listening process (`ss -ltnpH 'sport = :PORT'`). Whether any test here binds a fixed port
+was not established when this rule was written; the check decides it per run.
+
+### Commands that modify the working tree
+
+The audit is read-only. A command that rewrites tracked files is not run as written:
+- `uv run ruff format scripts/` and `uv run ruff check scripts/ --fix` (the
+  `rules/toolchain.md` forms) → run the check-only forms `uv run ruff format --check
+  scripts/` and `uv run ruff check scripts/`.
+- `pre-commit run` (any form) → `Blocked`: it can rewrite files and stash other sessions'
+  unstaged changes; the check-only `ruff`, `mypy`, and `lint-imports` commands cover its
+  main hooks.
+- Gitignored outputs (`.coverage`, `coverage.xml`, `.testmondata*`) are expected. Any
+  other new or modified file after a run is handled by `workflow.md` Step 3's
+  post-run check.
 
 ### No test-only configuration changes
 
@@ -85,7 +125,10 @@ it as `Blocked`, instead of letting it run to exhaustion, when any of the follow
 happens mid-execution:
 - the command produces no new output for 10 minutes (a hang, not a slow but progressing
   suite; 10 minutes is the default — use a shorter or longer limit only if the user's
-  scope hint or the repository's configured timeout says so),
+  scope hint or the repository's configured timeout says so). For a background run
+  writing to an output file, check the file's modification time (`stat -c %Y <file>`)
+  against `date +%s`; `pytest-timeout` is installed but no timeout is configured in
+  `pyproject.toml`, so the audit does not rely on it,
 - the command begins behaving in a way Safety Evaluation did not clear (e.g.
   attempting network access to a non-local host, prompting for credentials, writing
   outside the isolated test environment),
