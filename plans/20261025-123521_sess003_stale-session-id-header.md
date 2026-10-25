@@ -158,8 +158,33 @@ selected set → full suite.
 
 | ID | Question | Confidence | Blocking | Verification Steps |
 |---|---|---|---|---|
-| U-001 | Does the desktop/web runtime (`agent_web`) have its own startup wiring that sets `set_session_id` once and also needs the refresh? Grep found the REPL call site only. | Medium | No (helper is flow-agnostic; adding a call later is additive) | During Phase 1, inspect `agent_web/` init for a `set_session_id`/transport session wiring; if absent, the REPL is the only affected runtime. |
+| U-001 | Does the desktop/web runtime (`agent_web`) have its own startup wiring that sets `set_session_id` once and also needs the refresh? Grep found the REPL call site only. | High (resolved) | No | RESOLVED 2026-10-25 re-verification: `agent_web/` does not exist in the repository; `repl_input_loop.py:110` is the only `set_session_id` call site outside the tools layer. REPL is the only affected runtime. |
 | U-002 | Whether `/clear` without new_session should also refresh (id is unchanged — no-op by definition). | High | No | Design decision recorded: no call in that branch (id unchanged); test 5's sibling asserts single-call behavior only for the new-session branch. |
+
+## Adversarial Re-verification (2026-10-25, procedure generation)
+
+- Startup guards + call confirmed at `repl_input_loop.py:106-110`
+  (`ctx.services_required.tools is not None and ctx.session.session_id is not None` →
+  `set_session_id(str(...))`).
+- `session_restore.py:97` (`ctx.session.session_id = session_id`) and `:98`
+  (`reset_session_stats(ctx)`) — confirmed. `reset_session_stats` already imported from
+  `agent.commands.mixin_base` by both services (`session_restore.py:14`,
+  `conversation_service.py:14`) — import direction confirmed.
+- `conversation_service.clear_conversation` spans 24-37; new-session branch
+  `ctx.session.start()` at line 31.
+- `session.py:148` (`self.session_id = cur.lastrowid`) — confirmed; `set_session_id` has
+  exactly one call site outside the tools layer (`repl_input_loop.py:110`, grep re-run).
+- `agent_web/` does NOT exist in the repository (sess001 verification finding re-confirmed):
+  U-001's verification target is obsolete; Phase 3 resolves as "no other runtime wiring
+  exists" (U-001 closed, non-blocking, no follow-up).
+- `mcp_02_01:50` quote confirmed verbatim; `mcp_03_03:64` "spans the entire session"
+  confirmed. Docs checkers per `routing.md` (`check_docs_quality.py`,
+  `check_docs_structure.py`, `check_docs_content_policy.py`,
+  `check_docs_consistency.py --domain mcp`).
+- Test figures: "186-test baseline set" is wrong — `tests/agent/test_session*.py` collects
+  78 tests (4 files). Full suite collects 10091 tests at HEAD fb9359f22.
+  `test_tool_executor_routing.py` session-id tests confirmed around lines 419-457.
+- `mixin_base` importers: 11 files (plan said 10) — additive helper stays safe.
 
 ## Affected areas
 
@@ -231,13 +256,30 @@ Rejected alternatives:
 
 ## Execution Status
 
-| Item | Status |
-|---|---|
-| Plan | Frozen |
-| Phase 1 (tests first) | Pending |
-| Phase 2 (helper + wiring) | Pending |
-| Phase 3 (agent_web check) | Pending |
-| Phase 4 (docs + full validation) | Pending |
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`.
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Phase 1: tests first (`tests/agent/test_session_correlation_refresh.py`) | In Progress | — | — | re-verified against HEAD b5c215cdb 2026-10-25 |
+| 2 | Phase 2: helper + wiring (`mixin_base.py`, `session_restore.py`, `conversation_service.py`) | In Progress | — | — | `REQ-001`..`REQ-003`, `REQ-005` |
+| 3 | Phase 3: U-001 runtime-wiring check (read-only) | Completed | 2026-10-25 | 2026-10-25 | resolved in re-verification: `agent_web/` does not exist; REPL is the only runtime |
+| 4 | Phase 4: docs update + full validation, single commit | In Progress | — | — | docs row procedure generated; validation is gate only |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| implementations/20261025-134617_01_scripts_agent_commands_mixin_base.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261025-134617_02_scripts_agent_services_session_restore.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261025-134617_03_scripts_agent_services_conversation_service.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261025-134617_04_tests_agent_test_session_correlation_refresh.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261025-134617_05_docs_22_mcp_mcp_02_01_endpoints-and-transport.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 
