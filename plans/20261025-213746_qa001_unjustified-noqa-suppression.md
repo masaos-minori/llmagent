@@ -140,9 +140,9 @@ tests/, so there is no gap that would force keeping the suppression.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Delete `# noqa: ARG001` from tests/agent/test_session_restore.py | Pending | — | — | Phase 1 |
-| 2 | ruff + pytest + suppression checker verification | Pending | — | — | Phase 2 |
-| 3 | deploy.sh convergence check | Pending | — | — | Phase 2 |
+| 1 | Delete `# noqa: ARG001` from tests/agent/test_session_restore.py | Completed | — | 2026-10-26 | Phase 1 implemented and verified in-session |
+| 2 | ruff + pytest + suppression checker verification | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 3 | deploy.sh convergence check | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
