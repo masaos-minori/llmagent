@@ -78,3 +78,19 @@ Mutation check (AC-3, paired with doc0002): in a scratch copy under /tmp/opencod
 ## Definition of Done
 
 - Red wrapper test (doc0002) turns green; guard grep exit 1; empty diffs on `task_ops.py`/`schema_sql.py`; lint-imports, ruff, mypy, bandit, vulture, size, radon, reference-table checks all green; mutation check performed once; `tests/agent/workflow` reports 92 passed.
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Add `from agent.workflow.task_ops import create_task` and replace `create_task` body with the delegation, docstring byte-identical | Completed | 2026-10-25 | 2026-10-25 | landed after doc0002 Phase 1 red (plan order honored); ruff reformatted the delegation line wrap only |
+| 2 | Run all Validation Commands and the mutation check | Completed | 2026-10-25 | 2026-10-25 | guard rg exit 1 (required `rg -F`: literal braces trip the regex engine); no INSERT left in create_task (only attempts at :131, out of scope); 92 passed; ruff/mypy/bandit(0 issues)/lint-imports(6 kept)/vulture(no uuid/_now hit)/size/radon(no C+)/reference-table(--check: no drift) all green; task_ops/schema_sql diffs empty; mutation check performed once: composite branch restored via `git checkout --` on the target path (fixed file saved at /tmp/opencode/state_store_fixed.py) -> wrapper test FAILED with IntegrityError -> restored -> passed; whole suite 10082 passed 9 skipped |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | None | — | — |
+
+### Work Items Created
+- None
