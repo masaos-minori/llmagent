@@ -87,7 +87,8 @@ _FENCE_OPEN_RE = re.compile(r"^```markdown\s*$")
 _FENCE_CLOSE_RE = re.compile(r"^```\s*$")
 _NON_PATH_SLUG_RE = re.compile(r"[^A-Za-z0-9_.-]")
 _TIMESTAMP_PREFIX_RE = re.compile(r"^\d{8}-\d{6}_")
-_ISSUE_STEM_RE = re.compile(r"^\d{8}-\d{6}_[a-z0-9]+_(?P<slug>.+)$")
+_ISSUE_STEM_RE = re.compile(r"^\d{8}-\d{6}_(?P<id>[a-z0-9]+)_(?P<slug>.+)$")
+_ISSUE_ID_RE = re.compile(r"(?=[a-z0-9]*[a-z])[a-z0-9]+")
 _PLAN_SLUG_RE = re.compile(r"[a-z0-9_-]+")
 _PASS_TIMESTAMP_MARKER_RE = re.compile(
     r"^<!-- tools/generate_workitem\.py implementation-procedure-pass "
@@ -191,14 +192,29 @@ def slug_from_issue_filename(issue_filename: str) -> str:
     return slug
 
 
-def plan_output_path(timestamp: str, slug: str, seq: str | None = None) -> Path:
-    """`plans/{timestamp}_{slug}.md`, or `plans/{timestamp}_{seq}_{slug}.md` when a
-    zero-padded sequence is supplied, per `templates/plan.md` and
-    `skills/issue-to-plan/workflow.md` Step 5.
+def plan_name_from_issue_filename(issue_filename: str) -> str:
+    """Return the `{id}_{slug}` part of a plan filename for *issue_filename*.
+
+    A plan follows the Issue naming convention `{timestamp}_{id}_{slug}.md`: `{id}` and
+    `{slug}` are copied from the Issue filename and only the timestamp is new. A file
+    without a real `{id}` (the `{timestamp}_unknowns.md` follow-up files, or a
+    zero-padded sequence such as `01` that has no letter) yields the slug alone.
+    """
+    slug = slug_from_issue_filename(issue_filename)
+    match = _ISSUE_STEM_RE.match(issue_filename.removesuffix(".md"))
+    if match and _ISSUE_ID_RE.fullmatch(match.group("id")):
+        return f"{match.group('id')}_{slug}"
+    return slug
+
+
+def plan_output_path(timestamp: str, name: str, seq: str | None = None) -> Path:
+    """`plans/{timestamp}_{id}_{slug}.md` (*name* is `{id}_{slug}`), or
+    `plans/{timestamp}_{seq}_{id}_{slug}.md` when a zero-padded sequence is supplied,
+    per `templates/plan.md` and `skills/issue-to-plan/workflow.md` Step 5.
     """
     if seq:
-        return PLANS_DIR / f"{timestamp}_{seq}_{slug}.md"
-    return PLANS_DIR / f"{timestamp}_{slug}.md"
+        return PLANS_DIR / f"{timestamp}_{seq}_{name}.md"
+    return PLANS_DIR / f"{timestamp}_{name}.md"
 
 
 def implementation_procedure_output_path(
@@ -375,8 +391,8 @@ def render_plan(args: argparse.Namespace, timestamp: str) -> tuple[str, Path]:
         f"--source-issue path does not exist: {args.source_issue}",
     )
     skeleton = extract_fenced_skeleton(TEMPLATE_PLAN)
-    slug = slug_from_issue_filename(source_issue_path.name)
-    return skeleton, plan_output_path(timestamp, slug, args.seq)
+    name = plan_name_from_issue_filename(source_issue_path.name)
+    return skeleton, plan_output_path(timestamp, name, args.seq)
 
 
 def render_implementation_procedure(

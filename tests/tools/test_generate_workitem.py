@@ -163,7 +163,7 @@ def _case(kind: str, tmp_path: Path) -> tuple[list[str], str, re.Pattern[str], P
         return (
             argv,
             "plans",
-            re.compile(r"^\d{8}-\d{6}_fix-the-thing\.md$"),
+            re.compile(r"^\d{8}-\d{6}_nc020_fix-the-thing\.md$"),
             TEMPLATE_PLAN,
         )
     if kind == "implementation-procedure":
@@ -285,7 +285,7 @@ class TestCollisionRejection:
         plans_dir = workitem_dirs["plans"]
         source_issue = tmp_path / "20260901-100000_nc020_fix-the-thing.md"
         source_issue.write_text("dummy issue content\n", encoding="utf-8")
-        expected_name = f"{fixed_timestamp}_fix-the-thing.md"
+        expected_name = f"{fixed_timestamp}_nc020_fix-the-thing.md"
         direct_path = plans_dir / expected_name
         colliding_path = (
             direct_path
@@ -304,8 +304,8 @@ class TestCollisionRejection:
 
 
 class TestPlanSlugFromIssue:
-    """The plan filename is `{timestamp}_{slug}.md`, where `{slug}` is the
-    source Issue filename's slug (`{timestamp}_{id}_{slug}.md`).
+    """The plan filename follows the Issue convention `{timestamp}_{id}_{slug}.md`:
+    `{id}` and `{slug}` come from the source Issue filename, the timestamp is new.
     """
 
     @pytest.mark.parametrize(
@@ -324,6 +324,23 @@ class TestPlanSlugFromIssue:
         self, issue_filename: str, expected_slug: str
     ) -> None:
         assert gw.slug_from_issue_filename(issue_filename) == expected_slug
+
+    @pytest.mark.parametrize(
+        ("issue_filename", "expected_name"),
+        [
+            (
+                "20261023-154325_eventbus001_dlq-requeue-transactional.md",
+                "eventbus001_dlq-requeue-transactional",
+            ),
+            ("20260828-155804_nc019_git_mcp-guards.md", "nc019_git_mcp-guards"),
+            ("20261023-154326_unknowns.md", "unknowns"),
+            ("20261023-154326_01_risks.md", "risks"),
+        ],
+    )
+    def test_plan_name_keeps_issue_id_and_slug(
+        self, issue_filename: str, expected_name: str
+    ) -> None:
+        assert gw.plan_name_from_issue_filename(issue_filename) == expected_name
 
     @pytest.mark.parametrize(
         "issue_filename",
@@ -357,14 +374,14 @@ class TestPlanSlugFromIssue:
     ) -> None:
         source_issue = tmp_path / "20260901-100000_nc020_fix-the-thing.md"
         source_issue.write_text("dummy issue content\n", encoding="utf-8")
-        base = workitem_dirs["plans"] / f"{fixed_timestamp}_fix-the-thing.md"
+        base = workitem_dirs["plans"] / f"{fixed_timestamp}_nc020_fix-the-thing.md"
         base.write_text("existing\n", encoding="utf-8")
         argv = ["--kind", "plan", "--source-issue", str(source_issue)]
 
         assert gw.main(argv) == 1
         assert gw.main([*argv, "--seq", "01"]) == 0
         assert (
-            workitem_dirs["plans"] / f"{fixed_timestamp}_01_fix-the-thing.md"
+            workitem_dirs["plans"] / f"{fixed_timestamp}_01_nc020_fix-the-thing.md"
         ).exists()
 
 

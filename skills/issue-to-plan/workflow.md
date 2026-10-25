@@ -5,7 +5,8 @@
 See `routing.md`, section 'Document workflow directories', for the full pipeline.
 
 - Input: `issues/{filename}.md`
-- Output: `plans/{timestamp}_{slug}.md` (`{slug}` is the Issue filename's slug)
+- Output: `plans/{timestamp}_{id}_{slug}.md` (the Issue naming convention; `{id}` and `{slug}` are
+  the Issue filename's, the timestamp is the Plan's own)
 - Optional outputs: `issues/{timestamp}_unknowns.md`, `issues/{timestamp}_risks.md`
 - Archive destination: `issues/done/`
 - Workflow phase: `issue-to-plan`
@@ -338,18 +339,22 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   Issue. Another agent may have written a Plan during Steps 2-5, and a different timestamp
   would not make the paths collide. If a match now exists, do not write; return to Step
   1b's branches.
-- Derive `{slug}` from the Issue's filename `{timestamp}_{id}_{slug}.md` (see
-  `skills/issue-creator/SKILL.md` Issue Filename Generation): everything after the second
-  `_`, copied unchanged. An Issue file without that shape (e.g. a
-  `{timestamp}_unknowns.md` follow-up file) uses everything after its leading timestamp.
-  The slug MUST match `[a-z0-9_-]+`; otherwise stop and report `Blocked`.
-- Save as `plans/{timestamp}_{slug}.md`. If that path already exists, use the lowest
-  available zero-padded sequence (`plans/{timestamp}_01_{slug}.md`,
-  `plans/{timestamp}_02_{slug}.md`, ...), applying `rules/filename-collision.md`
+- Name the Plan with the Issue naming convention (`skills/issue-creator/SKILL.md` Issue
+  Filename Generation), `{timestamp}_{id}_{slug}.md`: copy `{id}` (the segment between the first
+  and second `_`) and `{slug}` (everything after the second `_`) unchanged from the Issue's
+  filename `{timestamp}_{id}_{slug}.md`; only the timestamp is the Plan's own. An Issue file
+  without a real `{id}` (e.g. a `{timestamp}_unknowns.md` follow-up file, or a zero-padded
+  sequence such as `01`, which has no letter) uses `{timestamp}_{slug}.md`, with the slug being
+  everything after its leading timestamp. The slug MUST match `[a-z0-9_-]+`; otherwise stop and
+  report `Blocked`. Plans archived before this rule keep their `{timestamp}_{slug}.md` names;
+  do not rename them.
+- Save as `plans/{timestamp}_{id}_{slug}.md`. If that path already exists, use the lowest
+  available zero-padded sequence before the id (`plans/{timestamp}_01_{id}_{slug}.md`,
+  `plans/{timestamp}_02_{id}_{slug}.md`, ...), applying `rules/filename-collision.md`
   Collision Retry Bound.
 - Optionally scaffold the empty file first with `uv run python
   tools/generate_workitem.py --kind plan --source-issue issues/{filename}.md` — it
-  derives `{slug}` as above and reproduces `templates/plan.md`'s current field order
+  derives `{id}_{slug}` as above and reproduces `templates/plan.md`'s current field order
   exactly. The tool refuses (non-zero exit, no write) on a path collision
   rather than auto-incrementing; treat that refusal as the trigger for the zero-padded
   sequence rule above (retry with `--seq {NN}`), not as a workflow failure.
