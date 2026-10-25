@@ -123,4 +123,3 @@ Every server reports unmet prerequisites through `dependencies` (a non-empty val
 - bearer
 - health
 - truncation
-- repl_health

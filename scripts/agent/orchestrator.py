@@ -154,14 +154,14 @@ class Orchestrator:
 
     # ── Public entry point ────────────────────────────────────────────────────
 
-    async def handle_turn(self, line):
+    async def handle_turn(self, line: str) -> None:
         is_paused, paused_names = self._bg_task_monitor.check_pause_state()
         if is_paused:
             await self._on_pause_blocked(paused_names)
             return
         await self._execute_turn(line)
 
-    async def _execute_turn(self, line):
+    async def _execute_turn(self, line: str) -> None:
         answer: str = ""
         error_kind: str | None = None
         is_partial: bool = False

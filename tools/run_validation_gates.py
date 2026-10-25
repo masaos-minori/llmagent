@@ -938,7 +938,7 @@ ROUTING_GATES: tuple[Gate, ...] = (
                 "run",
                 "python",
                 "tools/manage_frontmatter.py",
-                "add-missing|dedupe-lists",
+                "add-missing",
             ),
         ),
         source=SOURCE_ROUTING,

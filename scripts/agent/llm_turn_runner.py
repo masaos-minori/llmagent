@@ -15,7 +15,6 @@ from shared.json_utils import dumps, now_iso_raw
 from shared.llm_exceptions import LLMTransportError
 from shared.types import LLMMessage
 
-from agent.message_schema import TRUSTED_SOURCES
 from agent.tool_loop_guard import ToolLoopGuard, TurnLoopState
 from agent.tool_runner import execute_all_tool_calls
 from agent.turn_result import TurnResult
@@ -244,8 +243,6 @@ class LLMTurnRunner:
         """Handle final-answer fallback after ToolLoopGuard triggers."""
         ctx = self._ctx
         loop_guard_source = "loop_guard"
-        if loop_guard_source not in TRUSTED_SOURCES:
-            TRUSTED_SOURCES[loop_guard_source] = {"_ephemeral"}
         ephemeral_msg: dict = {
             "role": "system",
             "content": "You are about to produce a final answer without calling any tools. Use only the information already available in the conversation history.",

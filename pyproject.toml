@@ -160,7 +160,6 @@ omit = [
     # REPL entry points — interactive CLI; no unit tests by design (documented in CLAUDE.md)
     "scripts/agent.py",
     "scripts/agent/repl.py",
-    "scripts/agent/repl_health.py",
     # Ingestion pipeline scripts — bulk I/O; integration-tested separately
     "scripts/rag/ingestion/crawler.py",
     "scripts/rag/ingestion/crawler_utils.py",

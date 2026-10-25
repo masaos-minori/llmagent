@@ -230,6 +230,9 @@ system_prompt_tool = "あなたは有能なエンジニアアシスタントで�
 [diagnostics]
 # Fernet symmetric key for encrypting session_diagnostics.content when
 # DiagnosticStore.save(encrypt=True) is used. "" disables encryption (opt-in).
+# Accepted posture (Option B, 2026-10-25): encryption stays disabled in production;
+# plaintext-with-redaction is formally accepted. See
+# docs/23_agent/agent_09_01_data-layer-session-db.md ("Accepted storage posture").
 encryption_key = ""
 # session_diagnostics rows older than this are purged lazily on each save().
 retention_days = 30

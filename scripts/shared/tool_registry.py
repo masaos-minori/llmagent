@@ -7,9 +7,9 @@ live /v1/tools discovery. ToolRegistry serves one verified production role:
   (a) drift-detection input for McpToolDiscoveryService
       (validate_routing_against_live()/validate_routing_against_config() in
       shared/tool_routing_validation.py) and config drift checks
-      (agent/production_config_validator.py, agent/repl_health.py).
+      (agent/production_config_validator.py, agent/startup_validation.py).
 This role remains active and maintained (not abolished) — confirmed by the live wiring in
-repl_health.py (via agent/services/routing_drift.py), mcp_tool_discovery.py, and
+agent/startup_validation.py (via agent/services/routing_drift.py), mcp_tool_discovery.py, and
 agent/production_config_validator.py. Formalized as ADR-003 Decision Detail #15 / INV-04
 (2026-09-02): see docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.
 As of 2026-08-25, ToolRegistry is no longer consulted by agent.tool_policy.classify_operation_type() for risk classification — that function now uses RuntimeToolRegistry exclusively (ADR-003 Decision #8); see docs/10_adr/adr_02_02_003_agent-runtime-tool-registry-routing-authority.md.

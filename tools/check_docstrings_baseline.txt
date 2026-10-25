@@ -50,7 +50,6 @@ agent/orchestrator.py	empty description
 agent/output_tags.py	missing separator
 agent/production_config_validator.py	missing separator
 agent/repl.py	empty description
-agent/repl_health.py	missing separator
 agent/repository_gateway.py	missing separator
 agent/services/__init__.py	missing separator
 agent/services/config_reload.py	empty description

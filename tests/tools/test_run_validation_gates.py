@@ -100,6 +100,27 @@ def test_selection_docs_only_fast_mode():
     assert "generate_reference_table_mcp" not in names
 
 
+def test_manage_frontmatter_gate_command_is_valid_subcommand():
+    """The manage_frontmatter gate must invoke a valid report-only CLI subcommand.
+
+    Regression guard for the ``add-missing|dedupe-lists`` argv token that made the
+    gate a permanent argparse usage-error Fail (exit 2).
+    """
+    gate = next(g for g in ROUTING_GATES if g.name == "manage_frontmatter")
+    valid_subcommands = {
+        "add-missing",
+        "dedupe-lists",
+        "merge-related",
+        "rename-category-to-area",
+        "classify",
+    }
+    for argv in gate.command:
+        subcommand = argv[argv.index("tools/manage_frontmatter.py") + 1]
+        assert subcommand in valid_subcommands
+        assert "|" not in subcommand
+        assert "--fix" not in argv
+
+
 def test_selection_scripts_full_includes_toolchain():
     """A scripts/** diff selects scripts routing gates plus the full toolchain sequence."""
     selected = select_gates(["scripts/thing.py"], MODE_FULL)

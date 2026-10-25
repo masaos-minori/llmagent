@@ -67,6 +67,14 @@ to `sessions`. The value is retained after the source session is deleted.
 
 **Design judgment:** Diagnostic rows are operator-facing auxiliary data, not conversation history. A failed decryption must not block reading the remaining rows, so the failure is reported only through the warning log. A caller that needs plaintext must treat a `content` value that starts with the Fernet token prefix as undecryptable. Rotating `encryption_key` makes older encrypted rows unreadable; keep the previous key until those rows pass `retention_days`.
 
+**Accepted storage posture (decision, 2026-10-25):** The owner formally accepted Option B — plaintext-with-redaction — for `session_diagnostics` in production. Fernet encryption remains deliberately disabled: shipped configs set `encryption_key = ""` and no production call site passes `encrypt=True`. The active defense layers are:
+
+- Unconditional `_filter_sensitive_fields()` redaction in `save()`, independent of encryption.
+- Fail-closed detection: when no encryption key is set and redaction succeeded, `_SENSITIVE_PATTERNS` matching raises `RuntimeError` and refuses the write. The only carve-out is when `_filter_sensitive_fields()` itself fails, in which case the (unfiltered) content is persisted without encryption and the failure is logged.
+- Lazy purge of rows older than `retention_days` (30) on each `save()`.
+
+Residual risk: pattern detection is best-effort, and the filter-failure path persists unencrypted content. If Option A (encryption enabled) is ever adopted, the Fernet key must be supplied only through deployed out-of-band config and must never be committed to the repository. Disposition of pre-existing plaintext rows: N/A — the production DB `/opt/llm/agent.db` currently contains no tables, so `session_diagnostics` has no stored rows; future rows expire via the 30-day lazy purge.
+
 ## Responsibility Boundary
 
 - **Canonical Source**: `agent/diagnostic_store.py`, `db/maintenance.py`
