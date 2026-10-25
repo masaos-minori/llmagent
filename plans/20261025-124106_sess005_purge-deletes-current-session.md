@@ -95,6 +95,7 @@ exemption in the purge result so operators see it.
 |---|---|---|
 | scripts/db/maintenance.py | modify | `purge_old_sessions(db, cfg=None, mode=STRICT)` positional order unchanged; guard appended as keyword-with-default (REQ-001); return `MaintenanceResult` shape extended additively (new key in `data`, existing `age_deleted`/`count_deleted`/`sessions_removed` unchanged); parameterized SQL retained; checkpoint/vacuum/recover paths untouched. |
 | scripts/agent/services/db_maintenance_service.py | modify | `purge(max_sessions, max_age_days)` signature extended with an optional current-session keyword; forwarding only, no policy logic here. |
+| scripts/agent/services/models.py | modify | `DbPurgeResult` gains one optional field `kept_active_session: int \| None = None` (additive; existing constructions unchanged). Added by re-verification: REQ-003 surfacing is impossible without it — the dataclass carries only `sessions_removed` and the service discards `raw.data`. |
 | scripts/agent/commands/db_session_ops.py | modify | `purge(rest)` public entry unchanged for `cmd_session.py` call site; adds `self._ctx.session.session_id` forwarding + exemption note in the success line; `CommandValidationError` flows unchanged. |
 | tests/db/test_db_maintenance.py | modify | Existing purge tests pass unmodified (keep=None path); add real-DB backdated-session regressions (see Tests). |
 | tests/agent/commands/test_agent_cmd_session.py | modify | Existing command tests unmodified; add `/session purge` current-session guard test. |
@@ -237,6 +238,57 @@ Rejected alternatives:
 - Docs checkers after the two doc edits (`routing.md` Tools).
 - Manual DB safety: validation uses temp DBs only; no production purge executed.
 
+## Adversarial Re-verification (2026-10-25, procedure generation)
+
+Frozen status re-checked against HEAD (all prior citations live; line numbers
+confirmed):
+- `scripts/db/maintenance.py` — `_delete_sessions_by_age` 167-182,
+  `_delete_sessions_beyond_limit` 185-202, `purge_old_sessions` 205-235,
+  `MaintenanceResult` dataclass 48, `data` keys 230 (`sessions_removed`/`mode`/
+  `max_sessions`/`max_age_days`), `# nosec B608` on the placeholder-built DELETE.
+- `scripts/agent/services/db_maintenance_service.py` — `purge` 64-74; line 70
+  discards `raw.data` except `sessions_removed`.
+- `scripts/agent/commands/db_session_ops.py` — `purge` 43-63; ctx held in
+  `__init__` (`self._ctx`), service call at 60, success line 61-63.
+- `scripts/agent/commands/cmd_session.py` — guard `_session_delete` 65, message
+  71, purge dispatch 229 (`asyncio.to_thread` + `getattr`); `AgentContext` real
+  path is `scripts/agent/context.py` (the plan body's `scripts/agent/session.py`
+  reference for ctx ownership is loose — ctx is `context.AgentContext`, used at
+  `db_session_ops.py:4` import).
+- `scripts/db/schema_sql.py:102` messages FK `ON DELETE CASCADE`;
+  `config/agent.toml:14-15` `max_sessions=100`, `max_age_days=30`.
+- `tests/db/test_db_maintenance.py` — `_FakeDB` (76) wraps a real in-memory
+  SQLite with `PRAGMA foreign_keys=ON` and a cascade-capable `_SESSION_SCHEMA`
+  (37-50); `_make_session_db` (95) is the fixture the new tests 1-4 must use
+  (the plan's "real temp SQLite" is satisfied by this fixture, not by temp files);
+  `TestPurgeOldSessions` from 127. `TestRetentionConfig.test_defaults` (113)
+  pins the dataclass defaults 100/90; the deployed 100/30 comes from
+  `[retention]` config only.
+- `tests/agent/commands/test_agent_cmd_session.py` — `TestCmdSessionPurge` at
+  513; arg-forwarding assertions at 544 (`assert_called_once_with(10, None)`)
+  and 558 (`(None, 30)`); `_make_cmd` at 29 wires `MagicMock(spec=...)` services.
+- No purge callers in deploy.sh / init scripts / conf.d; `scripts/db/__init__.py`
+  re-exports `purge_old_sessions` (23, 92); private helpers not directly tested.
+- Suite collect-only at this HEAD: 10091 tests (supersedes the "10082 passed /
+  9 skipped" baseline cited above). `lint-imports`: 6 contracts, 0 broken.
+
+Corrections applied:
+- U-001 resolved: `grep` finds no `validate_session_id` in any `scripts/`
+  module; `session_restore.py` is not a target file (dissolves the overlap with
+  sess004).
+- Gap found while validating REQ-003: `DbPurgeResult`
+  (`scripts/agent/services/models.py:188`, frozen dataclass) carries only
+  `sessions_removed`, and `DbMaintenanceService.purge` discards `raw.data`, so
+  the kept-session exemption cannot reach `DbSessionOps.purge` without a field
+  addition. A `scripts/agent/services/models.py` target row was added to the
+  Implementation Target Files table: `kept_active_session: int | None = None`
+  (additive, default-preserving; REQ-001 contract rule satisfied).
+- Characterization caveat: making `DbSessionOps.purge` pass
+  `current_session_id` to the service changes the mock-arg assertions at
+  test_agent_cmd_session.py 544/558; those two existing purge assertions are
+  expected to be updated (the "existing tests unmodified" guarantee applies to
+  `scripts/db` maintenance/delete tests, not to these cmd-level mock args).
+
 ## Risks
 
 | Risk | Severity | Likelihood | Mitigation |
@@ -248,13 +300,35 @@ Rejected alternatives:
 
 ## Execution Status
 
-| Item | Status |
-|---|---|
-| Plan | Frozen |
-| Phase 1 (failing real-DB tests) | Pending |
-| Phase 2 (helpers + keyword threading) | Pending |
-| Phase 3 (command test) | Pending |
-| Phase 4 (docs + full validation) | Pending |
+Blockers:
+
+| Blocker ID | Type | Blocks Step(s) | Owner | Target Date | Status | Notes |
+|---|---|---|---|---|---|---|
+| U-001 | Unknown | 3 | agent | 2026-10-25 | Resolved | `validate_session_id` does not exist in `scripts/`; `session_restore.py` is not a target file. |
+
+Step execution:
+
+| Step | Work Item | Target File(s) | Procedure Doc | Status | Depends On | Notes |
+|---|---|---|---|---|---|---|
+| — | Plan | — | — | Frozen | — | Re-verified 2026-10-25; `models.py` target row added for REQ-003. |
+| 1 | Phase 1: failing real-DB tests 1-4 (red) | `tests/db/test_db_maintenance.py` | `20261025-141651_05_tests_db_test_db_maintenance.py.md` | In Progress | — | Uses `_make_session_db` fixture (real in-memory SQLite, FK ON). |
+| 2 | Phase 2: helpers + keyword threading, Phase 1 green | `scripts/db/maintenance.py`, `scripts/agent/services/db_maintenance_service.py`, `scripts/agent/services/models.py`, `scripts/agent/commands/db_session_ops.py` | `20261025-141651_01_scripts_db_maintenance.py.md`, `20261025-141651_02_scripts_agent_services_db_maintenance_service.py.md`, `20261025-141651_03_scripts_agent_services_models.py.md`, `20261025-141651_04_scripts_agent_commands_db_session_ops.py.md` | Pending | 1 | TDD red → green; `lint-imports` 6 kept. |
+| 3 | Phase 3: command-level test 5; update mock-arg assertions 544/558 | `tests/agent/commands/test_agent_cmd_session.py` | `20261025-141651_06_tests_agent_commands_test_agent_cmd_session.py.md` | Pending | 2 | Re-verification caveat: 544/558 assertions change with the new kwarg. |
+| 4 | Phase 4a: docs policy statements | `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md`, `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | `20261025-141651_07_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md`, `20261025-141651_08_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md` | Pending | 2, 3 | Docs checkers after edits. |
+| 5 | Phase 4b: full validation, single commit | gate only; modifies no file | — | Pending | 1-4 | `rules/toolchain.md` sequence; collect-only baseline 10091. |
+
+Work Items Created:
+
+| Procedure Doc | Target File | Status |
+|---|---|---|
+| `20261025-141651_01_scripts_db_maintenance.py.md` | `scripts/db/maintenance.py` | Created |
+| `20261025-141651_02_scripts_agent_services_db_maintenance_service.py.md` | `scripts/agent/services/db_maintenance_service.py` | Created |
+| `20261025-141651_03_scripts_agent_services_models.py.md` | `scripts/agent/services/models.py` | Created |
+| `20261025-141651_04_scripts_agent_commands_db_session_ops.py.md` | `scripts/agent/commands/db_session_ops.py` | Created |
+| `20261025-141651_05_tests_db_test_db_maintenance.py.md` | `tests/db/test_db_maintenance.py` | Created |
+| `20261025-141651_06_tests_agent_commands_test_agent_cmd_session.py.md` | `tests/agent/commands/test_agent_cmd_session.py` | Created |
+| `20261025-141651_07_docs_41_db_db_06_api_and_operations-maintenance-and-rotation.md.md` | `docs/41_db/db_06_api_and_operations-maintenance-and-rotation.md` | Created |
+| `20261025-141651_08_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md` | `docs/23_agent/agent_07_07_cli-and-commands-slash-commands-session-mcp.md` | Created |
 
 ## Traceability
 
