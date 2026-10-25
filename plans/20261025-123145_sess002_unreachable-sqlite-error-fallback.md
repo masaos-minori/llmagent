@@ -92,8 +92,9 @@ existing; resolves the issue's Unresolved Question 2), `implementations/done/`
 
 - `scripts/agent/session.py:124-153` — `start()`; fallback block lines 140-147.
 - `scripts/agent/repl_input_loop.py:15,90` — `SchemaMissingError` catch site.
-- `tests/agent/agent_session.py` fixture — `_FakeSQLiteHelper` (real in-memory SQLite
-  connection behind the SQLiteHelper facade) — pattern for REQ-003 test.
+- `tests/agent/test_agent_session.py:54` (`_FakeSQLiteHelper`) — real in-memory SQLite
+  connection behind the SQLiteHelper facade — pattern for REQ-003 test. NOTE (2026-10-25
+  re-verification): the plan's earlier `tests/agent/agent_session.py` path does not exist.
 - `tests/agent/test_repl.py:988-999` — existing REPL operator-facing behavior for
   `SchemaMissingError` (characterization guard).
 - `implementations/done/20260724-230132_session.py.md:13,89-103` — origin of the
@@ -154,7 +155,23 @@ changed.
 
 N/A: single function (`start()`) in `agent.session`; importers unchanged
 (`lint-imports` contract unaffected — no new imports). `deploy.sh` impact: none
-(no schema or script changes). DB runtime: none (error-path only).
+(No schema or script changes). DB runtime: none (error-path only).
+
+## Adversarial Re-verification (2026-10-25, procedure generation)
+
+- `repl_input_loop.py:15` imports and `:90` re-raises `SchemaMissingError` — verified.
+- Fallback block is `session.py:139-147` (`try:` 139, `except sqlite3.OperationalError`
+  141, `err_code = e.args[0]` 142, dead `if err_code == 1017` 144).
+- Confirmed dead: CPython sets `OperationalError.args[0]` to the message string (verified
+  on dev venv Python 3.14.7: `args[0]` = `'no such table: nope'`, `sqlite_errorcode` = 1,
+  `sqlite_errorname` = `'SQLITE_ERROR'`). The integer-code fix is reachable.
+- `tests/agent/test_agent_session.py` exists with `TestStart` (line 152) and
+  `_FakeSQLiteHelper` (line 54); no `SchemaMissingError` test in this file yet.
+- `test_repl.py` has an existing `SchemaMissingError` → "Database is not initialized."
+  precedent test (the behavior the fix must not break).
+- Historical "186 passed" figure not reproducible at HEAD:
+  `tests/agent/test_agent_session.py` + `tests/agent/test_repl.py` collect 125 tests.
+  Validation plan commands are authoritative.
 
 ## Design
 
@@ -209,12 +226,26 @@ expression):
 
 ## Execution Status
 
-| Item | Status |
-|---|---|
-| Plan | Frozen |
-| Step 1 (tests first) | Pending |
-| Step 2 (fallback fix) | Pending |
-| Step 3 (validation) | Pending |
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`.
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Tests first: fallback regression tests (`tests/agent/test_agent_session.py`) | In Progress | — | — | re-verified against HEAD fb9359f22 2026-10-25; corrections reflected in this plan |
+| 2 | Fallback fix: code/name/message gate (`scripts/agent/session.py:141-146`) | In Progress | — | — | `REQ-001`, `REQ-002`, `REQ-004`, `REQ-005` |
+| 3 | Full validation sequence | Pending | — | — | gate only; modifies no file |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| implementations/20261025-133350_01_scripts_agent_session.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261025-133350_02_tests_agent_test_agent_session.py.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 
