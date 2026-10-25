@@ -177,9 +177,9 @@ pipeline's Issue-immutability rule.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add posture note to agent_09_01 | Pending | — | — | Phase 1 |
-| 2 | Update config/agent.toml [diagnostics] comment | Pending | — | — | Phase 2 |
-| 3 | Docs checkers + DiagnosticStore suites + deploy check | Pending | — | — | Phase 3 |
+| 1 | Add posture note to agent_09_01 | Completed | — | 2026-10-26 | Phase 1 implemented and verified in-session |
+| 2 | Update config/agent.toml [diagnostics] comment | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 3 | Docs checkers + DiagnosticStore suites + deploy check | Completed | — | 2026-10-26 | Phase 3 implemented and verified in-session |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
