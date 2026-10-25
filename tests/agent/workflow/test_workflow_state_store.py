@@ -114,6 +114,15 @@ class TestCreateTask:
         assert fresh_row is not None
         assert fresh_row.task_id == fresh.task_id
 
+    def test_state_store_create_task_issues_unique_keys(self, store) -> None:
+        first = store.create_task("X", 1, "1.0.0", "wf-test")
+        second = store.create_task("X", 1, "1.0.0", "wf-test")
+        uuid.UUID(first.idempotency_key)
+        uuid.UUID(second.idempotency_key)
+        assert first.idempotency_key != second.idempotency_key
+        assert first.idempotency_key != "X:1"
+        assert second.idempotency_key != "X:1"
+
 
 class TestUpdateTaskStatus:
     def test_update_status(self, store) -> None:

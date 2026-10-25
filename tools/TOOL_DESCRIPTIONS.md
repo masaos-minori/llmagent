@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (53 modules)
+## Index (54 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -44,6 +44,7 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `check_workitem_traceability.py` | Work item | Check consistency of `## Traceability` sections |
 | `check_workitem_structure.py` | Work item | Verify that all canonical template headings are present |
 | `check_conftest_integrity.py` | Test | Verify that `tests/conftest.py` defines the required autouse fixtures |
+| `check_ci_results.py` | Test | Read-only CI result reporter: queries recent runs through a fixed gh read-only allowlist (`run list`, `run view`), groups tests that failed in two or more examined runs, and reports red runs, repeats, and a `python-test-and-fix` pointer on stdout; exit `0`/`1`/`2` |
 | `generate_mcp_inventory.py` | Reference generation | Output the MCP server list from agent config as JSON/CSV |
 | `generate_reference_table.py` | Reference generation | Generate reference tables for RAG/MCP/deployment/agent/EventBus (the Memory type is pending a decision on its target document); `--check` exits 1 when a generated guarded block drifted from live code (runs in CI) |
 | `generate_workitem.py` | Work item generation | Generate work item skeletons with placeholders. `--kind implementation-procedure --all-rows` generates every row of the Plan's `Implementation Target Files` table in one run (rows whose file already exists are skipped and processing continues) |
@@ -213,6 +214,12 @@ A script that adds or fixes docstrings by transforming source with regular expre
 - **Mixed quoting**: `"""` and `""""""` end up mixed together.
 
 Editing docstrings safely requires an approach based on the syntax tree from the `ast` module. The current implementation never **adds** docstrings; only **format validation** of existing docstrings is recommended.
+
+## Shell Helper
+
+| File | Description |
+|---|---|
+| `close_procedure.sh` | Marks every step of an implementation procedure `Completed` for a given date (`set_execution_status.py --all`) and archives it to `implementations/done/` (`manage_workitem_stage.py close-implementation`) in one call. `close_procedure.sh <procedure-doc> <YYYY-MM-DD> [--note N:TEXT]...` |
 
 ## Module Size Gate
 

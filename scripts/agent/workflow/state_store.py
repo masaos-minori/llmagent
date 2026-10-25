@@ -15,6 +15,7 @@ from db.helper import SQLiteHelper
 from shared.json_utils import now_iso as _now
 
 from agent.workflow.models import AttemptRecord, TaskRecord
+from agent.workflow.task_ops import create_task
 
 logger = logging.getLogger(__name__)
 
@@ -53,42 +54,8 @@ class StateStore:
         workflow_id: str,
     ) -> TaskRecord:
         """Create a new task record."""
-        if session_id is not None and turn_number is not None:
-            idempotency_key = f"{session_id}:{turn_number}"
-        else:
-            idempotency_key = str(uuid.uuid4())
-        task_id = str(uuid.uuid4())
-        now = _now()
-        self._db.execute(
-            """
-
-            INSERT INTO tasks
-                (task_id, session_id, workflow_id, turn_number, workflow_version,
-                 status, idempotency_key, created_at, updated_at)
-            VALUES (?, ?, ?, ?, ?, 'pending', ?, ?, ?)
-            """,
-            (
-                task_id,
-                session_id,
-                workflow_id,
-                turn_number,
-                workflow_version,
-                idempotency_key,
-                now,
-                now,
-            ),
-        )
-        self._db.commit()
-        return TaskRecord(
-            task_id=task_id,
-            session_id=session_id,
-            turn_number=turn_number,
-            workflow_version=workflow_version,
-            status="pending",
-            idempotency_key=idempotency_key,
-            created_at=now,
-            updated_at=now,
-            workflow_id=workflow_id,
+        return create_task(
+            self._db, session_id, turn_number, workflow_version, workflow_id
         )
 
     def update_task_status(self, task_id: str, status: str) -> None:

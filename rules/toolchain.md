@@ -176,3 +176,25 @@ backtick-quoted `name()` function references and `*_db_path` config keys (extrac
 names are not mechanically verified against `scripts/` or `config/`. This gap is accepted
 (owner: OWNER-PENDING) because exact identifier matching against prose yields high false
 positives and would require an allowlist. See governance_04 §Accepted Limits.
+
+## Scheduled CI Result Check — Operational Notes
+
+Status as of 2026-10-25: not activated. `gh` is not authenticated on this machine, and the
+recurring-task creation is pending owner approval (issue 20261023-173506 plan phase 3).
+
+- Command: `uv run python tools/check_ci_results.py` (defaults: `--limit 10`, `--workflow`,
+  `--branch`, and `--before` unset). Exit `0` = all examined runs green and no repeated
+  failure; `1` = a failed run or a test failing in two or more examined runs; `2` = any `gh`
+  read failure (missing binary, unauthenticated, query error, timeout). The tool is read-only:
+  every `gh` call goes through a fixed read-only allowlist. See the `check_ci_results.py` entry
+  in `tools/TOOL_DESCRIPTIONS.md`.
+- Proposed schedule: a daily 09:00 JST run as a user-approved session recurring task.
+  Activation is an owner action, not a tool behavior.
+- Owner: the repository owner. Scheduling activation, `gh` re-authentication, and any future
+  delivery-channel choice are owner actions.
+- Delivery channel: stdout in the session only. No notification or push channel exists.
+- Manual follow-up: on exit `1` with reported failures, the operator invokes the
+  `python-test-and-fix` workflow (`skills/python-test-and-fix/SKILL.md`) against the reported
+  test identifiers. The tool never performs the follow-up itself.
+- Disable method: remove the session recurring task. If a schedule is ever added as a GitHub
+  Actions workflow instead, disable that workflow.
