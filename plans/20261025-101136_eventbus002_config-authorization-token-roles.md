@@ -178,10 +178,10 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Mapping pass-through and type normalization (`scripts/eventbus/config.py`) | Pending | — | — | Path B |
-| 2 | Token-role binding and duplicate rejection (`scripts/eventbus/auth.py`) | Pending | — | — | Path B |
-| 3 | Regression and failure-injection tests | Pending | — | — | Path B |
-| 4 | Documentation: config example + ADR-013 | Pending | — | — | Path B |
+| 1 | Mapping pass-through and type normalization (`scripts/eventbus/config.py`) | In Progress | — | — | Path B; procedure doc generated |
+| 2 | Token-role binding and duplicate rejection (`scripts/eventbus/auth.py`) | In Progress | — | — | Path B; procedure doc generated |
+| 3 | Regression and failure-injection tests | In Progress | — | — | Path B; procedure docs generated |
+| 4 | Documentation: config example + ADR-013 | In Progress | — | — | Path B; procedure docs generated |
 | 5 | Deployment & verification (ruff/mypy/bandit/lint-imports/pytest/diff-cover) | Pending | — | — | Path B |
 
 ### Blocker Log
@@ -192,7 +192,14 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261025-140926_01_scripts_eventbus_config.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-140926_02_scripts_eventbus_auth.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261025-140926_03_config_eventbus_toml.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261025-140926_04_tests_eventbus_test_eventbus_config.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-140926_05_tests_eventbus_test_eventbus_auth.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-140926_06_tests_eventbus_test_eventbus_consumer_authorization.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-140926_07_tests_eventbus_test_admin_topics_authorization.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-140926_08_docs_adr_02_04_013_eventbus-authentication-authorization_md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
