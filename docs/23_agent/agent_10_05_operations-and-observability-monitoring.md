@@ -81,6 +81,11 @@ In addition to `session_summary` and `mid_turn_error`, the following `kind` valu
 
 - The workflow fields fall back to zero or an empty list if querying the workflow DB fails.
 - A failure to persist diagnostics is logged at DEBUG level and never blocks conversation continuation or session shutdown.
+- The `[diagnostics]` settings (`encryption_key`, `retention_days`,
+  `sensitive_fields`) are read fresh once per `DiagnosticStore` operation: edits
+  to `config/agent.toml` take effect from the next diagnostic write or query
+  without restarting the agent, and all decisions inside one operation use that
+  single snapshot.
 
 ## Keywords
 

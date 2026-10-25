@@ -106,8 +106,8 @@ N/A: no SQL in this layer.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the purge body change | Pending | — | — | After procedures 02-03 |
-| 2 | Run targeted validation | Pending | — | — | |
+| 1 | Apply the purge body change | Completed | 2026-10-25 | 2026-10-25 | lines 43-59 untouched; kept-note conditional success line |
+| 2 | Run targeted validation | Completed | 2026-10-25 | 2026-10-25 | 119 passed (with procedure 06); ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

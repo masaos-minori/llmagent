@@ -103,8 +103,8 @@ Restore the two sentences to their quoted originals.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the two sentence edits | Pending | — | — | |
-| 2 | Run docs checkers | Pending | — | — | |
+| 1 | Apply the two sentence edits | Completed | — | — | two policy sentences applied; before-wording verified against current file first |
+| 2 | Run docs checkers | Completed | — | — | quality/structure/content-policy/consistency(db) green; pre-existing content-policy warning in db_07 copy2() unrelated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

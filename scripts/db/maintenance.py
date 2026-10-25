@@ -164,13 +164,36 @@ def vacuum_db(
         return _handle_maintenance_error(e, "vacuum", mode)
 
 
-def _delete_sessions_by_age(db: SQLiteHelper, max_age_days: int) -> int:
-    """Delete sessions older than max_age_days; returns rows deleted (0 if disabled)."""
+def _delete_sessions_by_age(
+    db: SQLiteHelper, max_age_days: int, keep_session_id: int | None = None
+) -> tuple[int, bool]:
+    """Delete sessions older than max_age_days; returns (rows deleted, exempted).
+
+    When `keep_session_id` is given and that session is itself an age-rule delete
+    candidate, it is exempted from deletion and `exempted` is True (0 if disabled).
+    """
     if max_age_days <= 0:
-        return 0
+        return 0, False
+    if keep_session_id is None:
+        cur = db.execute(
+            "DELETE FROM sessions WHERE created_at < datetime('now', ?)",
+            (f"-{max_age_days} days",),
+        )
+        deleted = cur.rowcount
+        if deleted:
+            logger.info(
+                "Retention: removed %s sessions older than %s days",
+                deleted,
+                max_age_days,
+            )
+        return deleted, False
+    expired = db.fetchall(
+        "SELECT 1 FROM sessions WHERE session_id = ? AND created_at < datetime('now', ?)",
+        (keep_session_id, f"-{max_age_days} days"),
+    )
     cur = db.execute(
-        "DELETE FROM sessions WHERE created_at < datetime('now', ?)",
-        (f"-{max_age_days} days",),
+        "DELETE FROM sessions WHERE created_at < datetime('now', ?) AND session_id != ?",
+        (f"-{max_age_days} days", keep_session_id),
     )
     deleted = cur.rowcount
     if deleted:
@@ -179,15 +202,29 @@ def _delete_sessions_by_age(db: SQLiteHelper, max_age_days: int) -> int:
             deleted,
             max_age_days,
         )
-    return deleted
+    return deleted, bool(expired)
 
 
-def _delete_sessions_beyond_limit(db: SQLiteHelper, max_sessions: int) -> int:
-    """Delete sessions beyond the max_sessions most-recent limit; returns rows deleted."""
+def _delete_sessions_beyond_limit(
+    db: SQLiteHelper, max_sessions: int, keep_session_id: int | None = None
+) -> tuple[int, bool]:
+    """Delete sessions beyond the max_sessions most-recent limit; returns (rows deleted, exempted).
+
+    The exempted `keep_session_id` does not consume a keep slot (kept count may
+    exceed max_sessions by one).
+    """
     rows = db.fetchall("SELECT session_id FROM sessions ORDER BY created_at DESC")
     if len(rows) <= max_sessions:
-        return 0
-    to_delete = [row[0] for row in rows[max_sessions:]]
+        return 0, False
+    candidates = [row[0] for row in rows[max_sessions:]]
+    if keep_session_id is None:
+        exempted = False
+        to_delete = candidates
+    else:
+        exempted = keep_session_id in candidates
+        to_delete = [sid for sid in candidates if sid != keep_session_id]
+    if not to_delete:
+        return 0, exempted  # guard emptied the list; IN () must not be built
     placeholders = ",".join("?" * len(to_delete))
     cur = db.execute(
         f"DELETE FROM sessions WHERE session_id IN ({placeholders})",  # nosec B608 — placeholders is "?" * n, not user input
@@ -199,18 +236,24 @@ def _delete_sessions_beyond_limit(db: SQLiteHelper, max_sessions: int) -> int:
         deleted,
         max_sessions,
     )
-    return deleted
+    return deleted, exempted
 
 
 def purge_old_sessions(
     db: SQLiteHelper,
     cfg: RetentionConfig | None = None,
     mode: MaintenanceMode = MaintenanceMode.STRICT,
+    *,
+    keep_session_id: int | None = None,
 ) -> MaintenanceResult:
     """Delete sessions exceeding the retention policy (age-based then count-based).
 
     CASCADE removes messages. In STRICT mode (default), raises on DB errors.
     In BEST_EFFORT mode, returns MaintenanceResult with partial counts on error.
+
+    When `keep_session_id` is given and that session was a delete candidate under at
+    least one rule, it is exempted and surfaced as `data["kept_active_session"]`
+    (None when nothing was exempted).
     """
     if cfg is None:
         cfg = RetentionConfig.from_config()
@@ -219,22 +262,37 @@ def purge_old_sessions(
     count_deleted = 0
 
     try:
-        age_deleted = _delete_sessions_by_age(db, cfg.max_age_days)
-        count_deleted = _delete_sessions_beyond_limit(db, cfg.max_sessions)
+        age_deleted, age_exempted = _delete_sessions_by_age(
+            db, cfg.max_age_days, keep_session_id
+        )
+        count_deleted, count_exempted = _delete_sessions_beyond_limit(
+            db, cfg.max_sessions, keep_session_id
+        )
+        kept = keep_session_id if (age_exempted or count_exempted) else None
+        if kept is not None:
+            logger.info("Retention: kept active session %s beyond retention", kept)
 
         db.commit()
         return MaintenanceResult(
             success=True,
             action="purge",
             mode=mode,
-            data={"age_deleted": age_deleted, "count_deleted": count_deleted},
+            data={
+                "age_deleted": age_deleted,
+                "count_deleted": count_deleted,
+                "kept_active_session": kept,
+            },
         )
     except sqlite3.Error as e:
         return _handle_maintenance_error(
             e,
             "purge",
             mode,
-            extra_data={"age_deleted": age_deleted, "count_deleted": count_deleted},
+            extra_data={
+                "age_deleted": age_deleted,
+                "count_deleted": count_deleted,
+                "kept_active_session": keep_session_id,
+            },
         )
 
 

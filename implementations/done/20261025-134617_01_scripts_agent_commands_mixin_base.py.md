@@ -114,9 +114,9 @@ schema involvement.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `refresh_session_correlation (new)` with guards and docstring invariant | Pending | — | — | |
-| 2 | Run helper unit tests (procedure 04 tests 1-3) | Pending | — | — | tests-first: procedure 04 lands before this |
-| 3 | Run characterization + toolchain sequence | Pending | — | — | |
+| 1 | Add `refresh_session_correlation (new)` with guards and docstring invariant | Completed | 20261025-180429 | 20261025-180429 |  |
+| 2 | Run helper unit tests (procedure 04 tests 1-3) | Completed | 20261025-180429 | 20261025-180429 | tests-first: procedure 04 lands before this |
+| 3 | Run characterization + toolchain sequence | Completed | 20261025-180429 | 20261025-180429 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

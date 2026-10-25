@@ -141,8 +141,8 @@ all unchanged).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move the `save()` config snapshot to the top and thread it into both private helpers | Pending | — | — | After procedure 02 (tests red first) |
-| 2 | Run targeted validation + static checks | Pending | — | — | |
+| 1 | Move the `save()` config snapshot to the top and thread it into both private helpers | Completed | — | — | After procedure 02 (tests red first) grep=2 load sites; helpers require cfg |
+| 2 | Run targeted validation + static checks | Completed | — | — | targeted 73 passed; ruff/mypy clean; lint-imports 6 kept |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

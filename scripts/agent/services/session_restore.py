@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING, cast
 
-from agent.commands.mixin_base import reset_session_stats
+from agent.commands.mixin_base import refresh_session_correlation, reset_session_stats
 from agent.services.exceptions import SessionNoMessagesError, SessionNotFoundError
 from agent.services.models import SessionRestoreResult
 
@@ -95,6 +95,7 @@ async def restore_session(ctx: AgentContext, session_id: int) -> SessionRestoreR
             boundary_index = live_len
         ctx.conv.undo_floor = boundary_index
     ctx.session.session_id = session_id
+    refresh_session_correlation(ctx)
     reset_session_stats(ctx)
     logger.info("Session %s loaded: %s messages", session_id, len(messages))
     # Note: n_messages reflects the originally fetched row count, not the

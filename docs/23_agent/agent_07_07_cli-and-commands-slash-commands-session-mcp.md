@@ -56,7 +56,7 @@ A group of commands for session management and history operations. `/clear [new]
 | `/session health` | Shows session database integrity and size |
 | `/session checkpoint [PASSIVE\|FULL\|RESTART\|TRUNCATE]` | Runs a WAL checkpoint; without a mode the configured mode is used |
 | `/session vacuum` | Rebuilds the session database file |
-| `/session purge [--max-sessions <n>] [--max-age-days <n>]` | Purges old sessions; `--max-sessions` accepts an integer `>= 1` (a bare flag, `0`, a negative, or a non-integer is an error), `--max-age-days` accepts an integer `>= 0` (`0` keeps its documented "disabled" meaning; a negative or non-integer is an error), and an absent flag uses the retention default |
+| `/session purge [--max-sessions <n>] [--max-age-days <n>]` | Purges old sessions; `--max-sessions` accepts an integer `>= 1` (a bare flag, `0`, a negative, or a non-integer is an error), `--max-age-days` accepts an integer `>= 0` (`0` keeps its documented "disabled" meaning; a negative or non-integer is an error), and an absent flag uses the retention default; the session currently active in the agent is never removed — when a purge would have deleted it, the success line reports `(kept active session <id>)` and the kept session count may exceed `--max-sessions` by one |
 | `/session recover [backup_path]` | Checks integrity and restores from the backup when corruption is found |
 | `/session rag-consistency` | Checks the consistency of the RAG database |
 | `/session rag-rebuild-fts` | Rebuilds `chunks_fts` from `chunks` |

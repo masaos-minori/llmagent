@@ -66,7 +66,9 @@ class DiagnosticStore:
             sensitive_fields=sf,
         )
 
-    def _filter_sensitive_fields(self, content: str) -> str:
+    def _filter_sensitive_fields(
+        self, content: str, cfg: DiagnosticsConfig
+    ) -> str:
         """Redact sensitive fields from a JSON diagnostic payload.
 
         Replaces sensitive field list values with
@@ -75,8 +77,9 @@ class DiagnosticStore:
         raw artifact URIs or RAG stage outcome contents. Content that is not
         valid JSON, or not a JSON object, is returned unchanged.
 
-        The set of sensitive fields is loaded from DiagnosticsConfig and merged
-        with the hardcoded defaults (_SENSITIVE_FIELDS).
+        The set of sensitive fields is provided by the caller's
+        DiagnosticsConfig snapshot and merged with the hardcoded defaults
+        (_SENSITIVE_FIELDS).
         """
         try:
             payload = orjson.loads(content)
@@ -86,9 +89,7 @@ class DiagnosticStore:
             return content
         redacted = False
         # Merge configured fields with hardcoded defaults
-        effective_fields = frozenset(_SENSITIVE_FIELDS) | frozenset(
-            self._load_diagnostics_config().sensitive_fields
-        )
+        effective_fields = frozenset(_SENSITIVE_FIELDS) | cfg.sensitive_fields
         for field_name in effective_fields:
             value = payload.get(field_name)
             if isinstance(value, list):
@@ -110,9 +111,13 @@ class DiagnosticStore:
             Fernet(key.encode("utf-8")).encrypt(content.encode("utf-8")).decode("utf-8")
         )
 
-    def _purge_old_diagnostics(self) -> None:
-        """Delete diagnostic rows older than the configured retention period."""
-        retention_days = self._load_diagnostics_config().retention_days
+    def _purge_old_diagnostics(self, cfg: DiagnosticsConfig) -> None:
+        """Delete diagnostic rows older than the configured retention period.
+
+        The retention period is supplied by the caller's DiagnosticsConfig
+        snapshot.
+        """
+        retention_days = cfg.retention_days
         if retention_days <= 0:
             return
         cutoff = (datetime.now(UTC) - timedelta(days=retention_days)).strftime(
@@ -148,10 +153,11 @@ class DiagnosticStore:
         `encrypt=True` and an encryption key is configured, the redacted
         content is Fernet-encrypted before being written.
         """
-        self._purge_old_diagnostics()
+        diagnostics_cfg = self._load_diagnostics_config()
+        self._purge_old_diagnostics(diagnostics_cfg)
         _filter_failed = False
         try:
-            content = self._filter_sensitive_fields(content)
+            content = self._filter_sensitive_fields(content, diagnostics_cfg)
         except Exception:  # noqa: BLE001 — filter must never block diagnostic persistence; failure is logged and deferred
             logger.warning(
                 "_filter_sensitive_fields failed for %s diagnostic (kind=%s); proceeding without filtering",
@@ -161,7 +167,6 @@ class DiagnosticStore:
             )
             _filter_failed = True
 
-        diagnostics_cfg = self._load_diagnostics_config()
         if not diagnostics_cfg.encryption_key:
             if not _filter_failed:
                 for pattern in _SENSITIVE_PATTERNS:

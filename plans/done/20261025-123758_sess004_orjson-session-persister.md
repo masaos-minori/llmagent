@@ -189,9 +189,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Swap import + three call sites (`session_persister.py`) | In Progress | — | — | re-verified against HEAD ad39f04f0 2026-10-25; exact lines 17/117/119/161 |
-| 2 | Add round-trip test (`tests/agent/test_session_persister.py`) | In Progress | — | — | `REQ-004` |
-| 3 | Targeted + reader-set validation, single commit | Pending | — | — | gate only; modifies no file |
+| 1 | Swap import + three call sites (`session_persister.py`) | Completed | 2026-10-25 | 2026-10-25 | landed at lines 17/118/120/162; AC-001 word-boundary grep empty |
+| 2 | Add round-trip test (`tests/agent/test_session_persister.py`) | Completed | 2026-10-25 | 2026-10-25 | `REQ-004`; guard behavior empirically confirmed (passes with stdlib json too) |
+| 3 | Targeted + reader-set validation, single commit | In Progress | 2026-10-25 | — | 118 targeted+reader passed, 3715 tests/agent green; commit deferred to batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -201,8 +201,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261025-135131_01_scripts_agent_session_persister.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261025-135131_02_tests_agent_test_session_persister.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261025-135131_01_scripts_agent_session_persister.py.md | 1 | Procedure | Completed | — | 2026-10-25 |
+| implementations/20261025-135131_02_tests_agent_test_session_persister.py.md | 2 | Procedure | Completed | — | 2026-10-25 |
 
 ## Traceability
 

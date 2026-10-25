@@ -78,8 +78,8 @@ Any other section of this document; the state-model wording (procedure 04).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `### Session Message Persistence` with the binding invariant | Pending | — | — | |
-| 2 | Run the docs checkers listed in Validation plan | Pending | — | — | |
+| 1 | Update `### Session Message Persistence` with the binding invariant | Completed | 20261025-174142 | 20261025-174142 |  |
+| 2 | Run the docs checkers listed in Validation plan | Completed | 20261025-174142 | 20261025-174142 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

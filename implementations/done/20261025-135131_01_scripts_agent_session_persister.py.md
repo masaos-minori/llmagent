@@ -78,8 +78,10 @@ Line 161: `content=json.dumps(summary),` ->
   layout).
 - Module public API, function names, control flow, warning/debug containment, and
   `DiagnosticStore` call shapes unchanged (target-table contract).
-- AC-001 check after the edit: `rg -n 'import json|json\.' scripts/agent/session_persister.py`
-  returns nothing.
+- AC-001 check after the edit: `rg -n 'import json|\bjson\.' scripts/agent/session_persister.py`
+  returns nothing. (Amended 2026-10-25 at execution time: the original pattern `json\.`
+  also substring-matches `orjson.`, so it can never return empty after the swap; the
+  word-boundary pattern is the intended check — stdlib `json` only.)
 
 ## Compatibility considerations
 
@@ -135,9 +137,9 @@ remain readable by any JSON parser).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Swap import + three call sites (17, 117, 119, 161) | Pending | — | — | |
-| 2 | Run targeted + reader-set validation | Pending | — | — | round-trip test lands via procedure 02 |
-| 3 | Run AC-001 grep check + ruff/mypy | Pending | — | — | |
+| 1 | Swap import + three call sites (17, 117, 119, 161) | Completed | 2026-10-25 | 2026-10-25 | call sites landed at 118/120/162 after import shift |
+| 2 | Run targeted + reader-set validation | Completed | 2026-10-25 | 2026-10-25 | targeted 44 passed; reader set green inside full `tests/agent/` run (3715 passed) |
+| 3 | Run AC-001 grep check + ruff/mypy | Completed | 2026-10-25 | 2026-10-25 | word-boundary grep empty; ruff/mypy/bandit clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

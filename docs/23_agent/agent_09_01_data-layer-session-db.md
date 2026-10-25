@@ -37,6 +37,8 @@ Documents the responsibility scope of the Session DB, data ownership boundaries,
 
 Session messages are persisted only through `SessionMessageRepository` over `SQLiteHelper`; it owns role validation, `strict_mode`, content normalization and `tool_calls` JSON encoding.
 
+The message repository is (re)bound lazily to the `AgentSession` facade's current `session_id`. A `session_id` change — for example after `/session load` — invalidates the cached repository, so persistence never attributes writes to a superseded session. `session_persister.py` and `DiagnosticStore` read the session id on every call and need no rebind. Skipped-save counters always reflect the live repository instance.
+
 `replace_messages()` writes the compressed snapshot and updates the `/undo` compression boundary (`sessions.undo_floor_message_id`) in the same transaction, so the boundary and the snapshot never diverge. The boundary is a `messages` row ID, which keeps it valid after `/session load`.
 
 ### Session Retention Policy

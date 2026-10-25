@@ -112,9 +112,9 @@ Remove the added call and import name; one diff hunk, no state involvement.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add import name and the post-reassignment call | Pending | — | — | helper (procedure 01) must exist first |
-| 2 | Run the restore-flow spy test (procedure 04 test 4) | Pending | — | — | |
-| 3 | Run characterization + toolchain sequence | Pending | — | — | |
+| 1 | Add import name and the post-reassignment call | Completed | 20261025-180429 | 20261025-180429 | helper (procedure 01) must exist first |
+| 2 | Run the restore-flow spy test (procedure 04 test 4) | Completed | 20261025-180429 | 20261025-180429 |  |
+| 3 | Run characterization + toolchain sequence | Completed | 20261025-180429 | 20261025-180429 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

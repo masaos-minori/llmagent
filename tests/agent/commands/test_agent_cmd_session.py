@@ -541,7 +541,7 @@ class TestCmdSessionPurge:
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("purge --max-sessions 10")
-            mock_svc.purge.assert_called_once_with(10, None)
+            mock_svc.purge.assert_called_once_with(10, None, current_session_id=1)
 
     @pytest.mark.asyncio
     async def test_purge_with_max_age_days(self, capsys: pytest.CaptureFixture) -> None:
@@ -555,7 +555,7 @@ class TestCmdSessionPurge:
             mock_svc.purge.return_value = DbPurgeResult(sessions_removed=0)
             MockSvc.return_value = mock_svc
             await cmd._cmd_session("purge --max-age-days 30")
-            mock_svc.purge.assert_called_once_with(None, 30)
+            mock_svc.purge.assert_called_once_with(None, 30, current_session_id=1)
 
     @pytest.mark.asyncio
     async def test_purge_error_raises(self) -> None:
@@ -626,6 +626,47 @@ class TestCmdSessionPurge:
             MockSvc.return_value = mock_svc
             await cmd._cmd_session(args)
             mock_svc.purge.assert_not_called()
+
+
+class TestCmdSessionPurgeKeepsActive:
+    @pytest.mark.asyncio
+    async def test_purge_keeps_current_session_end_to_end(
+        self, capsys: pytest.CaptureFixture
+    ) -> None:
+        import sqlite3
+        from unittest.mock import patch
+
+        from tests.db.test_db_maintenance import _SESSION_SCHEMA, _FakeDB
+
+        # _cmd_session dispatches purge through asyncio.to_thread, so the
+        # in-memory connection must be usable from the executor thread.
+        conn = sqlite3.connect(":memory:", check_same_thread=False)
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.executescript(_SESSION_SCHEMA)
+        for title, created_at in [
+            ("active", "2000-01-01 00:00:00"),  # session_id 1 = ctx session
+            ("old", "2000-01-02 00:00:00"),  # expired decoy
+            ("fresh", "2099-01-01 00:00:00"),
+        ]:
+            conn.execute(
+                "INSERT INTO sessions (title, created_at) VALUES (?, ?)",
+                (title, created_at),
+            )
+        conn.commit()
+        db = _FakeDB(conn)
+        cmd = _make_cmd(session_id=1)
+        with patch(
+            "agent.services.db_maintenance_service.SQLiteHelper"
+        ) as MockHelper:
+            helper = MagicMock()
+            helper.open.return_value.__enter__.return_value = db
+            MockHelper.return_value = helper
+            await cmd._cmd_session("purge --max-age-days 1")  # real service + ops
+        out = capsys.readouterr().out
+        assert "kept active session 1" in out
+        assert db.conn is not None
+        survived = {r[0] for r in db.conn.execute("SELECT session_id FROM sessions")}
+        assert survived == {1, 3}  # decoy deleted; guarded row survives
 
 
 # ── /session recover ────────────────────────────────────────────────────────────

@@ -11,7 +11,7 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from agent.commands.mixin_base import reset_session_stats
+from agent.commands.mixin_base import refresh_session_correlation, reset_session_stats
 from agent.services.enums import ConversationActionType
 from agent.services.models import ConversationActionResult
 
@@ -29,6 +29,7 @@ def clear_conversation(
     reset_session_stats(ctx)
     if new_session:
         ctx.session.start()
+        refresh_session_correlation(ctx)
         ctx.session.set_title("(New Session)")
         logger.info("History cleared; new session started")
         return ConversationActionResult(

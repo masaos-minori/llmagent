@@ -62,15 +62,20 @@ class DbMaintenanceService:
             vacuum_db(db)
 
     def purge(
-        self, max_sessions: int | None, max_age_days: int | None
+        self,
+        max_sessions: int | None,
+        max_age_days: int | None,
+        *,
+        current_session_id: int | None = None,
     ) -> DbPurgeResult:
-        """Purge old sessions per retention config."""
+        """Purge old sessions per retention config; optionally guard the active session."""
         cfg = _build_retention_config(max_sessions, max_age_days)
         with SQLiteHelper("session").open(write_mode=True) as db:
-            raw = purge_old_sessions(db, cfg)
+            raw = purge_old_sessions(db, cfg, keep_session_id=current_session_id)
         data = raw.data or {}
         return DbPurgeResult(
             sessions_removed=data.get("age_deleted", 0) + data.get("count_deleted", 0),
+            kept_active_session=data.get("kept_active_session"),
         )
 
     def recover_session(self, backup_path: str | None) -> DbRecoverResult:

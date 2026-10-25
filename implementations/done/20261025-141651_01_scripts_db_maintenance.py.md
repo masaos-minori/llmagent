@@ -174,9 +174,9 @@ involved.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Write the four red guard tests first (procedure 05) | Pending | — | — | TDD gate for this file |
-| 2 | Apply steps 1-3 to maintenance.py | Pending | — | — | |
-| 3 | Run targeted validation | Pending | — | — | |
+| 1 | Write the four red guard tests first (procedure 05) | Completed | 2026-10-25 | 2026-10-25 | red recorded: 4 new failed, 51 pre-existing passed |
+| 2 | Apply steps 1-3 to maintenance.py | Completed | 2026-10-25 | 2026-10-25 | helpers return `tuple[int, bool]`; keyword-only `keep_session_id` on `purge_old_sessions` |
+| 3 | Run targeted validation | Completed | 2026-10-25 | 2026-10-25 | 55 passed; ruff/mypy clean; bandit nosec justification unchanged |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -270,10 +270,10 @@ Step execution:
 | Step | Work Item | Target File(s) | Procedure Doc | Status | Depends On | Notes |
 |---|---|---|---|---|---|---|
 | — | Plan | — | — | Frozen | — | Re-verified 2026-10-25 against master @ d41092a81 (second pass); 143257 batch discarded, procedures regenerated at 161253. |
-| 1 | Phase 1: load-count tests 1-3 (1-2 red, 3 green) | `tests/agent/test_diagnostic_store.py` | `20261025-161253_02_tests_agent_test_diagnostic_store.py.md` | Pending | — | Counting `_FakeConfigLoader` subclass over the existing patch pattern. |
-| 2 | Phase 2: resolve-and-thread `cfg` through `save()` + two private helpers | `scripts/agent/diagnostic_store.py` | `20261025-161253_01_scripts_agent_diagnostic_store.py.md` | Pending | 1 | TDD red → green; public signatures unchanged. |
-| 3 | Phase 3a: snapshot-semantics policy sentence | `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` | `20261025-161253_03_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md` | Pending | 2 | Docs checkers after the edit. |
-| 4 | Phase 3b: full validation, single commit | gate only; modifies no file | — | Pending | 1-3 | `rules/toolchain.md` sequence; collect-only baseline 10091 confirmed at d41092a81; `lint-imports` 6 kept. |
+| 1 | Phase 1: load-count tests 1-3 (1-2 red, 3 green) | `tests/agent/test_diagnostic_store.py` | `20261025-161253_02_tests_agent_test_diagnostic_store.py.md` | Completed | — | Counting `_FakeConfigLoader` subclass over the existing patch pattern. red: 3 save-path tests failed (3/2/2 loads), fetch pinned green |
+| 2 | Phase 2: resolve-and-thread `cfg` through `save()` + two private helpers | `scripts/agent/diagnostic_store.py` | `20261025-161253_01_scripts_agent_diagnostic_store.py.md` | Completed | 1 | TDD red → green; public signatures unchanged. targeted 73 passed; grep=2 load sites; deviation: 5 direct helper calls in TestFilterSensitiveFields updated for cfg param |
+| 3 | Phase 3a: snapshot-semantics policy sentence | `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` | `20261025-161253_03_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md` | Completed | 2 | Docs checkers after the edit. docs checkers clean; pre-existing /stats stale_detector source_missing unrelated |
+| 4 | Phase 3b: full validation, single commit | gate only; modifies no file | — | In Progress | 1-3 | `rules/toolchain.md` sequence; collect-only baseline 10091 confirmed at d41092a81; `lint-imports` 6 kept. full suite 10103 passed 9 skipped; commit deferred to batch end |
 
 Work Items Created:
 

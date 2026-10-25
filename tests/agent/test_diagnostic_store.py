@@ -85,6 +85,34 @@ class _FakeConfigLoader:
         return self._cfg
 
 
+class _CountingConfigLoader(_FakeConfigLoader):
+    """_FakeConfigLoader variant that counts load() invocations."""
+
+    def __init__(self, cfg: dict) -> None:
+        super().__init__(cfg)
+        self.load_calls = 0
+
+    def load(self, *names: str) -> dict:
+        self.load_calls += 1
+        return self._cfg
+
+
+class _DriftingConfigLoader(_CountingConfigLoader):
+    """Returns `first_cfg` on the first load() and `later_cfg` afterwards.
+
+    If any helper re-reads config mid-operation, it observes the drifted
+    (later) values; the load count pins the single-snapshot property.
+    """
+
+    def __init__(self, first_cfg: dict, later_cfg: dict) -> None:
+        super().__init__(first_cfg)
+        self._later_cfg = later_cfg
+
+    def load(self, *names: str) -> dict:
+        self.load_calls += 1
+        return self._cfg if self.load_calls == 1 else self._later_cfg
+
+
 # ── save + fetch ──────────────────────────────────────────────────────────────
 
 
@@ -271,7 +299,8 @@ class TestFilterSensitiveFields:
                 "other": "kept",
             }
         )
-        result = json.loads(store._filter_sensitive_fields(payload))
+        cfg = store._load_diagnostics_config()
+        result = json.loads(store._filter_sensitive_fields(payload, cfg))
         assert result["artifacts"] == {"_redacted": True, "count": 3}
         assert result["rag_stage_outcomes"] == {"_redacted": True, "count": 1}
         assert result["other"] == "kept"
@@ -279,21 +308,28 @@ class TestFilterSensitiveFields:
     def test_preserves_count_for_empty_list(self) -> None:
         store = DiagnosticStore()
         payload = json.dumps({"artifacts": []})
-        result = json.loads(store._filter_sensitive_fields(payload))
+        cfg = store._load_diagnostics_config()
+        result = json.loads(store._filter_sensitive_fields(payload, cfg))
         assert result["artifacts"] == {"_redacted": True, "count": 0}
 
     def test_passthrough_when_no_sensitive_fields(self) -> None:
         store = DiagnosticStore()
         payload = '{"turn": 1}'
-        assert store._filter_sensitive_fields(payload) == payload
+        assert store._filter_sensitive_fields(
+            payload, store._load_diagnostics_config()
+        ) == payload
 
     def test_passthrough_for_non_json_content(self) -> None:
         store = DiagnosticStore()
-        assert store._filter_sensitive_fields("not json") == "not json"
+        assert store._filter_sensitive_fields(
+            "not json", store._load_diagnostics_config()
+        ) == "not json"
 
     def test_passthrough_for_json_non_dict(self) -> None:
         store = DiagnosticStore()
-        assert store._filter_sensitive_fields("[1, 2, 3]") == "[1, 2, 3]"
+        assert store._filter_sensitive_fields(
+            "[1, 2, 3]", store._load_diagnostics_config()
+        ) == "[1, 2, 3]"
 
     def test_save_redacts_sensitive_fields_and_preserves_count(
         self, fake_db: _FakeSQLiteHelper
@@ -797,3 +833,96 @@ class TestFetchEncryptedRoundTrip:
         assert len(entries) == 1
         # Ciphertext should be kept as-is since decryption failed
         assert entries[0]["content"] != plaintext
+
+
+# ── per-operation config snapshot (REQ-001/REQ-004/REQ-006) ───────────────────
+
+
+class TestPerOperationConfigSnapshot:
+    """Pin one config load (snapshot) per public DiagnosticStore operation."""
+
+    def test_save_json_object_payload_loads_config_once(
+        self, fake_db: _FakeSQLiteHelper
+    ) -> None:
+        loader = _CountingConfigLoader({"diagnostics": {"retention_days": 30}})
+        store = DiagnosticStore()
+        with (
+            patch(
+                "agent.diagnostic_store.SQLiteHelper",
+                side_effect=lambda _: fake_db,
+            ),
+            patch(
+                "agent.diagnostic_store.ConfigLoader",
+                return_value=loader,
+            ),
+        ):
+            store.save(
+                1,
+                kind="k",
+                content='{"q": "x", "artifacts": ["a.png"]}',
+            )
+        assert loader.load_calls == 1
+
+    def test_save_non_json_payload_loads_config_once(
+        self, fake_db: _FakeSQLiteHelper
+    ) -> None:
+        loader = _CountingConfigLoader({"diagnostics": {"retention_days": 30}})
+        store = DiagnosticStore()
+        with (
+            patch(
+                "agent.diagnostic_store.SQLiteHelper",
+                side_effect=lambda _: fake_db,
+            ),
+            patch(
+                "agent.diagnostic_store.ConfigLoader",
+                return_value=loader,
+            ),
+        ):
+            store.save(1, kind="k", content="plain text")
+        assert loader.load_calls == 1
+
+    def test_fetch_loads_config_once(self, fake_db: _FakeSQLiteHelper) -> None:
+        fake_db.execute(
+            "INSERT INTO session_diagnostics (session_id, kind, content)"
+            " VALUES (?, ?, ?)",
+            (1, "k", "content"),
+        )
+        fake_db.commit()
+        loader = _CountingConfigLoader({"diagnostics": {"retention_days": 30}})
+        store = DiagnosticStore()
+        with (
+            patch(
+                "agent.diagnostic_store.SQLiteHelper",
+                side_effect=lambda _: fake_db,
+            ),
+            patch(
+                "agent.diagnostic_store.ConfigLoader",
+                return_value=loader,
+            ),
+        ):
+            entries = store.fetch(1)
+        assert len(entries) == 1
+        assert loader.load_calls == 1
+
+    def test_save_uses_single_snapshot_across_helpers(
+        self, fake_db: _FakeSQLiteHelper
+    ) -> None:
+        loader = _DriftingConfigLoader(
+            {"diagnostics": {"retention_days": 45}},
+            {"diagnostics": {"retention_days": 1}},
+        )
+        store = DiagnosticStore()
+        with (
+            patch(
+                "agent.diagnostic_store.SQLiteHelper",
+                side_effect=lambda _: fake_db,
+            ),
+            patch(
+                "agent.diagnostic_store.ConfigLoader",
+                return_value=loader,
+            ),
+        ):
+            store.save(1, kind="k", content="text")
+        # A helper re-reading config would observe retention_days=1 and
+        # increment load_calls past 1.
+        assert loader.load_calls == 1

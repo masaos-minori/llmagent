@@ -189,6 +189,7 @@ class DbPurgeResult:
     """Result of purging old sessions from the database."""
 
     sessions_removed: int
+    kept_active_session: int | None = None  # id exempted from retention, None otherwise
 
 
 @dataclass(frozen=True)

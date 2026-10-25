@@ -7,12 +7,14 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+from collections.abc import Generator
 from unittest.mock import MagicMock, patch
 
 import pytest
 from agent.context import ConversationState
 from agent.services.exceptions import SessionNoMessagesError
 from agent.services.session_restore import restore_session
+from agent.session import AgentSession
 
 
 def _make_ctx(
@@ -278,3 +280,137 @@ class TestRestoreSession:
         assert not any(
             "undo_floor clamped" in record.getMessage() for record in caplog.records
         )
+
+
+# ── Real-DB persistence after restore (sess001 regression) ─────────────────────
+
+_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    title TEXT,
+    undo_floor_message_id INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS messages (
+    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
+    role       TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    tool_calls TEXT,
+    tool_call_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+
+class _FakeSQLiteHelper:
+    """Minimal SQLiteHelper drop-in wrapping one shared in-memory connection."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def open(
+        self, *, write_mode: bool = False, row_factory: bool = False
+    ) -> _FakeSQLiteHelper:
+        self._conn.row_factory = sqlite3.Row if row_factory else None
+        return self
+
+    def execute(self, sql: str, params: tuple = ()) -> sqlite3.Cursor:
+        return self._conn.execute(sql, params)
+
+    def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
+        return self._conn.executemany(sql, params_seq)
+
+    def fetchall(self, sql: str, params: tuple = ()) -> list:
+        return self._conn.execute(sql, params).fetchall()
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def close(self) -> None:
+        pass
+
+    def __enter__(self) -> _FakeSQLiteHelper:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        pass
+
+
+@pytest.fixture
+def restore_env() -> Generator[tuple[AgentSession, sqlite3.Connection, int]]:
+    """Real AgentSession on a shared in-memory DB, live in a session, then restored.
+
+    Seeds session 200 with one message (restore target) and leaves the session
+    live in a freshly started session with one saved turn.
+    """
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(_SCHEMA_SQL)
+    conn.execute("INSERT INTO sessions (session_id) VALUES (200)")
+    conn.execute(
+        "INSERT INTO messages (session_id, role, content) VALUES (200, 'user', 'seeded turn')"
+    )
+    conn.commit()
+
+    def _make(target: str = "session") -> _FakeSQLiteHelper:  # noqa: ARG001
+        return _FakeSQLiteHelper(conn)
+
+    with (
+        patch("agent.session.SQLiteHelper", side_effect=_make),
+        patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
+    ):
+        s = AgentSession()
+        s.start()
+        original_sid = s.session_id
+        assert original_sid is not None
+        s.save("user", "in original session")
+        yield s, conn, original_sid
+
+
+def _make_restore_ctx(session: AgentSession) -> MagicMock:
+    ctx = MagicMock()
+    ctx.session = session
+    ctx.conv = ConversationState()
+    ctx.conv.system_prompt_content = ""
+    return ctx
+
+
+class TestRestorePersistenceRealDB:
+    """After restore_session(), persistence must bind to the restored session_id."""
+
+    async def test_persist_after_restore_attributes_to_restored_id(
+        self, restore_env: tuple[AgentSession, sqlite3.Connection, int], caplog: pytest.LogCaptureFixture
+    ) -> None:
+        s, conn, original_sid = restore_env
+        with caplog.at_level(logging.WARNING):
+            await restore_session(_make_restore_ctx(s), session_id=200)
+        assert s.session_id == 200
+
+        s.save("user", "turn in restored session")
+
+        by_session: dict[int, list[str]] = {}
+        for sid, content in conn.execute(
+            "SELECT session_id, content FROM messages ORDER BY message_id"
+        ).fetchall():
+            by_session.setdefault(sid, []).append(content)
+        # AC-001: original session holds only its own turn; restored session
+        # holds the seeded row plus the post-restore turn.
+        assert by_session[original_sid] == ["in original session"]
+        assert by_session[200] == ["seeded turn", "turn in restored session"]
+        # AC-002: no skipped saves, invalid roles, or persistence warnings.
+        assert s.skipped_no_session_count == 0
+        assert s.skipped_invalid_role_count == 0
+        assert not [
+            r
+            for r in caplog.records
+            if "Persistence skipped" in r.getMessage() or "Invalid role" in r.getMessage()
+        ]
+
+    async def test_restore_keeps_both_session_rows(
+        self, restore_env: tuple[AgentSession, sqlite3.Connection, int]
+    ) -> None:
+        s, conn, original_sid = restore_env
+        await restore_session(_make_restore_ctx(s), session_id=200)
+        # AC-003: restore is non-destructive; both sessions rows survive.
+        sids = {r[0] for r in conn.execute("SELECT session_id FROM sessions")}
+        assert sids == {original_sid, 200}

@@ -123,8 +123,8 @@ Delete the appended class; the file is otherwise untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the round-trip test + `import orjson` (confirm summary key names first) | Pending | — | — | |
-| 2 | Run targeted + reader-set validation | Pending | — | — | |
+| 1 | Append the round-trip test + `import orjson` (confirm summary key names first) | Completed | 2026-10-25 | 2026-10-25 | Deviation: two test methods (adds nested latency-summary float round-trip) — within goal scope; real summary key set (20 keys) pinned |
+| 2 | Run targeted + reader-set validation | Completed | 2026-10-25 | 2026-10-25 | targeted + reader set 118 passed; ruff clean; guard-behavior claim (lines 85-87) empirically confirmed: tests also pass with stdlib json restored |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

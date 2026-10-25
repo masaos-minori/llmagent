@@ -76,8 +76,8 @@ Other sections of this document; the data-layer wording (procedure 03).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update `### Session Persistence Design Intent` with the mutability/attribution semantics | Pending | — | — | |
-| 2 | Run the docs checkers listed in Validation plan | Pending | — | — | |
+| 1 | Update `### Session Persistence Design Intent` with the mutability/attribution semantics | Completed | 20261025-174142 | 20261025-174142 |  |
+| 2 | Run the docs checkers listed in Validation plan | Completed | 20261025-174142 | 20261025-174142 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

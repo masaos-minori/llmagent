@@ -27,6 +27,18 @@ def reset_session_stats(ctx: AgentContext) -> None:
     ctx.stats.stat_latency = {}
 
 
+def refresh_session_correlation(ctx: AgentContext) -> None:
+    """Refresh the MCP transport correlation id after a session-id change.
+
+    MUST be called by every flow that changes the active session id outside the
+    one-time startup wiring in repl_input_loop (session restore, new-session
+    clear). No-op when MCP tools are disabled (tools is None) or the session id
+    is not yet assigned.
+    """
+    if ctx.services_required.tools is not None and ctx.session.session_id is not None:
+        ctx.services_required.tools.set_session_id(str(ctx.session.session_id))
+
+
 class MixinBase:
     """Shared annotation base for CommandRegistry mixins.
 

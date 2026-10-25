@@ -137,9 +137,9 @@ schema or data migration.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the dead 1017 check with the code/name/message gate | Pending | — | — | |
-| 2 | Run the Phase 1 gate test set | Pending | — | — | characterization only; new tests live in procedure 02 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Replace the dead 1017 check with the code/name/message gate | Completed | 20261025-175826 | 20261025-175826 |  |
+| 2 | Run the Phase 1 gate test set | Completed | 20261025-175826 | 20261025-175826 | characterization only; new tests live in procedure 02 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261025-183340 | 20261025-183340 | targeted 128 + agent suite 3708 green; ruff/lint-imports/bandit targeted clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

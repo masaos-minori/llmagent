@@ -34,7 +34,9 @@ class AgentSession:
 
     @property
     def _message_repo(self) -> SessionMessageRepository:
-        if self._repo is None:
+        """Return the cached message repo, rebuilding it when its bound session_id
+        no longer matches the current session_id (e.g. after a session restore)."""
+        if self._repo is None or self._repo.session_id != self.session_id:
             self._repo = SessionMessageRepository(
                 self.session_id, strict_mode=self._strict_mode
             )
@@ -138,9 +140,10 @@ class AgentSession:
             except SchemaMissingError:
                 raise
             except sqlite3.OperationalError as e:
-                # Fallback: check extended error code for SQLITE_NOTFOUND (1017)
-                err_code = e.args[0] if e.args else None
-                if err_code == 1017:
+                # Fallback: check the real extended result code / name for SQLITE_ERROR (1)
+                err_code = getattr(e, "sqlite_errorcode", None)
+                err_name = getattr(e, "sqlite_errorname", "")
+                if err_code == 1 or err_name == "SQLITE_ERROR" or "no such table: sessions" in str(e):
                     raise SchemaMissingError(
                         "Session schema missing. Run: bash deploy/init_db.sh to initialize the database."
                     ) from e

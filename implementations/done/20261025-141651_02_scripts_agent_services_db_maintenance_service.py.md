@@ -105,8 +105,8 @@ N/A: no SQL built or executed in this layer.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the purge method change | Pending | — | — | After procedure 01 |
-| 2 | Run targeted validation | Pending | — | — | |
+| 1 | Apply the purge method change | Completed | 2026-10-25 | 2026-10-25 | keyword-only `current_session_id`; `kept_active_session` mapped from `data` |
+| 2 | Run targeted validation | Completed | 2026-10-25 | 2026-10-25 | covered by procedures 04/06 runs: 119 passed; ruff/mypy clean |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

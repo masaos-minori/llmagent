@@ -305,10 +305,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: staleness-aware `_message_repo` getter rebuild (`scripts/agent/session.py`) | In Progress | — | — | re-verified against HEAD 05f555ee0 2026-10-25; corrections reflected in this plan |
-| 2 | Phase 2: real-DB regression test (`tests/agent/test_session_restore.py`) | In Progress | — | — | `REQ-002`, `REQ-004` |
-| 3 | Phase 3: docs updates (two `docs/23_agent/` files) | In Progress | — | — | `REQ-005` |
-| 4 | Phase 4: full validation sequence, single commit | Pending | — | — | gate only; modifies no file |
+| 1 | Phase 1: staleness-aware `_message_repo` getter rebuild (`scripts/agent/session.py`) | Completed | 20261025-174142 | 20261025-174142 | re-verified against HEAD 05f555ee0 2026-10-25; corrections reflected in this plan |
+| 2 | Phase 2: real-DB regression test (`tests/agent/test_session_restore.py`) | Completed | 20261025-174142 | 20261025-174142 | `REQ-002`, `REQ-004` |
+| 3 | Phase 3: docs updates (two `docs/23_agent/` files) | Completed | 20261025-174142 | 20261025-174142 | `REQ-005` |
+| 4 | Phase 4: full validation sequence, single commit | In Progress | — | — | gate only; modifies no file full suite passed 10084/9 skipped 20261025; commit deferred to batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

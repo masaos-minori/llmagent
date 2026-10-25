@@ -137,8 +137,8 @@ Pure test addition; no production import changes; no edits to the existing 37 te
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `_CountingConfigLoader (new)` + `TestPerOperationConfigSnapshot (new)` | Pending | — | — | Tests 1-2 must run red first |
-| 2 | Confirm 37 existing tests still pass | Pending | — | — | |
+| 1 | Append `_CountingConfigLoader (new)` + `TestPerOperationConfigSnapshot (new)` | Completed | — | — | Tests 1-2 must run red first red recorded: save=3, non-json=2, drift=2 loads; fetch green |
+| 2 | Confirm 37 existing tests still pass | Completed | — | — | deviation: 5 TestFilterSensitiveFields direct helper calls updated for cfg param; all green after procedure 01 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -33,6 +33,8 @@ Documents the relationship between session persistence and conversation history 
 
 `AgentSession` manages the session and message tables in `session.sqlite`. A session row is created at REPL start, each turn's messages are appended, `/session load <id>` reconstructs `ctx.conv.history` from stored messages, and `/session delete <id>` removes the session together with its messages (cascade).
 
+`session_id` is mutable on restore: `/session load` (`restore_session()`) reassigns the live session's `session_id`, and the message repository rebuilds to the new id on next use, so post-restore turns are attributed to the restored session. Skipped-save counters belong to the live repository instance.
+
 ### Message Saving Rules
 
 `save(role, content)` only saves valid roles: `user`, `assistant`, `tool`, `system`. Invalid roles or missing `session_id` are logged as warnings and counted. If `strict_mode=True`, both conditions raise a `RuntimeError` instead of skipping.

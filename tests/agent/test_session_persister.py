@@ -12,6 +12,7 @@ import logging
 import sqlite3
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import orjson
 import pytest
 from agent.diagnostic_store import DiagnosticStore
 from agent.session_persister import SessionPersister
@@ -150,6 +151,76 @@ class TestPersistSessionDiagnosticsContainment:
 
         view.write_warning.assert_called_once()
         assert "store down" in view.write_warning.call_args[0][0]
+
+
+class TestPersistSessionDiagnosticsRoundTrip:
+    """Producer/read symmetry: stored `session_summary` content must parse with
+    orjson (the read-side serializer used by the rag_entries reader and the
+    diagnostic store readers) and preserve every summary key and value."""
+
+    EXPECTED_KEYS = {
+        "session_id",
+        "timestamp",
+        "turns",
+        "tool_calls",
+        "tool_errors",
+        "partial_completions",
+        "parse_errors",
+        "heartbeat_timeouts",
+        "reconnects",
+        "input_tokens",
+        "output_tokens",
+        "compress_count",
+        "fallback_truncate_count",
+        "latency_summary",
+        "workflow_count",
+        "task_count",
+        "retry_count",
+        "artifacts",
+        "rag_query_count",
+        "rag_stage_outcomes",
+    }
+
+    @staticmethod
+    def _stored_content(db) -> str:
+        (content,) = db.conn.execute(
+            "SELECT content FROM session_diagnostics WHERE kind='session_summary'"
+        ).fetchone()
+        return content
+
+    @pytest.mark.asyncio
+    async def test_stored_content_parses_with_orjson_and_preserves_keys(
+        self, db
+    ) -> None:
+        ctx = _ctx(1)
+        persister = SessionPersister(ctx, DiagnosticStore(), MagicMock())
+
+        await persister.persist_session_diagnostics()
+
+        content = self._stored_content(db)
+        assert isinstance(content, str)
+        parsed = orjson.loads(content)
+        assert set(parsed) == self.EXPECTED_KEYS
+        assert parsed["session_id"] == 1
+        assert parsed["turns"] == ctx.stats.stat_turns
+        assert parsed["tool_calls"] == ctx.stats.stat_tool_calls
+        assert parsed["tool_errors"] == ctx.stats.stat_tool_errors
+        assert parsed["input_tokens"] == ctx.stats.stat_input_tokens
+        assert parsed["output_tokens"] == ctx.stats.stat_output_tokens
+
+    @pytest.mark.asyncio
+    async def test_latency_summary_floats_survive_round_trip(self, db) -> None:
+        ctx = _ctx(1)
+        ctx.stats.stat_latency = {"tool_a": [1.5, 0.5], "tool_b": [2.0]}
+        persister = SessionPersister(ctx, DiagnosticStore(), MagicMock())
+
+        await persister.persist_session_diagnostics()
+
+        parsed = orjson.loads(self._stored_content(db))
+        assert parsed["latency_summary"] == {
+            "tool_a": {"count": 2, "mean_ms": 1000.0, "max_ms": 1500.0},
+            "tool_b": {"count": 1, "mean_ms": 2000.0, "max_ms": 2000.0},
+        }
 
 
 class TestPersistSessionMemoriesGate:

@@ -100,8 +100,8 @@ Text-only edit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the snapshot-semantics bullet | Pending | — | — | After procedure 01 lands (contract must exist in code before docs claim it) |
-| 2 | Run docs checker | Pending | — | — | |
+| 1 | Append the snapshot-semantics bullet | Completed | — | — | After procedure 01 lands (contract must exist in code before docs claim it) bullet appended under Session Summary |
+| 2 | Run docs checker | Completed | — | — | quality/structure/content-policy/consistency clean; pre-existing /stats stale_detector source_missing unrelated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

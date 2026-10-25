@@ -92,8 +92,8 @@ Restore the cell to its quoted original.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the table-cell edit | Pending | — | — | |
-| 2 | Run docs checkers | Pending | — | — | |
+| 1 | Apply the table-cell edit | Completed | — | — | /session purge table cell extended with active-session keep note |
+| 2 | Run docs checkers | Completed | — | — | consistency(agent) + other docs checkers green |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -20,7 +20,7 @@ All functions accept a `SQLiteHelper` instance and delegate low-level operations
 
 - `checkpoint_wal` flushes the WAL. The default mode comes from `agent.toml::sqlite_wal_checkpoint_mode` (a code-level default applies when the key is absent); an invalid mode raises `ValueError`.
 - `vacuum_db` delegates to `db.vacuum()` and must be called outside an active transaction.
-- `purge_old_sessions` performs age-based and count-based session purging and commits internally.
+- `purge_old_sessions` performs age-based and count-based session purging and commits internally. When an active-session guard is supplied, the guarded session is exempt from both retention rules and the exemption is reported in the result data.
 - `prune_old_memories` deletes old memories via `SQLiteMemoryDeleteStore`.
 
 Each of `vacuum_db`, `purge_old_sessions` and `prune_old_memories` takes a `MaintenanceMode` and returns a `MaintenanceResult` (`success`, `action`, `mode`, optional failure `detail` and `data`).
@@ -29,7 +29,7 @@ Each of `vacuum_db`, `purge_old_sessions` and `prune_old_memories` takes a `Main
 - **STRICT (Default):** Behaves as before mode introduction—exceptions propagate directly. A successful operation returns `MaintenanceResult(success=True)`.
 - **BEST_EFFORT:** Exceptions are caught and logged as `ERROR`, then returned as `MaintenanceResult(success=False, detail=str(exc))`. Callers **MUST** check `result.success`.
 
-`RetentionConfig` defines the session retention limits (`max_sessions` and `max_age_days`; 0 disables the age limit). `RetentionConfig.from_config()` reads them from `agent.toml::sqlite_retention_max_sessions` and `sqlite_retention_max_age_days`; defaults are in the dataclass.
+`RetentionConfig` defines the session retention limits (`max_sessions` and `max_age_days`; 0 disables the age limit). `RetentionConfig.from_config()` reads them from `agent.toml::sqlite_retention_max_sessions` and `sqlite_retention_max_age_days`; defaults are in the dataclass. When the purge comes from the agent command path, the session currently active in the agent is guarded and therefore exempt from both rules; when the exemption fires, the kept session count may exceed `max_sessions` by one.
 
 ---
 

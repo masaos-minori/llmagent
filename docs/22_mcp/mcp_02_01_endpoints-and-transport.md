@@ -47,7 +47,7 @@ X-Session-Id: <session_id>      (injected by ToolExecutor)
 {"name": "tool_name", "args": {"key": "value"}}
 ```
 
-`X-Session-Id` is set during agent startup via `ToolTransportInvoker.set_session_id()` and is injected into all POST requests by `HttpTransport.call()`.
+`X-Session-Id` is set during agent startup via `ToolTransportInvoker.set_session_id()` and refreshed whenever the agent's active session id changes (session restore, new-session clear). It is injected into all POST requests by `HttpTransport.call()`. If a session-id change is not followed by a refresh, tool calls keep the previous session's id and server-side audit attribution is wrong for the rest of the run.
 
 `X-Request-Id` is injected as a UUID in the response headers by the server's authentication middleware.
 

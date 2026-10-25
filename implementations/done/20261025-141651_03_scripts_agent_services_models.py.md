@@ -95,8 +95,8 @@ Remove the one field line; nothing else references it before procedures 02/04 la
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the field | Pending | — | — | |
-| 2 | Run targeted validation | Pending | — | — | |
+| 1 | Add the field | Completed | 2026-10-25 | 2026-10-25 | `kept_active_session: int \| None = None` after `sessions_removed` |
+| 2 | Run targeted validation | Completed | 2026-10-25 | 2026-10-25 | ruff/mypy clean; existing `DbPurgeResult` constructions pass unmodified |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -170,8 +170,8 @@ Delete the four appended methods; the file is otherwise untouched.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append the four tests (red run recorded) | In Progress | 2026-10-25 | — | Phase 1 of the plan |
-| 2 | Re-run after procedure 01 lands (green) | Pending | — | — | |
+| 1 | Append the four tests (red run recorded) | Completed | 2026-10-25 | 2026-10-25 | red confirmed: exactly 4 new failed (TypeError `keep_session_id` x3, KeyError `kept_active_session` x1), 51 pre-existing passed; `# type: ignore[arg-type]` added on new purge calls per file convention |
+| 2 | Re-run after procedure 01 lands (green) | Completed | 2026-10-25 | 2026-10-25 | 55 passed (4 new green, 51 pre-existing) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

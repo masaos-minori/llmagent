@@ -18,7 +18,7 @@ from threading import Lock
 from unittest.mock import patch
 
 import pytest
-from agent.session import AgentSession
+from agent.session import AgentSession, SchemaMissingError
 
 
 def _msgs(result):
@@ -169,6 +169,74 @@ class TestStart:
 
 
 # ── save() ────────────────────────────────────────────────────────────────────
+
+
+class TestStartSchemaMissingFallback:
+    """Regression coverage for start()'s OperationalError fallback."""
+
+    @staticmethod
+    def _real_no_such_table_error() -> sqlite3.OperationalError:
+        conn = sqlite3.connect(":memory:")
+        try:
+            conn.execute("INSERT INTO sessions (title) VALUES (NULL)")
+        except sqlite3.OperationalError as err:
+            return err  # genuine object: carries sqlite_errorcode / sqlite_errorname
+        finally:
+            conn.close()
+        raise AssertionError("expected OperationalError was not raised")
+
+    class _ExplodingHelper(_FakeSQLiteHelper):
+        """Fake helper whose sessions INSERT raises a stored error."""
+
+        injected: sqlite3.OperationalError
+
+        def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+            if "INSERT INTO sessions" in sql:
+                raise self.injected
+            return super().execute(sql, params)
+
+    def _make_exploding(self, error: sqlite3.OperationalError):
+        conn = sqlite3.connect(":memory:")
+
+        def _make(name: str = "session") -> TestStartSchemaMissingFallback._ExplodingHelper:
+            helper = TestStartSchemaMissingFallback._ExplodingHelper(conn)
+            helper.injected = error
+            return helper
+
+        return _make
+
+    def test_fallback_converts_schema_error_after_preflight(self) -> None:
+        with patch(
+            "agent.session.SQLiteHelper",
+            side_effect=self._make_exploding(self._real_no_such_table_error()),
+        ):
+            s = AgentSession()
+            with pytest.raises(SchemaMissingError, match="Session schema missing"):
+                s.start()
+
+    def test_non_schema_operational_error_propagates(self) -> None:
+        with patch(
+            "agent.session.SQLiteHelper",
+            side_effect=self._make_exploding(
+                sqlite3.OperationalError("table sessions is locked")
+            ),
+        ):
+            s = AgentSession()
+            with pytest.raises(sqlite3.OperationalError, match="locked"):
+                s.start()
+
+    def test_real_db_missing_schema_raises_schema_missing(self, tmp_path: Path) -> None:
+        from db.helper import SQLiteHelper
+
+        with patch(
+            "agent.session.SQLiteHelper",
+            side_effect=lambda _name: SQLiteHelper(
+                "session", db_path=str(tmp_path / "unseeded.db")
+            ),
+        ):
+            s = AgentSession()
+            with pytest.raises(SchemaMissingError, match="Session schema missing"):
+                s.start()
 
 
 class TestSave:

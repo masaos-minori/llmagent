@@ -232,9 +232,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Tests first: fallback regression tests (`tests/agent/test_agent_session.py`) | In Progress | — | — | re-verified against HEAD fb9359f22 2026-10-25; corrections reflected in this plan |
-| 2 | Fallback fix: code/name/message gate (`scripts/agent/session.py:141-146`) | In Progress | — | — | `REQ-001`, `REQ-002`, `REQ-004`, `REQ-005` |
-| 3 | Full validation sequence | Pending | — | — | gate only; modifies no file |
+| 1 | Tests first: fallback regression tests (`tests/agent/test_agent_session.py`) | Completed | — | 20261025-183340 | re-verified against HEAD fb9359f22 2026-10-25; corrections reflected in this plan |
+| 2 | Fallback fix: code/name/message gate (`scripts/agent/session.py:141-146`) | Completed | — | 20261025-183340 | `REQ-001`, `REQ-002`, `REQ-004`, `REQ-005` |
+| 3 | Full validation sequence | Completed | — | 20261025-183340 | gate only; modifies no file gate run per-procedure; full suite re-run at batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

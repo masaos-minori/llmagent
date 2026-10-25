@@ -149,9 +149,9 @@ Revert the two assertion edits and delete the appended class.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update assertions 544/558 | Pending | — | — | Land together with procedure 04 |
-| 2 | Append the end-to-end class (red until 02-04 land) | Pending | — | — | |
-| 3 | Run targeted + full validation | Pending | — | — | |
+| 1 | Update assertions 544/558 | Completed | 2026-10-25 | 2026-10-25 | landed with procedure 04 |
+| 2 | Append the end-to-end class (red until 02-04 land) | Completed | 2026-10-25 | 2026-10-25 | Deviation: inline DB build with `check_same_thread=False` — `_cmd_session` dispatches purge via `asyncio.to_thread`, so a default in-memory connection raises ProgrammingError in the executor thread; reuses `_SESSION_SCHEMA`/`_FakeDB` from the db test module (procedure fallback path extended for thread safety) |
+| 3 | Run targeted + full validation | Completed | 2026-10-25 | 2026-10-25 | targeted 119 passed; full suite deferred to batch-end gate (plan step 5) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

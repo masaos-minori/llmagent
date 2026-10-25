@@ -57,10 +57,18 @@ class DbSessionOps:
         except CommandValidationError:
             self._out.write_validation_error("/session purge …")
             return
-        result = DbMaintenanceService().purge(max_sessions, max_age_days)
-        self._out.write_success(
-            f"Purged: {result.sessions_removed} session(s) removed [Session]"
+        result = DbMaintenanceService().purge(
+            max_sessions, max_age_days, current_session_id=self._ctx.session.session_id
         )
+        if result.kept_active_session is not None:
+            self._out.write_success(
+                f"Purged: {result.sessions_removed} session(s) removed "
+                f"(kept active session {result.kept_active_session}) [Session]"
+            )
+        else:
+            self._out.write_success(
+                f"Purged: {result.sessions_removed} session(s) removed [Session]"
+            )
 
     def recover(self, backup_path: str | None) -> None:
         """Run integrity check on session.sqlite; restore from backup_path if corruption found."""

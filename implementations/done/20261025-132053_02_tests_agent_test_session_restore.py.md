@@ -127,10 +127,10 @@ N/A: revert the commit (deletes the added test class and helpers only).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_SCHEMA_SQL` (new), `_FakeSQLiteHelper` (new), and `TestRestorePersistenceRealDB` (new) | Pending | — | — | |
-| 2 | Record red baseline against unfixed `session.py` | Pending | — | — | run before procedure 01 lands, or via `git stash`-style check |
-| 3 | Run `uv run pytest tests/agent/test_session_restore.py -q` after procedure 01 | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `_SCHEMA_SQL` (new), `_FakeSQLiteHelper` (new), and `TestRestorePersistenceRealDB` (new) | Completed | 20261025-174142 | 20261025-174142 |  |
+| 2 | Record red baseline against unfixed `session.py` | Completed | 20261025-174142 | 20261025-174142 | run before procedure 01 lands, or via `git stash`-style check |
+| 3 | Run `uv run pytest tests/agent/test_session_restore.py -q` after procedure 01 | Completed | 20261025-174142 | 20261025-174142 |  |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261025-174142 | 20261025-174142 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

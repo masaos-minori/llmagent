@@ -117,9 +117,9 @@ Remove the added call and import name; one diff hunk.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add import name and the post-start() call in the new-session branch | Pending | — | — | helper (procedure 01) must exist first |
-| 2 | Run the clear-flow spy test (procedure 04 test 5) | Pending | — | — | |
-| 3 | Run characterization + toolchain sequence | Pending | — | — | |
+| 1 | Add import name and the post-start() call in the new-session branch | Completed | 20261025-180429 | 20261025-180429 | helper (procedure 01) must exist first |
+| 2 | Run the clear-flow spy test (procedure 04 test 5) | Completed | 20261025-180429 | 20261025-180429 |  |
+| 3 | Run characterization + toolchain sequence | Completed | 20261025-180429 | 20261025-180429 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

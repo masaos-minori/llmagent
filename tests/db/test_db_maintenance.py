@@ -235,6 +235,82 @@ class TestPurgeOldSessions:
         count = db.conn.execute("SELECT COUNT(*) FROM messages").fetchone()[0]
         assert count == 0
 
+    def test_age_rule_keeps_active_session(self) -> None:
+        db = _make_session_db(
+            [
+                ("active", "2000-01-01 00:00:00"),  # session_id 1
+                ("old", "2000-01-02 00:00:00"),  # session_id 2
+                ("new", "2099-01-01 00:00:00"),  # session_id 3
+            ]
+        )
+        assert db.conn is not None
+        db.conn.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, 'u', 'live')"
+        )
+        db.conn.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (2, 'u', 'gone')"
+        )
+        db.conn.commit()
+        cfg = RetentionConfig(max_sessions=100, max_age_days=1)
+        result = purge_old_sessions(db, cfg, keep_session_id=1)  # type: ignore[arg-type]
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 1
+        assert result.data["kept_active_session"] == 1
+        survived = {r[0] for r in db.conn.execute("SELECT session_id FROM sessions")}
+        assert survived == {1, 3}
+        msgs = {r[0] for r in db.conn.execute("SELECT session_id FROM messages")}
+        assert msgs == {1}  # session 2's messages cascade-deleted
+
+    def test_count_rule_keeps_active_session(self) -> None:
+        db = _make_session_db(
+            [
+                ("s1", "2099-01-01 00:00:00"),  # oldest
+                ("s2", "2099-01-02 00:00:00"),  # active: 3rd by created_at
+                ("s3", "2099-01-03 00:00:00"),
+                ("s4", "2099-01-04 00:00:00"),
+            ]
+        )
+        assert db.conn is not None
+        cfg = RetentionConfig(max_sessions=2, max_age_days=0)
+        result = purge_old_sessions(db, cfg, keep_session_id=2)  # type: ignore[arg-type]
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["count_deleted"] == 1  # only s1 removed
+        assert result.data["kept_active_session"] == 2
+        survived = {r[0] for r in db.conn.execute("SELECT session_id FROM sessions")}
+        assert survived == {2, 3, 4}  # kept count exceeds max_sessions by one
+
+    def test_absent_guard_deletes_expired_active_equivalent(self) -> None:
+        db = _make_session_db(
+            [
+                ("active", "2000-01-01 00:00:00"),
+                ("old", "2000-01-02 00:00:00"),
+                ("new", "2099-01-01 00:00:00"),
+            ]
+        )
+        cfg = RetentionConfig(max_sessions=100, max_age_days=1)
+        result = purge_old_sessions(db, cfg)  # no guard: today's behavior
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 2
+        assert result.data["kept_active_session"] is None
+
+    def test_guard_not_present_in_sessions_is_noop(self) -> None:
+        db = _make_session_db(
+            [
+                ("active", "2000-01-01 00:00:00"),
+                ("old", "2000-01-02 00:00:00"),
+                ("new", "2099-01-01 00:00:00"),
+            ]
+        )
+        cfg = RetentionConfig(max_sessions=100, max_age_days=1)
+        result = purge_old_sessions(db, cfg, keep_session_id=999)  # type: ignore[arg-type]
+        assert result.success is True
+        assert result.data is not None
+        assert result.data["age_deleted"] == 2  # identical counts to the unguarded run
+        assert result.data["kept_active_session"] is None
+
     def test_rotate_session_db_creates_archive(
         self, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     ) -> None:

@@ -262,10 +262,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: tests first (`tests/agent/test_session_correlation_refresh.py`) | In Progress | — | — | re-verified against HEAD b5c215cdb 2026-10-25 |
-| 2 | Phase 2: helper + wiring (`mixin_base.py`, `session_restore.py`, `conversation_service.py`) | In Progress | — | — | `REQ-001`..`REQ-003`, `REQ-005` |
+| 1 | Phase 1: tests first (`tests/agent/test_session_correlation_refresh.py`) | Completed | — | 20261025-183340 | re-verified against HEAD b5c215cdb 2026-10-25 |
+| 2 | Phase 2: helper + wiring (`mixin_base.py`, `session_restore.py`, `conversation_service.py`) | Completed | — | 20261025-183340 | `REQ-001`..`REQ-003`, `REQ-005` |
 | 3 | Phase 3: U-001 runtime-wiring check (read-only) | Completed | 2026-10-25 | 2026-10-25 | resolved in re-verification: `agent_web/` does not exist; REPL is the only runtime |
-| 4 | Phase 4: docs update + full validation, single commit | In Progress | — | — | docs row procedure generated; validation is gate only |
+| 4 | Phase 4: docs update + full validation, single commit | Completed | — | 20261025-183340 | docs row procedure generated; validation is gate only docs updated+checkers green; commit deferred to batch end |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -279,7 +279,7 @@ Table structure, status/type vocabulary, and general guidance: see
 | implementations/20261025-134617_02_scripts_agent_services_session_restore.py.md | 2 | Procedure | Pending | — | — |
 | implementations/20261025-134617_03_scripts_agent_services_conversation_service.py.md | 2 | Procedure | Pending | — | — |
 | implementations/20261025-134617_04_tests_agent_test_session_correlation_refresh.py.md | 1 | Procedure | Pending | — | — |
-| implementations/20261025-134617_05_docs_22_mcp_mcp_02_01_endpoints-and-transport.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261025-134617_05_docs_22_mcp_mcp_02_01_endpoints-and-transport.md.md | 4 | Procedure | Completed | — | 2026-10-25 |
 
 ## Traceability
 

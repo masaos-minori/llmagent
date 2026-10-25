@@ -14,11 +14,12 @@ contained and reported as non-fatal.
 
 from __future__ import annotations
 
-import json
 import logging
 import sqlite3
 import time
 from typing import TYPE_CHECKING
+
+import orjson
 
 if TYPE_CHECKING:
     from agent.context import AgentContext
@@ -114,9 +115,9 @@ class SessionPersister:
                     rag_query_count = len(rag_entries)
                     for e in rag_entries:
                         try:
-                            diag = json.loads(e["content"])
+                            diag = orjson.loads(e["content"])
                             rag_stage_outcomes.extend(diag.get("stage_results", []))
-                        except (json.JSONDecodeError, KeyError):
+                        except (orjson.JSONDecodeError, KeyError):
                             pass
                 except (sqlite3.Error, RuntimeError):
                     pass
@@ -158,7 +159,7 @@ class SessionPersister:
                 self._diagnostic_store.save(
                     session_id,
                     kind="session_summary",
-                    content=json.dumps(summary),
+                    content=orjson.dumps(summary).decode(),
                 )
             except (RuntimeError, sqlite3.Error) as e:
                 logger.debug("DiagnosticStore.save failed: %s", e)

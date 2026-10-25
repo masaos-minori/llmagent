@@ -127,9 +127,9 @@ Delete the file; it is self-contained (no shared fixtures added elsewhere).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create the test file with tests 1-5 (tests-first, per plan Phase 1) | Pending | — | — | tests 4-5 expected red until procedures 02/03 land |
-| 2 | Run targeted + characterization sets | Pending | — | — | |
-| 3 | Confirm red->green transition after helper + wiring land | Pending | — | — | |
+| 1 | Create the test file with tests 1-5 (tests-first, per plan Phase 1) | Completed | 20261025-180429 | 20261025-180429 | tests 4-5 expected red until procedures 02/03 land |
+| 2 | Run targeted + characterization sets | Completed | 20261025-180429 | 20261025-180429 |  |
+| 3 | Confirm red->green transition after helper + wiring land | Completed | 20261025-180429 | 20261025-180429 | red baseline: collection ImportError at 04 landing; 5/5 green after 01-03 landed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

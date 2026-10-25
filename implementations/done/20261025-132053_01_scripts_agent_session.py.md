@@ -135,10 +135,10 @@ data migration.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the id-mismatch rebuild to the `_message_repo` getter | Pending | — | — | |
-| 2 | Run the Phase 1 gate test set | Pending | — | — | characterization only; new tests live in procedure 02 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Confirm repro closure: `/tmp/opencode/test_repo_staleness.py` passes | Pending | — | — | |
+| 1 | Add the id-mismatch rebuild to the `_message_repo` getter | Completed | 20261025-174142 | 20261025-174142 |  |
+| 2 | Run the Phase 1 gate test set | Completed | 20261025-174142 | 20261025-174142 | characterization only; new tests live in procedure 02 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261025-174142 | 20261025-174142 |  |
+| 4 | Confirm repro closure: `/tmp/opencode/test_repo_staleness.py` passes | Completed | 20261025-174142 | 20261025-174142 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
