@@ -140,8 +140,23 @@ No other lines in the file change.
 
 ## Execution Status
 
-- [ ] Completed
-- [ ] Partial — Blocked by: (state explicitly, including partial deploy state)
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | `ToolConfig.masked_fields` default at `:182` | Completed | 20261025-091340 | 20261025-091340 | Plan Phase 2; landed after Phase 1 RED tests (procedures 05-06); procedure Before/After text matched source exactly |
+| 2 | Validation gates | Completed | 20261025-091340 | 20261025-091340 | RED 3 failed -> GREEN: target-file gate 179 passed, `tests/agent` 3694 passed, `tests/integration` 117 passed; `mypy --no-namespace-packages scripts/` Success (440 files); ruff / lint-imports (6 kept) / bandit `-ll` (Medium 0, High 0) / `run_validation_gates.py --full` green |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `0d3ead56e`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 

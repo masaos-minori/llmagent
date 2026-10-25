@@ -133,9 +133,23 @@ The `:32` bullet and the `:33` preview sub-bullet stay as is; no other doc lines
 
 ## Execution Status
 
-- [ ] Completed
-- [ ] Partial — Blocked by: (state explicitly; UNK-01 cross-reference findings, if any,
-  must be recorded here when they occur)
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Replace `:34` sub-bullet with the new-default statement | Completed | 20261025-091340 | 20261025-091340 | Plan Phase 3 — landed after procedures 01-06; `:32` bullet and `:33` preview sub-bullet unchanged; procedure Before text matched the file exactly |
+| 2 | Docs gates + full gate | Completed | 20261025-091340 | 20261025-091340 | `manage_frontmatter.py add-missing --dry-run`: "All files have valid YAML Front Matter"; `check_docs_consistency.py --domain agent`: "No issues found" — UNK-01 resolved: no cross-reference entry needed; `run_validation_gates.py --full` green (pytest, diff-cover >= 90, pre-commit, docs checkers) |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| 2 | `stale_detector.py` on this doc reports 1 pre-existing `source_missing: /v1/tools` hit — the text is an HTTP path present in HEAD at `:45` before this edit, unrelated to the `masked_fields` change | N/A — pre-existing checker false positive on URL-shaped text, out of this procedure's scope; left unchanged | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `0d3ead56e`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 

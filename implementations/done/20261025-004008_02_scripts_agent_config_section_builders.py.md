@@ -132,8 +132,23 @@ No other lines in the file change.
 
 ## Execution Status
 
-- [ ] Completed
-- [ ] Partial — Blocked by: (state explicitly, including partial deploy state)
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | `_build_tool_config` fallback literal at `:204-205` | Completed | 20261025-091340 | 20261025-091340 | Procedure Before/After text matched source exactly (`_get_or_default(cfg, "masked_fields", _get_list, ["file_content"])`); fallback-only change, user-configured lists untouched (REQ-006) |
+| 2 | Validation gates | Completed | 20261025-091340 | 20261025-091340 | Builder path verified by `test_empty_dict_returns_defaults` (procedure 04 pin) — 179 passed target gate |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `0d3ead56e`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 

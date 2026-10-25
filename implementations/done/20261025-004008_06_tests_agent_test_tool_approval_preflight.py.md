@@ -143,8 +143,23 @@ No existing tests change.
 
 ## Execution Status
 
-- [ ] Completed
-- [ ] Partial — Blocked by: (state explicitly, including partial deploy state)
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Import line (`AgentConfig, ToolConfig`) + `test_default_masked_fields_applied_to_args` | Completed | 20261025-091340 | 20261025-091340 | Inserted inside `TestAuditApproval` directly after `test_masked_fields_applied_to_nested_args`; procedure code used verbatim; `ctx.cfg.tool = ToolConfig()` valid (`AgentConfig` is a non-frozen dataclass) |
+| 2 | RED -> GREEN runs (Phase 1 -> Phase 2) | Completed | 20261025-091340 | 20261025-091340 | RED (Phase 1, before procedures 01-02): fails with `"s3cr3t"` present in the audit payload against the `["file_content"]` default; GREEN after procedures 01-02 — payload masks `content` to `***` while `/tmp/f` stays visible (REQ-001 asymmetry); target-file gate 179 passed |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `0d3ead56e`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 

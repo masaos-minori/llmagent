@@ -141,8 +141,23 @@ No existing tests or fixtures change.
 
 ## Execution Status
 
-- [ ] Completed
-- [ ] Partial — Blocked by: (state explicitly, including partial deploy state)
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Import line (`AgentConfig, ToolConfig`) + `TestMaskArgsDefaultConfig` (2 tests) | Completed | 20261025-091340 | 20261025-091340 | Appended after `TestMaskArgs`, before `TestBuildPreview`; procedure code used verbatim; no existing tests/fixtures changed |
+| 2 | RED -> GREEN runs (Phase 1 -> Phase 2) | Completed | 20261025-091340 | 20261025-091340 | RED (Phase 1, before procedures 01-02): both tests fail against `["file_content"]` (`masked_fields == ['file_content']`; `content`/nested `old_text`/`new_text` pass unmasked); GREEN after procedures 01-02 — target-file gate 179 passed, `tests/agent` 3694 passed |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `0d3ead56e`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 

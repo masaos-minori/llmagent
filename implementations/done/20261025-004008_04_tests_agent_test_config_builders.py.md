@@ -124,8 +124,23 @@ No other lines in the file change; the override fixture at `:192` stays as is.
 
 ## Execution Status
 
-- [ ] Completed
-- [ ] Partial — Blocked by: (state explicitly, including partial deploy state)
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | `_TOOL_DEFAULTS` pin at `:155` | Completed | 20261025-091340 | 20261025-091340 | In-place single-value edit; `:192` override fixture still reads `["custom_field"]` (AC-6 verified) |
+| 2 | Validation gates | Completed | 20261025-091340 | 20261025-091340 | Plan Phase 2 gate `pytest tests/agent/test_config_builders.py tests/agent/test_tool_result_formatter.py tests/agent/test_tool_approval_preflight.py -q` -> 179 passed; `test_empty_dict_returns_defaults` green against the new builder fallback (procedure 02) |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `0d3ead56e`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 

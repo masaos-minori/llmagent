@@ -206,11 +206,25 @@ the module, so no `importlinter` layer is crossed.
 
 ## Execution Status
 
-| Block | Status | Notes |
-|---|---|---|
-| 1. Constant + helper (`DR-101`..`DR-104`) | Pending | After row 2 lands its failing tests |
-| 2. Two call-site wraps (`REQ-002`) | Pending | `:58`, `:169` |
-| 3. Targeted + full validation (`AC-1`, `AC-2`, `AC-4`) | Pending | Plan Phase 2 gate |
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Confirm row-2 tests exist and fail (Phase 1 precondition) | Completed | 20261024-233411 | 20261024-233411 | RED confirmed: module-level `ImportError` on `AUDIT_ARGS_PREVIEW_MAX_CHARS` at collection (collection-level RED shape recorded in row-2 Blocker Log) |
+| 2 | Constant + helper (`DR-101`..`DR-104`) | Completed | 20261024-233411 | 20261024-233411 | Exact final form from Method; constant after imports before `_extract_resource_scope`, helper between it and `audit_approval` |
+| 3 | Two call-site wraps (`REQ-002`) | Completed | 20261024-233411 | 20261024-233411 | `args_preview=masked` in `audit_approval` and `audit_tool_exec` -> `_bounded_preview(masked)`; `write_round_exec` untouched |
+| 4 | Targeted + full validation (`AC-1`, `AC-2`, `AC-4`) | Completed | 20261024-233411 | 20261024-233411 | Trio 119 passed (19/19 in target file); AC-2 grep: both writers bounded, no bypass; ruff / mypy (`Success: 440 files`) / lint-imports (6 kept) / bandit `-ll` (Medium 0, High 0) clean; `tests/agent` 3691 passed, `tests/integration` 117 passed |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| 4 | `test_mask_then_truncate_marker` failed GREEN run: row-2 helper key `"q"` sorts before `"secret"` under `shared.json_utils.dumps` (`orjson.OPT_SORT_KEYS`), pushing `"secret"` outside the 1500-char prefix | Yes (row-2 helper padding key changed `"q"` -> `"z"`; implementation unchanged) | 20261024-233411 |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `73d714609`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 

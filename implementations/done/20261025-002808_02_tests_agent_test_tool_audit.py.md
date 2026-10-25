@@ -287,12 +287,25 @@ class TestToolExecPreviewCap:
 
 ## Execution Status
 
-| Block | Status | Notes |
-|---|---|---|
-| 1. Imports + helpers (`DR-101`, `DR-102`) | Pending | Phase 1, before row 1 |
-| 2. `TestApprovalPreviewCap` (new) (4 tests) | Pending | REQ-005 approval half |
-| 3. `TestToolExecPreviewCap` (new) (3 tests) | Pending | REQ-005 tool-exec half |
-| 4. RED -> GREEN runs (Phase 1 -> Phase 2) | Pending | Phase gates recorded in plan Execution status |
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Imports + helpers (`DR-101`, `DR-102`) | Completed | 20261024-233411 | 20261024-233411 | Helpers appended after `_make_ctx`; `shared.json_utils.dumps` import added per Method |
+| 2 | `TestApprovalPreviewCap` (new) (4 tests) | Completed | 20261024-233411 | 20261024-233411 | REQ-005 approval half; appended after `TestWriteRoundExec` |
+| 3 | `TestToolExecPreviewCap` (new) (3 tests) | Completed | 20261024-233411 | 20261024-233411 | REQ-005 tool-exec half |
+| 4 | RED -> GREEN runs (Phase 1 -> Phase 2) | Completed | 20261024-233411 | 20261024-233411 | RED: collection-level `ImportError` (module-wide, not 7-of-19 as the procedure text expected — pytest cannot run existing tests when a module import fails); GREEN: 19/19 in target file, trio 119 passed, `tests/agent` 3691 passed, `tests/integration` 117 passed |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| 4 | `test_mask_then_truncate_marker` failed: procedure test code assumed insertion-order serialization, but the writers' serializer (`shared.json_utils.dumps`, default `orjson.OPT_SORT_KEYS` — the same function this row's Assumptions name) sorts keys, so padding key `"q"` filled the retained prefix before `"secret"` | Yes: helper padding key renamed `"q"` -> `"z"` (sorts after `"secret"`); all four contract assertions of `DR-104` now hold; deviation from the procedure's "exact final form" helper text recorded | 20261024-233411 |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `73d714609`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 

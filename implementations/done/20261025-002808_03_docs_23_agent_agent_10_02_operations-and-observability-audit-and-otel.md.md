@@ -148,10 +148,24 @@ New `Key Constraints` bullet, exact final text:
 
 ## Execution Status
 
-| Block | Status | Notes |
-|---|---|---|
-| 1. Key Constraints bullet (`DR-101`, `DR-102`) | Pending | After row 1 merges |
-| 2. Docs gates + AC-5 checks | Pending | Plan Phase 3 |
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Confirm row 1 landed (Phase 3 precondition) | Completed | 20261024-233411 | 20261024-233411 | `AUDIT_ARGS_PREVIEW_MAX_CHARS` + `_bounded_preview` live in `scripts/agent/tool_audit.py` with row-2 tests green |
+| 2 | Key Constraints bullet (`DR-101`, `DR-102`) | Completed | 20261024-233411 | 20261024-233411 | Exact Method text inserted after the assertion-error bullet (now `:51`); `mcp_06_05` untouched |
+| 3 | Docs gates + AC-5 checks | Completed | 20261024-233411 | 20261024-233411 | `check_docs_quality` / `check_docs_structure` / `check_docs_content_policy` / `check_docs_consistency --domain agent` all exit 0; AC-5 grep matches only the new bullet; `grep -rn "args_preview" docs/` shows this chapter as the single mention; stale detector: not stale |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | N/A |
+
+**Reconcile note (2026-10-25):** the source fixes for this procedure landed on `origin/master` from a separate session (fix commit `73d714609`, archive commit `e6c0d6eef`). A second session independently re-executed and fully validated the same procedure on the pre-reset tree; `origin/master` was then adopted as canonical and the source state re-confirmed there with targeted tests.
 
 ## Traceability
 
