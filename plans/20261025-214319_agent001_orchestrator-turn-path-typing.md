@@ -145,9 +145,9 @@ as `Any` and raises no error, so no scope creep is needed for the gate to pass.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Annotate handle_turn / _execute_turn | Pending | — | — | Phase 1 |
-| 2 | mypy + ruff gate verification | Pending | — | — | Phase 2 |
-| 3 | pytest regression + deploy.sh check | Pending | — | — | Phase 3 |
+| 1 | Annotate handle_turn / _execute_turn | Completed | — | 2026-10-26 | Phase 1 implemented and verified in-session |
+| 2 | mypy + ruff gate verification | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 3 | pytest regression + deploy.sh check | Completed | — | 2026-10-26 | Phase 3 implemented and verified in-session |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
