@@ -25,7 +25,7 @@ Corrections from verification (Step 2, 2026-10-25), which supersede the Issue's 
 - The Issue says no known flaky test is open and the project memory note ("CI green") is stale only because its flaky test was fixed. The live run history contradicts the premise that CI is currently healthy: of the last 20 `CI` runs on `master` (2026-10-24 12:19Z to 23:58Z), 19 concluded `failure` and 1 was still in progress; the last `success` is 2026-10-23T03:44Z (18 successes within the last 100 runs).
 - The failures are deterministic, not flaky: the two newest completed runs (`40144039702`, `40141761820`) fail 3 and 2 tests; two of them (`tests/mcp_servers/test_require_auth_token.py` and `tests/mcp_servers/test_config_isolation_import.py`, both for `mcp_servers.shell.shell_server`) raise `RuntimeError: shell_sandbox_backend=firejail is configured but firejail is not found in PATH`. One run also fails `tests/eventbus/test_eventbus_auth.py::TestProductionRouteWiring::...[GET-/health-...]` with `assert 503 == 200`, which appears in one of the two runs only.
 - This is exactly the situation the check exists for, and it shows the value is not hypothetical. It also means the Issue's "thin evidence" reservation no longer holds.
-- No workflow under `.github/workflows/` has a `schedule:` trigger (10 workflows read, none matches), and `gh` is authenticated for the repository (`gh run list` and `gh run view --log-failed` both succeeded). The scheduling state of this machine was inspected: `.claude/scheduled_tasks.lock` exists, but no task definition was found under `~/.claude/` or `.claude/` (`Needs confirmation` for cloud-side routines, see `UNK-03`).
+- No workflow under `.github/workflows/` has a `schedule:` trigger (10 workflows read, none matches; re-confirmed in the `plan-to-implementation-procedure` cycle of 2026-10-25). `gh` was authenticated for the repository in the Step 2 session (`gh run list` and `gh run view --log-failed` both succeeded); re-verification in the 2026-10-25 `plan-to-implementation-procedure` cycle found `gh` NOT authenticated in the current environment: `gh auth status` exits 1, `~/.config/gh` is absent, and no `GH_*`/`GITHUB_*` variable is set (`UNK-05`). The scheduling state was re-inspected in the same cycle: `.claude/` now contains only `commands`; the `.claude/scheduled_tasks.lock` observed in Step 2 no longer exists, and no task definition exists under `~/.claude/` or `.claude/` (`Needs confirmation` for cloud-side routines, see `UNK-03`).
 
 ## Problem
 Nothing watches CI between sessions. A red or intermittently failing run is noticed only when someone looks; in the measured window it stayed red for at least 19 consecutive runs. Failures are not grouped per test across runs, so a repeat is invisible without reading each log.
@@ -103,7 +103,7 @@ Freeze) for the full validation procedure):
 - No `docs/*.md` change: the check is an operational aid with no architecture or runtime contract, and no row of `docs/00_index.md` "Document References by Task" maps a `tools/` file to a chapter. `N/A: no docs/ file requires updating`.
 
 ## Assumptions
-- `gh` access to `masaos-minori/llmagent` run history is available for the active account (checked in Step 2: `gh auth status` and both read commands succeeded).
+- `gh` access to `masaos-minori/llmagent` run history was available in the Step 2 session (`gh auth status` and both read commands succeeded there); it is not authenticated in the current environment (re-verified 2026-10-25 in the `plan-to-implementation-procedure` cycle; see Background and `UNK-05`). Re-authenticating `gh` is a precondition of the `REQ-008` live runs in Phase 3, not of procedure generation; `REQ-005`'s exit code 2 already covers an unauthenticated `gh`.
 - The CI log format (`addopts = "-v --tb=short"`, a `short test summary info` block with `FAILED <nodeid> - ...` lines) is stable enough to parse; a log without such lines is treated as "red, no test identifiers" rather than an error.
 - Counting a test as repeating when it fails in two or more of the examined runs follows the Issue's wording ("two or more of the last N runs"); N defaults to 10 and is a CLI option, not a config key.
 - A local recurring session task, not a GitHub Actions scheduled workflow or cloud agent, is the lowest-risk mechanism: it adds no CI infrastructure, needs no new credential, and its output stays in the user's session. Owner-revisable.
@@ -116,6 +116,7 @@ Freeze) for the full validation procedure):
 | UNK-02 | Which delivery channel is acceptable beyond stdout in the session | The user has not stated one; the Issue marks it Unknown | Plan fixes delivery to stdout only (`REQ-005`); any notification or chat channel would need explicit user confirmation under `AGENTS.md` Execution policy and would be a new Issue | False |
 | UNK-03 | Whether a cloud-side scheduled routine or other recurring task already runs for this repository and would be duplicated | Only local files were inspected (`.claude/scheduled_tasks.lock` exists, no task definition found); cloud routines cannot be listed from here | At hand-off (Phase 3), list existing routines with the `schedule` skill before creating one | False |
 | UNK-04 | Whether the Issue should stay open at all given thin evidence | Resolved by evidence: 19 consecutive red runs on `master` show the check would have reported the problem within one scheduled interval; the Issue's reservation is withdrawn | None needed | False |
+| UNK-05 | Whether `gh` authentication can be re-established before the `REQ-008`/AC-8 live runs in Phase 3 | Re-verified 2026-10-25 (`plan-to-implementation-procedure` cycle): `gh auth status` exits 1, `~/.config/gh` absent, no `GH_*`/`GITHUB_*` variable; the Step 2 authenticated state cannot be reproduced from this environment | User re-authenticates `gh` (or exports `GH_TOKEN`) before the Phase 3 live runs; the tool's exit code 2 (`REQ-005`) already reports the failure mode cleanly | False |
 
 ## Affected areas
 | File | Change | Blast Radius | Churn (30d) | Bus Factor | deploy.sh Impact |
@@ -179,9 +180,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: write the failing tests (`tests/tools/test_check_ci_results.py`) | Pending | — | — | `REQ-007` |
-| 2 | Phase 2: implement `tools/check_ci_results.py` and run "Adding a new tool" steps 1-4 | Pending | — | — | `REQ-002`..`REQ-005`, `REQ-007` |
-| 3 | Phase 3: docs (`tools/TOOL_DESCRIPTIONS.md`, `rules/toolchain.md`), live verification, user-gated schedule hand-off | Pending | — | — | `REQ-001`, `REQ-006`, `REQ-007`, `REQ-008` |
+| 1 | Phase 1: write the failing tests (`tests/tools/test_check_ci_results.py`) | In Progress | — | — | `REQ-007` |
+| 2 | Phase 2: implement `tools/check_ci_results.py` and run "Adding a new tool" steps 1-4 | In Progress | — | — | `REQ-002`..`REQ-005`, `REQ-007` |
+| 3 | Phase 3: docs (`tools/TOOL_DESCRIPTIONS.md`, `rules/toolchain.md`), live verification, user-gated schedule hand-off | In Progress | — | — | `REQ-001`, `REQ-006`, `REQ-007`, `REQ-008` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -191,7 +192,10 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261025-100210_01_tools_check_ci_results.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-100210_02_tests_tools_test_check_ci_results.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-100210_03_tools_TOOL_DESCRIPTIONS.md.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261025-100210_04_rules_toolchain.md.md` | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -215,3 +219,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-007 | Documentation Impact (`tools/TOOL_DESCRIPTIONS.md`); `check_tool_descriptions_sync.py` | `tools/TOOL_DESCRIPTIONS.md` | Phase 3 | AC-6 | `check_tool_descriptions_sync.py` | Explicit in issue |
 | REQ-007 | Testing Expectations ("Adding a new tool" validation) | `tools/check_ci_results.py` | Phase 2 | AC-6 | ruff, mypy, bandit on the file | Explicit in issue |
 | REQ-008 | Acceptance Criteria bullet 1 (known-red and known-green verified once on real data); 18 successes within the last 100 runs | `tools/check_ci_results.py` | Phase 3 | AC-8 | Manual live runs | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261025-100210 -->

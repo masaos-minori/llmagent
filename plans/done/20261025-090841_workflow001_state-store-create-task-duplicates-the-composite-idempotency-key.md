@@ -158,9 +158,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: add the failing wrapper test (`tests/agent/workflow/test_workflow_state_store.py`) | Pending | — | — | `REQ-004` |
-| 2 | Phase 2: delegate `StateStore.create_task()` to `task_ops.create_task()`; guard grep and mutation check (`scripts/agent/workflow/state_store.py`) | Pending | — | — | `REQ-001`, `REQ-002`, `REQ-003`, `REQ-006` |
-| 3 | Phase 3: validation sequence, full suite, deploy hand-off | Pending | — | — | `REQ-005`, `REQ-006` |
+| 1 | Phase 1: add the failing wrapper test (`tests/agent/workflow/test_workflow_state_store.py`) | In Progress | — | — | `REQ-004` |
+| 2 | Phase 2: delegate `StateStore.create_task()` to `task_ops.create_task()`; guard grep and mutation check (`scripts/agent/workflow/state_store.py`) | In Progress | — | — | `REQ-001`, `REQ-002`, `REQ-003`, `REQ-006` |
+| 3 | Phase 3: validation sequence, full suite, deploy hand-off | In Progress | — | — | `REQ-005`, `REQ-006` |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -170,7 +170,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261025-101451_01_scripts_agent_workflow_state_store.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261025-101451_02_tests_agent_workflow_test_workflow_state_store.py.md` | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -190,3 +191,5 @@ Table structure, status/type vocabulary, and general guidance: see
 | REQ-004 | Required Changes bullet 3; Testing Expectations | `tests/agent/workflow/test_workflow_state_store.py` | Phase 1, Phase 2 | AC-3 | New test; mutation check | Explicit in issue |
 | REQ-005 | Constraints (no schema change); Acceptance Criteria bullet 4 | `scripts/agent/workflow/state_store.py` | Phase 3 | AC-5 | `git diff --stat` on `task_ops.py` and `schema_sql.py` | Explicit in issue |
 | REQ-006 | Constraints (lint-imports with the delegation import) | `scripts/agent/workflow/state_store.py` | Phase 2, Phase 3 | AC-5 | `PYTHONPATH=scripts uv run lint-imports` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261025-101451 -->
