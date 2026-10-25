@@ -154,6 +154,25 @@ byte-stable export is ever specified.
 - Full: `uv run pytest tests/ -q` (baseline 10082 passed / 9 skipped) + `rules/toolchain.md` sequence; `lint-imports` 6 kept (`orjson` is a permitted third-party import, already used by sibling modules).
 - Static: ruff + mypy on the changed file (issue Testing Expectations); AC-001 grep check.
 
+## Adversarial Re-verification (2026-10-25, procedure generation)
+
+- Call sites confirmed exactly at `session_persister.py:17` (`import json`), `:117`
+  (`json.loads(e["content"])`), `:119` (`except (json.JSONDecodeError, KeyError)`),
+  `:161` (`content=json.dumps(summary)`).
+- Gate blind spot confirmed: `rules/coding.md:77-78` ast-grep pattern is
+  `json.load($$$)` (matches only `json.load`); rule text at `:120` confirmed verbatim.
+- orjson facts re-measured on the dev venv (orjson 3.11.9, `orjson>=3.10` in
+  `pyproject.toml:12`): default `orjson.dumps` preserves insertion order and emits
+  compact separators (`b'{"b":1,"a":2,...}'` vs stdlib `', '`/`': '`);
+  `OPT_PRESERVE_ITERATION_DICT` does not exist.
+- `test_session_persister.py` contains no stdlib-`json` usage (grep: zero `json`
+  references); `DiagnosticStore()` + `db` fixture (line 63) is the in-memory pattern the
+  round-trip test reuses.
+- `agent_10_05:61` `json_extract` query confirmed; `shared_01_overview.md:117` holds the
+  `orjson.dumps()` returns `bytes` constraint.
+- Full-suite baseline figure "10082 passed / 9 skipped" is historical: collect-only
+  reports 10091 tests at HEAD ad39f04f0.
+
 ## Risks
 
 | Risk | Severity | Likelihood | Mitigation |
@@ -164,12 +183,26 @@ byte-stable export is ever specified.
 
 ## Execution Status
 
-| Item | Status |
-|---|---|
-| Plan | Frozen |
-| Step 1 (swap call sites) | Pending |
-| Step 2 (round-trip test) | Pending |
-| Step 3 (validation + commit) | Pending |
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`.
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Swap import + three call sites (`session_persister.py`) | In Progress | — | — | re-verified against HEAD ad39f04f0 2026-10-25; exact lines 17/117/119/161 |
+| 2 | Add round-trip test (`tests/agent/test_session_persister.py`) | In Progress | — | — | `REQ-004` |
+| 3 | Targeted + reader-set validation, single commit | Pending | — | — | gate only; modifies no file |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| implementations/20261025-135131_01_scripts_agent_session_persister.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261025-135131_02_tests_agent_test_session_persister.py.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 
