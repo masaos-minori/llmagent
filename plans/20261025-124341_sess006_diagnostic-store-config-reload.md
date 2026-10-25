@@ -182,12 +182,71 @@ Chosen (issue UQ1 decision): **per-operation resolve-and-thread**, no caching.
 
 ## Validation plan
 
-- Targeted: `uv run pytest tests/agent/test_diagnostic_store.py tests/agent/test_session_persister.py tests/agent/test_regression_diagnostic_persist.py -x -q`.
+- Targeted: `uv run pytest tests/agent/test_diagnostic_store.py tests/agent/test_diagnostic_store_security.py tests/agent/test_session_persister.py tests/agent/test_regression_diagnostic_persist.py -x -q`
+  (security-test file added by the 2026-10-25 re-verification).
 - Full: `uv run pytest tests/ -q` (baseline 10082 passed / 9 skipped) +
   `rules/toolchain.md` sequence; `lint-imports` 6 kept / 0 broken (no import changes).
 - Static: ruff + mypy on the changed file (issue Testing Expectations); bandit
   baseline on this file must not regress.
 - Docs checker after the `agent_10_05` edit.
+
+## Adversarial Re-verification (2026-10-25, procedure generation)
+
+Frozen status re-checked against HEAD (all prior citations live; line numbers
+confirmed):
+- `scripts/agent/diagnostic_store.py` — `_load_diagnostics_config` 43-67 (docstring
+  43-51, `ConfigLoader().load("agent.toml")` at 52), `_filter_sensitive_fields` 69-99
+  (load at 90, reached only for JSON-object payloads — non-JSON/non-dict
+  early-returns at 84/86 skip it), `_purge_old_diagnostics` 113-133 (load at 115),
+  `save` 135-183 (filter try 153-162 with `# noqa: BLE001`, unconditional load at
+  164, RuntimeError 165-171, insert 176-183), `fetch` 185-216 (load at 187),
+  `save_*_event` helpers 218-273 delegate to `save`.
+- `self.session_id` is assigned only at 41 and never read elsewhere (U-001 holds).
+- `scripts/shared/config_loader.py` — `load` 79-87: per-call re-read/merge, no cache.
+- `scripts/agent/session.py:52` — `DiagnosticStore(self.session_id)`.
+- `tests/agent/test_diagnostic_store.py` — `_FakeConfigLoader` at 78 (fixed-dict
+  drop-in `load(*names)`; counting subclass trivial), patch pattern
+  `patch("agent.diagnostic_store.ConfigLoader", return_value=fake_cfg_loader)` at
+  349+ (343-386 range confirmed, plus further uses at 396/425/449/474).
+- `tests/agent/test_session_persister.py`, `tests/agent/test_regression_diagnostic_persist.py` exist.
+- `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` — diagnostics
+  persistence bullets at ~83 ("A failure to persist diagnostics is logged at DEBUG
+  level ..."); session_summary section ~52. Policy sentence anchors as a new bullet
+  there.
+- Suite collect-only at this HEAD: 10091 tests (supersedes the "10082 passed /
+  9 skipped" baseline cited in the Validation plan).
+
+Findings and corrections:
+- Additional affected test file the plan's targeted set omitted:
+  `tests/agent/test_diagnostic_store_security.py` patches `_purge_old_diagnostics`
+  (and exercises `save`) via `patch.object(DiagnosticStore, ...)` at 8+ sites.
+  `MagicMock` accepts the new positional `cfg` argument, so those tests pass
+  unmodified — but the file must be added to the targeted validation command
+  (REQ-003 characterization).
+- Containment nuance confirmed (Risk 2 holds, sharpened): today a config-load failure
+  inside `_filter_sensitive_fields` IS caught by the filter's `except Exception`
+  (BLE001), but the same failure then propagates from the unconditional load at 164
+  anyway; after the change the load sits outside the try from the start — the net
+  exception contract for identical inputs is unchanged.
+- Load-count baseline verified exactly as planned: JSON-object payload `save()` = 3
+  loads (115, 90, 164); non-JSON `save()` = 2 (90 skipped, 115+164); `fetch()` = 1.
+  A JSON dict without sensitive list fields still loads at 90 (the merge at 89-91
+  precedes the redaction loop), so it is also 3 today.
+- `_filter_sensitive_fields`/`_purge_old_diagnostics` have no production callers
+  outside the class; test-level references are `patch.object` mocks and comments
+  (`config_dataclasses.py:346`, `test_config_builders.py:394`), behavior-neutral to
+  the parameter addition.
+
+Second pass (2026-10-25, after a working-tree state discrepancy during procedure
+generation): the earlier procedure batch (timestamp 20261025-143257) was discarded
+as untracked files. All plan anchors above were re-verified live against
+`master` @ `d41092a81` — 273-line `diagnostic_store.py`, `config/agent.toml`
+`[diagnostics]` (encryption_key/retention_days), `config_loader.py` load 79-87 no
+cache, `_FakeConfigLoader`/`patch("agent.diagnostic_store.ConfigLoader", ...)` test
+pattern, `patch.object(DiagnosticStore, "_purge_old_diagnostics")` at 13 sites in
+the security file, `test_session_persister.py` + `test_regression_diagnostic_persist.py`
+present, and the full-suite collect-only at 10091 confirmed at this HEAD. Replacement
+procedures regenerated at timestamp 20261025-161253.
 
 ## Risks
 
@@ -199,12 +258,30 @@ Chosen (issue UQ1 decision): **per-operation resolve-and-thread**, no caching.
 
 ## Execution Status
 
-| Item | Status |
-|---|---|
-| Plan | Frozen |
-| Phase 1 (load-count tests, red) | Pending |
-| Phase 2 (cfg threading) | Pending |
-| Phase 3 (doc + full validation) | Pending |
+Blockers:
+
+| Blocker ID | Type | Blocks Step(s) | Owner | Target Date | Status | Notes |
+|---|---|---|---|---|---|---|
+| U-001 | Unknown | — | agent | 2026-10-25 | Resolved | `self.session_id` never read outside `__init__`; construction binding stays out of scope. |
+| U-002 | Unknown | — | agent | — | Accepted (out of scope) | No production forensics; prevention is the fix. |
+
+Step execution:
+
+| Step | Work Item | Target File(s) | Procedure Doc | Status | Depends On | Notes |
+|---|---|---|---|---|---|---|
+| — | Plan | — | — | Frozen | — | Re-verified 2026-10-25 against master @ d41092a81 (second pass); 143257 batch discarded, procedures regenerated at 161253. |
+| 1 | Phase 1: load-count tests 1-3 (1-2 red, 3 green) | `tests/agent/test_diagnostic_store.py` | `20261025-161253_02_tests_agent_test_diagnostic_store.py.md` | Pending | — | Counting `_FakeConfigLoader` subclass over the existing patch pattern. |
+| 2 | Phase 2: resolve-and-thread `cfg` through `save()` + two private helpers | `scripts/agent/diagnostic_store.py` | `20261025-161253_01_scripts_agent_diagnostic_store.py.md` | Pending | 1 | TDD red → green; public signatures unchanged. |
+| 3 | Phase 3a: snapshot-semantics policy sentence | `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` | `20261025-161253_03_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md` | Pending | 2 | Docs checkers after the edit. |
+| 4 | Phase 3b: full validation, single commit | gate only; modifies no file | — | Pending | 1-3 | `rules/toolchain.md` sequence; collect-only baseline 10091 confirmed at d41092a81; `lint-imports` 6 kept. |
+
+Work Items Created:
+
+| Procedure Doc | Target File | Status |
+|---|---|---|
+| `20261025-161253_01_scripts_agent_diagnostic_store.py.md` | `scripts/agent/diagnostic_store.py` | Created |
+| `20261025-161253_02_tests_agent_test_diagnostic_store.py.md` | `tests/agent/test_diagnostic_store.py` | Created |
+| `20261025-161253_03_docs_23_agent_agent_10_05_operations-and-observability-monitoring.md.md` | `docs/23_agent/agent_10_05_operations-and-observability-monitoring.md` | Created |
 
 ## Traceability
 
