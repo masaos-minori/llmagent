@@ -122,7 +122,7 @@ No deployment-script documentation is in scope (EVENTBUS-022).
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Safe bounded-shutdown policy: wait indefinitely, terminate the process, or isolate the connection and leave it to process exit? | Owner availability; no existing policy in repo | Owner decision; non-blocking with a sign-off gate before implementation (per `rules/coding.md` Explicit sign-off gates) | True |
+| UNK-01 | Safe bounded-shutdown policy: wait indefinitely, terminate the process, or isolate the connection and leave it to process exit? | Owner availability; no existing policy in repo | Owner decision; non-blocking with a sign-off gate before implementation (per `rules/coding.md` Explicit sign-off gates) | False |
 | UNK-02 | Process-manager stop timeout and whether it leaves room for a longer wait than the current 5.0 s; service-unit location not confirmed in repo | No systemd unit / stop policy in repo; ops environment not reviewed | Confirm with ops; document the constraint in `eventbus_07` (UNK-02) | False |
 | UNK-03 | Should a shutdown flag make `run_with_db_lock` callers fail fast after shutdown starts (closing the queued-thread race + in-flight-request exposure), or is draining enough? | Trade-off between fast shutdown and in-flight request completion | Owner/engineering decision; recorded in design, applied at implementation | False |
 
@@ -237,21 +237,27 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: shared helper + connection-layer primitives (flag/counter, `_shutdown_lifespan`, `_dlq_loop` tracking) | Pending | — | — | Sign-off gate on UNK-01 before implementation |
-| 2 | Phase 2: `run_with_db_lock()` shutdown-flag / drain (UNK-03) | Pending | — | — | |
-| 3 | Phase 3: rewrite shutdown regression test; remove `_noop_dlq_loop` workaround | Pending | — | — | |
-| 4 | Phase 4: document shutdown sequence, ownership rule, bounded-shutdown policy | Pending | — | — | |
-| 5 | Phase 5: ruff/mypy/bandit/vulture/lint-imports + repeated full-suite runs | Pending | — | — | |
+| 1 | Phase 1: shared helper + connection-layer primitives (flag/counter, `_shutdown_lifespan`, `_dlq_loop` tracking) | In Progress | — | — | Sign-off gate on UNK-01 before implementation |
+| 2 | Phase 2: `run_with_db_lock()` shutdown-flag / drain (UNK-03) | In Progress | — | — |  |
+| 3 | Phase 3: rewrite shutdown regression test; remove `_noop_dlq_loop` workaround | In Progress | — | — |  |
+| 4 | Phase 4: document shutdown sequence, ownership rule, bounded-shutdown policy | In Progress | — | — |  |
+| 5 | Phase 5: ruff/mypy/bandit/vulture/lint-imports + repeated full-suite runs | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | UNK-01: bounded-shutdown policy is an owner decision (sign-off gate) | — | — |
+| 1 | UNK-01: bounded-shutdown policy is an owner decision (sign-off gate) | Classified non-blocking (prose + user approval 2026-10-25); sign-off remains a pre-implementation gate, not a generation blocker | Yes | 20261025 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261025-192817_01_scripts_eventbus_app.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-192817_02_scripts_eventbus_db_conn.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-192817_03_scripts_eventbus_route_helpers.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261025-192817_04_tests_eventbus_test_eventbus_shutdown.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-192817_05_tests_eventbus_test_eventbus_app_isolation.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-192817_06_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261025-192817_07_docs_24_eventbus_eventbus_07_configuration-and-operations.md.md` | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -273,3 +279,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-004 | Background race; Acceptance 4 | `scripts/eventbus/route_helpers.py`, `scripts/eventbus/db_conn.py` | 2 | Queued lock thread cannot run SQL on closed connection | `test_eventbus_shutdown.py` queued-thread case | Draft |
 | REQ-005 | Required change 5; Acceptance 3 | `scripts/eventbus/app.py`, `tests/eventbus/test_eventbus_app_isolation.py` | 1, 3 | Production and tests share one lifecycle sequence | Isolation test uses shared helper | Draft |
 | REQ-006 | Problem; Acceptance 2 | `tests/eventbus/test_eventbus_shutdown.py` | 3 | Timeout test no longer requires close-on-timeout | Rewritten timeout test | Draft |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261025-192817 -->
