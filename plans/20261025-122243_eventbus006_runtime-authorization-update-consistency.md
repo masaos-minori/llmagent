@@ -142,7 +142,7 @@ No deployment-script documentation is in scope.
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Is an admin authorization update runtime-only or persistent? Today it is runtime-only (no config file write) but the response does not say so. What should the default be, and what should `persistent:` report? | Owner availability; no existing policy in repo | Owner decision; documented in ADR-013; non-blocking sign-off gate before implementation (per `rules/coding.md` Explicit sign-off gates) | True |
+| UNK-01 | Is an admin authorization update runtime-only or persistent? Today it is runtime-only (no config file write) but the response does not say so. What should the default be, and what should `persistent:` report? | Owner availability; no existing policy in repo | Owner decision; documented in ADR-013; non-blocking sign-off gate before implementation (per `rules/coding.md` Explicit sign-off gates) | False |
 | UNK-02 | Should an empty or no-op update return 422/400, or 200 with `changed: false`? Needs confirmation against API consumers. | No API consumers found under `scripts/` | Confirm with owner; documented in ADR-013; non-blocking sign-off gate | False |
 | UNK-03 | What is the concrete list of duplicated authorization checks between the ACK/NACK handler-level check and `require_consumer_identity()`? The memo does not enumerate them. | Not enumerated in this review | Engineering decision; recorded in design; drives `ack_route.py` change (or none if already unified) | False |
 
@@ -280,7 +280,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | UNK-01: runtime-only vs persistent is an owner decision (sign-off gate) | — | — |
+| 1 | UNK-01: runtime-only vs persistent is an owner decision (sign-off gate) | Classified non-blocking by owner approval 2026-10-25 — sign-off remains a pre-implementation gate, not a generation blocker | Yes | 20261025 |
 | 2 | UNK-02: empty/no-op status code is an owner decision; UNK-03: duplicated-check list is an engineering decision | — | — |
 
 ### Work Items Created

@@ -146,8 +146,8 @@ No deployment-script documentation is in scope.
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | Is immediate broker notification on requeue required? Today requeue is replay-only (no `broker.publish()`). What should the default be, and what should the response state? | Owner availability; no client in repo to constrain | Owner decision; documented in `eventbus_09`; non-blocking sign-off gate before implementation (per `rules/coding.md` Explicit sign-off gates) | True |
-| UNK-02 | Is a metrics exposition endpoint wanted at all? The counters exist today but nothing scrapes them. If yes, where is the route and how does the loopback/auth model apply? | Owner availability; no existing endpoint to mirror | Owner decision; add `/metrics` under the existing auth/loopback model, or document counters as intentionally log-only; non-blocking sign-off gate | True |
+| UNK-01 | Is immediate broker notification on requeue required? Today requeue is replay-only (no `broker.publish()`). What should the default be, and what should the response state? | Owner availability; no client in repo to constrain | Owner decision; documented in `eventbus_09`; non-blocking sign-off gate before implementation (per `rules/coding.md` Explicit sign-off gates) | False |
+| UNK-02 | Is a metrics exposition endpoint wanted at all? The counters exist today but nothing scrapes them. If yes, where is the route and how does the loopback/auth model apply? | Owner availability; no existing endpoint to mirror | Owner decision; add `/metrics` under the existing auth/loopback model, or document counters as intentionally log-only; non-blocking sign-off gate | False |
 | UNK-03 | How exactly to separate liveness/readiness/integrity while keeping existing monitor-consumed fields backward compatible? What is the new field shape vs the deprecated single-status shape? | No existing tiered schema; monitor contract not reviewed | Engineering + owner decision; documented in `eventbus_10`; keep existing fields additive | False |
 | UNK-04 | Tool versus procedure for DLQ reconciliation: a CLI entry point under `scripts/eventbus/` versus a documented manual procedure? | Trade-off between automation and surface area; no existing DLQ CLI in repo | Engineering decision; recorded in design; drives a new `scripts/eventbus/` file or doc only | False |
 | UNK-05 | For the slow-consumer metric, gauge-of-current-count versus transition-only counter? And should the current count be exposed as a separate gauge regardless? | Product preference for alerting on level versus rate | Owner/engineering decision; recorded in design; drives `broker.py` change | False |
@@ -307,7 +307,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1, 5, 6 | UNK-02 (metrics endpoint), UNK-01 (requeue notification), UNK-03/05 (slow-consumer metric) are owner decisions (sign-off gates) | — | — |
+| 1, 5, 6 | UNK-02 (metrics endpoint), UNK-01 (requeue notification), UNK-03/05 (slow-consumer metric) are owner decisions (sign-off gates) | Classified non-blocking by owner approval 2026-10-25 — sign-offs remain a pre-implementation gate, not a generation blocker | Yes | 20261025 |
 | 3 | UNK-03: health-tier field shape is an owner/engineering decision | — | — |
 | 7 | UNK-04: reconciliation tool vs procedure is an engineering decision | — | — |
 
