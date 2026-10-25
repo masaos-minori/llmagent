@@ -67,3 +67,19 @@ uv run pytest -v                                          # full suite: no new f
 ## Definition of Done
 
 - Phase 1: test present and red with `sqlite3.IntegrityError` reason recorded. Phase 2: 92 passed in `tests/agent/workflow`, full suite green, mutation check confirms the test fails against a composite-branch scratch copy.
+
+## Execution Status
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Phase 1 (TDD red): add the wrapper test; confirm red with `sqlite3.IntegrityError` | Completed | 2026-10-25 | 2026-10-25 | 1 failed (`UNIQUE constraint failed: tasks.idempotency_key` at state_store.py:62), 91 passed baseline intact; single-case run reproduced |
+| 2 | Phase 2: after doc0001 delegation, 92 passed in `tests/agent/workflow`; whole suite green; mutation check confirmed this test fails on a restored composite branch | Completed | 2026-10-25 | 2026-10-25 | 92 passed; whole suite 10082 passed 9 skipped; mutation: composite branch restored via `git checkout --` on the target path (fixed file saved at /tmp/opencode/state_store_fixed.py), test FAILED, restore, test passed |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | None | — | — |
+
+### Work Items Created
+- None
