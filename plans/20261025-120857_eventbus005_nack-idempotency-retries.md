@@ -140,7 +140,7 @@ No deployment-script documentation is in scope.
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
 |---|---|---|---|---|
-| UNK-01 | What happens to a NACK request without a key: reject with 400, or fall back to a server-derived key? | Owner availability; no existing policy in repo | Owner decision; documented in `eventbus_12`; non-blocking sign-off gate before implementation (per `rules/coding.md` Explicit sign-off gates) | True |
+| UNK-01 | What happens to a NACK request without a key: reject with 400, or fall back to a server-derived key? | Owner availability; no existing policy in repo | Owner decision; documented in `eventbus_12`; non-blocking sign-off gate before implementation (per `rules/coding.md` Explicit sign-off gates) | False |
 | UNK-02 | Where does the client obtain the attempt identity: server-issued SSE field versus client-generated key? | Trade-off between server-assisted identity and client responsibility; no client in repo to constrain | Design decision; recorded in design; drives `subscribe_route.py` change (or none) | False |
 | UNK-03 | Must retries of an older attempt (`NACK(A)`, `NACK(B)`, `NACK(A retry)`) be deduplicated, or only the latest? Decides whether the schema changes. | Product expectation for out-of-order retries; current storage remembers one key | Owner decision; latest-only = no schema change; bounded set = schema change + `user_version` bump (REQ-008) | False |
 
@@ -265,23 +265,30 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: route passes caller key through (drop UUID, UNK-01 keyless handling) | Pending | — | — | Sign-off gate on UNK-01/UNK-02 before implementation |
-| 2 | Phase 2: repository makes guard live (dedup scope UNK-03; internalize/remove `consumer_id=None`) | Pending | — | — | |
-| 3 | Phase 3: SSE delivery-attempt identity (only if UNK-02 selects server-issued model) | Pending | — | — | No `subscribe_route.py` change under recommended model |
-| 4 | Phase 4: repo- and HTTP-level idempotency tests | Pending | — | — | |
-| 5 | Phase 5: document NACK contract, key scope, retention; close EVENTBUS-023 | Pending | — | — | |
-| 6 | Phase 6: ruff/mypy/bandit/vulture/lint-imports + affected test runs | Pending | — | — | |
+| 1 | Phase 1: route passes caller key through (drop UUID, UNK-01 keyless handling) | In Progress | — | — | Sign-off gate on UNK-01/UNK-02 before implementation |
+| 2 | Phase 2: repository makes guard live (dedup scope UNK-03; internalize/remove `consumer_id=None`) | In Progress | — | — |  |
+| 3 | Phase 3: SSE delivery-attempt identity (only if UNK-02 selects server-issued model) | In Progress | — | — | No `subscribe_route.py` change under recommended model |
+| 4 | Phase 4: repo- and HTTP-level idempotency tests | In Progress | — | — |  |
+| 5 | Phase 5: document NACK contract, key scope, retention; close EVENTBUS-023 | In Progress | — | — |  |
+| 6 | Phase 6: ruff/mypy/bandit/vulture/lint-imports + affected test runs | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| 1 | UNK-01: keyless-NACK behavior is an owner decision (sign-off gate) | — | — |
+| 1 | UNK-01: keyless-NACK behavior is an owner decision (sign-off gate) | Classified non-blocking by owner approval 2026-10-25 — sign-off remains a pre-implementation gate, not a generation blocker | Yes | 20261025 |
 | 3 | UNK-02/UNK-03: key origin and dedup scope are owner decisions gating `subscribe_route.py`/`schema.sql` | — | — |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261025-203128_01_scripts_eventbus_ack_route_py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-203128_02_scripts_eventbus_delivery_repo_py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261025-203128_03_scripts_eventbus_subscribe_route_py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-203128_04_scripts_eventbus_schema_sql.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261025-203128_05_tests_eventbus_ack_nack_py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261025-203128_06_tests_eventbus_ack_endpoint_py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261025-203128_07_docs_24_eventbus_eventbus_12_ack_nack_endpoints_md.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261025-203128_08_docs_10_adr_adr_02_04_006_eventbus_sqlite_persistence_and_sse_delivery_md.md` | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
