@@ -85,10 +85,10 @@
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `tools/check_ci_results.py` per Procedure/Method/Details | Pending | — | — | `REQ-002`..`REQ-005` |
-| 2 | Run row 02 unit tests (`tests/tools/test_check_ci_results.py`) | Pending | — | — | `REQ-007` |
-| 3 | Run "Adding a new tool" steps 1-4 gates (ruff/mypy/bandit) | Pending | — | — | `REQ-007` |
-| 4 | Live smoke runs (red window + green window), record outputs | Pending | — | — | `REQ-008`; blocked until gh is re-authenticated (`UNK-05`) |
+| 1 | Implement `tools/check_ci_results.py` per Procedure/Method/Details | Completed | 2026-10-25 | 2026-10-25 | deviation: Plan UNK-02 pattern source tools/gh_status.py never existed in this repo (git log --all empty); allowlist wrapper implemented directly per Design decisions |
+| 2 | Run row 02 unit tests (`tests/tools/test_check_ci_results.py`) | Completed | 2026-10-25 | 2026-10-25 | 29 tests green via row 02 (tests/tools/test_check_ci_results.py); whole tests/tools suite 1168 passed, 2 skipped |
+| 3 | Run "Adding a new tool" steps 1-4 gates (ruff/mypy/bandit) | Completed | 2026-10-25 | 2026-10-25 | ruff format/check, mypy (explicit path), bandit, check_suppression_justification all clean |
+| 4 | Live smoke runs (red window + green window), record outputs | Blocked | — | — | `REQ-008`; blocked until gh is re-authenticated (`UNK-05`) REQ-008 live runs remain gated on gh re-authentication (UNK-05); exit-2 path verified locally: gh auth failure prints one stderr line and exits 2 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
