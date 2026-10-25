@@ -209,14 +209,14 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Shared fingerprint validator (`scripts/shared/eventbus_schema_fingerprint.py`) | Pending | — | — | Path B |
-| 2 | Runtime startup shape validation (`scripts/eventbus/schema.py`) | Pending | — | — | Path B |
-| 3 | Deployment strict validation (`scripts/db/create_schema.py`, `deploy/init_db.sh`) | Pending | — | — | Path B |
-| 4 | Test fixes (`tests/db/test_create_schema.py`) | Pending | — | — | Path B |
-| 5 | Readiness gate (`deploy/setup_services.sh`) | Pending | — | — | Path B |
-| 6 | Config/token preflight (`deploy/load_env.sh`) | Pending | — | — | Path B |
-| 7 | Startup/readiness integration tests (`tests/eventbus/test_eventbus_startup.py`) | Pending | — | — | Path B |
-| 8 | Documentation (`docs/90_deployment/deployment_01_deployment.md`) | Pending | — | — | Path B |
+| 1 | Shared fingerprint validator (`scripts/shared/eventbus_schema_fingerprint.py`) | In Progress | — | — | Path B |
+| 2 | Runtime startup shape validation (`scripts/eventbus/schema.py`) | In Progress | — | — | Path B |
+| 3 | Deployment strict validation (`scripts/db/create_schema.py`, `deploy/init_db.sh`) | In Progress | — | — | Path B |
+| 4 | Test fixes (`tests/db/test_create_schema.py`) | In Progress | — | — | Path B |
+| 5 | Readiness gate (`deploy/setup_services.sh`) | In Progress | — | — | Path B |
+| 6 | Config/token preflight (`deploy/load_env.sh`) | In Progress | — | — | Path B |
+| 7 | Startup/readiness integration tests (`tests/eventbus/test_eventbus_startup.py`) | In Progress | — | — | Path B |
+| 8 | Documentation (`docs/90_deployment/deployment_01_deployment.md`) | In Progress | — | — | Path B |
 | 9 | Deployment & verification (ruff/mypy/bandit/lint-imports/pytest/diff-cover) | Pending | — | — | Path B |
 
 ### Blocker Log
@@ -227,7 +227,17 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| `implementations/20261025-155039_01_scripts_shared_eventbus_schema_fingerprint.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_02_scripts_eventbus_schema.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_03_scripts_db_create_schema.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_04_deploy_init_db.sh.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_05_deploy_setup_services.sh.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_06_deploy_load_env.sh.md` | 6 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_07_tests_db_test_create_schema.py.md` | 4 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_08_tests_eventbus_test_eventbus_startup.py.md` | 7 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_09_tests_deploy_test_init_db_eventbus_schema.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_10_tests_deploy_test_setup_services_eventbus.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_11_docs_90_deployment_deployment_01_deployment.md` | 8 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -250,3 +260,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Required Changes; Unresolved Questions (token preflight) | `deploy/load_env.sh` | Step 6 | AC 6 | config/token preflight aborts on breakage | Derived from confirmed evidence |
 | REQ-006 | Required Changes; Background (test breakage) | `tests/db/test_create_schema.py` | Step 4 | AC 7 | canonical patched shapes pass strict | Confirmed by repository evidence |
 | REQ-007 | Documentation Impact; Background | `docs/90_deployment/deployment_01_deployment.md` | Step 8 | AC 8 | doc corrected | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261025-155039 -->
