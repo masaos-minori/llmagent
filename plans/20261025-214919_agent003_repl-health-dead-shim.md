@@ -232,16 +232,16 @@ the shim had 1 commit in 30 days (it is frozen transitional code).
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Importer re-check (repo/deployed/cron/systemd/ps) | Pending | — | — | Phase 1 gate |
-| 2 | Delete scripts/agent/repl_health.py | Pending | — | — | Phase 1 |
-| 3 | Comment fix config_dataclasses.py | Pending | — | — | Phase 2 |
-| 4 | Docstring fix tool_registry.py | Pending | — | — | Phase 2 |
-| 5 | Remove coverage-omit line pyproject.toml | Pending | — | — | Phase 2 |
-| 6 | Remove keyword mcp_02_02 doc | Pending | — | — | Phase 2 |
-| 7 | Regenerate docstrings baseline | Pending | — | — | Phase 3 |
-| 8 | Gate suite: ruff/mypy/lint-imports/docs/check_docstrings | Pending | — | — | Phase 3 |
-| 9 | Full pytest suite | Pending | — | — | Phase 3 |
-| 10 | Pre-deploy grep + deploy.sh convergence check | Pending | — | — | Phase 3 |
+| 1 | Importer re-check (repo/deployed/cron/systemd/ps) | Completed | — | 2026-10-26 | Phase 1 gate implemented and verified in-session |
+| 2 | Delete scripts/agent/repl_health.py | Completed | — | 2026-10-26 | Phase 1 implemented and verified in-session |
+| 3 | Comment fix config_dataclasses.py | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 4 | Docstring fix tool_registry.py | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 5 | Remove coverage-omit line pyproject.toml | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 6 | Remove keyword mcp_02_02 doc | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 7 | Regenerate docstrings baseline | Completed | — | 2026-10-26 | Phase 3 implemented and verified in-session |
+| 8 | Gate suite: ruff/mypy/lint-imports/docs/check_docstrings | Completed | — | 2026-10-26 | Phase 3 implemented and verified in-session |
+| 9 | Full pytest suite | Completed | — | 2026-10-26 | Phase 3 implemented and verified in-session |
+| 10 | Pre-deploy grep + deploy.sh convergence check | Completed | — | 2026-10-26 | Phase 3 implemented and verified in-session |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
