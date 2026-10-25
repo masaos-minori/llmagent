@@ -1,124 +1,179 @@
 # Procedure: `tests/tools/test_check_ci_results.py`
 
-Stage-2 output for Issue 20261024-105844 / Plan 20261025-090535. Source plan: `plans/20261025-090535_ci001_scheduled-ci-result-check-that-routes-failures-to-the-test-and-fix-workflow.md`. Frozen decisions are copied from the plan; this procedure does not re-decide any of them.
+Stage-2 output for Issue 20261023-173506 / Plan 20261025-090535. Source plan:
+`plans/done/20261025-090535_ci001_scheduled-ci-result-check-that-routes-failures-to-the-test-and-fix-workflow.md`.
+Frozen decisions are copied from the plan; this procedure does not re-decide any of them.
+
+**Correction note (2026-10-25, execution cycle):** the originally generated version of this
+document referenced a nonexistent issue (`20261024-105844`), a nonexistent requirements doc
+(`doc0001`), a nonexistent mock-pattern file, a nonexistent `pytest.ini`, and a gh
+annotations-based design (`--failed` / `--comments` / `--max-annotations`, async runner, exit
+`1` on gh failure) that contradicts the Plan's frozen design (`--json` fields + `run view
+--log-failed`, synchronous allowlisted runner, exit `2` on gh read failure). The user approved
+rewriting it to match the Plan and the row 1 implementation; this is that rewrite.
 
 **Row:** 2 of 4, Type `Test`, Path `tests/tools/test_check_ci_results.py`, Action `Create`, Size `M`, Depends on `tools/check_ci_results.py`
 
-## File Scope
+## Goal
 
-- Create, one file: `tests/tools/test_check_ci_results.py`.
-- `tests/tools/` currently contains only `test_check_skills_structure.py` and `test_manage_workitem_stage.py`; no conftest exists there and none is added (sample-data builders live in this test file as module-level helpers).
-- No changes to `scripts/`, `tasks/`, `tools/check_ci_results.py`, or the existing top-level `tests/conftest.py`.
+- Implement `tests/tools/test_check_ci_results.py` (new): the row 1 unit suite for
+  `tools/check_ci_results.py` — Plan `REQ-007` (AC-5): grouping cases, log-line parsing,
+  the read-only allowlist, and the `0`/`1`/`2` exit codes, all over fixed sample data with an
+  injected fake runner (Plan Validation plan bullets `:95`..`:98`).
 
-## Pre-Change State
+## Scope
 
-- `tests/tools/` exists but has no CI-result tests (confirmed by directory listing, Step 3a).
-- pytest contract (`pytest.ini`): `importmode = importlib`, `addopts = "-v --tb=short"`, `asyncio_mode = auto`, `testpaths = tests/unit, tests/integration`.
-  - **Operational note:** `tests/tools/` is NOT in `testpaths`, so a bare `uv run pytest` does not collect this file. Every command in this procedure — and any future CI/scheduled invocation — must pass the path explicitly (`uv run pytest tests/tools/...`). Recorded so the scheduled-CI row (docs/00_index mapping) inherits it.
-- The mock pattern in this repo is `unittest.mock.AsyncMock`/`MagicMock` + `monkeypatch` (confirmed by grep across `tests/`); `tests/unit/test_mcp_skill_audit_server.py:36-39` monkeypatches module-level subprocess helpers the same way this file will monkeypatch `_run_gh`.
-- Test-count baseline: 925 tests collected (Step 3a run, 29.76s). This file must add tests without altering any existing count.
+- **In-Scope**: one new test file covering the four Plan validation bullet groups plus the
+  `--before` filter and the report's skill pointer.
+- **Out-of-Scope**: live `gh` runs (`REQ-008`, row 1 Step 4, gated on `UNK-05`); any change to
+  `tools/check_ci_results.py`, existing tests, `pyproject.toml`, or `conftest.py` files.
 
-## Frozen Decisions (from the plan, copied not re-decided)
+## Assumptions
 
-| ID | Decision | Where it lands in tests |
-|---|---|---|
-| REQ-003 / AC-3 | gh usage restricted to the three approved call shapes | `test_allowed_call_shapes` asserts every recorded call matches one of the three templates exactly |
-| REQ-004 / AC-2 | grouping: passed runs not reported; latest failed run's annotations only; empty annotations fall back to job names | `TestGrouping` (4 cases) |
-| REQ-005 / AC-4 | report lists failed run id + branch + job/annotation text | `TestReportContent` |
-| REQ-006 / AC-5 | exit codes 0/1/2 | `TestExitCodes` |
-| REQ-007 / AC-6 | malformed/empty input handled without crash | `TestMalformedInput` |
-| Constraint: fixed sample CI data | all fixtures are literal JSON dicts in this file — no live API at test time | all fixtures |
-| Constraint: deterministic, no network | no `monkeypatch` of env except the `_run_gh` seam; no sleeps | enforced by using an injected fake runner |
+- `gh` is not authenticated (Plan `UNK-05`): every test runs offline through a fake injected
+  via `monkeypatch.setattr` on the module attribute `_run_gh`; the allowlist tests additionally
+  patch `subprocess.run` inside `tools.check_ci_results` to prove nothing spawns.
+- pytest config is `pyproject.toml [tool.pytest.ini_options]`: `testpaths = ["tests"]`,
+  `addopts = "-v --tb=short"`, `asyncio_mode = "auto"` (confirmed 2026-10-25). The row-commands
+  still use explicit paths (`tests/tools/test_check_ci_results.py`) per the Plan's AC-5 command.
+- `tests/tools/` holds 49 existing `test_<tool>.py` files; the import/monkeypatch style of
+  `tests/tools/test_check_plan_target_overlaps.py` (`import tools.<module> as <alias>`,
+  `monkeypatch.setattr(<alias>, "<symbol>", ...`) is the pattern this file mirrors.
+- Test-shape baseline in `tests/tools/`: 1141 tests collected repo-wide for `tests/tools`
+  (2026-10-25 run); this file only adds tests.
 
-Note on AC-2 precision: REQ-004 text says "most recent failed run", the AC-2 bullet says "most recent failed run per job". AC-8 lists both a per-job-failed and a mixed pass/fail sample. The test suite below implements the **per-job** reading (each job's latest run decides its reporting status) and records the alternative run-level reading as an Unknown carried to doc0001.
+## Design decisions
 
-## Implementation Procedure
+- The fake runner is a callable class installed on the module attribute `ccr._run_gh` — the
+  same seam row 1 documented (`_run_gh` is the only process-spawn point). It records every
+  argument vector so call-shape assertions are possible.
+- Allowlist proof has two halves: (a) every vector `main()` records is one of the two allowed
+  shapes, and (b) each forbidden vector (`run rerun`, `workflow run`, `api`, short vectors)
+  raises `ValueError` with `subprocess.run` patched to a recorder that must never be called.
+- Fixed samples are literal gh-JSON dicts (`databaseId,conclusion,status,createdAt,headSha,workflowName`)
+  and prefixed log text builders emitting the `<job>\t<step>\t<timestamp> ` shape recorded in
+  the Plan Background (run `40144039702`); the all-green / repeat / mixed / no-summary /
+  in-progress shapes of the Plan's grouping bullets are each one sample.
+- Exit codes are asserted on `main()`'s return value (row 1's `main` returns the code);
+  `sys.exit(main())` at module bottom is exercised only in the `__main__` guard, not per-test.
 
-### Stage 1 — sample-data builders and fake-runner fixtures
+## Alternatives considered
 
-Create module-level builders (pure dicts, no I/O):
+- Running the real CLI through `subprocess` in tests: rejected — no `gh` auth (`UNK-05`) and
+  nondeterministic; the Plan fixes an injected fake runner.
+- Patching `subprocess.run` for every test instead of the `_run_gh` seam: rejected for
+  query-shape tests — it bypasses the allowlist check itself and would hide allowlist
+  regressions; reserved for the two allowlist-proof cases.
 
-```python
-def _run(run_id, branch, status, conclusion, jobs):   # one CI run dict
-def _job(name, conclusion, steps):                    # one job dict
-def _annotation(name, annotation_level, message):     # one annotation dict
-```
+## Implementation
+### Target file
+- `tests/tools/test_check_ci_results.py` (new)
 
-Fixed samples (minimum set, all literal):
-- `SAMPLE_ALL_GREEN` — 2 runs, both `completed`/`success`.
-- `SAMPLE_JOB_FAILED` — job `unit-tests`: latest run `failure` with annotations `test_a.py::test_x` / `test_b.py::test_y`; older runs success.
-- `SAMPLE_MIXED` — `unit-tests` latest `success`, `integration-tests` latest `failure` (with annotations).
-- `SAMPLE_EMPTY_ANNOTATIONS` — latest run `failure`, annotations `[]`, failed job name only.
-- `SAMPLE_FAILED_THEN_GREEN` — job `unit-tests`: older run `failure` (with annotations), latest run `success`.
-- `SAMPLE_OLDED_FAIL_ANNOTATIONS` — latest run `failure` with **no** annotations, an older `failure` run **with** annotations (pins "latest only").
-- `SAMPLE_IN_PROGRESS` — a `status = "in_progress"` run (must not be counted failed).
-- `SAMPLE_NO_RUNS` — `[]`.
+### Procedure
+1. Open the module with a docstring naming the tool under test and the `REQ-007` coverage, in
+   the style of `tests/tools/test_check_plan_target_overlaps.py`.
+2. Add module-level sample builders: `_run_json(run_id, conclusion, status, created_at, ...)`
+   (gh-JSON dict), `_gh_json(runs)` (payload string), `_log(job, step, lines)` (prefixed log),
+   and `class FakeGh` (records `calls`; scripted list/view payloads, `list_rc`,
+   `view_rc`, `missing_binary`, `not_json` switches).
+3. Parsing group (Plan bullet `:96`): prefixed excerpt yields exactly the `FAILED <nodeid>`
+   identifiers; the part after ` - ` is dropped; verbose `... FAILED [  6%]` progress lines are
+   not counted; a red run with no summary line parses to an empty list; duplicate summary lines
+   dedupe per run.
+4. Grouping group (Plan bullet `:95`): one red run lists its tests; the same test in two of
+   three runs is counted 2; a test failing twice within one run counts 1 (per-run set);
+   an all-green window counts nothing; in-progress runs contribute nothing.
+5. Allowlist group (Plan bullet `:97`): `("run","list",...)` and `("run","view",...)` reach the
+   patched `subprocess.run` as `["gh", ...]` without `shell`; `("run","rerun",...)`,
+   `("workflow","run",...)`, `("api",...)`, and one-element vectors raise `ValueError` before
+   the recorder is called; a full `main()` run records only allowed shapes.
+6. Exit-code group (Plan bullet `:98`): all-green latest completed → 0 with no pointer; red
+   latest completed → 1; green latest with a 2-run repeat → 1 (repeat section names the test
+   with its count); older failure + green latest, no repeat → 0; only in-progress runs → 0;
+   missing binary, non-zero `gh` exit, unparsable JSON, failed `run view` → 2 with a one-line
+   stderr message.
+7. `--before` group: a `--before` timestamp drops runs created at/after it (the red newest run
+   disappears, no `run view` call is made for it) and an ISO parse error exits via
+   `parser.error` (SystemExit code 2).
+8. Report-content group: the red run's id, short head SHA, job names, and failed test
+   identifiers appear on stdout; the pointer to `skills/python-test-and-fix/SKILL.md` appears
+   in red/repeat reports and is absent from an all-green report.
 
-Fake runner fixture:
+### Method
+- Fixtures use `monkeypatch` only (no network, no sleeps, no env patching), matching the repo
+  pattern; each test installs `monkeypatch.setattr(ccr, "_run_gh", fake)` and asserts on
+  `main([...])`'s return code plus `capsys` output.
+- `RunRecord` and `group_repeats`/`parse_failed_tests` are also called directly for the
+  parsing/grouping groups (no CLI round-trip needed).
 
-```python
-class FakeGh:
-    def __init__(self, by_args):   # maps (subcommand tuple prefix) -> payload json str
-    async def __call__(self, args, timeout=120):
-        # records (args, timeout); returns (0, payload, "") or scripted (exit, "", stderr)
-```
+### Details
+- `FakeGh.__call__(args)` mirrors the real signature `(list[str]) -> subprocess.CompletedProcess[str]`.
+- Sample timestamps use fixed `createdAt` values (`2026-10-23T03:36:19Z` etc.) so `--before`
+  comparisons are exact; the newest sample is ordered first, as `gh run list` returns.
+- One sample set mirrors the Plan Background's two firejail repeat offenders as generic
+  `tests/agent/test_x.py::test_a` / `test_b` identifiers; no live log text is copied.
 
-Injection point: `monkeypatch.setattr(check_ci_results, "_run_gh", fake)` — the single seam, matching `tests/unit/test_mcp_skill_audit_server.py:36-39`'s pattern for module-level subprocess helpers. Import via `from tools import check_ci_results` (tests import from `tools/` freely; the import-linter contract covers `scripts/` only — plan Phase 3 Risk 5).
+## Compatibility considerations
 
-### Stage 2 — grouping semantics (AC-2)
+- New test file only; no existing test, conftest, or `pyproject.toml` change; the
+  `tests/tools` collected count rises by this file's cases only.
 
-- `test_all_green_exits_zero` — `SAMPLE_ALL_GREEN` → exit 0, no failures reported.
-- `test_job_failed_is_reported` — `SAMPLE_JOB_FAILED` → the failed job's annotations appear in output.
-- `test_mixed_only_failed_reported` — `SAMPLE_MIXED` → only `integration-tests` content appears; `unit-tests` name absent from the failure list.
-- `test_older_failures_not_used_when_latest_green` — `SAMPLE_FAILED_THEN_GREEN` → exit 0.
-- `test_only_latest_failed_run_annotations_used` — `SAMPLE_OLDED_FAIL_ANNOTATIONS` → failed output does NOT contain the older run's annotations (pins the "latest only" rule).
-- `test_in_progress_run_not_failed` — `SAMPLE_IN_PROGRESS` → not reported as failure (and, if no other failures, exit 0).
+## Security considerations
 
-### Stage 3 — fallback and report content (AC-2 fallback, AC-4)
+- Tests never spawn `gh` or open the network: the fake replaces the module's only
+  process-spawn point, and the allowlist cases prove the guard before `subprocess.run`.
 
-- `test_empty_annotations_falls_back_to_job_name` — `SAMPLE_EMPTY_ANNOTATIONS` → job name reported, no crash.
-- `test_report_contains_run_id_and_branch` — failed output contains the run id and branch strings (`SAMPLE_JOB_FAILED`).
-- `test_no_gh_run_log_calls` — after a full failing-sample run, assert none of the recorded fake calls contain `log` or `view` (AC-3 negative half; mutation guard against a log-fetching implementation).
+## Rollback considerations
 
-### Stage 4 — allowlist call shapes (AC-3)
+- Delete the new file; row 1's tool and the rest of the suite are unaffected.
 
-- `test_allowed_call_shapes` — every recorded call matches exactly one of:
-  1. `("gh","run","list","--per-page","<int>")` (literal token order as doc0001's constants)
-  2. `("gh","run","list","--failed","--per-page","<int>")`
-  3. `("gh","run","view","<int>","--comments")`
-  Parameterised over `SAMPLE_ALL_GREEN`, `SAMPLE_JOB_FAILED`, `SAMPLE_MIXED`.
-- `test_no_repo_flag` — assert `--repo` appears in no recorded call (plan Risk 3 guard).
+## Validation plan
 
-### Stage 5 — exit codes and malformed input (AC-5, AC-6)
+| Target | Strategy | Command | Expected |
+|---|---|---|---|
+| `tests/tools/test_check_ci_results.py` | targeted suite | `uv run pytest tests/tools/test_check_ci_results.py -q` | All green |
+| `tests/tools/` | whole tools-dir suite regression | `uv run pytest tests/tools/ -q` | Green, no existing test changed |
+| `tests/tools/test_check_ci_results.py` | lint/format gates | `uv run ruff format tests/tools/test_check_ci_results.py`; `uv run ruff check tests/tools/test_check_ci_results.py` | Clean |
+| `tests/tools/test_check_ci_results.py` | mock-target checker | `uv run python tools/check_mock_patch_targets.py` | Passes (patch targets the module under test) |
+| row 1 + row 2 | mutation guard (Plan row 1 Validation plan) | scratch copy of `tools/check_ci_results.py` with `("run","rerun")` added to `_ALLOWED_VECTORS`; run the allowlist test | The test fails; scratch copy discarded, real file untouched |
 
-- `test_exit_1_on_gh_failure` — fake returns `(1, "", "gh: http 500")` → module exits 1 (`SystemExit` code check or returned code, per doc0001's `main` contract).
-- `test_exit_2_on_malformed_json` — fake returns `(0, "not json", "")` → exit 2, error message on stderr names the failing subcommand (AC-6).
-- `test_no_runs_exits_zero` — `SAMPLE_NO_RUNS` → exit 0.
-- `test_timeout_surfaces_as_error` — fake raises `asyncio.TimeoutError` → exit 2-class error path, no traceback escape (AC-6).
+## Completion criteria
 
-## Tests to Write/Run
+- AC-5: the targeted command passes with the grouping, parsing, in-progress, allowlist,
+  exit-code, and `--before` cases (Plan `:89`).
+- Whole `tests/tools/` green; row 1's Execution Status step 2 can then be marked Completed.
+- Mutation guard executed once and reverted.
 
-```bash
-uv run pytest tests/tools/test_check_ci_results.py -v          # this file only (explicit path required)
-uv run pytest tests/tools/ -v                                   # whole tools dir
-uv run pytest tests/unit tests/integration tests/tools -v       # full existing suite + new file
-```
+## Out of Scope
 
-Expected: new file green against doc0001's implementation; total collected rises from the 925 baseline by the number of cases staged here (about 15) with zero existing tests changed.
+- Live `gh` verification (`REQ-008` / AC-8, row 1 step 4, `UNK-05`); CI workflow YAML;
+  scheduling (Plan Phase 3, user-gated).
 
-Mutation guard: temporarily making doc0001's fetch use `gh run view <id>` (no `--comments`) or append `--repo` must turn Stage 4 red — verified once during implementation, then reverted.
+## Execution Status
 
-## Risk & Impact
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | Implement `tests/tools/test_check_ci_results.py` per Procedure/Method/Details | Completed | 2026-10-25 | 2026-10-25 | 29 tests, 4 classes; import/monkeypatch style mirrors test_check_plan_target_overlaps.py |
+| 2 | Run targeted + whole-`tests/tools/` suites | Completed | 2026-10-25 | 2026-10-25 | 29 passed targeted; whole tests/tools 1168 passed, 2 skipped in 22.33s (1141 collected before + 29 new) |
+| 3 | Run lint gates and the mutation guard | Completed | 2026-10-25 | 2026-10-25 | ruff format/check clean; mypy clean (explicit path); check_mock_patch_targets no findings; mutation guard: adding (run,rerun) to _ALLOWED_VECTORS turned test_forbidden_vectors_raise_before_any_spawn[vector0] red (DID NOT RAISE ValueError), reverted, 29 green again |
 
-- Blast radius: new file only; `testpaths` unaffected; no existing test touched.
-- Contract risk: none — `tests/` has no contract (`contract-intra-scripts` covers `scripts.*` only).
-- Coupling risk: these tests pin doc0001's internal constants (`_run_gh` name, argument templates, `main` return/exit contract). The two docs must be implemented in dependency order (row 2 depends on row 1, per plan's target table).
-- Hidden coupling: `addopts = "-v --tb=short"` already applies to tests/tools runs (confirmed Step 3a); no pytest.ini change is needed or allowed here.
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | None: tests are offline by design (`UNK-05` only gates row 1's live runs) | N/A | — |
 
-## Scope Decisions
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| — | — | — | — | — | — |
 
-- In: the five stages above. Out: live-gh smoke (REQ-008, gated by UNK-05, belongs to the plan's Step 3 live verification, not to this file); any CI workflow YAML (blocked pending the plan's workflow-availability decision).
-
-## Definition of Done
-
-- All staged tests green with an explicit path invocation; call-shape and no-`--repo` assertions green; full-suite baseline unchanged; mutation-guard check performed once and reverted; `uv run pytest tests/tools/` green.
+## Traceability
+- **Workflow phase**: code-implementation (procedure corrected in-cycle per user approval)
+- **Requirement ID**: `REQ-007` (unit tests over fixed sample data)
+- **Source issue**: issues/20261023-173506_ci001_scheduled-ci-result-check-that-routes-failures-to-the-test-and-fix-workflow.md
+- **Source requirement**: N/A: no standalone requirement document is generated
+- **Source plan**: plans/20261025-090535_ci001_scheduled-ci-result-check-that-routes-failures-to-the-test-and-fix-workflow.md
+- **Source implementation procedure**: N/A: this document is the generated implementation procedure
+- **Generated at**: 20261025-100210 (rewritten 2026-10-25 in the execution cycle)
+- **Related target files**: `tests/tools/test_check_ci_results.py`, `tools/check_ci_results.py`
