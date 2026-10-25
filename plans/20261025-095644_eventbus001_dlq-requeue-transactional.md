@@ -172,9 +172,9 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Typed result and repository refactor (`scripts/eventbus/dlq_repo.py`) | Pending | — | — | Path B |
-| 2 | Route cleanup: no-direct-SQL + single-lock snapshot (`scripts/eventbus/dlq_route.py`) | Pending | — | — | Path B |
-| 3 | Regression and failure-injection tests | Pending | — | — | Path B |
+| 1 | Typed result and repository refactor (`scripts/eventbus/dlq_repo.py`) | In Progress | — | — | Path B |
+| 2 | Route cleanup: no-direct-SQL + single-lock snapshot (`scripts/eventbus/dlq_route.py`) | In Progress | — | — | Path B |
+| 3 | Regression and failure-injection tests | In Progress | — | — | Path B |
 | 4 | Documentation of invariant, transaction/lock boundary, failure behavior | Pending | — | — | Path B |
 | 5 | Deployment & verification (ruff/mypy/bandit/lint-imports/pytest/diff-cover) | Pending | — | — | Path B |
 
@@ -187,6 +187,13 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
 | — | — | — | — | — | — |
+| `implementations/20261025-131314_01_scripts_eventbus_dlq_repo.py.md` | 1 | Procedure | Pending | — | — |
+| `implementations/20261025-131314_02_scripts_eventbus_dlq_route.py.md` | 2 | Procedure | Pending | — | — |
+| `implementations/20261025-131314_03_tests_eventbus_test_eventbus_dlq.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-131314_04_tests_eventbus_test_eventbus_requeue_edge_cases.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-131314_05_tests_eventbus_test_eventbus_concurrent.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-131314_06_tests_eventbus_test_eventbus_dlq_promotion.py.md` | 3 | Procedure | Pending | — | — |
+| `implementations/20261025-131314_07_tests_eventbus_test_eventbus_dlq_pagination.py.md` | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -207,3 +214,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-003 | Required Changes; Constraints | `scripts/eventbus/dlq_route.py` | Step 2 | AC 3, AC 4 | no-direct-SQL, same atomic result | Confirmed by repository evidence |
 | REQ-004 | Required Changes | `scripts/eventbus/dlq_route.py` | Step 2 | AC 5 | DLQ snapshot consistency | Confirmed by repository evidence |
 | REQ-005 | Required Changes; Unresolved Questions | `scripts/eventbus/dlq_repo.py` | Step 1 | AC 6 | parameterized timestamp | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261025-131314 -->
