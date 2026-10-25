@@ -158,10 +158,10 @@ table structure; no Gate schema change is needed.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Fix gate argv in tools/run_validation_gates.py | Pending | — | — | Phase 1 |
-| 2 | Update routing.md row | Pending | — | — | Phase 2 |
-| 3 | Add regression test | Pending | — | — | Phase 2 |
-| 4 | pytest + manage_frontmatter + drift verification, deploy.sh check | Pending | — | — | Phase 3 |
+| 1 | Fix gate argv in tools/run_validation_gates.py | Completed | — | 2026-10-26 | Phase 1 implemented and verified in-session |
+| 2 | Update routing.md row | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 3 | Add regression test | Completed | — | 2026-10-26 | Phase 2 implemented and verified in-session |
+| 4 | pytest + manage_frontmatter + drift verification, deploy.sh check | Completed | — | 2026-10-26 | Phase 3 implemented and verified in-session |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
