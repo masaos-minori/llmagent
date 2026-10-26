@@ -188,6 +188,28 @@ Files are created at `{deadletter_dir}/{event_id}.json` during inline processing
 
 Sweep results are recorded in the logs but are not exposed via the health endpoint.
 
+## Shutdown
+
+`lifespan()` delegates the shared-connection shutdown to one helper shared with the
+test suite, so production and tests run the same sequence:
+
+1. Stop scheduling new DLQ sweep cycles once shutdown begins.
+2. Await the in-flight `_dlq_loop` sweep (its worker thread keeps running after
+   task cancellation, so the close is serialized behind it).
+3. Prove exclusive ownership of the shared connection by acquiring `get_db_lock()`
+   (`_db_lock`) with no worker queued on it.
+4. Close the connection.
+
+**Connection-ownership rule:** the shared SQLite connection is never closed while any
+worker — the DLQ sweep thread, a route-handler worker thread, or an SSE task — may
+still execute SQL against it. This is the invariant recorded in
+`adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md`.
+
+**Bounded shutdown:** step 3 is bounded by `_SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS`
+(currently 5.0 s). If exclusive ownership cannot be proven within the bound, shutdown
+raises instead of closing (refuse-to-close); there is no close-on-timeout fallback.
+The bound must stay compatible with the process-manager stop timeout.
+
 ## Validation
 
 The CI workflow runs lint checks, type checks, and the test suite for `scripts/`, so the health, ACK/NACK, and DLQ tests under `tests/eventbus/` run on every change.

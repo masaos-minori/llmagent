@@ -97,9 +97,9 @@ Update the known-issue note (the shutdown-defect entry) to:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add connection-ownership invariant; record bounded-shutdown policy; update the shutdown known-issue note | Pending | — | — | Doc-only; run the `routing.md` documentation checker |
-| 2 | Add/update tests per Validation plan | Pending | — | — | N/A: doc-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Documentation checkers per `routing.md` |
+| 1 | Add connection-ownership invariant; record bounded-shutdown policy; update the shutdown known-issue note | Completed | 20261026 | 20261026 | Doc-only; run the `routing.md` documentation checker INV-17 added after INV-16; fail-fast bullet under Failure Policy -> Fail-Fast Conditions; EVENTBUS-022 known-issue note marked RESOLVED; wording compressed to stay under the recorded 24726 B size ceiling in tools/check_docs_structure.py (meaning preserved) |
+| 2 | Add/update tests per Validation plan | Completed | — | 20261026 | N/A: doc-only N/A: doc-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261026 | Documentation checkers per `routing.md` check_docs_structure/quality/content-policy/consistency --domain eventbus pass; only pre-existing eventbus_06 to_thread() warning remains |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -157,10 +157,10 @@ def release_active_db_user() -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_shutting_down` flag + `_active_db_users` (new) counter next to `_db_lock`; add `set_shutdown_flag` (new) / `is_shutting_down` (new) / `bump_active_db_user` (new) / `release_active_db_user` (new) | Pending | — | — | Accessors consumed by seq 01 (app.py) and seq 03 (route_helpers.py) — implement in `seq` order |
-| 2 | Add/update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation (shutdown sequence + policy in `eventbus_07`, INV-01 in ADR-006) — see seq 06/07 | Pending | — | — | |
+| 1 | Add `_shutting_down` flag + `_active_db_users` (new) counter next to `_db_lock`; add `set_shutdown_flag` (new) / `is_shutting_down` (new) / `bump_active_db_user` (new) / `release_active_db_user` (new) | Completed | 20261026 | 20261026 | Accessors consumed by seq 01 (app.py) and seq 03 (route_helpers.py) — implement in `seq` order Flag/counter + 4 accessors added at db_conn.py; smoke-verified |
+| 2 | Add/update tests per Validation plan | Completed | — | 20261026 | N/A: Validation plan has no test row; accessor behavior is asserted by seq 04/05 tests |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261026 | ruff/mypy clean; bandit baseline unchanged; lint-imports 6 kept; vulture lists accessors until seq 01/03 consume them |
+| 4 | Update documentation (shutdown sequence + policy in `eventbus_07`, INV-01 in ADR-006) — see seq 06/07 | Completed | — | 20261026 | Docs handled by seq 06/07 per Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

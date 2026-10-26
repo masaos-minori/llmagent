@@ -131,16 +131,30 @@ def app_get_broker(app: Any) -> "EventBroker":
 async def run_with_db_lock(func: Any) -> Any:
     """Execute a function inside get_db_lock() via asyncio.to_thread."""
     from eventbus.db import get_db_lock  # noqa: PLC0415
+    from eventbus.db_conn import (  # noqa: PLC0415
+        bump_active_db_user,
+        is_shutting_down,
+        release_active_db_user,
+    )
 
     def _locked() -> Any:
         """Execute func while holding the DB lock."""
         start_time = time.monotonic()
         try:
             with get_db_lock():
-                return func()
+                bump_active_db_user()
+                try:
+                    return func()
+                finally:
+                    release_active_db_user()
         finally:
             elapsed = time.monotonic() - start_time
             _db_query_duration.observe(elapsed)
+
+    # REQ-004 fail-fast: refuse new work once shutdown has begun so a thread
+    # queued on the lock never runs SQL against the closed connection.
+    if is_shutting_down():
+        raise RuntimeError("eventbus shutting down: refusing new DB work")
 
     start_time = time.monotonic()
     result = await asyncio.to_thread(_locked)

@@ -109,9 +109,9 @@ The bound must stay compatible with the process-manager stop timeout.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the "Shutdown" subsection: sequence, ownership rule, bounded-shutdown policy | Pending | — | — | Doc-only; run the `routing.md` documentation checker |
-| 2 | Add/update tests per Validation plan | Pending | — | — | N/A: doc-only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Documentation checkers per `routing.md` |
+| 1 | Add the "Shutdown" subsection: sequence, ownership rule, bounded-shutdown policy | Completed | 20261026 | 20261026 | Doc-only; run the `routing.md` documentation checker ## Shutdown section inserted between DLQ Operations and Validation; sequence, ownership rule, 5.0 s bound, refuse-to-close policy documented |
+| 2 | Add/update tests per Validation plan | Completed | — | 20261026 | N/A: doc-only N/A: doc-only |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261026 | Documentation checkers per `routing.md` Docs checkers pass; wording uses 'worker thread' to avoid a new to_thread() content-policy warning |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

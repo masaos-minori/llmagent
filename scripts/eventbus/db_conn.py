@@ -12,6 +12,9 @@ _DEFAULT_BUSY_TIMEOUT_MS = 30_000
 
 _db_lock = threading.Lock()
 
+_shutting_down = False
+_active_db_users = 0
+
 # Import schema functions — open_db depends on them
 from eventbus.schema import (  # noqa: PLC0415 — deferred import avoids a circular import with eventbus.schema
     _apply_eventbus_pragmas,
@@ -26,6 +29,45 @@ def get_db_lock() -> threading.Lock:
     executing any sqlite3 operation on the shared connection.
     """
     return _db_lock
+
+
+def set_shutdown_flag() -> None:
+    """Mark shutdown as begun.
+
+    Called by the shared cleanup helper (app.py) before closing the shared
+    connection. Makes run_with_db_lock() refuse new work for any thread still queued
+    on the lock (REQ-004). Idempotent.
+    """
+    global _shutting_down
+    _shutting_down = True
+
+
+def is_shutting_down() -> bool:
+    """Return True once shutdown has begun."""
+    return _shutting_down
+
+
+def clear_shutdown_flag() -> None:
+    """Reset the shutdown flag at the start of a fresh app lifecycle.
+
+    Called by lifespan() startup so a restarted app (or a second TestClient
+    context in tests) does not inherit a previous shutdown's flag.
+    """
+    global _shutting_down
+    _shutting_down = False
+
+
+def bump_active_db_user() -> None:
+    """Increment the count of live DB users (called by run_with_db_lock())."""
+    global _active_db_users
+    _active_db_users += 1
+
+
+def release_active_db_user() -> None:
+    """Decrement the count of live DB users after the locked critical section."""
+    global _active_db_users
+    if _active_db_users > 0:
+        _active_db_users -= 1
 
 
 def open_db(db_path: str) -> sqlite3.Connection:

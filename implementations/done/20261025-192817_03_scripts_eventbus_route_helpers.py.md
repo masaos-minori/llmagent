@@ -160,10 +160,10 @@ async def run_with_db_lock(func: Any) -> Any:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `eventbus.db_conn` imports; fail-fast `is_shutting_down()` guard; counter wrap around locked section | Pending | — | — | Consumes seq 02 accessors — implement after seq 02 |
-| 2 | Add/update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation (shutdown sequence + policy in `eventbus_07`, INV-01 in ADR-006) — see seq 06/07 | Pending | — | — | |
+| 1 | Add `eventbus.db_conn` imports; fail-fast `is_shutting_down()` guard; counter wrap around locked section | Completed | 20261026 | 20261026 | Consumes seq 02 accessors — implement after seq 02 Local db_conn imports + is_shutting_down guard before to_thread + counter wrap verified; added clear_shutdown_flag (db_conn) + lifespan-startup reset + tests/eventbus/conftest.py _reset_db_conn_state fixture so module flag does not leak across test lifecycles |
+| 2 | Add/update tests per Validation plan | Completed | — | 20261026 | Ad-hoc unit check passed; guard test added to test_eventbus_shutdown.py via seq 04 |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261026 | ruff/mypy clean; vulture: accessors now used; lint-imports 6 kept; route metrics + health + isolation tests 14 passed |
+| 4 | Update documentation (shutdown sequence + policy in `eventbus_07`, INV-01 in ADR-006) — see seq 06/07 | Completed | — | 20261026 | Docs handled by seq 06/07 per Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

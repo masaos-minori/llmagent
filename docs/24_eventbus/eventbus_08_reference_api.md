@@ -78,6 +78,11 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `EventBusConfig` | `class EventBusConfig` | Immutable configuration for the Event Bus service. |
 |  | `load_config` | `def load_config(path) -> EventBusConfig` | Load and validate the EventBus TOML configuration file. |
 | `scripts/eventbus/db_conn.py` | `get_db_lock` | `def get_db_lock() -> threading.Lock` | Return the lock that must be held for all DB operations. |
+|  | `set_shutdown_flag` | `def set_shutdown_flag() -> None` | Mark shutdown as begun. |
+|  | `is_shutting_down` | `def is_shutting_down() -> bool` | Return True once shutdown has begun. |
+|  | `clear_shutdown_flag` | `def clear_shutdown_flag() -> None` | Reset the shutdown flag at the start of a fresh app lifecycle. |
+|  | `bump_active_db_user` | `def bump_active_db_user() -> None` | Increment the count of live DB users (called by run_with_db_lock()). |
+|  | `release_active_db_user` | `def release_active_db_user() -> None` | Decrement the count of live DB users after the locked critical section. |
 |  | `open_db` | `def open_db(db_path) -> sqlite3.Connection` | Return a shared SQLite connection for the Event Bus. |
 |  | `check_db` | `def check_db(conn) -> bool` | Return True if the DB connection is usable. |
 | `scripts/eventbus/delivery_repo.py` | `NackResult` | `class NackResult` | Return value for nack_event(). |

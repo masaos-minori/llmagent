@@ -28,21 +28,6 @@ async def _init_state(cfg: Any) -> None:
     eb_app.app.state.broker = eb_app.EventBroker(cfg)
 
 
-async def _do_cleanup() -> None:
-    from eventbus import app as eb_app
-
-    if eb_app.app.state.dlq_task:
-        eb_app.app.state.dlq_task.cancel()
-        try:
-            await eb_app.app.state.dlq_task
-        except asyncio.CancelledError:
-            pass
-    if eb_app.app.state.broker:
-        eb_app.app.state.broker.shutdown()
-    if eb_app.app.state.db:
-        eb_app.app.state.db.close()
-
-
 def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     from eventbus import app as eb_app
     from eventbus.config import EventBusConfig
@@ -63,15 +48,6 @@ def _make_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> TestClient:
     )
     monkeypatch.setattr(eb_app, "_ENVELOPE_SCHEMA_PATH", schema_path)
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
-
-    # Prevent segfault: _dlq_loop uses asyncio.to_thread() whose thread continues
-    # running even after task cancellation. If db.close() races with the thread
-    # accessing the SQLite connection, the C library crashes. Replace with a
-    # no-op coroutine that is safely cancellable.
-    async def _noop_dlq_loop(app: Any) -> None:
-        await asyncio.sleep(9999)
-
-    monkeypatch.setattr(eb_app, "_dlq_loop", _noop_dlq_loop)
 
     # Initialize app.state before creating TestClient
     loop = asyncio.new_event_loop()

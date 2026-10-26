@@ -36,6 +36,7 @@ from eventbus.config import (
     load_config,
 )
 from eventbus.db import get_db_lock, open_db
+from eventbus.db_conn import clear_shutdown_flag, set_shutdown_flag
 from eventbus.dlq import sweep_orphans
 from eventbus.dlq_route import (
     dlq_list as dlq_list_route,
@@ -68,6 +69,7 @@ _SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS = 5.0
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
     """FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown."""
+    clear_shutdown_flag()  # a new lifecycle must not inherit a prior shutdown flag
     app.state.config = load_config(get_config_path())
     app.state.db = open_db(app.state.config.db_path)
     # Populate token maps from config for authorization
@@ -87,35 +89,50 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None]:
             "eventbus starting on %s:%d", app.state.config.host, app.state.config.port
         )
     yield
+    await _shutdown_lifespan(app)
+
+
+async def _shutdown_lifespan(app: FastAPI) -> None:
+    """Shared shutdown sequence: stop sweeps, await the in-flight sweep,
+    prove exclusive ownership of the shared connection, then close it.
+
+    Delegated to by both lifespan() (production) and the tests/eventbus/ suite
+    so they exercise one lifecycle sequence (REQ-005). Never closes a connection
+    another worker may still own (REQ-001); the close-on-timeout fallback is gone.
+    """
+    # 1. Stop scheduling new sweep cycles and await the in-flight sweep.
+    #    set_shutdown_flag() makes run_with_db_lock() refuse new DB work from
+    #    this point on (REQ-004, seq 03).
+    set_shutdown_flag()
     if app.state.dlq_task:
         app.state.dlq_task.cancel()
         try:
             await app.state.dlq_task
         except asyncio.CancelledError:
             pass
+    # 2. Broker shutdown (unchanged order).
     if app.state.broker:
         app.state.broker.shutdown()
+    # 3. Prove exclusive ownership before closing. _dlq_loop's sweep runs on a
+    #    worker thread via asyncio.to_thread(); cancelling the task above cannot
+    #    interrupt a sweep already running on that thread, so acquiring the same
+    #    lock run_with_db_lock() uses serializes the close behind any in-flight
+    #    sweep instead of racing db.close() and segfaulting.
     if app.state.db:
-        # _dlq_loop's sweep runs on a worker thread via asyncio.to_thread();
-        # cancelling the task above cannot interrupt a sweep already running on
-        # that thread. Acquire the same lock run_with_db_lock() uses before
-        # closing, so a still-running sweep finishes before the connection goes
-        # away, instead of racing db.close() and segfaulting.
         lock = get_db_lock()
         acquired = await asyncio.to_thread(
             lock.acquire, timeout=_SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS
         )
+        if not acquired:
+            raise RuntimeError(
+                f"shutdown: could not acquire db lock within "
+                f"{_SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS:.1f}s; refusing to close a "
+                "connection another worker may own"
+            )
         try:
             app.state.db.close()
         finally:
-            if acquired:
-                lock.release()
-            else:
-                logger.warning(
-                    "shutdown: db lock not acquired within %.1fs; closing db "
-                    "anyway (a sweep thread may still be using it)",
-                    _SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS,
-                )
+            lock.release()
 
 
 async def _dlq_loop(app: FastAPI) -> None:

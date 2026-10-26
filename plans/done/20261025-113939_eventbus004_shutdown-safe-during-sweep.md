@@ -237,10 +237,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: shared helper + connection-layer primitives (flag/counter, `_shutdown_lifespan`, `_dlq_loop` tracking) | In Progress | — | — | Sign-off gate on UNK-01 before implementation |
-| 2 | Phase 2: `run_with_db_lock()` shutdown-flag / drain (UNK-03) | In Progress | — | — |  |
-| 3 | Phase 3: rewrite shutdown regression test; remove `_noop_dlq_loop` workaround | In Progress | — | — |  |
-| 4 | Phase 4: document shutdown sequence, ownership rule, bounded-shutdown policy | In Progress | — | — |  |
+| 1 | Phase 1: shared helper + connection-layer primitives (flag/counter, `_shutdown_lifespan`, `_dlq_loop` tracking) | Completed | 20261026 | 20261026 | Sign-off gate on UNK-01 before implementation seq 01 (app.py) + seq 02 (db_conn.py) implemented and archived 20261026 |
+| 2 | Phase 2: `run_with_db_lock()` shutdown-flag / drain (UNK-03) | Completed | 20261026 | 20261026 | seq 03 (route_helpers.py) implemented and archived 20261026 |
+| 3 | Phase 3: rewrite shutdown regression test; remove `_noop_dlq_loop` workaround | Completed | 20261026 | 20261026 | seq 04 + seq 05 implemented and archived 20261026; full tests/eventbus/ suite green 3 consecutive runs |
+| 4 | Phase 4: document shutdown sequence, ownership rule, bounded-shutdown policy | Completed | 20261026 | 20261026 | seq 06 (ADR-006 INV-17 + fail-fast policy + EVENTBUS-022 resolved note) and seq 07 (eventbus_07 ## Shutdown) implemented and archived 20261026 |
 | 5 | Phase 5: ruff/mypy/bandit/vulture/lint-imports + repeated full-suite runs | Pending | — | — |  |
 
 ### Blocker Log

@@ -140,10 +140,10 @@ State the bound constant `_SHUTDOWN_DB_LOCK_TIMEOUT_SECONDS` and import `set_shu
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `_shutdown_lifespan` (new), delegate `lifespan()`, track `_dlq_loop` future, set shutdown flag before cancel | Pending | — | — | UNK-01 bound is a pre-implementation sign-off (recorded in Assumptions) |
-| 2 | Add/update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation (shutdown sequence + policy in `eventbus_07`, INV-01 in ADR-006) — see seq 06/07 | Pending | — | — | |
+| 1 | Add `_shutdown_lifespan` (new), delegate `lifespan()`, track `_dlq_loop` future, set shutdown flag before cancel | Completed | 20261026 | 20261026 | UNK-01 bound is a pre-implementation sign-off (recorded in Assumptions) _shutdown_lifespan added; lifespan() delegates after yield; set_shutdown_flag before cancel |
+| 2 | Add/update tests per Validation plan | Completed | — | 20261026 | Invariant test passes unchanged; timeout test rewritten by seq 04 (expected transitional failure until then) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261026 | ruff/mypy clean; radon: lifespan A2, _shutdown_lifespan B6; bandit baseline unchanged; lint-imports 6 kept |
+| 4 | Update documentation (shutdown sequence + policy in `eventbus_07`, INV-01 in ADR-006) — see seq 06/07 | Completed | — | 20261026 | Docs handled by seq 06/07 per Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

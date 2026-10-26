@@ -130,10 +130,10 @@ async def test_shutdown_raises_when_lock_timeout_exceeded(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the timeout test to assert refuse-to-close raise; keep the in-flight-sweep invariant test; keep the real `_dlq_loop` | Pending | — | — | Drives `_shutdown_lifespan` (new) via lifespan() — implement after seq 01/02/03 |
-| 2 | Add/update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Rewrite the timeout test to assert refuse-to-close raise; keep the in-flight-sweep invariant test; keep the real `_dlq_loop` | Completed | 20261026 | 20261026 | Drives `_shutdown_lifespan` (new) via lifespan() — implement after seq 01/02/03 Timeout test replaced per Method (RuntimeError, 'could not acquire db lock within'); invariant test unchanged; real _dlq_loop kept |
+| 2 | Add/update tests per Validation plan | Completed | — | 20261026 | 3 tests pass, incl. added test_run_with_db_lock_refuses_after_shutdown_flag (seq 03 validation-plan guard assertion) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261026 | ruff clean; unused logging import removed; whole-suite runs in seq 05 step |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261026 | N/A: test-only per Out of Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

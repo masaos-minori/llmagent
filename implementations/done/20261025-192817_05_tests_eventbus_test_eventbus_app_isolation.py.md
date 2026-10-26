@@ -120,10 +120,10 @@ After removal, `_make_client` keeps the config build, the schema-path monkeypatc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove `_do_cleanup` + `_noop_dlq_loop`; let the real `_dlq_loop` run through the shared helper | Pending | — | — | Relies on `_shutdown_lifespan` (new) from lifespan() — implement after seq 01/02/03 |
-| 2 | Add/update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove `_do_cleanup` + `_noop_dlq_loop`; let the real `_dlq_loop` run through the shared helper | Completed | 20261026 | 20261026 | Relies on `_shutdown_lifespan` (new) from lifespan() — implement after seq 01/02/03 _do_cleanup and _noop_dlq_loop removed; real _dlq_loop drives teardown via lifespan() |
+| 2 | Add/update tests per Validation plan | Completed | — | 20261026 | 3 isolation tests pass; full tests/eventbus/ run 3x: 343 passed, 1 skipped, no segfault, warnings all pre-existing starlette deprecations |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261026 | ruff clean; lint-imports 6 kept |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261026 | N/A: test-only per Out of Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

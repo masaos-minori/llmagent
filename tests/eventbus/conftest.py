@@ -30,6 +30,24 @@ def _ensure_route_helpers_metrics_registered() -> None:
 
 
 @pytest.fixture(autouse=True)
+def _reset_db_conn_state() -> Generator[None]:
+    """Preserve db_conn module-level shutdown state across tests.
+
+    set_shutdown_flag() is set by lifespan() shutdown and
+    run_with_db_lock()'s fail-fast guard reads it; preserving the flag and
+    the active-user counter prevents test-to-test leakage that would make
+    later tests refuse DB work (scripts/eventbus/db_conn.py).
+    """
+    from eventbus import db_conn
+
+    original_flag = db_conn._shutting_down
+    original_users = db_conn._active_db_users
+    yield
+    db_conn._shutting_down = original_flag
+    db_conn._active_db_users = original_users
+
+
+@pytest.fixture(autouse=True)
 def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     """Preserve auth module-level state across tests.
 

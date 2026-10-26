@@ -24,7 +24,6 @@ timing non-determinism a fixed `time.sleep()` would leave.
 from __future__ import annotations
 
 import asyncio
-import logging
 import threading
 from pathlib import Path
 from typing import Any
@@ -100,14 +99,13 @@ async def test_shutdown_waits_for_inflight_sweep_before_closing_db(
 
 
 @pytest.mark.asyncio
-async def test_shutdown_logs_warning_when_lock_timeout_exceeded(
+async def test_shutdown_raises_when_lock_timeout_exceeded(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """If the sweep still holds the lock when the shutdown timeout elapses,
-    shutdown must log a warning and still close the DB (REQ-002's bounded-wait
-    fallback) rather than hanging indefinitely."""
+    """When the sweep still holds the lock when the shutdown timeout elapses,
+    shutdown must refuse to close the connection (REQ-001) by raising, rather
+    than logging a warning and closing anyway (the removed fallback)."""
     from eventbus import app as eb_app
 
     cfg = _make_config(tmp_path)
@@ -120,6 +118,8 @@ async def test_shutdown_logs_warning_when_lock_timeout_exceeded(
 
     def blocking_sweep_orphans(db: Any, deadletter_dir: str, max_retry: int) -> int:
         sweep_started.set()
+        # Hold the lock (via run_with_db_lock) so the shutdown lock-acquire
+        # cannot succeed within the bound, exercising the refuse-to-close path.
         release_sweep.wait(timeout=5)
         return 0
 
@@ -127,16 +127,26 @@ async def test_shutdown_logs_warning_when_lock_timeout_exceeded(
     monkeypatch.setattr(eb_app, "_DLQ_INTERVAL", 3600.0)
 
     try:
-        with caplog.at_level(logging.WARNING, logger="eventbus.app"):
+        with pytest.raises(RuntimeError, match="could not acquire db lock within"):
             async with eb_app.lifespan(eb_app.app):
                 started = await asyncio.to_thread(sweep_started.wait, 5)
                 assert started, "sweep thread did not start within the timeout"
                 # Deliberately do not release the sweep here — the shutdown
                 # lock-acquire (timeout 0.05s) must exceed its bound while the
-                # sweep still holds the lock, exercising the fallback path.
+                # sweep still holds the lock, so lifespan() raises.
     finally:
-        # Let the still-blocked sweep thread exit before the test ends,
-        # regardless of the assertions below.
+        # Let the still-blocked sweep thread exit before the test ends.
         release_sweep.set()
 
-    assert "db lock not acquired" in caplog.text
+
+@pytest.mark.asyncio
+async def test_run_with_db_lock_refuses_after_shutdown_flag() -> None:
+    """REQ-004: once set_shutdown_flag() has run, run_with_db_lock() must raise
+    before spawning a worker thread, so no thread queues on the lock behind a
+    connection that is about to be closed."""
+    from eventbus import db_conn
+    from eventbus.route_helpers import run_with_db_lock
+
+    db_conn.set_shutdown_flag()  # conftest _reset_db_conn_state restores it after
+    with pytest.raises(RuntimeError, match="refusing new DB work"):
+        await run_with_db_lock(lambda: None)
