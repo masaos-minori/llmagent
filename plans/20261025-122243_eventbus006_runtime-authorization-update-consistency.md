@@ -270,12 +270,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: one-generation publish in `auth.py` + `app.py` startup reuse | Pending | — | — | Sign-off gate on UNK-01 before implementation |
-| 2 | Phase 2: atomic, audited admin handler in `admin_route.py` (ordering, persistence flag, empty/no-op, audit) | Pending | — | — | |
-| 3 | Phase 3: unify ACK/NACK auth check + remove `%r` logging in `ack_route.py` (UNK-03) | Pending | — | — | |
-| 4 | Phase 4: repo/admin/ack/consumer/crash-ack tests | Pending | — | — | |
-| 5 | Phase 5: document one-generation + persistence + audit in ADR-013 | Pending | — | — | |
-| 6 | Phase 6: ruff/mypy/bandit/vulture/lint-imports + affected test runs | Pending | — | — | |
+| 1 | Phase 1: one-generation publish in `auth.py` + `app.py` startup reuse | In Progress | — | — | Sign-off gate on UNK-01 before implementation |
+| 2 | Phase 2: atomic, audited admin handler in `admin_route.py` (ordering, persistence flag, empty/no-op, audit) | In Progress | — | — |  |
+| 3 | Phase 3: unify ACK/NACK auth check + remove `%r` logging in `ack_route.py` (UNK-03) | In Progress | — | — |  |
+| 4 | Phase 4: repo/admin/ack/consumer/crash-ack tests | In Progress | — | — |  |
+| 5 | Phase 5: document one-generation + persistence + audit in ADR-013 | In Progress | — | — |  |
+| 6 | Phase 6: ruff/mypy/bandit/vulture/lint-imports + affected test runs | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -286,7 +286,17 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261026-090956_01_scripts_eventbus_admin_route.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261026-090956_02_scripts_eventbus_auth.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261026-090956_03_scripts_eventbus_ack_route.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261026-090956_04_scripts_eventbus_audit.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261026-090956_05_scripts_eventbus_app.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261026-090956_06_tests_eventbus_test_admin_topics_authorization.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261026-090956_07_tests_eventbus_test_eventbus_auth.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261026-090956_08_tests_eventbus_test_eventbus_consumer_authorization.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261026-090956_09_tests_eventbus_test_eventbus_ack_endpoint.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261026-090956_10_tests_eventbus_test_eventbus_crash_ack.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261026-090956_11_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization_md.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -310,3 +320,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-006 | Required change 5; Acceptance 4 | `tests/eventbus/test_eventbus_crash_ack.py`, `tests/eventbus/test_admin_topics_authorization.py` | 4 | Principals built via production path; no direct map mutation | Crash-ack refactor test | Draft |
 | REQ-007 | Background; hygiene | `scripts/eventbus/ack_route.py` | 3 | `%r` principal logging removed | Log removal / suite pass | Draft |
 | REQ-008 | Constraint; INV-05 | `scripts/eventbus/audit.py`, `scripts/eventbus/admin_route.py` | 2 | Token values absent from audit/logs | Audit-redaction test | Draft |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261026-090956 -->
