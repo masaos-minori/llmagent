@@ -12,7 +12,7 @@ from unittest.mock import patch
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 @pytest.fixture
@@ -35,7 +35,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("publisher")["Authorization"]
         yield c
 
 
@@ -192,7 +192,11 @@ class TestPublishEnvelopeSchemaContract:
         )
         assert resp.status_code == 200
         # Verify the event was stored in SQLite
-        replay_resp = client.get("/replay", params={"since_seq": 0, "format": "json"})
+        replay_resp = client.get(
+            "/replay",
+            params={"since_seq": 0, "format": "json"},
+            headers=eventbus_auth_headers("operator"),
+        )
         replay_data = replay_resp.json()
         items = replay_data["items"]
         assert len(items) >= 1
@@ -259,7 +263,11 @@ class TestPublishContract:
             )
         assert resp.status_code == 200
         # Event should be retrievable from SQLite
-        replay_resp = client.get("/replay", params={"since_seq": 0, "format": "json"})
+        replay_resp = client.get(
+            "/replay",
+            params={"since_seq": 0, "format": "json"},
+            headers=eventbus_auth_headers("operator"),
+        )
         assert replay_resp.status_code == 200
         events = replay_resp.json()
         assert len(events) >= 1

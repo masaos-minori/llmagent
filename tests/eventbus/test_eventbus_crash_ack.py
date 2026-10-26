@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from eventbus_helpers import make_eventbus_client
+from eventbus_helpers import eventbus_auth_headers, make_eventbus_client
 from fastapi.testclient import TestClient
 
 
@@ -143,7 +143,10 @@ class TestCrashBeforeAck:
         assert offset == 0, "Offset should not be written for unacked events"
 
         # Reconnect with same consumer_id — event should be replayed from seq=0
-        resp2 = client.get("/replay?since_seq=0&format=json")
+        resp2 = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp2.status_code == 200
         data2 = resp2.json()
         items2 = data2["items"]
@@ -178,10 +181,11 @@ class TestCrashBeforeAck:
         finally:
             loop.close()
 
-        # Ack only the first event
+        # Ack only the first event (CONSUMER role)
         resp = client.post(
             f"/events/{body1['event_id']}/ack",
             params={"consumer_id": "consumer-B"},
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
 
@@ -189,7 +193,10 @@ class TestCrashBeforeAck:
         assert offset == resp1.json()["seq"]
 
         # Reconnect — only unacked event should be replayed
-        resp2 = client.get(f"/replay?since_seq={offset}&format=json")
+        resp2 = client.get(
+            f"/replay?since_seq={offset}&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp2.status_code == 200
         data2 = resp2.json()
         items2 = data2["items"]
@@ -203,7 +210,10 @@ class TestCrashBeforeAck:
         assert resp.status_code == 200
 
         # New consumer — should receive all events from seq=0
-        resp = client.get("/replay?since_seq=0&format=json")
+        resp = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp.status_code == 200
         data = resp.json()
         items = data["items"]

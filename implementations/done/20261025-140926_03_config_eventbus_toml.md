@@ -76,8 +76,8 @@ Insert a commented example block between the per-role token block (ends line 29)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add commented authorization-mapping example to `config/eventbus.toml` | Pending | — | — | doc-only |
-| 2 | Run documentation checkers (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add commented authorization-mapping example to `config/eventbus.toml` | Completed | 20261025 | 20261025 | Applied 20261026 during verification (was unapplied); comment-only, no new keys |
+| 2 | Run documentation checkers (`rules/toolchain.md`) | Completed | 20261026 | 20261026 | `tomllib` parse OK; `load_config()` unchanged; `test_eventbus_config.py`: 38 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

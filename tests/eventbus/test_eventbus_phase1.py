@@ -6,7 +6,10 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import (
+    eventbus_auth_headers,
+    eventbus_test_tokens,
+)
 
 
 @pytest.fixture
@@ -29,7 +32,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("publisher")["Authorization"]
         yield c
 
 
@@ -44,7 +47,7 @@ def _event(topic: str = "test.topic") -> dict:
 
 
 def test_health_returns_ok(client: TestClient) -> None:
-    r = client.get("/health")
+    r = client.get("/health", headers=eventbus_auth_headers("monitoring"))
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ok"

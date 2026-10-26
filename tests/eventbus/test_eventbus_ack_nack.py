@@ -10,7 +10,7 @@ import pytest
 from eventbus.db import NackResult
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 @pytest.fixture
@@ -133,7 +133,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     from fastapi.testclient import TestClient
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("consumer")["Authorization"]
         yield c
 
 
@@ -199,7 +199,9 @@ class TestAckHttpBehavior:
     def test_ack_first_time_returns_200(self, client: Any) -> None:
         """POST /events/{id}/ack returns 200 with acked: true, seq: int on first ack."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         _simulate_delivery_http(client, body["event_id"], "consumer-A")
@@ -215,7 +217,9 @@ class TestAckHttpBehavior:
     def test_ack_repeated_returns_200_already_acked(self, client: Any) -> None:
         """Second POST /events/{id}/ack returns 200 with acked: true, already_acked: true."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         _simulate_delivery_http(client, body["event_id"], "consumer-A")
@@ -243,7 +247,9 @@ class TestAckHttpBehavior:
         import eventbus.app as eb_app
 
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         db = eb_app.app.state.db
@@ -276,7 +282,12 @@ class TestAckHttpBehavior:
 
         first, second = _event(), _event()
         for body in (first, second):
-            assert client.post("/publish", json=body).status_code == 200
+            assert (
+                client.post(
+                    "/publish", json=body, headers=eventbus_auth_headers("publisher")
+                ).status_code
+                == 200
+            )
             _simulate_delivery_http(client, body["event_id"], "consumer-A")
 
         resp_high = client.post(
@@ -307,7 +318,9 @@ class TestAckHttpBehavior:
     def test_two_consumers_ack_same_event_independently(self, client: Any) -> None:
         """Two distinct consumer_ids can each ACK the same event_id independently (REQ-001)."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         _simulate_delivery_http(client, body["event_id"], "consumer-a")
@@ -508,7 +521,9 @@ class TestNackEvent:
     ) -> None:
         """HTTP NACK returns 200 when different consumer NACKs after same consumer ACKed."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         # Simulate delivery to consumer-A

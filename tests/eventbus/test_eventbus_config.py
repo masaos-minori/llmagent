@@ -680,3 +680,64 @@ publisher_token = "test-publisher-token"
     assert cfg.auth_token == "test-auth-token"
     assert cfg.publisher_token == "test-publisher-token"
     assert cfg.monitoring_token == "resolved-monitoring-token"
+
+
+def test_load_config_surfaces_authorization_mappings(tmp_path) -> None:
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text(
+        "port = 8015\n"
+        'db_path = "/tmp/e.sqlite"\n'
+        'storage_dir = "/tmp/storage"\n'
+        'deadletter_dir = "/tmp/deadletter"\n'
+        "max_retry = 3\n"
+        'host = "127.0.0.1"\n'
+        'auth_token = "test-token"\n'
+        'consumer_token = "consumer-token"\n'
+        'consumer_authorization = { "svc-a" = [ "orders/*" ] }\n'
+        'topic_authorization = { "orders/*" = [ "svc-a" ] }\n'
+    )
+    cfg = load_config(config_file)
+    assert cfg.consumer_authorization is not None
+    assert cfg.topic_authorization is not None
+
+
+def test_load_config_normalizes_mapping_types(tmp_path) -> None:
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text(
+        "port = 8015\n"
+        'db_path = "/tmp/e.sqlite"\n'
+        'storage_dir = "/tmp/storage"\n'
+        'deadletter_dir = "/tmp/deadletter"\n'
+        "max_retry = 3\n"
+        'host = "127.0.0.1"\n'
+        'auth_token = "test-token"\n'
+        'consumer_token = "consumer-token"\n'
+        'consumer_authorization = { "svc-a" = [ "orders/*", "inventory/*" ] }\n'
+        'topic_authorization = { "orders/*" = [ "svc-a", "svc-b" ] }\n'
+    )
+    cfg = load_config(config_file)
+    assert all(isinstance(v, set) for v in cfg.topic_authorization.values())
+    assert all(isinstance(v, list) for v in cfg.consumer_authorization.values())
+
+
+def test_load_config_duplicate_token_via_load_path_raises(tmp_path) -> None:
+    config_file = tmp_path / "eventbus.toml"
+    config_file.write_text(
+        "port = 8015\n"
+        'db_path = "/tmp/e.sqlite"\n'
+        'storage_dir = "/tmp/storage"\n'
+        'deadletter_dir = "/tmp/deadletter"\n'
+        "max_retry = 3\n"
+        'host = "127.0.0.1"\n'
+        'auth_token = "shared-dup"\n'
+        'admin_token = "shared-dup"\n'
+    )
+    cfg = load_config(config_file)
+    from eventbus.auth import _populate_token_maps
+
+    with pytest.raises(ValueError, match="duplicate token") as exc_info:
+        _populate_token_maps(cfg)
+    message = str(exc_info.value)
+    assert "shared-dup" not in message
+    for field in ("auth_token", "admin_token"):
+        assert field in message

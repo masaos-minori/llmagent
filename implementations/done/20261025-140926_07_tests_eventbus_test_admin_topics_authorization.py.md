@@ -202,10 +202,10 @@ class TestDuplicateRejectionAdminRebuild:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261026 | 20261026 | Applied during verification; `TestOneRolePerTokenAdminRebuild` + `TestDuplicateRejectionAdminRebuild` appended |
+| 2 | Add or update tests per Validation plan | Completed | 20261026 | 20261026 | 4 new tests pass |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261026 | 20261026 | `tests/eventbus/`: 344 passed, 1 skipped, 0 failures |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -18,7 +18,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 async def _init_state(cfg: Any) -> None:
@@ -80,7 +80,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         loop.close()
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("publisher")["Authorization"]
         yield c
 
     # Cleanup on teardown
@@ -151,7 +151,10 @@ def test_ack_writes_offset(client: TestClient, tmp_path: Path) -> None:
 
 def test_ack_nonexistent_event_returns_404(client: TestClient) -> None:
     """POST /events/{id}/ack for unknown event_id should return 404."""
-    r = client.post("/events/nonexistent-id/ack?consumer_id=consumer1")
+    r = client.post(
+        "/events/nonexistent-id/ack?consumer_id=consumer1",
+        headers=eventbus_auth_headers("consumer"),
+    )
     assert r.status_code == 404
 
 
@@ -161,7 +164,10 @@ def test_reconnect_resume_via_consumer_id(client: TestClient) -> None:
     r2 = _pub(client)
 
     # ack first event -> offset = r1["seq"]
-    client.post(f"/events/{r1['event_id']}/ack?consumer_id=consumer2")
+    client.post(
+        f"/events/{r1['event_id']}/ack?consumer_id=consumer2",
+        headers=eventbus_auth_headers("consumer"),
+    )
 
     # Verify: new broker subscription with consumer_id picks up from last acked seq
     from eventbus import app as eb_app

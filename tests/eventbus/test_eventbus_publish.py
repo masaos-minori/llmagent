@@ -12,7 +12,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from eventbus.route_helpers import ERR_EVENT_CONFLICT
-from eventbus_helpers import make_eventbus_client
+from eventbus_helpers import eventbus_auth_headers, make_eventbus_client
 from fastapi.testclient import TestClient
 
 
@@ -33,7 +33,10 @@ def _event(topic: str = "test.topic") -> dict[str, Any]:
 
 
 def test_health_ok(client: TestClient) -> None:
-    r = client.get("/health")
+    r = client.get(
+        "/health",
+        headers=eventbus_auth_headers("monitoring"),
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["status"] == "ok"
@@ -47,7 +50,10 @@ def test_health_degraded_when_db_unavailable(client: TestClient) -> None:
     mock_db = MagicMock()
     mock_db.execute.side_effect = sqlite3.OperationalError("DB gone")
     eb_app.app.state.db = mock_db  # type: ignore[assignment]
-    resp = client.get("/health")
+    resp = client.get(
+        "/health",
+        headers=eventbus_auth_headers("monitoring"),
+    )
     assert resp.status_code == 503
     body = resp.json()
     assert body["status"] == "degraded"
@@ -97,7 +103,12 @@ def test_publish_succeeds_if_jsonl_append_fails(client: TestClient) -> None:
     assert resp.json()["event_id"] == ev["event_id"]
 
     # Event should be retrievable from SQLite
-    replay = client.get("/replay", params={"since_seq": 0, "format": "json"})
+    # Event should be retrievable from SQLite
+    replay = client.get(
+        "/replay",
+        params={"since_seq": 0, "format": "json"},
+        headers=eventbus_auth_headers("operator"),
+    )
     assert replay.status_code == 200
     body = replay.json()
     event_ids = [e["event_id"] for e in body["items"]]
@@ -142,7 +153,7 @@ def test_publish_sqlite_write_failure_reports_failure_without_side_effects(
     ev = _event()
     broker_publish = MagicMock()
     failing_client = TestClient(client.app, raise_server_exceptions=False)
-    failing_client.headers["Authorization"] = "Bearer test-token"
+    failing_client.headers["Authorization"] = client.headers["Authorization"]
 
     with (
         patch("eventbus.publish_route.insert_event", _failing_insert_event(mode)),

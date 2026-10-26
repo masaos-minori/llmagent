@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from eventbus_helpers import make_eventbus_client
+from eventbus_helpers import eventbus_auth_headers, make_eventbus_client
 from fastapi.testclient import TestClient
 
 
@@ -82,7 +82,7 @@ class TestSlowConsumer:
         try:
             # After consuming, the subscriber's queue depth should be 0 (slow)
             # Health endpoint should report slow_consumers > 0
-            resp = client.get("/health")
+            resp = client.get("/health", headers=eventbus_auth_headers("monitoring"))
             assert resp.status_code == 200
             health = resp.json()
             # slow_consumers may be 0 if the subscriber consumed fast enough,
@@ -111,7 +111,7 @@ class TestSlowConsumer:
 
             asyncio.run(asyncio.sleep(0.05))
 
-            resp = client.get("/health")
+            resp = client.get("/health", headers=eventbus_auth_headers("monitoring"))
             health = resp.json()
             if health.get("slow_consumers", 0) > 0:
                 assert resp.status_code == 503

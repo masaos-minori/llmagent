@@ -31,12 +31,12 @@ Make `load_config()` the authoritative path that carries the validated `consumer
 
 ### Procedure
 
-1. Insert a normalization block between the `auth_token` non-empty check (line 323-324) and the `cfg = EventBusConfig(` call (line 326).
-2. Add `consumer_authorization` and `topic_authorization` keyword arguments to the `EventBusConfig(...)` call (lines 326-347).
+1. Insert a normalization block between the `auth_token` non-empty check (line 323-324) and the `cfg = EventBusConfig(` call (line 337).
+2. Add `consumer_authorization` and `topic_authorization` keyword arguments to the `EventBusConfig(...)` call (lines 337-360).
 
 ### Method
 
-Insert this block right before line 326 (`cfg = EventBusConfig(`):
+Insert this block right before line 337 (`cfg = EventBusConfig(`):
 
 ```python
 # Normalize authorization-mapping value types to the EventBusConfig annotations
@@ -51,7 +51,7 @@ if topic_authorization is not None:
     }
 ```
 
-Then add the two keyword arguments to the constructor (after `admin_token=...`, line 341):
+Then add the two keyword arguments to the constructor (after `admin_token=...`, line 352):
 
 ```python
         consumer_authorization=consumer_authorization,
@@ -102,10 +102,10 @@ Then add the two keyword arguments to the constructor (after `admin_token=...`, 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement mapping pass-through and type normalization in `scripts/eventbus/config.py` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement mapping pass-through and type normalization in `scripts/eventbus/config.py` | Completed | 20261025 | 20261025 | Matches current `load_config()` (lines 326-354) |
+| 2 | Add or update tests per Validation plan | Completed | 20261025 | 20261025 | `tests/eventbus/test_eventbus_config.py` passes |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261025 | 20261025 | `tests/eventbus/`: 329 passed, 1 skipped, 0 failures |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | N/A: documentation unchanged per Out of Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

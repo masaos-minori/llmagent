@@ -10,7 +10,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from eventbus_helpers import make_eventbus_client
+from eventbus_helpers import eventbus_auth_headers, make_eventbus_client
 from fastapi.testclient import TestClient
 
 
@@ -87,7 +87,9 @@ class TestConcurrentAck:
 
         async def _ack_one() -> None:
             resp = client.post(
-                f"/events/{event_id}/ack", params={"consumer_id": "consumer-A"}
+                f"/events/{event_id}/ack",
+                params={"consumer_id": "consumer-A"},
+                headers=eventbus_auth_headers("consumer"),
             )
             results.append({"status_code": resp.status_code, **resp.json()})
 
@@ -127,7 +129,10 @@ class TestConcurrentReplay:
         results: list[list] = []
 
         async def _replay() -> None:
-            resp = client.get("/replay?since_seq=0&format=json")
+            resp = client.get(
+                "/replay?since_seq=0&format=json",
+                headers=eventbus_auth_headers("operator"),
+            )
             assert resp.status_code == 200
             results.append(resp.json()["items"])
 
@@ -189,13 +194,17 @@ class TestConcurrentDlqRequeue:
         resp = client.post(
             "/nack",
             params={"event_id": event_id, "consumer_id": "consumer-A"},
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
 
         results: list[dict[str, Any]] = []
 
         async def _requeue() -> None:
-            resp = client.post(f"/dlq/{event_id}/requeue")
+            resp = client.post(
+                f"/dlq/{event_id}/requeue",
+                headers=eventbus_auth_headers("operator"),
+            )
             results.append(resp.json())
 
         loop = asyncio.new_event_loop()

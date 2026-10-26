@@ -12,7 +12,7 @@ from typing import TYPE_CHECKING, Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 if TYPE_CHECKING:
     import sqlite3
@@ -79,7 +79,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         loop.close()
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("publisher")["Authorization"]
         yield c
 
     # Cleanup on teardown
@@ -113,7 +113,10 @@ def test_same_consumer_id_resumes_from_last_acked_offset(
 
     # Publish and ack first event
     r1 = _pub(client)
-    client.post(f"/events/{r1['event_id']}/ack?consumer_id=svc-A")
+    client.post(
+        f"/events/{r1['event_id']}/ack?consumer_id=svc-A",
+        headers=eventbus_auth_headers("consumer"),
+    )
 
     # Verify offset is written
     offset = get_consumer_offset(eb_app.app.state.db, "svc-A")
@@ -140,7 +143,10 @@ def test_different_consumer_id_starts_from_zero(
 
     # Consumer-A publishes and acks
     r1 = _pub(client)
-    client.post(f"/events/{r1['event_id']}/ack?consumer_id=svc-A")
+    client.post(
+        f"/events/{r1['event_id']}/ack?consumer_id=svc-A",
+        headers=eventbus_auth_headers("consumer"),
+    )
 
     # Consumer-B (different ID) has no offset
     offset_b = get_consumer_offset(eb_app.app.state.db, "svc-B")
@@ -167,10 +173,16 @@ def test_same_consumer_id_last_write_wins(client: TestClient, tmp_path: Path) ->
 
     # Both consumers ack different events with the same consumer_id
     r1 = _pub(client)
-    client.post(f"/events/{r1['event_id']}/ack?consumer_id=shared-consumer")
+    client.post(
+        f"/events/{r1['event_id']}/ack?consumer_id=shared-consumer",
+        headers=eventbus_auth_headers("consumer"),
+    )
 
     r2 = _pub(client)
-    client.post(f"/events/{r2['event_id']}/ack?consumer_id=shared-consumer")
+    client.post(
+        f"/events/{r2['event_id']}/ack?consumer_id=shared-consumer",
+        headers=eventbus_auth_headers("consumer"),
+    )
 
     # The second ack has the higher seq, so the offset is from the second ack
     offset = get_consumer_offset(eb_app.app.state.db, "shared-consumer")
@@ -435,7 +447,11 @@ def _reconnect_ids(client: TestClient, consumer_id: str) -> list[int]:
     from eventbus import app as eb_app
 
     object.__setattr__(eb_app.app.state.config, "sse_idle_timeout", 0.5)
-    resp = client.get(f"/subscribe?consumer_id={consumer_id}", timeout=5.0)
+    resp = client.get(
+        f"/subscribe?consumer_id={consumer_id}",
+        timeout=5.0,
+        headers=eventbus_auth_headers("consumer"),
+    )
     assert resp.status_code == 200
     return [
         int(line.split(":")[1].strip())

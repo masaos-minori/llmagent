@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 @pytest.fixture
@@ -30,7 +30,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("publisher")["Authorization"]
         yield c
 
 
@@ -50,7 +50,10 @@ def test_replay_returns_events_since_seq(client: TestClient) -> None:
     client.post("/publish", json=ev1)
     client.post("/publish", json=ev2)
 
-    r = client.get("/replay?since_seq=0&format=json")
+    r = client.get(
+        "/replay?since_seq=0&format=json",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r.status_code == 200
     body = r.json()
     ids = [e["event_id"] for e in body["items"]]
@@ -64,7 +67,10 @@ def test_replay_since_seq_filters(client: TestClient) -> None:
     s1 = client.post("/publish", json=ev1).json()["seq"]
     client.post("/publish", json=ev2)
 
-    r = client.get(f"/replay?since_seq={s1}&format=json")
+    r = client.get(
+        f"/replay?since_seq={s1}&format=json",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r.status_code == 200
     body = r.json()
     ids = [e["event_id"] for e in body["items"]]

@@ -323,6 +323,17 @@ def load_config(path: Path | None = None) -> EventBusConfig:
     if not data["auth_token"]:
         raise ValueError("eventbus config 'auth_token' must not be empty.")
 
+    # Normalize authorization-mapping value types to the EventBusConfig annotations
+    # (REQ-002): topic_authorization values become set[str]; consumer_authorization
+    # values stay list[str]. A missing key stays None so the empty-vs-missing
+    # distinction _populate_token_maps() depends on is preserved.
+    consumer_authorization = data.get("consumer_authorization")
+    topic_authorization = data.get("topic_authorization")
+    if topic_authorization is not None:
+        topic_authorization = {
+            topic: set(consumers) for topic, consumers in topic_authorization.items()
+        }
+
     cfg = EventBusConfig(
         port=data["port"],
         db_path=data["db_path"],
@@ -339,6 +350,8 @@ def load_config(path: Path | None = None) -> EventBusConfig:
         operator_token=data.get("operator_token", ""),
         monitoring_token=data.get("monitoring_token", ""),
         admin_token=data.get("admin_token", ""),
+        consumer_authorization=consumer_authorization,
+        topic_authorization=topic_authorization,
         sse_heartbeat_interval=float(data.get("sse_heartbeat_interval", 30.0)),
         sse_idle_timeout=float(data.get("sse_idle_timeout", 60.0)),
         slow_consumer_threshold=int(data.get("slow_consumer_threshold", 100)),

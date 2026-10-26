@@ -14,7 +14,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 @pytest.fixture
@@ -37,7 +37,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("operator")["Authorization"]
         yield c
 
 
@@ -74,7 +74,9 @@ class TestRequeueEdgeCases:
     def test_requeue_non_dmq_event(self, client: TestClient) -> None:
         """POST /dlq/{event_id}/requeue for non-DLQ event returns 409 Conflict."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         # Event is not in DLQ (dlq_at IS NULL)
@@ -87,7 +89,9 @@ class TestRequeueEdgeCases:
         from eventbus.dlq import sweep_orphans
 
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         # Promote to DLQ
@@ -146,7 +150,9 @@ class TestRequeueEdgeCases:
         from eventbus.dlq import sweep_orphans
 
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         # Promote to DLQ when the per-consumer failure count >= max_retry
@@ -214,7 +220,9 @@ class TestRequeueEdgeCases:
         from eventbus.dlq import sweep_orphans
 
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish", json=body, headers=eventbus_auth_headers("publisher")
+        )
         assert resp.status_code == 200
 
         # Promote to DLQ

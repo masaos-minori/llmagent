@@ -57,21 +57,35 @@ TEST_TOPICS = (
 
 
 def eventbus_test_tokens(token: str = "test-token") -> dict[str, Any]:
-    """Config kwargs giving one test token the data-plane and operator roles.
+    """Config kwargs giving each role its own distinct test token.
 
-    The shared ``auth_token`` holds only control-plane roles, so the token the
-    tests present is registered as a publisher, consumer, operator, and
-    monitoring token. The consumer role is bound to explicit consumer_id and
-    topic authorizations.
+    Every non-empty token field holds a distinct value and grants exactly its
+    own role (REQ-003 uniqueness, REQ-004 one-role-per-token). The shared
+    ``auth_token`` holds only control-plane roles; the per-role tokens grant
+    PUBLISHER, CONSUMER, OPERATOR, and MONITORING respectively. The consumer
+    role is bound to explicit consumer_id and topic authorizations.
     """
     return {
         "auth_token": f"{token}-control",
-        "publisher_token": token,
-        "consumer_token": token,
-        "operator_token": token,
-        "monitoring_token": token,
+        "publisher_token": f"{token}-pub",
+        "consumer_token": f"{token}-consumer",
+        "operator_token": f"{token}-operator",
+        "monitoring_token": f"{token}-monitor",
         "consumer_authorization": {c: list(TEST_TOPICS) for c in TEST_CONSUMER_IDS},
     }
+
+
+def eventbus_auth_headers(role: str) -> dict[str, str]:
+    """Return an Authorization header dict presenting the token for ``role``.
+
+    ``role`` is the role name (e.g. ``"publisher"``, ``"consumer"``,
+    ``"operator"``, ``"monitoring"``); the matching ``<role>_token`` from
+    :func:`eventbus_test_tokens` is presented as the bearer credential. Use this
+    so each request carries the token for exactly the role the endpoint requires
+    instead of one global token that would grant every role.
+    """
+    tokens = eventbus_test_tokens()
+    return {"Authorization": f"Bearer {tokens[f'{role}_token']}"}
 
 
 def make_eventbus_client(
@@ -79,7 +93,15 @@ def make_eventbus_client(
     monkeypatch: pytest.MonkeyPatch,
     max_retry: int = 3,
     sse_idle_timeout: float | None = None,
+    default_role: str = "publisher",
 ) -> Any:
+    """Build a TestClient whose default Authorization header carries ``default_role``.
+
+    The Event Bus enforces one-role-per-token, so a single global header can only
+    carry one role. Callers that exercise more than one role must pass the correct
+    header per call via :func:`eventbus_auth_headers`; ``default_role`` covers the
+    common case where a test starts with (and mostly stays on) one role.
+    """
     from eventbus import app as eb_app
     from eventbus.config import EventBusConfig
 
@@ -111,7 +133,9 @@ def make_eventbus_client(
         loop.close()
 
     client = TestClient(eb_app.app)
-    client.headers["Authorization"] = "Bearer test-token"
+    client.headers["Authorization"] = eventbus_auth_headers(default_role)[
+        "Authorization"
+    ]
 
     # Store cleanup callback on client for teardown
     def _cleanup():

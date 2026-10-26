@@ -246,12 +246,12 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: config.py duplicate-constant collapse + runtime-message rewrite | Pending | — | — | |
-| 2 | Phase 2: remove resolved-history comments in `ack_route.py`, `delivery_repo.py` | Pending | — | — | |
-| 3 | Phase 3: REQ-0 classification sweep across `scripts/eventbus/*.py` | Pending | — | — | UNK-01: produce kept/removed list at planning time |
-| 4 | Phase 4: spelling/grammar pass | Pending | — | — | UNK-03: likely none (text verified correct) |
-| 5 | Phase 5: regenerate EventBus reference table | Pending | — | — | UNK-02: `--check` currently passes |
-| 6 | Phase 6: validation suite | Pending | — | — | |
+| 1 | Phase 1: config.py duplicate-constant collapse + runtime-message rewrite | In Progress | — | — |  |
+| 2 | Phase 2: remove resolved-history comments in `ack_route.py`, `delivery_repo.py` | In Progress | — | — |  |
+| 3 | Phase 3: REQ-0 classification sweep across `scripts/eventbus/*.py` | In Progress | — | — | UNK-01: produce kept/removed list at planning time |
+| 4 | Phase 4: spelling/grammar pass | In Progress | — | — | UNK-03: likely none (text verified correct) |
+| 5 | Phase 5: regenerate EventBus reference table | In Progress | — | — | UNK-02: `--check` currently passes |
+| 6 | Phase 6: validation suite | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -261,7 +261,15 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261026-100803_01_scripts_eventbus_config.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261026-100803_02_scripts_eventbus_ack_route.py.md | 2, 3 | Procedure | Pending | — | — |
+| implementations/20261026-100803_03_scripts_eventbus_delivery_repo.py.md | 2, 3 | Procedure | Pending | — | — |
+| implementations/20261026-100803_04_scripts_eventbus_app.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261026-100803_05_scripts_eventbus_dlq.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261026-100803_06_scripts_eventbus_subscribe_route.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261026-100803_07_docs_24_eventbus_eventbus_08_reference_api.md.md | 5 | Procedure | Pending | — | — |
+| implementations/20261026-100803_08_tests_eventbus__.md | 4 | Procedure | Pending | — | — |
+| implementations/20261026-100803_09_tools_generate_reference_table.py.md | 5 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -283,3 +291,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-004 | Required change 4; Acceptance 3 | `docs/24_eventbus/eventbus_08_reference_api.md`, `tools/generate_reference_table.py` | 5 | Endpoint paths render; refs regenerated not hand-edited | `--check` = No drift | Draft |
 | REQ-005 | Required change 5; Acceptance 4 | `tests/eventbus/*`, `scripts/eventbus/*`, `docs/24_eventbus/*` | 4 | Spelling/grammar corrected | `check_docs_quality.py` | Draft |
 | REQ-006 | Constraint; Out-of-Scope | all | 6 | No behavior/contract/safety-boundary change | Full EventBus suite | Draft |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261026-100803 -->

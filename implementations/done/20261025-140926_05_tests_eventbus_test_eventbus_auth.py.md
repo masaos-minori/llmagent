@@ -156,8 +156,11 @@ class TestDuplicateTokenBinding:
                 admin_token="",
                 consumer_authorization={},
             )
-            setattr(cfg, field_a, "shared-value")
-            setattr(cfg, field_b, "shared-value")
+            import dataclasses
+
+            cfg = dataclasses.replace(
+                cfg, **{field_a: "shared-value", field_b: "shared-value"}
+            )
             with pytest.raises(ValueError, match="duplicate token") as exc_info:
                 _populate_token_maps(cfg)
             message = str(exc_info.value)
@@ -171,7 +174,7 @@ class TestDuplicateTokenBinding:
 ### Details
 
 - The parametrized test covers a control-plane pair (`auth_token`/`admin_token`), a per-role pair (`publisher_token`/`consumer_token`), and another per-role pair (`operator_token`/`monitoring_token`), exercising the uniform six-field guard.
-- `setattr(cfg, field, "shared-value")` forces two distinct fields to share a value without writing six separate TOML configs.
+- `dataclasses.replace(cfg, ...)` (frozen `EventBusConfig` is not `setattr`-assignable) forces two distinct fields to share a value without writing six separate TOML configs. Applied as-is except this frozen-safe substitution discovered during verification.
 - The no-value assertions (`assert "shared-dup" not in message`, `assert "shared-value" not in message`) cover the no-secret-leak requirement.
 
 ## Compatibility considerations
@@ -211,10 +214,10 @@ class TestDuplicateTokenBinding:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Completed | 20261026 | 20261026 | Applied during verification; `setattr` replaced with `dataclasses.replace` (frozen dataclass) |
+| 2 | Add or update tests per Validation plan | Completed | 20261026 | 20261026 | `TestDuplicateTokenBinding`: 5 passed |
 | 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

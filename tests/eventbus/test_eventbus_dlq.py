@@ -9,7 +9,7 @@ import orjson
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 @pytest.fixture
@@ -32,7 +32,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("publisher")["Authorization"]
         yield c
 
 
@@ -85,7 +85,7 @@ def test_dlq_list(client: TestClient, tmp_path: Path) -> None:
 
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
-    r = client.get("/dlq")
+    r = client.get("/dlq", headers=eventbus_auth_headers("operator"))
     assert r.status_code == 200
     body = r.json()
     ids = [e["event_id"] for e in body["items"]]
@@ -113,7 +113,9 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
 
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
-    r = client.post(f"/dlq/{ev['event_id']}/requeue")
+    r = client.post(
+        f"/dlq/{ev['event_id']}/requeue", headers=eventbus_auth_headers("operator")
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["requeued"] is True
@@ -128,7 +130,7 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     assert body["new_seq"] > original_seq
 
     # Original event remains in DLQ (lineage model: original row's dlq_at IS NOT NULL)
-    r2 = client.get("/dlq")
+    r2 = client.get("/dlq", headers=eventbus_auth_headers("operator"))
     body2 = r2.json()
     ids = [e["event_id"] for e in body2["items"]]
     assert ev["event_id"] in ids
@@ -161,7 +163,9 @@ def test_requeue_increments_dlq_requeue_count(
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     # Requeue once — new row inserted with redelivered_from
-    r = client.post(f"/dlq/{ev['event_id']}/requeue")
+    r = client.post(
+        f"/dlq/{ev['event_id']}/requeue", headers=eventbus_auth_headers("operator")
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["requeued"] is True
@@ -205,13 +209,19 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
     client.post("/publish", json=ev)
 
     # First nack — consumer_delivery_failure_count becomes 1, below threshold of 2
-    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
+    r = client.post(
+        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer",
+        headers=eventbus_auth_headers("consumer"),
+    )
     assert r.status_code == 200
     assert r.json()["consumer_delivery_failure_count"] == 1
     assert "dlq_promoted" not in r.json()
 
     # Second nack — consumer_delivery_failure_count becomes 2, hits threshold, inline promote
-    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
+    r = client.post(
+        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer",
+        headers=eventbus_auth_headers("consumer"),
+    )
     assert r.status_code == 200
     assert r.json()["consumer_delivery_failure_count"] == 2
     assert r.json().get("dlq_promoted") is True
@@ -239,7 +249,10 @@ def test_inline_dlq_promotion_skipped_below_threshold(
     client.post("/publish", json=ev)
 
     # Nack once — below threshold of 2, no DLQ promotion
-    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
+    r = client.post(
+        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer",
+        headers=eventbus_auth_headers("consumer"),
+    )
     assert r.status_code == 200
     assert r.json()["consumer_delivery_failure_count"] == 1
     assert "dlq_promoted" not in r.json()
@@ -255,7 +268,10 @@ def test_inline_dlq_promotion_skipped_below_threshold(
 
 
 def test_inline_dlq_promotion_not_found(client: TestClient) -> None:
-    r = client.post("/nack?event_id=nonexistent&consumer_id=test-consumer")
+    r = client.post(
+        "/nack?event_id=nonexistent&consumer_id=test-consumer",
+        headers=eventbus_auth_headers("consumer"),
+    )
     assert r.status_code == 404
     assert r.json()["detail"] == "event not found"
 
@@ -279,7 +295,10 @@ def test_nack_on_already_dlq_event_does_not_repromote(
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
     # Nack an already-DLQ'd event — should return 409 Conflict, not increment count
-    r = client.post(f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer")
+    r = client.post(
+        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer",
+        headers=eventbus_auth_headers("consumer"),
+    )
     assert r.status_code == 409
     assert "event already in dead letter queue" in r.json()["detail"]
 
@@ -296,7 +315,9 @@ def test_requeue_non_dlq_event_fails(client: TestClient, tmp_path: Path) -> None
     client.post("/publish", json=ev)
 
     # Requeue an event that is NOT in DLQ — should return 409 Conflict
-    r = client.post(f"/dlq/{ev['event_id']}/requeue")
+    r = client.post(
+        f"/dlq/{ev['event_id']}/requeue", headers=eventbus_auth_headers("operator")
+    )
     assert r.status_code == 409, f"Expected 409, got {r.status_code}: {r.text}"
 
     # Verify dlq_requeue_count is NOT incremented
@@ -309,7 +330,9 @@ def test_requeue_non_dlq_event_fails(client: TestClient, tmp_path: Path) -> None
 
 def test_requeue_unknown_event_returns_404(client: TestClient) -> None:
     """Requeue should return 404 for unknown events."""
-    r = client.post("/dlq/nonexistent-event-id/requeue")
+    r = client.post(
+        "/dlq/nonexistent-event-id/requeue", headers=eventbus_auth_headers("operator")
+    )
     assert r.status_code == 404, f"Expected 404, got {r.status_code}: {r.text}"
 
 
@@ -382,7 +405,7 @@ async def test_concurrent_requeue_same_event(
         ) as ac:
             r = await ac.post(
                 f"/dlq/{event_id}/requeue",
-                headers={"Authorization": "Bearer test-token"},
+                headers=eventbus_auth_headers("operator"),
             )
             return r.json()
 
@@ -447,7 +470,7 @@ async def test_concurrent_requeue_different_events(
         ) as ac:
             r = await ac.post(
                 f"/dlq/{event_id}/requeue",
-                headers={"Authorization": "Bearer test-token"},
+                headers=eventbus_auth_headers("operator"),
             )
             return r.json()
 

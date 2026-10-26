@@ -352,7 +352,7 @@ def restore_env() -> Generator[tuple[AgentSession, sqlite3.Connection, int]]:
     )
     conn.commit()
 
-    def _make(target: str = "session") -> _FakeSQLiteHelper:
+    def _make(target: str = "session") -> _FakeSQLiteHelper:  # noqa: ARG001 — target kept for factory-signature parity, intentionally unused
         return _FakeSQLiteHelper(conn)
 
     with (

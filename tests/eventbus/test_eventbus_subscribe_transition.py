@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
-from eventbus_helpers import make_eventbus_client
+from eventbus_helpers import eventbus_auth_headers, make_eventbus_client
 from fastapi import Request
 from fastapi.testclient import TestClient
 
@@ -53,7 +53,10 @@ class TestReplayToLiveTransition:
         assert resp2.status_code == 200
 
         # /replay from seq=0 should return both events
-        resp = client.get("/replay?since_seq=0&format=json")
+        resp = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp.status_code == 200
         data = resp.json()
         items = data["items"]
@@ -70,12 +73,18 @@ class TestReplayToLiveTransition:
             assert resp.status_code == 200
 
         # /replay from seq=0 should return all events without duplication
-        resp1 = client.get("/replay?since_seq=0&format=json")
+        resp1 = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp1.status_code == 200
         items1 = {item["event_id"] for item in resp1.json()["items"]}
 
         # Another consumer from seq=0 should get the same events
-        resp2 = client.get("/replay?since_seq=0&format=json")
+        resp2 = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp2.status_code == 200
         items2 = {item["event_id"] for item in resp2.json()["items"]}
 
@@ -92,7 +101,10 @@ class TestReplayToLiveTransition:
         resp = client.post("/publish", json=body)
         assert resp.status_code == 200
         # /replay from seq=0 — this event is in replay range
-        resp = client.get("/replay?since_seq=0&format=json")
+        resp = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp.status_code == 200
         data = resp.json()
         items = data["items"]
@@ -121,6 +133,7 @@ class TestReplayToLiveTransition:
         resp = client.get(
             "/subscribe?since_seq=0&topic=boundary&consumer_id=default-consumer",
             timeout=(5.0, 10.0),
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
 
@@ -158,6 +171,7 @@ class TestReplayToLiveTransition:
         resp = client.get(
             "/subscribe?since_seq=0&topic=overlap&consumer_id=default-consumer",
             timeout=(5.0, 10.0),
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
 
@@ -243,6 +257,7 @@ class TestReconnectResumeSemantics:
         resp = client.get(
             "/subscribe?since_seq=0&topic=resume&consumer_id=test-consumer",
             timeout=(5.0, 10.0),
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
         event_ids_first = set()
@@ -264,7 +279,10 @@ class TestReconnectResumeSemantics:
             assert resp.status_code == 200
 
         # Verify via /replay that consumer offset was stored (should return all 8 events from seq=0)
-        resp = client.get("/replay?since_seq=0&format=json")
+        resp = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp.status_code == 200
         data = resp.json()
         total_events = data["total"]
@@ -274,6 +292,7 @@ class TestReconnectResumeSemantics:
         resp = client.get(
             "/subscribe?since_seq=0&topic=resume2&consumer_id=test-consumer",
             timeout=(5.0, 10.0),
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
         event_ids_second = set()
@@ -308,6 +327,7 @@ class TestReconnectResumeSemantics:
         resp = client.get(
             "/subscribe?since_seq=0&topic=precedence&consumer_id=test-precedence",
             timeout=(5.0, 10.0),
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
         event_ids_first = set()
@@ -326,7 +346,10 @@ class TestReconnectResumeSemantics:
         # (mirrors T-6's use of /replay above; the stored per-consumer offset
         # itself is not exposed via any endpoint, so it cannot be read back
         # directly here).
-        resp = client.get("/replay?since_seq=0&format=json")
+        resp = client.get(
+            "/replay?since_seq=0&format=json",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp.status_code == 200
         data = resp.json()
         total_events = data["total"]
@@ -346,6 +369,7 @@ class TestReconnectResumeSemantics:
         resp = client.get(
             "/subscribe?since_seq=1&topic=precedence&consumer_id=test-precedence",
             timeout=(5.0, 10.0),
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
         event_ids_override = set()
@@ -377,6 +401,6 @@ class TestStaleLastEventID:
         # Subscribe with Last-Event-ID above max seq should return 412
         resp = client.get(
             "/subscribe?since_seq=0&consumer_id=default-consumer",
-            headers={"Last-Event-ID": "999999"},
+            headers={**eventbus_auth_headers("consumer"), "Last-Event-ID": "999999"},
         )
         assert resp.status_code == 412

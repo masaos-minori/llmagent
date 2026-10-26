@@ -111,6 +111,29 @@ def _populate_token_maps(config: Any) -> None:
 
         return hashlib.sha256(token.encode()).hexdigest()[:16]
 
+    # Duplicate-non-empty-token guard (REQ-003): reject any two distinct token
+    # fields that share a non-empty value before the principal map is built. Name
+    # the colliding fields only; never interpolate or log the values.
+    seen: dict[str, list[str]] = {}
+    for field in (
+        "auth_token",
+        "publisher_token",
+        "consumer_token",
+        "operator_token",
+        "monitoring_token",
+        "admin_token",
+    ):
+        value = getattr(config, field, None)
+        if value:
+            seen.setdefault(value, []).append(field)
+    for fields in seen.values():
+        if len(fields) > 1:
+            raise ValueError(
+                "eventbus config duplicate token: "
+                f"{', '.join(sorted(fields))} share a non-empty value. "
+                "Each token field must hold a distinct value."
+            )
+
     # The shared auth_token and admin_token are control-plane credentials: they hold
     # only the Operator, Monitoring, and Admin roles. They never hold the Consumer
     # role (ADR-013 INV-02/INV-07), so no superuser bypasses consumer identity or
@@ -163,16 +186,12 @@ def _populate_token_maps(config: Any) -> None:
         token = getattr(config, field, None)
         if not token:
             continue
-        existing = _TOKEN_PRINCIPAL_MAP.get(token)
-        roles = frozenset({role}) if existing is None else existing.roles | {role}
-        has_consumer = Role.CONSUMER in roles
+        has_consumer = role == Role.CONSUMER
         _TOKEN_PRINCIPAL_MAP[token] = Principal(
-            roles=frozenset(roles),
+            roles=frozenset({role}),
             allowed_consumer_ids=consumer_allowed_ids if has_consumer else frozenset(),
             allowed_topics=consumer_allowed_topics if has_consumer else frozenset(),
-            token_fingerprint=(
-                _fingerprint(token) if existing is None else existing.token_fingerprint
-            ),
+            token_fingerprint=_fingerprint(token),
         )
 
     # admin_token holds the same control-plane roles as auth_token and no Consumer role.

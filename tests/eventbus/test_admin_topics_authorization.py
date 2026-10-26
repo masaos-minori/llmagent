@@ -184,3 +184,122 @@ class TestValidation:
         principal = _TOKEN_PRINCIPAL_MAP["consumer-tok"]
         assert principal.allowed_consumer_ids == frozenset({"c1"})
         assert principal.allowed_topics == frozenset({"topicA"})
+
+
+class TestOneRolePerTokenAdminRebuild:
+    """REQ-004: each configured token holds exactly its documented role when
+    _populate_token_maps() runs as admin_route.py rebuilds the maps."""
+
+    @staticmethod
+    def _snapshot():
+        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
+
+        return dict(_TOKEN_PRINCIPAL_MAP)
+
+    @staticmethod
+    def _restore(snapshot):
+        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
+
+        _TOKEN_PRINCIPAL_MAP.clear()
+        _TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+    def test_each_token_holds_exactly_its_documented_role(self) -> None:
+        """A distinct-token config gives every token exactly its documented role
+        set, with no control-plane-plus-CONSUMER collision."""
+        from eventbus.auth import _TOKEN_PRINCIPAL_MAP, _populate_token_maps
+        from eventbus.config import EventBusConfig
+
+        snapshot = self._snapshot()
+        try:
+            cfg = EventBusConfig(
+                port=8016,
+                db_path="/tmp/test-admin-distinct.sqlite",
+                storage_dir="/tmp/test-admin-distinct",
+                deadletter_dir="/tmp/test-admin-distinct",
+                max_retry=3,
+                auth_token="auth-token",
+                publisher_token="publisher-token",
+                consumer_token="consumer-token",
+                operator_token="operator-token",
+                monitoring_token="monitoring-token",
+                admin_token="admin-token",
+                consumer_authorization={"c1": ["topicA"]},
+                topic_authorization={"topicA": ["c1"]},
+            )
+            _populate_token_maps(cfg)
+            assert set(_TOKEN_PRINCIPAL_MAP["auth-token"].roles) == {
+                "operator",
+                "monitoring",
+                "admin",
+            }
+            assert set(_TOKEN_PRINCIPAL_MAP["publisher-token"].roles) == {"publisher"}
+            assert set(_TOKEN_PRINCIPAL_MAP["consumer-token"].roles) == {"consumer"}
+            assert set(_TOKEN_PRINCIPAL_MAP["operator-token"].roles) == {"operator"}
+            assert set(_TOKEN_PRINCIPAL_MAP["monitoring-token"].roles) == {"monitoring"}
+            assert set(_TOKEN_PRINCIPAL_MAP["admin-token"].roles) == {
+                "operator",
+                "monitoring",
+                "admin",
+            }
+        finally:
+            self._restore(snapshot)
+
+
+class TestDuplicateRejectionAdminRebuild:
+    """REQ-003: duplicate non-empty token values are rejected by
+    _populate_token_maps() as admin_route.py calls it, naming the fields."""
+
+    @staticmethod
+    def _snapshot():
+        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
+
+        return dict(_TOKEN_PRINCIPAL_MAP)
+
+    @staticmethod
+    def _restore(snapshot):
+        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
+
+        _TOKEN_PRINCIPAL_MAP.clear()
+        _TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+    @pytest.mark.parametrize(
+        "field_a,field_b",
+        [
+            ("auth_token", "consumer_token"),
+            ("auth_token", "admin_token"),
+            ("publisher_token", "consumer_token"),
+        ],
+    )
+    def test_two_equal_tokens_raise_naming_fields(
+        self, field_a: str, field_b: str
+    ) -> None:
+        """Every tested pair of distinct token fields sharing a non-empty value
+        raises, naming both fields and not the shared value."""
+        import dataclasses
+
+        from eventbus.auth import _populate_token_maps
+        from eventbus.config import EventBusConfig
+
+        base = EventBusConfig(
+            port=8016,
+            db_path="/tmp/test-admin-dup.sqlite",
+            storage_dir="/tmp/test-admin-dup",
+            deadletter_dir="/tmp/test-admin-dup",
+            max_retry=3,
+            auth_token="auth-token",
+            publisher_token="",
+            consumer_token="",
+            operator_token="",
+            monitoring_token="",
+            admin_token="",
+            consumer_authorization={},
+        )
+        cfg = dataclasses.replace(
+            base, **{field_a: "shared-value", field_b: "shared-value"}
+        )
+        with pytest.raises(ValueError, match="duplicate token") as exc_info:
+            _populate_token_maps(cfg)
+        message = str(exc_info.value)
+        assert "shared-value" not in message
+        assert field_a in message
+        assert field_b in message

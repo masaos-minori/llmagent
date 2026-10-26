@@ -293,16 +293,16 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: slow-consumer gauge in `broker.py` | Pending | — | — | Sign-off gate on UNK-03/UNK-05 |
-| 2 | Phase 2: timing split in `route_helpers.py` | Pending | — | — | |
-| 3 | Phase 3: health tiers in `health_route.py` | Pending | — | — | Sign-off gate on UNK-03 (shape) |
-| 4 | Phase 4: side-effect counters in `dlq.py`/`publish_route.py` | Pending | — | — | |
-| 5 | Phase 5: `/metrics` route in `app.py` (only if UNK-02 adopts endpoint) | Pending | — | — | Sign-off gate on UNK-02 |
-| 6 | Phase 6: requeue delivery semantics in `dlq_route.py` | Pending | — | — | Sign-off gate on UNK-01 |
-| 7 | Phase 7: DLQ reconciliation tool/procedure | Pending | — | — | UNK-04 |
-| 8 | Phase 8: tests | Pending | — | — | |
-| 9 | Phase 9: docs (`eventbus_09`/`10`/`03`) | Pending | — | — | |
-| 10 | Phase 10: ruff/mypy/bandit/vulture/lint-imports + affected test runs | Pending | — | — | |
+| 1 | Phase 1: slow-consumer gauge in `broker.py` | In Progress | — | — | Sign-off gate on UNK-03/UNK-05 |
+| 2 | Phase 2: timing split in `route_helpers.py` | In Progress | — | — |  |
+| 3 | Phase 3: health tiers in `health_route.py` | In Progress | — | — | Sign-off gate on UNK-03 (shape) |
+| 4 | Phase 4: side-effect counters in `dlq.py`/`publish_route.py` | In Progress | — | — |  |
+| 5 | Phase 5: `/metrics` route in `app.py` (only if UNK-02 adopts endpoint) | In Progress | — | — | Sign-off gate on UNK-02 |
+| 6 | Phase 6: requeue delivery semantics in `dlq_route.py` | In Progress | — | — | Sign-off gate on UNK-01 |
+| 7 | Phase 7: DLQ reconciliation tool/procedure | In Progress | — | — | UNK-04 |
+| 8 | Phase 8: tests | In Progress | — | — |  |
+| 9 | Phase 9: docs (`eventbus_09`/`10`/`03`) | In Progress | — | — |  |
+| 10 | Phase 10: ruff/mypy/bandit/vulture/lint-imports + affected test runs | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -314,7 +314,20 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261026-092908_01_scripts_eventbus_broker.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261026-092908_02_scripts_eventbus_route_helpers.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261026-092908_03_scripts_eventbus_health_route.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261026-092908_04_scripts_eventbus_publish_route.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261026-092908_05_scripts_eventbus_dlq.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261026-092908_06_scripts_eventbus_dlq_route.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261026-092908_07_scripts_eventbus_app.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261026-092908_08_tests_eventbus_test_eventbus_slow_consumer.py.md | 8 | Procedure | Pending | — | — |
+| implementations/20261026-092908_09_tests_eventbus_test_eventbus_route_helpers_metrics.py.md | 8 | Procedure | Pending | — | — |
+| implementations/20261026-092908_10_tests_eventbus_test_eventbus_health.py.md | 8 | Procedure | Pending | — | — |
+| implementations/20261026-092908_11_tests_eventbus_test_eventbus_dlq.py.md | 8 | Procedure | Pending | — | — |
+| implementations/20261026-092908_12_docs_24_eventbus_eventbus_09_publish_durability.md.md | 9 | Procedure | Pending | — | — |
+| implementations/20261026-092908_13_docs_24_eventbus_eventbus_10_health_endpoint.md.md | 9 | Procedure | Pending | — | — |
+| implementations/20261026-092908_14_docs_24_eventbus_eventbus_03_dlq_operations.md.md | 7 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -337,3 +350,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Required change 5; Acceptance 3; Constraint | `scripts/eventbus/health_route.py`, `tests/eventbus/test_eventbus_health.py` | 3 | Tiered health; backward-compatible fields | Tiered-health test | Draft |
 | REQ-006 | Required change 6; Acceptance 4 | `scripts/eventbus/dlq.py`, `tests/eventbus/test_eventbus_dlq.py`, `docs/24_eventbus/eventbus_03_dlq_operations.md` | 7 | Missing/orphan/corrupt files reconciled | Reconciliation test | Draft |
 | REQ-007 | Constraint; INV-05 | `scripts/eventbus/dlq.py`, `scripts/eventbus/dlq_route.py` | 4, 6 | Secrets out of metrics/audit | Audit/redaction review | Draft |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261026-092908 -->

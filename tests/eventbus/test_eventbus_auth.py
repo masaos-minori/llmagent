@@ -1471,3 +1471,139 @@ class TestProductionRouteWiring:
             self._call(prod_client, method, path, "test-token-control").status_code
             == control_status
         )
+
+
+class TestDuplicateTokenBinding:
+    """REQ-003, REQ-004: duplicate non-empty token values are rejected and each
+    token holds exactly its documented role."""
+
+    @staticmethod
+    def _snapshot():
+        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
+
+        return dict(_TOKEN_PRINCIPAL_MAP)
+
+    @staticmethod
+    def _restore(snapshot):
+        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
+
+        _TOKEN_PRINCIPAL_MAP.clear()
+        _TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+    def test_consumer_token_equal_to_auth_token_is_rejected(self) -> None:
+        """A per-role token equal to the shared auth_token is rejected, not
+        admitted with control-plane + CONSUMER roles."""
+        from eventbus.auth import _populate_token_maps
+        from eventbus.config import EventBusConfig
+
+        snapshot = self._snapshot()
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-dup1.sqlite",
+                storage_dir="/tmp/test-eventbus-dup1",
+                deadletter_dir="/tmp/test-eventbus-dup1",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="shared-dup",
+                consumer_token="shared-dup",
+                consumer_authorization={},
+            )
+            with pytest.raises(ValueError, match="duplicate token") as exc_info:
+                _populate_token_maps(cfg)
+            message = str(exc_info.value)
+            assert "shared-dup" not in message
+            for field in ("auth_token", "consumer_token"):
+                assert field in message
+        finally:
+            self._restore(snapshot)
+
+    def test_distinct_tokens_get_exactly_their_documented_role(self) -> None:
+        """A distinct-token config gives each token exactly its documented role."""
+        from eventbus.auth import (
+            _TOKEN_PRINCIPAL_MAP,
+            Role,
+            _populate_token_maps,
+        )
+        from eventbus.config import EventBusConfig
+
+        snapshot = self._snapshot()
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-distinct.sqlite",
+                storage_dir="/tmp/test-eventbus-distinct",
+                deadletter_dir="/tmp/test-eventbus-distinct",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="auth-token",
+                publisher_token="publisher-token",
+                consumer_token="consumer-token",
+                operator_token="operator-token",
+                monitoring_token="monitoring-token",
+                admin_token="admin-token",
+                consumer_authorization={"consumer_a": ["test"]},
+                topic_authorization={"test": ["consumer_a"]},
+            )
+            _populate_token_maps(cfg)
+            assert _TOKEN_PRINCIPAL_MAP["auth-token"].roles == frozenset(
+                {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+            )
+            assert _TOKEN_PRINCIPAL_MAP["publisher-token"].roles == frozenset(
+                {Role.PUBLISHER}
+            )
+            assert _TOKEN_PRINCIPAL_MAP["consumer-token"].roles == frozenset(
+                {Role.CONSUMER}
+            )
+            assert _TOKEN_PRINCIPAL_MAP["admin-token"].roles == frozenset(
+                {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+            )
+        finally:
+            self._restore(snapshot)
+
+    @pytest.mark.parametrize(
+        "field_a,field_b",
+        [
+            ("auth_token", "admin_token"),
+            ("publisher_token", "consumer_token"),
+            ("operator_token", "monitoring_token"),
+        ],
+    )
+    def test_any_two_equal_tokens_raise_naming_fields(
+        self, field_a: str, field_b: str
+    ) -> None:
+        """Every pair of distinct token fields sharing a non-empty value raises,
+        naming both fields and not the shared value."""
+        from eventbus.auth import _populate_token_maps
+        from eventbus.config import EventBusConfig
+
+        snapshot = self._snapshot()
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-dup2.sqlite",
+                storage_dir="/tmp/test-eventbus-dup2",
+                deadletter_dir="/tmp/test-eventbus-dup2",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="auth-token",
+                publisher_token="",
+                consumer_token="",
+                operator_token="",
+                monitoring_token="",
+                admin_token="",
+                consumer_authorization={},
+            )
+            import dataclasses
+
+            cfg = dataclasses.replace(
+                cfg, **{field_a: "shared-value", field_b: "shared-value"}
+            )
+            with pytest.raises(ValueError, match="duplicate token") as exc_info:
+                _populate_token_maps(cfg)
+            message = str(exc_info.value)
+            assert "shared-value" not in message
+            assert field_a in message
+            assert field_b in message
+        finally:
+            self._restore(snapshot)

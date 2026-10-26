@@ -13,7 +13,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("consumer")["Authorization"]
         yield c
 
 
@@ -133,7 +133,11 @@ class TestAckEndpoint:
     def test_ack_event_with_consumer_id(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack with consumer_id updates offset."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish",
+            json=body,
+            headers=eventbus_auth_headers("publisher"),
+        )
         assert resp.status_code == 200
 
         _simulate_delivery(client, body["event_id"], "consumer-A")
@@ -163,7 +167,11 @@ class TestAckEndpoint:
     def test_ack_event_without_consumer_id(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack without consumer_id returns 422."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish",
+            json=body,
+            headers=eventbus_auth_headers("publisher"),
+        )
         assert resp.status_code == 200
 
         resp = client.post(f"/events/{body['event_id']}/ack")
@@ -179,7 +187,11 @@ class TestAckEndpoint:
     def test_ack_event_already_acked(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack for already-acked event returns 200 with already_acked=True."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish",
+            json=body,
+            headers=eventbus_auth_headers("publisher"),
+        )
         assert resp.status_code == 200
 
         _simulate_delivery(client, body["event_id"], "consumer-A")
@@ -198,7 +210,11 @@ class TestAckEndpoint:
     def test_ack_event_with_empty_consumer_id(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack with empty consumer_id returns 400 (REQ-004)."""
         body = _event()
-        resp = client.post("/publish", json=body)
+        resp = client.post(
+            "/publish",
+            json=body,
+            headers=eventbus_auth_headers("publisher"),
+        )
         assert resp.status_code == 200
 
         resp = client.post(
@@ -279,9 +295,17 @@ class TestAckMonotonicOffset:
         event2 = _event()
         consumer_id = "consumer-mono"
 
-        resp = client.post("/publish", json=event1)
+        resp = client.post(
+            "/publish",
+            json=event1,
+            headers=eventbus_auth_headers("publisher"),
+        )
         assert resp.status_code == 200
-        resp = client.post("/publish", json=event2)
+        resp = client.post(
+            "/publish",
+            json=event2,
+            headers=eventbus_auth_headers("publisher"),
+        )
         assert resp.status_code == 200
 
         # Simulate delivery for both events

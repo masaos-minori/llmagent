@@ -15,7 +15,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 @pytest.fixture
@@ -38,7 +38,7 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer test-token"
+        c.headers["Authorization"] = eventbus_auth_headers("publisher")["Authorization"]
         yield c
 
 
@@ -83,6 +83,7 @@ class TestDLQPromotionSemantics:
         resp = client.post(
             "/nack",
             params={"event_id": body["event_id"], "consumer_id": "consumer-A"},
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200, f"NACK failed: {resp.json()}"
 
@@ -160,7 +161,10 @@ class TestDLQPromotionSemantics:
 
         # Requeue the event — succeeds (no dlq_imminent field: that field was
         # removed from the response)
-        resp = client.post(f"/dlq/{body['event_id']}/requeue")
+        resp = client.post(
+            f"/dlq/{body['event_id']}/requeue",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp.status_code == 200
 
     def test_dlq_requeue_increments_dlq_requeue_count_not_consumer_delivery_failure_count(
@@ -196,7 +200,10 @@ class TestDLQPromotionSemantics:
         ).fetchone()[0]
 
         # Requeue the event
-        resp = client.post(f"/dlq/{body['event_id']}/requeue")
+        resp = client.post(
+            f"/dlq/{body['event_id']}/requeue",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp.status_code == 200
 
         cdfc_after = db.execute(
@@ -237,7 +244,10 @@ class TestDLQPromotionSemantics:
         assert dlq_file_1.exists()
 
         # Requeue the event
-        resp = client.post(f"/dlq/{body['event_id']}/requeue")
+        resp = client.post(
+            f"/dlq/{body['event_id']}/requeue",
+            headers=eventbus_auth_headers("operator"),
+        )
         assert resp.status_code == 200
         data = resp.json()
         new_event_id = data["new_event_id"]
@@ -404,7 +414,9 @@ class TestMultiConsumerPromotion:
 
         # consumer-A reaches the limit, consumer-B is still below it.
         resp = client.post(
-            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+            "/nack",
+            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
         assert "dlq_promoted" not in resp.json()
@@ -421,7 +433,9 @@ class TestMultiConsumerPromotion:
         _seed_delivery(db, "consumer-B", event_id, 1, 0)
 
         resp = client.post(
-            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+            "/nack",
+            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
         assert "dlq_promoted" not in resp.json()
@@ -438,13 +452,17 @@ class TestMultiConsumerPromotion:
         _seed_delivery(db, "consumer-B", event_id, 0, 1)
 
         first = client.post(
-            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+            "/nack",
+            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            headers=eventbus_auth_headers("consumer"),
         )
         assert first.status_code == 200
         assert "dlq_promoted" not in first.json()
 
         last = client.post(
-            "/nack", params={"event_id": event_id, "consumer_id": "consumer-B"}
+            "/nack",
+            params={"event_id": event_id, "consumer_id": "consumer-B"},
+            headers=eventbus_auth_headers("consumer"),
         )
         assert last.status_code == 200
         assert last.json().get("dlq_promoted") is True

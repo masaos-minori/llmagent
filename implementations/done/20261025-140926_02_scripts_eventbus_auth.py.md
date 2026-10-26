@@ -4,7 +4,7 @@ Make `_populate_token_maps()` reject duplicate non-empty token values across eve
 
 ## Scope
 
-- Modify `scripts/eventbus/auth.py` only, inside `_populate_token_maps()` (lines 97-186): add the duplicate-token guard before the map is populated, and simplify the per-role assignment to a single documented role.
+- Modify `scripts/eventbus/auth.py` only, inside `_populate_token_maps()` (lines 97-205): add the duplicate-token guard before the map is populated, and simplify the per-role assignment to a single documented role.
 - Do not modify `scripts/eventbus/config.py` here — the mapping pass-through and type normalization are the sibling procedure for `config.py`. This file owns only the guard, the role binding, and preserving the missing-vs-empty distinction.
 
 ## Assumptions
@@ -14,7 +14,7 @@ Make `_populate_token_maps()` reject duplicate non-empty token values across eve
 
 ## Design decisions
 
-- **Guard placement.** Insert the duplicate check immediately after the `_fingerprint` helper definition (line 112) and before the `auth_token` control-plane block (line 118), i.e. before `_TOKEN_PRINCIPAL_MAP` is populated. This covers the `app.py` startup path, the `admin_route.py` runtime rebuild, and direct test callers uniformly.
+- **Guard placement.** Insert the duplicate check immediately after the `_fingerprint` helper definition (line 112) and before the `auth_token` control-plane block (line 141), i.e. before `_TOKEN_PRINCIPAL_MAP` is populated. This covers the `app.py` startup path, the `admin_route.py` runtime rebuild, and direct test callers uniformly.
 - **Field set and message.** Iterate all six token fields (`auth_token`, `publisher_token`, `consumer_token`, `operator_token`, `monitoring_token`, `admin_token`), group non-empty values by value, and raise `ValueError` naming the colliding field names only — never interpolate or log the values.
 
 ## Alternatives considered
@@ -30,9 +30,9 @@ Make `_populate_token_maps()` reject duplicate non-empty token values across eve
 
 ### Procedure
 
-1. Insert the duplicate-non-empty-token guard after the `_fingerprint` helper (ends line 112) and before the `auth_token` control-plane comment (line 114).
-2. Simplify the per-role assignment in the `_PER_ROLE_TOKEN_FIELDS` loop (lines 162-176) to assign exactly the single documented role, dropping the `existing.roles | {role}` union and the `existing` fallbacks.
-3. Leave the `admin_token` block (lines 178-186) unchanged — with duplicates rejected it can only add a fresh entry.
+1. Insert the duplicate-non-empty-token guard after the `_fingerprint` helper (ends line 112) and before the `auth_token` control-plane comment (line 137).
+2. Simplify the per-role assignment in the `_PER_ROLE_TOKEN_FIELDS` loop (lines 185-195) to assign exactly the single documented role, dropping the `existing.roles | {role}` union and the `existing` fallbacks.
+3. Leave the `admin_token` block (lines 197-205) unchanged — with duplicates rejected it can only add a fresh entry.
 
 ### Method
 
@@ -63,7 +63,7 @@ Insert this block right after line 112 (the closing of the `_fingerprint` helper
             )
 ```
 
-Replace the body of the per-role loop (lines 162-176) with:
+Replace the body of the per-role loop (lines 185-195) with:
 
 ```python
     for field, role in _PER_ROLE_TOKEN_FIELDS:
@@ -85,7 +85,7 @@ Replace the body of the per-role loop (lines 162-176) with:
 - `has_consumer = role == Role.CONSUMER` replaces the old `Role.CONSUMER in roles` check: since each token now holds exactly one role, membership reduces to an equality against the CONSUMER role. Only the consumer token therefore receives `consumer_allowed_ids`/`consumer_allowed_topics`; every other principal keeps deny-all.
 - The `existing` variable and both `existing.*` fallbacks are removed entirely — they can no longer apply because a colliding token is rejected upstream.
 - The `admin_token` block (lines 178-186) is left verbatim; with duplicates rejected it cannot overwrite another principal.
-- The missing-required-mapping raise (lines 137-141) and the empty-mapping deny-all (lines 153-157) are untouched (`REQ-005`).
+- The missing-required-mapping raise (lines 160-164) and the empty-mapping deny-all (lines 176-180) are untouched (`REQ-005`).
 
 ## Compatibility considerations
 
@@ -125,10 +125,10 @@ Replace the body of the per-role loop (lines 162-176) with:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement token-role binding and duplicate rejection in `scripts/eventbus/auth.py` | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement token-role binding and duplicate rejection in `scripts/eventbus/auth.py` | Completed | 20261025 | 20261025 | Matches current `_populate_token_maps()` (lines 114-205) |
+| 2 | Add or update tests per Validation plan | Completed | 20261025 | 20261025 | `test_eventbus_auth.py` + `test_admin_topics_authorization.py`: 46 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261025 | 20261025 | `tests/eventbus/`: 329 passed, 1 skipped, 0 failures; `rg` union check clean |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Skipped | — | — | N/A: documentation unchanged per Out of Scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.eventbus.eventbus_helpers import eventbus_test_tokens
+from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
 
 
 @pytest.fixture
@@ -31,7 +31,9 @@ def client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     client = TestClient(eb_app.app)
-    client.headers["Authorization"] = "Bearer test-token"
+    client.headers["Authorization"] = eventbus_auth_headers("publisher")[
+        "Authorization"
+    ]
     with client:
         yield client
 
@@ -50,7 +52,10 @@ def test_replay_json_returns_paginated_response(client: TestClient) -> None:
     for i in range(5):
         client.post("/publish", json=_event())
 
-    r = client.get("/replay?since_seq=0&format=json&limit=100&offset=0")
+    r = client.get(
+        "/replay?since_seq=0&format=json&limit=100&offset=0",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r.status_code == 200
     body = r.json()
     assert "total" in body
@@ -67,7 +72,10 @@ def test_replay_json_pagination(client: TestClient) -> None:
     for i in range(5):
         client.post("/publish", json=_event())
 
-    r1 = client.get("/replay?since_seq=0&format=json&limit=2&offset=0")
+    r1 = client.get(
+        "/replay?since_seq=0&format=json&limit=2&offset=0",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r1.status_code == 200
     body1 = r1.json()
     assert body1["total"] == 5
@@ -75,7 +83,10 @@ def test_replay_json_pagination(client: TestClient) -> None:
     assert body1["offset"] == 0
     assert len(body1["items"]) == 2
 
-    r2 = client.get("/replay?since_seq=0&format=json&limit=2&offset=2")
+    r2 = client.get(
+        "/replay?since_seq=0&format=json&limit=2&offset=2",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r2.status_code == 200
     body2 = r2.json()
     assert body2["total"] == 5
@@ -89,20 +100,32 @@ def test_replay_json_pagination(client: TestClient) -> None:
 
 
 def test_replay_json_limit_max(client: TestClient) -> None:
-    r = client.get("/replay?since_seq=0&format=json&limit=1001")
+    r = client.get(
+        "/replay?since_seq=0&format=json&limit=1001",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r.status_code == 422
 
 
 def test_replay_json_limit_min(client: TestClient) -> None:
-    r = client.get("/replay?since_seq=0&format=json&limit=0")
+    r = client.get(
+        "/replay?since_seq=0&format=json&limit=0",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r.status_code == 422
 
 
 def test_replay_json_offset_negative(client: TestClient) -> None:
-    r = client.get("/replay?since_seq=0&format=json&offset=-1")
+    r = client.get(
+        "/replay?since_seq=0&format=json&offset=-1",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r.status_code == 422
 
 
 def test_replay_invalid_format_returns_422(client: TestClient) -> None:
-    r = client.get("/replay?since_seq=0&format=xml")
+    r = client.get(
+        "/replay?since_seq=0&format=xml",
+        headers=eventbus_auth_headers("operator"),
+    )
     assert r.status_code == 422

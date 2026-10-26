@@ -93,8 +93,8 @@ The four edits above. Edit 1 appends `INV-08` after line 177; edit 4 rewrites li
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Apply the four ADR prose edits described in Implementation > Procedure/Method/Details | Pending | — | — | docs-only |
-| 2 | Run the documentation checkers (`rules/toolchain.md`) | Pending | — | — | stale_detector + check_workitem_structure |
+| 1 | Apply the four ADR prose edits described in Implementation > Procedure/Method/Details | Completed | 20261026 | 20261026 | INV-08 inserted; Decision Details #1/#3 appended; EVENTBUS-020 -> Resolved |
+| 2 | Run the documentation checkers (`rules/toolchain.md`) | Completed | 20261026 | 20261026 | stale_detector: not stale; check_workitem_structure: no findings |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

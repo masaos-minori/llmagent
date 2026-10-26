@@ -28,6 +28,14 @@ operator_token = ""
 monitoring_token = ""
 admin_token = ""
 
+# Authorization mappings (optional, documentation example only — not active keys).
+# consumer_token above requires consumer_authorization when set. Shape:
+#   consumer_authorization = { "<consumer_id>" = [ "<topic>", ... ] }
+#   topic_authorization      = { "<topic>" = [ "<consumer_id>", ... ] }
+# Example (replace placeholders; do not commit real values):
+# consumer_authorization = { "svc-checkout" = [ "orders/*", "inventory/*" ] }
+# topic_authorization      = { "orders/*"   = [ "svc-checkout", "svc-frontend" ] }
+
 # REQ-007: SSE lifecycle configuration
 # Heartbeat interval in seconds (default: 30.0)
 sse_heartbeat_interval = 30.0
