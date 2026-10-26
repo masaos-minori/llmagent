@@ -285,7 +285,9 @@ def _promote_to_dlq(client: TestClient) -> str:
     """Publish an event, seed consumer_delivery at max_retry - 1, and nack once
     so the inline promotion moves it to the DLQ. Returns the event_id."""
     body = _event("dlq_edge")
-    assert client.post("/publish", json=body).status_code == 200
+    assert (
+        client.post("/publish", json=body, headers=eventbus_auth_headers("publisher"))
+    ).status_code == 200
     event_id: str = body["event_id"]
 
     import eventbus.app as eb_app
@@ -306,6 +308,7 @@ def _promote_to_dlq(client: TestClient) -> str:
             "consumer_id": "consumer-A",
             "idempotency_key": "requeue-edge-nack-key",
         },
+        headers=eventbus_auth_headers("consumer"),
     )
     assert resp.status_code == 200
     assert resp.json().get("dlq_promoted") is True

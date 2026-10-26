@@ -307,7 +307,9 @@ class TestDLQPromotionSemantics:
         # always terminates). Each response must be internally consistent.
         polls = 0
         while polls < 50:
-            r = client.get("/dlq?limit=100&offset=0")
+            r = client.get(
+                "/dlq?limit=100&offset=0", headers=eventbus_auth_headers("operator")
+            )
             assert r.status_code == 200
             snap = r.json()
             # One snapshot: items never exceed the reported total.
@@ -321,7 +323,9 @@ class TestDLQPromotionSemantics:
         worker.join()
 
         # Convergence: the promoted event is visible exactly once.
-        r = client.get("/dlq?limit=100&offset=0")
+        r = client.get(
+            "/dlq?limit=100&offset=0", headers=eventbus_auth_headers("operator")
+        )
         assert r.status_code == 200
         snap = r.json()
         assert snap["total"] >= 1

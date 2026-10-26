@@ -210,7 +210,8 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
 
     # First nack — consumer_delivery_failure_count becomes 1, below threshold of 2
     r = client.post(
-        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer",
+        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer"
+        "&idempotency_key=inline-nack-key-1",
         headers=eventbus_auth_headers("consumer"),
     )
     assert r.status_code == 200
@@ -218,8 +219,11 @@ def test_inline_dlq_promotion_on_nack(client: TestClient, tmp_path: Path) -> Non
     assert "dlq_promoted" not in r.json()
 
     # Second nack — consumer_delivery_failure_count becomes 2, hits threshold, inline promote
+    # A distinct idempotency key is required: the same key would be skipped
+    # as a duplicate NACK attempt (REQ-002 idempotency guard).
     r = client.post(
-        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer",
+        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer"
+        "&idempotency_key=inline-nack-key-2",
         headers=eventbus_auth_headers("consumer"),
     )
     assert r.status_code == 200
@@ -250,7 +254,8 @@ def test_inline_dlq_promotion_skipped_below_threshold(
 
     # Nack once — below threshold of 2, no DLQ promotion
     r = client.post(
-        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer",
+        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer"
+        "&idempotency_key=below-threshold-nack-key",
         headers=eventbus_auth_headers("consumer"),
     )
     assert r.status_code == 200
@@ -269,7 +274,8 @@ def test_inline_dlq_promotion_skipped_below_threshold(
 
 def test_inline_dlq_promotion_not_found(client: TestClient) -> None:
     r = client.post(
-        "/nack?event_id=nonexistent&consumer_id=test-consumer",
+        "/nack?event_id=nonexistent&consumer_id=test-consumer"
+        "&idempotency_key=not-found-nack-key",
         headers=eventbus_auth_headers("consumer"),
     )
     assert r.status_code == 404
@@ -296,7 +302,8 @@ def test_nack_on_already_dlq_event_does_not_repromote(
 
     # Nack an already-DLQ'd event — should return 409 Conflict, not increment count
     r = client.post(
-        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer",
+        f"/nack?event_id={ev['event_id']}&consumer_id=test-consumer"
+        "&idempotency_key=already-dlq-nack-key",
         headers=eventbus_auth_headers("consumer"),
     )
     assert r.status_code == 409
@@ -339,7 +346,9 @@ def test_requeue_unknown_event_returns_404(client: TestClient) -> None:
 def test_dlq_requeue_not_found_returns_404(client: TestClient) -> None:
     """Never published, so no events row exists -> repository status not_found -> 404."""
     missing_id = str(uuid.uuid4())
-    resp = client.post(f"/dlq/{missing_id}/requeue")
+    resp = client.post(
+        f"/dlq/{missing_id}/requeue", headers=eventbus_auth_headers("operator")
+    )
     assert resp.status_code == 404
     assert resp.json()["detail"] == "event not found"
 
@@ -353,7 +362,9 @@ def test_dlq_requeue_existing_not_in_dlq_returns_409(
     resp = client.post("/publish", json=body)
     assert resp.status_code == 200
 
-    resp = client.post(f"/dlq/{body['event_id']}/requeue")
+    resp = client.post(
+        f"/dlq/{body['event_id']}/requeue", headers=eventbus_auth_headers("operator")
+    )
     assert resp.status_code == 409
     assert resp.json()["detail"] == "event is not in DLQ"
 

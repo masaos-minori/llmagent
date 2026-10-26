@@ -281,6 +281,7 @@ class TestConcurrentDlqRequeue:
                 "consumer_id": "consumer-A",
                 "idempotency_key": "concurrent-nack-key-2",
             },
+            headers=eventbus_auth_headers("consumer"),
         )
         assert nresp.status_code == 200
 
@@ -324,7 +325,10 @@ class TestConcurrentDlqRequeue:
         async def _requeue() -> None:
             nonlocal raised
             try:
-                r = client.post(f"/dlq/{event_id}/requeue")
+                r = client.post(
+                    f"/dlq/{event_id}/requeue",
+                    headers=eventbus_auth_headers("operator"),
+                )
                 results.append(r.json())
             except sqlite3.IntegrityError:
                 raised += 1
@@ -353,5 +357,5 @@ class TestConcurrentDlqRequeue:
         assert db.in_transaction is False
 
         # The shared connection stays usable for follow-up requests.
-        follow = client.get("/dlq")
+        follow = client.get("/dlq", headers=eventbus_auth_headers("operator"))
         assert follow.status_code == 200
