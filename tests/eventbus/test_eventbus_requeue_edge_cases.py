@@ -300,7 +300,12 @@ def _promote_to_dlq(client: TestClient) -> str:
     )
     db.commit()
     resp = client.post(
-        "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+        "/nack",
+        params={
+            "event_id": event_id,
+            "consumer_id": "consumer-A",
+            "idempotency_key": "requeue-edge-nack-key",
+        },
     )
     assert resp.status_code == 200
     assert resp.json().get("dlq_promoted") is True

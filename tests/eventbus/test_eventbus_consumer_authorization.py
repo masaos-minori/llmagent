@@ -129,7 +129,11 @@ class TestSharedAndAdminTokensHaveNoConsumerBypass:
         assert (
             client.post(
                 "/nack",
-                params={"event_id": event_id, "consumer_id": "consumer-A"},
+                params={
+                    "event_id": event_id,
+                    "consumer_id": "consumer-A",
+                    "idempotency_key": "test-key-auth-1",
+                },
                 headers=headers,
             ).status_code
             == 403
@@ -149,7 +153,11 @@ class TestSharedAndAdminTokensHaveNoConsumerBypass:
         )
         client.post(
             "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "test-key-auth-2",
+            },
             headers=headers,
         )
         assert _delivery_state(event_id, "consumer-A") == before == (None, None, None)
@@ -187,7 +195,11 @@ class TestConsumerPrincipalBinding:
         assert (
             client.post(
                 "/nack",
-                params={"event_id": event_id, "consumer_id": "consumer-B"},
+                params={
+                    "event_id": event_id,
+                    "consumer_id": "consumer-B",
+                    "idempotency_key": "test-key-auth-3",
+                },
                 headers=headers,
             ).status_code
             == 403

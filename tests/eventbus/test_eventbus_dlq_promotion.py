@@ -82,7 +82,11 @@ class TestDLQPromotionSemantics:
         # Nack the event to increment consumer_delivery_failure_count
         resp = client.post(
             "/nack",
-            params={"event_id": body["event_id"], "consumer_id": "consumer-A"},
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-A",
+                "idempotency_key": "dlq-promo-nack-key",
+            },
             headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200, f"NACK failed: {resp.json()}"
@@ -415,7 +419,11 @@ class TestMultiConsumerPromotion:
         # consumer-A reaches the limit, consumer-B is still below it.
         resp = client.post(
             "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "dlq-inline-nack-key-1",
+            },
             headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
@@ -434,7 +442,11 @@ class TestMultiConsumerPromotion:
 
         resp = client.post(
             "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "dlq-inline-nack-key-2",
+            },
             headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
@@ -453,7 +465,11 @@ class TestMultiConsumerPromotion:
 
         first = client.post(
             "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "dlq-last-consumer-nack-key-1",
+            },
             headers=eventbus_auth_headers("consumer"),
         )
         assert first.status_code == 200
@@ -461,7 +477,11 @@ class TestMultiConsumerPromotion:
 
         last = client.post(
             "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-B"},
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-B",
+                "idempotency_key": "dlq-last-consumer-nack-key-2",
+            },
             headers=eventbus_auth_headers("consumer"),
         )
         assert last.status_code == 200

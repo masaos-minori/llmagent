@@ -193,7 +193,11 @@ class TestConcurrentDlqRequeue:
         # Nack consumer-A once to reach max_retry and promote to DLQ.
         resp = client.post(
             "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "concurrent-nack-key",
+            },
             headers=eventbus_auth_headers("consumer"),
         )
         assert resp.status_code == 200
@@ -271,7 +275,12 @@ class TestConcurrentDlqRequeue:
         )
         db.commit()
         nresp = client.post(
-            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+            "/nack",
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": "concurrent-nack-key-2",
+            },
         )
         assert nresp.status_code == 200
 

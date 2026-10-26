@@ -117,7 +117,11 @@ def test_dlq_pagination(client: TestClient) -> None:
     for event_id in events:
         r = client.post(
             "/nack",
-            params={"event_id": event_id, "consumer_id": "consumer-A"},
+            params={
+                "event_id": event_id,
+                "consumer_id": "consumer-A",
+                "idempotency_key": f"nack-key-{event_id}",
+            },
             headers=nack_headers,
         )
         assert r.status_code == 200

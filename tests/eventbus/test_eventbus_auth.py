@@ -214,11 +214,18 @@ def _make_test_app(
     async def nack(
         request: Request,
         event_id: str = Query(default=""),
+        idempotency_key: str = Query(
+            default=""
+        ),  # (new) caller-supplied NACK idempotency key
         _principal: Principal = Depends(require_role(Role.CONSUMER)),
         _identity: Principal = Depends(require_consumer_identity),
     ) -> dict[str, Any]:
         result: dict[str, Any] = await eb_app.nack_route(
-            request, event_id=event_id, _principal=_principal, _identity=_identity
+            request,
+            event_id=event_id,
+            idempotency_key=idempotency_key,
+            _principal=_principal,
+            _identity=_identity,
         )
         return result
 
