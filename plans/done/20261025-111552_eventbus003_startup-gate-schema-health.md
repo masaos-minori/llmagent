@@ -216,7 +216,7 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 | 5 | Readiness gate (`deploy/setup_services.sh`) | Completed | — | 20261026-145000 | Path B; procedures 20261025-155039_05/_10 done: bounded readiness gate + EVENTBUS_CONFIG_PATH export, 4 subprocess gate tests; full suite 10135 passed |
 | 6 | Config/token preflight (`deploy/load_env.sh`) | Completed | — | 20261026-152000 | Path B; procedure 20261025-155039_06 done: preflight_eventbus_tokens in load_env.sh wired into setup_services.sh, 4 preflight tests; full suite 10139 passed |
 | 7 | Startup/readiness integration tests (`tests/eventbus/test_eventbus_startup.py`) | Completed | — | 20261026-161000 | Path B; procedure 20261025-155039_08 done: 2 real-subprocess tests (malformed stamped DB rejected; canonical DB reaches db==ok AND dlq_task==running); 22 tests passed |
-| 8 | Documentation (`docs/90_deployment/deployment_01_deployment.md`) | In Progress | — | — | Path B |
+| 8 | Documentation (`docs/90_deployment/deployment_01_deployment.md`) | Completed | — | 20261026-162500 | Path B Path B; procedure 20261025-155039_11 done: §3.1 corrected (shared-validator shape policy, fail-closed equivalence, bounded readiness gate db==ok AND dlq_task==running); docs quality/structure/content-policy/consistency + stale_detector clean; docs size ceiling recorded 25861; full suite 10141 passed |
 | 9 | Deployment & verification (ruff/mypy/bandit/lint-imports/pytest/diff-cover) | Pending | — | — | Path B |
 
 ### Blocker Log
@@ -237,7 +237,7 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 | `implementations/20261025-155039_08_tests_eventbus_test_eventbus_startup.py.md` | 7 | Procedure | Completed | — | 20261026-161000 |
 | `implementations/20261025-155039_09_tests_deploy_test_init_db_eventbus_schema.py.md` | 3 | Procedure | Completed | — | — |
 | `implementations/20261025-155039_10_tests_deploy_test_setup_services_eventbus.py.md` | 5 | Procedure | Completed | — | 20261026-145000 |
-| `implementations/20261025-155039_11_docs_90_deployment_deployment_01_deployment.md` | 8 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_11_docs_90_deployment_deployment_01_deployment.md` | 8 | Procedure | Completed | — | 20261026-162500 |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
