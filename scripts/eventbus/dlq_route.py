@@ -80,6 +80,7 @@ async def dlq_requeue(
             "requeued": True,
             "new_event_id": result.new_event_id,
             "new_seq": result.new_seq,
+            "delivery": "replay",
         }
     if result.status == "not_found":
         raise HTTPException(status_code=404, detail=ERR_EVENT_NOT_FOUND)

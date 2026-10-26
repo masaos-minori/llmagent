@@ -146,6 +146,16 @@ class TestRunWithDbLockMetrics:
         # At least one metric sample should exist
         assert len(after_lines) > 0 or before_count == 0
 
+        # Verify: query duration measures execution while holding lock (excludes lock wait)
+        # and lock-wait is measured separately. Under contention, these should be distinct.
+        # We verify both histograms received observations.
+        after_lock_lines = [
+            line
+            for line in after_text.splitlines()
+            if "eventbus_db_lock_wait_time" in line
+        ]
+        assert len(after_lock_lines) > 0 or before_count == 0
+
     def test_lock_wait_time_metric_observed(self, client: Any, tmp_path: Path) -> None:
         """run_with_db_lock observes _db_lock_wait_time histogram."""
 

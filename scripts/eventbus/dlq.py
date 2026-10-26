@@ -10,11 +10,19 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import orjson
+from prometheus_client import Counter
 
 from eventbus._constants import _COL_CONSUMER_DELIVERY_FAILURE_COUNT
 from eventbus.json_utils import now_iso
 
 logger = logging.getLogger(__name__)
+
+# -- Metrics ------------------------------------------------------------------
+
+_dlq_file_write_failure_counter = Counter(
+    "eventbus_dlq_file_write_failure_total",
+    "Number of DLQ file write failures",
+)
 
 
 @dataclass(frozen=True)
@@ -105,7 +113,11 @@ def _shared_promote(db: sqlite3.Connection, deadletter_dir: str, max_retry: int)
             int(consumer_row[0]) if consumer_row and consumer_row[0] else None
         )
         record = _build_dlq_record(row, now, consumer_failure_count)
-        _atomic_write(deadletter_dir, event_id, record)
+        try:
+            _atomic_write(deadletter_dir, event_id, record)
+        except OSError:
+            _dlq_file_write_failure_counter.inc()
+            raise
         cur = db.execute(
             "UPDATE events SET dlq_at = ? WHERE event_id = ? AND dlq_at IS NULL",
             (now, event_id),

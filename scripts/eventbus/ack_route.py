@@ -12,8 +12,6 @@ from eventbus.auth import (
 )
 from eventbus.db import nack_event as _nack_event
 from eventbus.json_utils import now_iso
-
-# write_offset removed — replaced by ack_event_for_consumer() transactional path
 from eventbus.route_helpers import (
     ERR_EVENT_ALREADY_ACKED,
     ERR_EVENT_ID_REQUIRED,
@@ -36,7 +34,6 @@ async def _do_ack(
     _identity: Principal | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
     """Common ack logic shared by /ack and /events/{event_id}/ack."""
-    logger.debug("DEBUG _do_ack: _principal=%r, _identity=%r", _principal, _identity)
     if not event_id:
         raise HTTPException(status_code=400, detail=ERR_EVENT_ID_REQUIRED)
 
@@ -44,21 +41,6 @@ async def _do_ack(
     if not consumer_id:
         raise HTTPException(
             status_code=400, detail="consumer_id is required for consumer ACK"
-        )
-
-    # REQ-002: Validate principal owns the consumer_id
-    if (
-        _principal
-        and _principal.allowed_consumer_ids is not None
-        and consumer_id not in _principal.allowed_consumer_ids
-    ):
-        logger.warning(
-            "Authorization failed: consumer_id=%s not allowed for this caller",
-            consumer_id,
-        )
-        raise HTTPException(
-            status_code=403,
-            detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
         )
 
     def _ack_and_offset() -> tuple[bool, bool, int | None]:
@@ -145,21 +127,6 @@ async def nack(
             status_code=400, detail="idempotency_key is required for NACK"
         )
 
-    # REQ-008: Validate principal owns the consumer_id
-    if (
-        _principal
-        and _principal.allowed_consumer_ids is not None
-        and consumer_id not in _principal.allowed_consumer_ids
-    ):
-        logger.warning(
-            "Authorization failed: consumer_id=%s not allowed for this caller",
-            consumer_id,
-        )
-        raise HTTPException(
-            status_code=403,
-            detail=f"Forbidden: consumer_id '{consumer_id}' not allowed",
-        )
-
     db = get_db(request)
     cfg = get_config(request)
 
@@ -189,7 +156,7 @@ async def nack(
             ).fetchone()
             if consumer_row and consumer_row["acked"] == 1:
                 raise HTTPException(status_code=409, detail=ERR_EVENT_ALREADY_ACKED)
-            # Then check events-level DLQ state only (REQ-004: events.acked_at removed; dlq_at is the authoritative DLQ indicator)
+            # Then check events-level DLQ state only (REQ-004: dlq_at is the authoritative DLQ indicator)
             row = db.execute(
                 "SELECT dlq_at FROM events WHERE event_id = ?", (event_id,)
             ).fetchone()

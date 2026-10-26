@@ -97,13 +97,15 @@ def _derive_token_fingerprint(token: str) -> str:
 def _populate_token_maps(config: Any) -> None:
     """Populate _TOKEN_PRINCIPAL_MAP from config at startup.
 
+    Uses build-new-then-swap: builds the entire new map into a fresh local dict
+    before publishing, so concurrent readers never observe an empty map window.
+    If building raises (e.g. consumer_token without consumer_authorization), the
+    previous generation remains in force.
+
     Replaces the old _TOKEN_CONSUMER_MAP / _TOKEN_TOPIC_MAP / _TOKEN_ROLE_MAP
     design with a single Principal-based lookup table.
     """
     global _TOKEN_PRINCIPAL_MAP
-
-    # Clear existing mapping
-    _TOKEN_PRINCIPAL_MAP.clear()
 
     # Helper to compute token fingerprint for logging
     def _fingerprint(token: str) -> str:
@@ -134,12 +136,15 @@ def _populate_token_maps(config: Any) -> None:
                 "Each token field must hold a distinct value."
             )
 
+    # Build the new map into a fresh local dict — do NOT touch _TOKEN_PRINCIPAL_MAP yet.
+    new_map: dict[str, Principal] = {}
+
     # The shared auth_token and admin_token are control-plane credentials: they hold
     # only the Operator, Monitoring, and Admin roles. They never hold the Consumer
     # role (ADR-013 INV-02/INV-07), so no superuser bypasses consumer identity or
     # topic authorization, and they carry no Publisher role either.
     if hasattr(config, "auth_token") and config.auth_token:
-        _TOKEN_PRINCIPAL_MAP[config.auth_token] = Principal(
+        new_map[config.auth_token] = Principal(
             roles=_CONTROL_PLANE_ROLES,
             allowed_consumer_ids=frozenset(),
             allowed_topics=frozenset(),
@@ -187,7 +192,7 @@ def _populate_token_maps(config: Any) -> None:
         if not token:
             continue
         has_consumer = role == Role.CONSUMER
-        _TOKEN_PRINCIPAL_MAP[token] = Principal(
+        new_map[token] = Principal(
             roles=frozenset({role}),
             allowed_consumer_ids=consumer_allowed_ids if has_consumer else frozenset(),
             allowed_topics=consumer_allowed_topics if has_consumer else frozenset(),
@@ -197,12 +202,26 @@ def _populate_token_maps(config: Any) -> None:
     # admin_token holds the same control-plane roles as auth_token and no Consumer role.
     admin_token = getattr(config, "admin_token", None)
     if admin_token:
-        _TOKEN_PRINCIPAL_MAP[admin_token] = Principal(
+        new_map[admin_token] = Principal(
             roles=_CONTROL_PLANE_ROLES,
             allowed_consumer_ids=frozenset(),
             allowed_topics=frozenset(),
             token_fingerprint=_fingerprint(admin_token),
         )
+
+    # Publish the fully built map via one atomic assignment — no empty-map window.
+    publish_principals(new_map)
+
+
+def publish_principals(new_map: dict[str, Principal]) -> None:
+    """Atomically publish a fully built principal map.
+
+    Called by ``_populate_token_maps`` after the new map is completely built.
+    A single module-level assignment under the GIL ensures concurrent readers
+    never observe an empty map window.
+    """
+    global _TOKEN_PRINCIPAL_MAP
+    _TOKEN_PRINCIPAL_MAP = new_map
 
 
 def get_auth_token(config: Any) -> str:

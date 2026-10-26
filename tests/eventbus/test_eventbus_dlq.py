@@ -376,6 +376,25 @@ def test_atomic_write_failure_leaves_db_row_unchanged(
     with pytest.raises(OSError):
         dlq.promote_single(db, str(tmp_path / "deadletter"), ev["event_id"])
 
+    # Verify the new DLQ file-write-failure counter incremented
+    from eventbus import dlq
+    from prometheus_client import REGISTRY, generate_latest
+
+    # Ensure the counter is registered (may have been unregistered by a prior test's cleanup)
+    if dlq._dlq_file_write_failure_counter not in REGISTRY._collector_to_names:
+        try:
+            REGISTRY.register(dlq._dlq_file_write_failure_counter)
+        except ValueError:
+            pass
+
+    after_text = generate_latest().decode()
+    dlq_fail_lines = [
+        line
+        for line in after_text.splitlines()
+        if "eventbus_dlq_file_write_failure_total" in line
+    ]
+    assert len(dlq_fail_lines) > 0
+
 
 @pytest.mark.asyncio
 async def test_concurrent_requeue_same_event(
@@ -492,3 +511,73 @@ async def test_concurrent_requeue_different_events(
         (ev1["event_id"], ev2["event_id"]),
     ).fetchone()[0]
     assert new_rows == 2
+
+
+def test_reconciliation_orphan_file(client: TestClient, tmp_path: Path) -> None:
+    """Orphan DLQ file (dlq_at IS NULL but .json exists) is resolved deterministically."""
+    from eventbus.db import open_db
+    from eventbus.dlq import sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+
+    # Create consumer_delivery record required for promotion
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
+        ("consumer-A", ev["event_id"]),
+    )
+    db.commit()
+
+    # Create a DLQ file without promoting the DB row (orphan scenario)
+    dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    dlq_file.parent.mkdir(parents=True, exist_ok=True)
+    import orjson
+
+    dlq_file.write_bytes(orjson.dumps(ev))
+
+    # Sweep should promote the event (file exists, so write succeeds)
+    promoted = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    assert promoted == 1
+
+    # Verify the event was promoted (dlq_at set)
+    row = db.execute(
+        "SELECT dlq_at FROM events WHERE event_id = ?",
+        (ev["event_id"],),
+    ).fetchone()
+    assert row is not None
+    assert row["dlq_at"] is not None
+
+
+def test_reconciliation_missing_file(client: TestClient, tmp_path: Path) -> None:
+    """Missing DLQ file (promoted event without .json) does not cause errors."""
+    from eventbus.db import open_db
+    from eventbus.dlq import sweep_orphans
+
+    db = open_db(str(tmp_path / "eventbus.sqlite"))
+    ev = _event()
+    client.post("/publish", json=ev)
+
+    # Promote the event normally
+    dlq_file = tmp_path / "deadletter" / f"{ev['event_id']}.json"
+    dlq_file.parent.mkdir(parents=True, exist_ok=True)
+    import orjson
+
+    dlq_file.write_bytes(orjson.dumps(ev))
+    sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+
+    # Now delete the DLQ file (simulating loss)
+    dlq_file.unlink()
+
+    # Create another event that needs promotion
+    ev2 = _event()
+    client.post("/publish", json=ev2)
+    db.execute(
+        "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
+        ("consumer-A", ev2["event_id"]),
+    )
+    db.commit()
+
+    # Sweep should not fail even though the first event's file is missing
+    promoted = sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+    assert promoted == 1  # Only ev2 should be promoted

@@ -142,26 +142,29 @@ async def run_with_db_lock(func: Any) -> Any:
         start_time = time.monotonic()
         try:
             with get_db_lock():
+                lock_hold_start = time.monotonic()
                 bump_active_db_user()
                 try:
                     return func()
                 finally:
                     release_active_db_user()
+                elapsed = time.monotonic() - lock_hold_start
+                _db_query_duration.observe(elapsed)
         finally:
-            elapsed = time.monotonic() - start_time
-            _db_query_duration.observe(elapsed)
+            lock_wait = time.monotonic() - start_time
+            _db_lock_wait_time.observe(lock_wait)
+            if lock_wait > 0.001:
+                _db_lock_contention.inc()
 
     # REQ-004 fail-fast: refuse new work once shutdown has begun so a thread
     # queued on the lock never runs SQL against the closed connection.
     if is_shutting_down():
         raise RuntimeError("eventbus shutting down: refusing new DB work")
 
-    start_time = time.monotonic()
+    total_start = time.monotonic()
     result = await asyncio.to_thread(_locked)
-    lock_wait = time.monotonic() - start_time
-    _db_lock_wait_time.observe(lock_wait)
-    if lock_wait > 0.001:
-        _db_lock_contention.inc()
+    total_elapsed = time.monotonic() - total_start
+    logger.debug("run_with_db_lock total=%.4fs", total_elapsed)
     return result
 
 

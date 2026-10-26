@@ -139,6 +139,83 @@ class TestAdminGating:
         )
         assert resp.status_code == 401
 
+    def test_empty_body_rejected(self, admin_client: TestClient) -> None:
+        """UNK-02: empty/no-op bodies are rejected with 422."""
+        resp = admin_client.post(
+            "/admin/topics/authorization",
+            headers={"Authorization": "Bearer admin-tok"},
+            json={},
+        )
+        assert resp.status_code == 422
+
+    def test_response_includes_persistent_and_changed(
+        self, admin_client: TestClient
+    ) -> None:
+        """Runtime-only default: persistent is always false; changed reflects whether config changed."""
+        resp = admin_client.post(
+            "/admin/topics/authorization",
+            headers={"Authorization": "Bearer admin-tok"},
+            json={"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["persistent"] is False
+        assert data["changed"] is True
+
+    def test_response_changed_false_when_noop(self, admin_client: TestClient) -> None:
+        """When body has keys but no actual change, changed=false."""
+        # First update to establish state
+        admin_client.post(
+            "/admin/topics/authorization",
+            headers={"Authorization": "Bearer admin-tok"},
+            json={"consumer_authorization": {"c1": ["topicA"]}},
+        )
+        # Same body again — no-op
+        resp = admin_client.post(
+            "/admin/topics/authorization",
+            headers={"Authorization": "Bearer admin-tok"},
+            json={"consumer_authorization": {"c1": ["topicA"]}},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["changed"] is False
+
+    def test_audit_emitted_on_effective_change(self, admin_client: TestClient) -> None:
+        """Effective change emits one redacted log_privileged_action; no-op emits none."""
+        from unittest.mock import patch
+
+        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+            resp = admin_client.post(
+                "/admin/topics/authorization",
+                headers={"Authorization": "Bearer admin-tok"},
+                json={"consumer_authorization": {"c1": ["topicA", "topicB"]}},
+            )
+            assert resp.status_code == 200
+            assert mock_log.call_count == 1
+            call_args = mock_log.call_args
+            assert call_args.kwargs["target"] == "topics_authorization"
+            assert call_args.kwargs["detail"] == "updated"
+
+    def test_audit_not_emitted_on_noop(self, admin_client: TestClient) -> None:
+        """No-op does not emit audit record."""
+        from unittest.mock import patch
+
+        # Establish state first
+        admin_client.post(
+            "/admin/topics/authorization",
+            headers={"Authorization": "Bearer admin-tok"},
+            json={"consumer_authorization": {"c1": ["topicA"]}},
+        )
+        with patch("eventbus.admin_route.log_privileged_action") as mock_log:
+            resp = admin_client.post(
+                "/admin/topics/authorization",
+                headers={"Authorization": "Bearer admin-tok"},
+                json={"consumer_authorization": {"c1": ["topicA"]}},
+            )
+            assert resp.status_code == 200
+            assert mock_log.call_count == 0
+
 
 class TestUpdateTakesEffect:
     def test_update_reflected_in_subsequent_subscribe_authorization(

@@ -7,7 +7,7 @@ import logging
 from dataclasses import dataclass, field
 from typing import Any
 
-from prometheus_client import Counter
+from prometheus_client import Counter, Gauge
 
 from eventbus.config import EventBusConfig
 
@@ -15,9 +15,9 @@ logger = logging.getLogger(__name__)
 
 # -- Metrics ------------------------------------------------------------------
 
-_slow_consumer_total = Counter(
-    "eventbus_slow_consumer_total",
-    "Number of slow consumer events detected",
+_slow_consumer_current = Gauge(
+    "eventbus_slow_consumer_current",
+    "Current number of slow consumers",
 )
 
 _broker_publish_failure_counter = Counter(
@@ -132,7 +132,7 @@ class EventBroker:
             if sub.queue.qsize() >= self._slow_consumer_threshold
         )
         if count > 0:
-            _slow_consumer_total.inc(count)
+            _slow_consumer_current.set(count)
         return count
 
     def overflow_disconnect_count(self) -> int:

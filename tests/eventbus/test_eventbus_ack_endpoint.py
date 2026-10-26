@@ -239,9 +239,9 @@ class TestAckEndpoint:
             f"/events/{body['event_id']}/ack",
             params={"consumer_id": "unauthorized-consumer"},
         )
-        # Authorization check (403) should come before delivery check (409)
-        # because _principal.allowed_consumer_ids is populated from _TOKEN_CONSUMER_MAP
-        assert resp.status_code in (403, 409)
+        # Authorization check (403) comes before delivery check (409)
+        # because _principal.allowed_consumer_ids is populated from _TOKEN_PRINCIPAL_MAP
+        assert resp.status_code == 403
 
     def test_ack_event_delivery_verification(
         self, principal_client: TestClient

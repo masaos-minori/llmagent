@@ -123,6 +123,24 @@ The background sweep selects events by the per-consumer failure count reaching t
 
 Optimistic locking on `dlq_at IS NULL` prevents duplicate promotion. If orphaned events are found, they are recorded in the logs. Any non-zero count may indicate an issue with the inline promotion process (e.g. a crash before its promotion write completed) rather than a normal condition.
 
+## DLQ Reconciliation
+
+The background sweep self-heals orphan files (`dlq_at IS NULL` with an existing `{event_id}.json`) by re-writing the file and setting `dlq_at`. The following divergence cases require manual reconciliation:
+
+### Orphan Files (file exists, `dlq_at IS NULL`)
+
+Normally self-healed by the sweep. If the sweep cannot promote (e.g. the file is corrupt), list remaining orphans and promote-or-delete them per policy.
+
+### Missing Files (row has `dlq_at IS NOT NULL`, `{event_id}.json` absent)
+
+Rebuild the DLQ record from the JSONL archive (`published_at`, `topic`, `payload`, `producer`) and re-set `dlq_at`, or quarantine the event per policy.
+
+### Corrupt Files (`{event_id}.json` present but unparseable JSON)
+
+Quarantine the file (rename to `*.corrupt`) and flag for manual review. Do not silently rewrite it.
+
+**Scope boundary**: Reconciliation preserves the write-file-then-set-`dlq_at` durability order and does not alter the requeue transaction (H-01) or the readiness/integrity definition (H-03).
+
 ---
 
 ## Failure Behavior Summary
@@ -136,6 +154,8 @@ Failure behavior of the other endpoints is in their reference documents above.
 | Duplicate `event_id` with conflicting content during `publish` | 409 Conflict, event is not saved |
 | Duplicate `event_id` during `publish` (Idempotency skip) | 200 returned (existing `seq`), broker notification skipped |
 | Subscriber queue full | Subscriber disconnected; client must reconnect using its last committed offset |
+| DLQ file missing after promotion | Rebuild from JSONL archive or quarantine |
+| DLQ file corrupt after promotion | Quarantine (`*.corrupt`); manual review required |
 
 ## Keywords
 

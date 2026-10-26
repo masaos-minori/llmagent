@@ -79,16 +79,8 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
         admin_token="admin-token",
     )
     _populate_token_maps(cfg)
-    # Map consumer-token to a specific consumer ID for authorization testing
-    from eventbus.auth import _TOKEN_PRINCIPAL_MAP, Principal
-
-    if "consumer-token" in _TOKEN_PRINCIPAL_MAP:
-        _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
-            roles=_TOKEN_PRINCIPAL_MAP["consumer-token"].roles,
-            allowed_consumer_ids=frozenset({"consumer-A"}),
-            allowed_topics=_TOKEN_PRINCIPAL_MAP["consumer-token"].allowed_topics,
-            token_fingerprint=_TOKEN_PRINCIPAL_MAP["consumer-token"].token_fingerprint,
-        )
+    # consumer-token principal is built via _populate_token_maps() above;
+    # no direct _TOKEN_PRINCIPAL_MAP mutation needed (REQ-006).
     monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
     schema_path = (
         Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
@@ -96,17 +88,9 @@ def principal_client(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
 
     with TestClient(eb_app.app) as c:
-        # The app lifespan re-runs _populate_token_maps() on startup, resetting
-        # consumer-token to an unrestricted principal. Re-apply the per-consumer
-        # restriction here so the ownership check under test actually fires.
-        base = _TOKEN_PRINCIPAL_MAP.get("consumer-token")
-        if base is not None:
-            _TOKEN_PRINCIPAL_MAP["consumer-token"] = Principal(
-                roles=base.roles,
-                allowed_consumer_ids=frozenset({"consumer-A"}),
-                allowed_topics=base.allowed_topics,
-                token_fingerprint=base.token_fingerprint,
-            )
+        # App lifespan re-runs _populate_token_maps() via the monkeypatched
+        # load_config, which carries consumer_authorization={"consumer-A": ["test"]}.
+        # No direct _TOKEN_PRINCIPAL_MAP mutation needed (REQ-006).
         c.headers["Authorization"] = "Bearer consumer-token"
         yield c
 

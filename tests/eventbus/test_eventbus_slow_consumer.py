@@ -88,6 +88,14 @@ class TestSlowConsumer:
             # slow_consumers may be 0 if the subscriber consumed fast enough,
             # but the mechanism exists — we verify the field is present
             assert "slow_consumers" in health
+            # Gauge: repeated polls must not inflate a cumulative counter
+            slow_before = health["slow_consumers"]
+            resp2 = client.get("/health", headers=eventbus_auth_headers("monitoring"))
+            health2 = resp2.json()
+            assert "slow_consumers" in health2
+            # If the subscriber hasn't changed state, the gauge value should be stable
+            if slow_before > 0:
+                assert health2["slow_consumers"] == slow_before
         finally:
             eb_app.app.state.broker.unsubscribe(sub)
 

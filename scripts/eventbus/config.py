@@ -20,10 +20,6 @@ def _load_config_from_path(path: Path) -> dict[str, Any]:
     return loader.load(path.name)
 
 
-_DEFAULT_CONFIG_PATH = Path("/opt/llm/config/eventbus.toml")
-_DEFAULT_SCHEMA_PATH = Path("/opt/llm/schemas/event_envelope.json")
-
-
 def get_config_path() -> Path:
     """Return the path to the Event Bus TOML configuration file."""
     return Path(os.environ.get("EVENTBUS_CONFIG_PATH", _DEFAULT_CONFIG_PATH))
@@ -65,8 +61,8 @@ def _validate_deployment_mode(cfg: EventBusConfig) -> None:
     """Validate deployment mode consistency."""
     if _is_public_host(cfg.host):
         raise ValueError(
-            f"Event Bus bound to non-loopback address {cfg.host}. "
-            "The API has no authentication — this is a security risk."
+            f"Event Bus bound to non-loopback address {cfg.host} without "
+            "authentication configured; set auth_token or bind to loopback."
         )
     if not cfg.auth_token:
         raise ValueError("auth_token is required but not configured")
@@ -120,8 +116,8 @@ class EventBusConfig:
             raise ValueError(f"max_retry must be >= 1, got {self.max_retry}")
         if _is_public_host(self.host):
             raise ValueError(
-                f"Event Bus bound to non-loopback address {self.host}. "
-                "The API has no authentication — this is a security risk."
+                f"Event Bus bound to non-loopback address {self.host} without "
+                "authentication configured; set auth_token or bind to loopback."
             )
         if not self.auth_token:
             raise ValueError("auth_token is required but not configured")

@@ -95,6 +95,13 @@ class TestHealth:
         assert body["dlq_task"] == "running"
         assert body["overflow_disconnects"] == 0
         assert body["duplicate_connection_rejections"] == 0
+        # Tiered health fields (REQ-005)
+        assert "liveness" in body
+        assert "readiness" in body
+        assert "integrity" in body
+        assert body["liveness"] is True
+        assert body["readiness"] is True
+        assert body["integrity"] is None  # Not checked here; deferred to H-03
 
     def test_health_degraded_when_db_unavailable(self, client: TestClient) -> None:
         from unittest.mock import MagicMock

@@ -87,6 +87,11 @@ async def health_check(request: Request) -> JSONResponse:
 
     degraded_reasons.extend(capacity_degraded_reasons)
 
+    # Tiered health checks (REQ-005): separate liveness, readiness, integrity
+    liveness = dlq_task_status == "running"
+    readiness = db_ok
+    integrity = None  # Not checked here; deferred to H-03
+
     overall = "ok" if not degraded_reasons else "degraded"
     status_code = 200 if overall == "ok" else 503
     return JSONResponse(
@@ -105,6 +110,9 @@ async def health_check(request: Request) -> JSONResponse:
                 "query_duration_avg_seconds": round(query_dur_avg, 6),
                 "lock_contention_total": int(lock_contention_total),
             },
+            "liveness": liveness,
+            "readiness": readiness,
+            "integrity": integrity,
         },
         status_code=status_code,
     )

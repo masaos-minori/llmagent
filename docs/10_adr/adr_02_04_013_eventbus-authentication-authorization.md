@@ -80,6 +80,22 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
 7. A missing or empty `auth_token` in `config/eventbus.toml` must fail closed at startup, not silently start unauthenticated.
 8. EventBus configuration is not loaded through `ConfigLoader` for key validation (ADR-002 documents the local-invariant exception).
 
+### Authorization generation
+
+9. **One-generation invariant.** Config and the token→principal map are published as one atomic generation: `_populate_token_maps()` builds the entire new map into a fresh dict before publishing via a single module-level assignment (`publish_principals`). Concurrent readers never observe an empty-map window. If building raises (e.g. `consumer_token` without `consumer_authorization`), the previous generation remains in force.
+
+### Persistence semantics
+
+10. **Runtime-only default.** The admin endpoint (`POST /admin/topics/authorization`) updates `consumer_authorization`/`topic_authorization` at runtime only — no config file write. The response includes `persistent: false` and `changed: <bool>` indicating whether the config actually changed. A restart loses the runtime change unless made in `config/eventbus.toml`.
+
+### Audit record
+
+11. **Privileged-action audit.** Every effective change to topics authorization emits a redacted `log_privileged_action` record with `target="topics_authorization"` and `detail="updated"`. A no-op emits none. No token values are included in the audit record (INV-05).
+
+### Empty / no-op update
+
+12. **Empty/no-op rejection.** An empty body `{}` or a body that produces no actual change is rejected with HTTP 422 (not reported as a successful change).
+
 ### Scope
 
 - **Components**: `scripts/eventbus/auth.py`, `scripts/eventbus/app.py`, `scripts/eventbus/subscribe_route.py`, `scripts/eventbus/ack_route.py`, `scripts/eventbus/dlq_route.py`, `scripts/eventbus/replay_route.py`, `scripts/eventbus/config.py`, `scripts/eventbus/audit.py`
@@ -221,6 +237,13 @@ Not applicable in the DB sense — this ADR governs a control-flow/validation bo
 | `auth_token` and `admin_token` receive 403 on Subscribe, ACK, and NACK, and hold no Consumer or Publisher role (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_subscribe_ack_and_nack_return_403`, `test_shared_and_admin_tokens_have_no_consumer_bypass`) | INV-02, INV-07 | Integration | Yes |
 | a Consumer token with an authorized `consumer_id` succeeds; an unauthorized `consumer_id` or topic returns 403; an empty `consumer_authorization` mapping denies every `consumer_id`; a principal without a topic binding is rejected (`TestConsumerPrincipalBinding`, `test_principal_without_topic_binding_is_rejected`) | INV-02, INV-07 | Integration | Yes |
 | a rejected ACK or NACK leaves delivery state, offset, failure count, and DLQ state unchanged (`TestSharedAndAdminTokensHaveNoConsumerBypass::test_rejected_ack_and_nack_change_no_delivery_state`) | INV-02, INV-07 | Integration | Yes |
+| One-generation publish: no empty-map window during principal map rebuild | INV-01 | Unit | Yes |
+| Failed rebuild preserves previous generation's principals | INV-01 | Unit | Yes |
+| Runtime-only persistence: `persistent: false` in admin response | INV-03 | Integration | Yes |
+| Empty/no-op body rejected with 422 | INV-04 | Integration | Yes |
+| No-op detected: `changed: false` when config unchanged | INV-04 | Integration | Yes |
+| Audit emitted on effective change | INV-05 | Integration | Yes |
+| Audit not emitted on no-op | INV-05 | Integration | Yes |
 
 ## Implementation Notes
 

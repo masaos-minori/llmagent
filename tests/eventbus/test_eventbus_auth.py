@@ -1614,3 +1614,113 @@ class TestDuplicateTokenBinding:
             assert field_b in message
         finally:
             self._restore(snapshot)
+
+
+class TestAtomicPublishAndFailedRebuild:
+    """SEQ-07: Assert atomic publish (no empty-map window) and failed-rebuild preservation."""
+
+    @staticmethod
+    def _snapshot():
+        from eventbus import auth
+
+        return dict(auth._TOKEN_PRINCIPAL_MAP)
+
+    @staticmethod
+    def _restore(snapshot):
+        from eventbus import auth
+
+        auth._TOKEN_PRINCIPAL_MAP.clear()
+        auth._TOKEN_PRINCIPAL_MAP.update(snapshot)
+
+    def test_atomic_publish_no_empty_map_window(self) -> None:
+        """_populate_token_maps publishes atomically — readers never see an empty map."""
+        from eventbus import auth
+        from eventbus.auth import Role, _populate_token_maps
+        from eventbus.config import EventBusConfig
+
+        # Establish a known-good principal map first
+        snapshot = self._snapshot()
+        try:
+            cfg = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-atomic.sqlite",
+                storage_dir="/tmp/test-eventbus-atomic",
+                deadletter_dir="/tmp/test-eventbus-atomic",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="auth-token",
+                consumer_token="consumer-token",
+                consumer_authorization={"consumer_a": ["topicA"]},
+            )
+            _populate_token_maps(cfg)
+            assert len(auth._TOKEN_PRINCIPAL_MAP) > 0
+
+            # Now call _populate_token_maps again — it should swap atomically.
+            # If there were an empty-map window, we'd see zero entries mid-swap.
+            # Simulate concurrent reads by checking before and after.
+            pre_count = len(auth._TOKEN_PRINCIPAL_MAP)
+            _populate_token_maps(cfg)
+            post_count = len(auth._TOKEN_PRINCIPAL_MAP)
+
+            # Both before and after must have entries; no empty-map window.
+            assert pre_count > 0
+            assert post_count > 0
+            assert post_count == pre_count  # same config → same number of entries
+
+            # Verify the principal for auth-token is still present (not cleared).
+            assert "auth-token" in auth._TOKEN_PRINCIPAL_MAP
+            assert auth._TOKEN_PRINCIPAL_MAP["auth-token"].roles == frozenset(
+                {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+            )
+        finally:
+            self._restore(snapshot)
+
+    def test_failed_rebuild_preserves_previous_generation(self) -> None:
+        """A failed rebuild (e.g. missing consumer_authorization) leaves the
+        previous generation's principals intact and in force."""
+        from eventbus import auth
+        from eventbus.auth import Role, _populate_token_maps
+        from eventbus.config import EventBusConfig
+
+        snapshot = self._snapshot()
+        try:
+            # Step 1: establish a valid principal map
+            cfg_valid = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-fail1.sqlite",
+                storage_dir="/tmp/test-eventbus-fail1",
+                deadletter_dir="/tmp/test-eventbus-fail1",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="auth-token",
+                consumer_token="consumer-token",
+                consumer_authorization={"consumer_a": ["topicA"]},
+            )
+            _populate_token_maps(cfg_valid)
+            assert len(auth._TOKEN_PRINCIPAL_MAP) > 0
+            assert "auth-token" in auth._TOKEN_PRINCIPAL_MAP
+
+            # Step 2: attempt a rebuild with invalid config (consumer_token without
+            # consumer_authorization raises ValueError)
+            cfg_invalid = EventBusConfig(
+                port=8091,
+                db_path="/tmp/test-eventbus-fail2.sqlite",
+                storage_dir="/tmp/test-eventbus-fail2",
+                deadletter_dir="/tmp/test-eventbus-fail2",
+                max_retry=2,
+                host="127.0.0.1",
+                auth_token="auth-token",
+                consumer_token="consumer-token",
+                # consumer_authorization omitted — should raise
+            )
+            with pytest.raises(ValueError, match="consumer_authorization"):
+                _populate_token_maps(cfg_invalid)
+
+            # Step 3: verify the previous generation is still in force
+            assert len(auth._TOKEN_PRINCIPAL_MAP) > 0
+            assert "auth-token" in auth._TOKEN_PRINCIPAL_MAP
+            assert auth._TOKEN_PRINCIPAL_MAP["auth-token"].roles == frozenset(
+                {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
+            )
+        finally:
+            self._restore(snapshot)

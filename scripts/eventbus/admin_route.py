@@ -7,6 +7,7 @@ from typing import Any
 
 from fastapi import HTTPException, Request
 
+from eventbus.audit import log_privileged_action
 from eventbus.auth import _populate_token_maps
 from eventbus.route_helpers import get_config
 
@@ -76,8 +77,19 @@ async def update_topics_authorization(request: Request) -> dict[str, Any]:
 
     Validates the request body fully before mutating any state, so an
     invalid request never leaves `app.state.config` partially updated.
+
+    Returns ``{"status": "ok", "persistent": false, "changed": <bool>}``.
+    Always runtime-only (no file write); ``changed`` indicates whether the
+    config actually changed.
     """
     body: dict[str, Any] = await request.json()
+
+    # Reject empty/no-op bodies — no keys means nothing to do
+    if not body:
+        raise HTTPException(
+            status_code=422,
+            detail="request body must contain at least one of: consumer_authorization, topic_authorization",
+        )
 
     new_consumer_authorization = None
     if "consumer_authorization" in body:
@@ -98,7 +110,19 @@ async def update_topics_authorization(request: Request) -> dict[str, Any]:
     if new_topic_authorization is not None:
         replacements["topic_authorization"] = new_topic_authorization
 
-    if replacements:
+    # Determine if the update is a no-op by comparing against current config
+    changed = False
+    if new_consumer_authorization is not None:
+        current = config.consumer_authorization or {}
+        if new_consumer_authorization != current:
+            changed = True
+    if new_topic_authorization is not None:
+        # Convert list values to sets for comparison (config stores set[str])
+        new_as_sets = {t: set(cids) for t, cids in new_topic_authorization.items()}
+        current = config.topic_authorization or {}
+        if new_as_sets != current:
+            changed = True
+    if changed:
         # EventBusConfig is a frozen dataclass — build a replacement instance
         # rather than mutating the existing one, then swap it into app.state
         # so every other request-scoped `get_config(request)` call sees the
@@ -106,7 +130,20 @@ async def update_topics_authorization(request: Request) -> dict[str, Any]:
         config = dataclasses.replace(config, **replacements)
         request.app.state.config = config
 
-    _populate_token_maps(config)
+    # Only repopulate principals when config actually changed
+    if changed:
+        _populate_token_maps(config)
 
     logger.info("admin: topics authorization updated")
-    return {"status": "ok"}
+
+    # Emit privileged-action audit record for effective changes
+    if changed:
+        log_privileged_action(
+            consumer_id="admin",
+            request_id="",
+            route="/admin/topics/authorization",
+            target="topics_authorization",
+            detail="updated",
+        )
+
+    return {"status": "ok", "persistent": False, "changed": changed}

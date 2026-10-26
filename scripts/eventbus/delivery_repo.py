@@ -109,9 +109,9 @@ def nack_event(
                     )
                 return NackResult("not_found")
 
-        # Per-consumer model: only the per-consumer counter is authoritative for
-        # DLQ promotion; the events-level failure counters are legacy and no longer
-        # written to under the per-consumer model.
+        # Per-consumer model: only the per-consumer failure counter is authoritative for
+        # DLQ promotion (ADR-006 INV-13); there is no events-level failure counter under
+        # this model.
         # Update consumer_delivery table if consumer_id is provided
         # internal-only: the /nack route always supplies consumer_id
         if consumer_id is not None:

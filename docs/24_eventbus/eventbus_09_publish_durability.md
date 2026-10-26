@@ -76,9 +76,15 @@ Same as disk-full — DB commit succeeds, JSONL append fails. No retry attempt (
 
 No reconcile or rebuild script exists in the repository. A failed JSONL append is not retried and is not backfilled, so the JSONL archive can diverge from SQLite. Because SQLite is the canonical store, recovery of event data means reading from SQLite (via `/subscribe` with `since_seq`, or `/replay` with the operator role), not from JSONL. Any rebuild of the JSONL archive from SQLite must be done manually.
 
+## Requeue Delivery Semantics
+
+Requeue (`POST /dlq/{event_id}/requeue`) delivers events through **consumer replay** via the lineage model (`redeliver_event`). It does NOT call `broker.publish()` — the requeued event is inserted into SQLite and becomes available for consumers to pick up via `/subscribe` with `since_seq`. The response includes `"delivery": "replay"` to make this unambiguous to operators.
+
+If immediate broker notification on requeue is required, this would be a separate change (UNK-01 owner decision).
+
 ## Metrics
 
-The failure counters (`eventbus_jsonl_append_failure_total`, `eventbus_broker_notify_failure_total`, `eventbus_broker_publish_failure_total`) and `eventbus_slow_consumer_total` are registered in-process only; the service exposes no scrape endpoint and `/health` does not report them.
+The failure counters (`eventbus_jsonl_append_failure_total`, `eventbus_broker_notify_failure_total`, `eventbus_broker_publish_failure_total`, `eventbus_dlq_file_write_failure_total`) and `eventbus_slow_consumer_current` are registered in-process only; the service exposes no scrape endpoint and `/health` does not report them.
 
 ## Keywords
 
