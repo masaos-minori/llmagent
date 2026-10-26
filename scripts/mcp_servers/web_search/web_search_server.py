@@ -165,8 +165,15 @@ async def _dispatch_web_tool(
     return await dispatch_web_tool(name, args, idempotency_key=idempotency_key)
 
 
-def _classify_dispatch_error(output: str) -> str:
-    """Classify a non-raised DispatchResult error by its output text prefix."""
+def _classify_dispatch_error(output: str, error_type: str | None) -> str:
+    """Classify a non-raised DispatchResult error.
+
+    Prefer the structured ``error_type`` from DispatchResult; fall back to
+    string-prefix matching for backward compatibility with callers that do not
+    provide an error_type.
+    """
+    if error_type is not None:
+        return error_type
     if output.startswith("Validation error: "):
         return "validation_error"
     if output.startswith("Unknown tool: "):
@@ -271,7 +278,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         outcome = r.outcome
         latency_ms = (time.perf_counter() - t0) * 1000
         if outcome == "error":
-            error_type = _classify_dispatch_error(r.output)
+            error_type = _classify_dispatch_error(r.output, r.error_type)
         return _to_call_tool_response(r)
     except WebSearchUpstreamError as e:
         outcome = "error"

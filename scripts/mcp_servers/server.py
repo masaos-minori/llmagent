@@ -268,7 +268,12 @@ class MCPServer:
 
         Also enforces config isolation and the server's security posture gate before
         any socket is created.
+
+        Catches ``SystemExit`` raised by ``_enforce_startup_posture_gate()`` during
+        startup so that the failure reason is logged before the process terminates.
+        This ensures consistent error output across all launch paths.
         """
+        import logging
         import sys
 
         import uvicorn
@@ -320,6 +325,11 @@ class MCPServer:
         server = _LoopbackVerifyingServer(config=config)
         try:
             server.run()
+        except SystemExit as e:  # noqa: BLE001 — posture-gate failure during startup
+            logging.getLogger(type(self).__name__).error(
+                "Posture-gate failure during startup: %s", e
+            )
+            raise
         except KeyboardInterrupt:  # pragma: no cover — interactive-only path
             pass
         if not server.started:

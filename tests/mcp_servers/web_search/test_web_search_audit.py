@@ -340,28 +340,38 @@ class TestClassifyDispatchError:
 
     def test_validation_error_prefix(self) -> None:
         assert (
-            web_search_server._classify_dispatch_error("Validation error: bad input")
+            web_search_server._classify_dispatch_error(
+                "Validation error: bad input", None
+            )
             == "validation_error"
         )
 
     def test_unknown_tool_prefix(self) -> None:
         assert (
-            web_search_server._classify_dispatch_error("Unknown tool: not_real")
+            web_search_server._classify_dispatch_error("Unknown tool: not_real", None)
             == "unknown_tool"
         )
 
     def test_invalid_tool_name(self) -> None:
         assert (
             web_search_server._classify_dispatch_error(
-                "Tool name must be a non-empty string"
+                "Tool name must be a non-empty string", None
             )
             == "invalid_tool_name"
         )
 
     def test_unrecognized_output_falls_back_to_dispatch_error(self) -> None:
         assert (
-            web_search_server._classify_dispatch_error("something else entirely")
+            web_search_server._classify_dispatch_error("something else entirely", None)
             == "dispatch_error"
+        )
+
+    def test_structured_error_type_takes_precedence(self) -> None:
+        assert (
+            web_search_server._classify_dispatch_error(
+                "some output", "validation_error"
+            )
+            == "validation_error"
         )
 
 

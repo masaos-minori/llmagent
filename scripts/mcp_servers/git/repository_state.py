@@ -31,6 +31,11 @@ class RepositoryState:
     _repo holds a strong reference only while the pipeline is executing; after
     the pipeline returns the repo will be garbage-collected unless the caller
     retains it explicitly.
+
+    Resource lifecycle: the git.Repo held by ``_repo`` must be closed after use
+    to release file descriptors and locks. Use the context manager pattern
+    (``with RepositoryState.snapshot(...) as state:``) or call ``close()``
+    explicitly when done.
     """
 
     path: str
@@ -101,6 +106,23 @@ class RepositoryState:
         if self._repo is None:
             raise RuntimeError("RepositoryState has no attached git.Repo")
         return self._repo
+
+    def close(self) -> None:
+        """Close the underlying git.Repo to release file descriptors and locks.
+
+        Safe to call multiple times; subsequent calls are no-ops.
+        """
+        if self._repo is not None:
+            self._repo.close()
+            object.__setattr__(self, "_repo", None)
+
+    def __enter__(self) -> RepositoryState:
+        """Enter the context manager — return self for ``with`` usage."""
+        return self
+
+    def __exit__(self, exc_type: Any, exc_val: Any, exc_tb: Any) -> None:
+        """Exit the context manager — close the underlying git.Repo."""
+        self.close()
 
     # ── Pipeline helpers ────────────────────────────────────────────────────
 

@@ -47,10 +47,19 @@ _write_tools = (
 
 @dataclass(frozen=True)
 class DispatchResult:
-    """Typed result from MCPServer.dispatch() and dispatch_tool()."""
+    """Typed result from MCPServer.dispatch() and dispatch_tool().
+
+    Error classification taxonomy (when is_error=True):
+    - ``validation_error``: input validation failure (ValueError from handler)
+    - ``unknown_tool``: tool name not found in dispatch table
+    - ``invalid_tool_name``: tool name is empty or not a string
+    - ``idempotency_key_reused``: same key reused with different content
+    - ``dispatch_error``: generic dispatch failure (no specific category)
+    """
 
     output: str
     is_error: bool
+    error_type: str | None = None
 
     @property
     def outcome(self) -> str:
@@ -160,13 +169,17 @@ async def dispatch_tool(
     if not isinstance(name, str) or not name.strip():
         logger.warning("dispatch_tool called with empty tool name")
         return DispatchResult(
-            output="Tool name must be a non-empty string", is_error=True
+            output="Tool name must be a non-empty string",
+            is_error=True,
+            error_type="invalid_tool_name",
         )
 
     handler = table.get(name)
     if handler is None:
         logger.warning("Unknown tool requested: %s", name)
-        return DispatchResult(output=f"Unknown tool: {name}", is_error=True)
+        return DispatchResult(
+            output=f"Unknown tool: {name}", is_error=True, error_type="unknown_tool"
+        )
 
     # duplicate-check for side-effecting tools (REQ-001: a non-empty key is
     # required; a keyless call never touches the cache and always executes)
@@ -199,6 +212,7 @@ async def dispatch_tool(
                         f"different content for tool {name!r}"
                     ),
                     is_error=True,
+                    error_type="idempotency_key_reused",
                 )
 
     try:
@@ -212,5 +226,9 @@ async def dispatch_tool(
     except ValueError as e:
         logger.warning("Tool '%s' validation error: %s", name, e)
         # REQ-004: error results are never cached.
-        return DispatchResult(output=f"Validation error: {e}", is_error=True)
+        return DispatchResult(
+            output=f"Validation error: {e}",
+            is_error=True,
+            error_type="validation_error",
+        )
     # All other exceptions (RuntimeError, IOError, HTTPException, etc.) propagate to caller.

@@ -19,8 +19,10 @@ Provided endpoints:
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import shutil
+import threading
 import time
 from typing import Any, cast
 
@@ -112,6 +114,9 @@ def _validate_pre_snapshot(path: str) -> tuple[bool, str]:
     """Validate that *path* is accessible and contains a Git repository before calling snapshot.
 
     Returns (ok, error) where ok=True means the path is safe to pass to snapshot().
+
+    This function performs synchronous file-system operations; callers should invoke it
+    via ``_validate_pre_snapshot_async`` to avoid blocking the event loop.
     """
     try:
         import os as _os
@@ -132,6 +137,11 @@ def _validate_pre_snapshot(path: str) -> tuple[bool, str]:
         return False, "[DENIED] permission denied accessing repository"
 
 
+async def _validate_pre_snapshot_async(path: str) -> tuple[bool, str]:
+    """Async wrapper around ``_validate_pre_snapshot`` to avoid blocking the event loop."""
+    return await asyncio.to_thread(_validate_pre_snapshot, path)
+
+
 def _serialize_state(state: RepositoryState | None) -> dict[str, object] | None:
     """Serialize a RepositoryState to a JSON-safe dict."""
     if state is None:
@@ -148,16 +158,27 @@ def _serialize_state(state: RepositoryState | None) -> dict[str, object] | None:
 
 
 def _sanitize_for_audit(value: str) -> str:
-    """Redact sensitive portions of a path for audit logging."""
+    """Redact sensitive portions of a path for audit logging.
+
+    Absolute paths (starting with /) always produce an empty first component after
+    splitting by "/", so paths with <= 3 components are fully redacted to prevent
+    sensitive system paths like /etc or /root from being logged in full.
+    """
     if not value:
         return ""
     parts = value.split("/")
-    if len(parts) <= 2:
-        return value
+    if len(parts) <= 3:
+        return "***"
     return "/".join(["***"] + parts[-2:])
 
 
 _audit_failure_count: int = 0
+_audit_failure_count_lock = threading.Lock()
+# Thread-safe synchronization for _audit_failure_count: the lock protects the
+# read-modify-write cycle so increments are not lost under concurrent load.
+# The lock scope is intentionally narrow — only around the increment operation.
+# If uvicorn runs in single-worker mode, asyncio.Lock could be used instead,
+# but threading.Lock works in both modes and is the safer default.
 
 
 def _audit_log_safe(logger: logging.Logger | Logger, **kwargs: Any) -> None:
@@ -166,7 +187,8 @@ def _audit_log_safe(logger: logging.Logger | Logger, **kwargs: Any) -> None:
     try:
         _audit_log(logger, **kwargs)
     except Exception:  # noqa: BLE001 — audit failure must never propagate
-        _audit_failure_count += 1
+        with _audit_failure_count_lock:
+            _audit_failure_count += 1
         logger.error("audit_log failed: %s", kwargs.get("action", "unknown"))
 
 
@@ -282,7 +304,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         )
         return CallToolResponse(result=deny_err, is_error=True)
     # Reject missing/inaccessible/non-repository paths before snapshot (REQ-003).
-    ok, err = _validate_pre_snapshot(resolved)
+    ok, err = await _validate_pre_snapshot_async(resolved)
     if not ok:
         logger.info(
             fmt_kvlog("call_tool", tool=req.name, ms=f"{time.perf_counter() - t0:.0f}")
@@ -374,14 +396,25 @@ async def health() -> JSONResponse:
 
 
 class GitMCPServer(MCPServer):
-    """MCPServer subclass for git-mcp."""
+    """MCPServer subclass for git-mcp.
+
+    Explicitly declares ``http_host = "127.0.0.1"`` to match other MCP server
+    subclasses and prevent regressions if the base-class default changes.
+    Provides a ``dispatch()`` method override to maintain consistency with other
+    subclasses and prevent ``NotImplementedError`` when called programmatically.
+    """
 
     server_name = "git-mcp"
     server_version = "1.0.0"
+    http_host = "127.0.0.1"
     http_port = 8014
     own_config_file = "git_mcp_server.toml"
     app_module = "mcp_servers.git.git_server:app"
     mcp_tools = TOOL_LIST
+
+    async def dispatch(self, name: str, args: dict[str, Any]) -> DispatchResult:
+        """Delegate a tool call to the git service's dispatch table."""
+        return await dispatch_tool(_service.get_dispatch_table(), name, args)
 
 
 def _enforce_posture_gate() -> None:

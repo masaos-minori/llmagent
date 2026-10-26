@@ -210,7 +210,8 @@ async def list_tools(
 async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
     """Handle a generic MCP call_tool request."""
     session_id, request_id, idempotency_key = extract_request_context(request)
-    audit_target = cast(str, req.args.get("path", ""))[:80]
+    raw_path = cast(str, req.args.get("path", ""))
+    audit_target = raw_path[:80]
     if not _cfg.allowed_dirs:
         _audit_log(
             logger,
@@ -218,6 +219,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             request_id=request_id,
             action=req.name,
             target=audit_target,
+            requested_target=raw_path,
             outcome="rejected",
             server_key=FILE_DELETE_SERVER_KEY,
         )
@@ -233,6 +235,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
             request_id=request_id,
             action=req.name,
             target=audit_target,
+            requested_target=raw_path,
             outcome="rejected",
             server_key=FILE_DELETE_SERVER_KEY,
         )
@@ -244,6 +247,7 @@ async def call_tool(req: CallToolRequest, request: Request) -> CallToolResponse:
         request_id=request_id,
         action=req.name,
         target=audit_target,
+        requested_target=raw_path,
         outcome=r.outcome,
         server_key=FILE_DELETE_SERVER_KEY,
     )

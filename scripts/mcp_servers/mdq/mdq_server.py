@@ -185,9 +185,12 @@ async def _on_mdq_service_error(request: Request, exc: MdqServiceError) -> JSONR
 # ──────────────────────────────────────────────────────────────────────────────
 
 
-_mdq_metadata_var: contextvars.ContextVar[dict[str, Any]] = contextvars.ContextVar(
-    "mdq_metadata", default={}
+_mdq_metadata_var: contextvars.ContextVar[dict[str, Any] | None] = (
+    contextvars.ContextVar("mdq_metadata", default=None)
 )
+# Lifecycle: set() at the start of each request, get() after dispatch, reset() in
+# finally. The default=None avoids a shared mutable default; callers use ``or {}``
+# when reading to ensure a dict is always returned even when no value has been set.
 
 
 @dataclass(frozen=True)
@@ -297,13 +300,21 @@ _DISPATCH_TABLE = {
 async def _dispatch_mdq_tool(
     name: str, args: ToolArgs, idempotency_key: str | None = None
 ) -> MdqDispatchResult:
-    """Route a tool call through the shared dispatch mechanism, capturing mdq-local metadata."""
-    token = _mdq_metadata_var.set({})
+    """Route a tool call through the shared dispatch mechanism, capturing mdq-local metadata.
+
+    The ContextVar lifecycle: set() at the start of each request, get() after
+    dispatch, reset() in finally. A guard around set() prevents corruption if
+    set() raises before the try block.
+    """
+    try:
+        token = _mdq_metadata_var.set({})
+    except Exception:  # noqa: BLE001 — set() failure must not corrupt state
+        raise RuntimeError("Failed to set mdq metadata ContextVar")
     try:
         result = await dispatch_tool(
             _DISPATCH_TABLE, name, args, idempotency_key=idempotency_key
         )
-        metadata = _mdq_metadata_var.get()
+        metadata = _mdq_metadata_var.get() or {}
     finally:
         _mdq_metadata_var.reset(token)
     return MdqDispatchResult(
