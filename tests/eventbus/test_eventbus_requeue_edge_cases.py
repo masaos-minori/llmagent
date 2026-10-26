@@ -271,3 +271,175 @@ class TestRequeueEdgeCases:
         # promoted; that is what `n == 1` above already confirms.
         dlq_file_2 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_2.exists()
+
+
+def _promote_to_dlq(client: TestClient) -> str:
+    """Publish an event, seed consumer_delivery at max_retry - 1, and nack once
+    so the inline promotion moves it to the DLQ. Returns the event_id."""
+    body = _event("dlq_edge")
+    assert client.post("/publish", json=body).status_code == 200
+    event_id: str = body["event_id"]
+
+    import eventbus.app as eb_app
+
+    db = eb_app.app.state.db
+    cfg = eb_app.app.state.config
+    db.execute(
+        "INSERT INTO consumer_delivery "
+        "(consumer_id, event_id, acked, consumer_last_nack_attempt, "
+        "consumer_delivery_failure_count) VALUES ('consumer-A', ?, 0, 'seeded-attempt', ?)",
+        (event_id, cfg.max_retry - 1),
+    )
+    db.commit()
+    resp = client.post(
+        "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+    )
+    assert resp.status_code == 200
+    assert resp.json().get("dlq_promoted") is True
+    return event_id
+
+
+class _FailingConn:
+    """Delegate connection wrapper that injects a failure at one repository call.
+
+    Injected through the `eventbus.dlq_route.redeliver_event` seam so only the
+    request under test sees the wrapper; the real shared connection in
+    `app.state.db` stays untouched for the background DLQ loop and later
+    requests, and every non-failing call is delegated to the real connection.
+    """
+
+    def __init__(self, real: Any, *, fail_on: str, error: BaseException) -> None:
+        self._real = real
+        self._fail_on = fail_on
+        self._error = error
+
+    def execute(self, sql: Any, *args: Any, **kwargs: Any) -> Any:
+        if self._fail_on == "insert" and "INSERT" in str(sql).upper():
+            raise self._error
+        return self._real.execute(sql, *args, **kwargs)
+
+    def commit(self) -> None:
+        if self._fail_on == "commit":
+            raise self._error
+        self._real.commit()
+
+    def rollback(self) -> None:
+        self._real.rollback()
+
+
+class TestRequeueFailureInjection:
+    """Failure-injection tests proving every failed requeue path rolls back and
+    leaves the shared connection usable (REQ-002)."""
+
+    def test_requeue_insert_failure_rolls_back_and_keeps_connection_usable(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """Redelivery INSERT fails after the original-row UPDATE ran: the error
+        propagates, no transaction stays open, and the connection is reusable."""
+        import sqlite3
+
+        import eventbus.app as eb_app
+        import eventbus.dlq_repo as dlq_repo
+        import eventbus.dlq_route as dlq_route
+
+        event_id = _promote_to_dlq(client)
+        shared = eb_app.app.state.db
+
+        def _inject(db: Any, target_id: str) -> dlq_repo.RequeueResult:
+            wrapper: Any = _FailingConn(
+                shared,
+                fail_on="insert",
+                error=sqlite3.IntegrityError("injected insert failure"),
+            )
+            return dlq_repo.redeliver_event(wrapper, target_id)
+
+        monkeypatch.setattr(dlq_route, "redeliver_event", _inject)
+        with pytest.raises(sqlite3.IntegrityError):
+            client.post(f"/dlq/{event_id}/requeue")
+        monkeypatch.undo()
+
+        # No dangling implicit transaction on the shared connection.
+        assert shared.in_transaction is False
+        # The UPDATE increment was rolled back with the failed INSERT (atomic).
+        assert _get_field(client, event_id, "dlq_requeue_count") == 0
+        n = shared.execute(
+            "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
+            (event_id,),
+        ).fetchone()[0]
+        assert n == 0
+
+        # Connection reuse: a normal requeue on the same connection succeeds.
+        resp = client.post(f"/dlq/{event_id}/requeue")
+        assert resp.status_code == 200
+
+    def test_requeue_commit_failure_rolls_back_no_active_transaction(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """commit() fails: the error propagates, no active transaction remains,
+        and a follow-up request on the same connection succeeds."""
+        import sqlite3
+
+        import eventbus.app as eb_app
+        import eventbus.dlq_repo as dlq_repo
+        import eventbus.dlq_route as dlq_route
+
+        event_id = _promote_to_dlq(client)
+        shared = eb_app.app.state.db
+
+        def _inject(db: Any, target_id: str) -> dlq_repo.RequeueResult:
+            wrapper: Any = _FailingConn(
+                shared,
+                fail_on="commit",
+                error=sqlite3.Error("injected commit failure"),
+            )
+            return dlq_repo.redeliver_event(wrapper, target_id)
+
+        monkeypatch.setattr(dlq_route, "redeliver_event", _inject)
+        with pytest.raises(sqlite3.Error):
+            client.post(f"/dlq/{event_id}/requeue")
+        monkeypatch.undo()
+
+        assert shared.in_transaction is False
+        assert _get_field(client, event_id, "dlq_requeue_count") == 0
+
+        resp = client.post(f"/dlq/{event_id}/requeue")
+        assert resp.status_code == 200
+
+    def test_requeue_constraint_failure_rolls_back_without_partial_state(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """A real UNIQUE violation on events.event_id during the redelivery
+        INSERT leaves no partial state and the connection stays usable."""
+        import sqlite3
+        from types import SimpleNamespace
+
+        import eventbus.app as eb_app
+        import eventbus.dlq_repo as dlq_repo
+
+        event_id = _promote_to_dlq(client)
+        shared = eb_app.app.state.db
+        # Force the descendant's generated event_id to collide with the
+        # original row's UNIQUE event_id, so the real INSERT raises
+        # IntegrityError (UNIQUE constraint failed) inside the transaction.
+        monkeypatch.setattr(
+            dlq_repo,
+            "uuid",
+            SimpleNamespace(uuid4=lambda: SimpleNamespace(hex=event_id)),
+        )
+
+        with pytest.raises(sqlite3.IntegrityError):
+            client.post(f"/dlq/{event_id}/requeue")
+        monkeypatch.undo()
+
+        assert shared.in_transaction is False
+        # No partial state: UPDATE increment rolled back, no descendant row.
+        assert _get_field(client, event_id, "dlq_requeue_count") == 0
+        n = shared.execute(
+            "SELECT COUNT(*) FROM events WHERE redelivered_from = ?",
+            (event_id,),
+        ).fetchone()[0]
+        assert n == 0
+
+        # Connection reuse: a normal requeue on the same connection succeeds.
+        resp = client.post(f"/dlq/{event_id}/requeue")
+        assert resp.status_code == 200

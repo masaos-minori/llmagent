@@ -257,6 +257,63 @@ class TestDLQPromotionSemantics:
         dlq_file_2 = tmp_path / "deadletter" / f"{body['event_id']}.json"
         assert dlq_file_2.exists()
 
+    def test_dlq_list_snapshot_consistent_during_promotion(
+        self, client: TestClient, tmp_path: Path
+    ) -> None:
+        """REQ-004: total and items must describe one snapshot even while a
+        sweep_orphans promotion runs concurrently on a second connection."""
+        import threading
+        import time
+
+        from eventbus.db import open_db
+        from eventbus.dlq import sweep_orphans
+
+        body = _event("dlq_promo")
+        assert client.post("/publish", json=body).status_code == 200
+        event_id = body["event_id"]
+
+        def _promote() -> None:
+            db = open_db(str(tmp_path / "eventbus.sqlite"))
+            try:
+                db.execute(
+                    "INSERT INTO consumer_delivery "
+                    "(consumer_id, event_id, acked, consumer_delivery_failure_count) "
+                    "VALUES ('consumer-A', ?, 0, 2)",
+                    (event_id,),
+                )
+                db.commit()
+                sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
+            finally:
+                db.close()
+
+        worker = threading.Thread(target=_promote)
+        worker.start()
+
+        # Poll the list while the promotion is in flight (bounded so the loop
+        # always terminates). Each response must be internally consistent.
+        polls = 0
+        while polls < 50:
+            r = client.get("/dlq?limit=100&offset=0")
+            assert r.status_code == 200
+            snap = r.json()
+            # One snapshot: items never exceed the reported total.
+            assert len(snap["items"]) <= snap["total"]
+            assert snap["total"] >= 0
+            assert snap["offset"] == 0
+            polls += 1
+            if not worker.is_alive():
+                break
+            time.sleep(0.01)
+        worker.join()
+
+        # Convergence: the promoted event is visible exactly once.
+        r = client.get("/dlq?limit=100&offset=0")
+        assert r.status_code == 200
+        snap = r.json()
+        assert snap["total"] >= 1
+        ids = [item["event_id"] for item in snap["items"]]
+        assert ids.count(event_id) == 1
+
 
 def _seed_delivery(
     db: Any, consumer_id: str, event_id: str, acked: int, failure_count: int

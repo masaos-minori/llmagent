@@ -228,3 +228,112 @@ class TestConcurrentDlqRequeue:
         # The other concurrent requests should fail with 409 Conflict (event no longer in DLQ)
         conflicts = [r for r in results if r.get("detail") == "event is not in DLQ"]
         assert len(conflicts) == 4, f"Expected 4 conflicts, got {len(conflicts)}"
+
+    def test_concurrent_dlq_requeue_no_failed_transaction_carryover(
+        self, client: TestClient, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        """One of five requeues fails on the redelivery INSERT; the rollback must
+        leave no failed transaction on the shared connection and exactly one of
+        the remaining requeues must succeed."""
+        import sqlite3
+
+        import eventbus.app as eb_app
+        import eventbus.dlq_repo as dlq_repo
+        import eventbus.dlq_route as dlq_route
+
+        body = {**_event("dlq"), "event_id": str(uuid.uuid4())}
+        resp = client.post("/publish", json=body)
+        assert resp.status_code == 200
+        event_id = body["event_id"]
+        original_seq = resp.json()["seq"]
+
+        # Same seed-and-nack promotion pattern as test_concurrent_dlq_requeue.
+        db = eb_app.app.state.db
+        cfg = eb_app.app.state.config
+        db.execute(
+            "DELETE FROM consumer_delivery WHERE consumer_id = ? AND event_id = ?",
+            ("consumer-A", event_id),
+        )
+        db.execute(
+            "INSERT INTO consumer_delivery "
+            "(consumer_id, event_id, acked, consumer_last_nack_attempt, "
+            "consumer_delivery_failure_count) VALUES ('consumer-A', ?, 0, 'seeded-attempt', ?)",
+            (event_id, cfg.max_retry - 1),
+        )
+        db.commit()
+        nresp = client.post(
+            "/nack", params={"event_id": event_id, "consumer_id": "consumer-A"}
+        )
+        assert nresp.status_code == 200
+
+        class _FailOnceInsertConn:
+            """Delegate connection whose first INSERT raises IntegrityError."""
+
+            def __init__(self, real: Any) -> None:
+                self._real = real
+                self._failed = False
+
+            def execute(self, sql: Any, *args: Any, **kwargs: Any) -> Any:
+                if not self._failed and "INSERT" in str(sql).upper():
+                    self._failed = True
+                    raise sqlite3.IntegrityError("injected insert failure")
+                return self._real.execute(sql, *args, **kwargs)
+
+            def commit(self) -> None:
+                self._real.commit()
+
+            def rollback(self) -> None:
+                self._real.rollback()
+
+        # Route-level seam: only the first requeue runs against the failing
+        # wrapper connection (TestClient calls are serialized by run_with_db_lock);
+        # app.state.db itself is never replaced.
+        injected = {"done": False}
+        real_redeliver = dlq_route.redeliver_event
+
+        def _redeliver_with_one_failure(conn: Any, target_id: str) -> Any:
+            if not injected["done"]:
+                injected["done"] = True
+                wrapper: Any = _FailOnceInsertConn(conn)
+                return dlq_repo.redeliver_event(wrapper, target_id)
+            return real_redeliver(conn, target_id)
+
+        monkeypatch.setattr(dlq_route, "redeliver_event", _redeliver_with_one_failure)
+
+        results: list[dict[str, Any]] = []
+        raised = 0
+
+        async def _requeue() -> None:
+            nonlocal raised
+            try:
+                r = client.post(f"/dlq/{event_id}/requeue")
+                results.append(r.json())
+            except sqlite3.IntegrityError:
+                raised += 1
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(asyncio.gather(*(_requeue() for _ in range(5))))
+        finally:
+            loop.close()
+        monkeypatch.undo()
+
+        # The injected request surfaced the error, exactly one requeue succeeded.
+        assert raised == 1, f"Expected 1 injected failure, got {raised}"
+        requeued = [r for r in results if r.get("requeued") is True]
+        assert len(requeued) == 1, f"Expected 1 success, got {len(requeued)}"
+        conflicts = [r for r in results if r.get("detail") == "event is not in DLQ"]
+        assert len(conflicts) == 3, f"Expected 3 conflicts, got {len(conflicts)}"
+
+        success_resp = requeued[0]
+        uuid.UUID(success_resp["new_event_id"], version=4)
+        assert isinstance(success_resp["new_seq"], int)
+        assert success_resp["new_seq"] > original_seq
+
+        # No failed transaction lingered on the shared connection.
+        assert db.in_transaction is False
+
+        # The shared connection stays usable for follow-up requests.
+        follow = client.get("/dlq")
+        assert follow.status_code == 200

@@ -136,3 +136,35 @@ def test_dlq_pagination(client: TestClient) -> None:
     assert body2["limit"] == 2
     assert body2["offset"] == 2
     assert len(body2["items"]) == min(2, max(0, body["total"] - 2))
+
+    # REQ-004: cross-page non-overlap and full coverage — page A (offset 0,
+    # limit 2) and page 2 (offset 2, limit 2) must come from one consistent
+    # snapshot. A torn snapshot between the count and the fetch would let
+    # pages skip or double-count events. (A limit=100 page would trivially
+    # contain page 2, so the comparison uses two disjoint windows.)
+    ra = client.get("/dlq?limit=2&offset=0", headers=dlq_headers)
+    assert ra.status_code == 200
+    page_a_ids = [item["event_id"] for item in ra.json()["items"]]
+    page2_ids = [item["event_id"] for item in body2["items"]]
+    assert len(page_a_ids) == 2
+    assert len(page2_ids) == 2
+    assert not set(page_a_ids) & set(page2_ids), "pages overlap: torn snapshot"
+    assert len(set(page_a_ids) | set(page2_ids)) == min(
+        body["total"], len(page_a_ids) + len(page2_ids)
+    )
+
+
+def test_dlq_pagination_no_string_timestamp_interpolation() -> None:
+    """REQ-005 static check: the requeue path must not interpolate a timestamp
+    into SQL via f-string strftime(...); it binds now_iso() as a ? parameter."""
+    repo_path = (
+        Path(__file__).parent.parent.parent / "scripts" / "eventbus" / "dlq_repo.py"
+    )
+    src = repo_path.read_text(encoding="utf-8")
+
+    # No strftime(...) text interpolation anywhere in the repository module
+    # (the schema.sql DEFAULT lives in a different file and is out of scope).
+    assert "strftime(" not in src, "strftime f-string interpolation still present"
+
+    # The requeue timestamp is computed in Python and bound as data.
+    assert "now_iso" in src

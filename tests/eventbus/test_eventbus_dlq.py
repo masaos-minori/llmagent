@@ -101,7 +101,9 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
 
     db = open_db(str(tmp_path / "eventbus.sqlite"))
     ev = _event()
-    client.post("/publish", json=ev)
+    pub = client.post("/publish", json=ev)
+    assert pub.status_code == 200
+    original_seq = pub.json()["seq"]
     # Create consumer_delivery record required for REQ-002 per-consumer DLQ promotion
     db.execute(
         "INSERT INTO consumer_delivery (consumer_id, event_id, acked, consumer_delivery_failure_count) VALUES (?, ?, 0, 2)",
@@ -117,9 +119,13 @@ def test_dlq_requeue(client: TestClient, tmp_path: Path) -> None:
     assert body["requeued"] is True
     assert "new_event_id" in body
     assert body["new_event_id"] != ev["event_id"]
+    uuid.UUID(body["new_event_id"], version=4)
+    # new_event_id and new_seq come from the same atomic result (REQ-001,
+    # REQ-003): the descendant row insert and the seq assignment happen in one
+    # transaction, so new_seq is strictly greater than the original seq.
     assert "new_seq" in body
     assert isinstance(body["new_seq"], int)
-    assert body["new_seq"] > 0
+    assert body["new_seq"] > original_seq
 
     # Original event remains in DLQ (lineage model: original row's dlq_at IS NOT NULL)
     r2 = client.get("/dlq")
@@ -305,6 +311,28 @@ def test_requeue_unknown_event_returns_404(client: TestClient) -> None:
     """Requeue should return 404 for unknown events."""
     r = client.post("/dlq/nonexistent-event-id/requeue")
     assert r.status_code == 404, f"Expected 404, got {r.status_code}: {r.text}"
+
+
+def test_dlq_requeue_not_found_returns_404(client: TestClient) -> None:
+    """Never published, so no events row exists -> repository status not_found -> 404."""
+    missing_id = str(uuid.uuid4())
+    resp = client.post(f"/dlq/{missing_id}/requeue")
+    assert resp.status_code == 404
+    assert resp.json()["detail"] == "event not found"
+
+
+def test_dlq_requeue_existing_not_in_dlq_returns_409(
+    client: TestClient,
+) -> None:
+    """Published but never nacked: the events row exists but dlq_at is NULL ->
+    repository status not_in_dlq -> 409."""
+    body = _event("dlq")
+    resp = client.post("/publish", json=body)
+    assert resp.status_code == 200
+
+    resp = client.post(f"/dlq/{body['event_id']}/requeue")
+    assert resp.status_code == 409
+    assert resp.json()["detail"] == "event is not in DLQ"
 
 
 def test_atomic_write_failure_leaves_db_row_unchanged(
