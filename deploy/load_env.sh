@@ -104,3 +104,44 @@ require_env_vars() {
         exit 1
     fi
 }
+
+# preflight_eventbus_tokens は require_env_vars の後に呼ぶ設定レベルのゲート。
+# app.py の lifespan と同じ順序 (load_config → _populate_token_maps) で
+# トークンマップを構築し、設定の各トークンがマップに一致するかを指紋で検証する。
+# 呼び出し側の EVENTBUS_CONFIG_PATH / DEPLOY_SCRIPTS / UV_PROD_FLAGS を読む
+# (require_env_vars が ENV_FILE / REPO_ROOT を読むのと同じ規約)。
+preflight_eventbus_tokens() {
+    local py_output
+    if ! py_output="$(PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true \
+        EVENTBUS_CONFIG_PATH="${EVENTBUS_CONFIG_PATH}" \
+        uv run "${UV_PROD_FLAGS[@]}" python - <<'PYEOF' 2>&1
+from eventbus import auth
+from eventbus.config import get_config_path, load_config
+
+config = load_config(get_config_path())
+auth._populate_token_maps(config)
+principal_map = auth._TOKEN_PRINCIPAL_MAP
+for field in (
+    "auth_token",
+    "admin_token",
+    "monitoring_token",
+    "operator_token",
+    "publisher_token",
+    "consumer_token",
+):
+    token = getattr(config, field, "")
+    if not token:
+        continue
+    principal = principal_map.get(token)
+    if principal is None:
+        raise SystemExit(f"token for config field '{field}' is absent from the token map")
+    if principal.token_fingerprint != auth._derive_token_fingerprint(token):
+        raise SystemExit(f"token fingerprint mismatch for config field '{field}'")
+PYEOF
+    )"; then
+        echo "[FATAL] Event Bus token-map preflight failed (config: ${EVENTBUS_CONFIG_PATH}):" >&2
+        echo "${py_output}" >&2
+        echo "Fix the EventBus config and re-run: bash deploy/setup_services.sh" >&2
+        exit 1
+    fi
+}

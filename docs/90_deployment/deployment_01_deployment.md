@@ -298,11 +298,14 @@ bash deploy/init_db.sh
 - Creates `workflow.sqlite` and its mandatory tables (tasks, attempts, processed_events, artifacts)
 - Creates `eventbus.sqlite` from `scripts/eventbus/schema.sql` with `PRAGMA user_version`; every database is create-only, none is migrated
 - Refuses an `eventbus.sqlite` stamped with another version
-- Verifies all mandatory tables exist; aborts if any are missing
+- Checks required `workflow.sqlite` tables for presence; this is the only table-presence check
+- Validates `eventbus.sqlite` against the shared schema fingerprint and aborts on any deviation
 
 - Records the schema version
 
-Run `init_db.sh` before `setup_services.sh`, which rejects a schema-version mismatch. A workflow or EventBus database older than the current schema is recreated, not migrated: archive it first (`rotate_all_dbs()`), delete it, then run `init_db.sh`. `init_db.sh` refuses to record the current version over a different one; the EventBus service refuses a different version or table shape. The workflow definition must not contain `require_approval`; the loader rejects the key.
+The EventBus shape gate is the shared validator `scripts/shared/eventbus_schema_fingerprint.py`. It derives the canonical shape — tables, columns (name/type/nullability/default/pk), indexes, table-level constraints, foreign keys, and triggers (if any) — from `scripts/eventbus/schema.sql` via `PRAGMA` on a fresh in-memory apply, and `assert_matches()` raises on any mismatch against the target connection even when `PRAGMA user_version` matches. `create_eventbus_schema()` runs it after DDL on a database already stamped with the current version, and `init_db.sh` runs the same validator on `eventbus.sqlite`, so a correctly stamped but malformed `eventbus.sqlite` is refused identically at deployment and at runtime startup (`_init_schema()` in `scripts/eventbus/schema.py`).
+
+Run `init_db.sh` before `setup_services.sh`, which rejects a schema-version mismatch. A workflow or EventBus database older than the current schema is recreated, not migrated: archive it first (`rotate_all_dbs()`), delete it, then run `init_db.sh`; it refuses to record the current version over a different one. `setup_services.sh` proves Event Bus liveness and readiness with a bounded poll before reporting success: a dead child, a persistent connection failure, or a `/health` body failing the readiness predicate `db == ok` AND `dlq_task == running` is fatal, with child cleanup and last-response logging; an HTTP 503 carrying only capacity-only `degraded_reasons` (`lock_wait_high`, `slow_consumers_detected`, `query_duration_high`, `broker_queue_backlog_high`, `subscribers_at_capacity`) is tolerated. The workflow definition must not contain `require_approval`; the loader rejects the key.
 
 **Recreating `session.sqlite`.** `session.sqlite` has no incremental migration, so a schema change to it (for example the `sessions.undo_floor_message_id` column of the `/undo` compression boundary) requires recreating the file. The recreated file is empty, and the memory tables recover separately.
 

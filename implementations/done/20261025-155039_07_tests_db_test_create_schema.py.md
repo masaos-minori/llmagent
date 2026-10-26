@@ -9,7 +9,7 @@ Make the patched EventBus shapes in `tests/db/test_create_schema.py` structurall
 
 ## Assumptions
 
-- `create_eventbus_schema()` (`scripts/db/create_schema.py`) validates shape against the shared validator after DDL runs (`REQ-003`); a non-canonical patched shape therefore raises inside those tests unless the patched DDL is corrected.
+- `create_eventbus_schema()` (`scripts/db/create_schema.py`) validates shape against the shared validator only for a database already stamped with the current version (`elif existing and db.conn is not None:` branch, REQ-003); a patched, unstamped test database intentionally skips that gate, which is why the non-canonical patched shape still passes today. Correcting the patched DDL is what REQ-006 asks for so the shape the tests exercise is the canonical one.
 - The shared validator (`scripts/shared/eventbus_schema_fingerprint.py`, `REQ-001`) compares structural fingerprint only (tables/columns/types/nullability/defaults/pk, indexes, table-level constraints, FKs, triggers) and ignores `PRAGMA user_version`, so leaving the patched string unstamped does not affect the comparison.
 - The old-shape database cannot accept the current DDL, so `executescript` raises before any shape validation runs.
 
@@ -31,17 +31,17 @@ Make the patched EventBus shapes in `tests/db/test_create_schema.py` structurall
 
 ### Procedure
 
-1. Open `tests/db/test_create_schema.py` and locate the `_EVENTBUS_SCHEMA_NO_VEC0` DDL string (lines 111-148).
-2. Delete the extra `consumer_delivery_failure_count` column from the `events` table (line 125); it is absent from `scripts/eventbus/schema.sql` and strict validation rejects it.
-3. Add the low-water-mark index on `consumer_delivery (consumer_id, acked)` after the `consumer_delivery` table closes (after line 141), matching the index defined at `scripts/eventbus/schema.sql` lines 31-33, so the patched shape is structurally identical to `schema.sql`.
-4. Leave `test_unstamped_old_shape_fails_explicitly` (lines 1022-1035) expecting `sqlite3.OperationalError` at line 1030 unchanged; do not switch it to `RuntimeError`.
+1. Open `tests/db/test_create_schema.py` and locate the `_EVENTBUS_SCHEMA_NO_VEC0` DDL string (lines 119-154, verified 20261026).
+2. Delete the extra `consumer_delivery_failure_count` column from the `events` table (line 131); it is absent from `scripts/eventbus/schema.sql` and strict validation rejects it. The line carries no trailing comma, so also drop the trailing comma from the preceding `consumer_id            TEXT,` line (line 130).
+3. Add the low-water-mark index on `consumer_delivery (consumer_id, acked)` after the `consumer_delivery` table closes (after line 149), matching the index defined at `scripts/eventbus/schema.sql` lines 32-33, so the patched shape is structurally identical to `schema.sql`.
+4. Leave `test_unstamped_old_shape_fails_explicitly` (line 1028) expecting `sqlite3.OperationalError` unchanged; do not switch it to `RuntimeError`.
 5. Confirm the tests that patch `_EVENTBUS_SCHEMA_NO_VEC0` pass after the canonical fix.
 
 ### Method
 
-- The extra column is the single line `    consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0,` inside the `events` block (line 125); delete only that line so the remaining `events` columns match `schema.sql`.
-- Do NOT remove the identically named column on the `consumer_delivery` table (test line 138, `schema.sql` line 26) — that column is canonical and must stay. Only the `events` copy at line 125 is removed.
-- Insert the index with a comment mirroring `schema.sql`'s low-water-mark note, placed between the `consumer_delivery` table (closes at line 141) and the `consumer_offsets` comment (line 143).
+- The extra column is the final line `    consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0` (no trailing comma) inside the `events` block (line 131); delete that line and drop the trailing comma from the preceding `    consumer_id            TEXT,` line (line 130) so the remaining `events` columns match `schema.sql`.
+- Do NOT remove the identically named column on the `consumer_delivery` table (test line 144, `schema.sql` line 26) — that column is canonical and must stay. Only the `events` copy at line 131 is removed.
+- Insert the index with a comment mirroring `schema.sql`'s low-water-mark note, placed between the `consumer_delivery` table (closes at line 149) and the `consumer_offsets` comment (line 151).
 - Do not touch `PRAGMA user_version`: the patched string stays unstamped, which is intentional for the "no vec0" variant and irrelevant to the structural fingerprint.
 - Verify `test_eventbus_schema_timestamps` (line 902), `test_create_eventbus_schema_produces_new_tables` (line 947), and the `TestEventBusTablesExist` / `TestEventBusSchemaNewColumns` classes (which call `create_eventbus_schema()` with the patched string) all pass under the post-DDL shape gate.
 
@@ -86,10 +86,10 @@ Make the patched EventBus shapes in `tests/db/test_create_schema.py` structurall
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Correct the `_EVENTBUS_SCHEMA_NO_VEC0` DDL to match `schema.sql` (drop extra `events` column, add missing index) | Pending | — | — | REQ-006 |
-| 2 | Keep `test_unstamped_old_shape_fails_explicitly` on `sqlite3.OperationalError`; confirm patched-shape tests pass | Pending | — | — | REQ-006 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Correct the `_EVENTBUS_SCHEMA_NO_VEC0` DDL to match `schema.sql` (drop extra `events` column, add missing index) | Completed | — | — | REQ-006 events extra column dropped (consumer_id comma fixed), idx_consumer_delivery_consumer_ack added; fingerprint equivalence check PATCHED SHAPE CANONICAL: OK |
+| 2 | Keep `test_unstamped_old_shape_fails_explicitly` on `sqlite3.OperationalError`; confirm patched-shape tests pass | Completed | — | — | REQ-006 old-shape test kept on sqlite3.OperationalError; 67 tests in tests/db/test_create_schema.py passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | fast gates Pass; lint-imports 6 KEPT; pre-commit Passed; full suite 10139 passed, 9 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: test-only N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

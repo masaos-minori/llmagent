@@ -16,6 +16,13 @@ UV_PROD_FLAGS=(--frozen --no-dev)
 
 REPO_ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 
+# Sandbox overrides: defaults preserve the production /opt/llm paths.
+# tests/deploy/test_setup_services_eventbus.py uses these to run the shipped
+# script against throwaway state (mirrors deploy/init_db.sh DEPLOY_* pattern).
+DEPLOY_SCRIPTS="${DEPLOY_SCRIPTS:-/opt/llm/scripts}"
+DEPLOY_DB="${DEPLOY_DB:-/opt/llm/db}"
+DEPLOY_LOGS="${DEPLOY_LOGS:-/opt/llm/logs}"
+
 # .env パースと必須環境変数ゲートの共有ライブラリ（sourcing 専用。set オプションは本スクリプトの責任）
 # The library is shellchecked as its own file; the job does not pass -x, so it is not followed here.
 # shellcheck disable=SC1091
@@ -24,8 +31,8 @@ source "${REPO_ROOT}/deploy/load_env.sh"
 # Workflow: pre-flight definition + schema check (see docs/02_deployment.md §2.3)
 echo "--- Pre-flight: workflow definition and schema check ---"
 
-WORKFLOW_JSON="/opt/llm/config/workflows/default.json"
-WORKFLOW_DB="/opt/llm/db/workflow.sqlite"
+WORKFLOW_JSON="${WORKFLOW_JSON:-/opt/llm/config/workflows/default.json}"
+WORKFLOW_DB="${DEPLOY_DB}/workflow.sqlite"
 
 if [ ! -f "${WORKFLOW_JSON}" ]; then
   echo "[FATAL] Missing required workflow definition: ${WORKFLOW_JSON}" >&2
@@ -33,7 +40,7 @@ if [ ! -f "${WORKFLOW_JSON}" ]; then
   exit 1
 fi
 
-if ! PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
+if ! PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -m agent.workflow.validate "${WORKFLOW_JSON}"; then
   echo "[FATAL] Deployed workflow definition failed validation: ${WORKFLOW_JSON}" >&2
   echo "Run the workflow schema initialization step before starting the agent." >&2
   exit 1
@@ -61,7 +68,7 @@ if [ -n "${MISSING_TABLES}" ]; then
   exit 1
 fi
 
-EXPECTED_SCHEMA_VERSION=$(PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -c \
+EXPECTED_SCHEMA_VERSION=$(PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -c \
   "from db.schema_sql import WORKFLOW_SCHEMA_VERSION; print(WORKFLOW_SCHEMA_VERSION)")
 ACTUAL_SCHEMA_VERSION=$(sqlite3 "${WORKFLOW_DB}" \
   "SELECT version FROM workflow_schema_version ORDER BY applied_at DESC LIMIT 1;")
@@ -93,7 +100,7 @@ LLM_GATE_STRICT="${LLM_GATE_STRICT:-0}"
 read_llm_base() {
     # config/agent.toml から指定キー(base URL)を uv run python で読み取る。
     # 既存のスキーマ読み取りパターンと同様。キー欠落・エラー時は空文字を返す。
-    PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -c \
+    PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python -c \
         "import tomllib,sys
 try:
     print(tomllib.load(open(sys.argv[1],'rb')).get('${1}','').rstrip('/'))
@@ -167,35 +174,92 @@ if [[ -n "${ENV_FILE}" ]]; then
     parse_env_file "${ENV_FILE}"
 fi
 
-EVENTBUS_CONFIG=""
-if [[ -f "/opt/llm/config/eventbus.toml" ]]; then
-    EVENTBUS_CONFIG="/opt/llm/config/eventbus.toml"
-elif [[ -f "${REPO_ROOT}/config/eventbus.toml" ]]; then
-    EVENTBUS_CONFIG="${REPO_ROOT}/config/eventbus.toml"
+# EVENTBUS_CONFIG_PATH is env-overridable and is exported to the app process,
+# so the app actually reads the config file this script validated.
+if [[ -z "${EVENTBUS_CONFIG_PATH:-}" ]]; then
+    if [[ -f "/opt/llm/config/eventbus.toml" ]]; then
+        EVENTBUS_CONFIG_PATH="/opt/llm/config/eventbus.toml"
+    elif [[ -f "${REPO_ROOT}/config/eventbus.toml" ]]; then
+        EVENTBUS_CONFIG_PATH="${REPO_ROOT}/config/eventbus.toml"
+    fi
 fi
-require_env_vars "Event Bus" "bash deploy/setup_services.sh" "${EVENTBUS_CONFIG}"
+require_env_vars "Event Bus" "bash deploy/setup_services.sh" "${EVENTBUS_CONFIG_PATH}"
+
+# Deeper config-level gate (REQ-005): build token maps the same way the app's
+# lifespan does and abort before launching if the config cannot produce them.
+preflight_eventbus_tokens
 
 EB_AUTH_HEADER="Authorization: Bearer ${EVENTBUS_AUTH_TOKEN:-}"
 
-PYTHONPATH=/opt/llm/scripts UV_SYSTEM_CERTS=true \
+EVENTBUS_HEALTH_URL="${EVENTBUS_HEALTH_URL:-http://127.0.0.1:8015/health}"
+
+PYTHONPATH="${DEPLOY_SCRIPTS}" UV_SYSTEM_CERTS=true EVENTBUS_CONFIG_PATH="${EVENTBUS_CONFIG_PATH}" \
     uv run "${UV_PROD_FLAGS[@]}" python -m eventbus.app \
-    >> /opt/llm/logs/eventbus.log 2>&1 &
+    >> "${DEPLOY_LOGS}/eventbus.log" 2>&1 &
 EB_PID=$!
 echo "  Event Bus PID: ${EB_PID}"
-echo "  Health: $(sleep 2 && curl -s -H "${EB_AUTH_HEADER}" http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
+
+# --- EventBus readiness gate (REQ-004) -------------------------------------
+# Ready only when the /health body reports db == ok AND dlq_task == running.
+# A 503 carrying only capacity-only degraded_reasons (lock_wait_high,
+# slow_consumers_detected, query_duration_high, broker_queue_backlog_high,
+# subscribers_at_capacity) still satisfies the predicate and does NOT fail
+# the gate (contract: scripts/eventbus/health_route.py).
+EB_READY=0
+EB_LAST_CODE=""
+EB_LAST_BODY=""
+
+eb_gate_fail() {
+    echo "[FATAL] Event Bus did not become ready within ${LLM_HEALTH_RETRIES} attempts (~$((LLM_HEALTH_RETRIES * LLM_HEALTH_INTERVAL))s)." >&2
+    echo "  Event Bus (${EVENTBUS_HEALTH_URL}): last status ${EB_LAST_CODE:-unreachable} ${EB_LAST_BODY:-<none>}" >&2
+    kill "${EB_PID}" 2>/dev/null || true
+    wait "${EB_PID}" 2>/dev/null || true
+    exit 1
+}
+
+EB_BODY_FILE="$(mktemp)"
+for (( eb_attempt=1; eb_attempt<=LLM_HEALTH_RETRIES; eb_attempt++ )); do
+    if ! kill -0 "${EB_PID}" 2>/dev/null; then
+        echo "  [FATAL] Event Bus process exited during startup (see ${DEPLOY_LOGS}/eventbus.log)." >&2
+        rm -f "${EB_BODY_FILE}"
+        eb_gate_fail
+    fi
+    # No -f/--fail: a 503 body is required to tell capacity-only degradation
+    # apart from db_unavailable / dlq_task_stopped. Connection failure yields
+    # the write-out code 000 (the only retried branch).
+    EB_LAST_CODE=$(curl -sS -o "${EB_BODY_FILE}" -w '%{http_code}' --max-time 5 -H "${EB_AUTH_HEADER}" "${EVENTBUS_HEALTH_URL}" 2>/dev/null || true)
+    EB_LAST_BODY="$(tr -d '\n ' < "${EB_BODY_FILE}")"
+    if [ -z "${EB_LAST_CODE}" ] || [ "${EB_LAST_CODE}" = "000" ]; then
+        echo "  ...起動中 (${eb_attempt}/${LLM_HEALTH_RETRIES}): eventbus=${EB_LAST_CODE:-unreachable}"
+        sleep "${LLM_HEALTH_INTERVAL}"
+        continue
+    fi
+    if [[ "${EB_LAST_BODY}" == *'"db":"ok"'* && "${EB_LAST_BODY}" == *'"dlq_task":"running"'* ]]; then
+        EB_READY=1
+        break
+    fi
+    echo "  Event Bus /health returned HTTP ${EB_LAST_CODE} without the readiness predicate (db=ok, dlq_task=running)." >&2
+    rm -f "${EB_BODY_FILE}"
+    eb_gate_fail
+done
+rm -f "${EB_BODY_FILE}"
+if [ "${EB_READY}" -ne 1 ]; then
+    eb_gate_fail
+fi
+echo "  Health: ${EB_LAST_BODY}"
 
 # ── ヘルスチェック ────────────────────────────────────────────────────────────
 echo "--- ヘルスチェック (モデルロードに数十秒かかる場合があります) ---"
 echo "  embed-llm      : ${HEALTH_URL_EMBED} (${EMBED_STATE})"
 echo "  agent-llm      : ${HEALTH_URL_LLM} (${LLM_STATE})"
-echo "  eventbus       (:8015): $(curl -s -H "${EB_AUTH_HEADER}" http://127.0.0.1:8015/health 2>/dev/null || echo 'まだ起動中')"
+echo "  eventbus       (:8015): $(curl -s -H "${EB_AUTH_HEADER}" "${EVENTBUS_HEALTH_URL}" 2>/dev/null || echo 'まだ起動中')"
 echo ""
 echo "  ※ MCP サーバ (ports 8004-8014) はエージェント起動時に自動起動します"
 echo "     llama-agent 起動後に /mcp status で確認してください"
 
 echo ""
 echo "--- サービス状況サマリ ---"
-echo "  Event Bus (:8015, PID ${EB_PID}): started"
+echo "  Event Bus (:8015, PID ${EB_PID}): READY (db ok, dlq_task running)"
 echo "  agent-llm (${HEALTH_URL_LLM}): ${LLM_STATE}"
 echo "  embed-llm (${HEALTH_URL_EMBED}): ${EMBED_STATE}"
 

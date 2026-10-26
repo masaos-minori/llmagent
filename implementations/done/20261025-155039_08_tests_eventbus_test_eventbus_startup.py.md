@@ -40,8 +40,8 @@ Add two real-subprocess startup tests to `tests/eventbus/test_eventbus_startup.p
 ### Method
 
 - Write the TOML config with the same five-line shape used at lines 159-167 (`port`, `db_path`, `storage_dir`, `deadletter_dir`, `max_retry`, `host = "127.0.0.1"`, `auth_token = "test-token"`), reusing `_free_loopback_port()` for an unused port so nothing binds during setup.
-- For the malformed database, open a fresh `sqlite3` connection to the configured `db_path`, apply a schema that omits one required column (for example the `events.topic` column from `scripts/eventbus/schema.sql`), and stamp `PRAGMA user_version` to the current expected version, so the database is correctly stamped yet structurally malformed.
-- For the canonical database, apply the full `scripts/eventbus/schema.sql` to the configured `db_path` (which stamps `user_version`), so `open_db()` finds a correctly-stamped, shape-valid database.
+- For the malformed database, reuse the file's existing `_stamped_database` helper with `build_eventbus_schema_sql()` minus one index statement (the `idx_events_dlq_seq` pattern already used by `test_malformed_stamped_database_missing_index_is_refused`), so the database is stamped with the current version yet structurally malformed. Note (verified 20261026): `_init_schema()` skips DDL re-apply on the stamped branch (`found == expected` → `assert_matches(conn)` directly), so any stamped deviation — a missing index, an extra column — reaches the shape gate; the doc's earlier "omit the events.topic column" example would instead have failed the DDL apply on unstamped databases and is replaced by the file's established pattern.
+- For the canonical database, call `open_db(str(db_path)).close()` once (it creates the canonical schema and stamps `user_version`), so `open_db()` inside the subprocess finds a correctly-stamped, shape-valid database.
 - Launch via `subprocess.Popen` with `env` carrying `EVENTBUS_CONFIG_PATH` (the written TOML), `EVENTBUS_SCHEMA_PATH` (inherited valid envelope schema), and `PATH`, and `cwd` set to `Path(__file__).resolve().parents[2] / "scripts"` (line 176).
 - In the reject test, call `proc.wait(timeout=20.0)`, read `proc.stdout`, and assert the startup-failure string and a non-zero `proc.returncode`, then run the cleanup at lines 244-250.
 - In the pass test, poll a loopback connection to the configured port (lines 182-196), then issue an authenticated `GET /health` and parse the JSON body; assert `db == ok` and `dlq_task == running`, treating any HTTP status (200 or a capacity-only 503) as acceptable because the readiness predicate is read from the body fields.
@@ -85,10 +85,10 @@ Add two real-subprocess startup tests to `tests/eventbus/test_eventbus_startup.p
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Append `test_main_malformed_stamped_db_rejected_at_startup` (new) mirroring the subprocess harness (lines 169-180) | Pending | — | — | REQ-002 |
-| 2 | Append `test_main_canonical_db_passes_readiness_gate` (new) asserting the readiness predicate | Pending | — | — | REQ-004 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Append `test_main_malformed_stamped_db_rejected_at_startup` (new) mirroring the subprocess harness (lines 169-180) | Completed | — | — | REQ-002 Reject test appended; malformed = stamped DDL missing idx_events_dlq_seq (doc deviation replaced); subprocess exits non-zero with 'Application startup failed. Exiting.' |
+| 2 | Append `test_main_canonical_db_passes_readiness_gate` (new) asserting the readiness predicate | Completed | — | — | REQ-004 Readiness test asserts db==ok AND dlq_task==running from real /health body; HTTPError body read for capacity-only 503 tolerance |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | 22 tests in test_eventbus_startup.py passed; fast gates Pass; lint-imports 6 KEPT; pre-commit Passed; full suite 10141 passed, 9 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: test-only N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

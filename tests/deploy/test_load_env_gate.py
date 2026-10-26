@@ -159,3 +159,129 @@ def test_gate_only_scans_the_files_it_is_given(tmp_path: pathlib.Path) -> None:
     result = _run(driver, extra_env={_SHARED_TOKEN: "exported-value"})
     assert result.returncode == 0
     assert "SOME_OTHER_VARIABLE" not in result.stderr
+
+
+# --- preflight_eventbus_tokens (REQ-005) ------------------------------------
+# The preflight runs `uv run` from the repo project, so its subprocess needs the
+# project cwd and HOME for uv's cache, unlike the presence-gate drivers above.
+
+_PREFLIGHT_TOKEN = "preflight-shared-token-0123456789"
+_PREFLIGHT_CONSUMER_TOKEN = "preflight-consumer-token-0123456789"
+
+
+def _valid_config_text(tmp_path: pathlib.Path) -> str:
+    """The shipped repo config with every /opt/llm path redirected into tmp_path."""
+    text = (_REPO_ROOT / "config" / "eventbus.toml").read_text(encoding="utf-8")
+    return (
+        text.replace("/opt/llm/db", str(tmp_path / "db"))
+        .replace("/opt/llm/storage", str(tmp_path / "storage"))
+        .replace("/opt/llm/deadletter", str(tmp_path / "deadletter"))
+    )
+
+
+def _write_preflight_driver(tmp_path: pathlib.Path, config_text: str) -> pathlib.Path:
+    config_path = tmp_path / "eventbus.toml"
+    config_path.write_text(config_text, encoding="utf-8")
+    driver_path = tmp_path / "preflight_driver.sh"
+    driver_path.write_text(
+        "\n".join(
+            [
+                "set -euo pipefail",
+                f'REPO_ROOT="{_REPO_ROOT}"',
+                f'DEPLOY_SCRIPTS="{_REPO_ROOT / "scripts"}"',
+                "UV_PROD_FLAGS=(--frozen --no-dev)",
+                f'source "{_LIBRARY}"',
+                f'EVENTBUS_CONFIG_PATH="{config_path}"',
+                "preflight_eventbus_tokens",
+                'echo "PREFLIGHT_OK"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    return driver_path
+
+
+def _run_preflight(
+    driver_path: pathlib.Path, *, extra_env: dict[str, str] | None = None
+) -> subprocess.CompletedProcess[str]:
+    env: dict[str, str] = {
+        "PATH": os.environ.get("PATH", "/usr/local/bin:/usr/bin:/bin"),
+        "HOME": os.environ.get("HOME", str(pathlib.Path.home())),
+    }
+    env.update(extra_env or {})
+    return subprocess.run(
+        ["bash", str(driver_path)],
+        cwd=_REPO_ROOT,
+        capture_output=True,
+        text=True,
+        env=env,
+        timeout=120,
+        check=False,
+    )
+
+
+def test_preflight_valid_config_builds_token_map(tmp_path: pathlib.Path) -> None:
+    driver = _write_preflight_driver(tmp_path, _valid_config_text(tmp_path))
+    result = _run_preflight(driver, extra_env={_SHARED_TOKEN: _PREFLIGHT_TOKEN})
+    assert result.returncode == 0
+    assert result.stdout.strip().endswith("PREFLIGHT_OK")
+
+
+def test_preflight_consumer_token_without_authorization_aborts(
+    tmp_path: pathlib.Path,
+) -> None:
+    config = _valid_config_text(tmp_path).replace(
+        'consumer_token = ""', f'consumer_token = "{_PREFLIGHT_CONSUMER_TOKEN}"'
+    )
+    driver = _write_preflight_driver(tmp_path, config)
+    result = _run_preflight(driver, extra_env={_SHARED_TOKEN: _PREFLIGHT_TOKEN})
+    assert result.returncode == 1
+    assert "[FATAL] Event Bus token-map preflight failed" in result.stderr
+    assert "consumer_authorization" in result.stderr
+    assert "PREFLIGHT_OK" not in result.stdout
+    # Raw token values are never logged.
+    assert _PREFLIGHT_TOKEN not in result.stderr
+    assert _PREFLIGHT_CONSUMER_TOKEN not in result.stderr
+
+
+def test_preflight_unknown_key_aborts(tmp_path: pathlib.Path) -> None:
+    config = _valid_config_text(tmp_path) + 'offsets_dir = "/opt/llm/offsets"\n'
+    driver = _write_preflight_driver(tmp_path, config)
+    result = _run_preflight(driver, extra_env={_SHARED_TOKEN: _PREFLIGHT_TOKEN})
+    assert result.returncode == 1
+    assert "[FATAL] Event Bus token-map preflight failed" in result.stderr
+    assert "unknown key" in result.stderr
+    assert "PREFLIGHT_OK" not in result.stdout
+
+
+def test_preflight_missing_token_is_caught_by_presence_gate_first(
+    tmp_path: pathlib.Path,
+) -> None:
+    # setup_services.sh runs require_env_vars before the preflight; a driver that
+    # mirrors that order must abort in the presence gate, not in the preflight.
+    config_path = tmp_path / "eventbus.toml"
+    config_path.write_text(_valid_config_text(tmp_path), encoding="utf-8")
+    driver_path = tmp_path / "preflight_driver.sh"
+    driver_path.write_text(
+        "\n".join(
+            [
+                "set -euo pipefail",
+                f'REPO_ROOT="{_REPO_ROOT}"',
+                f'DEPLOY_SCRIPTS="{_REPO_ROOT / "scripts"}"',
+                "UV_PROD_FLAGS=(--frozen --no-dev)",
+                f'source "{_LIBRARY}"',
+                f'EVENTBUS_CONFIG_PATH="{config_path}"',
+                'require_env_vars "Event Bus" "bash deploy/setup_services.sh" "${EVENTBUS_CONFIG_PATH}"',
+                "preflight_eventbus_tokens",
+                'echo "PREFLIGHT_OK"',
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+    result = _run_preflight(driver_path)  # EVENTBUS_AUTH_TOKEN deliberately unset
+    assert result.returncode == 1
+    assert _SHARED_TOKEN in result.stderr  # named by require_env_vars
+    assert "token-map preflight" not in result.stderr
+    assert "PREFLIGHT_OK" not in result.stdout

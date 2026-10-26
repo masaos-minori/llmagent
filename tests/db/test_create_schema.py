@@ -20,6 +20,12 @@ import pytest
 from db.config import DbConfig
 from db.helper import SQLiteHelper
 from db.schema_sql import build_eventbus_schema_sql, eventbus_schema_version
+from shared.eventbus_schema_fingerprint import (
+    apply_schema_in_memory,
+    assert_matches,
+    build_fingerprint,
+    expected_fingerprint,
+)
 
 # RAG schema without the vec0 virtual table (chunks_vec requires sqlite-vec).
 _RAG_SCHEMA_NO_VEC0 = """
@@ -121,8 +127,7 @@ CREATE TABLE IF NOT EXISTS events (
     redelivered_from       TEXT,
     dlq_requeue_count      INTEGER NOT NULL DEFAULT 0,
     dlq_at                 TEXT,
-    consumer_id            TEXT,
-    consumer_delivery_failure_count INTEGER NOT NULL DEFAULT 0
+    consumer_id            TEXT
 );
 
 CREATE INDEX IF NOT EXISTS idx_events_topic ON events(topic);
@@ -139,6 +144,10 @@ CREATE TABLE IF NOT EXISTS consumer_delivery (
     consumer_last_nack_attempt     TEXT,
     PRIMARY KEY (consumer_id, event_id)
 );
+
+-- Index for efficient low-water-mark query in get_resume_position()
+CREATE INDEX IF NOT EXISTS idx_consumer_delivery_consumer_ack
+    ON consumer_delivery(consumer_id, acked);
 
 -- Per-consumer offset: tracks last-committed sequence offset per consumer
 CREATE TABLE IF NOT EXISTS consumer_offsets (
@@ -1033,6 +1042,216 @@ class TestEventbusSchemaCreation:
         version = conn.execute("PRAGMA user_version").fetchone()[0]
         conn.close()
         assert version == 0
+
+    def test_malformed_stamped_database_fails_closed(self, tmp_path: Path) -> None:
+        """A malformed database stamped with the current version is rejected after
+        the DDL and before commit, and the deviation is left as-is (REQ-003)."""
+        db_file = tmp_path / "eventbus_malformed_stamped.sqlite"
+        raw = sqlite3.connect(str(db_file))
+        raw.executescript(
+            build_eventbus_schema_sql().replace(
+                "    topic                  TEXT    NOT NULL,",
+                "    topic                  TEXT,",
+            )
+        )
+        raw.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
+        raw.commit()
+        raw.close()
+        cfg = _make_db_config(db_file, "eventbus")
+        with patch("db.helper.build_db_config", return_value=cfg):
+            with pytest.raises(RuntimeError, match="columns differ"):
+                cs.create_eventbus_schema()
+        conn = sqlite3.connect(str(db_file))
+        notnull = {r[1]: r[3] for r in conn.execute("PRAGMA table_info(events)")}
+        version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+        conn.close()
+        assert (
+            notnull["topic"] == 0
+        )  # still malformed: nothing was repaired or committed
+        assert version == eventbus_schema_version()
+
+
+# ── EventBus schema fingerprint validator (REQ-001: shape gate independent of user_version) ──
+
+
+_CANONICAL_EVENTBUS_DDL = build_eventbus_schema_sql()
+
+
+def _apply_eventbus_ddl(ddl: str) -> sqlite3.Connection:
+    conn = sqlite3.connect(":memory:")
+    conn.executescript(ddl)
+    return conn
+
+
+class TestEventbusSchemaFingerprint:
+    """The shared fingerprint validator accepts a canonical EventBus database and
+    rejects any structural deviation, even when the structural check alone proves
+    the shape (no user_version involved)."""
+
+    def test_canonical_database_matches_expected_fingerprint(
+        self, tmp_path: Path
+    ) -> None:
+        """A database built from schema.sql matches expected_fingerprint() exactly."""
+        db_file = tmp_path / "eventbus_fingerprint.sqlite"
+        raw = sqlite3.connect(str(db_file))
+        raw.executescript(_CANONICAL_EVENTBUS_DDL)
+        raw.close()
+        conn = sqlite3.connect(str(db_file))
+        try:
+            assert_matches(conn)
+            assert build_fingerprint(conn) == expected_fingerprint()
+        finally:
+            conn.close()
+
+    def test_in_memory_apply_matches_disk_apply(self) -> None:
+        """apply_schema_in_memory() and a disk apply of the same DDL fingerprint identically."""
+        disk = _apply_eventbus_ddl(_CANONICAL_EVENTBUS_DDL)
+        try:
+            assert build_fingerprint(disk) == build_fingerprint(
+                apply_schema_in_memory()
+            )
+        finally:
+            disk.close()
+
+    def test_missing_column_raises(self) -> None:
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "    acked                          INTEGER NOT NULL DEFAULT 0,\n", ""
+        ).replace(
+            "CREATE INDEX IF NOT EXISTS idx_consumer_delivery_consumer_ack\n"
+            "    ON consumer_delivery(consumer_id, acked);",
+            "",
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="consumer_delivery: columns differ"):
+                assert_matches(conn, label="test-missing-column")
+        finally:
+            conn.close()
+
+    def test_missing_index_raises(self) -> None:
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "CREATE INDEX IF NOT EXISTS idx_events_dlq_seq ON events(dlq_at, seq);", ""
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="events: indexes differ"):
+                assert_matches(conn, label="test-missing-index")
+        finally:
+            conn.close()
+
+    def test_changed_nullability_raises(self) -> None:
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "    topic                  TEXT    NOT NULL,",
+            "    topic                  TEXT,",
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="events: columns differ"):
+                assert_matches(conn, label="test-changed-nullability")
+        finally:
+            conn.close()
+
+    def test_changed_default_raises(self) -> None:
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')", "CURRENT_TIMESTAMP"
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="events: columns differ"):
+                assert_matches(conn, label="test-changed-default")
+        finally:
+            conn.close()
+
+    def test_extra_column_raises(self) -> None:
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "    consumer_id            TEXT\n);",
+            "    consumer_id            TEXT,\n"
+            "    created_at             TIMESTAMP DEFAULT CURRENT_TIMESTAMP\n);",
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="events: columns differ"):
+                assert_matches(conn, label="test-extra-column")
+        finally:
+            conn.close()
+
+    def test_missing_table_raises(self) -> None:
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "CREATE TABLE IF NOT EXISTS consumer_offsets (\n"
+            "    consumer_id          TEXT    PRIMARY KEY,\n"
+            "    offset               INTEGER NOT NULL DEFAULT 0\n"
+            ");",
+            "",
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="missing table 'consumer_offsets'"):
+                assert_matches(conn, label="test-missing-table")
+        finally:
+            conn.close()
+
+    def test_extra_table_raises(self) -> None:
+        ddl = (
+            _CANONICAL_EVENTBUS_DDL
+            + "\nCREATE TABLE audit_log (id INTEGER PRIMARY KEY);"
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="unexpected table 'audit_log'"):
+                assert_matches(conn, label="test-extra-table")
+        finally:
+            conn.close()
+
+    def test_changed_table_level_constraint_raises(self) -> None:
+        """Dropping the composite primary key changes both columns and table-level
+        constraints; the validator must reject it."""
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "    consumer_last_nack_attempt     TEXT,\n"
+            "    PRIMARY KEY (consumer_id, event_id)\n"
+            ");",
+            "    consumer_last_nack_attempt     TEXT\n);",
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(RuntimeError, match="consumer_delivery.*differ"):
+                assert_matches(conn, label="test-changed-constraint")
+        finally:
+            conn.close()
+
+    def test_extra_foreign_key_raises(self) -> None:
+        ddl = _CANONICAL_EVENTBUS_DDL.replace(
+            "    consumer_last_nack_attempt     TEXT,\n"
+            "    PRIMARY KEY (consumer_id, event_id)\n"
+            ");",
+            "    consumer_last_nack_attempt     TEXT,\n"
+            "    PRIMARY KEY (consumer_id, event_id),\n"
+            "    FOREIGN KEY (event_id) REFERENCES events(event_id)\n"
+            ");",
+        )
+        conn = _apply_eventbus_ddl(ddl)
+        try:
+            with pytest.raises(
+                RuntimeError, match="consumer_delivery: foreign keys differ"
+            ):
+                assert_matches(conn, label="test-extra-foreign-key")
+        finally:
+            conn.close()
+
+    def test_validator_raises_even_when_user_version_matches(self) -> None:
+        """A malformed database already stamped with the current version is still
+        rejected: the shape gate does not trust user_version."""
+        conn = _apply_eventbus_ddl(
+            _CANONICAL_EVENTBUS_DDL.replace(
+                "    topic                  TEXT    NOT NULL,",
+                "    topic                  TEXT,",
+            )
+        )
+        conn.execute(f"PRAGMA user_version = {eventbus_schema_version()}")
+        try:
+            with pytest.raises(RuntimeError, match="events: columns differ"):
+                assert_matches(conn, label="test-stamped-but-malformed")
+        finally:
+            conn.close()
 
 
 # ── DDL error propagation (behavior lock for the refactor extracting the shared ────

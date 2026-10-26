@@ -86,7 +86,7 @@ def redeliver_event(
             # exists but dlq_at IS NULL ("not_in_dlq"), or it never existed
             # ("not_found").
             row = conn.execute(
-                f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",
+                f"SELECT 1 FROM events WHERE {_COL_EVENT_ID} = ?",  # nosec B608 — column names are module-level constants, values parameterized
                 (event_id,),
             ).fetchone()
             if row is not None:

@@ -102,10 +102,10 @@ def test_dlq_requeue_existing_not_in_dlq_returns_409(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-26 | 2026-10-26 | `test_dlq_requeue`: captured publish `seq`, asserts `new_seq > original_seq` and `new_event_id` is UUID v4 (same atomic result). Added `test_dlq_requeue_not_found_returns_404` and `test_dlq_requeue_existing_not_in_dlq_returns_409` as specified (detail-string contract). Existing `test_requeue_unknown_event_returns_404` / `test_requeue_non_dlq_event_fails` already covered the status codes; the new tests add the `detail` assertions, which those tests lacked. |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | `tests/eventbus/`: 331 passed, 1 skipped (was 329 + 2 new). `rg "db.execute" scripts/eventbus/dlq_route.py`: zero matches. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | `uv run python tools/run_validation_gates.py`: all checks Pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-26 | 2026-10-26 | No docs change required (test-only procedure). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

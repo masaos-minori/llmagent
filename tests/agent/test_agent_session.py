@@ -198,7 +198,9 @@ class TestStartSchemaMissingFallback:
     def _make_exploding(self, error: sqlite3.OperationalError):
         conn = sqlite3.connect(":memory:")
 
-        def _make(name: str = "session") -> TestStartSchemaMissingFallback._ExplodingHelper:
+        def _make(
+            name: str = "session",
+        ) -> TestStartSchemaMissingFallback._ExplodingHelper:
             helper = TestStartSchemaMissingFallback._ExplodingHelper(conn)
             helper.injected = error
             return helper

@@ -19,6 +19,8 @@ import logging
 import sqlite3
 import sys
 
+from shared.eventbus_schema_fingerprint import assert_matches
+
 from db.helper import SQLiteHelper
 from db.schema_sql import (
     WORKFLOW_SCHEMA_VERSION,
@@ -122,6 +124,10 @@ def create_eventbus_schema() -> None:
             # Leave an unverified legacy database unstamped; the EventBus service
             # stamps it only after checking its tables against schema.sql.
             db.execute("PRAGMA user_version = 0")
+        elif existing and db.conn is not None:
+            # A database already stamped with the current version must still match
+            # the canonical shape; fail closed before committing (REQ-003).
+            assert_matches(db.conn)
         db.commit()
     logger.info("Event Bus schema created successfully.")
 

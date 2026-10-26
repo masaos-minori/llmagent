@@ -66,9 +66,7 @@ class DiagnosticStore:
             sensitive_fields=sf,
         )
 
-    def _filter_sensitive_fields(
-        self, content: str, cfg: DiagnosticsConfig
-    ) -> str:
+    def _filter_sensitive_fields(self, content: str, cfg: DiagnosticsConfig) -> str:
         """Redact sensitive fields from a JSON diagnostic payload.
 
         Replaces sensitive field list values with

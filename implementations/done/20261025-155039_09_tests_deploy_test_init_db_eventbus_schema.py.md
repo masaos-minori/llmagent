@@ -9,8 +9,8 @@ Add a shell/integration test for `deploy/init_db.sh` (`REQ-003`): the script abo
 
 ## Assumptions
 
-- `deploy/init_db.sh` hardcodes its paths: `DEPLOY_SCRIPTS="/opt/llm/scripts"` and `DEPLOY_DB="/opt/llm/db"` (lines 14-15), so the script always reads `create_schema.py` from `/opt/llm/scripts/db` and writes to `/opt/llm/db`. The test therefore provisions the EventBus database at the production path `/opt/llm/db/eventbus.sqlite` and runs the real script, which targets those same absolute paths.
-- `init_db.sh` runs `create_schema.py` via `uv run` from the `/opt/llm` cwd at line 31, so the test must run in an environment where `/opt/llm/scripts/db/create_schema.py` exists and `/opt/llm/db` is writable (i.e. a deployed environment).
+- `deploy/init_db.sh` hardcodes its paths at lines 14-15 — verification found this made the original sandbox-free design unsafe: provisioning a malformed database at `/opt/llm/db/eventbus.sqlite` would destroy real production EventBus state (the file exists with live data). Procedure `20261025-155039_04` therefore made `DEPLOY_SCRIPTS`/`DEPLOY_DB` environment-overridable (`${VAR:-/opt/llm/...}` defaults), and the tests point them at a throwaway sandbox: the real script is still spawned unchanged, but nothing under `/opt/llm/db` is read or written.
+- `init_db.sh` runs `create_schema.py` via `uv run` from the `/opt/llm` cwd, so the tests skip unless `/opt/llm/pyproject.toml` exists (`pytest.mark.skipif`); the uv project root and the read-only sqlite-vec extension are used, but the driver also exports `LLMAGENT_CONFIG_DIR` pointing at a rewritten copy of `config/` (with a pinned `workflow_db_path`, which `agent.toml` lacks) so the `create_schema.py` subprocess resolves every database path into the sandbox.
 - After `REQ-003`, `create_eventbus_schema()` validates shape against the shared fingerprint and fails closed on a malformed database already stamped with the current version, so `init_db.sh` aborts at the line 31 step before reaching the EventBus verification.
 - The completion banner at line 63 (`=== init_db.sh: 完了 ===`) marks a successful run; its absence plus a non-zero exit marks the abort.
 
@@ -86,11 +86,11 @@ Add a shell/integration test for `deploy/init_db.sh` (`REQ-003`): the script abo
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/deploy/test_init_db_eventbus_schema.py` (new) mirroring the load-env gate harness | Pending | — | — | REQ-003 |
-| 2 | Add `test_init_db_malformed_stamped_aborts` (new) asserting abort on a malformed-stamped EventBus DB | Pending | — | — | REQ-003 |
-| 3 | Add `test_init_db_canonical_passes` (new) asserting success on a canonical EventBus DB | Pending | — | — | REQ-003 |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Create `tests/deploy/test_init_db_eventbus_schema.py` (new) mirroring the load-env gate harness | Completed | — | — | REQ-003 Module created, sandbox env overrides per Doc 04 Assumptions update |
+| 2 | Add `test_init_db_malformed_stamped_aborts` (new) asserting abort on a malformed-stamped EventBus DB | Completed | — | — | REQ-003 3 tests implemented as specified |
+| 3 | Add `test_init_db_canonical_passes` (new) asserting success on a canonical EventBus DB | Completed | — | — | REQ-003 tests/deploy/conftest.py added for scripts/ import path |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | Targeted 3 passed; full suite 10131 passed, 9 skipped; sandboxed from production DB |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: test-only Out of scope per Compatibility/Out of scope: test-only procedure, no docs/ update required |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -126,10 +126,10 @@ def test_dlq_list_snapshot_consistent_during_promotion(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-26 | 2026-10-26 | Added `test_dlq_list_snapshot_consistent_during_promotion` to `TestDLQPromotionSemantics`. Deviation from the doc snippet: its `while not stop.is_set()` polling loop never sets `stop` inside the loop (infinite-loop defect, flagged by the existing seq-06 caveat); final version polls GET `/dlq` while the promotion worker thread is alive, bounded to 50 iterations, then joins. Auth uses the file's existing `client` fixture headers (`Bearer test-token`) instead of a separate operator-token header. |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | Each in-flight response asserts `len(items) <= total`, `total >= 0`, `offset == 0`; convergence asserts the promoted `event_id` appears exactly once. Full suite: 336 passed, 1 skipped across 2 random-order runs. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff clean; `run_validation_gates.py`: all checks Pass. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-26 | 2026-10-26 | No docs change required (test-only procedure). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

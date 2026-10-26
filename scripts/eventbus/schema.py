@@ -5,6 +5,8 @@ import sqlite3
 from pathlib import Path
 from sqlite3 import Connection
 
+from shared.eventbus_schema_fingerprint import assert_matches
+
 logger = __import__("logging").getLogger(__name__)
 
 # _SCHEMA_PATH is relative to the project root
@@ -67,8 +69,11 @@ def _init_schema(conn: Connection) -> None:
     """Create the schema when absent; verify the schema version when present.
 
     A database stamped with a different version is refused (it must be recreated,
-    never migrated). An existing unstamped database (user_version 0) is stamped
-    only after its tables match schema.sql column for column.
+    never migrated). A database stamped with the current version is additionally
+    validated against the shared schema fingerprint before returning, so a
+    correctly stamped but malformed database is refused. An existing unstamped
+    database (user_version 0) is stamped only after its tables match schema.sql
+    column for column.
     """
     sql = _SCHEMA_PATH.read_text()
     cur = conn.execute(
@@ -80,6 +85,7 @@ def _init_schema(conn: Connection) -> None:
     expected = _expected_schema_version(sql)
     found = int(conn.execute("PRAGMA user_version").fetchone()[0])
     if found == expected:
+        assert_matches(conn)
         return
     if found == 0 and _matches_current_schema(conn, sql):
         conn.execute(f"PRAGMA user_version = {expected}")  # nosec B608 — expected is an int parsed from schema.sql

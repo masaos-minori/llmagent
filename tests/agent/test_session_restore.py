@@ -379,7 +379,9 @@ class TestRestorePersistenceRealDB:
     """After restore_session(), persistence must bind to the restored session_id."""
 
     async def test_persist_after_restore_attributes_to_restored_id(
-        self, restore_env: tuple[AgentSession, sqlite3.Connection, int], caplog: pytest.LogCaptureFixture
+        self,
+        restore_env: tuple[AgentSession, sqlite3.Connection, int],
+        caplog: pytest.LogCaptureFixture,
     ) -> None:
         s, conn, original_sid = restore_env
         with caplog.at_level(logging.WARNING):
@@ -403,7 +405,8 @@ class TestRestorePersistenceRealDB:
         assert not [
             r
             for r in caplog.records
-            if "Persistence skipped" in r.getMessage() or "Invalid role" in r.getMessage()
+            if "Persistence skipped" in r.getMessage()
+            or "Invalid role" in r.getMessage()
         ]
 
     async def test_restore_keeps_both_session_rows(

@@ -19,6 +19,9 @@ Make `deploy/setup_services.sh` prove the EventBus process stays alive and reach
 - **Prove readiness with the provisional signal, not `status == ok`.** The gate treats the start as ready only when the `/health` body reports `db == ok` AND `dlq_task == running`. This is why a 503 that carries only capacity-only `degraded_reasons` is a healthy start and is NOT fatal: its body still has `db == ok` and `dlq_task == running`, so the readiness predicate holds.
 - **Fail fast on a definitive bad signal.** Each poll first checks that `EB_PID` is still alive (`kill -0`); a dead child is a crash and aborts immediately. A response whose body does not satisfy the readiness predicate means the service is up but genuinely unavailable (`db_unavailable` or `dlq_task_stopped`, i.e. `status != ok`), which aborts. Only a connection failure (service not listening yet during startup) is retried, until the retry budget is exhausted, at which point the gate fails.
 - **Mirror the existing LLM gate.** The new `eb_gate_fail` (new) helper prints a `[FATAL]`, logs the last `/health` response, kills the child (`kill ${EB_PID}`) and `wait`s it, then `exit 1`; the retry counts reuse `LLM_HEALTH_RETRIES` / `LLM_HEALTH_INTERVAL` so the poll is bounded and env-overridable.
+- **curl must not use `--fail`.** Verified 20261026: `curl -f` discards the response body on HTTP >= 400, but a capacity-only 503 body is exactly what the readiness predicate must read (`db == ok` AND `dlq_task == running`). The poll therefore uses `curl -sS -o <tmp> -w '%{http_code}'` (no `-f`) and treats the write-out `000` (curl's connection-failure code) — not an empty string alone — as the retried not-listening branch.
+- **Env-overridable paths for sandboxed tests.** Mirroring the `deploy/init_db.sh` `DEPLOY_SCRIPTS`/`DEPLOY_DB` decision (procedure 20261025-155039_04), `setup_services.sh` gains `DEPLOY_SCRIPTS="${DEPLOY_SCRIPTS:-/opt/llm/scripts}"` (all four `PYTHONPATH=/opt/llm/scripts` uses), `DEPLOY_DB="${DEPLOY_DB:-/opt/llm/db}"` (Workflow DB), a `WORKFLOW_JSON="${WORKFLOW_JSON:-/opt/llm/config/workflows/default.json}"` override, `DEPLOY_LOGS="${DEPLOY_LOGS:-/opt/llm/logs}"` (EventBus log file), and `EVENTBUS_HEALTH_URL="${EVENTBUS_HEALTH_URL:-http://127.0.0.1:8015/health}"` (poll + summary curl). Defaults preserve production paths unchanged; without overrides the script is byte-identical in behavior. These are what let `tests/deploy/test_setup_services_eventbus.py` run the shipped script against throwaway state instead of `/opt/llm`.
+- **`EVENTBUS_CONFIG_PATH` override + export (found by procedure 20261025-155039_10 tests, 20261026).** The launch block never exported the config path it had selected, so `eventbus.app` always fell back to its built-in default `/opt/llm/config/eventbus.toml` regardless of the `EVENTBUS_CONFIG` probe — in sandboxed runs this made the child read production config (which still carries the removed `offsets_dir` key) and crash. The probe variable is now `EVENTBUS_CONFIG_PATH` (env-overridable, skipping the probe when preset) and is exported on the launch line. Production behavior is unchanged because the default resolves to the same `/opt/llm/config/eventbus.toml`.
 
 ## Alternatives considered
 
@@ -34,13 +37,13 @@ Make `deploy/setup_services.sh` prove the EventBus process stays alive and reach
 ### Procedure
 
 1. Open `deploy/setup_services.sh` and locate the EventBus launch block (lines 180-185): the background launch at lines 180-183, the PID print at line 184, and the unconditional one-shot `/health` print at line 185.
-2. After the PID print at line 184, insert a bounded readiness poll that reuses `LLM_HEALTH_RETRIES` / `LLM_HEALTH_INTERVAL` (lines 87-88), defines an `eb_gate_fail` (new) helper that logs the last response, runs `kill ${EB_PID}` plus `wait`, and exits 1, and loops up to the retry budget checking liveness, connection, and the readiness predicate.
+2. After the PID print at line 184, insert a bounded readiness poll that reuses `LLM_HEALTH_RETRIES` / `LLM_HEALTH_INTERVAL` (lines 87-88), defines an `eb_gate_fail` (new) helper that logs the last response, runs `kill ${EB_PID}` plus `wait`, and exits 1, and loops up to the retry budget checking liveness, connection, and the readiness predicate. Add the `DEPLOY_SCRIPTS` / `DEPLOY_DB` / `WORKFLOW_JSON` / `DEPLOY_LOGS` / `EVENTBUS_HEALTH_URL` override definitions near the top (after `REPO_ROOT`, line 17) and use them at lines 27-28, 36, 64, 96, the EventBus launch (lines 180-182), and the health poll.
 3. Replace the unconditional `started` banner at line 198 with a conditional line printed only after the poll confirms readiness; keep the surrounding summary block.
 
 ### Method
 
-- Define the poll immediately after line 184 so `EB_PID` (line 183) is in scope. For each attempt: run `kill -0 "${EB_PID}" 2>/dev/null`; if it fails, call `eb_gate_fail` (new) (the child crashed during startup). Otherwise `curl -fsS -o <tmp> -w '%{http_code}'` against `http://127.0.0.1:8015/health` with `${EB_AUTH_HEADER}` (line 178).
-- If the HTTP code is empty (connection refused while the server is still binding), log `...待機` and `sleep "${LLM_HEALTH_INTERVAL}"`, then continue — this is the only retried branch.
+- Define the poll immediately after line 184 so `EB_PID` (line 183) is in scope. For each attempt: run `kill -0 "${EB_PID}" 2>/dev/null`; if it fails, call `eb_gate_fail` (new) (the child crashed during startup). Otherwise `curl -sS -o <tmp> -w '%{http_code}' --max-time 5` against `${EVENTBUS_HEALTH_URL}` with `${EB_AUTH_HEADER}` (line 178).
+- If the write-out HTTP code is empty or `000` (connection refused while the server is still binding), log `...起動中` and `sleep "${LLM_HEALTH_INTERVAL}"`, then continue — this is the only retried branch.
 - When a response body is available, read the `db` and `dlq_task` fields. If both are `ok`/`running` respectively, set `EB_READY=1` and break. Otherwise the service responded with `status != ok` for a non-capacity reason, so call `eb_gate_fail` (new).
 - After the loop, if `EB_READY` (new) is still 0 the connection never succeeded within the budget, so call `eb_gate_fail` (new).
 - `eb_gate_fail` (new) mirrors `gate_fail` (lines 116-121): it writes `[FATAL]` to stderr, echoes the last `/health` response captured during the poll, ensures the child is gone with `kill "${EB_PID}" 2>/dev/null || true` followed by `wait "${EB_PID}" 2>/dev/null || true`, and `exit 1`.
@@ -88,11 +91,11 @@ Make `deploy/setup_services.sh` prove the EventBus process stays alive and reach
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert the bounded EventBus readiness poll after the PID print (line 184), reusing `LLM_HEALTH_RETRIES` / `LLM_HEALTH_INTERVAL` | Pending | — | — | REQ-004 |
-| 2 | Add `eb_gate_fail` (new) (last-response logging + `kill ${EB_PID}` cleanup) and replace the unconditional banner at line 198 | Pending | — | — | REQ-004 |
-| 3 | Add `tests/deploy/test_setup_services_eventbus.py` per the Validation plan | Pending | — | — | |
-| 4 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 5 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: deploy only |
+| 1 | Insert the bounded EventBus readiness poll after the PID print (line 184), reusing `LLM_HEALTH_RETRIES` / `LLM_HEALTH_INTERVAL` | Completed | — | — | REQ-004 Poll inserted after PID print; DEPLOY_SCRIPTS/DEPLOY_DB/WORKFLOW_JSON/DEPLOY_LOGS/EVENTBUS_HEALTH_URL overrides added near REPO_ROOT and applied at all /opt/llm uses |
+| 2 | Add `eb_gate_fail` (new) (last-response logging + `kill ${EB_PID}` cleanup) and replace the unconditional banner at line 198 | Completed | — | — | REQ-004 eb_gate_fail mirrors gate_fail (kill+wait+exit 1); banner now READY (db ok, dlq_task running) |
+| 3 | Add `tests/deploy/test_setup_services_eventbus.py` per the Validation plan | Completed | — | — | Test file is procedure 20261025-155039_10 (next cycle); smoke harness validated all 6 gate paths in sandbox: ok/degraded(503 capacity-only)=READY, crash/down/stopped/hang=FATAL exit 1 |
+| 4 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | bash -n OK; shellcheck is CI-only; fast gates Pass; bandit scripts rc=0 (High/Medium 0); lint-imports 6 KEPT; pre-commit Passed |
+| 5 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: deploy only Out of scope: deploy-only; docs update handled by procedure 20261025-155039_11 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

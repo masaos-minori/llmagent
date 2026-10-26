@@ -16,9 +16,9 @@ Add deploy shell/integration tests for the `deploy/setup_services.sh` EventBus r
 
 ## Design decisions
 
-- **Run the real `setup_services.sh` in a controlled environment.** The test spawns `deploy/setup_services.sh` as a subprocess (mirroring the `subprocess` harness shape used in `tests/eventbus/test_eventbus_startup.py` lines 150-250) with an environment where the Workflow and LLM gates already pass, so execution reaches the EventBus gate. This tests the actual shipped script rather than a replicated predicate.
-- **Vary the EventBus condition via real app state.** Each case controls what the gate observes through the EventBus database and process, exactly as the gate does: a malformed-stamped DB makes the lifespan fail and the process exit (process-exit case); occupying the bind port prevents binding (connection-failure case); a DB that exists but is unreachable makes `/health` report `db == unavailable` (non-200 / `status != ok` case); a canonical DB reaches `db == ok` AND `dlq_task == running` (healthy-start case).
-- **Mirror the subprocess cleanup pattern.** Both the harness and the per-case teardown terminate the child identically to `test_main_failing_lifespan_exits_without_attributeerror` (lines 244-250), so no child leaks between cases.
+- **Run the real `setup_services.sh` in a sandboxed copy, driven entirely by the Doc 05 env overrides.** Verified 20261026: the harness copies `deploy/setup_services.sh` + `deploy/load_env.sh` into a `tmp_path` sandbox (so `REPO_ROOT` resolves to the sandbox) and runs it with `cwd = repo root` (the repo's synced `.venv`; no per-test uv project build — a copied `pyproject.toml` fails to build because the sandbox lacks the `scripts/` package dir). All state is redirected via the overrides added in procedure 20261025-155039_05: `DEPLOY_SCRIPTS=<repo>/scripts`, `DEPLOY_DB`/`DEPLOY_LOGS`/`WORKFLOW_JSON` → sandbox paths, `EVENTBUS_HEALTH_URL` → the per-test free port, plus `LLMAGENT_CONFIG_DIR` → the sandbox config (mandatory: without it the app reads the production `/opt/llm/config/eventbus.toml`). The Workflow pre-flight passes against a sandbox `workflow.sqlite` seeded with the four required tables + a `workflow_schema_version` row equal to `db.schema_sql.WORKFLOW_SCHEMA_VERSION`, and the LLM gate passes against local canned-200 mock servers referenced from the sandbox `config/agent.toml`. No production path is written to (mirrors the procedure 20261025-155039_09 sandbox decision).
+- **Vary the gate signal per case; only the process-exit case uses real app state.** The process-exit case pre-seeds the sandbox EventBus DB as stamped-but-malformed so the real `eventbus.app` lifespan fails and the child exits. The other cases keep the real app (canonical sandbox DB) but steer `EVENTBUS_HEALTH_URL`: to an unbound port (connection-failure: the only deterministic way to exercise the retried `000`/retry-budget branch — occupying the app's own bind port instead makes uvicorn exit and surfaces as the crash path, which is also fatal), or to a canned-body server (status-not-ok: `db == unavailable` 503 while the child is alive; and capacity-only 503 pass-tolerance in the healthy test). The gate's contract is the `/health` body it reads, so canned bodies with the exact `health_route.py` field shape test the predicate faithfully.
+- **Reap the child via the printed PID.** On a READY start the gate leaves `EB_PID` running; the harness parses the `Event Bus PID: <n>` line from stdout and terminates/waits/SIGKILLs that PID in teardown (same shape as `terminate`, `wait`, `kill` on timeout). On every abort path the script's own `eb_gate_fail` already killed the child; the harness confirms no child survives.
 
 ## Alternatives considered
 
@@ -42,15 +42,13 @@ Add deploy shell/integration tests for the `deploy/setup_services.sh` EventBus r
 
 ### Method
 
-- `_write_setup_services_driver` (new) writes `driver.sh` containing `set -euo pipefail`, the absolute `deploy/setup_services.sh` path, and a single `bash "${SETUP}"` line that captures stdout/stderr for the caller.
-- `_run` mirrors the load-env gate: minimal `PATH` env, `bash driver.sh` with `capture_output=True`, `text=True`, `timeout=30`, `check=False`, returning the `CompletedProcess`.
-- Each case runs the driver with an environment in which the Workflow and LLM gates pass (a valid workflow definition and DB, and reachable mock LLM `/health` endpoints), then varies the EventBus condition:
-  - Process-exit: pre-seed `/opt/llm/db/eventbus.sqlite` as stamped-but-malformed so the uvicorn lifespan fails and the process exits; the gate's `kill -0` liveness check fires the fatal path.
-  - Connection-failure: occupy port 8015 with a bound socket before launching so the EventBus process cannot bind; every poll sees a connection failure and the gate fails once `LLM_HEALTH_RETRIES` is exhausted.
-  - Status-not-ok: point the EventBus config at a database that exists but is unreachable so the process starts but `/health` returns `db == unavailable`; the gate reads `status != ok` and aborts.
-  - Healthy-start: pre-seed a canonical EventBus DB so the process binds and `/health` reports `db == ok` AND `dlq_task == running`; assert the gate reports READY. A capacity-only 503 body still satisfies the predicate, so the pass case tolerates it.
-- In the abort cases assert a non-zero exit, the missing `started` banner, and child cleanup; in the healthy-start case assert the READY banner and exit 0.
-- Teardown terminates the child identically to lines 244-250 (`terminate`, `wait`, `kill` on timeout).
+- The harness builds the sandbox under `tmp_path`: `deploy/` (copies of the two shell files), `config/` (sandbox `agent.toml` pointing `embed_url`/`llm_url` at canned-200 mock servers, sandbox `eventbus.toml` with `port = <per-test free port>`, `db_path`/`storage_dir`/`deadletter_dir` inside the sandbox, `auth_token = "${ENV:EVENTBUS_AUTH_TOKEN}"`), `config/workflows/default.json` (copy of the repo definition), `db/`, `logs/`. `_run` invokes `bash <sandbox>/deploy/setup_services.sh` with `cwd=_REPO_ROOT`, `capture_output=True`, `text=True`, `check=False`, a bounded `timeout`, and the env described above (`LLM_HEALTH_RETRIES`/`LLM_HEALTH_INTERVAL` shrunk to keep runs fast).
+- Case drives:
+  - Process-exit: seed the sandbox EventBus DB as canonical + `PRAGMA user_version = 1` + `ALTER TABLE events ADD COLUMN malformed_extra TEXT` (the Doc 03/09 unrepairable deviation; `CREATE ... IF NOT EXISTS` re-apply cannot heal it) so the real lifespan fails and the child exits.
+  - Connection-failure: canonical DB, `EVENTBUS_HEALTH_URL` pointed at a bound-then-closed free port; every poll gets write-out `000` and the gate fails once the retry budget is exhausted (child still alive until `eb_gate_fail` kills it).
+  - Status-not-ok: canonical DB (child alive and listening on its own port), `EVENTBUS_HEALTH_URL` pointed at a canned 503 body `{"status":"degraded","db":"unavailable","dlq_task":"running","degraded_reasons":["db_unavailable"]}`.
+  - Healthy-start: canonical DB, real `/health` → 200 READY. The same test re-runs with `EVENTBUS_HEALTH_URL` pointed at a canned capacity-only 503 body (`db == ok`, `dlq_task == running`, `degraded_reasons: ["lock_wait_high","subscribers_at_capacity"]`) and asserts READY (pass-tolerance).
+- In the abort cases assert a non-zero exit, `[FATAL] Event Bus` on stderr, and no READY banner; in the healthy-start case assert the READY banner and exit 0. Teardown: parse `Event Bus PID: <n>` and terminate/wait/SIGKILL.
 
 ### Details
 
@@ -65,7 +63,7 @@ Add deploy shell/integration tests for the `deploy/setup_services.sh` EventBus r
 
 ## Security considerations
 
-- Fail-closed: a crashed, unreachable, or unavailable process aborts `setup_services.sh` instead of reporting success. The test uses throwaway databases and a per-test port; no real secrets or production paths are touched beyond the deployment DB directory.
+- Fail-closed: a crashed, unreachable, or unavailable process aborts `setup_services.sh` instead of reporting success. The test uses throwaway sandbox databases/logs and per-test free ports; production `/opt/llm` paths are never written to (all paths redirected via the Doc 05 overrides + `LLMAGENT_CONFIG_DIR`).
 
 ## Rollback considerations
 
@@ -94,13 +92,13 @@ Add deploy shell/integration tests for the `deploy/setup_services.sh` EventBus r
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Create `tests/deploy/test_setup_services_eventbus.py` (new) mirroring the subprocess harness | Pending | — | — | REQ-004 |
-| 2 | Add `test_setup_services_process_exit_aborts` (new) asserting abort on process crash | Pending | — | — | REQ-004 |
-| 3 | Add `test_setup_services_connection_failure_aborts` (new) asserting abort when the process cannot bind | Pending | — | — | REQ-004 |
-| 4 | Add `test_setup_services_status_not_ok_aborts` (new) asserting abort on a non-capacity `status != ok` body | Pending | — | — | REQ-004 |
-| 5 | Add `test_setup_services_healthy_start_passes` (new) asserting READY on a healthy start | Pending | — | — | REQ-004 |
-| 6 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 7 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: test-only |
+| 1 | Create `tests/deploy/test_setup_services_eventbus.py` (new) mirroring the subprocess harness | Completed | — | — | REQ-004 Sandbox harness: copied setup_services.sh+load_env.sh, cwd=repo root, DEPLOY_*/WORKFLOW_JSON/EVENTBUS_CONFIG_PATH/EVENTBUS_HEALTH_URL overrides; no production path touched |
+| 2 | Add `test_setup_services_process_exit_aborts` (new) asserting abort on process crash | Completed | — | — | REQ-004 Malformed stamped DB -> child crash; exit 1, [FATAL] Event Bus, no READY banner, child reaped |
+| 3 | Add `test_setup_services_connection_failure_aborts` (new) asserting abort when the process cannot bind | Completed | — | — | REQ-004 EVENTBUS_HEALTH_URL -> bound-then-released port; 000 retried branch, exit 1 after budget, child reaped |
+| 4 | Add `test_setup_services_status_not_ok_aborts` (new) asserting abort on a non-capacity `status != ok` body | Completed | — | — | REQ-004 Canned 503 db=unavailable -> readiness predicate fail, exit 1 |
+| 5 | Add `test_setup_services_healthy_start_passes` (new) asserting READY on a healthy start | Completed | — | — | REQ-004 Real app canonical DB -> READY exit 0; canned capacity-only 503 -> READY exit 0. Surfaced missing EVENTBUS_CONFIG_PATH export; fixed in setup_services.sh (doc 05 design decision added) |
+| 6 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | — | 4 passed; fast gates Pass; bandit High/Medium 0; lint-imports 6 KEPT; pre-commit Passed; full suite 10135 passed, 9 skipped |
+| 7 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | — | N/A: test-only N/A: test-only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

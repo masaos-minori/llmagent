@@ -655,9 +655,7 @@ class TestCmdSessionPurgeKeepsActive:
         conn.commit()
         db = _FakeDB(conn)
         cmd = _make_cmd(session_id=1)
-        with patch(
-            "agent.services.db_maintenance_service.SQLiteHelper"
-        ) as MockHelper:
+        with patch("agent.services.db_maintenance_service.SQLiteHelper") as MockHelper:
             helper = MagicMock()
             helper.open.return_value.__enter__.return_value = db
             MockHelper.return_value = helper

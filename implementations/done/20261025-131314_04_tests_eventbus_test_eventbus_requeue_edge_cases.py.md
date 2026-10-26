@@ -133,10 +133,10 @@ def test_requeue_insert_failure_rolls_back_and_keeps_connection_usable(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-26 | 2026-10-26 | Added `_promote_to_dlq` helper, `_FailingConn` wrapper, and 3 failure-injection tests (`TestRequeueFailureInjection`). Deviation from the doc snippet: the first implementation swapped `eb_app.app.state.db` with the wrapper as sketched, but that leaked the wrapper into the app's background `_dlq_loop` task (its `commit()` hit the injected window), producing an order-dependent failure in `test_eventbus_app_isolation.py::test_two_clients_different_db`. Final version injects through the `eventbus.dlq_route.redeliver_event` seam (wrapper connection is passed to `dlq_repo.redeliver_event` only for the request under test; `app.state.db` is never replaced). The constraint test uses a real UNIQUE violation by patching `dlq_repo.uuid` so the descendant `event_id` collides with the original row. |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | Each test asserts error propagation (`pytest.raises`), `shared.in_transaction is False`, no partial state (`dlq_requeue_count == 0`, no `redelivered_from` descendant), and a follow-up requeue returning 200 on the same connection. Flaky isolation failure resolved: 4 consecutive random-order full-suite runs + deterministic run green (334 passed, 1 skipped). |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | `uv run python tools/run_validation_gates.py`: all checks Pass; ruff clean; mypy clean on this test file (toolchain mypy scope is `scripts/`; two pre-existing `no-any-return` findings in untouched concurrent-test helpers of `test_eventbus_dlq.py` are out of scope). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-26 | 2026-10-26 | No docs change required (test-only procedure). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

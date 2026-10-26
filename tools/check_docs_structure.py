@@ -112,6 +112,12 @@ SIZE_EXCEPTIONS: dict[str, int] = {
     # line, or a new module row from a later plan) fails here and must be re-accepted rather
     # than absorbed silently.
     "agent_13_reference-api-generated.md": 24972,
+    # deployment_01_deployment.md grew past MAX_SIZE with the EVENTBUS-003 REQ-007 §3.1
+    # correction (2026-10-26): replacing the init_db.sh table-presence overstatement with the
+    # shared-validator shape policy, the fail-closed equivalence, and the bounded readiness gate
+    # is net 1330 bytes on a base that was already 45 bytes under MAX_SIZE. The ceiling equals
+    # the accepted size, so any further growth fails.
+    "deployment_01_deployment.md": 25861,
 }
 
 

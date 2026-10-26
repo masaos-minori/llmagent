@@ -136,10 +136,10 @@ class TestConcurrentDlqRequeue:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-26 | 2026-10-26 | Added `test_concurrent_dlq_requeue_no_failed_transaction_carryover` to `TestConcurrentDlqRequeue`; existing `test_concurrent_dlq_requeue` untouched. Deviation from the doc snippet: `mock.patch.object(db, "execute", ...)` on a `sqlite3.Connection` instance is not possible (no `__dict__`), and the snippet's "all 5 share the failing wrapper yet 1 succeeds / 4 return 409 JSON" is contradictory (the injected request raises, and after its rollback the event is still in the DLQ). Final design injects via the `eventbus.dlq_route.redeliver_event` seam with a once-failing wrapper connection: the first requeue hits the injected INSERT failure (`sqlite3.IntegrityError` raised through TestClient), the second succeeds, the remaining three get 409 `already_redelivered`. |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | Asserts 1 raised injection, exactly 1 success, 3 conflicts with detail "event is not in DLQ", valid UUID v4 `new_event_id`, `new_seq > original_seq`, `db.in_transaction is False`, and a follow-up `/dlq` request returning 200. Full suite: 335 passed, 1 skipped. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff clean; `run_validation_gates.py`: all checks Pass. mypy on this file surfaces only a pre-existing invalid-`type: ignore` finding in the untouched `tests/eventbus/eventbus_helpers.py` (toolchain mypy scope is `scripts/`). |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-26 | 2026-10-26 | No docs change required (test-only procedure). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -15,7 +15,7 @@ Make `scripts/db/create_schema.py::create_eventbus_schema()` fail closed on a ma
 
 ## Design decisions
 
-- **Insert the check after `executescript` and before `commit`.** `create_eventbus_schema()` runs `db.executescript(build_eventbus_schema_sql())` at line 117 inside the try/except at lines 116-120, then commits at line 125. Placing the shared-validator call between line 120 and line 125 validates the freshly created tables/indexes against the canonical fingerprint before the transaction is committed.
+- **Insert the check as an `elif existing:` branch after the v0 branch, before `commit`.** `create_eventbus_schema()` runs `db.executescript(build_eventbus_schema_sql())` at line 117 inside the try/except at lines 116-120, then commits at line 125. Verified 2026-10-26: an unconditional validator call between line 120 and line 125 would also run on the v0 repair path and raise on malformed unstamped legacy databases — breaking the repair path the Assumptions protect. The check therefore runs only when the database already existed and is stamped with the current version (`elif existing:` — the earlier guard at lines 111-115 guarantees `before == eventbus_schema_version()` in that case), so the v0 branch (lines 121-124) is reached unchanged.
 - **Keep the v0 branch (lines 121-124) unchanged.** The legacy repair path that leaves an unstamped v0 database unstamped must survive; the shape check only runs for a database that already exists and is stamped with the current version.
 
 ## Alternatives considered
@@ -32,14 +32,14 @@ Make `scripts/db/create_schema.py::create_eventbus_schema()` fail closed on a ma
 ### Procedure
 
 1. Open `create_eventbus_schema()` (line 104) and locate the DDL block (lines 116-125).
-2. Between the DDL try/except (line 120) and `db.commit()` (line 125), call the shared validator's shape-comparison entry point from `scripts/shared/eventbus_schema_fingerprint.py` against the open connection so a malformed, already-stamped database raises.
+2. After the v0 repair branch (lines 121-124) and before `db.commit()` (line 125), add an `elif existing and db.conn is not None:` branch that calls the shared validator's shape-comparison entry point on `db.conn` — the still-open connection whose uncommitted DDL results must be visible to the `PRAGMA` reads — so a malformed, already-stamped database raises.
 3. Leave the v0 repair branch (lines 121-124) untouched.
 
 ### Method
 
-- Import the shared validator lazily inside `create_eventbus_schema()` (after the DDL try/except, before commit) rather than at module import time, so the call runs against the just-created tables. Importing `shared` from the `db` package is permitted by `.importlinter`: `shared-is-leaf` forbids `shared` importing `db`, never `db` importing `shared`.
-- On any deviation the shared validator raises `RuntimeError`; let it propagate past `db.commit()`.
-- Keep the `existing and before == 0` branch (lines 121-124) exactly as-is so the v0 legacy repair path is preserved.
+- Import the shared validator at module level (`from shared.eventbus_schema_fingerprint import assert_matches`), the same way `scripts/db/config.py` imports `shared`. Importing `shared` from the `db` package is permitted by `.importlinter`: `shared-is-leaf` forbids `shared` importing `db`, never `db` importing `shared`.
+- On any deviation the shared validator raises `RuntimeError`; let it propagate past `db.commit()` (the `open()` context manager rolls back, so partial DDL repairs of the malformed database are not persisted).
+- Keep the `existing and before == 0` branch (lines 121-124) exactly as-is so the v0 legacy repair path is preserved; the validator never runs for unstamped or freshly created databases.
 
 ### Details
 
@@ -82,10 +82,10 @@ Make `scripts/db/create_schema.py::create_eventbus_schema()` fail closed on a ma
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert the shared-validator shape check into `create_eventbus_schema()` after DDL, before commit | Pending | — | — | REQ-003 |
-| 2 | Add fail-closed + v0-repair tests to `tests/db/test_create_schema.py` | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: runtime only |
+| 1 | Insert the shared-validator shape check into `create_eventbus_schema()` after DDL, before commit | Completed | 20261026-131358 | 20261026-132358 | REQ-003 validator call in elif existing branch; corrected from after-DDL placement |
+| 2 | Add fail-closed + v0-repair tests to `tests/db/test_create_schema.py` | Completed | 20261026-132358 | 20261026-132358 | fail-closed test added; v0-repair kept via existing tests; 67 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261026-132942 | 20261026-132942 | ruff/mypy/bandit/lint-imports 6 KEPT/fast gates pass; full suite 10128 passed 9 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261026-132942 | N/A: runtime only N/A: runtime only, no docs in scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

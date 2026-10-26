@@ -143,7 +143,11 @@ class AgentSession:
                 # Fallback: check the real extended result code / name for SQLITE_ERROR (1)
                 err_code = getattr(e, "sqlite_errorcode", None)
                 err_name = getattr(e, "sqlite_errorname", "")
-                if err_code == 1 or err_name == "SQLITE_ERROR" or "no such table: sessions" in str(e):
+                if (
+                    err_code == 1
+                    or err_name == "SQLITE_ERROR"
+                    or "no such table: sessions" in str(e)
+                ):
                     raise SchemaMissingError(
                         "Session schema missing. Run: bash deploy/init_db.sh to initialize the database."
                     ) from e

@@ -11,8 +11,11 @@ set -euo pipefail
 # Production never installs the dev dependency group and never rewrites uv.lock.
 UV_PROD_FLAGS=(--frozen --no-dev)
 
-DEPLOY_SCRIPTS="/opt/llm/scripts"
-DEPLOY_DB="/opt/llm/db"
+# Production paths. DEPLOY_SCRIPTS/DEPLOY_DB honor environment overrides so the
+# sandboxed integration tests (tests/deploy/test_init_db_eventbus_schema.py) can run the
+# real script without touching /opt/llm; production invocations set neither variable.
+DEPLOY_SCRIPTS="${DEPLOY_SCRIPTS:-/opt/llm/scripts}"
+DEPLOY_DB="${DEPLOY_DB:-/opt/llm/db}"
 
 echo "=== init_db.sh: DB 初期化開始 ==="
 
@@ -57,8 +60,41 @@ if [ -n "${MISSING_TABLES}" ]; then
 fi
 echo "OK: all required workflow.sqlite tables present (${REQUIRED_WORKFLOW_TABLES})"
 
-sqlite3 "${DEPLOY_DB}/eventbus.sqlite" ".tables"
-# expected: events
+# ── eventbus.sqlite 形状ゲート（REQ-003）────────────────────────────────────────
+# 存在確認だけでなく shared.eventbus_schema_fingerprint で正準形状と比較し、
+# バージョン一致で形状だけのずれた DB を service 起動前に reject する。
+echo "--- eventbus.sqlite 形状検証 ---"
+EVENTBUS_DB="${DEPLOY_DB}/eventbus.sqlite"
+if [ ! -f "${EVENTBUS_DB}" ]; then
+    echo "[FATAL] EventBus database is missing: ${EVENTBUS_DB}" >&2
+    exit 1
+fi
+if ! (cd /opt/llm && PYTHONPATH="${DEPLOY_SCRIPTS}" EVENTBUS_DB="${EVENTBUS_DB}" \
+    UV_SYSTEM_CERTS=true uv run "${UV_PROD_FLAGS[@]}" python - <<'PY'
+import os
+import sqlite3
+
+from shared.eventbus_schema_fingerprint import assert_matches
+
+db_path = os.environ["EVENTBUS_DB"]
+conn = sqlite3.connect(db_path)
+try:
+    assert_matches(conn, label=db_path)
+    rows = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name NOT LIKE 'sqlite_%' ORDER BY name"
+    )
+    tables = [row[0] for row in rows]
+finally:
+    conn.close()
+print(f"OK: {db_path} matches the canonical EventBus schema")
+print("tables:", " ".join(tables))
+PY
+); then
+    echo "[FATAL] EventBus database schema is missing or malformed: ${EVENTBUS_DB}" >&2
+    echo "Delete the database and re-run init_db.sh before starting the Event Bus services." >&2
+    exit 1
+fi
 
 echo "=== init_db.sh: 完了 ==="
 echo ""

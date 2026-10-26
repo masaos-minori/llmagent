@@ -315,21 +315,26 @@ class TestFilterSensitiveFields:
     def test_passthrough_when_no_sensitive_fields(self) -> None:
         store = DiagnosticStore()
         payload = '{"turn": 1}'
-        assert store._filter_sensitive_fields(
-            payload, store._load_diagnostics_config()
-        ) == payload
+        assert (
+            store._filter_sensitive_fields(payload, store._load_diagnostics_config())
+            == payload
+        )
 
     def test_passthrough_for_non_json_content(self) -> None:
         store = DiagnosticStore()
-        assert store._filter_sensitive_fields(
-            "not json", store._load_diagnostics_config()
-        ) == "not json"
+        assert (
+            store._filter_sensitive_fields("not json", store._load_diagnostics_config())
+            == "not json"
+        )
 
     def test_passthrough_for_json_non_dict(self) -> None:
         store = DiagnosticStore()
-        assert store._filter_sensitive_fields(
-            "[1, 2, 3]", store._load_diagnostics_config()
-        ) == "[1, 2, 3]"
+        assert (
+            store._filter_sensitive_fields(
+                "[1, 2, 3]", store._load_diagnostics_config()
+            )
+            == "[1, 2, 3]"
+        )
 
     def test_save_redacts_sensitive_fields_and_preserves_count(
         self, fake_db: _FakeSQLiteHelper

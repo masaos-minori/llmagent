@@ -143,15 +143,22 @@ async def dlq_requeue(
 - Typed-result definition, transaction ownership, and parameterized timestamp — handled by the sibling procedure for `scripts/eventbus/dlq_repo.py` (`REQ-001`, `REQ-002`, `REQ-005`).
 - Requeue delivery semantics and DLQ file reconciliation (issue M-02).
 
+## Verification Results (adversarial verification, 2026-10-26)
+
+- Anchors verified against HEAD `dbc8b35ca`: `dlq_list` used two separate `run_with_db_lock` calls (`dlq_route.py:39-40`); `dlq_requeue` performed two follow-up `db.execute(...)` calls (post-success seq lookup at lines 86-91, 404/409 reclassification at lines 94-99). Procedure is actionable; nothing was already implemented.
+- HTTP contract confirmed against tests: `test_concurrent_dlq_requeue` pins the 409 detail to `"event is not in DLQ"` (`ERR_EVENT_NOT_IN_DLQ`), `test_requeue_unknown_event_returns_404` pins 404; the typed-status mapping (`success`→200, `not_found`→404, `not_in_dlq`/`already_redelivered`→409) reproduces both without follow-up SQL.
+- Implementation notes: `RequeueResult` imported from `eventbus.dlq_repo` per the procedure; the awaited lock result is bound to a typed local (`snapshot: dict[str, Any]`) because `run_with_db_lock` is typed `Any` (mypy `no-any-return` guard).
+- Verified after implementation: `rg "db.execute" scripts/eventbus/dlq_route.py` → zero matches; full `tests/eventbus/` suite (329 passed) green, including the concurrent requeue detail assertions.
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Remove direct-SQL route behavior and combine the DLQ lock (`scripts/eventbus/dlq_route.py`) | Pending | — | — | Path B |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Remove direct-SQL route behavior and combine the DLQ lock (`scripts/eventbus/dlq_route.py`) | Done | 2026-10-26 | 2026-10-26 | Path B; implemented after the seq-01 repo change (typed result exists) |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | Mapping/snapshot assertions already pinned by existing tests (`test_concurrent_dlq_requeue`, pagination suite); additional tests owned by sibling test procedures (seq-05/seq-07) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff / mypy / bandit / lint-imports (6 kept, `RequeueResult` import from `dlq_repo` does not break any contract) / gates all pass; `db.execute` grep check = 0 matches |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-26 | 2026-10-26 | Reference API doc regenerated with the seq-01 change; no further doc scope |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

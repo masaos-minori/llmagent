@@ -15,7 +15,7 @@ Make `scripts/eventbus/schema.py::_init_schema()` validate the EventBus schema s
 
 ## Design decisions
 
-- **Insert the check after the version-equal early return.** `_init_schema()` returns at the `found == expected` branch (lines 82-83) today without any shape check, and `_matches_current_schema()` (line 54) runs only for the v0 branch (line 84). Placing the shared-validator call immediately after line 83 refuses a correctly stamped but malformed database while leaving the v0 repair path (lines 84-86) intact.
+- **Insert the check inside the version-equal branch, before its `return`.** `_init_schema()` returns at the `found == expected` branch (lines 82-83) today without any shape check, and `_matches_current_schema()` (line 54) runs only for the v0 branch (line 84). Calling the shared-validator inside that branch (immediately before its `return`, i.e. verified 2026-10-26: inserting *after* the `return` would be unreachable) refuses a correctly stamped but malformed database while leaving the v0 repair path (lines 84-86) intact.
 - **Reuse the shared validator rather than re-implementing a shape check.** The runtime and `init_db.sh` share one definition of a valid schema, so `_init_schema()` calls the same validator the deployment path uses instead of a second, columns-only comparison.
 
 ## Alternatives considered
@@ -32,13 +32,13 @@ Make `scripts/eventbus/schema.py::_init_schema()` validate the EventBus schema s
 ### Procedure
 
 1. Open `_init_schema()` (line 66) and locate the version-equal early return at lines 82-83.
-2. Insert the shared-validator shape check between the early return (line 83) and the v0 branch (line 84), so a stamped database is validated before `_init_schema()` returns.
+2. Inside the `found == expected` branch, call the shared validator against `conn` immediately before the branch's `return` (line 83), so a stamped database is validated before `_init_schema()` returns; leave the v0 branch (lines 84-86) intact.
 3. Add startup rejection + canonical-pass tests (`tests/eventbus/test_eventbus_startup.py`).
 
 ### Method
 
-- After `if found == expected:` / `return` (lines 82-83), call the shared validator's shape-comparison entry point against `conn` and let it raise `RuntimeError` on any deviation. The import of the shared validator and the call sit inside `_init_schema()`, not at module import time, so `shared-is-leaf` and `eventbus-is-isolated` stay KEPT.
-- Keep the v0 repair branch (lines 84-86) unchanged: an unstamped database is still stamped only after `_matches_current_schema()` confirms its columns.
+- After `if found == expected:` (line 82), call the shared validator's shape-comparison entry point against `conn` before the `return` (line 83) and let it raise `RuntimeError` on any deviation. Import the validator at module level (`from shared.eventbus_schema_fingerprint import assert_matches`), the same way `scripts/eventbus/config.py` imports `shared`; `shared-is-leaf` and `eventbus-is-isolated` stay KEPT because `shared` is the package both callers may import.
+- Keep the v0 repair branch (lines 84-86) unchanged: an unstamped database is still stamped only after `_matches_current_schema()` confirms its columns. (Verified 2026-10-26: a v0-repaired database that matches columns but deviates in indexes is stamped by this branch; the fingerprint check then refuses it on the next open, and full validation of the repair path is `create_schema.py`/`init_db.sh` scope per REQ-003.)
 
 ### Details
 
@@ -80,10 +80,10 @@ Make `scripts/eventbus/schema.py::_init_schema()` validate the EventBus schema s
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Insert the shared-validator shape check into `_init_schema()` after the version-equal early return | Pending | — | — | REQ-002 |
-| 2 | Add startup rejection + canonical-pass tests | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: runtime only |
+| 1 | Insert the shared-validator shape check into `_init_schema()` after the version-equal early return | Completed | 20261026-130801 | 20261026-131149 | REQ-002; corrected wording: call goes inside the `found == expected` branch before its `return`; module-level `from shared...` import per repo convention |
+| 2 | Add startup rejection + canonical-pass tests | Completed | 20261026-131149 | 20261026-131149 | 3 open_db-based tests appended to `tests/eventbus/test_eventbus_startup.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | 20261026-131149 | 20261026-131149 | ruff/mypy/bandit/lint-imports (6 KEPT)/gates-fast pass; `tests/eventbus` 340 passed incl. schema_version + migration + equivalence suites; full-suite run at batch end |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261026-131149 | N/A: runtime only |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

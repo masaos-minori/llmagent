@@ -209,13 +209,13 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Shared fingerprint validator (`scripts/shared/eventbus_schema_fingerprint.py`) | In Progress | — | — | Path B |
-| 2 | Runtime startup shape validation (`scripts/eventbus/schema.py`) | In Progress | — | — | Path B |
-| 3 | Deployment strict validation (`scripts/db/create_schema.py`, `deploy/init_db.sh`) | In Progress | — | — | Path B |
-| 4 | Test fixes (`tests/db/test_create_schema.py`) | In Progress | — | — | Path B |
-| 5 | Readiness gate (`deploy/setup_services.sh`) | In Progress | — | — | Path B |
-| 6 | Config/token preflight (`deploy/load_env.sh`) | In Progress | — | — | Path B |
-| 7 | Startup/readiness integration tests (`tests/eventbus/test_eventbus_startup.py`) | In Progress | — | — | Path B |
+| 1 | Shared fingerprint validator (`scripts/shared/eventbus_schema_fingerprint.py`) | Completed | — | 20261026-130650 | Path B Path B; procedure 20261025-155039_01 done: shared/eventbus_schema_fingerprint.py + 12 fingerprint tests; full gates green |
+| 2 | Runtime startup shape validation (`scripts/eventbus/schema.py`) | Completed | — | 20261026-131212 | Path B Path B; procedure 20261025-155039_02 done: schema.py _init_schema fingerprint gate + 3 startup tests |
+| 3 | Deployment strict validation (`scripts/db/create_schema.py`, `deploy/init_db.sh`) | Completed | — | 20261026-140028 | Path B; procedures 20261025-155039_03/_04/_09 done: create_schema.py shape gate, init_db.sh gate with DEPLOY_SCRIPTS/DEPLOY_DB sandbox overrides, 3 deploy subprocess tests; full suite 10131 passed |
+| 4 | Test fixes (`tests/db/test_create_schema.py`) | Completed | — | 20261026-154500 | Path B; procedure 20261025-155039_07 done: _EVENTBUS_SCHEMA_NO_VEC0 made structurally canonical (fingerprint equivalence verified), old-shape boundary kept on OperationalError; 67 tests passed |
+| 5 | Readiness gate (`deploy/setup_services.sh`) | Completed | — | 20261026-145000 | Path B; procedures 20261025-155039_05/_10 done: bounded readiness gate + EVENTBUS_CONFIG_PATH export, 4 subprocess gate tests; full suite 10135 passed |
+| 6 | Config/token preflight (`deploy/load_env.sh`) | Completed | — | 20261026-152000 | Path B; procedure 20261025-155039_06 done: preflight_eventbus_tokens in load_env.sh wired into setup_services.sh, 4 preflight tests; full suite 10139 passed |
+| 7 | Startup/readiness integration tests (`tests/eventbus/test_eventbus_startup.py`) | Completed | — | 20261026-161000 | Path B; procedure 20261025-155039_08 done: 2 real-subprocess tests (malformed stamped DB rejected; canonical DB reaches db==ok AND dlq_task==running); 22 tests passed |
 | 8 | Documentation (`docs/90_deployment/deployment_01_deployment.md`) | In Progress | — | — | Path B |
 | 9 | Deployment & verification (ruff/mypy/bandit/lint-imports/pytest/diff-cover) | Pending | — | — | Path B |
 
@@ -227,16 +227,16 @@ Each step description MUST cite the exact file path(s) it touches by referencing
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| `implementations/20261025-155039_01_scripts_shared_eventbus_schema_fingerprint.py.md` | 1 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_02_scripts_eventbus_schema.py.md` | 2 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_03_scripts_db_create_schema.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_04_deploy_init_db.sh.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_05_deploy_setup_services.sh.md` | 5 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_06_deploy_load_env.sh.md` | 6 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_07_tests_db_test_create_schema.py.md` | 4 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_08_tests_eventbus_test_eventbus_startup.py.md` | 7 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_09_tests_deploy_test_init_db_eventbus_schema.py.md` | 3 | Procedure | Pending | — | — |
-| `implementations/20261025-155039_10_tests_deploy_test_setup_services_eventbus.py.md` | 5 | Procedure | Pending | — | — |
+| `implementations/20261025-155039_01_scripts_shared_eventbus_schema_fingerprint.py.md` | 1 | Procedure | Completed | — | — |
+| `implementations/20261025-155039_02_scripts_eventbus_schema.py.md` | 2 | Procedure | Completed | — | — |
+| `implementations/20261025-155039_03_scripts_db_create_schema.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261025-155039_04_deploy_init_db.sh.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261025-155039_05_deploy_setup_services.sh.md` | 5 | Procedure | Completed | — | 20261026-142000 |
+| `implementations/20261025-155039_06_deploy_load_env.sh.md` | 6 | Procedure | Completed | — | 20261026-152000 |
+| `implementations/20261025-155039_07_tests_db_test_create_schema.py.md` | 4 | Procedure | Completed | — | 20261026-154500 |
+| `implementations/20261025-155039_08_tests_eventbus_test_eventbus_startup.py.md` | 7 | Procedure | Completed | — | 20261026-161000 |
+| `implementations/20261025-155039_09_tests_deploy_test_init_db_eventbus_schema.py.md` | 3 | Procedure | Completed | — | — |
+| `implementations/20261025-155039_10_tests_deploy_test_setup_services_eventbus.py.md` | 5 | Procedure | Completed | — | 20261026-145000 |
 | `implementations/20261025-155039_11_docs_90_deployment_deployment_01_deployment.md` | 8 | Procedure | Pending | — | — |
 
 ## Traceability

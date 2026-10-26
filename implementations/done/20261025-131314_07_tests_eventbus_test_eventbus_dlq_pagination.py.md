@@ -128,10 +128,10 @@ def test_dlq_pagination_no_string_timestamp_interpolation() -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the change described in Implementation > Procedure/Method/Details | Pending | — | — | |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the change described in Implementation > Procedure/Method/Details | Done | 2026-10-26 | 2026-10-26 | Extended `test_dlq_pagination` with cross-page non-overlap/coverage assertions and added `test_dlq_pagination_no_string_timestamp_interpolation`. Two deviations from the doc snippet: (a) its non-overlap check compares the `limit=100` page against the `offset=2` page, which trivially overlaps; final version compares two disjoint windows (`offset=0,limit=2` vs `offset=2,limit=2`) against `min(total, 4)`. (b) the static check reads `dlq_repo.py` via `pathlib` instead of shelling out to `rg` (no tool dependency in tests); it asserts no `strftime(` anywhere in the module and that `now_iso` binding is present. `strftime(` in `scripts/eventbus/schema.sql` DEFAULT is a different file, out of scope per the seq-07 caveat. |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | `rg "strftime\\(" scripts/eventbus/dlq_repo.py`: zero matches (exit 1). Full suite: 337 passed, 1 skipped. |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff clean; `run_validation_gates.py`: all 10 checks Pass, zero Fail. |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-26 | 2026-10-26 | No docs change required (test-only procedure). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

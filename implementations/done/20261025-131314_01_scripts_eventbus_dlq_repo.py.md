@@ -131,15 +131,22 @@ def redeliver_event(
 - Requeue delivery semantics and DLQ file reconciliation (issue M-02).
 - Schema changes.
 
+## Verification Results (adversarial verification, 2026-10-26)
+
+- Anchors verified against HEAD `dbc8b35ca`: `redeliver_event()` in `scripts/eventbus/dlq_repo.py` (63 lines, `(bool, str | None)` return, `strftime(...)` f-string interpolation at the `INSERT ... SELECT`), `get_seq()` in `event_repo.py:73`, `now_iso()` in `json_utils.py:20`, no other production caller (`rg redeliver_event` → `db.py` re-export + `dlq_route.py` only). Procedure is actionable; none of its changes were already implemented.
+- Lineage model confirmed intact in the target file (guard on `redelivered_from`, original `dlq_at` never cleared); the procedure's typed-result design maps 1:1 onto it. The `already_redelivered` guard result feeds the route's 409 with `ERR_EVENT_NOT_IN_DLQ`, matching `test_concurrent_dlq_requeue`'s detail assertion.
+- Method-snippet deviation resolved per Design decision (Transaction ownership): on `rowcount == 0` the implementation performs the single existence read and returns `not_in_dlq` when the row exists (`dlq_at IS NULL`), `not_found` otherwise; the abbreviated snippet's unconditional `not_found` return is superseded by the design decision. `not_in_dlq` → 409 preserves `test_requeue_non_dlq_event_fails`.
+- Verified behavior after implementation: injected `INSERT` failure → `sqlite3.Error` re-raised, `dlq_requeue_count` unchanged, no descendant row, `conn.in_transaction == False`, connection reusable for a subsequent successful requeue; explicit `now` stored as data (`published_at` bound via `?`).
+
 ## Execution Status
 
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the typed-result refactor in `scripts/eventbus/dlq_repo.py` | Pending | — | — | Path B |
-| 2 | Add or update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | |
+| 1 | Implement the typed-result refactor in `scripts/eventbus/dlq_repo.py` | Done | 2026-10-26 | 2026-10-26 | Path B; `not_in_dlq` classification implemented per Design decision (see Verification Results) |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | Persistent failure-injection tests are owned by the sibling test procedures (seq-03/seq-04); ad-hoc injection check confirmed rollback/no-carry-over semantics; full `tests/eventbus/` suite (329 passed) green |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff / mypy / bandit / lint-imports (6 kept) / run_validation_gates all pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-26 | 2026-10-26 | `docs/24_eventbus/eventbus_08_reference_api.md` regenerated via `tools/generate_reference_table.py --type eventbus` (new public symbol `RequeueResult`) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
