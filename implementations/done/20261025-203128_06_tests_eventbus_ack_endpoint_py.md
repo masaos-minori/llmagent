@@ -170,8 +170,8 @@ class TestNackEndpointIdempotency:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `TestNackEndpointIdempotency` (new) class (same-key no-op, keyless-400, distinct-once) to the ACK-endpoint file | Pending | — | — | Boundary deferred to repo layer (seq 05) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `TestNackEndpointIdempotency` (new) class (same-key no-op, keyless-400, distinct-once) to the ACK-endpoint file | Done | 2026-10-26 | 2026-10-26 | Added 3 new tests using principal_client fixture (client fixture lacks publisher token) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff/mypy/bandit/vulture/lint-imports/radon all pass; 13/13 ack endpoint tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

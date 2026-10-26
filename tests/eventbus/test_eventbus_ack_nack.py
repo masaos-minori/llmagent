@@ -510,6 +510,7 @@ class TestNackEvent:
             params={
                 "event_id": body["event_id"],
                 "consumer_id": "consumer-A",
+                "idempotency_key": "test-key-1",
             },
         )
         assert resp.status_code == 409
@@ -541,6 +542,7 @@ class TestNackEvent:
             params={
                 "event_id": body["event_id"],
                 "consumer_id": "consumer-B",
+                "idempotency_key": "test-key-2",
             },
         )
         assert resp.status_code == 200
@@ -564,6 +566,7 @@ class TestNackEvent:
             params={
                 "event_id": body["event_id"],
                 "consumer_id": "unauthorized-consumer",
+                "idempotency_key": "test-key-3",
             },
         )
         # Authorization check (403) should come before delivery check (409)
@@ -579,7 +582,12 @@ class TestNackEvent:
 
         # NACKing without a prior delivery still succeeds and records the failure atomically
         resp = principal_client.post(
-            "/nack", params={"event_id": body["event_id"], "consumer_id": "consumer-A"}
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-A",
+                "idempotency_key": "test-key-4",
+            },
         )
         assert resp.status_code == 200
 
@@ -594,6 +602,188 @@ class TestNackEvent:
         # Try to NACK without providing consumer_id — FastAPI returns 422 for missing required param
         resp = principal_client.post("/nack", params={"event_id": body["event_id"]})
         assert resp.status_code == 422
+
+
+class TestNackIdempotency:
+    """Tests for NACK idempotency under the recommended latest-key-only model (REQ-003, REQ-004)."""
+
+    def test_nack_same_key_no_increment(self, db: sqlite3.Connection) -> None:
+        """A repeated delivery-attempt key does not increment the failure counter (REQ-003)."""
+        from eventbus.db import nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        result1 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-A"
+        )
+        assert result1 == NackResult("ok", consumer_failure_count=1)
+
+        result2 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-A"
+        )
+        assert result2 == NackResult(
+            "ok", consumer_failure_count=1
+        )  # second call is a no-op
+
+    def test_nack_distinct_key_and_boundary(self, db: sqlite3.Connection) -> None:
+        """Different keys each count once; a non-latest key counts as a new attempt (latest-key-only)."""
+        from eventbus.db import nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        result1 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="A"
+        )
+        assert result1 == NackResult("ok", consumer_failure_count=1)
+
+        result2 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="B"
+        )
+        assert result2 == NackResult("ok", consumer_failure_count=2)
+
+        result3 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="A"
+        )
+        assert result3 == NackResult(
+            "ok", consumer_failure_count=3
+        )  # "A retry": non-latest → count=3
+
+    def test_nack_concurrent_same_key_collapses(self, db: sqlite3.Connection) -> None:
+        """Sequential same-key retries collapse to a single increment (REQ-003).
+
+        Note: SQLite connections are not thread-safe, so true concurrent testing
+        is not possible here. Sequential retries of the same key are tested instead.
+        """
+        from eventbus.db import nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        result1 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-A"
+        )
+        assert result1 == NackResult("ok", consumer_failure_count=1)
+
+        result2 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-A"
+        )
+        assert result2 == NackResult("ok", consumer_failure_count=1)  # no-op
+
+        result3 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-A"
+        )
+        assert result3 == NackResult("ok", consumer_failure_count=1)  # still no-op
+
+    def test_nack_max_retry_minus_one_boundary(self, db: sqlite3.Connection) -> None:
+        """At max_retry - 1, the next distinct key increments the counter (DLQ promotion is HTTP-layer)."""
+        from eventbus.db import nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        # Simulate max_retry=2: at count=1 (max_retry - 1), no promotion yet
+        result1 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-1"
+        )
+        assert result1 == NackResult("ok", consumer_failure_count=1)
+
+        # At count=2 (max_retry), the counter increments (promotion is HTTP-layer)
+        result2 = nack_event(
+            db, ev["event_id"], consumer_id="consumer-A", last_nack_attempt="key-2"
+        )
+        assert result2 == NackResult("ok", consumer_failure_count=2)
+
+    def test_nack_same_key_no_increment_no_consumer_id(
+        self, db: sqlite3.Connection
+    ) -> None:
+        """Without consumer_id, the idempotency key has no effect (events-level only)."""
+        from eventbus.db import nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        result1 = nack_event(db, ev["event_id"], last_nack_attempt="key-A")
+        assert result1 == NackResult("ok")
+
+        result2 = nack_event(db, ev["event_id"], last_nack_attempt="key-A")
+        assert result2 == NackResult("ok")  # no consumer_id → no per-consumer dedup
+
+    def test_nack_different_key_no_consumer_id(self, db: sqlite3.Connection) -> None:
+        """Without consumer_id, different keys still increment (events-level only)."""
+        from eventbus.db import nack_event
+
+        ev = _event()
+        db.execute(
+            "INSERT INTO events (event_id, topic, payload, producer, published_at) VALUES (?, ?, ?, ?, ?)",
+            (
+                ev["event_id"],
+                ev["topic"],
+                json.dumps(ev["payload"]),
+                ev["producer"],
+                ev["published_at"],
+            ),
+        )
+        db.commit()
+
+        result1 = nack_event(db, ev["event_id"], last_nack_attempt="key-A")
+        assert result1 == NackResult("ok")
+
+        result2 = nack_event(db, ev["event_id"], last_nack_attempt="key-B")
+        assert result2 == NackResult(
+            "ok"
+        )  # no consumer_id → no per-consumer dedup, but still increments
 
 
 class TestNackPrincipalValidation:

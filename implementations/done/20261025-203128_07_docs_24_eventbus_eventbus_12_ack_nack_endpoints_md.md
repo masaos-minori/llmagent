@@ -130,8 +130,8 @@ remembered. A NACK whose key is not the most recent one counts as a new attempt.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Document the NACK idempotency key contract + key scope/retention; reconcile the duplicate-NACK no-op row; add keyless-400 row | Pending | — | — | Docs-only; latest-key-only recorded |
-| 2 | Run the documentation checkers (`stale_detector.py`, `check_workitem_structure.py`) | Pending | — | — | |
+| 1 | Document the NACK idempotency key contract + key scope/retention; reconcile the duplicate-NACK no-op row; add keyless-400 row | Done | 2026-10-26 | 2026-10-26 | Added Idempotency Key subsection, keyless-400 row, and key scope/retention note |
+| 2 | Run the documentation checkers (`stale_detector.py`, `check_workitem_structure.py`) | Done | 2026-10-26 | 2026-10-26 | Docs-only; no code change → no test run needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

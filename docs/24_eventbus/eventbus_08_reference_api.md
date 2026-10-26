@@ -47,7 +47,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | File | Class/Function | Signature | Summary |
 |---|---|---|---|
 | `scripts/eventbus/ack_route.py` | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
-|  | `nack` | `async def nack(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
+|  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
 | `scripts/eventbus/admin_route.py` | `update_topics_authorization` | `async def update_topics_authorization(request) -> dict[str, Any]` | Update `consumer_authorization`/`topic_authorization` at runtime and |
 | `scripts/eventbus/app.py` | `lifespan` | `async def lifespan(app) -> AsyncGenerator[None]` | FastAPI lifespan: initialize broker/db/lifecycle on startup; clean up on shutdown. |
 |  | `resolve_subscribe_identity` | `async def resolve_subscribe_identity(request, consumer_id, topic, principal) -> Principal` | — |
@@ -58,7 +58,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 |  | `dlq_list` | `async def dlq_list(request, limit, offset, _principal) -> dict[str, Any]` | List dead-letter queue entries with pagination support. |
 |  | `dlq_requeue` | `async def dlq_requeue(request, event_id, _principal) -> dict[str, Any]` | Requeue a dead-letter queue entry back into the active queue. |
 |  | `ack_event` | `async def ack_event(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Acknowledge an event as successfully processed by a consumer. |
-|  | `nack` | `async def nack(request, event_id, consumer_id, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
+|  | `nack` | `async def nack(request, event_id, consumer_id, idempotency_key, _principal, _identity) -> dict[str, Any]` | Negatively acknowledge an event, triggering retry logic. |
 |  | `admin_topics_authorization` | `async def admin_topics_authorization(request, _principal) -> dict[str, Any]` | Update consumer_authorization/topic_authorization at runtime. |
 | `scripts/eventbus/audit.py` | `AuditRecord` | `class AuditRecord` | Structured payload for one EventBus audit record. |
 |  | `log_auth_failure` | `def log_auth_failure(consumer_id, request_id, route, target, error_type, detail) -> None` | Emit one JSON-lines audit record for an authorization failure. |

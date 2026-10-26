@@ -111,8 +111,8 @@ yield f"id:{row['seq']}\ndata:{data}\n\n"
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify current SSE emission; record UNK-02 client-key decision (no modification) + conditional server-issued branch | Pending | — | — | Recommended model = no change; decision recorded |
-| 2 | Run the documentation checkers (`stale_detector.py`, `check_workitem_structure.py`) | Pending | — | — | No code change → no test run needed |
+| 1 | Verify current SSE emission; record UNK-02 client-key decision (no modification) + conditional server-issued branch | Done | 2026-10-26 | 2026-10-26 | Verified: replay path at :191 yields `id:{seq}` + `data:{json}`; live path at :259 same; no delivery-attempt identifier emitted |
+| 2 | Run the documentation checkers (`stale_detector.py`, `check_workitem_structure.py`) | Done | 2026-10-26 | 2026-10-26 | No code change → no test run needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

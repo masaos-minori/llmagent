@@ -334,6 +334,90 @@ class TestAckMonotonicOffset:
         )
 
 
+class TestNackEndpointIdempotency:
+    """HTTP-level NACK idempotency under the latest-key-only contract (REQ-002, REQ-006)."""
+
+    def _publish_with_publisher(self, client: TestClient, body: dict[str, Any]) -> int:
+        """Publish an event using the publisher token."""
+        publisher_headers = {"Authorization": "Bearer publisher-token"}
+        resp = client.post("/publish", json=body, headers=publisher_headers)
+        return resp.status_code
+
+    def test_nack_same_key_no_op(self, principal_client: TestClient) -> None:
+        """A repeated delivery-attempt key returns a no-op 200 with an unchanged count."""
+        body = _event()
+        self._publish_with_publisher(principal_client, body)
+        _simulate_delivery(principal_client, body["event_id"], "consumer-A")
+
+        r1 = principal_client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-A",
+                "idempotency_key": "key-A",
+            },
+        )
+        assert r1.status_code == 200
+        assert r1.json()["consumer_delivery_failure_count"] == 1
+
+        r2 = principal_client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-A",
+                "idempotency_key": "key-A",
+            },
+        )
+        assert r2.status_code == 200
+        assert r2.json()["consumer_delivery_failure_count"] == 1  # no-op: same key
+
+    def test_nack_keyless_returns_400(self, principal_client: TestClient) -> None:
+        """A NACK without an idempotency key is rejected with 400 (UNK-01)."""
+        body = _event()
+        self._publish_with_publisher(principal_client, body)
+        _simulate_delivery(principal_client, body["event_id"], "consumer-A")
+
+        resp = principal_client.post(
+            "/nack",
+            params={"event_id": body["event_id"], "consumer_id": "consumer-A"},
+        )
+        assert resp.status_code == 400
+
+    def test_nack_distinct_key_increments_once(
+        self, principal_client: TestClient
+    ) -> None:
+        """A distinct delivery-attempt key increments the count exactly once."""
+        body = _event()
+        self._publish_with_publisher(principal_client, body)
+        _simulate_delivery(principal_client, body["event_id"], "consumer-A")
+
+        r1 = principal_client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-A",
+                "idempotency_key": "key-A",
+            },
+        )
+        assert r1.status_code == 200
+        assert r1.json()["consumer_delivery_failure_count"] == 1
+
+        r2 = principal_client.post(
+            "/nack",
+            params={
+                "event_id": body["event_id"],
+                "consumer_id": "consumer-A",
+                "idempotency_key": "key-B",
+            },
+        )
+        assert r2.status_code == 200
+        assert (
+            r2.json()["consumer_delivery_failure_count"] == 2
+        )  # distinct incremented once
+        # count == max_retry (2) triggers promotion on this distinct attempt
+        assert r2.json().get("dlq_promoted") is True
+
+
 class TestAckPrincipalValidation:
     """Tests for Principal field validation in ack endpoint."""
 

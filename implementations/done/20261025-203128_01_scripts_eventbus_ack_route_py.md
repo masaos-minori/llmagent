@@ -128,9 +128,9 @@ def _nack_and_promote() -> tuple[str, int | None, bool]:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `idempotency_key` (new) query param, enforce UNK-01 keyless 400, pass caller key through as `last_nack_attempt` (drop per-request UUID) | Pending | — | — | UNK-01 reject-400 is the recommended default (recorded) |
-| 2 | Add/update tests per Validation plan | Pending | — | — | |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add `idempotency_key` (new) query param, enforce UNK-01 keyless 400, pass caller key through as `last_nack_attempt` (drop per-request UUID) | Done | 2026-10-26 | 2026-10-26 | UNK-01 reject-400 is the recommended default (recorded) |
+| 2 | Add/update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | Updated 7 test files with idempotency_key param |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff/mypy/bandit/vulture/lint-imports/radon all pass; full test suite passes (exit 0) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

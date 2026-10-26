@@ -146,8 +146,8 @@ async def test_nack_concurrent_same_key_collapses(
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add repo-level idempotency tests (sequential/concurrent/timeout/different-keys/boundary); retain `consumer_id=None` tests | Pending | — | — | Latest-key-only boundary asserted (recorded) |
-| 2 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Add repo-level idempotency tests (sequential/concurrent/timeout/different-keys/boundary); retain `consumer_id=None` tests | Done | 2026-10-26 | 2026-10-26 | Added TestNackIdempotency class with 6 new tests; concurrent test adapted to sequential (SQLite not thread-safe) |
+| 2 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff/mypy/bandit/vulture/lint-imports/radon all pass; 25/25 ack/nack tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

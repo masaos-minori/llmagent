@@ -282,6 +282,9 @@ async def nack(
     request: Request,
     event_id: str = Query(default=""),
     consumer_id: str = Query(...),  # Required — no default (REQ-007)
+    idempotency_key: str = Query(
+        default=""
+    ),  # (new) caller-supplied NACK idempotency key
     _principal: Principal = Depends(require_role(Role.CONSUMER)),
     _identity: Principal = Depends(require_consumer_identity),
 ) -> dict[str, Any]:
@@ -290,6 +293,7 @@ async def nack(
         request,
         event_id=event_id,
         consumer_id=consumer_id,
+        idempotency_key=idempotency_key,
         _principal=_principal,
     )
     return result

@@ -106,8 +106,8 @@ Record the NACK idempotency invariant and retention policy in `docs/10_adr/adr_0
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the NACK idempotency invariant + retention policy; close EVENTBUS-023 in Known Deviations | Pending | — | — | Docs-only; latest-key-only recorded |
-| 2 | Run the documentation checkers (`stale_detector.py`, `check_workitem_structure.py`) | Pending | — | — | |
+| 1 | Record the NACK idempotency invariant + retention policy; close EVENTBUS-023 in Known Deviations | Done | 2026-10-26 | 2026-10-26 | Docs-only; latest-key-only recorded |
+| 2 | Run the documentation checkers (`stale_detector.py`, `check_workitem_structure.py`) | Done | 2026-10-26 | 2026-10-26 | stale_detector passed; structure checker N/A (ADR not under issues/plans/implementations) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

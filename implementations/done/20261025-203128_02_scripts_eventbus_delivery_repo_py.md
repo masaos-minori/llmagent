@@ -123,9 +123,9 @@ if (
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm latest-key-only dedup scope (current guard unchanged); internalize `consumer_id=None` path as internal-only (`REQ-007`) | Pending | — | — | Latest-key-only is the recommended default (recorded); guard becomes live via seq 01 |
-| 2 | Add/update tests per Validation plan | Pending | — | — | Repo-level idempotency tests authored in seq 05 |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
+| 1 | Confirm latest-key-only dedup scope (current guard unchanged); internalize `consumer_id=None` path as internal-only (`REQ-007`) | Done | 2026-10-26 | 2026-10-26 | Annotated `consumer_id=None` parameter and two `if consumer_id is not None:` blocks as internal-only |
+| 2 | Add/update tests per Validation plan | Done | 2026-10-26 | 2026-10-26 | No test changes needed — existing tests cover the `consumer_id=None` path |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-26 | 2026-10-26 | ruff/mypy/bandit/vulture/lint-imports/radon all pass; 19/19 ack/nack tests pass |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

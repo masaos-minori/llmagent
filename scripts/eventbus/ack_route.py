@@ -125,6 +125,9 @@ async def nack(
     request: Request,
     event_id: str = Query(default=""),
     consumer_id: str = Query(...),  # Required — no default (REQ-007)
+    idempotency_key: str = Query(
+        default=""
+    ),  # (new) caller-supplied NACK idempotency key
     _principal: Principal | None = None,  # set by app.py wrapper
     _identity: Principal | None = None,  # set by app.py wrapper
 ) -> dict[str, Any]:
@@ -135,6 +138,12 @@ async def nack(
     # REQ-007: consumer_id is mandatory for NACK
     if not consumer_id:
         raise HTTPException(status_code=400, detail="consumer_id is required for NACK")
+
+    # UNK-01 (recommended): reject a NACK without an idempotency key
+    if not idempotency_key:
+        raise HTTPException(
+            status_code=400, detail="idempotency_key is required for NACK"
+        )
 
     # REQ-008: Validate principal owns the consumer_id
     if (
@@ -154,18 +163,18 @@ async def nack(
     db = get_db(request)
     cfg = get_config(request)
 
+    # Extract idempotency_key value outside the closure to avoid capturing the Query object
+    _idempotency_key = idempotency_key
+
     def _nack_and_promote() -> tuple[str, int | None, bool]:
         """Nack an event and promote to DLQ if max retries exceeded.
 
         DLQ promotion is gated on consumer_failure_count (the per-consumer
         failure counter), not the shared per-event counter — see REQ-002.
         """
-        # REQ-001: Generate attempt ID for NACK idempotency
-        import uuid  # noqa: PLC0415 — local import avoids circular dependency
-
-        attempt_id = str(uuid.uuid4())
+        # REQ-002: use the caller-supplied idempotency key, not a per-request UUID
         nack_result = _nack_event(
-            db, event_id, consumer_id, last_nack_attempt=attempt_id
+            db, event_id, consumer_id, last_nack_attempt=_idempotency_key
         )
         status = nack_result.status
         if status == "not_found":

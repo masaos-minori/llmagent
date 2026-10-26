@@ -118,8 +118,8 @@ PRAGMA user_version = 2;   -- recreates the eventbus DB (REQ-008)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Verify current per-consumer schema; record UNK-03 latest-key decision (no modification) + conditional bounded-set branch | Pending | — | — | Recommended model = no change; decision recorded |
-| 2 | Run the documentation checkers (`stale_detector.py`, `check_workitem_structure.py`) | Pending | — | — | No code change → no test run needed |
+| 1 | Verify current per-consumer schema; record UNK-03 latest-key decision (no modification) + conditional bounded-set branch | Done | 2026-10-26 | 2026-10-26 | Verified: consumer_delivery at :22-29 carries single consumer_last_nack_attempt TEXT at :27; PRAGMA user_version = 1 at :43 |
+| 2 | Run the documentation checkers (`stale_detector.py`, `check_workitem_structure.py`) | Done | 2026-10-26 | 2026-10-26 | No code change → no test run needed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -39,6 +39,20 @@ On ACK, the per-consumer delivery record and the consumer offset are updated in 
 
 `POST /nack?event_id=<id>&consumer_id=<id>`. Success returns HTTP 200 with `event_id` and `consumer_delivery_failure_count`, which is the nacking consumer's per-consumer failure count after this NACK. `dlq_promoted: true` is added when the event was promoted.
 
+### Idempotency Key
+
+`POST /nack` accepts an `idempotency_key` query parameter identifying the
+delivery attempt. The client generates and holds this key (for example derived
+from `(consumer_id, event_id, attempt_number)`, or a client-stored UUID) and sends
+it on **every** NACK for that attempt:
+
+- A retry of the **same** failed attempt reuses the **same** key → the NACK is a
+  **no-op** (counters unchanged), so network/proxy retries do not double-count.
+- Advancing to a **new** attempt uses a **new** key → counted once.
+
+The server treats the key opaquely and passes it unchanged through to the
+repository. A NACK without a key is rejected with HTTP 400.
+
 | Condition | HTTP status |
 |---|---|
 | Event does not exist | 404 |
@@ -46,6 +60,7 @@ On ACK, the per-consumer delivery record and the consumer offset are updated in 
 | `consumer_id` outside the caller's authorization | 403 |
 | `event_id` or `consumer_id` present but empty | 400 |
 | `consumer_id` parameter missing | 422 (request validation) |
+| `idempotency_key` parameter missing | 400 |
 
 ACK state is per consumer; there is no event-level ACK column.
 
@@ -62,6 +77,11 @@ ACK state is per consumer; there is no event-level ACK column.
 | Unknown event ID (ACK or NACK) | 404 | None |
 | ACK or NACK on a DLQ event | 409 `event already in dead letter queue` | None: no delivery state or offset is written |
 | Simultaneous ACK/NACK | 200, or 200 and 409 | Both are serialized under the DB lock; the second call observes the first call's committed state, so a NACK that runs after the ACK returns 409 and an ACK that runs after the NACK returns 200 |
+
+**NACK idempotency key scope and retention.** Deduplication is latest-key-only:
+only the most recent `consumer_last_nack_attempt` per `(consumer_id, event_id)` is
+remembered. A NACK whose key is not the most recent one counts as a new attempt.
+(A bounded set of recent keys would require a schema change and is not adopted.)
 
 ## Keywords
 

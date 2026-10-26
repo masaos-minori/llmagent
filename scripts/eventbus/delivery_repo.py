@@ -37,7 +37,8 @@ class NackResult:
 def nack_event(
     conn: sqlite3.Connection,
     event_id: str,
-    consumer_id: str | None = None,  # Optional — for consumer-specific failure tracking
+    consumer_id: str
+    | None = None,  # internal-only: the /nack route always supplies consumer_id
     last_nack_attempt: str | None = None,  # REQ-001: idempotency key for NACK
 ) -> NackResult:
     """Record a per-consumer NACK failure for an event.
@@ -73,6 +74,7 @@ def nack_event(
             return NackResult("invalid_state")
 
         if consumer_id is not None:
+            # internal-only: the /nack route always supplies consumer_id
             # Per-consumer ACK guard: reject NACK if this consumer already ACKed
             acked = conn.execute(
                 "SELECT 1 FROM consumer_delivery "
@@ -111,6 +113,7 @@ def nack_event(
         # DLQ promotion; the events-level failure counters are legacy and no longer
         # written to under the per-consumer model.
         # Update consumer_delivery table if consumer_id is provided
+        # internal-only: the /nack route always supplies consumer_id
         if consumer_id is not None:
             conn.execute(
                 f"INSERT INTO consumer_delivery (consumer_id, event_id, {_COL_CONSUMER_DELIVERY_FAILURE_COUNT}, {_COL_CONSUMER_LAST_NACK_ATTEMPT}) "  # nosec B608 — column names are module-level constants, values parameterized
