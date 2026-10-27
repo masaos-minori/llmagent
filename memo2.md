@@ -5,7 +5,6 @@
 各計画書から実装手順書を作成した後に以下のファイル一覧から作業が完了した計画書ファイル名を削除してください。
 作業が終了した計画書はアーカイブしてください。
 
-- plans/20261027-073638_config001_make-config-reload-atomic.md
 - plans/20261027-074212_history001_token-overflow-compression-fallback.md
 - plans/20261027-074657_undo002_undo-db-memory-set-consistency.md
 - plans/20261027-085246_bgmonitor001_reset-background-failure-pause.md
