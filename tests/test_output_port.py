@@ -42,6 +42,7 @@ class TestOutputPortProtocolCoverage:
             "clear_progress",
             "write_warning",
             "write_fatal",
+            "write_turn_not_persisted",
             "write_startup_banner",
             "write_file",
             "write_stderr",
@@ -128,6 +129,10 @@ class TestOutputPortProtocolCoverage:
         mock_port.write_fatal("crash")
         mock_port.write_fatal.assert_called_once_with("crash")
 
+    def test_write_turn_not_persisted_method(self, mock_port: MagicMock) -> None:
+        mock_port.write_turn_not_persisted()
+        mock_port.write_turn_not_persisted.assert_called_once()
+
     def test_write_startup_banner_method(self, mock_port: MagicMock) -> None:
         mock_port.write_startup_banner("42", 5, "running", "sqlite")
         mock_port.write_startup_banner.assert_called_once_with(
@@ -182,6 +187,14 @@ class TestOutputPortProtocolCoverage:
         port.write_error("fail")
         captured = capsys.readouterr()
         assert captured.out.strip() == "[error] fail"
+
+    def test_clioutputport_write_turn_not_persisted_prefix(self, capsys: Any) -> None:
+        port = CliOutputPort()
+        port.write_turn_not_persisted()
+        captured = capsys.readouterr()
+        assert captured.out.strip() == (
+            f"{OutputTag.NON_FATAL} turn not persisted, history rolled back"
+        )
 
     def test_clioutputport_write_success_prefix(self, capsys: Any) -> None:
         port = CliOutputPort()

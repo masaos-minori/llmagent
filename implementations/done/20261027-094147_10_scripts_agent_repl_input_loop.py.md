@@ -4,8 +4,9 @@ Surface ConversationPersistenceError distinctly in the REPL loop instead of lett
 
 ## Scope
 
-- **In-Scope** (`scripts/agent/repl_input_loop.py` only):
-  - Add an `except ConversationPersistenceError` clause to `_repl_loop`, placed before the existing `except Exception as exc` (repl_input_loop.py:315), that writes a distinct message via the view and re-enters the loop (`REQ-007`).
+- **In-Scope** (`scripts/agent/repl_input_loop.py`, plus the view output chain that carries the distinct message):
+  - In `repl_input_loop.py`, add an `except ConversationPersistenceError` clause to `_repl_loop`, placed before the existing `except Exception as exc` (repl_input_loop.py:318), that calls `self._view.write_turn_not_persisted()` and re-enters the loop (`REQ-007`).
+  - Add the `write_turn_not_persisted()` method across the view output chain so the call type-checks and renders: `WriterBase` (ABC, `NotImplementedError` default) and `CLIView` (delegates to port) in `cli_view.py`, and `OutputPort` (Protocol) + `CliOutputPort` (prints the `[non-fatal] turn not persisted, history rolled back` line) in `commands/output_port.py`.
   - Preserve the existing `SchemaMissingError` / `RuntimeError` / `sqlite3.Error` branches in `run` and the `TimeoutError` handling in `_repl_loop` unchanged.
 - **Out-of-Scope** (handled by sibling documents this Plan generates):
   - The ConversationPersistenceError body and its compensation/restore (turn_persistence.py, seq 01).
@@ -34,12 +35,12 @@ Surface ConversationPersistenceError distinctly in the REPL loop instead of lett
 ### Procedure
 
 1. Import ConversationPersistenceError (seq 01) at module scope.
-2. In `_repl_loop` (repl_input_loop.py:229), add `except ConversationPersistenceError:` before `except Exception as exc:` (repl_input_loop.py:315); write a distinct message via `self._view` and let the loop continue.
+2. In `_repl_loop` (repl_input_loop.py:230), add `except ConversationPersistenceError:` before `except Exception as exc:` (repl_input_loop.py:318); call `self._view.write_turn_not_persisted()` and let the loop continue.
 3. Run the validation sequence.
 
 ### Method
 
-`ReplInputLoop` (repl_input_loop.py:38) owns the interactive loop. `_repl_loop` (repl_input_loop.py:229) runs the read/dispatch loop; its per-turn wrapper ends with `except TimeoutError` branches (repl_input_loop.py:310-314) followed by a catch-all `except Exception as exc:  # noqa: BLE001` (repl_input_loop.py:315) that calls `self._surface_turn_error(exc)` (repl_input_loop.py:316) inside a `finally` that clears the turn-active flags. `_surface_turn_error` (repl_input_loop.py:128) writes `{exc.__class__.__name__}: {exc}` via `self._view.write_fatal`. The new branch sits ahead of repl_input_loop.py:315.
+`ReplInputLoop` (repl_input_loop.py:38) owns the interactive loop. `_repl_loop` (repl_input_loop.py:230) runs the read/dispatch loop; its per-turn wrapper ends with `except TimeoutError` branches (repl_input_loop.py:311-315) followed by a catch-all `except Exception as exc:  # noqa: BLE001` (repl_input_loop.py:318) that calls `self._surface_turn_error(exc)` (repl_input_loop.py:319) inside a `finally` that clears the turn-active flags. `_surface_turn_error` (repl_input_loop.py:129) writes `{exc.__class__.__name__}: {exc}` via `self._view.write_fatal`. The new branch sits ahead of repl_input_loop.py:318.
 
 ```python
 # repl_input_loop.py — distinct persistence error (REQ-007)  (new)
@@ -48,7 +49,7 @@ Surface ConversationPersistenceError distinctly in the REPL loop instead of lett
                     self._log_graceful_shutdown_timeout()
                     break
                 raise
-            except ConversationPersistenceError:                 # (new) seq 01
+            except ConversationPersistenceError:  # seq 10: compensated turn; surface distinctly before the generic handler
                 self._view.write_turn_not_persisted()
             except Exception as exc:  # noqa: BLE001 — contain unexpected per-turn errors so the interactive session stays usable after a failing turn
                 self._surface_turn_error(exc)
@@ -59,9 +60,9 @@ Surface ConversationPersistenceError distinctly in the REPL loop instead of lett
 
 ### Details
 
-- **`REQ-007` (distinct surfacing):** the new branch calls a dedicated view method (e.g. `write_turn_not_persisted` (new)) producing "turn not persisted, history rolled back", distinct from the generic `{name}: {exc}` format.
+- **`REQ-007` (distinct surfacing):** the new branch calls the dedicated `self._view.write_turn_not_persisted()` (added to the view output chain: `WriterBase`/`CLIView` in `cli_view.py`, `OutputPort`/`CliOutputPort` in `commands/output_port.py`), which prints "[non-fatal] turn not persisted, history rolled back" — distinct from the generic `{name}: {exc}` format written by `_surface_turn_error`.
 - **`AC-007` (loop continues):** after surfacing, the `finally` resets turn state and the loop reads the next input; existing REPL error tests still pass.
-- **Ordering:** the branch MUST precede the `except Exception` handler (repl_input_loop.py:315), else the generic handler consumes it.
+- **Ordering:** the branch MUST precede the `except Exception` handler (repl_input_loop.py:318), else the generic handler consumes it.
 
 ## Compatibility considerations
 
@@ -100,10 +101,10 @@ Surface ConversationPersistenceError distinctly in the REPL loop instead of lett
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add distinct ConversationPersistenceError branch in `scripts/agent/repl_input_loop.py` | Pending | — | — | Before generic except at L315 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Extend `tests/agent/test_repl_error_handling.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add distinct ConversationPersistenceError branch in `scripts/agent/repl_input_loop.py` + `write_turn_not_persisted` across the view output chain | Complete | 2026-10-27 | 2026-10-27 | Imported ConversationPersistenceError; added `except ConversationPersistenceError:` at L316 before generic except at L318; added write_turn_not_persisted to cli_view.py (WriterBase+CLIView) and commands/output_port.py (OutputPort+CliOutputPort, [non-fatal] tag) |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | Added test_repl_surfaces_persistence_error_distinctly (test_repl_error_handling.py); added write_turn_not_persisted coverage to test_output_port.py (protocol parametrize + mock + stdout) and test_cli_view.py (delegation) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | ruff check/format clean, mypy --no-namespace-packages clean (441 files), lint-imports 6/6, bandit High/Medium 0, vulture @80 exit 0 (pre-existing TYPE_CHECKING false-positives only); full suite 10235 passed, 12 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | Corrected Scope (view output chain now in-scope), Procedure/Method/Details line numbers (shifted +1 from import), pseudocode comment, Execution Status |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

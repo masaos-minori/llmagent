@@ -60,6 +60,9 @@ class WriterBase(ABC):
     def write_fatal(self, msg: str) -> None:
         raise NotImplementedError("write_fatal must be implemented")
 
+    def write_turn_not_persisted(self) -> None:
+        raise NotImplementedError("write_turn_not_persisted must be implemented")
+
     def write_startup_banner(
         self,
         chunk_count: str,
@@ -207,6 +210,10 @@ class CLIView(WriterBase):
     def write_fatal(self, msg: str) -> None:
         """Print a fatal error prefixed with [fatal]."""
         self._port.write_fatal(msg)
+
+    def write_turn_not_persisted(self) -> None:
+        """Notify the user that a turn was not persisted (compensated, history rolled back)."""
+        self._port.write_turn_not_persisted()
 
     def write_startup_banner(
         self,

@@ -282,6 +282,12 @@ class TestDelegationVerification:
         view_with_mock_port.write_fatal("unrecoverable error")
         mock_port.write_fatal.assert_called_once_with("unrecoverable error")
 
+    def test_delegates_write_turn_not_persisted_to_outputport(
+        self, view_with_mock_port: CLIView, mock_port: MagicMock
+    ) -> None:
+        view_with_mock_port.write_turn_not_persisted()
+        mock_port.write_turn_not_persisted.assert_called_once()
+
     def test_delegates_write_startup_banner_to_outputport(
         self, view_with_mock_port: CLIView, mock_port: MagicMock
     ) -> None:

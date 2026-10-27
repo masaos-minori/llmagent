@@ -80,6 +80,10 @@ class OutputPort(Protocol):
         """Print a fatal error prefixed with [fatal]."""
         ...
 
+    def write_turn_not_persisted(self) -> None:
+        """Notify the user that a turn was not persisted (compensated, history rolled back)."""
+        ...
+
     def write_startup_banner(
         self,
         chunk_count: str,
@@ -195,6 +199,10 @@ class CliOutputPort:
     def write_fatal(self, msg: str) -> None:
         """Print a fatal error prefixed with [fatal]."""
         print(f"{OutputTag.FATAL} {msg}")
+
+    def write_turn_not_persisted(self) -> None:
+        """Print a compensation notice for a turn that was not persisted."""
+        print(f"{OutputTag.NON_FATAL} turn not persisted, history rolled back")
 
     def write_startup_banner(
         self,

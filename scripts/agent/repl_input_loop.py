@@ -14,6 +14,7 @@ from typing import TYPE_CHECKING, cast
 from agent.output_tags import OutputTag
 from agent.session import SchemaMissingError
 from agent.stdin_reader import StdinReader
+from agent.turn_persistence import ConversationPersistenceError
 
 if TYPE_CHECKING:
     from agent.cli_view import CLIView
@@ -312,6 +313,8 @@ class ReplInputLoop:
                     self._log_graceful_shutdown_timeout()
                     break
                 raise
+            except ConversationPersistenceError:  # seq 10: compensated turn; surface distinctly before the generic handler
+                self._view.write_turn_not_persisted()
             except Exception as exc:  # noqa: BLE001 — contain unexpected per-turn errors so the interactive session stays usable after a failing turn
                 self._surface_turn_error(exc)
             finally:
