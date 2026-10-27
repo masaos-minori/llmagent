@@ -101,10 +101,10 @@ Only the text after each `#` changes.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update field comments to per-turn degraded-state semantics | Pending | — | — | REQ-004 |
-| 2 | Add regression tests (row 03) | Pending | — | — | Dependency |
-| 3 | Run validation sequence | Pending | — | — | mypy/ruff |
-| 4 | Update doc (row 04) | Pending | — | — | REQ-005 |
+| 1 | Update field comments to per-turn degraded-state semantics | Completed | — | 20261027-185628 | REQ-004 Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 2 | Add regression tests (row 03) | Completed | — | 20261027-185628 | Dependency Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 3 | Run validation sequence | Completed | — | 20261027-185628 | mypy/ruff Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 4 | Update doc (row 04) | Completed | — | 20261027-185628 | REQ-005 Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

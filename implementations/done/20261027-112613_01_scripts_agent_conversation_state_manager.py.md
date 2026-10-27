@@ -52,14 +52,24 @@ Correct the per-turn degraded-state bookkeeping inside `handle_memory_injection`
 
 The current `handle_memory_injection` body (lines 121-146) opens a `try` at line 125 and handles failure in a single `except`. The edit adds a pre-`try` read, a transition-gated log in the `except`, and a new `else` recovery branch:
 
+Verified against the current source (20261027): the memory block is built as
+`"--- USER MEMORY ---\n" + ...` and appended through
+`ctx.conv.append_message({... "_memory_injected": True}, source="memory_injection")`;
+`on_user_prompt` is called with `query=line, session_id=ctx.session.session_id`, and the
+`except` clause carries a `# noqa: BLE001` comment. The earlier draft of this section
+named `append_history_message` / `ctx.conv.EphemeralMemoryInjectionKey`, which do not
+exist in this file; the shape below matches the file as it stands.
+
 ```
 if ctx.services_required.memory is not None:
     previously_degraded = ctx.conv.memory_disabled      # NEW: capture before try
     try:
-        memory_snippets = await ctx.services_required.memory.on_user_prompt(...)
+        memory_snippets = await ctx.services_required.memory.on_user_prompt(
+            query=line, session_id=ctx.session.session_id,
+        )
         if memory_snippets:
-            ... append memory block ...                  # lines 130-141 unchanged
-    except Exception as e:
+            ... append the memory block ...              # lines 130-141 unchanged
+    except Exception as e:  # noqa: BLE001 — unchanged
         if previously_degraded:                          # NEW: gated log level
             logger.debug("Memory injection failed: %s", e)
         else:
@@ -117,10 +127,10 @@ if ctx.services_required.memory is not None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Clear-on-success + re-arm `memory_warning_shown` + transition-only logging in `handle_memory_injection` | Pending | — | — | REQ-001..REQ-003 |
-| 2 | Add regression tests (row 03) | Pending | — | — | Dependency |
-| 3 | Run validation sequence | Pending | — | — | pytest/mypy/ruff |
-| 4 | Update field comments (row 02) + doc (row 04) | Pending | — | — | REQ-004, REQ-005 |
+| 1 | Clear-on-success + re-arm `memory_warning_shown` + transition-only logging in `handle_memory_injection` | Completed | — | 20261027-185628 | REQ-001..REQ-003 Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 2 | Add regression tests (row 03) | Completed | — | 20261027-185628 | Dependency Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 3 | Run validation sequence | Completed | — | 20261027-185628 | pytest/mypy/ruff Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 4 | Update field comments (row 02) + doc (row 04) | Completed | — | 20261027-185628 | REQ-004, REQ-005 Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -71,6 +71,14 @@ The memory layer operates in four different modes, which can be checked via `/me
 - Degraded → Hybrid: Automatic transition when the circuit breaker closes after a recovery period.
 - Any → Disabled: Requires configuration change and agent restart.
 
+### Memory Injection Failure (Per-Turn Degraded State)
+
+This degraded state is distinct from Degraded mode above: it reports a failed per-turn memory-injection call, whereas Degraded mode reports an embedding circuit-breaker trip during retrieval. It is not one of the four modes and is not reported by `/memory status`.
+
+- **When it appears:** any user prompt whose memory-injection call raises (network error, timeout, or backend failure). The state is tracked per turn, not held for the whole session.
+- **Automatic recovery:** memory context is retrieved and injected on every user prompt with no manual intervention; a successful attempt, including one that returns no snippets, clears the state on that same turn. The startup-time failure path is recovered the same way by the first successful per-turn injection.
+- **User-visible signal:** one warning per degradation period — a single warning when the state is entered and one when it clears. Persistent failures stay quiet on the following turns rather than warning on every turn, so a long outage does not flood the log.
+
 ### Implementation Note: Persistence Order and Failure Handling for `on_session_stop`
 
 When persisting embedded entries at session end, an `upsert` to SQLite is performed first, followed by writing to JSONL. Even if writing to JSONL fails with an `OSError`, no exception is re-raised; a warning is logged and processing continues (the entry remains saved only in SQLite).

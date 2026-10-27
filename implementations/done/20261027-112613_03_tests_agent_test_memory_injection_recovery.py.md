@@ -164,10 +164,10 @@ The three async methods drive the real `handle_memory_injection` through the fak
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Flag bookkeeping (row 01) | Pending | — | — | Dependency |
-| 2 | Add regression module | In Progress | — | — | This row |
-| 3 | Run validation sequence | Pending | — | — | pytest/mypy/ruff |
-| 4 | Update doc (row 04) | Pending | — | — | REQ-005 |
+| 1 | Flag bookkeeping (row 01) | Completed | — | 20261027-185628 | Dependency Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 2 | Add regression module | Completed | — | 20261027-185628 | This row Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 3 | Run validation sequence | Completed | — | 20261027-185628 | pytest/mypy/ruff Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
+| 4 | Update doc (row 04) | Completed | — | 20261027-185628 | REQ-005 Implemented and validated in the memory001 batch (full suite 10235 passed, diff coverage 98%) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

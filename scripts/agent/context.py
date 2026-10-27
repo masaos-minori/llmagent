@@ -107,10 +107,8 @@ class ConversationState:
     system_prompt_content: str = ""
     shutdown_requested: bool = False
     is_processing: bool = False  # True while handle_turn() is executing
-    memory_disabled: bool = False  # True when memory injection failed during startup
-    memory_warning_shown: bool = (
-        False  # Whether the "memory disabled" warning was displayed
-    )
+    memory_disabled: bool = False  # True when a memory-injection attempt failed; cleared on the next successful attempt
+    memory_warning_shown: bool = False  # Whether the "memory degraded" warning was shown; reset on recovery so a later degradation re-warns once
     undo_floor: int = (
         0  # index into history of the /undo compression boundary; 0 = none
     )

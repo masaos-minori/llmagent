@@ -126,10 +126,10 @@ async def test_orphan_repair_logs_warning_with_session_id_and_count(self, caplog
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement repair (Row 01) | Pending | — | — | Dependency |
-| 2 | Add regression tests | In Progress | — | — | This row |
-| 3 | Run validation sequence | Pending | — | — | pytest/mypy/ruff |
-| 4 | Update doc (Row 03) | Pending | — | — | This row |
+| 1 | Implement repair (Row 01) | Completed | — | 20261027-183511 | Dependency Row 01 implemented and archived in this batch (110403_01) |
+| 2 | Add regression tests | Completed | 20261027-175000 | 20261027-183511 | This row Changed: tests/agent/test_session_restore.py (+4 TestRestoreSession methods, +1 TestRestorePersistenceRealDB method, +import json) |
+| 3 | Run validation sequence | Completed | — | 20261027-183511 | pytest/mypy/ruff pytest test_session_restore 23 passed (18 existing unchanged + 5 new); targeted pair 85 passed; full suite 10232 passed 10 skipped; diff-cover HEAD 98% (missing line 84: defensive name-copy mandated by Procedure step 4, unreachable for synthesized ids); ruff clean; mypy: only 2 pre-existing list[object] errors from HEAD remain (tests/agent outside mypy files scope) |
+| 4 | Update doc (Row 03) | Completed | — | 20261027-183511 | This row N/A in this cycle: batch doc update owned by matched procedure 110403_03 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

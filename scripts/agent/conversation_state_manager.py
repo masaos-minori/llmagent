@@ -122,6 +122,7 @@ class ConversationStateManager:
         """Inject memory-based context into the conversation."""
         ctx = self._ctx
         if ctx.services_required.memory is not None:
+            previously_degraded = ctx.conv.memory_disabled
             try:
                 memory_snippets = await ctx.services_required.memory.on_user_prompt(
                     query=line,
@@ -140,10 +141,22 @@ class ConversationStateManager:
                         source="memory_injection",
                     )
             except Exception as e:  # noqa: BLE001 — catching all exceptions during memory injection to avoid blocking the turn
-                logger.warning("Memory injection failed: %s", e)
+                # Warn only on the healthy-to-degraded transition; a persistent
+                # failure retries every turn and logs at debug level.
+                if previously_degraded:
+                    logger.debug("Memory injection failed: %s", e)
+                else:
+                    logger.warning("Memory injection failed: %s", e)
                 ctx.conv.memory_disabled = True
                 if not ctx.conv.memory_warning_shown:
                     ctx.conv.memory_warning_shown = True
+            else:
+                # A successful attempt clears the degraded state and re-arms the
+                # one-shot warning flag for the next degradation period.
+                if previously_degraded:
+                    ctx.conv.memory_disabled = False
+                    ctx.conv.memory_warning_shown = False
+                    logger.warning("Memory injection recovered; degraded state cleared")
 
     async def handle_history_compression(self) -> None:
         """Compress conversation history if it exceeds configured limits.

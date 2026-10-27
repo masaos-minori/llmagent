@@ -5,6 +5,7 @@ Unit tests for agent/services/session_restore.py.
 
 from __future__ import annotations
 
+import json
 import logging
 import sqlite3
 from collections.abc import Generator
@@ -281,6 +282,109 @@ class TestRestoreSession:
             "undo_floor clamped" in record.getMessage() for record in caplog.records
         )
 
+    async def test_orphan_assistant_tool_calls_repaired_at_load(self) -> None:
+        """AC-001: an assistant row whose tool_calls were never answered is
+        paired with synthesized tool rows at load."""
+        assistant = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}},
+                {"id": "call_b", "type": "function", "function": {"name": "g", "arguments": "{}"}},
+            ],
+        }
+        ctx = _make_ctx(messages=[{"role": "user", "content": "q"}, assistant])
+        await restore_session(ctx, session_id=11)
+        roles = [m["role"] for m in ctx.conv.history]
+        assert roles == ["user", "assistant", "tool", "tool"]
+        tool_rows = [m for m in ctx.conv.history if m["role"] == "tool"]
+        assert [m["tool_call_id"] for m in tool_rows] == ["call_a", "call_b"]
+        assert all("interrupted" in m["content"] for m in tool_rows)
+
+    async def test_restore_is_idempotent_for_orphan_session(self) -> None:
+        """AC-003: two independent restores over the same orphaned rows produce
+        equal histories with each synthesized row present exactly once."""
+
+        def fixture() -> list[dict]:
+            return [
+                {"role": "user", "content": "q"},
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}},
+                        {"id": "call_b", "type": "function", "function": {"name": "g", "arguments": "{}"}},
+                    ],
+                },
+                {"role": "tool", "content": "answered", "tool_call_id": "call_a", "name": "f"},
+            ]
+
+        ctx1 = _make_ctx(messages=fixture())
+        ctx2 = _make_ctx(messages=fixture())
+        await restore_session(ctx1, session_id=12)
+        await restore_session(ctx2, session_id=12)
+        assert ctx1.conv.history == ctx2.conv.history
+        synthesized = [
+            m for m in ctx1.conv.history if m["role"] == "tool" and "interrupted" in m["content"]
+        ]
+        assert len(synthesized) == 1
+        assert synthesized[0]["tool_call_id"] == "call_b"
+        # The answered row keeps its identity and is not duplicated.
+        answered = [m for m in ctx1.conv.history if m["role"] == "tool" and "interrupted" not in m["content"]]
+        assert answered == [{"role": "tool", "content": "answered", "tool_call_id": "call_a", "name": "f"}]
+
+    async def test_undo_floor_accounts_for_synthesized_rows(self) -> None:
+        """AC-004: synthesized rows at or before the snapshot boundary shift the
+        undo_floor so the floor lands on the same turn as before repair."""
+        messages: list[dict] = [
+            {"role": "user", "content": "q1"},
+            {
+                "role": "assistant",
+                "content": None,
+                "tool_calls": [
+                    {"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}},
+                    {"id": "call_b", "type": "function", "function": {"name": "g", "arguments": "{}"}},
+                ],
+            },
+            {"role": "tool", "content": "answered", "tool_call_id": "call_a", "name": "f"},
+            {"role": "user", "content": "q2"},
+        ]
+        ctx = _make_ctx(messages=messages, undo_floor_id=3)
+        ctx.session.count_messages_up_to.return_value = 3  # snapshot covers rows 0-2
+        await restore_session(ctx, session_id=45)
+        # Pre-repair index is 3; one synthesized row landed at the boundary
+        # (j == n_snapshot) so the floor shifts by 1 and never passes history end.
+        assert ctx.conv.undo_floor == 4
+        assert ctx.conv.undo_floor <= len(ctx.conv.history)
+        # The synthesized row sits at the floor position: the repaired turn
+        # stays protected, only q2 is undoable.
+        assert ctx.conv.history[3]["tool_call_id"] == "call_b"
+        assert "interrupted" in ctx.conv.history[3]["content"]
+
+    async def test_orphan_repair_logs_warning_with_session_id_and_count(
+        self, caplog: pytest.LogCaptureFixture
+    ) -> None:
+        """AC-002: the repair logs one warning carrying the session id and the
+        synthesized-row count."""
+        assistant = {
+            "role": "assistant",
+            "content": None,
+            "tool_calls": [
+                {"id": "call_x", "type": "function", "function": {"name": "f", "arguments": "{}"}},
+            ],
+        }
+        ctx = _make_ctx(messages=[assistant])
+        with caplog.at_level(logging.WARNING, logger="agent.services.session_restore"):
+            await restore_session(ctx, session_id=21)
+        joined = " ".join(
+            r.getMessage()
+            for r in caplog.records
+            if r.levelno == logging.WARNING
+            and r.name == "agent.services.session_restore"
+        )
+        assert "21" in joined
+        assert "1" in joined
+
 
 # ── Real-DB persistence after restore (sess001 regression) ─────────────────────
 
@@ -417,3 +521,41 @@ class TestRestorePersistenceRealDB:
         # AC-003: restore is non-destructive; both sessions rows survive.
         sids = {r[0] for r in conn.execute("SELECT session_id FROM sessions")}
         assert sids == {original_sid, 200}
+
+    async def test_restore_of_orphan_session_keeps_db_row_count(
+        self, restore_env: tuple[AgentSession, sqlite3.Connection, int]
+    ) -> None:
+        """AC-003 (memory-only): restoring a session whose last assistant row
+        has orphaned tool_calls must not write synthesized rows to the DB."""
+        s, conn, _ = restore_env
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content, tool_calls) "
+            "VALUES (200, 'assistant', '', ?)",
+            (
+                json.dumps(
+                    [
+                        {
+                            "id": "call_orphan",
+                            "type": "function",
+                            "function": {"name": "f", "arguments": "{}"},
+                        }
+                    ]
+                ),
+            ),
+        )
+        conn.commit()
+        before = conn.execute(
+            "SELECT COUNT(*) FROM messages WHERE session_id = 200"
+        ).fetchone()[0]
+
+        ctx = _make_restore_ctx(s)
+        await restore_session(ctx, session_id=200)
+
+        after = conn.execute(
+            "SELECT COUNT(*) FROM messages WHERE session_id = 200"
+        ).fetchone()[0]
+        assert after == before
+        # The synthesized pairing exists only in the restored memory history.
+        tool_rows = [m for m in ctx.conv.history if m["role"] == "tool"]
+        assert [m["tool_call_id"] for m in tool_rows] == ["call_orphan"]
+        assert "interrupted" in tool_rows[0]["content"]

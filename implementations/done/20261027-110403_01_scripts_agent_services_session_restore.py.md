@@ -168,10 +168,10 @@ def repair_orphan_tool_calls(messages, session_id, *, boundary_index=None):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement the repair function + integrate into `restore_session` | Pending | — | — | REQ-001..REQ-005 |
-| 2 | Add regression tests | Pending | — | — | Row 02 |
-| 3 | Run validation sequence | Pending | — | — | mypy/ruff |
-| 4 | Update state/persistence doc | Pending | — | — | Row 03 |
+| 1 | Implement the repair function + integrate into `restore_session` | Completed | 20261027-174000 | 20261027-183428 | REQ-001..REQ-005 Changed: scripts/agent/services/session_restore.py (marker constant + repair_orphan_tool_calls + restore_session integration + _boundary_to_index insertions kwarg) |
+| 2 | Add regression tests | Completed | 20261027-175000 | 20261027-183428 | Row 02 Tests delivered by matched procedure 110403_02 in this batch; targeted pytest tests/agent/test_session_restore.py tests/agent/test_session_message_repo.py: 85 passed |
+| 3 | Run validation sequence | Completed | — | 20261027-183428 | mypy/ruff ruff scripts/ clean; mypy clean on session_restore.py; mypy scripts/ reports 4 pre-existing unused-ignore errors in scripts/rag/ingestion/* unrelated to this cycle; full suite 10232 passed 10 skipped; diff-cover HEAD 98% |
+| 4 | Update state/persistence doc | Completed | — | 20261027-183428 | Row 03 N/A in this cycle: batch doc update owned by matched procedure 110403_03 (docs/23_agent/agent_04_01_state-and-persistence-state-model.md) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

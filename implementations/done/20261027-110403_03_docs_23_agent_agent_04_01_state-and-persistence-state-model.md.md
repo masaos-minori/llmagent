@@ -106,10 +106,10 @@ undo_floor shifted by synthesized rows before the boundary
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the state/persistence doc with the load-time repair contract | Pending | — | — | Additive subsection |
-| 2 | Add or update tests per Validation plan | Pending | — | — | N/A: documentation only |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | Doc checkers |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | This doc |
+| 1 | Update the state/persistence doc with the load-time repair contract | Completed | — | 20261027-183919 | Additive subsection Additive Load-Time Orphan Repair subsection; 4 doc checkers clean; tests/docs 20 passed |
+| 2 | Add or update tests per Validation plan | Completed | — | 20261027-183919 | N/A: documentation only Additive Load-Time Orphan Repair subsection; 4 doc checkers clean; tests/docs 20 passed |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Completed | — | 20261027-183919 | Doc checkers Additive Load-Time Orphan Repair subsection; 4 doc checkers clean; tests/docs 20 passed |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Completed | — | 20261027-183919 | This doc Additive Load-Time Orphan Repair subsection; 4 doc checkers clean; tests/docs 20 passed |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

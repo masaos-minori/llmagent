@@ -65,6 +65,27 @@ All failure cases are non-blocking, and the session continues normally. When a f
 
 `AgentSession` owns the `sessions` and `messages` tables (see Design Intent). Schema details: [agent_09_01_data-layer-session-db.md](agent_09_01_data-layer-session-db.md).
 
+### Load-Time Orphan Repair
+
+A turn that was interrupted between the assistant tool-call row and its tool results leaves an assistant row carrying `tool_calls` with no matching `role="tool"` rows in `messages`. `/session load` repairs such an interrupted round in memory before the restored history is installed, so a resumed session never starts with dangling tool calls.
+
+```text
+messages (session.sqlite)
+        v
+assistant row with tool_calls, no matching tool rows?
+        v  yes
+synthesize the missing tool rows (interrupted-marker content, message whitelist conformant)
+        v
+replace_history(paired)   # memory-only; DB row count unchanged
+```
+
+- **Paired after load.** An assistant row whose `tool_calls` ids are unanswered by the following tool-row run is repaired at load; the restored history ends with that assistant row followed by synthesized tool rows whose `tool_call_id` values match.
+- **Synthesis.** Missing tool rows are synthesized in `tool_calls` order, carrying the original `tool_call_id` and an identifiable interrupted-marker content that conforms to the message whitelist. A WARNING names the repaired session. Canonical implementation: `scripts/agent/services/session_restore.py`.
+- **Memory-only and idempotent.** No row is written to `messages` at load, so the row count is unchanged and a second load reproduces identical history. Synthesized rows reach the database only through the next compression `replace_messages` (see [agent_04_02](agent_04_02_state-and-persistence-history-compression.md)).
+- **Undo floor preserved.** The compression boundary index accounts for synthesized rows inserted before it, so `undo_last_turn()` still lands on the correct turn and messages at or before the boundary are never deleted.
+
+Load-time repair is a distinct, failure-triggered path; it does not change the semantics of `/undo` or of the save rules above.
+
 ### Relationship Between Conversation History and Database
 
 ```text
