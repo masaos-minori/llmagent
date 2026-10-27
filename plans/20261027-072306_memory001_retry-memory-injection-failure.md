@@ -251,3 +251,5 @@ Medium (source issue priority: Medium)
 | REQ-004 | Derived: field comment contradicts per-turn semantics (context.py L110-111) | scripts/agent/context.py | Phase 1 | AC-004 | N/A: comment verified by review | Derived from confirmed evidence |
 | REQ-005 | Documentation Impact | docs/23_agent/agent_11_01_memory-overview-and-modes.md | Phase 3 | N/A: documentation check via check_doc_claims.py | N/A: documentation only | Explicit in issue |
 | REQ-001..REQ-003 | Testing Expectations 1-2 | tests/agent/test_memory_injection_recovery.py | Phase 2 | AC-001..AC-003 | test_memory_injection_recovery.py | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-112613 -->
