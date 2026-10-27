@@ -263,9 +263,9 @@ Low
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization baseline | Pending | — | — | |
-| 2 | Phase 2: default cap | Pending | — | — | |
-| 3 | Phase 3: tests, docs, deployment check, verification | Pending | — | — | |
+| 1 | Phase 1: characterization baseline | Pending | — | — |  |
+| 2 | Phase 2: default cap | In Progress | — | — |  |
+| 3 | Phase 3: tests, docs, deployment check, verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -275,7 +275,11 @@ Low
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-004831_01_scripts_shared_tool_transport_invoker.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-004831_02_scripts_shared_tool_executor.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-004831_03_tests_shared_test_tool_transport_invoker.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-004831_04_docs_23_agent_agent_08_03_configuration-tools-memory.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-004831_05_docs_23_agent_agent_06_03_tool-execution-and-approval-concurrency-safety.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -299,3 +303,5 @@ Low
 | REQ-005 | Mechanism description in `agent_06_03` | docs/23_agent/agent_06_03_tool-execution-and-approval-concurrency-safety.md | Phase 3 | AC-5 | 23_agent documentation consistency check | Confirmed by repository evidence |
 | REQ-006 | Verified uncapped servers (`git`, `mdq`) | scripts/shared/tool_transport_invoker.py | Phase 3 | AC-1 | `config/agent.toml` read-only check + commit-message note | Confirmed by repository evidence |
 | REQ-001, REQ-002, REQ-003 | Issue Testing Expectations | tests/shared/test_tool_transport_invoker.py | Phase 3 | AC-1, AC-2, AC-3 | Three new unit tests | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261028-004831 -->
