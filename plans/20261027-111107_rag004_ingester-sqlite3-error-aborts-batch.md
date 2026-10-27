@@ -225,10 +225,10 @@ Medium
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization baseline | Pending | — | — | |
-| 2 | Phase 2: widen the catch | Pending | — | — | |
-| 3 | Phase 3: tests | Pending | — | — | |
-| 4 | Phase 4: docs, deployment check, verification | Pending | — | — | |
+| 1 | Phase 1: characterization baseline | Pending | — | — |  |
+| 2 | Phase 2: widen the catch | In Progress | — | — |  |
+| 3 | Phase 3: tests | In Progress | — | — |  |
+| 4 | Phase 4: docs, deployment check, verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -238,6 +238,9 @@ Medium
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
+| implementations/20261027-165951_01_scripts_rag_ingestion_ingester.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-165951_02_tests_rag_ingestion_test_rag_ingester.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261027-165951_03_docs_21_rag_rag_05_04-error-handling-reference.md.md | 4 | Procedure | Pending | — | — |
 | — | — | — | — | — | — |
 
 ## Traceability
@@ -258,3 +261,5 @@ Medium
 | REQ-003 | Constraints (transaction semantics); TestAtomicity verified | tests/rag/ingestion/test_rag_ingester.py | Phase 3 | AC-3 | Existing propagation test unmodified | Confirmed by repository evidence |
 | REQ-004 | Verified gap in RagIngester error table (corrects Issue's "no docs impact") | docs/21_rag/rag_05_04-error-handling-reference.md | Phase 4 | AC-4 | 21_rag documentation consistency check | Confirmed by repository evidence |
 | REQ-002 | Issue Testing Expectations | tests/rag/ingestion/test_rag_ingester.py | Phase 3 | AC-2 | New continuation + boundary tests | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-165951 -->
