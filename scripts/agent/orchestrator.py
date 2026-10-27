@@ -34,6 +34,7 @@ from agent.conversation_state_manager import ConversationStateManager
 from agent.diagnostic_store import DiagnosticStore
 from agent.llm_turn_executor import LlmTurnExecutor
 from agent.output_tags import OutputTag
+from agent.turn_persistence import ConversationPersistenceError
 from agent.workflow import (
     StateStore,
     WorkflowDef,
@@ -45,7 +46,7 @@ from agent.workflow.workflow_loader import WORKFLOWS_DIR
 from agent.workflow_engine_adapter import WorkflowEngineAdapter
 
 if TYPE_CHECKING:
-    pass
+    from agent.turn_persistence import TurnPersistence
 
 __all__ = ["BG_FAILURE_THRESHOLD", "Orchestrator"]
 
@@ -166,11 +167,23 @@ class Orchestrator:
         error_kind: str | None = None
         is_partial: bool = False
         turn_started_at = time.perf_counter()
+        boundary: TurnPersistence | None = None
         try:
             await self._audit_emitter.emit_turn_start()
+            boundary = await self._ctx.session.turn_boundary(self._ctx.conv)
+            self._ctx.turn.persistence_boundary = boundary
             answer, error_kind, is_partial = await self._workflow_adapter.execute_turn(
                 line, turn_started_at, ""
             )
+        except ConversationPersistenceError:
+            # boundary.fail_from_error() already compensated (deleted the turn's
+            # partial DB rows) and restored history to its turn-start snapshot; the
+            # narrow branch records a distinct error_kind so the REPL surfaces a
+            # dedicated message (REQ-007). Nothing was persisted, so is_partial stays
+            # False. Re-raise so the failure is observable end-to-end (REQ-004).
+            error_kind = "persistence"
+            is_partial = False
+            raise
         except BaseException as exc:
             error_kind = exc.__class__.__name__
             is_partial = bool(getattr(exc, "partial_text", ""))

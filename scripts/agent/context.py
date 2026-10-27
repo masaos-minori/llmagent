@@ -48,6 +48,7 @@ if TYPE_CHECKING:
     from agent.lifecycle_protocol import LifecycleManagerProtocol
     from agent.memory.services import MemoryServices
     from agent.repository_gateway import RepositoryGateway
+    from agent.turn_persistence import TurnPersistence
 
 
 logger = logging.getLogger(__name__)
@@ -218,6 +219,11 @@ class TurnState:
     # cleared at shutdown by ResourceShutdownCoordinator. Process-lifetime: TurnState is
     # constructed once with AgentContext (context.py:320) and is not reset between turns.
     background_tasks: set[asyncio.Task[Any]] = field(default_factory=set)
+    # The atomic turn-persistence boundary for the running turn (see
+    # scripts/agent/turn_persistence.py). Set by Orchestrator._execute_turn at turn
+    # start; the write-routing callers route every session-DB write through it so a
+    # turn is persisted all-or-nothing (REQ-001, AC-001). None between turns.
+    persistence_boundary: TurnPersistence | None = None
 
 
 @dataclass

@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import sqlite3
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -20,7 +21,10 @@ from agent.history import CompressResult, HistoryCompressionError
 from agent.llm_turn_executor import LlmTurnExecutor
 from agent.message_schema import ValidationResult
 from agent.orchestrator import BG_FAILURE_THRESHOLD, Orchestrator
+from agent.session import AgentSession
+from agent.session_message_repo import SessionMessageRepository
 from agent.tool_loop_guard import ToolLoopGuard
+from agent.turn_persistence import ConversationPersistenceError
 from agent.turn_result import TurnResult
 from agent.workflow import (
     WorkflowHaltError,
@@ -36,6 +40,8 @@ from db.create_schema import create_workflow_schema
 from db.helper import SQLiteHelper
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
+
+from tests.agent.test_turn_persistence import _SCHEMA_SQL, _FakeSQLiteHelper
 
 
 async def _await_raising(
@@ -110,6 +116,9 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_calls = 0
     ctx.turn.current_turn_id = None
     ctx.session.session_id = "test-session"
+    # Orchestrator creates a per-turn persistence boundary via turn_boundary(); make it
+    # awaitable here so the default MagicMock ctx supports the new per-turn wiring.
+    ctx.session.turn_boundary = AsyncMock(return_value=MagicMock())
     ctx.workflow.workflow_id = None
     # services
     hist_mgr = AsyncMock()
@@ -3206,3 +3215,120 @@ class TestTaskStatusPerTurnOutcome:
             )
 
         assert store.task_status() == "completed"
+
+
+# ── Turn-persistence boundary wiring (REQ-001, REQ-004, REQ-007) ───────────────
+
+
+class TestTurnPersistenceBoundaryWiring:
+    @pytest.mark.asyncio
+    async def test_boundary_created_once_and_exposed_on_success(self) -> None:
+        """A successful turn creates exactly one boundary via turn_boundary() and exposes
+        it on ``ctx.turn.persistence_boundary`` so the write-routing callers can reach it
+        without a threaded parameter (AC-001)."""
+        ctx = _make_ctx()
+        sentinel = object()
+        ctx.session.turn_boundary = AsyncMock(return_value=sentinel)
+        orch = _make_orchestrator(ctx)
+        orch._workflow_adapter.execute_turn = AsyncMock(return_value=("", None, False))
+
+        await orch._execute_turn("hello")
+
+        ctx.session.turn_boundary.assert_awaited_once_with(ctx.conv)
+        assert ctx.turn.persistence_boundary is sentinel
+
+    @pytest.mark.asyncio
+    async def test_persistence_failure_sets_distinct_error_kind_and_reraises(
+        self,
+    ) -> None:
+        """A ``ConversationPersistenceError`` from the turn sets ``error_kind='persistence'``,
+        leaves ``is_partial`` False (nothing was persisted), and re-raises so the REPL can
+        surface it distinctly instead of swallowing it under the generic handler (REQ-007)."""
+        ctx = _make_ctx()
+        ctx.session.turn_boundary = AsyncMock(return_value=object())
+        orch = _make_orchestrator(ctx)
+        orch._workflow_adapter.execute_turn = AsyncMock(
+            side_effect=ConversationPersistenceError(
+                "history rolled back", cause=sqlite3.Error("boom")
+            )
+        )
+        emit_end = AsyncMock()
+        orch._audit_emitter.emit_turn_end = emit_end
+
+        with pytest.raises(ConversationPersistenceError):
+            await orch._execute_turn("hello")
+
+        emit_end.assert_awaited_once()
+        call_args = emit_end.call_args[0]
+        assert call_args[3] == "persistence"  # error_kind
+        assert call_args[4] is False  # is_partial
+
+    @pytest.mark.asyncio
+    async def test_real_boundary_compensates_and_restores_through_orchestrator(
+        self,
+    ) -> None:
+        """End-to-end: a real boundary owns the turn. A mid-turn write failure makes the
+        boundary compensate (delete only the failed turn's rows; prior-turn rows survive)
+        and restore history to its turn-start snapshot, and the orchestrator re-raises the
+        single ``ConversationPersistenceError`` (AC-002, AC-004)."""
+        conn = sqlite3.connect(":memory:")
+        conn.execute("PRAGMA foreign_keys=ON")
+        conn.executescript(_SCHEMA_SQL)
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content) "
+            "VALUES (1, 'user', 'prior-1')"
+        )
+        conn.commit()
+
+        state: dict[str, int] = {"fail_next": 0}
+
+        def _make(target: str = "session") -> _FakeSQLiteHelper:
+            fake = _FakeSQLiteHelper(conn)
+            fake._state = state
+            return fake
+
+        with (
+            patch("agent.session.SQLiteHelper", side_effect=_make),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=_make),
+        ):
+            session = AgentSession()
+            session.session_id = 1
+            session._message_repo = SessionMessageRepository(1)
+
+            conv = ConversationState()
+            conv.history = [{"role": "user", "content": "prior-1"}]
+
+            ctx = _make_ctx()
+            ctx.session = session
+            ctx.conv = conv
+            ctx.turn = TurnState()
+
+            orch = _make_orchestrator(ctx)
+
+            async def _failing_execute_turn(line: str, started_at: float, _answer: str):
+                boundary = ctx.turn.persistence_boundary
+                await boundary.save("user", "turn-row")  # phase 1 commits (id 2)
+                state["fail_next"] = 1
+                await boundary.save_phase_grouped(
+                    [("assistant", "answer", None, None)]
+                )  # phase 2 fails
+
+            orch._workflow_adapter.execute_turn = AsyncMock(
+                side_effect=_failing_execute_turn
+            )
+
+            with pytest.raises(ConversationPersistenceError):
+                await orch._execute_turn("hello")
+
+            # AC-002: prior-turn row survives; zero of the failed turn's rows remain.
+            rows = [
+                (mid, role, content)
+                for mid, role, content in conn.execute(
+                    "SELECT message_id, role, content FROM messages ORDER BY message_id"
+                ).fetchall()
+            ]
+            assert rows == [(1, "user", "prior-1")]
+
+            # AC-004: memory restored element-wise to the turn-start snapshot.
+            assert conv.history == [{"role": "user", "content": "prior-1"}]
