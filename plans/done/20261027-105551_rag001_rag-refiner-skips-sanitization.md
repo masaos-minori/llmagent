@@ -120,7 +120,7 @@ Medium
 |---|---|---|---|---|---|---|
 | scripts/rag/llm_client.py | Sanitize chunk content in `RagLLM.refine_context` before truncation and prompt substitution | The refiner prompt is the unguarded path named by the Issue | REQ-001, REQ-003, REQ-004 | `refine_context` builds `text = c.content[:per_chunk_chars]` and interpolates it into `_REFINER_PROMPT_TEMPLATE` with no `sanitize_document` call | tests/rag/test_augment_refiner.py; tests/rag/test_pipeline_refiner_fallback.py (regression, unmodified) | Verified |
 | scripts/rag/llm_prompts.py | Sanitize candidate content in `_build_rerank_prompt` before the 300-character preview | Second unguarded chunk-to-prompt site found during verification (scope extension, user-approved) | REQ-002, REQ-003, REQ-004 | `_build_rerank_prompt` builds `preview = chunk.content[:300].replace("\n", " ")` with no `sanitize_document` call | tests/rag/test_rag_pipeline.py (new parity test) | Verified |
-| tests/rag/test_augment_refiner.py | Add the refiner-path sanitization test with a captured prompt | Issue Testing Expectations; no existing test asserts refiner input sanitization | REQ-001 | The file already constructs `RagLLM` with an injected mock client for refiner delegation | the file itself | Verified |
+| tests/rag/test_augment_refiner.py | Add the refiner-path sanitization test with a captured prompt | Issue Testing Expectations; no existing test asserts refiner input sanitization | REQ-001 | The file injects the `llm` dependency into `AugmentRefiner` via `_make_refiner(llm=...)` but never constructs a real `RagLLM`; the new test constructs `RagLLM` with a mock `httpx.AsyncClient` (constructor takes an injected client) to capture the prompt | the file itself | Verified |
 | tests/rag/test_rag_pipeline.py | Add the rerank-preview sanitization test and the `_format_chunks` unchanged-parity test | This file already hosts the `sanitize_document` and `_format_chunks` tests, so the parity invariant lives with them | REQ-002, REQ-004 | Existing tests cover `sanitize_document` pattern behavior and `_format_chunks` output only | the file itself | Verified |
 | tests/integration/test_rag_turn_integration.py | Correct the two stale `sanitize_document` call-site claims in docstrings; keep assertions unchanged | Both claims become false after the change and are currently cited as the reason the agent layer does not sanitize | REQ-006 | Module docstring and `test_f04` docstring: "sanitize_document() ... is only ever called from rag/stages/augment.py's chunk-formatting step" | the file itself (assertions untouched) | Verified |
 | docs/21_rag/rag_03_05_query_pipeline-augment-stages.md | Replace the "uses `sanitize_document()` exclusively" claim with the cross-path invariant | That sentence is the documented form of the asymmetry this Plan removes | REQ-005 | "`AugmentStage` uses `sanitize_document()` exclusively and does not consume the audit trail." | N/A: documentation file | Verified |
@@ -286,10 +286,10 @@ Medium
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization baseline | Pending | — | — | |
-| 2 | Phase 2: apply the control at both sites | Pending | — | — | |
-| 3 | Phase 3: tests | Pending | — | — | |
-| 4 | Phase 4: docs, deployment check, verification | Pending | — | — | |
+| 1 | Phase 1: characterization baseline | Pending | — | — |  |
+| 2 | Phase 2: apply the control at both sites | In Progress | — | — |  |
+| 3 | Phase 3: tests | In Progress | — | — |  |
+| 4 | Phase 4: docs, deployment check, verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -299,7 +299,13 @@ Medium
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261027-131124_01_scripts_rag_llm_client.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-131124_02_scripts_rag_llm_prompts.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-131124_03_tests_rag_test_augment_refiner.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261027-131124_04_tests_rag_test_rag_pipeline.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261027-131124_05_tests_integration_test_rag_turn_integration.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261027-131124_06_docs_21_rag_rag_03_05_query_pipeline-augment-stages.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261027-131124_07_docs_21_rag_rag_03_06_query_pipeline-helpers-and-cache.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -324,3 +330,5 @@ Medium
 | REQ-006 | Verified stale docstring claims | tests/integration/test_rag_turn_integration.py | Phase 3 | AC-5 | Suite run with assertions unchanged | Confirmed by repository evidence |
 | REQ-005 | Verified exclusivity claim | docs/21_rag/rag_03_05_query_pipeline-augment-stages.md | Phase 4 | AC-5 | 21_rag documentation consistency check | Confirmed by repository evidence |
 | REQ-005 | Helper page lacking the invariant | docs/21_rag/rag_03_06_query_pipeline-helpers-and-cache.md | Phase 4 | AC-5 | 21_rag documentation consistency check | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-131124 -->

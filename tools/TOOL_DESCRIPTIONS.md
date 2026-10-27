@@ -12,7 +12,7 @@ Naming convention: `<verb>_<target>.py`.
 
 Drift in this file itself is detected by `check_tool_descriptions_sync.py`, which cross-checks `tools/*.py` against the backticked `*.py` names mentioned here.
 
-## Index (54 modules)
+## Index (56 modules)
 
 | File | Category | Purpose |
 |---|---|---|
@@ -48,6 +48,8 @@ Drift in this file itself is detected by `check_tool_descriptions_sync.py`, whic
 | `generate_mcp_inventory.py` | Reference generation | Output the MCP server list from agent config as JSON/CSV |
 | `generate_reference_table.py` | Reference generation | Generate reference tables for RAG/MCP/deployment/agent/EventBus (the Memory type is pending a decision on its target document); `--check` exits 1 when a generated guarded block drifted from live code (runs in CI) |
 | `generate_workitem.py` | Work item generation | Generate work item skeletons with placeholders. `--kind implementation-procedure --all-rows` generates every row of the Plan's `Implementation Target Files` table in one run (rows whose file already exists are skipped and processing continues) |
+| `fill_rag003_procedures.py` | Work item generation (one-shot) | Fills the 29 `implementations/20261027-154425_*` rag003 procedure skeletons (rag_service_url -> rag_query_service_url rename) with content derived from `plans/done/20261027-110727_rag003_rag-url-key-ambiguity.md` plus live line-number evidence. Single-use generator for that plan; kept as the provenance record of the generated docs |
+| `fill_rag004_procedures.py` | Work item generation (one-shot) | Fills the 3 `implementations/20261027-165951_*` rag004 procedure skeletons (sqlite3.Error catch widening) with content derived from `plans/done/20261027-111107_rag004_ingester-sqlite3-error-aborts-batch.md` plus live line-number evidence. Single-use generator for that plan; kept as the provenance record of the generated docs |
 | `manage_frontmatter.py` | Front Matter management | Detect missing Front Matter, remove duplicates, rename `area`, merge body Related sections into `related:` |
 | `manage_workitem_stage.py` | Work item management | Archive moves, status updates, stale detection |
 | `manage_binaries.py` | Deploy | Write build info for the Nuitka binaries, check their freshness against a source revision, swap a staged set into the bin directory with the previous set saved, roll back, and record the deployed revision |
