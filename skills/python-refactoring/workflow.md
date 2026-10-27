@@ -123,8 +123,6 @@ path is not evidence of absence).
 Counting callers: a caller is a distinct non-test source file, other than the target, that
 imports or calls a symbol this refactor will change in signature, location, or body. A
 symbol used only inside the target, or one the refactor leaves untouched, adds no caller.
-(This is a definition proposed to keep Path A reachable; adjust it in `SKILL.md` Routing
-if the intent differs.)
 
 If `Expected behavior change` is anything other than `none`, stop. MUST NOT implement it.
 Record it under `report-template.md`'s `Proposals not implemented` format instead, and
@@ -253,52 +251,19 @@ Step 2's behavior-change stop rule.
 
 ### Transforming
 
-- Use `libcst` for symbol-level refactoring when needed. When a change MUST preserve
-  comments, formatting, or docstrings during a rename/structural edit, use a
-  CST-preserving transform, not regex-based text replacement. Apply it only to the
-  explicit file path(s) in the approved scope (never a directory glob), and restrict the
-  rename to the intended symbol: a bare `Name` match also rewrites unrelated
-  identifiers (keyword arguments, attributes, same-named locals), so match the
-  definition, its imports, and its references selectively, e.g. for a top-level class:
-
-  ```python
-  import sys
-  from pathlib import Path
-
-  import libcst as cst
-
-  class RenameClass(cst.CSTTransformer):
-      def leave_ClassDef(
-          self, original_node: cst.ClassDef, updated_node: cst.ClassDef
-      ) -> cst.ClassDef:
-          if updated_node.name.value == "OldName":
-              return updated_node.with_changes(name=cst.Name("NewName"))
-          return updated_node
-
-      def leave_Name(
-          self, original_node: cst.Name, updated_node: cst.Name
-      ) -> cst.Name:
-          # Reference sites only: add checks (ScopeProvider / parent node) so attributes,
-          # keyword arguments, and shadowing locals named "OldName" are left alone.
-          return updated_node
-
-  path = Path(sys.argv[1])  # one explicit target file
-  source = path.read_text(encoding="utf-8")
-  new_code = cst.parse_module(source).visit(RenameClass()).code
-  if new_code != source:
-      path.write_text(new_code, encoding="utf-8")
-  ```
-
-  After the edit, review `git diff` for the file: every changed hunk must be the intended
-  symbol.
+- Use `libcst` for symbol-level renames/structural edits that must preserve comments,
+  formatting, or docstrings (never regex text replacement). Constraints:
+  - Pass one explicit target file path per run, never a directory glob.
+  - A `CSTTransformer` matching a bare `Name` also rewrites keyword arguments, attributes,
+    and same-named locals. Match the definition (`leave_ClassDef`/`leave_FunctionDef`), its
+    imports, and its reference sites selectively (`ScopeProvider` or parent-node checks).
+  - Afterwards `git diff` the file: every changed hunk must be the intended symbol.
 
 - Run `ruff format` and `ruff check --fix` after each transformation.
 - Ensure no legacy symbol names remain — verify with `rg "OldName" <scope>`.
-- If `ruff check --fix` leaves unfixed violations, or `rg` still finds a legacy symbol
-  name, fix the specific remaining item and re-run only that check (not the whole
-  Transformation step). Per `AGENTS.md` Loop Prevention > Attempt Limit, at most 3
-  fix-and-recheck attempts per file in this step; if violations or legacy references
-  remain after 3 attempts, stop and report `Blocked: {file} still has {violation/legacy
+- If `ruff check --fix` leaves violations or `rg` still finds a legacy symbol name, fix that
+  item and re-run only that check. At most 3 attempts per file (`AGENTS.md` Loop Prevention
+  > Attempt Limit); then stop and report `Blocked: {file} still has {violation/legacy
   reference} after 3 attempts` — MUST NOT proceed to Step 7 with a known-unresolved item.
 
 ---
@@ -317,20 +282,10 @@ pass.
   non-interactive `git diff` output, hunk by hunk, without invoking `git add`. Hunks in
   files that were already modified in the Step 1 baseline are not this cycle's changes;
   do not classify them.
-- Classify every hunk as one of:
-  - rename only
-  - extraction only
-  - simplification
-  - type annotation
-  - guard clause
-  - test characterization
-  - validation fix
-  - import cleanup
-  - formatting
-  - lint autofix (a change `ruff check --fix` made that the refactor did not intend)
-  - metadata update
-
-  Any hunk that does not fit these categories MUST be explained explicitly.
+- Classify every hunk as one of: rename only, extraction only, simplification, type
+  annotation, guard clause, test characterization, validation fix, import cleanup,
+  formatting, lint autofix (a change `ruff check --fix` made that the refactor did not
+  intend), metadata update. Explain any hunk that fits none.
 - Run tests, `ruff`, and `mypy` once per logical group identified via `git diff` (see
   Refactoring-Specific Guidance for scoping) — MUST NOT require staging hunks
   individually to run these checks.
@@ -384,14 +339,12 @@ selects the gates the changed files need). At minimum:
 - Review changes with `git log` and `git diff`.
 - Ensure no legacy symbol names remain.
 
-**On a failure**: return to Step 6 (Transformation) to fix the specific violation
-reported — MUST NOT re-derive the Step 2 intent or Step 4 behavior lock — then re-run
-Step 7's Required validation (the fix may have changed behavior or the public API) and
-this Step 9 CI gate, not Steps 1-6. Per `AGENTS.md` Loop Prevention > Attempt
-Limit, at most 3 Step 6/Step 9 round-trips for the same file (or atomic migration
-group); if the gate still fails after 3 attempts, stop, apply Rollback (see `AGENTS.md`
-Loop Prevention > Rollback Directive), and report `Blocked: {file} still fails the CI
-gate after 3 attempts — {summary of each attempt}` — MUST NOT start a fourth attempt.
+**On a failure**: fix the reported violation in Step 6 (MUST NOT re-derive the Step 2 intent
+or Step 4 behavior lock), then re-run Step 7's Required validation (the fix may have changed
+behavior or the public API) and this gate. At most 3 Step 6/Step 9 round-trips per file (or
+atomic migration group); after the third, stop, roll back (`AGENTS.md` Loop Prevention >
+Rollback Directive), MUST NOT start a fourth attempt, and report `Blocked: {file} still fails the CI gate after 3 attempts —
+{summary of each attempt}`.
 
 ---
 
@@ -410,19 +363,14 @@ Proposals and Findings live only in this report. When it lists any, offer to fil
 
 ## Refactoring-Specific Guidance
 
-- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: MUST NOT
-  re-run `mypy`/`pyright`/`ruff`/`pydeps`/`import-linter`/`mutmut`/`rg` against an
-  unchanged target expecting a different result — only re-run a check after the
-  specific fix it depends on (see Step 6/Step 9 fix-and-recheck rules).
-- Perform Step 3 (preparation/investigation) sequentially; `rg` and the deploy-reference
-  search MUST run every time regardless of Path, and `pydeps`/`import-linter`/
-  `ast-grep` only when Path B or C applies (see `path-a.md`/`path-b.md`), retaining only
-  the resulting impact scope table, not the raw tool output. The deploy-reference check
-  is the `rg -ln ... deploy/ conf.d/ init.d/` search from Step 2.
-- Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs (e.g.
-  via `grep` for failures) rather than full successful-run output.
-- Scope `mypy`, `pyright`, `ruff`, and test runs to the target file or module wherever
-  possible, rather than the whole repository.
+- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run a
+  check (`mypy`/`pyright`/`ruff`/`pydeps`/`import-linter`/`mutmut`/`rg`) against an unchanged
+  target expecting a different result; re-run only after the fix it depends on.
+- Step 3 runs sequentially. `rg` and the deploy-reference search run every time; `pydeps`/
+  `import-linter`/`ast-grep` only for Path B or C (`path-a.md`/`path-b.md`). Keep only the
+  impact scope table, not raw tool output.
+- Capture only error/summary lines from `mypy`, `pyright`, `ruff`, and test runs, scoped to
+  the target file or module wherever possible.
 - `mutmut` (3.x here) takes its mutation scope from `[tool.mutmut]` `source_paths` in
   `pyproject.toml`; it has no `--paths-to-mutate`. Run `uv run mutmut run`, optionally
   naming specific mutants (`mutmut run <MUTANT_NAMES>`) and `--max-children`, then read
@@ -432,9 +380,6 @@ Proposals and Findings live only in this report. When it lists any, offer to fil
 - In Step 8, run the full mypy/test/ruff check once per logical diff group identified
   via `git diff` rather than after every single hunk; use a lighter check (e.g. `ruff`
   only) when inspecting individual hunks.
-- When multiple target files are specified, run each Steps 1-10 cycle sequentially so
-  one file's tool output and investigation results do not accumulate in the next file's
-  context.
 - Keep progress reports and Step 10 results concise; MUST NOT restate full diffs or raw
   tool output. Evidence tables (manifest, inventory, mutation report) MUST still list
   every required field even when kept concise.
@@ -462,8 +407,3 @@ Proposals and Findings live only in this report. When it lists any, offer to fil
   module also changes `ENTRIES` (`deploy/build_binaries.sh`), `BINARY_NAMES`
   (`deploy/deploy.sh`), `BINARY_SOURCES` (`tools/manage_binaries.py`), and `cmd` in
   `config/agent.toml`; record each as a Proposal.
-
-## Output format
-
-See `report-template.md` for the exact final-report structure; output is code changes
-plus the Step 10 report.

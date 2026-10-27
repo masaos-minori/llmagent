@@ -1,8 +1,7 @@
 # Python Refactoring — Side-Effect, Test, Type, and API Validation
 
-Load this file at Step 0 (unconditionally — applies to every Path A/B/C target file).
-It covers the Step 5 side-effect baseline and Step 7 validation content that
-`workflow.md` delegates here.
+Loaded at Step 0 for every Path. Covers the Step 5 side-effect baseline and Step 7 validation
+that `workflow.md` delegates here.
 
 ---
 
@@ -22,9 +21,8 @@ Before transformation, list current side effects in the target file:
 - Time-dependent behavior
 - Randomness
 
-This inventory is the baseline that Required Validation below MUST reconfirm as
-unchanged after transformation (`workflow.md` Step 7). If any side effect changes, stop
-and record it as a proposal unless explicitly approved.
+Required Validation below MUST reconfirm this inventory unchanged after transformation. If any
+side effect changes, stop and record a proposal unless explicitly approved.
 
 ---
 
@@ -48,10 +46,9 @@ At minimum:
 - Cross-check with `pyright`.
 - Run characterization tests.
 
-Per `rules/ai-execution.md` Repository Tool Usage #8, empty output/exit 0 alone is not
-proof of success for any of the above — confirm each actually analyzed/collected the
-target file(s) (e.g. a test run that collected zero tests, or a `mypy`/`ruff` invocation
-that silently matched no files due to a path typo, is not evidence of a clean result).
+Per `rules/ai-execution.md` Repository Tool Usage #8, empty output/exit 0 is not proof: confirm
+each tool analyzed/collected the target (a zero-test run or a path-typo no-match run is not a
+clean result).
 
 In addition, perform and record the following checks:
 
@@ -66,8 +63,7 @@ In addition, perform and record the following checks:
   - Tool or server route names
   - Configuration keys
 
-  If any public API change is required, stop and record it as a proposal unless
-  explicitly approved.
+  A required public API change: stop and record a proposal unless explicitly approved.
 
 - **Exception behavior freeze** — MUST NOT change exception behavior unless explicitly
   approved. Preserve:
@@ -79,8 +75,7 @@ In addition, perform and record the following checks:
   - Error return values
   - Failure ordering
 
-  If exception handling appears incorrect, MUST NOT fix it during refactoring. Record it as a
-  proposal.
+  MUST NOT fix apparently incorrect exception handling during refactoring; record it as a proposal.
 
 - **Side-effect inventory recheck** — confirm the Step 5 inventory above is unchanged.
 
@@ -119,17 +114,13 @@ Run these tools only when the repository configures and supports them:
 - `pre-commit`
 - `libcst`
 
-If a conditional tool is unavailable, apply `skills/DESIGN.md`, section "Tool
-availability guard".
-- Report `Blocked` only if the missing check is required to prove behavior preservation.
-- Otherwise, continue and record the check as `Not run`.
+If a conditional tool is unavailable, apply `skills/DESIGN.md` "Tool availability guard":
+`Blocked` only if the missing check is required to prove behavior preservation, otherwise
+continue and record `Not run`.
 
-MUST NOT require interactive Git commands. Use non-interactive `git diff` commands. See
-`workflow.md` Step 8 for the staging/commit policy (opt-in only; report suggested commit
-boundaries there).
+Use non-interactive `git diff` only (staging/commit policy: `workflow.md` Step 8).
 
-If mutation testing is not configured, report `Not run`. MUST NOT invent mutation results.
-Per `rules/ai-execution.md` Repository Tool Usage #8, 0 surviving mutants out of 0 total
-mutants generated means the target paths were not mutated (e.g. an empty
-`source_paths` match), not that the refactored code is behavior-locked — confirm a
-non-zero total mutant count before treating a mutation run as evidence.
+If mutation testing is not configured, report `Not run`; MUST NOT invent results. 0 surviving of
+0 generated mutants means the target was not mutated (e.g. an empty `source_paths` match)
+(`rules/ai-execution.md` Repository Tool Usage #8); require a non-zero mutant count before
+treating a run as evidence.

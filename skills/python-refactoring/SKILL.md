@@ -23,9 +23,8 @@ description: |
 
 Refactor existing Python source files without changing external behavior: lock current
 behavior with tests, classify the change's blast radius (Path A/B/C), transform with
-AST-safe tools, validate that behavior/API/side effects are unchanged, then report the
-evidence. See `workflow.md`'s opening for the safety-over-speed priority statement.
-This is a reactive workflow — see Core rules below.
+AST-safe tools, validate behavior/API/side effects, then report the evidence. Reactive
+workflow (Core rules below); safety-over-speed: `skills/DESIGN.md`.
 
 ---
 
@@ -45,24 +44,21 @@ This is a reactive workflow — see Core rules below.
 | 9 | CI gate | Run the gates the change requires: scoped `pre-commit`, `lint-imports`, and diff-cover at 90% on changed lines (`workflow.md` Step 9). |
 | 10 | Report results | Report per `report-template.md`; the refactor is complete only once its Completion Gate passes. |
 
-See `workflow.md` for the detailed per-step procedure and multi-file/atomic-migration-group
-rules.
+Per-step procedure and multi-file/atomic-migration-group rules: `workflow.md`.
 
 ---
 
 ## Routing (Path Classification)
 
-Classify the change as Path A, Path B, or Path C in Step 2, before Step 3, using the
-preliminary `rg` caller/deploy-reference search that `workflow.md` Step 2 requires. This
-gates how much tooling depth Steps 3 and 4 apply — it does not skip Steps 3, 4, or 7
-themselves, nor reduce Step 7's Required validation, nor skip the Completion gate. If
-Step 3's full impact mapping meets a higher Path's criteria, re-classify upward and
-re-declare per `workflow.md` Step 3; never downgrade.
+Classify in Step 2 (before Step 3) using the preliminary `rg` caller/deploy search of
+`workflow.md` Step 2. The Path gates only the tooling depth of Steps 3 and 4; Steps 3, 4, 7,
+Step 7's Required validation, and the Completion gate always run. If Step 3's impact mapping
+meets a higher Path's criteria, re-classify upward and re-declare (`workflow.md` Step 3);
+never downgrade.
 
-"Files affected" below counts source files only; characterization tests added under
-`tests/` for the target (`workflow.md` Step 4) do not by themselves raise the Path.
-"Referenced in deploy scripts" means the target's module path or symbol appears under
-`deploy/`, `conf.d/`, or `init.d/` (`deploy/deploy.sh` is the main file).
+"Files affected" counts source files only (characterization tests under `tests/` do not raise
+the Path). "Referenced in deploy scripts": the target's module path or symbol appears under
+`deploy/`, `conf.d/`, or `init.d/`.
 
 ### [Path A] Minor change
 **Criteria (Must satisfy ALL):**
@@ -71,8 +67,7 @@ re-declare per `workflow.md` Step 3; never downgrade.
 - [ ] `Expected behavior change: none` (per the Step 2 declaration)
 - [ ] Not referenced in deploy scripts
 
-**Execution path:** load `path-a.md` — skip `pydeps`/`import-linter`/`ast-grep` (Step 3)
-and `mutmut` (Step 4); Steps 3, 4, 7, and the Completion gate still run.
+**Load:** `path-a.md` (skips `pydeps`/`import-linter`/`ast-grep` and `mutmut`).
 
 ### [Path B] Higher-impact change
 **Criteria (Satisfies ANY):**
@@ -82,9 +77,8 @@ and `mutmut` (Step 4); Steps 3, 4, 7, and the Completion gate still run.
 - [ ] Touches shared/extracted logic used by more than one caller (callers are counted per
       `workflow.md` Step 2: distinct non-test files that use a symbol the refactor changes)
 
-**Execution path:** load `path-b.md` — run `pydeps`/`import-linter`/`ast-grep` (Step 3)
-and `mutmut` when available (Step 4), each subject to `validation.md` Conditional
-Validation's reporting rules.
+**Load:** `path-b.md` (`pydeps`/`import-linter`/`ast-grep` in Step 3, `mutmut` in Step 4 when
+available; reporting per `validation.md` Conditional Validation).
 
 ### [Path C] Architectural refactoring
 **Criteria (Satisfies ANY):**
@@ -94,16 +88,13 @@ Validation's reporting rules.
 - [ ] Dependency-direction change
 - [ ] Architectural boundary change
 
-If a change satisfies any Path C criterion, classify it as Path C even if it also
-satisfies a Path B criterion (e.g. an import-boundary change that is a byproduct of a
-relocation, merge, split, ownership transfer, or boundary change is Path C, not Path B);
-a narrower import-direction fix that is not part of such a structural change remains
-Path B.
+Path C wins over Path B when both apply (an import-boundary change that is a byproduct of a
+relocation, merge, split, ownership transfer, or boundary change is Path C); a narrower
+import-direction fix outside such a change stays Path B.
 
-**Execution path:** load `path-c.md` — apply at least Path B's Step 3/4 depth, plus the
-pre-implementation approval checklist, Architecture Baseline (Step 4 addendum),
-Architecture Comparison Validation (Step 7 addendum), mandatory ADR, and Path C
-Completion Requirements (Step 10 addendum) it defines.
+**Load:** `path-c.md` (at least Path B's Step 3/4 depth, plus its approval checklist,
+Architecture Baseline, Architecture Comparison Validation, mandatory ADR, and Completion
+Requirements).
 
 ---
 
@@ -111,12 +102,10 @@ Completion Requirements (Step 10 addendum) it defines.
 
 ### Core rules
 - Change only one feature or one responsibility at a time.
-- Keep every change small — as a concrete bound, never worsen the `radon cc` grade of a
-  touched function (baseline: `workflow.md` Step 4; check: `validation.md` Complexity
-  check; `rules/toolchain.md` reports grade C or worse with `-n C`). A function
-  already at grade C or worse that the target requires touching is refactored toward a
-  lower grade only for the part in scope; restructuring the whole function is recorded
-  as a Proposal.
+- Keep every change small: never worsen the `radon cc` grade of a touched function
+  (baseline: `workflow.md` Step 4; check: `validation.md` Complexity check). For a function
+  already at grade C or worse, lower the grade only for the part in scope; restructuring the
+  whole function is a Proposal.
 - If a change may alter behavior, MUST NOT implement it — record it as a proposal
   instead (see `report-template.md` "Proposals not implemented").
 - Minimize changes to exception handling, state, side effects, I/O, and concurrency.
@@ -124,13 +113,11 @@ Completion Requirements (Step 10 addendum) it defines.
   workflow is reactive, not proactive.
 
 ### Refactoring rules
-- For the function(s) this task targets, give each one responsibility: MUST NOT leave
-  fetching, transformation, decision logic, and persistence mixed in a targeted
-  function — extract each concern. Untouched functions are out of scope (one
-  responsibility change at a time, per Core rules).
-- Reduce nesting and branching in targeted functions. Complexity is measured by
-  `radon cc` grade (cyclomatic complexity, not line count); lower it where the
-  targeted change allows, and MUST NOT raise it.
+- Targeted functions get one responsibility: MUST NOT leave fetching, transformation,
+  decision logic, and persistence mixed in one; extract each concern. Untouched functions are
+  out of scope.
+- Reduce nesting and branching in targeted functions (`radon cc` grade, not line count);
+  MUST NOT raise it.
 - Prefer early returns and small helper functions when they improve clarity.
 - Use clear and explicit names.
 - Extract shared logic only when it should evolve together later.
@@ -138,12 +125,11 @@ Completion Requirements (Step 10 addendum) it defines.
 
 ### Type safety rules
 - Add explicit type annotations where needed.
-- A runtime boundary check or `None` guard is allowed only when it provably leaves
-  exception types, messages, ordering, and return values unchanged (`validation.md`
-  Exception behavior freeze); otherwise record it as a Proposal and use a static
-  annotation only.
-- MUST NOT introduce `Any`, unnecessary casts, or unsafe assertions — existing ones in
-  untouched code stay as they are (record as a Finding if relevant).
+- A runtime boundary check or `None` guard only when it provably leaves exception types,
+  messages, ordering, and return values unchanged (`validation.md` Exception behavior
+  freeze); otherwise a Proposal plus a static annotation only.
+- MUST NOT introduce `Any`, unnecessary casts, or unsafe assertions (existing ones in
+  untouched code stay; record as a Finding if relevant).
 - Keep input validation separate from internal logic, within the targeted functions.
 
 ### Process rules
@@ -157,17 +143,8 @@ Completion Requirements (Step 10 addendum) it defines.
 
 ## Output format
 
-Output is refactored source code plus a structured chat report (structure and
-Completion Gate: see `report-template.md`); no single generated document.
-
----
-
-## See Also
-See `workflow.md` for detailed phase content, commands, and the toolchain reference.
-See `path-a.md` / `path-b.md` / `path-c.md` for Path-specific depth and requirements.
-See `discovery.md` for the Finding/Drift/Responsibility-Analysis vocabulary.
-See `validation.md` for the test/type/API/side-effect checklist.
-See `report-template.md` for the final report structure and completion gate.
+Refactored source code plus a structured chat report (`report-template.md`: structure and
+Completion Gate); no generated document.
 
 ---
 

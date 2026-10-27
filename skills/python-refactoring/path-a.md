@@ -12,8 +12,7 @@ Load this file only after `workflow.md` Step 2 classifies the change as Path A (
 - Skip `pydeps`, `import-linter`, and `ast-grep`; record `N/A: Path A` for each in the
   impact scope table.
 
-`discovery.md`'s Technical Debt Discovery, Responsibility Analysis, and Documentation
-Drift Detection still apply (not Path-gated; `workflow.md` Step 3).
+`discovery.md` investigations still apply (`workflow.md` Step 3).
 
 ---
 

@@ -21,9 +21,8 @@ A Path C change requires all of the following before implementation begins:
    draft (ADR Requirement below) and approved together with this checklist before
    implementation; this requirement does not define the ADR template or process itself
 
-Per `discovery.md` Discovery Vocabulary, an unapproved Path C idea is a Proposal only and
-MUST NOT be transformed in `workflow.md` Step 6; it becomes an Approved Change only with
-all seven items above satisfied and explicit approval given.
+Until all seven items are satisfied and explicit approval is given, a Path C idea is a
+Proposal only (`discovery.md`) and MUST NOT be transformed in `workflow.md` Step 6.
 
 **Atomic migration group**: the explicit, enumerated set of files whose changes MUST be
 applied and validated together, because no proper subset of them can independently pass
@@ -32,89 +31,56 @@ updating every one of its callers). Group membership MUST be declared and includ
 approval above (item 2, affected-file scope) before `workflow.md` Step 3 begins for any
 member of the group.
 
-See `workflow.md` Multi-file processing for the one-file-at-a-time default that continues
-to apply to Path A/B and to independent Path C target files outside this group. For an
-approved atomic migration group, the rule applies to the group as a single logical unit
-rather than to each member file — one Path classification, one Step 3-7
-preparation/validation/gating pass, and one Completion gate (`report-template.md`) cover
-the whole group — while member files are still read and transformed one at a time in a
-fixed, declared order; they MUST NOT be transformed in parallel (`workflow.md` Step 6
-Transformation and the Global Safety Restriction against parallel target-file processing
-still apply within the group).
+One-file-at-a-time (`workflow.md` Multi-file processing) still applies to Path A/B and to
+independent Path C files outside a group. An approved group is one logical unit: one Path
+classification, one Step 3-7 pass, one Completion gate (`report-template.md`); its members
+are still transformed one at a time in a fixed, declared order, never in parallel.
 
-Silent expansion of an approved atomic migration group is prohibited. If executing the
-group reveals that an additional file must change for the group to remain valid, stop; the
-additional file is a new Proposal requiring a new approval cycle for the amended group
-before any further transformation. The originally approved group's membership is frozen at
-approval time.
+Membership is frozen at approval time. If an additional file turns out to be needed, stop:
+it is a new Proposal requiring a new approval cycle for the amended group before any
+further transformation.
 
 ---
 
 ## Architecture Baseline (Step 4 addendum)
 
-Applies only when the change is classified Path C. Path A and Path B proceed through
-`workflow.md` Step 4 exactly as `path-a.md`/`path-b.md` describe, unaffected.
+Path C only. Before any Path C transformation (`workflow.md` Step 6), capture all eight fields:
 
-Before any Path C transformation begins (`workflow.md` Step 6), capture all eight of the
-following fields:
+- **Module ownership**: manual capture (no `CODEOWNERS`, ownership registry, or check
+  command exists). Inspect the code; the default ownership unit is the owning layer/module
+  directory of `rules/env.md` Architecture's six-layer diagram
+  (`scripts/{agent,db,eventbus,mcp_servers,rag,shared}/`).
+- **Dependency direction**: `pydeps` and `PYTHONPATH=scripts uv run lint-imports`
+  (`.importlinter` contracts), as in `path-b.md`, cross-checked against `rules/env.md`
+  Architecture's layer diagram.
+- **Entry points**: manual capture: `rg "if __name__ == .__main__.":`, plus `config/agent.toml`
+  service definitions and the MCP server class's `http_port` class variable
+  (`scripts/mcp_servers/server.py`-derived modules).
+- **Lifecycle ownership**: manual capture: `rg` for class names containing `Lifecycle` and for
+  `start`/`stop`/`shutdown` method definitions in the affected module.
+- **State ownership**: `validation.md` Side-Effect Inventory's "Global mutable state" item;
+  MUST NOT define a second capture method.
+- **Configuration dependencies**: `rg` against `config/*.toml` and `shared/config_loader.py`
+  usages (`config/agent.toml` is the configuration SSOT, `rules/env.md`).
+- **Routing or registration**: `rg -ln "RuntimeToolRegistry|ToolRouteResolver" scripts/`
+  (`workflow.md` Special Cases; plain `|`, since ripgrep treats `\|` as a literal pipe).
+  `tool_names` is not routing evidence (`RuntimeToolRegistry` is the sole authority); a change
+  to that key belongs to Configuration dependencies.
+- **Deployment references**: `workflow.md` Step 2's deploy-reference search, verbatim; MUST NOT
+  define a second deploy-reference check.
 
-- **Module ownership**: no established repository command exists for this field
-  (verified: no `CODEOWNERS` file, no ownership-registry document, no documented
-  ownership-check command anywhere in `rules/`, `routing.md`, or `skills/`). Capture
-  manually by direct code inspection, using `rules/env.md` Architecture's six-layer
-  diagram (`scripts/{agent,db,eventbus,mcp_servers,rag,shared}/`) as the default
-  ownership unit (the owning layer/module directory).
-- **Dependency direction**: run `pydeps` (import graph) and `import-linter`/
-  `PYTHONPATH=scripts uv run lint-imports` against `.importlinter`'s contracts — the same tools `path-b.md`
-  already runs at Path B/C depth — cross-checked against `rules/env.md` Architecture's
-  layer diagram.
-- **Entry points**: no single established repository command covers all entry-point
-  types. Capture manually via `rg "if __name__ == .__main__.":` plus direct inspection
-  of `config/agent.toml` service definitions and the relevant MCP server class's
-  `http_port` class variable (`scripts/mcp_servers/server.py`-derived modules).
-- **Lifecycle ownership**: no established repository command exists for this field
-  beyond module-naming convention. Capture manually via `rg` for class names containing
-  `Lifecycle` and for `start`/`stop`/`shutdown` method definitions in the affected
-  module.
-- **State ownership**: reuse `validation.md` Side-Effect Inventory's "Global mutable
-  state" item as the baseline record for this field; MUST NOT define a second, separate
-  capture method.
-- **Configuration dependencies**: `rg` against `config/*.toml` and
-  `shared/config_loader.py` usages, consistent with `rules/env.md`'s statement that
-  `config/agent.toml` is the configuration SSOT.
-- **Routing or registration**: `rg -ln "RuntimeToolRegistry|ToolRouteResolver" scripts/` —
-  the exact command already named in `workflow.md` Special Cases (plain `|`; ripgrep
-  treats `\|` as a literal pipe and would match nothing). `tool_names` is not routing
-  evidence (`RuntimeToolRegistry` is the sole routing authority); a change to that config
-  key belongs to the Configuration dependencies field.
-- **Deployment references**: reuse `workflow.md` Step 2's deploy-reference search
-  (`rg -ln ... deploy/ conf.d/ init.d/`) verbatim; MUST NOT define a second
-  deploy-reference check.
-
-Module ownership, entry points, and lifecycle ownership are manual-capture fields with
-no established repository tooling — record them explicitly as such rather than applying
-an inconsistent ad hoc method across runs.
-
-Per `rules/ai-execution.md` Repository Tool Usage #8, a zero-match `rg` result for any
-field above (entry points, lifecycle ownership, routing/registration, configuration
-dependencies) is evidence of absence only after confirming `rg` actually searched the
-intended scope — a wrong path or pattern producing zero matches is not the same as
-confirming the repository has none.
-
-MUST NOT start a Path C transformation (`workflow.md` Step 6) if any required Architecture
-Baseline field is missing or its capture is incomplete.
+Record the three manual-capture fields as such. A zero-match `rg` is evidence of absence
+only after confirming it searched the intended scope (`rules/ai-execution.md` Repository
+Tool Usage #8). MUST NOT start a Path C transformation (`workflow.md` Step 6) while any
+field is missing or incomplete.
 
 ---
 
 ## Architecture Comparison Validation (Step 7 addendum)
 
-Applies only when the change is classified Path C. These eight items MUST be checked
-for Path C — they are not optional the way `validation.md` Conditional Validation is;
-only their evidence availability, not their requiredness, MAY be `Not run`/`Blocked`.
-
-For each item, re-run the same capture method recorded in Architecture Baseline above
-after `workflow.md` Step 6 Transformation, and compare the result against the baseline
-recorded before transformation:
+Path C only. All eight items are required (unlike `validation.md` Conditional Validation);
+only evidence availability may be `Not run`/`Blocked`. After Step 6, re-run each item's
+Architecture Baseline capture method and compare with the pre-transformation baseline:
 
 - **Before-and-after dependency comparison** — compares the dependency direction field.
 - **Architecture-boundary comparison** — compares the dependency direction field,
@@ -134,10 +100,8 @@ recorded before transformation:
   remain" rule and Step 9's equivalent check beyond the target file or migration group
   to the whole repository.
 
-Report each item as one of `Pass`, `Fail`, `Not run`, or `Blocked`, applying
-`validation.md` Conditional Validation's reporting rule (why an item was not run, use of
-an alternative, never reporting a skip as passed, and when `Blocked` versus `Not run`
-applies) to these four states.
+Report each item as `Pass`, `Fail`, `Not run`, or `Blocked` per `validation.md` Conditional
+Validation's reporting rule (never report a skip as passed).
 
 ---
 
@@ -148,29 +112,19 @@ for Path B when the change records an important trade-off — a judgment call ma
 the AI executing this workflow when choosing to write one; no further gating criteria
 are defined here.
 
-ADR content produced by this Requirement follows the repository's existing convention —
-`adr-template.md`'s section structure, standardized by
-`docs/00_governance/governance_01_documentation-policy.md` "ADR Section Header Standardization"
-(canonical header order: Context [Problem, Constraints], Assumptions, Decision,
-Rationale, Alternatives Considered, Consequences [Positive/Negative], Invariants,
-Verification, Migration, Implementation Notes, Known Deviations, Review Triggers,
-Approval, Related ADRs, Implementation References, Change History, Completion Checklist), plus the `Status`
-field governed by that same document's "ADR Status Definitions"
-(`Proposed`/`Accepted`/`Rejected`/`Deprecated`/`Superseded`) — not a separate,
-purpose-built field list. This MUST NOT invent a new storage convention, location, or
-template; any suggested field with no direct equivalent in the existing convention is
-folded into its nearest existing section rather than added as a new top-level header.
+ADR content follows the existing convention: `adr-template.md`'s section structure
+(`docs/00_governance/governance_01_documentation-policy.md` "ADR Section Header
+Standardization" holds the canonical header order) and the `Status` values of that document's
+"ADR Status Definitions" (`Proposed`/`Accepted`/`Rejected`/`Deprecated`/`Superseded`). MUST
+NOT invent a new storage convention, location, template, or top-level header; fold any extra
+field into the nearest existing section.
 
-`workflow.md`'s Allowed file operations rule ("MUST NOT edit documentation unless
-explicitly instructed") governs where this ADR content is written: the ADR content, in
-the reconciled shape above, MUST be presented inline as a draft with the pre-implementation
-approval request (Architectural Refactoring Requirements item 7), and Step 10 reports its
-final state inline in the report.
-Creating the file under `docs/10_adr/adr_02_{group}_{next-number}_{group-word}-{slug}.md`
-(group number and word come from the group registry in `docs/10_adr/adr_00_document-guide.md`)
-and registering it in `docs/10_adr/adr_01_index.md`'s existing "ADR List" table and dependency graph happens
-only when the user explicitly instructs a documentation update — this Requirement does
-not relax or reinterpret that rule.
+Per `workflow.md` Allowed file operations, the ADR is presented inline as a draft with the
+pre-implementation approval request (item 7 above) and its final state is reported inline in
+Step 10. Creating `docs/10_adr/adr_02_{group}_{next-number}_{group-word}-{slug}.md` (group
+number and word from `docs/10_adr/adr_00_document-guide.md`) and registering it in
+`docs/10_adr/adr_01_index.md`'s "ADR List" table and dependency graph happen only on an
+explicit documentation-update instruction.
 
 Report the ADR's `Status` value and whether the file was actually created under
 `docs/10_adr/` this cycle or remains a draft pending explicit documentation-update
@@ -180,39 +134,21 @@ instruction — see `report-template.md` "ADR Status".
 
 ## Path C Completion Requirements (Step 10 addendum)
 
-The following items apply only when the change is classified Path C; Path A/B
-completion (`report-template.md` Completion Gate) is unaffected, and these items are
-additive to, not a replacement for, that gate:
+Path C only; additive to `report-template.md` Completion Gate. MUST NOT report completion
+while any row is unsatisfied.
 
-- Behavior Lock completed — `workflow.md` Step 4's gate sentence ("Do not proceed to
-  Step 6 ... if important behavior is uncovered ..."), unchanged by this Requirement.
-- Architecture Baseline completed — Architecture Baseline above.
-- Approved scope unchanged — Architectural Refactoring Requirements above's prohibition
-  on silent expansion of an approved atomic migration group.
-- Dependency direction verified — Architecture Comparison Validation's
-  "Before-and-after dependency comparison" and "Architecture-boundary comparison"
-  items.
-- No new circular dependency — `validation.md` Required Validation's "Import boundary
-  evidence" item ("Circular import risk"), cross-checked by Architecture Comparison
-  Validation's "Architecture-boundary comparison" item.
-- Ownership changes verified — Architecture Comparison Validation's "Ownership
-  validation" item.
-- Migration completed — Architectural Refactoring Requirements' atomic migration group
-  membership, verified by Architecture Comparison Validation's "Migration validation"
-  item.
-- Rollback strategy recorded or validated — Architectural Refactoring Requirements'
-  rollback-strategy pre-implementation checklist item, verified by Architecture
-  Comparison Validation's "Rollback validation" item.
-- Removed references absent — Architecture Comparison Validation's "Removed-symbol
-  reference check" item.
-- Documentation impact classified — `discovery.md` Documentation Drift Detection,
-  together with Architectural Refactoring Requirements' "Documentation impact"
-  pre-implementation checklist item.
-- Required ADR completed — ADR Requirement above.
-- Path C validation passed — every Architecture Comparison Validation item reports
-  `Pass`.
-- Findings separated from implemented changes — `discovery.md` Discovery Vocabulary's
-  Finding/Candidate/Proposal states do not authorize implementation; only an Approved
-  Change may be transformed.
-
-If any item is not satisfied, MUST NOT report the task as complete.
+| Requirement | Satisfied by |
+|---|---|
+| Behavior Lock completed | `workflow.md` Step 4 gate |
+| Architecture Baseline completed | Architecture Baseline above |
+| Approved scope unchanged | no silent group expansion (Architectural Refactoring Requirements) |
+| Dependency direction verified | Comparison items "Before-and-after dependency" and "Architecture-boundary" |
+| No new circular dependency | `validation.md` "Import boundary evidence" (Circular import risk) plus "Architecture-boundary" |
+| Ownership changes verified | Comparison item "Ownership validation" |
+| Migration completed | group membership, verified by "Migration validation" |
+| Rollback strategy recorded or validated | checklist item 5, verified by "Rollback validation" |
+| Removed references absent | Comparison item "Removed-symbol reference check" |
+| Documentation impact classified | `discovery.md` Documentation Drift Detection plus checklist item 6 |
+| Required ADR completed | ADR Requirement above |
+| Path C validation passed | every Comparison item reports `Pass` |
+| Findings separated from implemented changes | only an Approved Change is transformed (`discovery.md`) |

@@ -8,12 +8,11 @@ complete.
 
 ## Report Structure (Step 10)
 
-Keep diffs minimal. For Path A, the fields that are not applicable to a single-file
-change (Architecture Baseline, Architecture Before and After, Migration and Rollback
-Evidence, ADR Status) are each reported as one line `Not applicable`; every other field
-still applies. Populate every field below from what Steps 2-9 already recorded —
-MUST NOT re-run `mutmut` or any other check merely to produce this report. For each file
-(or approved atomic migration group, per `path-c.md`), report:
+Keep diffs minimal. Populate every field from what Steps 2-9 already recorded; MUST NOT re-run
+`mutmut` or any other check merely to produce this report. Path A/B report the four Path C
+fields (Architecture Baseline, Architecture Before and After, Migration and Rollback Evidence,
+ADR Status) as one line `Not applicable`. For each file (or approved atomic migration group,
+`path-c.md`), report:
 
 - The Step 2 refactoring intent declaration.
 - The Path A/B/C classification decided in Step 2 and its rationale.
@@ -60,36 +59,21 @@ MUST NOT re-run `mutmut` or any other check merely to produce this report. For e
   - Suggested follow-up issue: (filed on request via `issue-creator`; see `workflow.md`
     Step 10)
   - Recommended validation:
-- **Technical Debt Findings**: report every Finding recorded by `discovery.md`
-  Technical Debt Discovery for the current target file/migration group, or
-  `None found`.
-- **Responsibility Analysis**: report the five fields recorded by `discovery.md`
-  Responsibility Analysis (responsibilities, dependencies, side effects, state
-  ownership, branching) and any split candidate reported (not implemented) per that
-  section's rule, or `Not applicable` if Responsibility Analysis was not run for this
-  file.
-- **Documentation Drift**: report every Drift Finding recorded by `discovery.md`
-  Documentation Drift Detection's six-field schema during Step 3, or `None found`.
-- **Architecture Baseline**: report the eight fields captured by `path-c.md`
-  Architecture Baseline when the change is Path C, or `Not applicable` for Path A/B.
-- **Architecture Before and After**: report the before/after comparison result for each
-  item defined by `path-c.md` Architecture Comparison Validation, each as
-  `Pass`/`Fail`/`Not run`/`Blocked` per that section's reporting rule, or `Not
-  applicable` for Path A/B.
-- **Migration and Rollback Evidence**: report the atomic migration group's membership
-  and completion state (per `path-c.md` Architectural Refactoring Requirements) and the
-  rollback strategy's exercisability (per that section's pre-implementation checklist
-  item, cross-validated by `path-c.md` Architecture Comparison Validation's "Rollback
-  validation" item), or `Not applicable` for Path A/B.
-- **ADR Status**: report the ADR's `Status` value (per `path-c.md` ADR Requirement's
-  convention) and whether the file was actually created under `docs/10_adr/` this cycle or
-  remains a draft pending explicit documentation-update instruction, or `Not applicable`
-  when no ADR was required or chosen for this change.
+- Discovery and Path C fields, where `Absent` is the value to report when nothing positive
+  exists:
 
-All seven items above use exactly the vocabulary `None found` / `Not applicable` /
-`Not run` / `Blocked` where no positive finding exists, matching `validation.md`
-Conditional Validation's existing reporting pattern ("do not report the skipped check
-as passed").
+  | Field | Content | Source | Absent |
+  |---|---|---|---|
+  | Technical Debt Findings | every Finding recorded | `discovery.md` Technical Debt Discovery | `None found` |
+  | Responsibility Analysis | the five fields, plus any split candidate (reported, not implemented) | `discovery.md` Responsibility Analysis | `Not applicable` if not run |
+  | Documentation Drift | every Drift Finding (six-field schema) | `discovery.md` Documentation Drift Detection | `None found` |
+  | Architecture Baseline | the eight fields | `path-c.md` Architecture Baseline | `Not applicable` (Path A/B) |
+  | Architecture Before and After | each comparison item as `Pass`/`Fail`/`Not run`/`Blocked` | `path-c.md` Architecture Comparison Validation | `Not applicable` (Path A/B) |
+  | Migration and Rollback Evidence | group membership and completion state; rollback strategy exercisability | `path-c.md` Architectural Refactoring Requirements and "Rollback validation" | `Not applicable` (Path A/B) |
+  | ADR Status | the ADR `Status`, and whether the file was created under `docs/10_adr/` this cycle or remains a draft | `path-c.md` ADR Requirement | `Not applicable` if no ADR was required or chosen |
+
+  Use only `None found` / `Not applicable` / `Not run` / `Blocked` where no positive finding
+  exists; never report a skipped check as passed (`validation.md` Conditional Validation).
 
 ---
 
@@ -109,9 +93,6 @@ The refactoring is complete only when all of the following are true:
 - The final report includes behavior preservation evidence.
 - Any behavior-changing ideas are recorded as proposals, not implemented.
 
-Path C requires additional items — see `path-c.md` Path C Completion Requirements; they
-are additive to, not a replacement for, the gate above.
-
-If any required item above cannot be satisfied: report `Blocked` rather than a partial
-pass — a Completion Gate item is not conditional/optional like the validation items
-covered by `Not run`/`Blocked` status elsewhere in this template.
+Path C adds `path-c.md` Path C Completion Requirements (additive). If any item cannot be
+satisfied, report `Blocked`, not a partial pass; unlike validation items, Completion Gate
+items are never optional.

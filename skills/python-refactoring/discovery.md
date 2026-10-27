@@ -16,11 +16,8 @@ observed without expanding the approved change scope:
   Discovery below). Requires a populated `evidence` field.
 - **Candidate**: a Finding assessed as potentially actionable, not yet evaluated for
   approval.
-- **Proposal**: a behavior-changing idea surfaced during work on the target file — the
-  same concept as, and MUST use, the existing "Proposals not implemented" format
-  (`report-template.md`: Title / Reason / Behavior risk / Affected files / Suggested
-  follow-up issue / Recommended validation). This section does not define a second
-  Proposal format.
+- **Proposal**: a behavior-changing idea surfaced during work on the target file; MUST use
+  the `report-template.md` "Proposals not implemented" format (no second format).
 - **Approved Change**: a change explicitly authorized for this refactoring cycle; only an
   Approved Change may be transformed in `workflow.md` Step 6.
 - **Blocked**: a Finding, Candidate, or Proposal that cannot be evaluated further without
@@ -28,24 +25,17 @@ observed without expanding the approved change scope:
 - **Not Applicable**: a Finding, Candidate, or Proposal determined, after evaluation, not to
   apply to the current target file or refactoring cycle.
 
-Discovery (Finding, Candidate, Proposal) does not authorize implementation — only an
-Approved Change may be transformed in `workflow.md` Step 6. `workflow.md` Step 2's rule
-that any `Expected behavior change` other than `none` MUST stop work and be recorded
-under `Proposals not implemented` continues to apply unchanged.
-
-An unapproved Path C idea is a Proposal only, per the Proposal state above; it MUST NOT
-be transformed in Step 6 until it becomes an Approved Change — see `path-c.md` for the
-full approval checklist a Path C idea MUST satisfy before it becomes an Approved Change.
+Finding, Candidate, and Proposal never authorize implementation; only an Approved Change may be
+transformed in `workflow.md` Step 6. `workflow.md` Step 2's stop rule (`Expected behavior
+change` other than `none`) is unchanged. An unapproved Path C idea is a Proposal only; the
+approval checklist is in `path-c.md`.
 
 ---
 
 ## Technical Debt Discovery (Step 3)
 
-Applies regardless of Path A/B/C classification (lightweight and report-only; not subject
-to `path-a.md`/`path-b.md`/`path-c.md`'s tooling-depth rules).
-
-While reading the target file, record a Finding (see Discovery Vocabulary above) for
-observations in these six categories only:
+Every Path; report-only, not subject to the `path-*.md` tooling-depth rules. While reading the
+target file, record a Finding for these six categories only:
 - Duplicate logic
 - Duplicate validation
 - Unclear ownership
@@ -53,56 +43,39 @@ observations in these six categories only:
 - Responsibility concentration
 - Testability concerns
 
-Every Finding MUST record all six fields:
-- **ID**: a short unique identifier for this Finding within the cycle
-- **Category**: one of the six categories above
-- **Severity**: per `skills/DESIGN.md` Severity levels
-- **Evidence**: a concrete repository location — file path and line range, or a command and
-  its output. A Finding with no populated evidence field MUST NOT be recorded.
-- **Impact**: the concrete consequence if left unaddressed
-- **Recommendation**: what a future Approved Change could do about it — recording the
-  recommendation does not authorize acting on it now
-
-Recording a Finding here never authorizes implementing it in this cycle.
+Every Finding records all six fields (a Finding without `Evidence` MUST NOT be recorded):
+- **ID**: short unique identifier within the cycle
+- **Category**: one of the six above
+- **Severity**: `skills/DESIGN.md` Severity levels
+- **Evidence**: file path and line range, or a command and its output
+- **Impact**: consequence if left unaddressed
+- **Recommendation**: what a future Approved Change could do (does not authorize acting now)
 
 ---
 
 ## Responsibility Analysis (Step 3)
 
-Applies regardless of Path A/B/C classification, for the same reason as Technical Debt
-Discovery above.
-
-For each function/class in the target file, record:
+Every Path. For each function/class in the target file, record:
 - **Responsibilities**: what it is accountable for
 - **Dependencies**: what it relies on
-- **Side effects**: what it does beyond its return value (see `validation.md` Side-Effect
-  Inventory for the full inventory)
+- **Side effects**: beyond its return value (`validation.md` Side-Effect Inventory)
 - **State ownership**: what state it owns or mutates
 - **Branching**: its decision points
 
-When this analysis identifies a split candidate (a function/class whose responsibilities
-should be divided), report it using the Proposal format (Discovery Vocabulary above) — MUST NOT implement the split automatically.
+A split candidate is reported as a Proposal; MUST NOT implement the split automatically.
 
 ---
 
 ## Documentation Drift Detection (Step 3)
 
-Applies regardless of Path A/B/C classification, scaled to the Path:
+Every Path, scaled: Path A compares only documents that directly mention the target module or
+its public symbols (`rg -l "<module or symbol>" docs/ routing.md AGENTS.md rules/ config/`);
+Path B and C compare all seven sources: `routing.md`, `AGENTS.md`, README, design documents,
+coding and toolchain rules, configuration specifications, deployment definitions. Locate design
+documents via `docs/00_index.md`'s "Document References by Task" table, not by scanning
+`docs/*.md`.
 
-- **Path A**: compare only the documents that directly mention the target module or its
-  public symbols (find them with `rg -l "<module or symbol>" docs/ routing.md AGENTS.md
-  rules/ config/`), not all seven sources.
-- **Path B and Path C**: compare against all seven document sources below.
-
-While investigating the target file (Steps 2-10), compare relevant implementation
-details against these seven document sources: `routing.md`, `AGENTS.md`, README,
-design documents, coding and toolchain rules, configuration specifications, deployment
-definitions. For "design documents," use `docs/00_index.md`'s "Document References by
-Task" table to locate the documents governing the target file's behavior, rather than
-scanning all of `docs/*.md`.
-
-Record each discovered discrepancy as a Drift Finding with exactly six fields — a
-Drift Finding with any field unpopulated MUST NOT be recorded:
+Record each discrepancy as a Drift Finding with exactly six fields (none may be unpopulated):
 - **Document**: the document source compared against (one of the seven above)
 - **Implementation evidence**: a concrete repository location — file path and line
   range, or a command and its output
@@ -115,42 +88,22 @@ Drift Finding with any field unpopulated MUST NOT be recorded:
 - **Suggested follow-up**: what a future Approved Change or documentation update could
   do about it — recording it here does not authorize acting on it now
 
-When evidence is sufficient to decide, populate "possible source of truth" and
-"suggested follow-up" using `rules/coding.md`'s existing five-category "Current
-behavior" classification (Accepted current specification / Implementation fix required
-/ Documentation fix required / Issue already tracked / Obsolete and removable) directly
-— this subsection does not define a second, parallel classification.
+Confidence and classification:
 
-When evidence is not yet sufficient to select one of the five categories, classify the
-Drift Finding's confidence as one of two pre-classification states instead. These two
-states are additions to, not replacements for, the five-category system:
-- **Unverified**: the drift claim itself cannot yet be confirmed from available
-  evidence.
-- **Ambiguous Source of Truth**: evidence confirms a discrepancy but does not indicate
-  which of the document or the implementation is authoritative.
+| Evidence state | Confidence value |
+|---|---|
+| Sufficient to decide | one of `rules/coding.md`'s five "Current behavior" categories (Accepted current specification / Implementation fix required / Documentation fix required / Issue already tracked / Obsolete and removable); populate "possible source of truth" and "suggested follow-up" from it |
+| Drift claim cannot yet be confirmed | `Unverified` |
+| Discrepancy confirmed, authoritative side unclear | `Ambiguous Source of Truth` |
 
-A Drift Finding classified `Ambiguous Source of Truth` MUST NOT be auto-resolved via
-`rules/coding.md`'s "ambiguous cases default to Implementation fix required" rule —
-that default is calibrated for authoring a single `docs/*.md` note about an
-already-known gap, not for drift detection across a wider, more consequential document
-set (deployment definitions, toolchain rules, routing, etc.). Such a finding requires
-explicit maintainer confirmation — via the sign-off channel defined in
-`rules/coding.md` "Explicit sign-off gates," or the unified Proposal mechanism above —
-before it is routed into one of the five categories. This is a deliberate divergence
-from `rules/coding.md`'s default-ambiguous behavior, scoped only to this Documentation
-Drift Detection section; `rules/coding.md`'s own default continues to apply unchanged
-everywhere else.
+`Ambiguous Source of Truth` MUST NOT be auto-resolved by `rules/coding.md`'s "ambiguous cases
+default to Implementation fix required" rule (calibrated for a single `docs/*.md` note, not for
+drift across deployment definitions, toolchain rules, routing, etc.). It needs explicit
+maintainer confirmation (`rules/coding.md` "Explicit sign-off gates", or a Proposal) before it
+is routed into one of the five categories. This divergence is scoped to this section only.
 
-Documentation Drift Detection does not modify any document: no automatic edit to
-`docs/*.md`, `routing.md`, `AGENTS.md`, README, design documents, coding/toolchain
-rules, configuration specifications, or deployment definitions. Any suggested
-documentation change is recorded using the existing `report-template.md` "Proposals not
-implemented" format (Title / Reason / Behavior risk / Affected files / Suggested
-follow-up issue / Recommended validation) — the same format this workflow already uses
-for behavior-changing ideas. It MUST NOT be applied directly during Step 3.
+Drift Detection edits no document. A suggested documentation change is recorded as a
+`report-template.md` "Proposals not implemented" entry and MUST NOT be applied in Step 3.
 
-If a listed comparison target has no corresponding file in the repository (e.g. no
-repository-root `README.md` as of this writing), skip that target for the current
-cycle — MUST NOT fabricate a comparison, and MUST NOT record a Drift Finding for the
-target's mere absence (a missing document is a documentation-completeness question
-outside this section's scope).
+A listed target with no file in the repository (e.g. no root `README.md`) is skipped: MUST NOT
+fabricate a comparison or record a Drift Finding for the absence itself.
