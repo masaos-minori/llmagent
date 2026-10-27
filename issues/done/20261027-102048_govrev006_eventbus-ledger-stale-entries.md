@@ -10,7 +10,9 @@ The Known Issue ledger and the ADR `Known Deviations` sections still list EVENTB
 - `governance_03_issue-and-uncertainty-management.md` Part 1 lists EVENTBUS-019 to EVENTBUS-023 with `Status: open` and `Severity: High`. Evidence: `Explicit in code` (document text).
 - `governance_03` states that an item is removed from the active inventory once it is resolved. Evidence: `Explicit in code` (document text).
 - `governance_01_documentation-policy.md` Merge Conditions list "High-severity open Known Issue exists in affected area" as a Blocking Condition. Stale open High entries therefore block merges in the EventBus area. Evidence: `Explicit in code` (document text).
-- Implementation commits exist for each entry: DLQ requeue atomicity (`39335dc89`), startup fingerprint gate and deployment readiness (`72c83c0db`), fail-fast shutdown (`e5f30fefe`), NACK idempotency key and "close EVENTBUS-023" (`dbbd4357d`), and later test alignment (`57ed943ff`). Evidence: `Operationally observed` (git log). For EVENTBUS-020 (config loader and duplicate tokens) no commit was identified by message; the current loader passes both mappings and the duplicate-token guard exists in the auth module. Evidence: `Strongly implied by code`.
+- Implementation commits exist for each entry: DLQ requeue atomicity (`39335dc89`), startup fingerprint gate and deployment readiness (`72c83c0db`), fail-fast shutdown (`e5f30fefe`), NACK idempotency key and "close EVENTBUS-023" (`dbbd4357d`), and later test alignment (`57ed943ff`). Evidence: `Operationally observed` (git log). EVENTBUS-020 (config loader and duplicate tokens) was implemented in commit `68e9cabd2`, whose subject ("style: format test_session_restore.py and add noqa justification") does not describe it; the loader passes both mappings, the duplicate-token guard exists in the auth module, and tests reach both through the file-loading path. Evidence: `Explicit in code` (loader, guard) and `Operationally observed` (`git log -S`).
+- Adversarial verification of the five Resolution Targets against current source and tests found each target met: requeue atomicity with explicit rollback, a route that issues no SQLite call outside `run_with_db_lock`, and negative and concurrent requeue tests (EVENTBUS-019); mapping pass-through and duplicate rejection with load-path tests (EVENTBUS-020); fingerprint gate in the runtime, `create_schema`, `init_db.sh` and a readiness gate in `setup_services.sh`, with startup and deployment tests (EVENTBUS-021); refuse-to-close on lock timeout and a shutdown flag that makes `run_with_db_lock` refuse new work, with shutdown tests (EVENTBUS-022); caller-supplied `idempotency_key` with updated endpoint documents and tests (EVENTBUS-023). The tests were read, not executed. Evidence: `Explicit in code`; execution result `Needs confirmation`.
+- All five entries are the only active Part 1 entries, so removing them leaves Part 1 empty. The empty-state convention of the other Parts is a single sentence of the form "No active ... items remain." Evidence: `Explicit in code`. `check_known_deviation_sync.py` also reports an ERROR when any document under `docs/` cites a removed ID; the only citing documents are the three ADRs and `adr_00_document-guide.md`. Evidence: `Verified by test` (tool docstring and a repository search).
 - `check_known_deviation_sync.py` currently reports one warning: EVENTBUS-023 targets ADR-006 but ADR-006 `Known Deviations` does not cite it. Commit `dbbd4357d` removed the ADR citation without removing the ledger entry. Evidence: `Verified by test` (tool run).
 - ADR-006 `Known Deviations` still cites EVENTBUS-019, EVENTBUS-021 and EVENTBUS-022. ADR-004 cites EVENTBUS-021. ADR-013 cites EVENTBUS-020. Evidence: `Explicit in code`.
 - The Execution Status tables of the archived plans for the DLQ requeue, config loader and NACK issues (`plans/done/20261025-095644_eventbus001_dlq-requeue-transactional.md`, `plans/done/20261025-101136_eventbus002_config-authorization-token-roles.md`, `plans/done/20261025-120857_eventbus005_nack-idempotency-retries.md`) still show `In Progress`, while the startup-gate and shutdown plans show `Completed`. Evidence: `Explicit in code`; this is a separate record drift and does not decide whether the ledger entries are resolved.
@@ -38,6 +40,8 @@ Treat each entry's `Resolution Target` as the acceptance test. For each of the f
 - Remove each resolved entry from `governance_03` Part 1 and from each ADR `Known Deviations` that cites it, in the same change.
 - Update an unresolved entry's current-state fields instead of removing it.
 - Update the `adr_00_document-guide.md` sentence so it lists only deviations that remain, or states that none remain.
+- When Part 1 becomes empty, replace its entries with the sentence "No active Known Issue items remain." (the form used by the other Parts), and set an ADR `Known Deviations` section that loses its last citation to `Not applicable`.
+- Where a removed deviation still states a requirement that applies, state it in the ADR's current sections instead of leaving it in `Known Deviations` (Current-Specification-Only Policy).
 - Run the sync checker and clear the EVENTBUS-023 warning.
 
 ## Constraints
@@ -56,6 +60,7 @@ Treat each entry's `Resolution Target` as the acceptance test. For each of the f
 ## Testing Expectations
 Documentation-only change (evidence gathering may run existing tests read-only). Run:
 - `uv run python tools/check_known_deviation_sync.py`
+- `uv run python tools/check_issue_inventory_conformance.py` (runs in CI; Part 1 becomes empty)
 - `uv run python tools/check_adr_structure.py`
 - `uv run python tools/check_adr_preservation.py` (review the Known Deviations changes)
 - `uv run python tools/check_needs_confirmation_inventory.py`
@@ -79,7 +84,7 @@ Documentation-only change (evidence gathering may run existing tests read-only).
 N/A: none. No open issue or in-flight plan overlaps. This issue is independent of the other issues in this batch.
 
 ## Unresolved Questions
-- Is each Resolution Target fully met? `Needs confirmation` per entry. EVENTBUS-020 in particular has no identified implementing commit, and the archived plan tables for 019, 020 and 023 still show `In Progress`.
+- Do the cited tests pass? `Needs confirmation`: the Resolution Targets were verified by reading source and tests only; execution belongs to the implementation phase (`uv run pytest tests/eventbus tests/db tests/deploy`).
 - Does the "CI Evidence" expectation used when these entries were registered apply, given that CI on the main branch was recorded as failing for a runner reason unrelated to EventBus (recorded 2026-10-25, current state `不明`)? `Needs confirmation`.
 - Who is the accountable approver for removing High Known Issues? `不明`; Owner is currently `Repository owner`.
 

@@ -10,6 +10,8 @@ Medium
 - The removed-name check (`check_compat_shims.py --check-removed-names`, rule `GV-017`) has two detection cases. The first (a name fully absent from source) is described as implemented. The second (a name that remains in source but is no longer the current production path) is described as "Not yet implemented (follow-up)". Evidence: `Explicit in code` (document text, section describing the removed-name check in `governance_04_documentation-checks.md`).
 - `Follow-up Work Needed` in the same document states "No follow-up work is currently tracked" and says every matrix rule is enforced by design or by existing automation. `Accepted Limits` lists only the `compressverify` and `identmatch` gaps. Evidence: `Explicit in code` (document text).
 - The `GV-017` matrix row says "Opt-in by design (--check-removed-names); not promoted to default-on". It does not mention the unimplemented second case. Evidence: `Explicit in code` (document text).
+- Adversarial verification confirmed that the second case is unimplemented: a comment above the removed-name patterns in `check_compat_shims.py` states that the context-aware check "this function does not attempt". The design plan `plans/done/20260903-090945_plan.md` (compatterms) classified that half as an out-of-scope follow-up, and no issue under `issues/` or `issues/done/` tracks it. Evidence: `Explicit in code`.
+- The repository's other documents that mention `GV-017` (`governance_01` Merge Conditions, `governance_03`) describe only its warning gate and do not state the unimplemented case. Evidence: `Explicit in code`.
 - Recent archived issue `issues/done/20261008-094503_adridx01_correct-adr-index-verification-status-and-pipeline-mapping.md` touched the ADR index, not this section. No open issue or in-flight plan overlaps this section (checked `issues/` and `plans/`).
 
 ## Problem
@@ -62,7 +64,7 @@ Documentation-only change. Run:
 N/A: none. No open issue or in-flight plan under `issues/` or `plans/` touches this document section.
 
 ## Unresolved Questions
-- Accepted Limit versus tracked follow-up: the recommendation is Accepted Limit (`Needs confirmation` by the repository owner). If the owner prefers a tracked follow-up, register it in `Follow-up Work Needed` instead and keep the other locations aligned.
+- Accepted Limit versus tracked follow-up: the recommendation is Accepted Limit (`Needs confirmation` by the repository owner). The unimplemented case has been a designed but never filed follow-up since the compatterms plan, which supports Accepted Limit. If the owner prefers a tracked follow-up, register it in `Follow-up Work Needed` instead and keep the other locations aligned.
 - Whether the re-evaluation condition should be time-based (quarterly review) or event-based is `不明`.
 
 ## AI Implementation Instruction
