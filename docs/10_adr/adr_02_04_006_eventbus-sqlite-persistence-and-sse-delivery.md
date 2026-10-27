@@ -270,12 +270,13 @@ Not applicable (no Fallback exists: the JSONL archive is an audit log, not an al
 - INV-07 is enforced by content comparison logic in `insert_event()`: duplicate events cannot corrupt stored data; identical retries return the original seq, conflicting retries return HTTP 409.
 - DLQ promotion threshold (INV-13): an Event promotes when every attempting consumer's `consumer_delivery_failure_count` has reached `max_retry` (`>= max_retry`, i.e. its retry budget is exhausted) and none has ACKed. This `>=` boundary is enforced in `ack_route.py` and `dlq.py` and confirmed by `test_dlq_promotion_when_consumer_delivery_failure_count_gte_max_retry`.
 - NACK idempotency: the per-consumer `consumer_delivery_failure_count` is incremented once per distinct delivery-attempt key; a NACK that repeats the same `consumer_last_nack_attempt` key is a no-op. Deduplication is latest-key-only (one remembered key per `(consumer_id, event_id)`); a non-latest key counts as a new attempt. The route passes the caller-supplied key unchanged (no per-request UUID), so genuine network/proxy retries of one attempt deduplicate rather than double-count.
+- DLQ requeue commits or rolls back as one unit, and the route runs all SQLite access inside the global database lock (INV-08, INV-16).
+- Startup validates a stamped database against the shared canonical schema shape even when `user_version` matches, and refuses a mismatch; deployment applies the same check and reports started only after a passing health check.
+- Shutdown closes the shared connection only after acquiring the global database lock within a bounded wait, and refuses to close it otherwise (INV-01).
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-019 — tracked in governance_03 Part 1 (DLQ requeue is not transactional and reads SQLite state outside the global lock)
-- **Known Issue**: EVENTBUS-021 — tracked in governance_03 Part 1 (schema shape is not validated when `user_version` matches; deployment does not verify EventBus readiness)
-- **Known Issue**: EVENTBUS-022 — tracked in governance_03 Part 1 (shutdown closes the shared connection when the lock was not acquired)
+Not applicable
 
 ## Review Triggers
 

@@ -203,7 +203,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
 | 1 | Re-verify the Resolution Targets of EVENTBUS-019 to 023 | Pending | — | — |  |
-| 2 | Remove resolved entries and ADR citations | In Progress | — | — |  |
+| 2 | Remove resolved entries and ADR citations | Completed | — | 20261027-121509 |  |
 | 3 | Run the documentation checkers (no deployment) | Pending | — | — |  |
 
 ### Blocker Log

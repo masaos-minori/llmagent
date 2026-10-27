@@ -174,9 +174,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm the evidence and the dependency plan | Pending | — | — | |
-| 2 | Edit ADR-001 and ADR-002 | Pending | — | — | |
-| 3 | Edit the index and run the checkers (no deployment) | Pending | — | — | |
+| 1 | Confirm the evidence and the dependency plan | Pending | — | — |  |
+| 2 | Edit ADR-001 and ADR-002 | Completed | — | 20261027-122032 |  |
+| 3 | Edit the index and run the checkers (no deployment) | Completed | — | 20261027-122113 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -159,7 +159,7 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 - The workflow schema must be initialized before service startup
 - Simple chat and tool-based tasks share the same execution control plane
 - Startup requires checking consistency between the workflow definition file and the DB Schema, and incident response requires investigating workflow state
-- There is no human checkpoint for the combined result of a turn; reviewing a turn relies on the diff command and the audit log
+- There is no human checkpoint for the combined result of a turn; reviewing a turn relies on the audit log, and no command presents the combined result of a turn
 
 ## Invariants
 
@@ -179,11 +179,11 @@ An approval stage placed after the `execute` stage cannot prevent anything: when
 
 | Test | Verifies | Type | Blocking | Implementation |
 |---|---|---|---|---|
-| Startup-failure test when the workflow definition is missing | INV-01 | Integration | Yes | - |
-| Startup-failure test when the workflow definition is invalid | INV-05 | Integration | Yes | - |
-| Startup-failure test when the required DB Schema is inconsistent | INV-06 | Integration | Yes | - |
-| Test that no external state-change path bypasses the Workflow Engine | INV-02 | Regression | Yes | - |
-| `test_execute_success_verify_failure_marks_task_failed` (confirms that when verify fails after a successful execute, the task state becomes `failed`, not `completed`) | INV-03 | Unit | Yes | - |
+| Startup-failure test when the workflow definition is missing | INV-01 | Integration | Yes | `tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_missing_workflow_definition`, `tests/agent/test_orchestrator.py::TestWorkflowLoadFailureIsFatal` |
+| Startup-failure test when the workflow definition is invalid | INV-05 | Integration | Yes | `tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_invalid_workflow_json`, `tests/agent/test_repl_health.py::TestCheckWorkflowDefinition` |
+| Startup-failure test when the required DB Schema is inconsistent | INV-06 | Integration | Yes | `tests/agent/test_startup_workflow_preflight.py::TestComponentInitializerWorkflowPreflight::test_aborts_on_invalid_workflow_schema`, `tests/agent/test_repl_health.py::TestCheckWorkflowSchema` |
+| Test that no external state-change path bypasses the Workflow Engine | INV-02 | Regression | Yes | Not verified (no automated test asserts that no external state-change path bypasses the Workflow Engine) |
+| `test_execute_success_verify_failure_marks_task_failed` (confirms that when verify fails after a successful execute, the task state becomes `failed`, not `completed`) | INV-03 | Unit | Yes | `tests/agent/workflow/test_workflow_engine.py::TestRunStageWithRetryGeneralization::test_execute_success_verify_failure_marks_task_failed` |
 | Optimistic-locking and recovery behavior test for `recover_stale_attempts()` | INV-07 | Unit | Yes | `tests/agent/workflow/test_state_store.py`, `tests/agent/workflow/test_workflow_state_store.py` |
 | `test_begin_stage_if_new_idempotent` (confirms that a double start of `begin_stage_if_new()` with the same event_id is rejected, passing) | INV-08 | Unit | Yes | `tests/agent/workflow/test_workflow_stage_persistence.py` |
 | The loader rejects a workflow definition that contains the `require_approval` key, for any value | INV-10 | Unit | Yes | `tests/agent/workflow/test_workflow_loader.py::TestRequireApprovalKeyRejected` |

@@ -183,10 +183,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm preconditions and survey the corpus | Pending | — | — | |
-| 2 | Implement Rule 1, Rule 2 and the severity decision | Pending | — | — | |
-| 3 | Add tests | Pending | — | — | |
-| 4 | Update the catalog and run the verification (no deployment) | Pending | — | — | |
+| 1 | Confirm preconditions and survey the corpus | Pending | — | — |  |
+| 2 | Implement Rule 1, Rule 2 and the severity decision | Completed | — | 20261027-123411 |  |
+| 3 | Add tests | Completed | — | 20261027-123411 |  |
+| 4 | Update the catalog and run the verification (no deployment) | Completed | — | 20261027-123430 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

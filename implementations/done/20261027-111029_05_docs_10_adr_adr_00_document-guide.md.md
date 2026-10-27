@@ -70,8 +70,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Rewrite the confirmed-deviations sentence | Pending | — | — | |
-| 2 | Run the documentation checkers and the final sync check | Pending | — | — | |
+| 1 | Rewrite the confirmed-deviations sentence | Completed | 20261027-121448 | 20261027-121507 | Changed: docs/10_adr/adr_00_document-guide.md (confirmed-deviations sentence: no deviation remains). Stale detector clean. |
+| 2 | Run the documentation checkers and the final sync check | Completed | 20261027-121507 | 20261027-121507 | Pass: docs_quality, docs_structure, content_policy --strict, japanese, adr_structure, issue_inventory_conformance, needs_confirmation_inventory. Final check_known_deviation_sync.py after all five rows: No issues found (EVENTBUS-023 warning cleared). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

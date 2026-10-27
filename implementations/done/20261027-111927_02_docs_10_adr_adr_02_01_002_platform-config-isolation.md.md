@@ -80,9 +80,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-check for tests of INV-03 and INV-04 (read-only) | Pending | — | — | |
-| 2 | Mark INV-03 and INV-04 as not verified and correct the two checklist items | Pending | — | — | |
-| 3 | Run the checkers named in the Validation plan | Pending | — | — | Review `check_adr_preservation.py` reports |
+| 1 | Re-check for tests of INV-03 and INV-04 (read-only) | Completed | 20261027-122012 | 20261027-122012 | Re-check done: no test for standalone MCP server startup without agent.toml or for Agent startup without MCP-specific Secrets (rg over tests/; the agent.toml tests assert the opposite direction). |
+| 2 | Mark INV-03 and INV-04 as not verified and correct the two checklist items | Completed | 20261027-122012 | 20261027-122031 | Changed: docs/10_adr/adr_02_01_002_platform-config-isolation.md (INV-03 and INV-04 recorded Not verified; two Verification checklist items unchecked with a status note; Completion Checklist heading kept). Size 20519 B. Needs confirmation (UNK-02): the Blocking column stays Yes while Not verified; decision with the repository owner. Stale detector clean. |
+| 3 | Run the checkers named in the Validation plan | Completed | 20261027-122031 | 20261027-122031 | Review `check_adr_preservation.py` reports Pass: adr_structure, docs_quality, docs_structure, content_policy --strict, japanese, adr_invariant_matrix. check_adr_preservation: no finding for ADR-002. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

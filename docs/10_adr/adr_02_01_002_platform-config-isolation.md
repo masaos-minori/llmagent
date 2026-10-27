@@ -228,8 +228,8 @@ Not applicable (this ADR defines no retry policy of its own)
 | No Agent module imports MCP server configuration models, and the posture DTOs hold no secret fields | INV-01 | Unit | Yes | `tests/agent/test_security_audit_config_isolation.py::test_only_audit_module_imports_security_server_config`, `tests/agent/test_security_audit_config_isolation.py::test_audit_dtos_hold_no_secret_fields`, and the `agent-mcp-config-models` import-linter contract in `.importlinter` |
 | Each MCP server validates its own security configuration at its own startup and publishes the resulting posture | INV-01 | Unit | Yes | `tests/mcp_servers/` |
 | Access to non-permitted configuration files is rejected | INV-02 | Regression | Yes | `tests/shared/test_config_loader.py::TestRestrictToIsolation::test_restricted_load_denies_unauthorized`, `tests/agent/test_config_permission_cross_server.py::test_cross_server_config_load_raises_config_permission_error` |
-| An MCP server can start standalone without agent.toml | INV-03 | Integration | Yes | - |
-| The Agent can start without being given MCP-specific Secrets | INV-04 | Integration | Yes | - |
+| An MCP server can start standalone without agent.toml | INV-03 | Integration | Yes | Not verified (no automated test exists) |
+| The Agent can start without being given MCP-specific Secrets | INV-04 | Integration | Yes | Not verified (no automated test exists) |
 
 ### Startup Validation
 
@@ -335,8 +335,8 @@ Acceptance conditions and their current state.
 - [x] The impact on Operations, Monitoring, and Recovery has been evaluated
 - [x] Verifiable Invariants are defined
 - [x] Exceptions or out-of-scope cases are clear
-- [x] Each Invariant has a corresponding Verification
-- [x] Automatable verification does not rely only on Manual Review
+- [ ] Each Invariant has a corresponding Verification (INV-03 and INV-04 are not verified)
+- [ ] Automatable verification does not rely only on Manual Review (INV-03 and INV-04 are not verified)
 - [x] The relationship with existing ADRs is recorded
 - [x] The ADR does not contradict related Specifications
 - [x] Discrepancies with the current implementation are registered as Known Issues (no open discrepancy remains)

@@ -82,8 +82,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the retained-requirement bullets and set Known Deviations to `Not applicable` | Pending | — | — | |
-| 2 | Run the ADR and documentation checkers named in the Validation plan | Pending | — | — | Sync checker passes only after all rows |
+| 1 | Add the retained-requirement bullets and set Known Deviations to `Not applicable` | Completed | 20261027-121257 | 20261027-121323 | Changed: docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md (3 Implementation Notes bullets added; Known Deviations set to Not applicable). Size 24556 B <= ceiling 24726 B. Stale detector clean. |
+| 2 | Run the ADR and documentation checkers named in the Validation plan | Completed | 20261027-121323 | 20261027-121323 | Sync checker passes only after all rows Pass: adr_structure, docs_quality, docs_structure, content_policy --strict, japanese. check_adr_preservation: 1 intended ERROR (Known Deviations text changed), reviewed. consistency --domain eventbus: 1 pre-existing unrelated WARNING (eventbus_06 to_thread()). Sync checker deferred to after row 05 (Not run yet). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

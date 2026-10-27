@@ -303,10 +303,11 @@ The strict-default behavior enforces INV-01 and INV-02 at startup time:
 - For the non-persistence of startup validation results, see "6. Non-Persistence of Startup Validation Results" in the Rationale section of this document.
 - Retry policy for an unreachable MCP server: live `/v1/tools` discovery (`scripts/agent/services/mcp_tool_discovery.py::fetch_tools()`) does not retry; subprocess startup retries once after a fixed delay (`scripts/agent/startup_mcp_starter.py::McpServerStarter`, through `retry_once_with_delay()`). Subprocess readiness is polled by `HttpServerLifecycleManager._health_poll_until_ready`.
 - When a subprocess fails to start after the retry, `retry_once_with_delay()` re-raises the second failure with a `[fatal]` prefix and startup aborts regardless of `required` (Explicit in code — `scripts/agent/startup_mcp_starter.py`, `scripts/agent/shared/retry_helper.py`). This is the spawn-failure exception listed in Exceptions.
+- A stamped EventBus database whose shape differs from the canonical shape, or an EventBus process that is not ready, is a safety/integrity failure: it is refused at startup and not reported as started (Fail-Fast; the mechanism is in ADR-006).
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-021 — tracked in governance_03 Part 1 (EventBus startup and deployment do not fail closed on a malformed stamped schema or an unready process)
+Not applicable
 
 ## Review Triggers
 

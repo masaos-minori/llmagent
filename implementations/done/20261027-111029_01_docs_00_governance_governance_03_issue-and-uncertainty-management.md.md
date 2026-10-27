@@ -11,7 +11,7 @@ Remove the five resolved Known Issue entries EVENTBUS-019 to EVENTBUS-023 from P
 ## Assumptions
 
 - Plan Phase 1 (pytest run over `tests/eventbus tests/db tests/deploy`, per-entry evidence, owner acknowledgement per UNK-02 and UNK-03) is done before this edit. It modifies no file, so it has no procedure document.
-- Source evidence checked in Step 3a: `dlq_repo.py` rollback paths, `auth.py` duplicate-token guard, `schema.py`/`create_schema.py`/`init_db.sh` fingerprint gate, `app.py` refuse-to-close on lock timeout, `ack_route.py` required `idempotency_key`. Test execution is still unconfirmed (UNK-01).
+- Source evidence checked in Step 3a: `dlq_repo.py` rollback paths, `auth.py` duplicate-token guard, `schema.py`/`create_schema.py`/`init_db.sh` fingerprint gate, `app.py` refuse-to-close on lock timeout, `ack_route.py` required `idempotency_key`. Test execution (UNK-01), run in this cycle with `-m "not integration and not production_paths_allowed"` over `tests/eventbus tests/db tests/deploy`: 719 passed, 8 failed, 1 skipped. Every test that the Plan cites for EVENTBUS-019, 021, 022 and 023 passes, and so do the load-path tests cited for EVENTBUS-020 (mapping pass-through and duplicate-token rejection). The 8 failures are role-assignment and authorization tests (`test_eventbus_auth.py`, `test_eventbus_config.py::test_admin_token_grants_control_plane_roles_only`, `test_admin_topics_authorization.py`) that read or restore `_TOKEN_PRINCIPAL_MAP` through an imported reference, while `publish_principals()` rebinds the module variable (the atomic publish of commit `f2866ded9`). They fail with `KeyError` or leaked state at HEAD, are a test defect and not a production defect, are not evidence for any Resolution Target, and are out of scope here (`tests/` is Out of Scope); they are recorded for the user.
 - Part 1 has no closing-summary line, so `check_closing_summary()` in `tools/check_issue_inventory_conformance.py` reports nothing.
 - `check_known_deviation_sync.py` reports an ERROR for the ADR citations of removed IDs until rows 02 to 05 are applied. Run the checkers after row 05, not after this row.
 - Plan overlap check: no other Frozen Plan targets this file.
@@ -82,8 +82,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Confirm Plan Phase 1 evidence is recorded, then remove the resolved entries and write the empty-state sentence | Pending | — | — | |
-| 2 | Run the documentation checkers for this file (`routing.md` Tools "When to run which tool") | Pending | — | — | Sync checker passes only after rows 02 to 05 |
+| 1 | Confirm Plan Phase 1 evidence is recorded, then remove the resolved entries and write the empty-state sentence | Completed | 20261027-121128 | 20261027-121232 | Changed: docs/00_governance/governance_03_issue-and-uncertainty-management.md (five entries removed, empty-state sentence). Plan Phase 1 evidence: tests 719 passed / 8 failed (pre-existing stale-reference test defect, see Assumptions); stale detector clean. |
+| 2 | Run the documentation checkers for this file (`routing.md` Tools "When to run which tool") | Completed | 20261027-121232 | 20261027-121232 | Sync checker passes only after rows 02 to 05 Checkers pass: conformance, needs_confirmation, docs_quality, docs_structure, content_policy --strict, japanese. check_known_deviation_sync.py deferred to after rows 02 to 05 (Not run yet). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

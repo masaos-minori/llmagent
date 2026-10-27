@@ -85,13 +85,13 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Reword the second case, add the Accepted Limit, update the `GV-017` row, confirm `Follow-up Work Needed` | Pending | — | — | Owner decision (UNK-01) recorded first |
-| 2 | Run the documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Reword the second case, add the Accepted Limit, update the `GV-017` row, confirm `Follow-up Work Needed` | Completed | 20261027-123717 | 20261027-123802 | Owner decision (UNK-01) recorded first Blocked: Plan Gap: size gate. Measured dry-run (no file written): the file is 24573 B vs limit 24576 B (headroom 3 B); the three permitted locations condensed to the shortest accurate wording still add +220 B (second case -219, new Accepted Limit +403, GV-017 cell +36); even a minimal bullet leaves at least +48 B. Needs the owner's decision (see Blocker Log). Resumed after the user directed condensing unrelated and duplicated prose in this document to free the size headroom (option b of the Blocker Log). Changed: docs/00_governance/governance_04_documentation-checks.md. Planned edits applied (second case reworded, Accepted Limit added, GV-017 cell extended). Beyond the procedure, at the user's direction: removed six Usage code blocks (duplicate of routing.md and --help), merged three overlapping statements in section 17, and added one clause to section 12 describing the new warning rules of check_adr_invariant_matrix.py. Size 24573 B -> 23305 B (limit 24576 B). Headings and matrix rows other than GV-017 unchanged. |
+| 2 | Run the documentation checkers named in the Validation plan | Completed | 20261027-123802 | 20261027-123802 | Pass: docs_quality, docs_structure, content_policy --strict, japanese, auto_check_inventory (GV-014), known_deviation_sync, issue_inventory_conformance, needs_confirmation_inventory, tool_descriptions_sync; related pytest 38 passed. Step 4: N/A (documentation-only; no source or test file changed). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
 |------|---------------------|----------|-----------------|
-| — | — | — | — |
+| 1 | Plan Gap: size gate. The target is 24573 B against the 24576 B default limit with no per-file exception. The edit needs about 220 B net even after condensing its three locations. Options for the owner: (a) add a per-file ceiling for this document to `tools/check_docs_structure.py` (additional target file, needs a Plan amendment), (b) condense about 250 B of unrelated prose in this document (needs a Plan amendment), (c) keep the Accepted Limit text shorter than the Plan's required elements allow (not possible within the form of the existing limits). Resolved by option (b), directed by the user: duplicated prose in this document was condensed (six `**Usage:**` code blocks that duplicate the `routing.md` Tools table and each tool's `--help`, and three overlapping statements in section 17), which freed about 1.2 KB. | Yes | 20261027-123802 |
 
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |

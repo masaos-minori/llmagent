@@ -78,8 +78,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the duplicate-token sentence and set Known Deviations to `Not applicable` | Pending | — | — | |
-| 2 | Run the ADR and documentation checkers named in the Validation plan | Pending | — | — | Sync checker passes only after all rows |
+| 1 | Add the duplicate-token sentence and set Known Deviations to `Not applicable` | Completed | 20261027-121338 | 20261027-121359 | Changed: docs/10_adr/adr_02_04_013_eventbus-authentication-authorization.md (Decision Details item 6 gains one sentence: duplicate-token rejection and mapping reach; Known Deviations set to Not applicable). Size 23888 B <= 24576 B. Stale detector clean. |
+| 2 | Run the ADR and documentation checkers named in the Validation plan | Completed | 20261027-121359 | 20261027-121359 | Sync checker passes only after all rows Pass: adr_structure, docs_quality, docs_structure, content_policy --strict, japanese. check_adr_preservation: 1 intended ERROR (Known Deviations text changed) and 1 intended WARNING (Decision item 6 text changed; one sentence added, nothing removed or reworded). Sync checker deferred to after row 05 (Not run yet). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

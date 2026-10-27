@@ -96,11 +96,11 @@ Revert the commit. The hook and the consumer need no change because their contra
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-check preconditions, marker text and corpus survey (read-only) | Pending | — | — | UNK-01, UNK-03 |
-| 2 | Add constants, parsing helpers, Rule 1 and Rule 2, extend `collect_issues()` | Pending | — | — | |
-| 3 | Update the docstring and help text | Pending | — | — | |
-| 4 | Add or update tests per Validation plan | Pending | — | — | Done in row 02 |
-| 5 | Run the validation sequence for `tools/` (`routing.md` "Adding a new tool") | Pending | — | — | |
+| 1 | Re-check preconditions, marker text and corpus survey (read-only) | Completed | 20261027-122148 | 20261027-122148 | UNK-01, UNK-03 Re-check done: dependency procedures (govrev003 index, govrev004 ADR-001/002) are archived; the implemented marker is a cell beginning with 'Not verified'; the ADR List maps all ADR IDs to existing files (14 of 14); stale detector clean. |
+| 2 | Add constants, parsing helpers, Rule 1 and Rule 2, extend `collect_issues()` | Completed | 20261027-122148 | 20261027-122447 | Changed: tools/check_adr_invariant_matrix.py. Added _BODY_RULE_SEVERITY (WARNING), table helpers (_table_lines, _first_table_after, _split_row), _adr_file_map, _body_automated_tests_rows, _index_evidence, check_adr_body_evidence_cells (Rule 1), check_body_index_agreement (Rule 2); collect_issues() extended. Simplification vs procedure: no _NOT_VERIFIED_RE, because any non-empty cell (including 'Not verified (...)') is an explicit status. Rule 2 compares only tests/ files. Existing rule, _TEST_PATH_RE, ADR_INDEX, JSON keys and exit codes unchanged. Live run: exit 0, 14 warnings (6 empty cells in ADR-003, 8 body/index disagreements). |
+| 3 | Update the docstring and help text | Completed | 20261027-122447 | 20261027-122447 | Module docstring and argparse description updated (rules, WARNING severity, promotion condition). |
+| 4 | Add or update tests per Validation plan | Completed | 20261027-123400 | 20261027-123400 | Done in row 02 Delivered by procedure 02 (tests): 28 passed. |
+| 5 | Run the validation sequence for `tools/` (`routing.md` "Adding a new tool") | Completed | 20261027-123400 | 20261027-123400 | ruff format/check clean; mypy tools/check_adr_invariant_matrix.py clean; bandit: no issues; radon: highest grade B (a first draft helper rated C was split); live run exit 0 with 14 warnings; --format json keys unchanged; hook command (python -m tools.check_adr_invariant_matrix) exit 0; consumer .github/run_cited_adr_tests.py loads the module (it ignored --help and started its pytest run, stopped after 60 s). pre-commit not run by hand (hook command run directly). diff-cover: Not available for this file (tools/ is outside the full-suite coverage scope: 'No lines with coverage information'); separate measurement from the module's own tests: 91% of the module, 4 uncovered new lines. Full suite once: 10175 passed, 9 failed, all pre-existing and unrelated (see procedure 02). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

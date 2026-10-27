@@ -41,16 +41,6 @@ Checks all documents under `docs/*.md` for quality issues.
 - Specific change-history forms in active documents are rejected (ERROR): `(Added <date>` annotations, `issues/`/`plans/`/`implementations/` `done/` paths, `REQ-NNN` identifiers, `- **Resolved**:` bullets, strikethrough text, and `Traceability` headings. These rules are not exempted by historical-context words, and the allowlist in section 4 does not apply to them
 - Unverified-claim wording outside the Needs Confirmation inventory is reported (WARNING)
 
-**Usage:**
-```bash
-python tools/check_docs_quality.py                          # run all core + custom
-python tools/check_docs_quality.py --core-only              # only core checks
-python tools/check_docs_quality.py --custom-only            # only custom rules
-python tools/check_docs_quality.py --skip broken_headings   # skip specific check
-python tools/check_docs_quality.py --only stale_patterns    # only specific check
-python tools/check_docs_quality.py docs/*.md                # check specific files
-```
-
 ### 2. Domain Consistency Check (`check_docs_consistency.py`)
 
 Checks consistency between documentation and source code for each domain.
@@ -90,19 +80,6 @@ The `eventbus`, `shared`, and `db` domains run only the generic checks and have 
 - Broken internal links (`.md` links resolve correctly; an `#anchor` matching no heading of its target, same-page links included, is a Warning)
 - Removed file references (references to deleted files detected)
 
-**Usage:**
-```bash
-python tools/check_docs_consistency.py --domain agent              # check agent docs
-python tools/check_docs_consistency.py --domain mcp                # check mcp docs
-python tools/check_docs_consistency.py --domain rag                # check rag docs
-python tools/check_docs_consistency.py --domain deployment         # check deployment docs
-python tools/check_docs_consistency.py --domain overview           # check overview docs
-python tools/check_docs_consistency.py --domain eventbus           # check eventbus docs
-python tools/check_docs_consistency.py --domain shared             # check shared docs
-python tools/check_docs_consistency.py --domain db                 # check db docs
-python tools/check_docs_consistency.py --domain agent --skip schemadrift  # skip a check
-```
-
 ### 3. Needs Confirmation Inventory Check (`check_needs_confirmation_inventory.py`)
 
 Verifies the NC inventory stays in sync with `docs/*.md`.
@@ -132,9 +109,9 @@ context. Two cases require different detection strategies:
   `ToolRouteResolver`+`server_configs` co-occurrence, section-scoped) — a simple
   grep-vs-source-absence check suffices. Implemented.
 - **Name that remains in source but is no longer the current production path**
-  (a function that is still defined in source but whose purpose is now served by another mechanism) — requires checking whether a *current-specification* section presents
-  it as production, not merely whether the identifier string appears in `docs/`.
-  Not yet implemented (follow-up).
+  (a function that is still defined in source but whose purpose is now served by
+  another mechanism) — not detected by this check; manual review covers it (see
+  Accepted Limits).
 
 **Historical-reference allowlist**: a line within 10 lines of an explicit marker
 (`legacy`, `historical`, `archive only`, `resolved`, `was:`, `removed`) is exempt
@@ -175,12 +152,6 @@ Validates structural conventions for `docs/*.md`:
 - Internal `.md` link reachability
 - Globs: a pattern matching no file is an error
 
-**Usage:**
-```bash
-uv run python tools/check_docs_structure.py [glob ...]
-uv run python tools/check_docs_structure.py 'docs/23_agent/*.md' --area agent
-```
-
 ### 9. Docs Content Policy Check (`check_docs_content_policy.py`)
 
 Checks all `docs/*.md` for implementation-detail content the docs content
@@ -188,11 +159,6 @@ policy prohibits: full file trees, per-file descriptions embedded in a tree
 or table, class/function/method index tables, implementation-location
 mappings, and literal port numbers (see `skills/DESIGN.md` Docs content
 policy — remove). `--strict` exits 1 on any warning (CI); see `GV-018`.
-
-**Usage:**
-```bash
-uv run python tools/check_docs_content_policy.py [--strict]
-```
 
 ### 10. ADR Structure Check (`check_adr_structure.py`)
 
@@ -204,26 +170,15 @@ Validates `docs/10_adr/*.md` structure:
 - Section headings: only the headings of the ADR Section Header Standardization, in that order (Error)
 - Template instruction text and global `INV-NNN` invariant ids in an ADR body (Error)
 
-**Usage:**
-```bash
-python tools/check_adr_structure.py
-python tools/check_adr_structure.py --format json
-```
-
 ### 11. Known Deviation Sync Check (`check_known_deviation_sync.py`)
 
 Verifies that Known Issue IDs cited by an ADR's `## Known Deviations` section exist as entries in `governance_03_issue-and-uncertainty-management.md` Part 1 (a cited ID with no entry is a dangling reference, Warning), that a Known Issue whose `Target` is an ADR is cited in that ADR's `## Known Deviations` (the reverse direction, Warning), rejects resolved-item bullets in `## Known Deviations` (Error), and rejects a Known Issue ID cited anywhere else under `docs/` that has no entry in Part 1 (Error; typically an ID deleted when the issue was resolved). The ID prefixes are read from Part 1's own ordering convention.
 
 **Enforcement:** pre-commit (`known-deviation-sync`) and `.github/workflows/governance-docs-consistency.yml`. Rule ID `GV-022`: an Error (resolved-item bullet) fails the run; a Warning (dangling reference in an ADR's Known Deviations, or a Known Issue missing from its Target ADR's Known Deviations) does not.
 
-**Usage:**
-```bash
-uv run python tools/check_known_deviation_sync.py
-```
-
 ### 12. ADR Invariant Matrix Checks (`check_adr_invariant_matrix.py`, `check_adr_reference.py`)
 
-Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr_01_index.md`: every pytest node id or test path cited in a `Verification Status` cell exists, and every `scripts/` source file cited there carries an `ADR-XXX` comment.
+Verify the ADR Invariant Verification Matrix in `docs/10_adr/adr_01_index.md`: every pytest node id or test path cited in a `Verification Status` cell exists, and every `scripts/` source file cited there carries an `ADR-XXX` comment. `check_adr_invariant_matrix.py` also warns (exit code unchanged) about an empty `Implementation` cell in an ADR body's `### Automated Tests` table and about an invariant whose cited test files differ between its ADR body and the index.
 
 **Enforcement:** pre-commit.
 
@@ -266,11 +221,7 @@ Notation: write the label in parentheses, optionally followed by an em dash and 
 
 ### 17. ADR Section Header Compliance
 
-The heading list, heading order, template-instruction residue and global `INV-NNN` ids are verified automatically by `check_adr_structure.py` (section ADR Structure Check above). The review below covers what the tool cannot check.
-
-The required headings and their order are defined and enforced once by `check_adr_structure.py` (see governance_01 §ADR Section Header Standardization).
-
-See [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization) for duplicate notes shared across all ADRs.
+The heading list, heading order, template-instruction residue and global `INV-NNN` ids are verified automatically by `check_adr_structure.py` (section ADR Structure Check above). The headings are defined in [Policy's ADR Section Header Standardization](governance_01_documentation-policy.md#adr-section-header-standardization), which also lists the duplicate notes shared across all ADRs. The review below covers what the tool cannot check.
 
 ### 18. Area Dependency Graph Validation
 
@@ -335,7 +286,7 @@ Canonical document codes: **Pol** = `governance_01_documentation-policy.md`, **M
 | GV-014 | No unimplemented auto-checks documented as implemented | Chk | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-015 | Glossary limited to project-specific terms | Meta | Manual | Human review | Periodic | Warning | Existing | None |
 | GV-016 | No unnecessary Metadata or Status fields added | Meta | Auto | `check_metadata_field_policy.py` | Pre-commit | Warning | Existing | Run by pre-commit and CI (warning, non-blocking) |
-| GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Existing | Opt-in by design (--check-removed-names); not promoted to default-on |
+| GV-017 | Removed-name reintroduction in current specifications | Chk | Auto | `check_compat_shims.py --check-removed-names` | PR | Warning | Existing | Opt-in by design (--check-removed-names); not promoted to default-on; context-aware case: Accepted Limit |
 | GV-018 | Docs content policy violation (implementation detail in docs/*.md) | Chk | Auto | `check_docs_content_policy.py --strict` | PR | Blocking | Existing | None |
 | GV-019 | Canonical source conflict routing and deduplication | Pol | Auto | `check_canonical_source_conflicts.py` | PR | Blocking | Existing | None |
 | GV-020 | Canonical Source Registry schema/path/ADR-status conformance | Pol | Auto | `check_canonical_source_registry.py` | PR | Blocking | Existing | None |
@@ -363,6 +314,11 @@ factually with its owner and rationale.
   non-`*_db_path` config-key names are not mechanically verified against `scripts/` /
   `config/`. Owner: Repository owner (reviewed quarterly). Rationale: high false-positive risk against prose words in
   backticks; requires an allowlist; no observed gap on the current corpus.
+- **Context-aware removed-name detection**: A name that remains defined in source but
+  is no longer the production path is not detected by `--check-removed-names`; manual
+  review covers it. Owner: Repository owner (reviewed quarterly). Rationale: deciding
+  whether a current-specification section presents it as production needs context that
+  a name search lacks. Re-evaluate when: manual review finds such a stale name.
 
 ## Change Impact Assessment
 

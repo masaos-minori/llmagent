@@ -78,8 +78,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the EventBus fail-closed bullet and set Known Deviations to `Not applicable` | Pending | — | — | |
-| 2 | Run the ADR and documentation checkers named in the Validation plan | Pending | — | — | Sync checker passes only after all rows |
+| 1 | Add the EventBus fail-closed bullet and set Known Deviations to `Not applicable` | Completed | 20261027-121416 | 20261027-121434 | Changed: docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md (one Implementation Notes bullet added; Known Deviations set to Not applicable). Size 32270 B <= ceiling 32305 B. Stale detector clean. |
+| 2 | Run the ADR and documentation checkers named in the Validation plan | Completed | 20261027-121434 | 20261027-121434 | Sync checker passes only after all rows Pass: adr_structure, docs_quality, docs_structure, content_policy --strict, japanese. check_adr_preservation: 1 intended ERROR (Known Deviations text changed), reviewed. check_docs_consistency --domain eventbus not re-run here (eventbus docs untouched; 1 pre-existing unrelated WARNING seen in row 02). Sync checker deferred to after row 05 (Not run yet). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -76,7 +76,7 @@ EventBus routes in `scripts/eventbus/` are intended to authenticate callers by B
    - 403: the token is valid but lacks the Consumer role, lacks a consumer or topic authorization, or the requested `consumer_id` or topic is not authorized.
 4. DLQ administration (`/dlq`, `/dlq/{event_id}/requeue`) and privileged replay (`/replay`) require operator permission.
 5. Audit logging of authorization failures and privileged actions, with no secret/token values recorded.
-6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`.
+6. Fail-closed rejection of unknown, missing, and incorrectly-typed EventBus configuration keys in `load_config()` — implemented locally, not via `ConfigLoader`. `load_config()` also rejects a configuration in which distinct token roles share one non-empty token value, and a TOML authorization mapping reaches the Consumer principal through it.
 7. A missing or empty `auth_token` in `config/eventbus.toml` must fail closed at startup, not silently start unauthenticated.
 8. EventBus configuration is not loaded through `ConfigLoader` for key validation (ADR-002 documents the local-invariant exception).
 
@@ -251,7 +251,7 @@ See Implementation References for the current file/symbol list.
 
 ## Known Deviations
 
-- **Known Issue**: EVENTBUS-020 — tracked in governance_03 Part 1 (the config loader drops the authorization mappings; duplicate token values are accepted)
+Not applicable
 
 ## Review Triggers
 

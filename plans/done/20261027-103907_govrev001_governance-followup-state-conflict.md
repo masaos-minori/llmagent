@@ -146,7 +146,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document (second case, Accepted Limit, `GV-017` row) | In Progress | — | — |  |
+| 1 | Edit the document (second case, Accepted Limit, `GV-017` row) | Completed | — | 20261027-123803 |  |
 | 2 | Run the documentation checkers (no deployment) | Pending | — | — |  |
 
 ### Blocker Log

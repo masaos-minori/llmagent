@@ -79,9 +79,9 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-check the cited node IDs and the INV-02 search (read-only) | Pending | — | — | |
-| 2 | Fill or mark the five Implementation cells | Pending | — | — | |
-| 3 | Run the checkers named in the Validation plan | Pending | — | — | Review `check_adr_preservation.py` reports |
+| 1 | Re-check the cited node IDs and the INV-02 search (read-only) | Completed | 20261027-121910 | 20261027-121923 | Re-check done: 25 passed over all cited node IDs; no INV-02 test found (rg). |
+| 2 | Fill or mark the five Implementation cells | Completed | 20261027-121923 | 20261027-121953 | Changed: docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md (Automated Tests Implementation cells of INV-01, INV-03, INV-05, INV-06 cited with verified node IDs; INV-02 recorded Not verified). Size 19999 B. Needs confirmation (UNK-02): INV-02 keeps Blocking Yes while Not verified; decision with the repository owner. Stale detector clean. |
+| 3 | Run the checkers named in the Validation plan | Completed | 20261027-121953 | 20261027-121953 | Review `check_adr_preservation.py` reports Pass: adr_structure, docs_quality, docs_structure, content_policy --strict, japanese, adr_invariant_matrix; pytest on all cited node IDs 25 passed. check_adr_preservation: 6 ERRORs, all 'test citation added' for the intended citations; no Invariant, Decision, Gate or Approval text changed (reviewed). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

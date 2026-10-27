@@ -76,8 +76,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add the new test classes and helpers | Pending | — | — | After row 01 |
-| 2 | Run pytest, ruff format and ruff check for this file | Pending | — | — | |
+| 1 | Add the new test classes and helpers | Completed | 20261027-122508 | 20261027-123400 | After row 01 Changed: tests/tools/test_check_adr_invariant_matrix.py (new classes TestBodyEmptyCellWithoutMarker, TestBodyEmptyCellWithMarker, TestBodyIndexAgreement, TestBodyIndexDisagreement, TestBodyTableBoundaries, TestExistingRuleUnchanged, TestCollectIssues; imports extended; existing six classes and helpers unchanged). One failing new test fixed by creating the cited file in the fixture (existing rule correctly reported ERROR for a missing path); expectations not loosened. |
+| 2 | Run pytest, ruff format and ruff check for this file | Completed | 20261027-123400 | 20261027-123400 | 28 passed (random and fixed order); ruff format/check clean; mypy clean for the test file and the module; check_mock_patch_targets: no findings (no patch() call added). Full suite once: 10175 passed, 9 failed, all pre-existing and unrelated (8 stale-reference eventbus auth tests; test_live_docs_have_no_drift caused by an untouched eventbus_08_reference_api.md generated block). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

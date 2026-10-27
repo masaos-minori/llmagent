@@ -74,8 +74,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Replace the stale clause in Negative Consequences | Pending | — | — | |
-| 2 | Run the ADR and documentation checkers named in the Validation plan | Pending | — | — | |
+| 1 | Replace the stale clause in Negative Consequences | Completed | 20261027-121635 | 20261027-121654 | Changed: docs/10_adr/adr_02_02_001_agent-workflow-engine-mandatory.md (one Negative Consequences clause replaced; 'the diff command' removed). Size 19175 B. Stale detector clean. |
+| 2 | Run the ADR and documentation checkers named in the Validation plan | Completed | 20261027-121654 | 20261027-121654 | Pass: adr_structure, docs_quality, docs_structure, content_policy --strict, japanese, consistency --domain agent. check_adr_preservation: no finding for ADR-001 (the four ERRORs/1 WARNING listed belong to the intended govrev006 edits of other files). |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -158,8 +158,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define the status vocabulary and Gate effects | In Progress | — | — |  |
-| 2 | Align the ADR-004 rows and the other non-standard rows | In Progress | — | — |  |
+| 1 | Define the status vocabulary and Gate effects | Completed | — | 20261027-121839 |  |
+| 2 | Align the ADR-004 rows and the other non-standard rows | Completed | — | 20261027-121839 |  |
 | 3 | Measure size and run the documentation checkers (no deployment) | Pending | — | — |  |
 
 ### Blocker Log

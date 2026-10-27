@@ -69,8 +69,8 @@ N/A: revert the commit.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update the two catalog rows | Pending | — | — | After row 01 |
-| 2 | Run `check_tool_descriptions_sync.py` | Pending | — | — | |
+| 1 | Update the two catalog rows | Completed | 20261027-123411 | 20261027-123429 | After row 01 Changed: tools/TOOL_DESCRIPTIONS.md (summary row and detail row of check_adr_invariant_matrix.py). Stale detector clean. |
+| 2 | Run `check_tool_descriptions_sync.py` | Completed | 20261027-123429 | 20261027-123429 | check_tool_descriptions_sync.py: No issues found. |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
