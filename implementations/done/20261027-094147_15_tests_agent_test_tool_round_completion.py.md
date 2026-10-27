@@ -89,10 +89,10 @@ async def test_round_is_all_or_none_under_failure():
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update round-completion tests for boundary routing | Pending | — | — | Update existing module |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This module |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Update round-completion tests for boundary routing | Complete | 2026-10-27 | 2026-10-27 | Existing `TestCompleteRoundPersistence` already asserts `complete_round` routes its tool-result insert through `ctx.turn.persistence_boundary.save_phase_grouped` and that no standalone `session.save_many`/`session.save` remains (AC-001). No mock rewrite needed — only the persistence assertion changed (seq 08) |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | Added `TestCompleteRoundRoundAtomicity.test_later_failure_leaves_no_partial_rows`: real `AgentSession` + in-memory DB via `_FakeSQLiteHelper` + `SQLiteHelper` patches, pre-turn user row (marker=1), two rounds under an injected-failure wrapper — round 1 commits its tool row, round 2's `save_phase_grouped` fails and the boundary compensates every row after the marker; asserts `ConversationPersistenceError` and that only the user row remains (AC-005). Negative-checked: breaking `_compensate` leaves round 1's tool row (assertion fails) so the test exercises the real compensation path |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | ruff check/format clean (scripts/ + test file), mypy --no-namespace-packages clean (441 files), lint-imports 6/6, bandit severity High/Medium 0, vulture @80 exit 0; full suite 10238 passed, 12 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | Updated module docstring to reflect the new DB-based persistence/atomicity cases; marked Execution Status Complete |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
