@@ -89,14 +89,37 @@ async def test_persistence_failure_propagates_as_dedicated_type():
 - REPL surfacing (repl_input_loop.py, seq 10).
 
 ## Execution Status
-
-### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend test_orchestrator.py with turn-level failure cases | Pending | — | — | Extend existing module |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This module |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Extend test_orchestrator.py with turn-level failure cases | Done | 2026-10-27 | 2026-10-27 | Added `TestTurnLevelPersistenceFailureRealFlow` (4 tests) |
+| 2 | Add or update tests per Validation plan | Done | 2026-10-27 | 2026-10-27 | See adversarial finding below |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Done | 2026-10-27 | 2026-10-27 | ruff clean on test file; full suite 10242 passed / 12 skipped (was 10238; +4) |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Done | 2026-10-27 | 2026-10-27 | Execution Status only; N/A elsewhere |
+
+### Adversarial verification findings
+
+- **Doc claim corrected.** The original procedure asserted that an execute-stage
+  persistence failure propagates out of `_execute_turn` unchanged as
+  `ConversationPersistenceError`. Verified against `workflow_engine.py`
+  (`_run_stage_with_retry`) and `workflow_engine_adapter.py` (`execute_turn`):
+  the real engine retries execute-stage failures up to `max_attempts`, then
+  raises `WorkflowHaltError`, which the adapter routes to `on_error`. Entry-prep
+  writes (`append_user_message`, `handle_history_compression`) run inside
+  `execute_turn`'s single `_prepare_turn_input` try/except, which wraps their
+  `ConversationPersistenceError` in a `WorkflowHaltError` too. So **both** phases
+  end as `WorkflowHaltError` via `on_error`; the boundary compensates every row
+  after the turn-start marker and restores memory to the snapshot in every case.
+- **Guard made SQL-aware.** The initial `_InjectingSQLiteHelper._guard` raised on
+  *every* statement, which also blocked the compensation `DELETE` ("Turn
+  compensation failed after persistence error"). Fixed to inspect the statement
+  text and fail only `INSERT`s; `save`/`save_many`/`replace_messages` all reach
+  the DB through an INSERT, while the marker is a `SELECT` and compensation is a
+  `DELETE`.
+- **Negative control added.** `test_execute_stage_zero_rows_depends_on_compensation`
+  neutralizes `delete_messages_from` and confirms the committed user row survives
+  a failed later write -- proving the positive zero-rows assertions depend on the
+  compensation path (the append guard raises before any row is written, so a
+  user-append-failure control could never leave rows behind).
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

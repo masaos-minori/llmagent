@@ -41,7 +41,11 @@ from db.helper import SQLiteHelper
 from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
 
-from tests.agent.test_turn_persistence import _SCHEMA_SQL, _FakeSQLiteHelper
+from tests.agent.test_turn_persistence import (
+    _SCHEMA_SQL,
+    _FakeSQLiteHelper,
+    _write_lock,
+)
 
 
 async def _await_raising(
@@ -3358,3 +3362,298 @@ class TestTurnPersistenceBoundaryWiring:
 
             # AC-004: memory restored element-wise to the turn-start snapshot.
             assert conv.history == [{"role": "user", "content": "prior-1"}]
+
+
+# ── Turn-level persistence failure through the REAL turn flow ────────────────
+# (REQ-001, REQ-002, REQ-003, REQ-004; AC-002, AC-003, AC-004)
+
+
+class _InjectingSQLiteHelper(_FakeSQLiteHelper):
+    """SQLiteHelper stand-in whose guard raises ``sqlite3.DatabaseError`` on any
+    INSERT while ``state["fail_inserts"]`` is set.
+
+    Compensation runs a DELETE and the turn-start marker is a SELECT, so the
+    guard inspects the statement text and fails only INSERTs. ``save``,
+    ``save_many``, and ``replace_messages`` all reach the DB through an INSERT,
+    so one flag fails every turn write without derailing the compensation
+    DELETE or marker capture."""
+
+    def _guard(self, sql: str = "") -> None:
+        if self._state is not None and self._state.get("fail_inserts"):
+            if sql.lstrip().upper().startswith("INSERT"):
+                raise sqlite3.DatabaseError("injected turn-persistence failure")
+
+    def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        conn_id = id(self._conn)
+        if conn_id not in _FakeSQLiteHelper._initialized_conns:
+            with _write_lock:
+                if conn_id not in _FakeSQLiteHelper._initialized_conns:
+                    self._conn.executescript(_SCHEMA_SQL)
+                    _FakeSQLiteHelper._initialized_conns.add(conn_id)
+        self._guard(sql)
+        return self._conn.execute(sql, params)
+
+    def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
+        self._guard(sql)
+        return self._conn.executemany(sql, params_seq)
+
+
+class _RealTurnDB:
+    """A real ``AgentSession`` bound to an in-memory SQLite DB, wired so both
+    ``agent.session.SQLiteHelper`` and ``agent.session_message_repo.SQLiteHelper``
+    resolve to :class:`_InjectingSQLiteHelper` backed by one shared connection."""
+
+    def __init__(self, prior: list[tuple[str, str]] | None = None) -> None:
+        self.conn = sqlite3.connect(":memory:")
+        self.conn.execute("PRAGMA foreign_keys=ON")
+        self.conn.executescript(_SCHEMA_SQL)
+        self.conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+        self.conn.commit()
+        if prior:
+            self.conn.executemany(
+                "INSERT INTO messages (session_id, role, content) VALUES (1, ?, ?)",
+                prior,
+            )
+            self.conn.commit()
+        self.state: dict[str, bool] = {"fail_inserts": False}
+        self.session = AgentSession()
+        self.session.session_id = 1
+
+    def _make(self, target: str = "session") -> _InjectingSQLiteHelper:
+        fake = _InjectingSQLiteHelper(self.conn)
+        fake._state = self.state
+        return fake
+
+    @contextmanager
+    def patched(self):
+        with (
+            patch("agent.session.SQLiteHelper", side_effect=self._make),
+            patch("agent.session_message_repo.SQLiteHelper", side_effect=self._make),
+        ):
+            yield
+
+
+class _RetryThenHaltEngine:
+    """Minimal faithful stand-in for ``WorkflowEngine``.
+
+    Mirrors ``workflow_engine._run_stage_with_retry``'s core contract -- retry
+    ``execute_fn`` up to ``max_attempts``, then raise ``WorkflowHaltError`` --
+    without the DB idempotency machinery (which is irrelevant to the
+    persistence-behavior this test asserts). Lets the test drive the real turn
+    flow end-to-end while exercising the engine's retry-then-halt conversion."""
+
+    def __init__(self, wdef: Any) -> None:
+        self._wdef = wdef
+
+    async def run(
+        self, task: Any, plan_fn: Any, execute_fn: Any, verify_fn: Any
+    ) -> None:
+        await plan_fn()
+        policy = self._wdef.retry_policy
+        attempt = 0
+        while True:
+            attempt += 1
+            try:
+                await execute_fn()
+                break
+            except Exception as exc:
+                if attempt >= policy.max_attempts:
+                    raise WorkflowHaltError(
+                        f"execute stage halted after {attempt} attempts"
+                    ) from exc
+                await asyncio.sleep(policy.backoff_sec)
+        await verify_fn()
+
+
+class TestTurnLevelPersistenceFailureRealFlow:
+    """Drive a full turn through ``Orchestrator._execute_turn`` with a real
+    boundary bound to a real in-memory DB, and assert how a genuine DB-write
+    failure is compensated, memory-restored, and propagated.
+
+    Entry-prep writes (user-append, history compression) run inside
+    ``execute_turn``'s single ``_prepare_turn_input`` try/except, which wraps
+    their ``ConversationPersistenceError`` in a ``WorkflowHaltError`` routed to
+    ``on_error`` -- the turn halts and ``_execute_turn`` returns normally. An
+    execute-stage write (the final assistant save) raises inside the engine's
+    retry loop, which converts it to a ``WorkflowHaltError`` after
+    ``max_attempts`` -- also routed to ``on_error``. In every case the boundary
+    compensates every row after the turn-start marker and restores memory to
+    the snapshot."""
+
+    def _wire(
+        self,
+        db: _RealTurnDB,
+        monkeypatch: pytest.MonkeyPatch,
+        history: list[LLMMessage],
+        on_error: Any,
+    ) -> tuple[Orchestrator, ConversationState]:
+        conv = ConversationState()
+        conv.history = list(history)
+
+        ctx = _make_ctx()
+        ctx.session = db.session
+        ctx.conv = conv
+        ctx.turn = TurnState()
+
+        orch = _make_orchestrator(ctx, on_error=on_error)
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_start", AsyncMock())
+        monkeypatch.setattr(orch._audit_emitter, "emit_turn_end", AsyncMock())
+        monkeypatch.setattr(
+            "agent.workflow_engine_adapter.classify_and_inject_mode", AsyncMock()
+        )
+        return orch, conv
+
+    @staticmethod
+    def _turn_rows(conn: sqlite3.Connection) -> int:
+        return conn.execute(
+            "SELECT COUNT(*) FROM messages WHERE session_id = 1"
+        ).fetchone()[0]
+
+    @pytest.mark.asyncio
+    async def test_entry_prep_user_append_failure_halts_and_compensates(
+        self, monkeypatch
+    ) -> None:
+        db = _RealTurnDB()
+        orch, conv = self._wire(
+            db, monkeypatch, [{"role": "user", "content": "before"}], MagicMock()
+        )
+        on_error = orch._on_error
+
+        # Fail the first turn write (the user-append INSERT).
+        db.state["fail_inserts"] = True
+        with db.patched():
+            await orch._execute_turn("hello")  # entry-prep halt: no raise
+
+        # AC-003 (entry path): the wrapped failure surfaces via on_error as a
+        # WorkflowHaltError, and _execute_turn returns normally (REQ-003).
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+
+        # AC-002: the failed turn left zero rows (marker was 0 for this fresh
+        # session, so compensation deletes everything).
+        assert self._turn_rows(db.conn) == 0
+
+        # AC-004: memory restored element-wise to the turn-start snapshot.
+        assert conv.history == [{"role": "user", "content": "before"}]
+
+    @pytest.mark.asyncio
+    async def test_entry_prep_compression_failure_halts_and_compensates(
+        self, monkeypatch
+    ) -> None:
+        db = _RealTurnDB()
+
+        async def _compress(history: list[LLMMessage]) -> tuple:
+            # Fail the compression snapshot write (replace_messages INSERT), not
+            # the earlier user-append.
+            db.state["fail_inserts"] = True
+            return history, CompressResult(
+                compressed_count=3, protected_count=0, summary_added=False
+            )
+
+        orch, conv = self._wire(
+            db, monkeypatch, [{"role": "user", "content": "before"}], MagicMock()
+        )
+        on_error = orch._on_error
+        orch._ctx.services_required.hist_mgr.compress = AsyncMock(side_effect=_compress)
+
+        with db.patched():
+            await orch._execute_turn("hello")
+
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+        assert self._turn_rows(db.conn) == 0
+        assert conv.history == [{"role": "user", "content": "before"}]
+
+    @pytest.mark.asyncio
+    async def test_execute_stage_final_save_failure_retries_then_halts(
+        self, monkeypatch
+    ) -> None:
+        db = _RealTurnDB()
+
+        # Real engine retries execute-stage failures up to max_attempts before
+        # halting; force backoff_sec=0 so the retries are instant.
+        orch, conv = self._wire(
+            db, monkeypatch, [{"role": "user", "content": "before"}], MagicMock()
+        )
+        on_error = orch._on_error
+        orch._workflow_def.retry_policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        monkeypatch.setattr(
+            orch._workflow_adapter,
+            "_workflow_engine",
+            _RetryThenHaltEngine(orch._workflow_def),
+        )
+
+        async def _llm_side(llm_url: str, **kwargs: Any) -> Any:
+            # User-append already committed; fail only the final assistant save.
+            db.state["fail_inserts"] = True
+            return TurnResult(action="continue", answer="hi", persist_as_assistant=True)
+
+        llm_handle = AsyncMock(side_effect=_llm_side)
+        monkeypatch.setattr(orch._llm_executor, "handle_llm_turn", llm_handle)
+
+        with db.patched():
+            await orch._execute_turn("hello")
+
+        # The execute-stage save fails on every attempt; the engine retries
+        # max_attempts times before halting (REQ-003).
+        assert llm_handle.await_count == 3
+
+        # AC-003: the halted stage surfaces via on_error as a WorkflowHaltError;
+        # _execute_turn returns normally.
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+
+        # AC-002: the whole turn rolled back -- the earlier user row too --
+        # leaving zero rows despite the retries.
+        assert self._turn_rows(db.conn) == 0
+
+        # AC-004: memory restored to the turn-start snapshot.
+        assert conv.history == [{"role": "user", "content": "before"}]
+
+    @pytest.mark.asyncio
+    async def test_execute_stage_zero_rows_depends_on_compensation(
+        self, monkeypatch
+    ) -> None:
+        """Control for the execute-stage case: the user row is committed during
+        entry prep, then the final save fails. With the compensation DELETE
+        neutralized the committed user row remains -- proving the positive
+        case's zero-rows assertion depends on compensation, not on the writes
+        never happening (the append guard raises before any row is written)."""
+        db = _RealTurnDB()
+        orch, conv = self._wire(
+            db, monkeypatch, [{"role": "user", "content": "before"}], MagicMock()
+        )
+        on_error = orch._on_error
+        orch._workflow_def.retry_policy = RetryPolicy(max_attempts=3, backoff_sec=0)
+        monkeypatch.setattr(
+            orch._workflow_adapter,
+            "_workflow_engine",
+            _RetryThenHaltEngine(orch._workflow_def),
+        )
+
+        # Neutralize TurnPersistence._compensate: delete_messages_from removes
+        # nothing, so a committed row survives a failed later write.
+        monkeypatch.setattr(
+            SessionMessageRepository,
+            "delete_messages_from",
+            lambda self, session_id, marker: 0,
+        )
+
+        async def _llm_side(llm_url: str, **kwargs: Any) -> Any:
+            # Fail only the final assistant save; the user-append already
+            # committed above (fail_inserts still False during entry prep).
+            db.state["fail_inserts"] = True
+            return TurnResult(action="continue", answer="hi", persist_as_assistant=True)
+
+        monkeypatch.setattr(
+            orch._llm_executor, "handle_llm_turn", AsyncMock(side_effect=_llm_side)
+        )
+
+        with db.patched():
+            await orch._execute_turn("hello")
+
+        # The turn still halts, but without compensation the committed user row
+        # persists -- the control proves the positive assertion is non-trivial.
+        assert on_error.call_count == 1
+        assert isinstance(on_error.call_args[0][0], WorkflowHaltError)
+        assert self._turn_rows(db.conn) >= 1
