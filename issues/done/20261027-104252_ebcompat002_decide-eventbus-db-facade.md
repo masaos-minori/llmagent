@@ -14,6 +14,10 @@ Source: `memo-issue.md` item H-02, re-verified against current source on 2026-10
 - Test importers (9 files): `tests/eventbus/test_eventbus_ack_endpoint.py`, `..._ack_nack.py`, `..._concurrent.py`, `..._crash_ack.py`, `..._dlq.py`, `..._dlq_promotion.py`, `..._offsets.py`, `..._requeue_edge_cases.py`, `..._restart_resume.py`. No `tools/` file imports it.
 - Documents naming the facade: `docs/10_adr/adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md` (Implementation References: "facade that re-exports the functions above") and `scripts/eventbus/README.md`. The `docs/` tree has no other hit.
 - Prior decision to respect: `issues/done/20261022-124204_ebdocwording_align-eventbus-facade-wording.md` kept the facade and only corrected its wording, stating that the README's "single entry point" description matches the intended wording. The memo's premise ("not a canonical public API") therefore contradicts a recent recorded decision and has not been re-approved by the owner.
+- **Owner decision (2026-10-27, given by the repository owner in the planning session): retain `scripts/eventbus/db.py` as the documented single entry point.** No code, test, README or ADR change follows from this decision, and no Plan is generated; this issue is closed by recording the decision and the evidence below.
+- Verification against current source (this cycle): the facade re-exports 14 names, not 13 (3 from `db_conn`, 5 from `event_repo`, 5 from `delivery_repo`, 1 from `dlq_repo`); a syntax-level scan found 7 production importers (8 import statements, 2 of them deferred) and 9 test importers (about 60 import statements, almost all deferred inside test functions) and no other importer in `scripts/`, `tests/` or `tools/`. Evidence: `Explicit in code`.
+- No test patches `eventbus.db`; four tests patch names on route modules (`dlq_route.redeliver_event` three times and `eventbus.publish_route.insert_event` once), so removal would not break those targets but also is not needed. `tools/check_mock_patch_targets.py` reports no finding today. Evidence: `Explicit in code`.
+- The README section "Stub Module Pattern" describes the facade as "a single entry point for consumers of the eventbus module", and ADR-006 Implementation References lists it as the facade; both already match the retained design, and no other document under `docs/` names it. The compatibility checker has no rule against `eventbus.db`, so there is no entry to allow. Evidence: `Explicit in code`.
 
 ## Problem
 Whether the facade is canonical API or a removable compatibility stub is not decided in one place: the ADR and README treat it as intended, the memo treats it as a leftover. Until decided, neither removal nor retention can be justified, and the compatibility checker cannot be told which to enforce.
@@ -67,9 +71,10 @@ Yes if removal is chosen: README layer description and the ADR-006 implementatio
 - No open issue or in-flight plan touches `scripts/eventbus/db.py`.
 
 ## Unresolved Questions
-- 不明: owner decision, retain or remove the facade (blocking; the memo recommends removal, the ADR/README and the 2026-10-22 issue keep it).
-- 不明: why `ack_route.py` and `route_helpers.py` use deferred imports of the facade (circular-import avoidance or test patching); to be checked before moving them.
-- 不明: whether any test patches a facade-imported name at the route module level (not searched).
+- Resolved: owner decision is to retain the facade (2026-10-27); the memo's removal recommendation is not adopted.
+- Not needed under retention: why `ack_route.py` and `route_helpers.py` use deferred imports of the facade. It matters only if the facade is removed later.
+- Resolved: no test patches `eventbus.db`; four tests patch route-module names that stay valid.
+- Candidate follow-up (not filed): if removal is reconsidered, the evidence above gives the blast radius (7 production files, 9 test files, about 60 test import statements, one README section, one ADR reference line).
 
 ## AI Implementation Instruction
 Do not start code changes until the decision is recorded. Under removal, change imports only; do not alter function bodies, SQL or lock handling. Re-run the caller search immediately before deleting `db.py`. Do not touch ADR decision text. Stop and report if any importer outside the listed files appears.
