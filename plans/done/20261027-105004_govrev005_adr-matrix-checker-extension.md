@@ -107,7 +107,9 @@ Yes, limited to `tools/TOOL_DESCRIPTIONS.md` (what the checker verifies and its 
 - The not-verified marker form that Rule 1 accepts is the one defined by the dependency plans (UNK-01).
 - Warning severity is the starting point because ADR-003 still has empty cells (UNK-02).
 - The ADR file of an invariant can be resolved through the index `ADR List` table, which lists every ADR (UNK-03).
-- Step 8b overlap judgments: this Plan's three target files overlap no other Frozen Plan.
+- Step 8b overlap judgments, corrected in `plan-to-implementation-procedure` Step 2: `tools/TOOL_DESCRIPTIONS.md` is also targeted by `plans/20261027-110516_mcpcompat001_remove-mcp-compat-paths.md`, which was filed later. The two edit different catalog rows (`check_adr_invariant_matrix.py` here, `check_compat_shims.py` there), so they are compatible and only need rebasing in turn. The other two target files overlap no other Frozen Plan.
+- Step 3a survey of the live corpus (13 empty cells in ADR-001 (5), ADR-002 (2) and ADR-003 (6) confirmed; the index `ADR List` resolves every ADR ID of the matrix to an existing file, which resolves UNK-03). Comparing cited test file paths per invariant as a union over all body rows, 24 invariants appear in both an ADR body and the index, 11 of them disagree, and for 7 the index cites a path absent from the body. A row-by-row comparison disagrees far more often. Rule 2 therefore compares the union per invariant, parses index rows that name several ADRs or invariants (for example `ADR-002 INV-01, INV-02 and ADR-004 INV-07, INV-10`), and supports the `WARNING` severity of REQ-003: with `ERROR` the live run would fail.
+- Marker for Rule 1: `plans/20261027-104705_govrev004_adr-verification-evidence-sync.md` writes the marker as a cell that begins with `Not verified`; Rule 1 accepts a cell whose text begins with `Not verified` (case-insensitive). If the implemented govrev003/govrev004 text differs, match the implemented text (UNK-01).
 - The issue file was reverted on disk to its pre-verification text by an external change during this cycle; the verified facts (13 empty cells in three ADRs, the warning exit code, the consumer's private names) are recorded in this Plan's Background, not in the issue.
 
 ## Unknowns
@@ -133,7 +135,7 @@ separate scope-of-record.
 
 ## Design
 - Path A: three files; the change is additive, no existing interface changes (the consumed names, JSON keys and exit-code behavior stay), and there is no schema change. The consumer `.github/run_cited_adr_tests.py` and the hook are checked, not modified.
-- Validation baseline (this cycle): `radon cc` rates `_matrix_rows` B (10) and every other function A; `vulture scripts/ --min-confidence 80` reports three findings in `scripts/` unrelated to this change; `bandit` on the tool reports no issue. The diff-cover baseline was not run in planning because a full coverage run is too costly here (`Not available` as evidence); the implementation phase runs it and must reach the threshold of `rules/toolchain.md` Completion checklist.
+- Validation baseline (this cycle): `radon cc` rates `_matrix_rows` B (10) and every other function A; `vulture scripts/ --min-confidence 80` reports 17 findings in `scripts/`, none in the target files and all unrelated to this change; `bandit` on the tool reports no issue. The diff-cover baseline was not run in planning because a full coverage run is too costly here (`Not available` as evidence); the implementation phase runs it and must reach the threshold of `rules/toolchain.md` Completion checklist.
 - Decision: warning severity first, as `report_and_exit` already exits 0 for warnings. Alternative rejected: an immediate `ERROR`, which would fail pre-commit and CI because ADR-003 has six empty cells.
 - Decision: resolve the ADR file through the index `ADR List` table rather than a filename pattern, which is stable under renames.
 - Blast radius: the checker is referenced by six files; `TOOL_DESCRIPTIONS.md` had 66 commits in 30 days, so its edit is small and rebased carefully.
@@ -214,3 +216,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-004 | Constraints (do not break the existing rule, JSON, consumer) | `tools/check_adr_invariant_matrix.py` | Phase 2, Phase 4 | AC-4 | Consumer import check; pre-commit hook run | Confirmed by repository evidence |
 | REQ-005 | Required Changes (add tests) | `tests/tools/test_check_adr_invariant_matrix.py` | Phase 3 | AC-5 | `uv run pytest tests/tools/test_check_adr_invariant_matrix.py -v` | Explicit in issue |
 | REQ-006 | Required Changes (update the descriptions entry) | `tools/TOOL_DESCRIPTIONS.md` | Phase 4 | AC-6 | `uv run python tools/check_tool_descriptions_sync.py` | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-112226 -->

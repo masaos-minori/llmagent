@@ -33,7 +33,7 @@ Keep one classification per gap. Classify the case as an Accepted Limit because 
 ## Requirements
 - `REQ-001`: Reword the second detection case so it states that the case is a documented limit of the automated check, detected only by manual review, without calling it follow-up work.
 - `REQ-002`: Add the case to `Accepted Limits` with current behavior stated factually, Owner `Repository owner (reviewed quarterly)`, a rationale and the condition that would justify implementing it.
-- `REQ-003`: Update the `GV-017` row so its Status and Follow-up columns state the same classification.
+- `REQ-003`: Update the `GV-017` row so its Follow-up column states the same classification and the Status column stays `Existing` (the matrix defines no other Status value, and the implemented first case keeps the row `Existing`).
 - `REQ-004`: Keep `Follow-up Work Needed` consistent with the final classification and leave the documentation checkers without findings.
 
 ## Implementation Target Files
@@ -75,7 +75,7 @@ glob patterns, components, file groups, or vague phrases.
 ## Acceptance Criteria
 - AC-1 (REQ-001): The second detection case is described once as a documented limit detected only by manual review, and no sentence calls it follow-up while `Follow-up Work Needed` says none is tracked.
 - AC-2 (REQ-002): `Accepted Limits` contains the case with an Owner defined in `governance_03` Owner Values, a rationale and a re-evaluation condition.
-- AC-3 (REQ-003): The `GV-017` row states the same classification as the description and `Accepted Limits`.
+- AC-3 (REQ-003): The `GV-017` row's Follow-up cell states the same classification as the description and `Accepted Limits`, and its Status cell remains `Existing`.
 - AC-4 (REQ-004): `Follow-up Work Needed` is consistent with the classification, and the checkers under Tests pass.
 
 ## Tests
@@ -90,6 +90,7 @@ Yes. `docs/00_governance/governance_04_documentation-checks.md` changes (the ver
 ## Assumptions
 - Accepted Limit is the right classification; the repository owner confirms it (UNK-01). If the owner prefers a tracked follow-up, the same locations are aligned to that classification instead.
 - The new Accepted Limit follows the form of the existing two (current behavior, Owner, rationale) plus a re-evaluation condition.
+- Verified in `plan-to-implementation-procedure` Step 3a: the existing two Accepted Limits use the Owner text `Repository owner (reviewed quarterly)`, which begins with the `Repository owner` value of `governance_03` Owner Values; the new item reuses that exact text. The `GV-017` Status cell is `Existing` and the matrix legend defines no other Status value. The unimplemented case is stated as not attempted in a `tools/check_compat_shims.py` comment (`check_removed_name_reintroduction()` area).
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -145,8 +146,8 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Edit the document (second case, Accepted Limit, `GV-017` row) | Pending | — | — | |
-| 2 | Run the documentation checkers (no deployment) | Pending | — | — | |
+| 1 | Edit the document (second case, Accepted Limit, `GV-017` row) | In Progress | — | — |  |
+| 2 | Run the documentation checkers (no deployment) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -156,7 +157,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261027-111308_01_docs_00_governance_governance_04_documentation-checks.md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -174,3 +175,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-002 | Required Changes (add the Accepted Limit); Constraints | `docs/00_governance/governance_04_documentation-checks.md` | Phase 1 | AC-2 | `check_docs_content_policy.py --strict` | Confirmed by repository evidence |
 | REQ-003 | Required Changes (update the `GV-017` row) | `docs/00_governance/governance_04_documentation-checks.md` | Phase 1 | AC-3 | `check_docs_quality.py` | Explicit in issue |
 | REQ-004 | Required Changes (keep Follow-up Work Needed consistent); Acceptance Criteria | `docs/00_governance/governance_04_documentation-checks.md` | Phase 1, Phase 2 | AC-4 | Checkers listed under Tests | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-111308 -->

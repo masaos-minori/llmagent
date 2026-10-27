@@ -95,6 +95,8 @@ Yes. `docs/10_adr/adr_01_index.md` changes (status vocabulary, Gate effects, row
 - A distinct Manual value is the recommended design (UNK-01); if the owner prefers to treat manual rows as a form of Partial, the same required content applies.
 - The Owner of a row is `Repository owner` unless the ADR names another.
 - The definitions can fit in the size headroom, possibly after shortening the verbose ADR-004 INV-07 and INV-10 status prose without removing its evidence (UNK-02).
+- Step 3a measurements (UTF-8 bytes, `check_docs_structure.py`): `adr_01_index.md` is 22047 B against the default limit of 24576 B with no per-file exception, so headroom is 2529 B. The ADR-004 INV-07 and INV-10 status cell alone is 938 B and is the main source of savings. The sibling Frozen Plans `plans/20261027-104705_govrev004_adr-verification-evidence-sync.md` (canonical-source statement, INV-01 row) and `plans/20261027-105004_govrev005_adr-matrix-checker-extension.md` (not-verified marker, ADR List) also add text to this file, so this Plan's net growth is budgeted at 1200 B at most, leaving about 1.3 KB for the two siblings.
+- Verified in Step 3a: exactly five matrix rows use a non-standard status form (ADR-004 INV-01 and INV-02, ADR-004 INV-07 and INV-10, ADR-004 INV-15 and INV-16, ADR-014 INV-01, ADR-014 INV-03); all other rows start with "Confirmed". Overlap judgment: `plans/20261027-104705_govrev004_adr-verification-evidence-sync.md` also targets this file; it is a sequencing dependency (this Plan edits the matrix introduction and status cells first, the sibling then adds its statement), so there is no conflict.
 
 ## Unknowns
 | ID | Unknown Description | Evidence Missing | Resolution Path | Blocking? (True/False) |
@@ -156,9 +158,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Define the status vocabulary and Gate effects | Pending | — | — | |
-| 2 | Align the ADR-004 rows and the other non-standard rows | Pending | — | — | |
-| 3 | Measure size and run the documentation checkers (no deployment) | Pending | — | — | |
+| 1 | Define the status vocabulary and Gate effects | In Progress | — | — |  |
+| 2 | Align the ADR-004 rows and the other non-standard rows | In Progress | — | — |  |
+| 3 | Measure size and run the documentation checkers (no deployment) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -168,7 +170,7 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261027-111645_01_docs_10_adr_adr_01_index.md.md | 1, 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -187,3 +189,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-003 | Required Changes (update ADR-004 rows); Constraints | `docs/10_adr/adr_01_index.md` | Phase 2 | AC-3 | `check_adr_preservation.py` | Confirmed by repository evidence |
 | REQ-004 | Required Changes (map rows; align Pipeline Mapping Summary) | `docs/10_adr/adr_01_index.md` | Phase 2 | AC-4 | `check_adr_invariant_matrix.py` | Confirmed by repository evidence |
 | REQ-005 | Constraints; Acceptance Criteria; Testing Expectations | `docs/10_adr/adr_01_index.md` | Phase 3 | AC-5 | `check_docs_structure.py` (size gate); checkers under Tests | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-111645 -->

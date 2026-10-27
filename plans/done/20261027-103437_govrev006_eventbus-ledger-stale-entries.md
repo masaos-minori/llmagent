@@ -24,6 +24,8 @@ High
 - Implementation commits exist: DLQ requeue atomicity (`39335dc89`), startup fingerprint gate and deployment readiness (`72c83c0db`), fail-fast shutdown (`e5f30fefe`), NACK idempotency key (`dbbd4357d`), and the config loader and duplicate-token guard in `68e9cabd2` (its subject does not describe the change).
 - Commit `dbbd4357d` removed the ADR-006 citation of EVENTBUS-023 without removing the ledger entry, so `check_known_deviation_sync.py` reports one warning today.
 - Adversarial verification in this cycle found each Resolution Target met by source and tests (read, not executed). The ADR citations remain for EVENTBUS-019, 021, 022 (ADR-006), 021 (ADR-004) and 020 (ADR-013).
+- Verification during `plan-to-implementation-procedure` Step 3a re-checked the source symbols (`dlq_repo.py` rollback paths, `auth.py` duplicate-token guard, `schema.py`/`create_schema.py`/`init_db.sh` fingerprint gate, `app.py` refuse-to-close on lock timeout, `ack_route.py` required `idempotency_key`) and the ADR current sections. ADR-006 current sections state the NACK idempotency key (Implementation Notes) but state no requeue-atomicity, stamped-schema shape or refuse-to-close-on-lock-timeout requirement; ADR-013 current sections state no duplicate-token rejection requirement; ADR-004 states no EventBus stamped-schema fail-closed requirement. Removing the citations alone would therefore drop those requirements from the ADRs, so REQ-007 is real work for each ADR row, not a no-op.
+- `governance_03` has no Part 1 closing-summary line today, so `check_issue_inventory_conformance.py` `check_closing_summary()` returns without findings; no precedent for the Part 1 empty-state sentence exists yet (Parts 2 to 4 carry it).
 
 ## Problem
 Ledger entries that describe fixed defects remain open. They block merges in the EventBus area, the ledger and ADR-006 disagree for EVENTBUS-023, and readers are told that defects exist that the code no longer has. Removing an entry without checking its Resolution Target would instead hide a defect that may still exist.
@@ -189,7 +191,7 @@ checklist items are sub-tasks, and the Execution Status table has one row per st
 - **Risk**: `governance_03` is edited by other work (93 commits in 30 days), so a sync or rebase conflict is likely → **Mitigation**: Make one small commit, and re-run the checkers after any sync.
 - **Risk**: Emptying Part 1 is rejected by `check_issue_inventory_conformance.py`, which runs in CI → **Mitigation**: Run it before committing and use the established empty-state sentence.
 - **Risk**: `check_adr_preservation.py` reports ERROR for the Known Deviations changes → **Mitigation**: Review each report and confirm it is intended; do not suppress the check.
-- **Risk**: A removed deviation still states a requirement that applies and no current ADR section carries it → **Mitigation**: Check ADR-004, ADR-006 and ADR-013 current sections and state the requirement there (REQ-007).
+- **Risk**: A removed deviation still states a requirement that applies and no current ADR section carries it → **Mitigation**: Check ADR-004, ADR-006 and ADR-013 current sections and state the requirement there (REQ-007). Confirmed in Step 3a: ADR-006 lacks requeue-atomicity, stamped-schema shape and refuse-to-close requirements; ADR-013 lacks duplicate-token rejection; ADR-004 lacks the EventBus stamped-schema fail-closed requirement. Each ADR row adds these as a short current-section statement (an Implementation Notes or Failure Policy bullet, not a new Decision), and `check_adr_preservation.py` WARNING or ERROR output for these additions is reviewed as intended.
 
 ## Execution Status
 
@@ -200,9 +202,9 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Re-verify the Resolution Targets of EVENTBUS-019 to 023 | Pending | — | — | |
-| 2 | Remove resolved entries and ADR citations | Pending | — | — | |
-| 3 | Run the documentation checkers (no deployment) | Pending | — | — | |
+| 1 | Re-verify the Resolution Targets of EVENTBUS-019 to 023 | Pending | — | — |  |
+| 2 | Remove resolved entries and ADR citations | In Progress | — | — |  |
+| 3 | Run the documentation checkers (no deployment) | Pending | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -212,7 +214,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261027-111029_01_docs_00_governance_governance_03_issue-and-uncertainty-management.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-111029_02_docs_10_adr_adr_02_04_006_eventbus-sqlite-persistence-and-sse-delivery.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-111029_03_docs_10_adr_adr_02_04_013_eventbus-authentication-authorization.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-111029_04_docs_10_adr_adr_02_01_004_platform-environment-failure-handling-policy.md.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-111029_05_docs_10_adr_adr_00_document-guide.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -233,3 +239,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-005 | Required Changes; Constraints | `docs/10_adr/adr_02_01_004_platform-environment-failure-handling-policy.md` | Phase 2 | AC-3 | `check_known_deviation_sync.py` | Confirmed by repository evidence |
 | REQ-006 | Required Changes (update the guide sentence) | `docs/10_adr/adr_00_document-guide.md` | Phase 2 | AC-4 | `check_known_deviation_sync.py`, `check_docs_quality.py` | Confirmed by repository evidence |
 | REQ-007 | Acceptance Criteria; Testing Expectations | `docs/00_governance/governance_03_issue-and-uncertainty-management.md` | Phase 2, Phase 3 | AC-5 | Checkers listed under Tests | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-111029 -->
