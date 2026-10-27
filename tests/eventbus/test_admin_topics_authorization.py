@@ -11,6 +11,8 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 
+from tests.eventbus.eventbus_helpers import principal_map
+
 
 def _make_admin_test_client(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
@@ -221,7 +223,6 @@ class TestUpdateTakesEffect:
     def test_update_reflected_in_subsequent_subscribe_authorization(
         self, admin_client: TestClient
     ) -> None:
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
 
         resp = admin_client.post(
             "/admin/topics/authorization",
@@ -230,7 +231,7 @@ class TestUpdateTakesEffect:
         )
         assert resp.status_code == 200
 
-        principal = _TOKEN_PRINCIPAL_MAP["consumer-tok"]
+        principal = principal_map()["consumer-tok"]
         assert principal.allowed_consumer_ids == frozenset({"c1"})
         assert principal.allowed_topics == frozenset({"topicA", "topicB"})
 
@@ -239,7 +240,6 @@ class TestValidation:
     def test_invalid_body_rejected_without_corrupting_state(
         self, admin_client: TestClient
     ) -> None:
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP
 
         # Establish a known-good state first.
         good = admin_client.post(
@@ -258,7 +258,7 @@ class TestValidation:
         assert bad.status_code == 422
 
         # Confirm the earlier, valid state is unaffected by the rejected request.
-        principal = _TOKEN_PRINCIPAL_MAP["consumer-tok"]
+        principal = principal_map()["consumer-tok"]
         assert principal.allowed_consumer_ids == frozenset({"c1"})
         assert principal.allowed_topics == frozenset({"topicA"})
 
@@ -283,7 +283,7 @@ class TestOneRolePerTokenAdminRebuild:
     def test_each_token_holds_exactly_its_documented_role(self) -> None:
         """A distinct-token config gives every token exactly its documented role
         set, with no control-plane-plus-CONSUMER collision."""
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP, _populate_token_maps
+        from eventbus.auth import _populate_token_maps
         from eventbus.config import EventBusConfig
 
         snapshot = self._snapshot()
@@ -304,16 +304,16 @@ class TestOneRolePerTokenAdminRebuild:
                 topic_authorization={"topicA": ["c1"]},
             )
             _populate_token_maps(cfg)
-            assert set(_TOKEN_PRINCIPAL_MAP["auth-token"].roles) == {
+            assert set(principal_map()["auth-token"].roles) == {
                 "operator",
                 "monitoring",
                 "admin",
             }
-            assert set(_TOKEN_PRINCIPAL_MAP["publisher-token"].roles) == {"publisher"}
-            assert set(_TOKEN_PRINCIPAL_MAP["consumer-token"].roles) == {"consumer"}
-            assert set(_TOKEN_PRINCIPAL_MAP["operator-token"].roles) == {"operator"}
-            assert set(_TOKEN_PRINCIPAL_MAP["monitoring-token"].roles) == {"monitoring"}
-            assert set(_TOKEN_PRINCIPAL_MAP["admin-token"].roles) == {
+            assert set(principal_map()["publisher-token"].roles) == {"publisher"}
+            assert set(principal_map()["consumer-token"].roles) == {"consumer"}
+            assert set(principal_map()["operator-token"].roles) == {"operator"}
+            assert set(principal_map()["monitoring-token"].roles) == {"monitoring"}
+            assert set(principal_map()["admin-token"].roles) == {
                 "operator",
                 "monitoring",
                 "admin",

@@ -9,6 +9,8 @@ from pathlib import Path
 import pytest
 from eventbus.config import EventBusConfig, load_config
 
+from tests.eventbus.eventbus_helpers import principal_map
+
 
 def test_invalid_port_too_low() -> None:
     with pytest.raises(ValueError, match="port must be 1024-65535"):
@@ -501,7 +503,6 @@ def test_admin_role_exists_in_enum() -> None:
 def test_admin_token_grants_control_plane_roles_only() -> None:
     """ADR-013: admin_token holds only the Operator, Monitoring, and Admin roles (no Consumer or Publisher role)."""
     from eventbus.auth import (
-        _TOKEN_PRINCIPAL_MAP,
         Principal,
         Role,
         _populate_token_maps,
@@ -519,8 +520,8 @@ def test_admin_token_grants_control_plane_roles_only() -> None:
 
     _populate_token_maps(cfg)
 
-    assert "admin-token" in _TOKEN_PRINCIPAL_MAP
-    principal = _TOKEN_PRINCIPAL_MAP["admin-token"]
+    assert "admin-token" in principal_map()
+    principal = principal_map()["admin-token"]
     assert isinstance(principal, Principal)
     assert set(principal.roles) == {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
 

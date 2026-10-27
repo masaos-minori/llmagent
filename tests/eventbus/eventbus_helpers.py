@@ -4,10 +4,13 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import pytest
 from fastapi.testclient import TestClient
+
+if TYPE_CHECKING:
+    from eventbus.auth import Principal
 
 # ids and topics used by the Event Bus tests; Consumer routes admit only principals
 # with explicit authorizations (ADR-013 INV-02), so these are granted explicitly.
@@ -178,3 +181,15 @@ async def _do_cleanup() -> None:
         eb_app.app.state.broker.shutdown()
     if eb_app.app.state.db:
         eb_app.app.state.db.close()
+
+
+def principal_map() -> dict[str, Principal]:
+    """Return the live Event Bus principal map.
+
+    `eventbus.auth.publish_principals()` replaces the module-level map on every
+    `_populate_token_maps()` call, so a reference imported before that call goes
+    stale. Look the map up through the module each time it is read or modified.
+    """
+    from eventbus import auth
+
+    return auth._TOKEN_PRINCIPAL_MAP

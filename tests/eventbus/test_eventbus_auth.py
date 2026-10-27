@@ -22,6 +22,8 @@ from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
+from tests.eventbus.eventbus_helpers import principal_map
+
 TEST_TOKEN = "test-auth-token"
 TEST_DB_PATH = "/tmp/test-eventbus.sqlite"
 TEST_STORAGE_DIR = "/tmp/test-storage"
@@ -40,7 +42,6 @@ def _make_test_app(
     """Create a fresh FastAPI app with auth middleware registered."""
     from eventbus import app as eb_app
     from eventbus.auth import (
-        _TOKEN_PRINCIPAL_MAP,
         Principal,
         Role,
         attach_auth_middleware,
@@ -97,9 +98,9 @@ def _make_test_app(
     # the consumer IDs/topics these tests legitimately use so unauthorized
     # consumers and disallowed topics still reject while valid subscribers pass.
     _ct = getattr(cfg, "consumer_token", None)
-    if _ct and _ct in _TOKEN_PRINCIPAL_MAP:
-        _existing = _TOKEN_PRINCIPAL_MAP[_ct]
-        _TOKEN_PRINCIPAL_MAP[_ct] = Principal(
+    if _ct and _ct in principal_map():
+        _existing = principal_map()[_ct]
+        principal_map()[_ct] = Principal(
             roles=_existing.roles,
             allowed_consumer_ids=frozenset({"consumer_a", "consumer_b"}),
             allowed_topics=frozenset({"test"}),
@@ -874,10 +875,10 @@ class TestFailClosedConsumerAuthorization:
 
     @staticmethod
     def test_consumer_token_without_consumer_authorization_raises() -> None:
-        from eventbus.auth import _TOKEN_PRINCIPAL_MAP, _populate_token_maps
+        from eventbus.auth import _populate_token_maps
         from eventbus.config import EventBusConfig
 
-        snapshot = dict(_TOKEN_PRINCIPAL_MAP)
+        snapshot = dict(principal_map())
         try:
             cfg = EventBusConfig(
                 port=8091,
@@ -893,8 +894,8 @@ class TestFailClosedConsumerAuthorization:
             with pytest.raises(ValueError, match="consumer_authorization is missing"):
                 _populate_token_maps(cfg)
         finally:
-            _TOKEN_PRINCIPAL_MAP.clear()
-            _TOKEN_PRINCIPAL_MAP.update(snapshot)
+            principal_map().clear()
+            principal_map().update(snapshot)
 
     @pytest.mark.asyncio
     async def test_shared_and_admin_tokens_have_no_consumer_bypass(self) -> None:
@@ -903,7 +904,6 @@ class TestFailClosedConsumerAuthorization:
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
-            _TOKEN_PRINCIPAL_MAP,
             Role,
             _populate_token_maps,
             require_consumer_identity,
@@ -911,7 +911,7 @@ class TestFailClosedConsumerAuthorization:
         from eventbus.config import EventBusConfig
         from fastapi import HTTPException
 
-        snapshot = dict(_TOKEN_PRINCIPAL_MAP)
+        snapshot = dict(principal_map())
         try:
             cfg = EventBusConfig(
                 port=8091,
@@ -931,7 +931,7 @@ class TestFailClosedConsumerAuthorization:
             mock_request.state.request_id = "req-superuser"
             mock_request.url.path = "/subscribe"
             for token in ("shared-token", "admin-token"):
-                principal = _TOKEN_PRINCIPAL_MAP[token]
+                principal = principal_map()[token]
                 assert Role.CONSUMER not in principal.roles
                 assert Role.PUBLISHER not in principal.roles
                 with pytest.raises(HTTPException) as exc:
@@ -942,7 +942,7 @@ class TestFailClosedConsumerAuthorization:
                         principal=principal,
                     )
                 assert exc.value.status_code == 403
-            consumer = _TOKEN_PRINCIPAL_MAP["consumer-token"]
+            consumer = principal_map()["consumer-token"]
             assert (
                 await require_consumer_identity(
                     mock_request,
@@ -953,8 +953,8 @@ class TestFailClosedConsumerAuthorization:
                 is consumer
             )
         finally:
-            _TOKEN_PRINCIPAL_MAP.clear()
-            _TOKEN_PRINCIPAL_MAP.update(snapshot)
+            principal_map().clear()
+            principal_map().update(snapshot)
 
     @pytest.mark.asyncio
     async def test_empty_mappings_deny_all_consumers(self) -> None:
@@ -964,7 +964,6 @@ class TestFailClosedConsumerAuthorization:
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
-            _TOKEN_PRINCIPAL_MAP,
             Principal,
             Role,
             _populate_token_maps,
@@ -974,7 +973,7 @@ class TestFailClosedConsumerAuthorization:
         from fastapi import HTTPException
 
         token = "consumer-token"
-        snapshot = dict(_TOKEN_PRINCIPAL_MAP)
+        snapshot = dict(principal_map())
         try:
             cfg = EventBusConfig(
                 port=8091,
@@ -989,7 +988,7 @@ class TestFailClosedConsumerAuthorization:
                 topic_authorization={},
             )
             _populate_token_maps(cfg)
-            principal = _TOKEN_PRINCIPAL_MAP[token]
+            principal = principal_map()[token]
             assert isinstance(principal, Principal)
             assert principal.roles == frozenset({Role.CONSUMER})
             assert principal.allowed_consumer_ids == frozenset()
@@ -1005,8 +1004,8 @@ class TestFailClosedConsumerAuthorization:
                 )
             assert exc.value.status_code == 403
         finally:
-            _TOKEN_PRINCIPAL_MAP.clear()
-            _TOKEN_PRINCIPAL_MAP.update(snapshot)
+            principal_map().clear()
+            principal_map().update(snapshot)
 
     @pytest.mark.asyncio
     async def test_non_empty_mapping_restricts_to_allowlist(self) -> None:
@@ -1016,7 +1015,6 @@ class TestFailClosedConsumerAuthorization:
         from unittest.mock import MagicMock
 
         from eventbus.auth import (
-            _TOKEN_PRINCIPAL_MAP,
             Principal,
             _populate_token_maps,
             require_consumer_identity,
@@ -1025,7 +1023,7 @@ class TestFailClosedConsumerAuthorization:
         from fastapi import HTTPException
 
         token = "consumer-token"
-        snapshot = dict(_TOKEN_PRINCIPAL_MAP)
+        snapshot = dict(principal_map())
         try:
             cfg = EventBusConfig(
                 port=8091,
@@ -1040,7 +1038,7 @@ class TestFailClosedConsumerAuthorization:
                 topic_authorization={"test": ["consumer_a", "consumer_b"]},
             )
             _populate_token_maps(cfg)
-            principal = _TOKEN_PRINCIPAL_MAP[token]
+            principal = principal_map()[token]
             assert isinstance(principal, Principal)
             allowed_ids = frozenset({"consumer_a", "consumer_b"})
             assert principal.allowed_consumer_ids == allowed_ids
@@ -1062,8 +1060,8 @@ class TestFailClosedConsumerAuthorization:
                 )
             assert exc.value.status_code == 403
         finally:
-            _TOKEN_PRINCIPAL_MAP.clear()
-            _TOKEN_PRINCIPAL_MAP.update(snapshot)
+            principal_map().clear()
+            principal_map().update(snapshot)
 
 
 class TestAuditRecordValidation:
@@ -1528,7 +1526,6 @@ class TestDuplicateTokenBinding:
     def test_distinct_tokens_get_exactly_their_documented_role(self) -> None:
         """A distinct-token config gives each token exactly its documented role."""
         from eventbus.auth import (
-            _TOKEN_PRINCIPAL_MAP,
             Role,
             _populate_token_maps,
         )
@@ -1553,16 +1550,14 @@ class TestDuplicateTokenBinding:
                 topic_authorization={"test": ["consumer_a"]},
             )
             _populate_token_maps(cfg)
-            assert _TOKEN_PRINCIPAL_MAP["auth-token"].roles == frozenset(
+            assert principal_map()["auth-token"].roles == frozenset(
                 {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
             )
-            assert _TOKEN_PRINCIPAL_MAP["publisher-token"].roles == frozenset(
+            assert principal_map()["publisher-token"].roles == frozenset(
                 {Role.PUBLISHER}
             )
-            assert _TOKEN_PRINCIPAL_MAP["consumer-token"].roles == frozenset(
-                {Role.CONSUMER}
-            )
-            assert _TOKEN_PRINCIPAL_MAP["admin-token"].roles == frozenset(
+            assert principal_map()["consumer-token"].roles == frozenset({Role.CONSUMER})
+            assert principal_map()["admin-token"].roles == frozenset(
                 {Role.OPERATOR, Role.MONITORING, Role.ADMIN}
             )
         finally:

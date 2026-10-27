@@ -66,6 +66,7 @@ Generated from `scripts/eventbus/*.py` top-level public classes and functions. D
 | `scripts/eventbus/auth.py` | `Role` | `class Role` | — |
 |  | `Principal` | `class Principal` | Authenticated identity carrying roles, consumer IDs, topics, and token fingerprint. |
 |  | `unauthorized_response` | `def unauthorized_response(detail) -> JSONResponse` | Return a standardized HTTP 401 Unauthorized response. |
+|  | `publish_principals` | `def publish_principals(new_map) -> None` | Atomically publish a fully built principal map. |
 |  | `get_auth_token` | `def get_auth_token(config) -> str` | Return the auth_token from EventBusConfig, or raise ValueError if missing. |
 |  | `resolve_principal` | `async def resolve_principal(request, credentials) -> Principal` | Resolve a bearer token to a Principal, or raise 401. |
 |  | `require_role` | `def require_role(role)` | FastAPI dependency factory: verify caller's principal has the required role. |
