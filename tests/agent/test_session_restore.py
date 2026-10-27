@@ -289,8 +289,16 @@ class TestRestoreSession:
             "role": "assistant",
             "content": None,
             "tool_calls": [
-                {"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}},
-                {"id": "call_b", "type": "function", "function": {"name": "g", "arguments": "{}"}},
+                {
+                    "id": "call_a",
+                    "type": "function",
+                    "function": {"name": "f", "arguments": "{}"},
+                },
+                {
+                    "id": "call_b",
+                    "type": "function",
+                    "function": {"name": "g", "arguments": "{}"},
+                },
             ],
         }
         ctx = _make_ctx(messages=[{"role": "user", "content": "q"}, assistant])
@@ -312,11 +320,24 @@ class TestRestoreSession:
                     "role": "assistant",
                     "content": None,
                     "tool_calls": [
-                        {"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}},
-                        {"id": "call_b", "type": "function", "function": {"name": "g", "arguments": "{}"}},
+                        {
+                            "id": "call_a",
+                            "type": "function",
+                            "function": {"name": "f", "arguments": "{}"},
+                        },
+                        {
+                            "id": "call_b",
+                            "type": "function",
+                            "function": {"name": "g", "arguments": "{}"},
+                        },
                     ],
                 },
-                {"role": "tool", "content": "answered", "tool_call_id": "call_a", "name": "f"},
+                {
+                    "role": "tool",
+                    "content": "answered",
+                    "tool_call_id": "call_a",
+                    "name": "f",
+                },
             ]
 
         ctx1 = _make_ctx(messages=fixture())
@@ -325,13 +346,26 @@ class TestRestoreSession:
         await restore_session(ctx2, session_id=12)
         assert ctx1.conv.history == ctx2.conv.history
         synthesized = [
-            m for m in ctx1.conv.history if m["role"] == "tool" and "interrupted" in m["content"]
+            m
+            for m in ctx1.conv.history
+            if m["role"] == "tool" and "interrupted" in m["content"]
         ]
         assert len(synthesized) == 1
         assert synthesized[0]["tool_call_id"] == "call_b"
         # The answered row keeps its identity and is not duplicated.
-        answered = [m for m in ctx1.conv.history if m["role"] == "tool" and "interrupted" not in m["content"]]
-        assert answered == [{"role": "tool", "content": "answered", "tool_call_id": "call_a", "name": "f"}]
+        answered = [
+            m
+            for m in ctx1.conv.history
+            if m["role"] == "tool" and "interrupted" not in m["content"]
+        ]
+        assert answered == [
+            {
+                "role": "tool",
+                "content": "answered",
+                "tool_call_id": "call_a",
+                "name": "f",
+            }
+        ]
 
     async def test_undo_floor_accounts_for_synthesized_rows(self) -> None:
         """AC-004: synthesized rows at or before the snapshot boundary shift the
@@ -342,11 +376,24 @@ class TestRestoreSession:
                 "role": "assistant",
                 "content": None,
                 "tool_calls": [
-                    {"id": "call_a", "type": "function", "function": {"name": "f", "arguments": "{}"}},
-                    {"id": "call_b", "type": "function", "function": {"name": "g", "arguments": "{}"}},
+                    {
+                        "id": "call_a",
+                        "type": "function",
+                        "function": {"name": "f", "arguments": "{}"},
+                    },
+                    {
+                        "id": "call_b",
+                        "type": "function",
+                        "function": {"name": "g", "arguments": "{}"},
+                    },
                 ],
             },
-            {"role": "tool", "content": "answered", "tool_call_id": "call_a", "name": "f"},
+            {
+                "role": "tool",
+                "content": "answered",
+                "tool_call_id": "call_a",
+                "name": "f",
+            },
             {"role": "user", "content": "q2"},
         ]
         ctx = _make_ctx(messages=messages, undo_floor_id=3)
@@ -370,7 +417,11 @@ class TestRestoreSession:
             "role": "assistant",
             "content": None,
             "tool_calls": [
-                {"id": "call_x", "type": "function", "function": {"name": "f", "arguments": "{}"}},
+                {
+                    "id": "call_x",
+                    "type": "function",
+                    "function": {"name": "f", "arguments": "{}"},
+                },
             ],
         }
         ctx = _make_ctx(messages=[assistant])
