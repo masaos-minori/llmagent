@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess  # nosec B404 — fresh-interpreter import checks use a fixed argv
 import sys
 from pathlib import Path
 
 import pytest
 from mcp_servers.server import require_auth_token
+
+# Fresh interpreters bypass the conftest shutil.which shim; give them a stub firejail.
+pytestmark = pytest.mark.usefixtures("firejail_on_path")
 
 _SCRIPTS = Path(__file__).resolve().parents[2] / "scripts"
 
@@ -67,8 +69,6 @@ def _import_in_fresh_interpreter(
 def test_empty_token_prevents_every_server_from_importing(
     module: str, env_var: str, tmp_path: Path
 ) -> None:
-    if module.endswith("shell_server") and shutil.which("firejail") is None:
-        pytest.skip("shell-mcp fails earlier without the firejail binary")
     result = _import_in_fresh_interpreter(module, env_var, tmp_path)
     assert result.returncode != 0
     assert "auth_token is empty" in result.stderr

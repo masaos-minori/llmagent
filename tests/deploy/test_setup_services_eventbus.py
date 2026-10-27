@@ -143,6 +143,7 @@ def _run_setup(sb: pathlib.Path, health_url: str) -> subprocess.CompletedProcess
         "LLMAGENT_CONFIG_DIR": str(sb / "config"),
         "LLMAGENT_LOG_DIR": str(sb / "logs"),
         "EVENTBUS_CONFIG_PATH": str(sb / "config" / "eventbus.toml"),
+        "EVENTBUS_SCHEMA_PATH": str(_REPO_ROOT / "schemas" / "event_envelope.json"),
         "EVENTBUS_HEALTH_URL": health_url,
         "EVENTBUS_AUTH_TOKEN": _TOKEN,
         "LLM_HEALTH_RETRIES": "15",

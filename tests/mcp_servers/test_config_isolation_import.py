@@ -6,7 +6,6 @@ import importlib
 import json
 import os
 import re
-import shutil
 import subprocess  # nosec B404 — fresh-interpreter import checks use a fixed argv
 import sys
 from pathlib import Path
@@ -15,6 +14,9 @@ import pytest
 
 _ROOT = Path(__file__).resolve().parents[2]
 _SCRIPTS = _ROOT / "scripts"
+
+# Fresh interpreters bypass the conftest shutil.which shim; give them a stub firejail.
+pytestmark = pytest.mark.usefixtures("firejail_on_path")
 
 _SERVERS = [
     ("mcp_servers.shell.shell_server", "shell_mcp_server.toml"),
@@ -82,8 +84,6 @@ def _record(prelude: str, body: str, log_dir: Path) -> dict[str, list[str]]:
 def test_restrict_first_import_loads_only_the_own_config(
     module: str, config_file: str, tmp_path: Path
 ) -> None:
-    if module.endswith("shell_server") and shutil.which("firejail") is None:
-        pytest.skip("shell-mcp fails earlier without the firejail binary")
     recorded = _record(
         f"ConfigLoader.restrict_to({config_file!r})", f"import {module}", tmp_path
     )
