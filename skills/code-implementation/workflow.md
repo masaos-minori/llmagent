@@ -29,11 +29,9 @@ below still requires the full inspection that rule describes):
 | `pytest` (targeted, then full suite), `pytest --testmon` | 4 | Test execution and impact-based selection |
 | See `routing.md` Tools → "When to run which tool" | 6 | Documentation validation |
 
-`tools/manage_workitem_stage.py close-implementation` (usage: `tools/TOOL_DESCRIPTIONS.md`)
-is a `git mv`-based archival move that refuses (non-zero exit, no move) if the target's
-`### Execution Status` table still has a `Pending` row, without `--force --reason`. Per
-`rules/ai-execution.md` Repository Tool Usage, prefer it over a direct `git mv` when it
-covers the need; Step 1 and Step 7 state the fallback if the tool is unavailable.
+`close-implementation` (usage: `tools/TOOL_DESCRIPTIONS.md`) refuses (non-zero exit, no
+move) if the target's `### Execution Status` table still has a `Pending` row, without `--force --reason`. Per
+`rules/ai-execution.md` Repository Tool Usage, prefer it over a direct `git mv`; Step 1 and Step 7 state the fallback.
 
 ## Allowed file operations
 
@@ -47,11 +45,8 @@ covers the need; Step 1 and Step 7 state the fallback if the tool is unavailable
   via Edit) when Step 3's adversarial verification finds an unconfirmed item or an
   inconsistency, in addition to its `## Execution Status` section.
 - Update the source Plan's own `### Execution Status` table (`plans/{filename}.md`
-  or `plans/done/{filename}.md` if already archived) — the rows, by step number, of
-  the Plan's `Implementation steps` that cite this procedure's `Related target files`
-  value — once Step 7's move succeeds, per Step 7's "Plan Execution Status update".
-  This is the other half of `plan-to-implementation-procedure` Step 4's own
-  `In Progress` update for those rows.
+  or `plans/done/{filename}.md`) once Step 7's move succeeds, per Step 7's "Plan Execution Status update"
+  (the other half of `plan-to-implementation-procedure` Step 4's `In Progress` update).
 - MUST NOT modify files outside the scope specified in the plan/procedure.
 - MUST NOT edit documentation before Step 5.
 
@@ -83,13 +78,8 @@ call discipline, and Progress Reporting (Base) for the per-step report cadence.
 
 ### Progress recording during Steps 3-6
 
-**Chat-report frequency**: "differs from expected" means one of these concrete
-conditions — a Step reports `Blocked`, an Attempt Limit retry occurred, a Rollback was
-applied, or a Step's outcome is `N/A`/skipped. Report status only on one of these, or
-when moving between artifact types (code → test → doc):
-- Note the current artifact (code, test, or documentation)
-- Record status (In Progress / Blocked / Completed) per sub-task
-- If blocked, describe the blocker and whether it requires user intervention
+**Chat-report frequency**: report status only when a Step reports `Blocked`, an Attempt Limit retry occurred, a Rollback was
+applied, a Step's outcome is `N/A`/skipped, or work moves between artifact types (code → test → doc). Each report notes the current artifact, the status (In Progress / Blocked / Completed) per sub-task, and for a blocker whether it requires user intervention.
 
 A chat report is informational only — it never itself restarts, retries, or re-verifies
 a Step; only the Step's own defined trigger conditions (Attempt Limit, Adversarial
@@ -123,8 +113,7 @@ cycle.
 | 4 | Update documentation | Step 5 starts | Step 6 passes, or `N/A` in Notes when no row matched |
 
 Steps 1, 2, and 7 have no procedure row; the Final Report's seven-row table records them.
-If a document's rows differ from the template (a hand-edited or legacy file), match by
-Description text instead and mention the mismatch in the Final Report.
+If a document's rows differ from the template, match by Description text and mention the mismatch in the Final Report.
 
 ## Question policy
 
@@ -340,19 +329,14 @@ A changed `tools/*.py` file also follows `routing.md` "Adding a new tool": pass 
 path to `uv run mypy` explicitly, because a bare `uv run mypy` does not cover `tools/`.
 `uv run python tools/run_validation_gates.py` (fast mode, the default) may be used to run
 the routing checkers the changed files trigger; it does not replace the tools above, and
-MUST NOT be run with `--full` here, because Step 4 owns this cycle's single full-suite
-run.
+MUST NOT be run with `--full` here (Step 4 owns the single full-suite run).
 
-**Completed when**: all of the above pass — for a tool with countable output (e.g. the
-number of files `ruff check` or `mypy` examined), confirm it actually ran against a
-non-empty target, not merely that its exit code was 0 (per `rules/ai-execution.md`
-Repository Tool Usage #8). "All of the above pass" means every validator passed against
-the final content of the files it examines.
-**On a failure**: fix the code and re-run this same Step 3e (not Step 3a-3d) until it
-passes. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
-most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt MUST be
-recorded (approach, error, reason) before trying a different approach. If the Attempt
-Limit is reached, apply Rollback on Failure below.
+**Completed when**: every validator passed against the final content of the files it examines; for a tool with countable output (e.g. files `ruff check` or `mypy` examined), confirm it ran against a
+non-empty target, not merely exit code 0 (`rules/ai-execution.md` Repository Tool Usage #8).
+**On a failure**: fix the code and re-run this same Step 3e (not Step 3a-3d). Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
+most 3 times before stopping; per AGENTS.md Failure Log, each failed attempt MUST be
+recorded (approach, error, reason) before trying a different approach. At the Attempt
+Limit, apply Rollback on Failure below.
 
 **Scoped re-validation after a fix**: re-run only the validators whose inputs the fix
 changed — a formatting or lint fix re-runs `ruff`; a type fix, `mypy` and `ruff`; an
@@ -373,12 +357,10 @@ failure's cause is not immediately obvious, load and apply
   when testmon cannot run, use tests under the same module path as each changed file,
   plus any test found via `rg` to import a changed symbol, and record the reason in the
   row's Notes.
-- Run targeted tests during implementation; confirm the run actually collected at least
-  one test (a 0-collected, exit-0 run is not a pass — per `rules/ai-execution.md`
-  Repository Tool Usage #8) before treating it as evidence either way; fix all related
-  failures. Per AGENTS.md Attempt Limit, each distinct error/failure may be attempted at
-  most 3 times before stopping. Per AGENTS.md Failure Log, each failed attempt MUST be
-  recorded (approach, error, reason) before trying a different approach. If the Attempt
+- Run targeted tests during implementation; confirm the run collected at least
+  one test (a 0-collected, exit-0 run is not a pass — `rules/ai-execution.md`
+  Repository Tool Usage #8); fix all related
+  failures. Attempt Limit and Failure Log are as in Step 3e (3 attempts per distinct failure, each failed attempt recorded). If the Attempt
   Limit is reached without a passing fix, stop and apply Rollback on Failure (below) —
   MUST NOT proceed to the full-suite run with a known-failing targeted test. If a fix here
   touched formatting, typing, or imports, re-run Step 3e's validators per its scoped
@@ -388,7 +370,7 @@ failure's cause is not immediately obvious, load and apply
   tests pass and confirmed to have collected at least one test — the only full-suite
   run for this cycle; Step 6 MUST NOT run tests again. If it fails, fixing and re-running
   the full suite is subject to the same Attempt Limit (3 attempts) and Failure Log as
-  targeted tests above — this re-run is the one exception to "exactly once" for an
+  targeted tests — this re-run is the one exception to "exactly once" for an
   ordinary failure; reaching the Attempt Limit without a passing full-suite run means
   applying Rollback on Failure (below), not a fourth attempt. A full-suite re-run after a
   failure follows only a passing targeted run that includes the previously failing tests.
@@ -415,8 +397,7 @@ Update `docs/*.md` only for changed files under a Task scope row in
 `docs/00_index.md`'s "Document References by Task" table (see `routing.md` Docs → task
 mapping for the pointer). Match each changed file against the table's file/module list
 and edit only the matched row's Reference docs. If at least one changed file has a
-matching row, load `skills/python-documentation/SKILL.md` now (per Step 0) and apply
-its guidance.
+matching row, load `skills/python-documentation/SKILL.md` now (Step 0) and apply it.
 
 If a changed file matches no row, this is a normal, non-blocking outcome — MUST NOT
 guess which doc to edit, and MUST NOT record it as a blocker. Record it in the Execution
@@ -424,8 +405,7 @@ Status table's Notes for Step 5 (e.g. `N/A: no docs/00_index.md task-scope mappi
 {file}`) so it is visible in the persisted output, not only in the transient progress
 report.
 
-If no changed file has a matching row, skip Step 6's content checks entirely (see
-Step 6) and mark Step 5 Completed with the same Notes.
+If no changed file matches, skip Step 6's content checks and mark Step 5 Completed with the same Notes.
 
 Move the implementation procedure file only after:
 - required code validation and tests pass,
@@ -439,13 +419,11 @@ If Step 5 made no edits (no changed file matched a Task scope row), skip this st
 content checks entirely and mark Step 6 Completed with Notes = `N/A: no documentation
 changes to validate`.
 
-See `routing.md` Tools → "When to run which tool" for the checkers required on an edited
-`docs/*.md` file (per `AGENTS.md` Global Rule 9 — MUST NOT rely on manual review alone for
-what these already automate) — MUST NOT hardcode tool names or invocations here; that table
-is the single source of truth.
+Run the checkers `routing.md` Tools → "When to run which tool" requires for an edited
+`docs/*.md` file (`AGENTS.md` Global Rule 9: MUST NOT rely on manual review alone for
+what they automate); MUST NOT hardcode tool names or invocations here (that table is the single source of truth).
 
-These tools cover most of the check below; still confirm manually whatever they do
-not automate for the edited sections:
+Still confirm manually, for the edited sections, whatever they do not automate:
 - Markdown structure is not broken.
 - Edited relative links are valid where practical.
 - Edited docs match the matched Task scope row in `docs/00_index.md`.
@@ -453,28 +431,22 @@ not automate for the edited sections:
 - Code fences remain balanced.
 - Front matter is preserved if present.
 
-If validation surfaces an issue, the fix is scoped to the specific section/claim the
-failing check identified (e.g. a `check_docs_structure.py` broken-link finding is a
-local fix to that link) — unless the fix itself requires touching a different Task
-scope row's content (e.g. a `check_docs_consistency.py --domain` drift finding that
-traces back to what Step 5 actually changed), in which case Step 5's matching
-procedure applies to that row as well. After fixing, re-run only the specific
-checker(s) that failed — not the full Step 6 checklist — then
-proceed to Step 7. This fix-and-recheck loop is subject to AGENTS.md Attempt Limit (3
-attempts per distinct failing checker); if a checker still fails after 3 fix attempts,
-stop and report `Blocked: {checker} still failing after 3 attempts` rather than
-continuing to patch.
+If validation surfaces an issue, scope the fix to the section/claim the
+failing check identified (e.g. a broken-link finding is a local link fix) — unless the fix touches a different Task
+scope row's content (e.g. a `check_docs_consistency.py --domain` drift finding traced to Step 5's change), in which case Step 5's matching
+procedure applies to that row too. After fixing, re-run only the failed
+checker(s), not the full Step 6 checklist, then
+proceed to Step 7. AGENTS.md Attempt Limit applies (3
+attempts per distinct failing checker); after 3 failed fixes,
+stop and report `Blocked: {checker} still failing after 3 attempts`.
 
 ## Step 7: Move the Completed Implementation Procedure File
 
 This step MUST NOT be skipped.
 
-This workflow's move to `implementations/done/` does not require human approval —
-proceed once Step 2 (stale detection) and Steps 3, 4, 5, and 6 pass, without stopping to ask the user for approval.
-`rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`:
-its Archival Move and Plan Freeze rules do not apply to this workflow. Only the two
-parts this workflow cites by name apply — Target Validation (Step 1) and the
-Correction-and-Recheck Cycle Bound (Step 3b).
+The move to `implementations/done/` needs no human approval — proceed once Step 2 (stale detection) and Steps 3, 4, 5, and 6 pass, without asking.
+`rules/workflow-lifecycle.md` is scoped to `issue-to-plan`/`plan-to-impl-procedure`: its Archival Move and Plan Freeze rules do not apply here; only Target Validation (Step 1) and the
+Correction-and-Recheck Cycle Bound (Step 3b) do.
 
 - Before attempting the move, check whether the destination
   `implementations/done/{filename}.md` already exists. If it does (e.g. Step 1's
@@ -484,8 +456,7 @@ Correction-and-Recheck Cycle Bound (Step 3b).
   `Blocked: archive destination already exists — {path}`. MUST NOT rename to a
   disambiguated path: `close-implementation` refuses an existing destination, and
   procedure filenames are already unique per `{timestamp}_{seq}_{target_file_slug}`.
-- MUST NOT perform this step before Step 5 (documentation update) and Step 6
-  (documentation validation) are complete.
+- MUST NOT perform this step before Steps 5 and 6 are complete.
 - Before proceeding, verify that:
   - the implementation procedure file's own `## Execution Status` section shows
     Completed for each of its rows (the four rows mapped under Progress recording),
@@ -517,14 +488,12 @@ Correction-and-Recheck Cycle Bound (Step 3b).
   Status update below.
 - Direct command (fallback): `git mv implementations/{filename}.md
   implementations/done/{filename}.md`. MUST NOT use `mv`, `cp` + `rm`, or any other
-  fallback beyond these two.
+  method beyond these two.
 - Verify both: the file exists in `implementations/done/`, and the source no longer
-  exists at `implementations/{filename}.md` — a move that leaves the file in both
-  locations (a partial `git mv` failure) is not a completed move; treat it the same as
-  a failed move below.
+  exists at `implementations/{filename}.md` — a move leaving the file in both
+  locations is not completed; treat it as a failed move below.
 - **If the move fails, or leaves the file in both locations, stop and report
-  `Blocked: move failed — {reason}`. MUST NOT fall back to another method beyond the two
-  above.**
+  `Blocked: move failed — {reason}`. MUST NOT fall back to another method.**
   Report `Blocked` for this specific file only — its code/test/doc changes remain
   applied and validated, and its implementation procedure document remains generated
   but unarchived — then continue Multi-file processing with the next target file in
@@ -561,9 +530,7 @@ Correction-and-Recheck Cycle Bound (Step 3b).
 ## Rollback on Failure
 
 If implementation breaks existing functionality, revert changes immediately and
-report `Blocked: {description}`.
-
-Also apply the procedure's `## Rollback considerations` (for example a step that is not a
+report `Blocked: {description}`. Also apply the procedure's `## Rollback considerations` (for example a step that is not a
 file edit). Revert only this cycle's own changes, using the changed-file list recorded in
 Step 3d's Execution Status Notes (plus any test/doc file this cycle edited). Every such
 path was clean in Step 3d's baseline (a modified one stopped the cycle before editing),
@@ -574,8 +541,8 @@ delete that single file. MUST NOT use a bulk form (`checkout -- .`, `restore .`,
 (Step 7's `--stage-only`), so if a path to revert was also changed by an earlier cycle in
 the same batch, MUST NOT revert it — stop and report `Blocked: {path} also changed by
 {earlier file}`, and let the user decide. Per AGENTS.md Failure Log, record the failure details
-(approach, error, reason) before considering a different approach. If reaching Attempt
-Limit (3 attempts for the same error), the revert-and-report action is required.
+(approach, error, reason) before considering a different approach. At the Attempt
+Limit (3 attempts for the same error), revert-and-report is required.
 
 After reverting, MUST NOT start a new implementation attempt for this same procedure
 document in this session (see `AGENTS.md` Loop Prevention > Rollback Directive). Stop
@@ -609,20 +576,16 @@ those files — the one-line summary above is this cycle's traceability record.
 ### Execution Status
 
 Table structure, status/type vocabulary, and general guidance: see
-`templates/execution-status.md`. Default rows for this workflow's Steps 1-7 (update
-the Status column as each step starts and finishes). Leave Notes empty for a step
-that completed as expected — only fill it in for a deviation (e.g. a skipped step, a
-no-mapping outcome, a blocker reference):
+`templates/execution-status.md`. Columns `Step | Description | Status | Started | Completed | Notes`, one row per Step 1-7, all starting `Pending` (update Status as each step starts and finishes). Leave Notes empty for a step
+that completed as expected — fill it only for a deviation (skipped step, no-mapping outcome, blocker reference). Descriptions:
 
-| Step | Description | Status | Started | Completed | Notes |
-|------|-------------|--------|---------|-----------|-------|
-| 1 | Identify the target implementation procedure file(s) | Pending | — | — | |
-| 2 | Read the current implementation procedure file | Pending | — | — | |
-| 3 | Implement the feature and pass code validation | Pending | — | — | |
-| 4 | Test the feature and pass required tests/coverage | Pending | — | — | |
-| 5 | Update documentation per `docs/00_index.md` task-scope mapping | Pending | — | — | |
-| 6 | Validate documentation updates | Pending | — | — | |
-| 7 | Move the implementation procedure file to `implementations/done/` | Pending | — | — | |
+1. Identify the target implementation procedure file(s)
+2. Read the current implementation procedure file
+3. Implement the feature and pass code validation
+4. Test the feature and pass required tests/coverage
+5. Update documentation per `docs/00_index.md` task-scope mapping
+6. Validate documentation updates
+7. Move the implementation procedure file to `implementations/done/`
 
 ### Questions asked
 

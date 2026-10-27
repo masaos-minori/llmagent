@@ -65,8 +65,8 @@ against the following criteria to determine the execution path.
 The classification is provisional until Step 5: decide it from the Issue's
 `Target Files or Areas` and Step 2's verification, count every file that would need
 modification (source, test, configuration, schema, deployment, and documentation files
-each count, matching the Plan's one-file-per-row rule), and when unsure whether an
-interface is public/runtime-facing, classify Path B. If inspection or Step 5 then reveals
+each count), and when unsure whether an
+interface is public/runtime-facing, classify Path B. If inspection or Step 5 reveals
 a Path B criterion, reclassify to Path B, record the change, and load `workflow-path-b.md`
 before continuing.
 
@@ -123,10 +123,8 @@ quality analysis. MUST NOT skip any analysis.
 - **Frozen scope**: the Plan's `Implementation Target Files` section is the canonical,
   frozen source of implementation scope once Step 8 validates it — see
   `rules/workflow-lifecycle.md` Implementation Target Files Validation (Plan Freeze).
-- **No approval gate on the archival move**: the move to `issues/done/` requires no
-  human approval; it is gated on Step 9's validation passing, per
-  `rules/workflow-lifecycle.md` Validation Reporting.
-- **Move is required**: see `workflow.md` Step 10. The move MUST NOT be skipped once its gate passes, and MUST NOT happen while the Plan is `Draft`/not `Frozen` or the cycle is `Blocked`.
+- **Move is required** (`workflow.md` Step 10): it MUST NOT be skipped once its gate passes, and MUST NOT happen while the Plan is `Draft`/not `Frozen` or the cycle is `Blocked`. It needs no
+  human approval; it is gated on Step 9's validation (`rules/workflow-lifecycle.md` Validation Reporting).
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Output language: see `skills/DESIGN.md` §Output language.
 
@@ -156,10 +154,8 @@ See `rules/env.md` for service ports, DB schema, and module decomposition.
 
 ## Improvement feedback
 
-After running this skill, if a tool was not installed or a step produced no useful
+After running this skill: a tool not installed or a step with no useful
 evidence: update `workflow.md` with the lightweight alternative and the "if installed"
-guard. If the Plan output structure was missing a field the user consistently
-requested, add it to `templates/plan.md` (not here). If an Issue input field was
-consistently missing or ambiguous, add it to `templates/issue.md` (shared with
-`skills/issue-creator`), not to this skill's files. If a Step needed clarification,
-update `workflow.md`.
+guard. A missing Plan field the user consistently requested: `templates/plan.md` (not here). A consistently missing or ambiguous Issue input field:
+`templates/issue.md` (shared with `skills/issue-creator`), not this skill's files. A Step needing clarification:
+`workflow.md`.

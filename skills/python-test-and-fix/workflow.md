@@ -52,13 +52,10 @@ tests/
   test_<topic>.py                   # top-level cross-cutting tests (e.g. test_production_isolation.py)
 ```
 
-A new test for a `scripts/` module goes at the mirrored path. Only a cross-cutting test with
+A new test for a `scripts/` (or `tools/`) module goes at the mirrored path, never a flat `tests/test_<module>.py`. Only a cross-cutting test with
 no single module (isolation, lint-style invariants) goes at the top level of `tests/`.
 Check the real tree with `ls tests/<package>` before adding a file; the list above is a map, not
 an exhaustive inventory.
-
-When finding or adding a test, mirror the target module's path under `scripts/`
-(or `tools/`), not a flat `tests/test_<module>.py` layout.
 
 A fixture that repairs production wiring must be paired with a wiring-level test that runs the
 real constructor, and names it in its docstring (the wiring-guard and mock-state rule in
@@ -134,10 +131,9 @@ uv run pytest <test path> -m "not integration and not production_paths_allowed" 
 uv run pytest <test path> -m "not integration and not production_paths_allowed" -p no:randomly -v      # fixed (collection) order
 ```
 
-Run these four to separate an ordering dependency from non-determinism: each seed fixes one
-order, so a failure that appears for some seeds and not others is an ordering dependency; a
+Each seed fixes one order: a failure for some seeds only is an ordering dependency; a
 failure that varies across repeated runs of the same seed is true non-determinism (timing,
-external state). Use `--randomly-seed=last` to replay the last failing order.
+external state).
 
 `--reruns` is a confirmation aid only, not evidence of stability: a test that fails and then
 passes on rerun is still flaky, and `--reruns` reports such a run as passed. To measure the
@@ -203,21 +199,11 @@ changed, after the fix, then check `mutmut results` for those functions only.
 
 #### freezegun — freeze time
 
-The code examples in this file are illustrative: class, function, and log names in them
+The code examples in this file are illustrative schemas: class, function, and log names in them
 (`SemanticCache`, `search`, `start_service`, `ToolExecutor(...)`, `cache_hit`) are placeholders,
 not repository symbols. Replace them with the real ones from the code under test.
 
-```python
-from freezegun import freeze_time
-
-def test_cache_expiry():
-    with freeze_time("2024-01-01 00:00:00") as frozen:
-        cache = SemanticCache(ttl=3600)
-        cache.put("q", "result")
-        assert cache.get("q") == "result"
-        frozen.tick(delta=3601)
-        assert cache.get("q") is None
-```
+Schema: `with freeze_time("2024-01-01 00:00:00") as frozen:` build the object, act, `frozen.tick(delta=N)`, assert the time-dependent result.
 
 Use `freezegun` whenever the function under test reads the clock (`datetime.now()`,
 `time.time()`). It does not skip `time.sleep()`: a code path that really sleeps must have the
@@ -233,16 +219,7 @@ the behavior in the target test before relying on it).
 installed pin the seed from the command line (`--randomly-seed=1234`, Step 3) instead of adding
 an `autouse` fixture: a fixture that calls `random.seed(42)` overrides the plugin's reseeding
 and defeats order randomization. Use a local seed fixture only for a test that needs a specific
-sequence (or when the plugin is not installed):
-
-```python
-import random
-import pytest
-
-@pytest.fixture
-def fixed_seed():
-    random.seed(42)
-```
+sequence (or when the plugin is not installed): a fixture calling `random.seed(42)`.
 
 ## Step 6: Boundary Virtualization
 
@@ -250,27 +227,11 @@ Mock only at true I/O boundaries. MUST NOT mock internal helpers.
 
 #### respx — mock httpx at the transport level (preferred for httpx calls)
 
-```python
-import respx
-import httpx
-
-@respx.mock
-def test_web_search_returns_empty_on_404():
-    respx.get("https://api.search.brave.com/res/v1/web/search").mock(
-        return_value=httpx.Response(404)
-    )
-    result = search("query")
-    assert result == []
-```
+Schema: decorate the test with `@respx.mock`, `respx.get(<url>).mock(return_value=httpx.Response(404))`, call the code, assert the outcome.
 
 #### pytest-subprocess — intercept subprocess calls
 
-```python
-def test_subprocess_start(fake_process):
-    fake_process.register(["agent.py", "--start"], returncode=0)
-    result = start_service("file-mcp")
-    assert result is True
-```
+Schema: take the `fake_process` fixture, `fake_process.register([<argv>], returncode=0)`, call the code, assert the outcome.
 
 Prefer `fake_process` over `mocker.patch("subprocess.run")` for subprocess calls.
 
@@ -285,28 +246,10 @@ Skip for: REPL commands, DB operations, MCP handlers, LLM calls.
 
 #### hypothesis — property-based invariants
 
-```python
-from hypothesis import given, settings
-from hypothesis import strategies as st
+Schemas (real module: `scripts/rag/utils.py`):
 
-@given(st.text())
-@settings(max_examples=500)
-def test_normalize_unicode_is_idempotent(text):
-    from rag.utils import normalize_unicode  # real module path: scripts/rag/utils.py
-    once = normalize_unicode(text)
-    twice = normalize_unicode(once)
-    assert once == twice
-
-@given(st.floats(width=32, allow_nan=False, allow_infinity=False))
-def test_floats_to_blob_roundtrip(f):
-    # width=32 generates only float32-representable values, so packing is lossless
-    # and exact equality holds; unbounded float64 would overflow or lose precision.
-    import struct
-    from rag.utils import floats_to_blob
-    blob = floats_to_blob([f])
-    recovered = struct.unpack("<f", blob)[0]
-    assert recovered == f
-```
+- idempotency: `@given(st.text())` with `@settings(max_examples=500)`; assert `normalize_unicode(normalize_unicode(t)) == normalize_unicode(t)`
+- roundtrip: `@given(st.floats(width=32, allow_nan=False, allow_infinity=False))`; pack with `floats_to_blob([f])`, `struct.unpack("<f", blob)[0] == f`. `width=32` keeps values float32-representable so packing is lossless and exact equality holds; unbounded float64 would overflow or lose precision.
 
 **Completed when**: a property-based test has been written for each function
 meeting both listed conditions, or the Step is confirmed not applicable (no function
@@ -325,36 +268,13 @@ tracer built with `build_tracer`; otherwise skip OTel validation.
 
 To validate log output in tests, use pytest's `caplog` fixture:
 
-```python
-import logging
-
-from shared import tool_executor
-
-def test_tool_executor_logs_cache_hit(caplog):
-    with caplog.at_level(logging.INFO, logger=tool_executor.logger.name):
-        executor = ToolExecutor(...)
-        executor.call("search_web", {"query": "test"})
-        executor.call("search_web", {"query": "test"})
-    assert any("cache_hit" in r.message for r in caplog.records)
-```
+Schema: `with caplog.at_level(logging.INFO, logger=<module>.logger.name):` run the code, then `assert any("<marker>" in r.message for r in caplog.records)`.
 
 ## Step 9: Resource Leak Detection
 
 #### pytest-asyncio — lifecycle control
 
-```python
-import pytest
-import asyncio
-
-@pytest.mark.asyncio
-async def test_no_pending_tasks_after_completion():
-    # replace with a real async function under test (e.g. Orchestrator.handle_turn)
-    await some_async_function_under_test()
-    # all_tasks() includes the running test task itself; exclude it or the list is never empty
-    current = asyncio.current_task()
-    pending = [t for t in asyncio.all_tasks() if t is not current and not t.done()]
-    assert len(pending) == 0, f"Leaked tasks: {pending}"
-```
+Schema: in a `@pytest.mark.asyncio` test, await the real async function under test (e.g. `Orchestrator.handle_turn`), then assert no task in `asyncio.all_tasks()` is pending. `all_tasks()` includes the running test task itself; exclude `asyncio.current_task()` or the list is never empty.
 
 #### pytest-timeout — catch hung tests
 
@@ -459,19 +379,7 @@ After adding tests, update project knowledge if patterns changed:
 - **`.gitignore`**: `.testmondata` and `mutants/` are already ignored; add an entry only for
   a new generated artifact the task introduces.
 
-Fixture naming conventions:
-
-```python
-# prefer descriptive fixture names
-@pytest.fixture
-def llm_client_with_timeout():
-    return LLMClient(timeout=0.1)
-
-# not generic names
-@pytest.fixture
-def client():  # ambiguous — which client?
-    ...
-```
+Fixture naming: prefer descriptive names (`llm_client_with_timeout`), not ambiguous generic ones (`client`).
 
 ## Completion checklist
 
@@ -492,14 +400,9 @@ Confirm against each Step's stated criteria above; MUST NOT re-derive them:
 
 ## Required behavior
 
-- Mock only at true I/O boundaries, per Step 6 (network, subprocess, filesystem — call
-  internal helpers directly).
-- Write each test so it passes under any execution order — verify with
-  `pytest -p no:randomly` vs. the default randomized order (Step 3).
-- MUST NOT commit `.testmondata`, per Step 10.
-- Use `freezegun` for clock-dependent tests and events/futures (with `asyncio.timeout()` only
-  as a failure bound, not as the timing source) for async waits, per Step 5 — never
-  `time.sleep()` as a fix.
+- Mock only at true I/O boundaries (Step 6); write each test so it passes under any execution order (Step 3); MUST NOT commit `.testmondata` (Step 10).
+- Clock-dependent tests use `freezegun`; async waits use events/futures (`asyncio.timeout()` only
+  as a failure bound, not as the timing source), per Step 5 — never `time.sleep()` as a fix.
 - Assert on the function's public contract (return value, raised exception, observable
   side effect) — never on an internal variable name, private attribute, or call count to
   a helper that isn't the boundary under test.

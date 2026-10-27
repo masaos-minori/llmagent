@@ -18,10 +18,8 @@ move uses `tools/rename_doc.py` (dry-run first), not manual edits.
 ## Dependency topics are conditional
 
 The dependency-management items in Phases 2, 3, 6, 7, and 9, the dependency categories under
-Evidence and Source of Truth, and the dependency bullets in Boundaries apply only when the
-document being written or edited describes dependencies, installation, runtime, or delivery
-(`SKILL.md` Dependency Management). For a design-intent document (component responsibilities,
-state ownership, dependency direction between components), skip them; their Gate items are
+Evidence and Source of Truth, and the dependency bullets in Boundaries apply only under the
+condition in `SKILL.md` Dependency Management. Otherwise skip them; their Gate items are
 `N/A: no dependency content`. This applies in both modes below.
 
 ## Mode: scoped or full
@@ -58,23 +56,19 @@ Decide in Phase 1 and record it in the Final Report.
 - Apply `skills/DESIGN.md` Agent (Explore) threshold.
 - Use `Edit` over `Write` whenever the doc file already exists — preserve existing content.
 - `WebFetch` is a last resort; most behavior SHOULD be confirmable from the local codebase.
-- Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run the
-  same `grep`/`find` query against unchanged files expecting a different result.
-- Per `rules/ai-execution.md` Repository Tool Usage #8, a `grep`/`find` with no matches is
-  not proof of absence — record `Needs confirmation` (see Boundaries' static-import-search
-  rule below).
+- Per `rules/ai-execution.md` Tool Usage: MUST NOT re-run the same `grep`/`find` query against unchanged files expecting a different result.
+- Per `rules/ai-execution.md` Repository Tool Usage #8, a `grep`/`find` with no matches is not proof of absence — record `Needs confirmation`.
 
 ---
 
 ## Multi-file processing
 
-When the current task names more than one target document (directly, or via a caller
+When the task names more than one target document (directly, or via a caller
 such as `prompts/08_document-sync.md` Step 1), apply `rules/ai-execution.md` Sequential
 Target Processing (Base): process one document's Phases 1-10 completely (through Phase
 10's Final Report) before starting Phase 1 for the next — MUST NOT batch-inventory
-(Phase 2) or batch-write (Phase 8) several documents before finishing any one of them.
-This keeps Known Issues/Needs confirmation entries consistent across documents, since
-each Phase 9 Consistency Review sees the prior document's completed edits.
+(Phase 2) or batch-write (Phase 8) several documents before finishing any one of them
+(each Phase 9 review then sees the prior document's completed edits).
 
 ## Core Principles
 - Observe before writing
@@ -86,8 +80,7 @@ each Phase 9 Consistency Review sees the prior document's completed edits.
 
 ## Gate failure handling
 
-Every Phase below ends with a `### Gate` checklist. This rule applies to all of them: if any
-Gate item is unchecked, redo the `### Do` action that item depends on and re-check only that
+Every Phase below ends with a `### Gate` checklist. If any Gate item is unchecked, redo the `### Do` action it depends on and re-check only that
 item before starting the next Phase — MUST NOT proceed with a known-unmet Gate item. Per
 `AGENTS.md` Loop Prevention > Attempt Limit, at most 3 redo-and-recheck attempts per Gate
 item; if it still cannot be checked after 3 attempts, or the missing evidence cannot be
@@ -101,9 +94,8 @@ instead of leaving the item silently unchecked or retrying indefinitely.
 Fix the target scope before analysis starts.
 
 ### Do
-- identify repository root and target paths
+- identify repository root, target paths, and expected deliverables
 - identify exclusions per `skills/DESIGN.md` Out-of-scope paths (plus repo-specific generated/vendor files)
-- identify expected deliverables
 - note whether existing docs should be updated or created
 - choose and record the mode (scoped or full; see Mode above)
 
@@ -127,19 +119,10 @@ Build a repository map before writing anything.
   dependency-management commands they actually use
 - identify test directories, CI/CD files, Docker files, migration files
 - determine whether the repo is an app, service, library, worker, or monorepo
-- determine, from the evidence above:
-  - the authoritative direct dependency declaration
-  - the resolved dependency source
-  - generated or exported dependency files
-  - development, test, and production dependency boundaries
-  - the package manager used by each operational environment (development, CI/CD, containers,
-    production)
-  - the commands used to update, validate, install, or synchronize dependencies
+- determine, from the evidence above: the authoritative direct dependency declaration, the resolved dependency source, generated or exported dependency files, development/test/production dependency boundaries, the package manager used by each operational environment (development, CI/CD, containers, production), and the commands used to update, validate, install, or synchronize dependencies
 
 ### Output
-- repository inventory
-- major file list
-- packaging/runtime summary
+- repository inventory, major file list, packaging/runtime summary
 - dependency-management summary: authoritative declaration source, resolved dependency source,
   generated exports (if any), and per-environment package manager and commands
 
@@ -163,9 +146,7 @@ differently — then follow the existing document's order:
 MUST NOT write documentation before reading the existing target document.
 
 ### Gate
-- [ ] package structure is understood
-- [ ] packaging files are identified
-- [ ] major runtime files are identified
+- [ ] package structure is understood; packaging files and major runtime files are identified
 - [ ] the authoritative direct dependency declaration and the resolved dependency source are
       identified
 - [ ] the package manager and dependency-management commands used by each operational
@@ -193,8 +174,7 @@ Find how the system is installed, started, and tested.
 - [ ] minimum startup path is known
 - [ ] test path is known
 - [ ] external runtime dependencies are visible
-- [ ] a traceable dependency synchronization path is known for each operational environment
-- [ ] lockfile validation behavior is known, when a lockfile is used
+- [ ] a traceable dependency synchronization path is known for each operational environment; lockfile validation behavior is known, when a lockfile is used
 
 ---
 
@@ -220,9 +200,7 @@ Explain package responsibilities and dependency flow.
 Describe what is exposed to users or other systems.
 
 ### Do
-- list HTTP routes
-- list CLI commands
-- list workers, schedulers, batch jobs, tasks
+- list HTTP routes, CLI commands, workers, schedulers, batch jobs, tasks
 - identify public library APIs if applicable
 - trace major request/job flows
 
@@ -339,9 +317,7 @@ constraints when operationally relevant, dependency-group boundaries, lockfile u
 validation policy, compatibility constraints, external export requirements, known dependency
 conflicts, and unresolved differences between environments.
 
-Replace removed content with a concise source reference, e.g.:
-
-- Full configuration keys and default values are documented in the implementation's config definitions and actual config files.
+Replace removed content with a concise source reference (e.g. "Full configuration keys and default values are in the implementation's config definitions and actual config files.").
 
 **Completed when**: none of the "Normally remove" categories above appear in the draft
 outside of a "Keep" category or a source reference.
@@ -389,13 +365,10 @@ its Front Matter kept valid). Take the requirements from the governance document
 Remove contradictions across docs and code.
 
 ### Check
-- file names, module names, and commands match implementation
-- run/test instructions match config and CI
-- inferred content is labeled
+- file names, module names, and commands match implementation; run/test instructions match config and CI
+- inferred content is labeled; no unsupported claims remain
 - no secrets are included (See `skills/DESIGN.md`, section "No secrets in output")
-- no unsupported claims remain
-- direct dependency declarations and lockfiles are consistent with each other
-- documented installation commands match CI/CD and container definitions
+- (dependency content only) declarations and lockfiles are consistent; installation commands match CI/CD and container definitions
 - generated dependency exports are not described as authoritative sources
 - development-only dependencies are not described as production requirements
 - lockfile entries are not described as direct application dependencies without supporting
@@ -480,21 +453,16 @@ themselves are English.
 
 Confirm the key Phase gates listed below against the Phase gates stated above; MUST NOT re-derive:
 
-- [ ] Phase 3 gate met: setup-to-start path is traceable (`N/A: scoped` or `N/A: no dependency
-      content` when Phase 3 did not run)
-- [ ] Phase 4 gate met: major modules, their responsibilities, and the dependency flow between
-      them are explainable (entrypoints belong to Phase 3's gate)
-- [ ] Phase 8 gate met: unknowns remain visible and registered in the inventory, and a new
-      document is registered (Step 8d)
-- [ ] Phase 9 gate met: docs do not conflict with implementation and the applicable docs
-      checkers pass, each confirmed to have examined the changed file
+- [ ] Phase 3 gate met (`N/A: scoped` or `N/A: no dependency content` when Phase 3 did not run)
+- [ ] Phase 4 gate met (entrypoints belong to Phase 3's gate)
+- [ ] Phase 8 gate met: unknowns visible and registered; a new document is registered (Step 8d)
+- [ ] Phase 9 gate met: no conflict with implementation; the applicable docs checkers pass, each confirmed to have examined the changed file
 
 ---
 
 ## Evidence and Source of Truth
 
-Code, configuration, tests, and CI/CD are factual evidence for implemented behavior.
-Documentation SHOULD describe design intent, responsibility boundaries, architectural
+Source of truth: `SKILL.md` Core Documentation Rules. Documentation SHOULD describe design intent, responsibility boundaries, architectural
 constraints, operational notes, failure behavior, confirmed behavior, known issues, and
 unresolved questions.
 
@@ -511,8 +479,6 @@ add evidence labels to every sentence.
 
 Use the evidence labels defined in `skills/DESIGN.md` Shared Vocabulary. When using
 `Needs confirmation`, include the required fields defined by the governance documentation.
-
-MUST NOT invent missing behavior or assume framework patterns without evidence.
 
 ### Dependency evidence categories
 
@@ -538,8 +504,7 @@ and Open Questions. Do not paste the raw list into the documents.
 
 ## Boundaries
 
-See `SKILL.md` "Respect boundaries" for scope, secrets, long code blocks, `requirements.txt`
-inference, README trust, and private-API documentation boundaries.
+See `SKILL.md` "Respect boundaries" (scope, secrets, long code blocks, `requirements.txt` inference, README trust, private API).
 
 - Require `requirements.txt` only when Phase 2's inventory found no other verified
   dependency-management workflow.

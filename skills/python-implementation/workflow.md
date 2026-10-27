@@ -62,8 +62,7 @@ Run in this order: `rg` first (always), `ast-grep` next only if a structurally-v
 is needed (a pattern `rg` cannot express, e.g. a class body or async signature), `pydeps`
 only when the target is a shared utility (anything with more than one importer per
 `rg "import <module>"`; the importer count decides, not the module name — for example
-`scripts/shared/llm_client.py` and `scripts/shared/formatters.py` usually qualify, and note that
-`llm_client.py` and `formatters.py` each exist in more than one package, so use full paths), and
+`scripts/shared/llm_client.py` and `scripts/shared/formatters.py` usually qualify; each exists in more than one package, so use full paths), and
 `git` last, only when the current behavior's origin or recent change history is relevant.
 
 Blast radius: before changing the default behavior, a required argument, or the return
@@ -86,10 +85,8 @@ rg "import <module>" scripts/      # find all importers of a module
 `ast-grep` (binary at `~/.local/bin/ast-grep`) matches by code shape:
 
 ```bash
-ast-grep --pattern 'ConfigLoader().load($ARG)' --lang python scripts/
 ast-grep --pattern 'class $NAME(BaseModel): $$$' --lang python scripts/
 ast-grep --pattern 'raise $EXPR' --lang python scripts/shared/tool_executor.py
-ast-grep --pattern 'json.load($$$)' --lang python scripts/
 ast-grep --pattern 'async def $NAME($$$): $$$' --lang python scripts/agent/repl.py
 ```
 
@@ -98,15 +95,11 @@ Prefer `ast-grep` over `rg` for patterns that must be structurally valid.
 #### pydeps — dependency impact analysis
 
 ```bash
-PYTHONPATH=scripts uv run pydeps scripts/<package>/<module>.py --no-output --show-deps
-PYTHONPATH=scripts uv run pydeps scripts/agent/repl.py --no-output --show-deps --max-bacon=3
+PYTHONPATH=scripts uv run pydeps scripts/<package>/<module>.py --no-output --show-deps [--max-bacon=3]
 ```
 
 `pydeps` takes a file path: a dotted module name (`agent.repl`) fails with `No such file or
 directory`. Do not `cd` into `scripts/` (the shell keeps the directory for later commands).
-
-Assess blast radius before modifying a shared utility (a module with several importers, for
-example `scripts/shared/llm_client.py`, `scripts/rag/utils.py`, `scripts/shared/formatters.py`).
 
 #### git — recent change history
 
@@ -181,9 +174,7 @@ This phase has four sub-steps, applied in order: write the code (5a), handle its
 - keep side effects visible and localized
 - avoid hidden global state
 - prefer dependency injection over implicit coupling
-- keep the existing public interface working unless the task explicitly allows changing it,
-  but without compatibility shims or aliases (see `SKILL.md` Compatibility policy): change the
-  interface and every caller together
+- public interface: see `SKILL.md` Compatibility policy (no shims or aliases; change the interface and every caller together)
 
 ### Step 5b: Error handling rules
 
@@ -202,8 +193,7 @@ Applies `skills/DESIGN.md` Pythonic safety constraints (specific exceptions, no 
 
 ### Step 5c: File editing rules
 
-- Scope discipline: see `AGENTS.md` Global Rule 5.
-- keep diffs small and intentional
+- Scope discipline: see `AGENTS.md` Global Rule 5; keep diffs small and intentional
 - when adding/removing a module: `deploy/deploy.sh` needs no change — `scripts/` is rsynced wholesale (see `rules/env.md` Architecture); only a new `config/*.toml` file needs a `cp` line there
 - when renaming a symbol: update all call sites confirmed by `rg` or `ast-grep`
 
@@ -240,20 +230,7 @@ for every changed behavior (or the change has no behavior change, recorded as su
 
 #### Pydantic — data model boundaries
 
-```python
-from pydantic import BaseModel, Field, field_validator
-
-class MyRequest(BaseModel):
-    query: str = Field(..., min_length=1)
-    limit: int = Field(default=10, ge=1, le=100)
-
-    @field_validator("query")
-    @classmethod
-    def strip_query(cls, v: str) -> str:
-        return v.strip()
-```
-
-Use at module boundaries only — not as internal data holders.
+Use `pydantic.BaseModel` (`Field` constraints, `field_validator`) at module boundaries only — not as internal data holders.
 
 #### Schemathesis — API contract testing for MCP endpoints
 
@@ -297,10 +274,8 @@ pairs in the message (not free-form prose). Prefer the repository helper `fmt_kv
 `scripts/mcp_servers/cicd/cicd_server.py`); otherwise write the pairs directly, as below:
 
 ```python
-logger = logging.getLogger(__name__)
 logger.info(fmt_kvlog("tool_called", name=name, session=session_id))
 logger.warning("tool_timeout elapsed=%.2fs tool=%s", elapsed, name)
-logger.error("mcp_call_failed tool=%s error=%s", name, exc)
 ```
 
 Log at `INFO` for normal operations, `WARNING` for degraded-but-continuing, `ERROR` for failures.
@@ -392,12 +367,7 @@ tests` (a pass here also passes in CI; a miss here may pass in CI).
 
 #### pytest-benchmark
 
-```python
-def test_floats_to_blob_perf(benchmark):
-    data = [0.1] * 384
-    result = benchmark(floats_to_blob, data)
-    assert len(result) == 384 * 4
-```
+Write a test that calls the `benchmark` fixture (`result = benchmark(fn, data)`) with an assertion on the result.
 
 ```bash
 uv run pytest <benchmark test file> -m "not integration and not production_paths_allowed" --benchmark-only
@@ -473,8 +443,7 @@ When removing a module: delete the file, run `rg` for dangling imports and refer
 ## Required behavior
 
 (Unrelated-change prohibition: see `AGENTS.md` Global Rule 5 — not repeated here.)
-- Build architecture only for the requirements recorded in Phase 1/2 — record a suspected broader need as an open question in Output expectations instead.
-- Implement only requirements stated in the task or confirmed in Phase 1/2 — record anything else as an open question instead of adding it.
+- Build architecture and implement only requirements stated in the task or confirmed in Phase 1/2 — record a suspected broader need or anything else as an open question in Output expectations instead of adding it.
 - If a public API must change, state the change and its impact explicitly in the
   implementation summary (Output expectations) — never leave it undocumented.
 - Fix the cause of a validation/test/type-check failure per Phase 9 — never disable the

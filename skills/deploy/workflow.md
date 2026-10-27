@@ -4,9 +4,7 @@
 
 **Gate: the revision to deploy is clean, pushed, and validated; syntax check passes; deploy.sh config and binary lists are current**
 
-Confirm what will be deployed. `deploy.sh` copies the working tree and records only the
-commit (`DEPLOYED_REV`), so a dirty tree or an unpushed commit makes that record not
-describe `/opt/llm/`:
+`deploy.sh` copies the working tree but records only the commit (`DEPLOYED_REV`), so a dirty tree or unpushed commit makes that record wrong:
 
 ```bash
 git status --short          # must print nothing
@@ -22,7 +20,6 @@ run it before Phase 2.
 python3 -m compileall -q scripts/
 ```
 
-If any file reports `SyntaxError`: fix it before proceeding (see `SKILL.md` Required behavior).
 
 **Completed when**: the working tree is clean and `HEAD` is pushed and validated (or the user explicitly accepted otherwise), `compileall` reports no `SyntaxError`, `check_db_separation.py` exits 0, and the config and binary list diffs below are empty or fully explained.
 **On a repeat `SyntaxError` after a fix**: per `AGENTS.md` Loop Prevention > Attempt Limit,
@@ -80,8 +77,7 @@ failed build leaves the previous binaries in place. The previous set stays in `/
 An empty `STALE` means nothing needs rebuilding (do not run the build with an empty `BUILD_ONLY`, which
 builds every binary). The Event Bus and ingestion run from the deployed `scripts/` source and have no binary.
 
-The build exports `UV_SYSTEM_CERTS=true` by default so `uv` can fetch nuitka on hosts whose certificates are only in the
-system store; set `UV_SYSTEM_CERTS=false` to turn it off.
+The build exports `UV_SYSTEM_CERTS=true` by default (for hosts whose certificates are only in the system store); set `UV_SYSTEM_CERTS=false` to turn it off.
 
 **Completed when**: `check` lists no stale or unknown binary.
 **Stop and report to the user when**: a build fails; do not retry the same build a third time (`AGENTS.md`
@@ -96,10 +92,8 @@ Loop Prevention > Attempt Limit). The build host must have the Nuitka prerequisi
 
 ### Preview the sync
 
-`deploy.sh` has no dry-run mode and syncs `scripts/`, `tests/`, and `docs/` with
-`rsync --delete`, which removes anything under those `/opt/llm/` directories that is not in
-the repository. Preview the three syncs from the repository root; each line starting with
-`deleting` is a removal:
+`deploy.sh` has no dry-run mode; its `rsync --delete` removes anything under `/opt/llm/{scripts,tests,docs}` not in the
+repository. Preview from the repository root; each `deleting` line is a removal:
 
 ```bash
 rsync -avn --delete --exclude="__pycache__/" --exclude="*.pyc" --exclude="*.pyo" scripts/ /opt/llm/scripts/
@@ -109,15 +103,14 @@ rsync -avn --delete docs/ /opt/llm/docs/
 
 ### Approval gate
 
-Run Phase 3 Step 3a's identification first (it only reads), so the approval covers the
-restarts. Then tell the user and obtain explicit approval of: the commit to deploy
+Run Phase 3 Step 3a's identification first (read-only) so the approval covers the
+restarts. Then obtain explicit user approval of: the commit to deploy
 (`git rev-parse --short HEAD`), the paths the preview shows as changed or deleted, the
 binaries Phase 1b rebuilt, and the services Step 3a selected for restart (restarting the
 agent ends the current REPL session). MUST NOT run `deploy/deploy.sh`, kill a service, or
-start the agent without it. If the user does not approve, stop and report
+start the agent without it. If not approved, stop and report
 `Blocked: awaiting deployment approval`. An instruction that already approves this
-specific deploy counts; an earlier deploy's approval does not carry over, and a rollback
-deploy needs its own.
+specific deploy counts; an earlier deploy's approval does not carry over, and a rollback deploy needs its own.
 
 ### Run the deploy
 

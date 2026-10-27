@@ -60,12 +60,11 @@ See `workflow.md` for the detailed per-step procedure and multi-file processing 
   `Blocked` — MUST NOT generate further documents until the Plan is amended and
   revalidated.
 - **One plan at a time**: see `workflow.md` Multi-file processing.
-- **Move is required**: see `workflow.md` Step 4. The move MUST NOT be skipped once its
+- **Move is required** (`workflow.md` Step 4): it MUST NOT be skipped once its
   gate holds — every row is covered by a document — and MUST NOT happen while any row
-  ended `Blocked`, `Plan Gap`, or `Needs confirmation` without a document.
-- **No approval gate on the archival move**: the move to `plans/done/` does not require
-  human approval — it is gated on Step 3's validation and Step 4's pre-move checklist
-  passing instead, per `rules/workflow-lifecycle.md` Validation Reporting.
+  ended `Blocked`, `Plan Gap`, or `Needs confirmation` without a document. It needs no
+  human approval; it is gated on Step 3's validation and Step 4's pre-move checklist
+  (`rules/workflow-lifecycle.md` Validation Reporting).
 - Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
 - Output language: see `skills/DESIGN.md` §Output language.
 
@@ -101,10 +100,9 @@ See `templates/implementation-procedure.md` for the output structure.
 
 ## Improvement feedback
 
-If a generated document's field is consistently missing or unclear, update
-`templates/implementation-procedure.md` directly (not this file) — it is the
-canonical, shared output-format definition. If a Step needs clarification or a
-duplicate-work check produces a false positive/negative, update `workflow.md`.
+A consistently missing or unclear document field: update
+`templates/implementation-procedure.md` (the canonical output format), not this file. A Step needing clarification or a
+false positive/negative duplicate-work check: update `workflow.md`.
 
 ---
 

@@ -161,9 +161,8 @@ repository. Use `Unknown` if the exact file is not confirmed.
 
 Tier 1 lists candidates without reading bodies: the open issues under `issues/`, the
 in-flight plans under `plans/`, and the recently archived issues under `issues/done/` that
-touch the same files, tests, or failure group (e.g. several issues split from one red test
-run), identified by filename, title, and summary line from the listing and by Target Files
-and keywords. For example:
+touch the same files, tests, or failure group, identified by filename, title, summary line,
+Target Files, and keywords. For example:
 
 ```bash
 rg -l -F "<target path>" issues plans            # open issues and in-flight plans
@@ -204,8 +203,7 @@ by review, test execution, or documentation inspection.
 tests, type checks, lint checks, documentation consistency checks, manual verification. Use
 `Not required` only when the task is documentation-only or clearly does not affect behavior.
 
-**Completed when**: every Acceptance Criteria item is independently testable by review, test
-execution, or documentation inspection, and Testing
+**Completed when**: every Acceptance Criteria item is independently testable, and Testing
 Expectations is filled or marked `Not required` only for a documentation-only/no-behavior-change task.
 
 ---
@@ -229,8 +227,7 @@ MUST NOT request adding any content those sections forbid.
 If implementation-derived details are currently present, prefer in this order: remove,
 compress, replace with source reference, move to Known Issues, move to Needs Confirmation.
 
-**Completed when**: Documentation Impact states explicitly whether documentation must
-be updated, and if so, names the kind of information affected.
+**Completed when**: Documentation Impact states whether documentation must be updated and, if so, the kind of information affected.
 
 ---
 
@@ -343,16 +340,12 @@ Steps 1-5 apply per issue (see Multi-file processing).
 
 Per `SKILL.md` Issue Filename Generation:
 
-- `{id}`: matches `[a-z0-9]+` (e.g., `NC-019` -> `nc019`). If no meaningful ID exists, use a
-  generic prefix + sequence number (e.g., `todo001`). The number follows `SKILL.md`
-  Numbering: three digits, sequential within the batch from `001`.
-- `{slug}`: derived from the issue title; lowercase, matches `[a-z0-9_-]+`, at most 4 words
-  with articles and other filler words dropped, and no symbols other than `_` and `-`.
-  If the title has no ASCII words, write an English slug of the same meaning.
+- `{id}`: `[a-z0-9]+` (e.g., `NC-019` -> `nc019`); generic prefix + `SKILL.md` Numbering when none exists.
+- `{slug}`: derived from the issue title under the `SKILL.md` slug rules.
 
 ### Step 10.2: Scaffold the file
 
-The default path is `uv run python tools/generate_workitem.py --kind issue --id {id} --title {slug}`.
+Default: `uv run python tools/generate_workitem.py --kind issue --id {id} --title {slug}`.
 
 Direct writing from the `templates/issue.md` skeleton is allowed only when all of these hold:
 
@@ -372,9 +365,8 @@ verification and Step 10.2a apply to both paths.
 
 Tool path notes:
 
-- The tool's `--title` is used only to build the filename, and it only lowercases and replaces
-  spaces with dashes. Pass the already-normalized `{slug}` from Step 10.1, not the raw title;
-  otherwise punctuation or uppercase leaks into the filename.
+- The tool's `--title` only builds the filename (lowercases, spaces to dashes). Pass the
+  already-normalized `{slug}` from Step 10.1, not the raw title.
 - The tool writes `templates/issue.md`'s skeleton verbatim (placeholders only). It does not
   set the `# <Issue Title>` line, `Generated at`, or any other field.
 - It refuses (non-zero exit, no write) when the path already exists in `issues/` or
@@ -384,8 +376,7 @@ Tool path notes:
   expected `## ` section headings before filling it in — per `rules/ai-execution.md`
   Repository Tool Usage item 8, a `0` exit alone MUST NOT be treated as proof the file was
   written correctly.
-- The tool validates neither `--id` nor the slug (it only lowercases `--title` and turns
-  spaces into dashes), so verify the name yourself:
+- The tool validates neither `--id` nor the slug, so verify the name yourself:
 
   ```bash
   basename <path> | rg -c -x '[0-9]{8}-[0-9]{6}_[a-z0-9]+_[a-z0-9_-]+\.md'   # prints 1 on a match

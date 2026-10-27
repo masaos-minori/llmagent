@@ -73,30 +73,25 @@ See `workflow.md` for phase details and failure recovery.
 ## Scope notes
 
 - **Config-only change** (no `scripts/` change): Phase 3 (Restart) may be skipped only if the
-  changed field appears in the affected service's `/reload`-eligible field list (see
-  `docs/23_agent/agent_08_01_configuration-loading-agent-config.md`'s hot-reload table for the
-  agent). For an MCP server: if `ConfigLoader().load(...)` is called at module
-  import / `__init__` time, the field is startup-only and requires Phase 3; if it is called
-  inside a request handler, `/reload` suffices and Phase 3 may be skipped.
+  changed field is in the service's `/reload`-eligible list (agent: hot-reload table in
+  `docs/23_agent/agent_08_01_configuration-loading-agent-config.md`). MCP server: `ConfigLoader().load(...)` called at module
+  import / `__init__` time means startup-only (Phase 3 required); called
+  inside a request handler means `/reload` suffices (Phase 3 skippable).
 - **Rollback**: restore the previous binary set with `bash deploy/build_binaries.sh --rollback` (it needs no Nuitka and restores the set saved by the last swap). That restores the binaries only; `config/`, `scripts/`, `tests/`, and `docs/` stay at the new version, so also redeploy the previous commit's files. Components that run from the deployed source (Event Bus, ingestion, workflow validation) are rolled back the same way. Do it from a worktree, never with `git checkout <prev-sha>` in the working repository (that detaches `HEAD` and collides with uncommitted work): `git worktree add <dir> <prev-sha>`, run `bash <dir>/deploy/deploy.sh` (it derives its repository root from its own location), then `git worktree remove <dir>`. The Approval gate applies to a rollback deploy too. Service state is not rolled back automatically. See `AGENTS.md` Loop Prevention > Rollback Directive — if the same failure recurs after rollback, stop and report it rather than deploying forward again on the assumption the rollback fixed it. Only MCP servers can be launched through the `cmd` entries of `config/agent.toml`; the agent always starts as `/opt/llm/bin/agent` (see `deploy/start_agent.sh`), so reverting `cmd` entries does not change how the agent is launched.
 
 ## Required behavior
 
 - MUST NOT run `deploy/deploy.sh`, stop or kill a service, or start the agent before the
-  user has approved (`workflow.md` Approval gate): deploying changes shared
-  infrastructure (`AGENTS.md` Execution policy), and restarting the agent ends the
-  current REPL session. An earlier deploy's approval does not carry over.
-- Restart only the services selected by Phase 3 Step 3a decision criteria; never restart a service the criteria did not select.
+  user has approved (`workflow.md` Approval gate; `AGENTS.md` Execution policy). An earlier deploy's approval does not carry over.
+- Restart only the services selected by Phase 3 Step 3a; never restart one the criteria did not select.
 - Before running `deploy/init_db.sh` on a production DB, confirm idempotency by checking
   whether the target tables already exist (see `deploy/init_db.sh`'s own `IF NOT EXISTS` guards).
 - Before running `deploy/setup_services.sh`, check whether its services are
   already registered (`curl` each health endpoint per `rules/env.md`); run it only when at
   least one target service is not already running.
-- Run the Phase 1 pre-deploy syntax check before every deploy; if it reports a `SyntaxError`,
-  fix it and re-run the check before proceeding to Phase 2.
-- Use `/reload` only for hot-reloadable config fields (see Phase 3 Step 3a); use a full
-  deploy (Phase 1b onward) whenever `scripts/` files changed, since `/reload` never copies code.
-- A change under `scripts/` reaches the agent and the MCP servers only after their binaries are rebuilt: `deploy/deploy.sh` alone never delivers it. Run `tools/manage_binaries.py check` and rebuild the stale ones. The Event Bus, ingestion, `init_db.sh`, and the workflow validation run from the deployed source and need a process restart instead.
+- Run the Phase 1 syntax check before every deploy; on a `SyntaxError`, fix it and re-run before Phase 2.
+- Use `/reload` only for hot-reloadable config fields (Phase 3 Step 3a); `/reload` never copies code, so a `scripts/` change needs a full deploy (Phase 1b onward).
+- A `scripts/` change reaches the agent and the MCP servers only after their binaries are rebuilt (`deploy/deploy.sh` alone never delivers it): run `tools/manage_binaries.py check` and rebuild the stale ones. The Event Bus, ingestion, `init_db.sh`, and the workflow validation run from the deployed source and need a process restart instead.
 
 ## Improvement feedback
 

@@ -12,11 +12,10 @@ description: |
 
 Review first; MUST NOT change code unless the user explicitly asks for implementation (see `skills/DESIGN.md` Analysis-only phase constraint).
 
-Output language: see `skills/DESIGN.md` Output language. The review report itself is a
-generated document and is written in English; when it is shown in the chat, the
-surrounding conversation stays in the chat language (`AGENTS.md` Role). Files written in
-Phase 10 (`issues/*.md`) are English. Identifiers, commands, and evidence labels are never
-translated.
+Output language: see `skills/DESIGN.md` Output language. The review report is written in
+English; when shown in the chat, the surrounding conversation stays in the chat language
+(`AGENTS.md` Role). Phase 10 files (`issues/*.md`) are English. Identifiers, commands, and
+evidence labels are never translated.
 
 ## Required loads (Step 0)
 
@@ -77,18 +76,14 @@ See `workflow.md` for detailed phase content and tooling.
 
 ## Core Review Rules (Strictly Enforced for AI)
 
-- Classify findings using the Evidence labels and Confidence levels in `skills/DESIGN.md` Shared Vocabulary; MUST NOT introduce a separate fact/interpretation/issue/question system.
+- Classify findings using the Evidence labels (exact spelling, e.g. `Needs confirmation`; a check that could not be run or confirmed is labeled that way) and Confidence levels in `skills/DESIGN.md` Shared Vocabulary; MUST NOT introduce a separate fact/interpretation/issue/question system.
 - Verify a README or doc claim against the current implementation (Phase 7) before citing it as evidence.
 - Report a style-only issue (naming, formatting, import order) as Low or Informational only,
-  never as Medium or above. Style-only findings must not crowd out substantive ones: the
-  cap is that a review reports no more style-only findings than Medium+ findings (a
-  proportionality guard against noise, a judgment threshold of this skill rather than a
-  project standard); when there are no Medium+ findings, report style-only findings only
-  if the user asked for them.
+  never as Medium or above. Cap: no more style-only findings than Medium+ findings (a
+  noise guard, a judgment threshold of this skill); when there are no Medium+ findings,
+  report style-only findings only if the user asked for them.
 - Respect project conventions (see `rules/coding.md`) and explain trade-offs. A change
   that matches a `rules/coding.md` Prohibited pattern is a finding.
-- Evidence labels use the exact spelling in `skills/DESIGN.md` Evidence labels (for example
-  `Needs confirmation`); a check that could not be run or confirmed is labeled that way.
 - Severity is assessed as if the finding is true; Confidence reports how sure the review
   is. A Critical or High finding with Low confidence MUST also appear under Open
   Questions with the confirmation needed.

@@ -104,11 +104,7 @@ existing rule or the user's instruction.
 Generate section `# 10. GitHub Issue Drafts` only when the user explicitly requests it, after
 the main report:
 
-```markdown
-# 10. GitHub Issue Drafts (English, AI-oriented)
-- 1 issue = 1 Task ID
-- `P1` items only by default
-```
+Heading `# 10. GitHub Issue Drafts (English, AI-oriented)`; 1 issue = 1 Task ID; `P1` items only by default.
 
 Draft each issue by applying `skills/issue-creator/SKILL.md`, with `templates/issue.md`
 as the structure — MUST NOT keep a separate field list here, so a draft can enter

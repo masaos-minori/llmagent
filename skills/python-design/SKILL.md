@@ -14,9 +14,7 @@ description: |
 Design first: produce design output only; implement only when the user explicitly
 requests it (see `skills/DESIGN.md` Analysis-only phase constraint).
 
-Produce output that is clear, structured, minimal (YAGNI), type-safe, testable, and focused on design
-decisions, responsibility boundaries, constraints, and operational risks — not
-exhaustive implementation-reference detail.
+Produce output that is clear, structured, minimal (YAGNI), type-safe, and testable, focused on design decisions, responsibility boundaries, constraints, and operational risks — not exhaustive implementation-reference detail.
 
 ---
 
@@ -94,7 +92,7 @@ See `workflow.md` for detailed phase content and the required output template.
 - **Respect accepted decisions**: the design MUST NOT contradict an accepted ADR under `docs/10_adr/` or the layer rules; a needed deviation is stated as a proposed ADR change, never silently applied.
 - **Keep proposed design separate from implemented behavior**: for existing-codebase review, apply `skills/DESIGN.md` Evidence labels; for new design, mark assumptions and open questions.
 
-See `workflow.md` for the full rule set, evidence-label usage, and the design checklist.
+Full rule set, evidence-label usage, and design checklist: `workflow.md`.
 
 ---
 

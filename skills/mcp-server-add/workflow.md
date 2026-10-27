@@ -6,17 +6,7 @@ See `SKILL.md` Prerequisites.
 
 ## Toolchain
 
-| Tool | Step | Role |
-|---|---|---|
-| `Bash` (`ls`) | Idempotency note, Step 1 | check for existing files before creating |
-| `Write`/`Edit` | Steps 1-4 | create the server files, deploy.sh, agent.toml, and registration entries |
-| `Bash` (`uv run python -m compileall -q`, `tomllib`) | Step 1 | syntax/TOML validity check |
-| `Bash` (`uv run pytest`, `ruff`, `mypy`, `bandit`, `lint-imports`) | Step 5 | tests and validation (`rules/toolchain.md`) |
-| `Bash` (`uv run python tools/generate_reference_table.py`) | Step 5 | refresh and check the generated MCP reference table |
-| `Bash` (`bash deploy/deploy.sh`) | Step 6 | deploy (delegates to `deploy` skill, after user approval) |
-| `Bash` (`curl`) | Step 9a | health endpoint check |
-| `Bash` (`rg`) | Steps 2-4, Step 7 | confirm config sections and entries exist |
-| `Bash` (`tail`) | Step 9d | log inspection |
+`Bash` (`ls`, `compileall`, `tomllib`, `rg`, `curl`, `tail`, `uv run pytest`/`ruff`/`mypy`/`bandit`/`lint-imports`, `tools/generate_reference_table.py`) and `Write`/`Edit`, each at the step that names it; `bash deploy/deploy.sh` only via the `deploy` skill after user approval (Step 6).
 
 Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule throughout: MUST NOT
 re-run the same `rg`/`curl`/`tail` check against an unchanged target; re-run only after the
@@ -72,8 +62,7 @@ fix-and-recheck attempts per row; if a row still fails after 3 attempts, stop an
 | If an `init.d/` script exists, its `--port` matches the assigned port (`SKILL.md` Prerequisites) | Correct the `--port` argument |
 | Syntax check passes | Run `uv run python -m compileall -q scripts/mcp_servers/<name>/`; fix the reported file |
 
-Per `rules/ai-execution.md` Repository Tool Usage #8, `compileall -q`'s empty stdout is
-evidence of success only together with exit code 0 — check both.
+Per `rules/ai-execution.md` Repository Tool Usage #8, `compileall -q`'s empty stdout is evidence only together with exit code 0.
 
 **Completed when**: every row above passes.
 
@@ -194,8 +183,7 @@ sequence passes, and every checker above exits 0.
 
 Delegate to the `deploy` skill's Phases 1, 1b, and 2. The new server has no binary yet, so
 Phase 1's freshness report lists `mcp_<name>` as `unknown` and Phase 1b builds it. The
-approval gate (`skills/deploy/workflow.md` Phase 2, "Approval gate") belongs to the
-`deploy` skill: do not duplicate it here and do not bypass it. If the user does not
+approval gate (`skills/deploy/workflow.md` Phase 2, "Approval gate") belongs to `deploy`: do not duplicate or bypass it. If the user does not
 approve, that skill reports `Blocked: awaiting deployment approval`; stop there.
 
 **Completed when**: the `deploy` skill's Phase 1b and Phase 2 Gates are met (no stale or
@@ -206,16 +194,13 @@ check.
 
 ## Step 7: Authentication token and API keys (before the first start)
 
-Every HTTP MCP server needs a non-empty token (`mcp_06_14`), and the server refuses to start
-without it, so this step comes before Step 8 starts anything. Provisioning a production secret
+Every HTTP MCP server needs a non-empty token (`mcp_06_14`) and refuses to start when it is empty or
+unset, so this step comes before Step 8 and the binaries and configuration are deployed together. Provisioning a production secret
 changes shared infrastructure: do not write, generate, or print the token value yourself. Tell
 the user the variable name (`MCP_<NAME>_AUTH_TOKEN`) and where `mcp_06_14` says it is
-provisioned, and continue only after they confirm it is set. Set `MCP_<NAME>_AUTH_TOKEN` in
+provisioned (also the deployment document's section on MCP authentication tokens), and continue only after they confirm it is set in
 the agent's environment: the agent's `[mcp_servers.<name>].auth_token` and the server's own
-`auth_token` resolve this same variable. A server refuses to start when it is empty or
-unset, so deploy the binaries and the configuration together. Follow the deployment
-document's section on MCP authentication tokens for how the token is provisioned in
-production. MUST NOT hardcode a token or key in any config file or in this repository.
+`auth_token` resolve this same variable. MUST NOT hardcode a token or key in any config file or in this repository.
 
 If the new server also calls an external API that needs a key, provide it the same way: an
 environment variable referenced from the server's own config file with `${ENV:<NAME>_API_KEY}`,

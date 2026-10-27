@@ -2,31 +2,7 @@
 
 ## Toolchain
 
-| Command | Phase | Role |
-|---|---|---|
-| `git status --short` | Check Status | list modified/staged/untracked files |
-| `git branch --show-current` | Check Status | confirm current branch |
-| `git diff --stat` | Check Status | summarize unstaged changes |
-| `git add <files>` | Stage Files | stage explicit paths |
-| `git add -A` | Stage Files | stage all changes, only when the user explicitly says "all changes" — See `skills/git-commit-and-sync/SKILL.md`, section "Core rules". |
-| `git diff --cached --stat` | Check Staged | verify staged set before commit |
-| `git diff --cached --name-only` | Check Staged | list staged file paths |
-| `git restore --staged <path>` | Stage Files | unstage one unexpected file by explicit path (never `.`) |
-| `uv run python tools/run_validation_gates.py` | Check Staged / Sync | run the gates the change requires (`--base ORIG_HEAD` after a sync) |
-| `git commit -m` | Commit | create conventional commit |
-| `git fetch` | Sync | update remote-tracking refs only; never touches the working tree or current branch |
-| `git rev-parse --abbrev-ref --symbolic-full-name @{u}` | Sync | confirm an upstream branch exists |
-| `git rev-parse HEAD` / `git rev-parse @{u}` / `git merge-base HEAD @{u}` | Sync | classify the sync case: up to date, fast-forward, ahead-only, or diverged |
-| `git status --porcelain --untracked-files=no` | Sync | confirm no tracked change exists before attempting a rebase |
-| `git log --oneline @{u}..HEAD` | Push | list the commits the push will publish |
-| `git merge --ff-only @{u}` | Sync | fast-forward onto upstream when the local branch has not diverged |
-| `git rebase @{u}` | Sync | non-interactive rebase onto upstream when histories have diverged |
-| `git diff --name-only --diff-filter=U` | Sync | capture conflicted file paths before aborting a failed rebase |
-| `git rebase --abort` | Sync | abandon a conflicted rebase and restore the pre-rebase state |
-| `git status --short` / `git diff --stat` | Sync | validate repository state after a successful fast-forward or rebase |
-| `git fetch` + `git rev-parse HEAD`/`@{u}` + `git merge-base HEAD @{u}` + `git branch -r --contains` | Sync (Pre-push recheck) | re-read remote state right before Phase 8; detect a concurrent push or an already-pushed commit |
-| `git push` | Push | push to remote automatically once Commit and Sync succeed with no conflicts |
-| `git push --set-upstream origin <branch>` | Push | set upstream if missing (suggestion only) |
+Every command is given in its phase below. Gate runner: `uv run python tools/run_validation_gates.py` (Check Staged; `--base ORIG_HEAD` after a sync). `git fetch` only updates remote-tracking refs and never touches the working tree or current branch.
 
 Forbidden commands: see `SKILL.md` Core rules.
 
@@ -40,9 +16,7 @@ git branch --show-current
 git diff --stat
 ```
 
-Report:
-- current branch
-- changed files (modified, staged, untracked)
+Report the current branch and the changed files (modified, staged, untracked).
 
 Detect an abnormal state with these checks (any hit means stop):
 
@@ -55,22 +29,13 @@ test -e "$(git rev-parse --git-path BISECT_LOG)" && echo bisect-in-progress
 
 An empty `git branch --show-current` means detached HEAD.
 
-Stop if:
-- not a Git repository
-- branch name cannot be determined (empty `git branch --show-current`)
-- Git state is unclear (detached HEAD, bisect, merge or rebase in progress, unmerged paths)
+Stop if: not a Git repository; branch name cannot be determined; Git state is unclear (detached HEAD, bisect, merge or rebase in progress, unmerged paths).
 
 ---
 
 ## Phase 2: Choose Files
 
-Default: use explicit paths.
-
-```bash
-git add scripts/agent.py tests/test_agent.py
-```
-
-See `skills/git-commit-and-sync/SKILL.md`, section "Core rules".
+Default: explicit paths (`git add scripts/agent.py tests/test_agent.py`); see `skills/git-commit-and-sync/SKILL.md`, section "Core rules".
 
 Stage only files that implement the current instruction's change. A file `git status`
 shows as modified but that this instruction did not touch stays unstaged, unless the user
@@ -122,10 +87,7 @@ file is an archival rename or its origin is unclear, stop and ask instead.
 
 ## Phase 4: Check Staged
 
-If `git diff --cached --name-only` returns no output, stop.
-
-Report:
-- No staged changes found. Nothing to commit.
+If `git diff --cached --name-only` returns no output, stop and report: No staged changes found. Nothing to commit.
 
 Pre-commit validation: run the gates the staged change requires, before committing.
 
@@ -146,8 +108,8 @@ against `--base`, default `master`) plus every unstaged tracked change in the wo
 (`_changed_files`). Another session's unstaged edits therefore also select gates and can
 make one fail. Read the summary's file list and compare it with Phase 3's staged set.
 
-Reading the output: only `Fail` and `Blocked` rows matter. `Not available` rows (a gate
-whose command needs a runtime argument) are noise and are not failures.
+Only `Fail` and `Blocked` rows matter; `Not available` rows (a gate whose command needs a
+runtime argument) are not failures.
 
 An unrelated gate failure is a failure that this change cannot have caused. A `Fail` is
 unrelated only when both hold:
@@ -211,8 +173,6 @@ Format:
 - Append any trailer the session's attribution instruction requires (for example
   `Co-Authored-By`); omit it when no such instruction exists. Never invent one.
 
-Example: `fix: handle missing upstream branch`
-
 MUST NOT reference filenames in the summary unless unavoidable.
 MUST NOT fabricate content from unstaged changes.
 
@@ -238,10 +198,10 @@ git rev-parse HEAD    # record this SHA for Phase 7's pre-push recheck and the r
 ```
 
 Compare this status with Phase 1's. A `pre-commit` run stashes unstaged tracked changes
-while it runs and restores them afterwards, so with parallel sessions an unstaged file
-can briefly look missing. If an unstaged file from Phase 1 is absent now, wait a short
-time and re-run `git status --short`. Do not recreate, revert, or `git stash pop`
-anything; if it is still absent after a few checks, stop and report.
+and restores them afterwards, so with parallel sessions an unstaged file can briefly look
+missing. If one from Phase 1 is absent, wait a short time and re-run `git status --short`.
+Do not recreate, revert, or `git stash pop` anything; if it is still absent after a few
+checks, stop and report.
 
 Stop if commit fails (see `rules/coding.md` Prohibited behavior (all tasks) for the
 `--no-verify` prohibition — not repeated here).
@@ -268,8 +228,6 @@ Always run first:
 ```bash
 git fetch
 ```
-
-`git fetch` only updates remote-tracking refs, so it is always safe to run.
 
 Confirm an upstream branch exists:
 
@@ -351,9 +309,7 @@ Then abort immediately:
 git rebase --abort
 ```
 
-Stop. MUST NOT push. Report:
-- `Rebase onto @{u} failed with conflicts. Rebase aborted; branch restored to its pre-rebase state.`
-- the conflicted file paths captured above
+Stop. MUST NOT push. Report `Rebase onto @{u} failed with conflicts. Rebase aborted; branch restored to its pre-rebase state.` plus the conflicted file paths captured above.
 
 Never continue, skip, or manually resolve the rebase, however small or textual the conflict looks. See `skills/git-commit-and-sync/SKILL.md`, section "Core rules".
 
@@ -429,17 +385,13 @@ Classify again and act:
   NOT force; re-invoking this skill is the remedy (same as the transient rejection
   handling in Phase 8).
 
-Record the commit SHA from Phase 6 (`git rev-parse HEAD` right after the commit) so this
-recheck can identify the commit even if its SHA changes.
+The Phase 6 commit SHA lets this recheck identify the commit even if its SHA changes.
 
-Stop if:
-- `git fetch` fails (including the recheck's fetch).
-- The fast-forward merge fails for a reason other than needing a rebase (e.g.
-  uncommitted local changes blocking it).
-- The rebase reports a conflict (handled above — always abort and report; see
-  `skills/git-commit-and-sync/SKILL.md`, section "Core rules").
-- Post-sync validation (status/diff review, or tests) fails, unless the failure is an
-  unrelated gate failure under Phase 4's rule (report it as a warning instead).
+Stop if: `git fetch` fails (including the recheck's); the fast-forward merge fails for a
+reason other than needing a rebase (e.g. uncommitted local changes blocking it); the
+rebase reports a conflict (always abort and report; `SKILL.md` Core rules); post-sync
+validation (status/diff review, or tests) fails, unless it is an unrelated gate failure
+under Phase 4's rule (report it as a warning instead).
 
 MUST NOT run the commands `SKILL.md` Core rules forbids.
 
@@ -497,24 +449,14 @@ MUST NOT proceed to `git push` at all if:
 ## Phase 9: Report
 
 Report:
-- branch and commit SHA
-- staged files
-- commit message
-- pre-push recheck result (proceeded, already on upstream, or remote advanced — with the
-  SHAs involved)
-- sync result (already up to date, fast-forwarded, rebased onto upstream, aborted
-  due to a rebase conflict — with the conflicted file paths, or skipped because no
-  upstream exists)
-- pre-rebase SHA (only when a rebase ran)
-- validation result (Phase 4 gates, and status/diff review or tests after a successful
-  sync)
+- branch and commit SHA; staged files; commit message
+- pre-push recheck result (proceeded, already on upstream, or remote advanced, with the SHAs)
+- sync result (already up to date, fast-forwarded, rebased, aborted due to a rebase conflict with the conflicted paths, or skipped because no upstream exists); pre-rebase SHA only when a rebase ran
+- validation result (Phase 4 gates, and status/diff review or tests after a successful sync)
 - unrelated gate failures ignored under Phase 4's rule (gate, command, exit code), if any
 - push result (or reason push was skipped)
-- other commits published (commits in the pre-push `@{u}..HEAD` list that this run did
-  not create), if any
-- remaining uncommitted changes (and whether Phase 6's check found any unstaged file
-  temporarily missing)
-- stop conditions triggered, with explanation
-- warnings
+- other commits published (in the pre-push `@{u}..HEAD` list, not created by this run), if any
+- remaining uncommitted changes (and whether Phase 6's check found any unstaged file temporarily missing)
+- stop conditions triggered, with explanation; warnings
 
 Prohibited behavior: see `SKILL.md` Core rules.

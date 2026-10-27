@@ -8,7 +8,7 @@ Read the task description and extract:
 - **Input/output**: what data enters and leaves each boundary
 - **Constraints**: performance, security, compatibility, deployment
 - **Mode**: `new` (design before implementation) or `existing` (design review of, or refactoring design for, current code). In `existing` mode, apply `skills/DESIGN.md` Evidence labels to every statement about current behavior from this step on (see Evidence and Assumptions).
-- **Delivery**: confirm the default delivery described in `SKILL.md` (English design document in the chat); ask only if the user wants a file and gave no location.
+- **Delivery**: per `SKILL.md` Deliverable; ask only if the user wants a file and gave no location.
 
 If Goal/Actor/Input-output/Constraints cannot be determined from the task description and available code, list specific questions instead of guessing. `AGENTS.md` Global Rule 4 says to stop and ask when anything is unclear; this skill applies it as follows: stop for the Goal (and, in Step 2, for the absence of any functional requirement), and for every other gap record an `UNKNOWN` or Open Question and continue, because a design document is the place to surface open questions without producing code.
 
@@ -116,15 +116,11 @@ ast-grep --pattern 'class $NAME(BaseModel): $$$' --lang python scripts/   # exis
 ast-grep --pattern 'class $NAME(MCPServer): $$$' --lang python scripts/   # server patterns
 ```
 
-Each pattern lists every matching class in `scripts/`. Keep only the match count and the few
-matches relevant to the design (for example by piping to `head`); do not paste the full
-output.
-
-Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run the
-same `ast-grep` pattern against an unchanged target expecting a different result. Per
-`rules/ai-execution.md` Repository Tool Usage #8, no `ast-grep` matches is evidence of
-"no conflicting pattern" only after confirming the pattern actually searched `scripts/`
-(a typo'd pattern or path also yields no matches).
+Keep only the match count and the few matches relevant to the design (e.g. pipe to `head`);
+do not paste the full output. Per `rules/ai-execution.md` Tool Usage, MUST NOT re-run the
+same `ast-grep` pattern against an unchanged target expecting a different result; per
+Repository Tool Usage #8, no matches is evidence of "no conflicting pattern" only after
+confirming the pattern actually searched `scripts/` (a typo'd pattern or path also yields none).
 
 For every non-obvious design decision (a new abstraction, a boundary choice, a deviation from
 an existing pattern), record a decision entry:
@@ -180,10 +176,7 @@ For each setting the design adds or changes:
   (`skills/DESIGN.md` No secrets in output)
 - **Serialization risks**: no `pickle` or other unsafe deserialization of untrusted data
 
-**Completed when**: every entity identified has Fields and types, Validation rules,
-Storage, and Serialization all specified (5a); every new or changed setting has Owner, Lifetime,
-Sensitivity, and Per-process scoping (5b); and every trust boundary the design touches has
-validation and approval stated, or 5b/5c is recorded as not applicable (5c).
+**Completed when**: every entity has Fields and types, Validation rules, Storage, and Serialization (5a); every new or changed setting has Owner, Lifetime, Sensitivity, and Per-process scoping (5b); every trust boundary touched has validation and approval stated, or 5b/5c is recorded as not applicable (5c).
 
 ---
 
@@ -200,13 +193,10 @@ Specify logging at the convention level, not as code: module-level `logging.getL
 (`scripts/shared/formatters.py`; `python-implementation` Phase 7 owns the details). State only
 which context each failure log must carry.
 
-Design so the implementation can satisfy `skills/DESIGN.md` Pythonic safety constraints
-(context managers for resource management): specify the `with`/`async with` boundary for each
-resource the design introduces, before implementation.
+Specify the `with`/`async with` boundary for each resource the design introduces
+(`skills/DESIGN.md` Pythonic safety constraints, context managers).
 
-**Completed when**: every failure mode identified has Detection, Response, Logging,
-and User visibility specified, and every resource requiring a `with`/`async with`
-boundary has it stated.
+**Completed when**: every failure mode has Detection, Response, Logging, and User visibility, and every resource has its `with`/`async with` boundary stated.
 
 ---
 
@@ -355,8 +345,8 @@ Verification Item.
 - Use pseudocode or interface sketches only when the design needs them.
 - Keep modules small and explicit; avoid monolithic files or dumping unrelated behavior into `utils.py`.
 - Prefer simple functions over classes when state is not required. Use classes for state, lifecycle, dependency injection, polymorphism, or a stable public concept.
-- Include failure paths explicitly — timeouts, disconnected states, partial failures, malformed inputs, invalid configuration, and resource cleanup.
-- Apply `skills/DESIGN.md` Avoid implementation-reference duplication to generated or mechanically discoverable details (CLI help, configuration schemas, DTO fields, file trees — see also `skills/DESIGN.md` Docs content policy — remove for the "full file tree" category specifically).
+- Failure paths (`SKILL.md` Core Design Rules) include timeouts, disconnected states, partial failures, malformed inputs, invalid configuration, and resource cleanup.
+- Apply `skills/DESIGN.md` Avoid implementation-reference duplication to generated or mechanically discoverable details (CLI help, configuration schemas, DTO fields, file trees — see also Docs content policy — remove for the "full file tree" category).
 - Respect project-specific constraints: if a general rule conflicts with an existing project convention, document the exception and explain why it is acceptable.
 - Separate current design from future extensions.
 
@@ -383,5 +373,4 @@ that do not apply; MUST NOT fill irrelevant sections just to satisfy the templat
 13. **Implementation Plan** — ordered phases, measurable milestones, dependency-aware task order, migration path, rollback strategy, documentation update points.
 14. **Risks and Open Questions** — risks and mitigations, dynamic-typing/third-party/concurrency/operational risks, unresolved design decisions, assumptions requiring confirmation, implementation verification items.
 
-Deliver the result as the delivery rule in `SKILL.md` describes (an English design document; a
-short Japanese summary and the open questions in the chat).
+Deliver as an English design document; a short Japanese summary and the open questions go in the chat.

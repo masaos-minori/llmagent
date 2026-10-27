@@ -13,13 +13,11 @@ description: |
 Create issues only — see `skills/DESIGN.md` Analysis-only phase constraint. Proceed to
 implementation only when the user explicitly asks for it.
 
-Exception to `skills/DESIGN.md` Output language: write issue bodies in English (GitHub issues are consumed by AI coding agents and international tooling), unless the user requests another language. If the target design or documentation must be Japanese, state that inside the issue.
+Exception to `skills/DESIGN.md` Output language: write issue bodies in English, unless the user requests another language. If the target design or documentation must be Japanese, state that inside the issue.
 
-Output: one Markdown file per issue under `issues/` (the pipeline entry point — see
-`routing.md` Document workflow directories). This skill does not post to GitHub or run
-`gh issue create`; filing on GitHub is a separate step the user must request.
-
-See `workflow.md` Step 9b for markdown-safety rules.
+Output: one Markdown file per issue under `issues/` (see `routing.md` Document workflow
+directories). This skill does not post to GitHub or run `gh issue create`; filing on GitHub is
+a separate step the user must request. Markdown-safety rules: `workflow.md` Step 9b.
 
 ## Required reading
 
@@ -106,12 +104,10 @@ rules, markdown safety rules, and the final checklist.
 
 ## Issue Filename Generation
 
-Every issue file MUST follow this naming convention (stable, sortable, human-readable names),
-except the Unknown/Risk follow-up files that `skills/issue-to-plan` Step 6 generates, which
-use `issues/{timestamp}[_{NN}]_unknowns.md` / `_risks.md` per `templates/unknowns-issue.md`
-and `templates/risks-issue.md`.
-Duplicate detection in `skills/issue-to-plan` Step 1b is content-based (it matches the Issue's
-path in a Plan's Traceability), so it does not parse the filename.
+Every issue file MUST follow this naming convention, except the Unknown/Risk follow-up files
+that `skills/issue-to-plan` Step 6 generates (`issues/{timestamp}[_{NN}]_unknowns.md` /
+`_risks.md` per `templates/unknowns-issue.md` and `templates/risks-issue.md`).
+`skills/issue-to-plan` Step 1b duplicate detection is content-based and does not parse the filename.
 
 ### Naming convention
 
@@ -135,8 +131,7 @@ requires it and readers expect the three-part format.
 
 **Numbering.** The id is the domain prefix plus a three-digit, zero-padded sequence number
 (`eventbus001`). Number the issues of one batch (filed together from one source)
-sequentially from `001`. Numbers restart with each batch — the repository's history already
-reuses ids such as `eventbus001` in several files, with mixed widths (`eventbus01`) — so
+sequentially from `001`. Numbers restart with each batch and widths are mixed in history, so
 `{id}` never identifies an issue by itself. Cite another issue by its full
 repository-relative path (Dependencies, and `issue-to-plan`'s dependency lookup).
 

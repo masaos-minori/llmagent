@@ -20,27 +20,24 @@ This is a document-only phase. Allowed operations:
 - Create the work plan document in `plans/`.
 - Create unresolved unknown or risk items as issue files in `issues/` when required by
   Step 6.
-- Move the processed Issue file to `issues/done/` once Step 9's validation passes —
-  no human approval is required for this move.
-- See `skills/issue-to-plan/SKILL.md` Purpose and `skills/DESIGN.md`, section
-  "Analysis-only phase constraint".
+- Move the processed Issue file to `issues/done/` once Step 9's validation passes
+  (no human approval).
+- See `SKILL.md` Purpose and `skills/DESIGN.md` "Analysis-only phase constraint".
 - MUST NOT modify files outside `plans/`, `issues/`, and the Issue file being moved
   (`issues/` -> `issues/done/`) — see `AGENTS.md` Global Rule 5.
 
 ## Toolchain
 
-Tools used by both paths: `rg`/`fd`/`ast-grep` (symbol/file search), `radon`/`vulture`/
-`bandit`/`diff-cover` (validation quality baseline, Step 5), and
-`tools/check_plan_target_overlaps.py` (Step 8b). `semgrep` and `pytest-testmon` are not
-part of the baseline; the commands in Step 5 are the whole baseline.
-Path B's additional architecture/dependency/historical/operational analysis tools are
-listed in `workflow-path-b.md` — loaded only when Step 3 classifies Path B, not here.
+Both paths: `rg`/`fd`/`ast-grep` (search), `radon`/`vulture`/
+`bandit`/`diff-cover` (validation quality baseline, Step 5; the commands in Step 5 are the whole baseline, `semgrep` and `pytest-testmon` are not part of it), and
+`tools/check_plan_target_overlaps.py` (Step 8b).
+Path B's extra analysis tools are in `workflow-path-b.md`, loaded only when Step 3 classifies Path B.
 
 Repository scaffolding/archival tools (see `tools/TOOL_DESCRIPTIONS.md` for usage):
 `tools/generate_workitem.py --kind plan|unknowns|risks` (Step 5 Plan skeleton; Step 6
 Unknown/Risk issue skeleton) and `tools/manage_workitem_stage.py close-issue` (Step 10,
 `git mv`-based archival move). Per `rules/ai-execution.md` Repository Tool Usage, prefer
-these over the equivalent manual command when they cover the need; each Step below
+these over the manual command; each Step below
 states the fallback if the tool is unavailable or refuses.
 
 ---
@@ -55,11 +52,10 @@ Additional context-hygiene guidance specific to this workflow:
 - Perform Step 2 (verifying claims in the Issue against current source) sequentially.
   Retain only a concise confirmation or correction, not full file contents.
 - Process each Steps 1-10 cycle sequentially — investigation MUST NOT carry from one
-  file's cycle into the next (cycles do not run in parallel — see `rules/ai-execution.md`
+  file's cycle into the next (no parallel cycles, `rules/ai-execution.md`
   Global Safety Restrictions (Base)).
   This isolation applies to conclusions and investigation state, not to re-running an
-  identical read-only command against a file confirmed unchanged — see
-  `rules/ai-execution.md` Tool Usage for when such a command may be skipped.
+  identical read-only command on an unchanged file (`rules/ai-execution.md` Tool Usage).
 
 Apply `rules/ai-execution.md` Context Reading, Tool Usage, and Progress Reporting (Base) for the
 per-cycle load and call discipline and the per-step report cadence.
@@ -141,12 +137,9 @@ duplicate plans when multiple agents process the same Issue concurrently.
   Apply `rules/ai-execution.md` Tool Usage's idempotent-command rule: MUST NOT re-run a
   check already performed against the same file/claim at its current content within
   this cycle.
-  Stop once every field extracted per `templates/issue.md` (Step 2's extraction list,
-  below) has been checked against at least one concrete source (a file, test, or existing
-  Plan/Implementation document), and no new disconfirming evidence was found in the last
-  full pass over that field list. This complements, and does not replace,
-  `rules/workflow-lifecycle.md`'s workflow-level Completion Criteria, which gates the
-  whole cycle.
+  Stop once every field extracted per `templates/issue.md` (extraction list below) has been checked against at least one concrete source (a file, test, or existing
+  Plan/Implementation document) and the last full pass over that list found no new disconfirming evidence. This does not replace
+  `rules/workflow-lifecycle.md`'s Completion Criteria, which gate the whole cycle.
 - **Same-cycle dedup** (Steps 2, 3, and 8b): a claim, target file, or Implementation
   Target Files row already verified in this cycle MUST NOT be verified again unless
   (a) a command in this cycle modified that file, (b) a path-scoped `git status --short
@@ -229,14 +222,11 @@ Step 2's same-cycle dedup rule and depth ceiling apply to this step.
   documentation, callers and callees, dependencies, data ownership, side effects, error
   handling, compatibility constraints, and security constraints. This inspection feeds
   the broader analysis in Step 5.
-  In Step 5, where `workflow-path-b.md` is loaded, stop each of the four analysis
-  dimensions (Architecture analysis, Dependency graphing,
-  Historical analysis, Operational dependency inspection — see
-  `workflow-path-b.md`) once its listed toolchain command(s) have been run once against
-  the relevant target and their output reviewed; MUST NOT re-run the same command against
-  the same target without a changed input, per `rules/ai-execution.md` Tool Usage. This
-  is consistent with, not a change to, `workflow-path-b.md`'s "once all four analyses
-  above are complete" gate.
+  In Step 5 (`workflow-path-b.md` loaded), stop each of its four analysis
+  dimensions once its listed command(s) have run once against
+  the relevant target and the output was reviewed; MUST NOT re-run the same command against
+  the same target without a changed input (`rules/ai-execution.md` Tool Usage). This
+  does not change `workflow-path-b.md`'s "once all four analyses are complete" gate.
 
 Read only the section(s) located via `rg`/grep for the target symbol or claim, unless
 that section alone omits context the claim depends on (e.g. a decorator, base class, or
@@ -323,9 +313,7 @@ vulture scripts/ --min-confidence 80
 bandit -r scripts/ -c pyproject.toml
 ```
 
-Per `rules/ai-execution.md` Repository Tool Usage #8, an exit-0 run reporting zero
-findings is evidence only if the target path was actually scanned; confirm the target
-file/directory exists before recording "no findings" as a baseline value.
+Per `rules/ai-execution.md` Repository Tool Usage #8, a zero-finding exit-0 run is evidence only if the target path was scanned; confirm it exists before recording "no findings".
 
 See `rules/toolchain.md` section 7 for the diff-cover baseline command sequence (run
 without `--fail-under` here, just to record the current number). The Plan MUST include
@@ -359,9 +347,8 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   rather than auto-incrementing; treat that refusal as the trigger for the zero-padded
   sequence rule above (retry with `--seq {NN}`), not as a workflow failure.
   After a `0` exit, independently verify the reported output path exists and contains
-  the expected `## ` section headings before filling in its content — per
-  `rules/ai-execution.md` Repository Tool Usage item 8, a `0` exit alone MUST NOT be
-  treated as proof the file was written correctly.
+  the expected `## ` section headings before filling it in (`rules/ai-execution.md` Repository Tool Usage item 8: a `0` exit alone MUST NOT be
+  treated as proof).
 - Use the section order and structure from `SKILL.md` Output format.
 - Assign every requirement a stable ID (`REQ-001`, `REQ-002`, ...). Each Acceptance
   criterion, Test, and Implementation step MUST reference its related Requirement ID.
@@ -432,9 +419,8 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
   exit, no write) on a base-path collision rather than auto-incrementing; on that
   refusal, retry once with `--seq {NN}` matching the zero-padded sequence rule below,
   not as a workflow failure.
-  After a `0` exit, independently verify the reported output path(s) exist and contain
-  the expected `## ` section headings before filling in their content — same
-  verification as Step 5, per `rules/ai-execution.md` Repository Tool Usage item 8.
+  After a `0` exit, verify the output path(s) exist and contain
+  the expected `## ` headings before filling them in (same as Step 5).
 - Include the items carried forward from Step 2's `Needs confirmation` classifications
   as Unknowns, in addition to any Unknowns identified during Steps 3-5.
 - Check every Issue `Dependencies` entry that names another Issue or Plan: find it with
@@ -471,9 +457,9 @@ raising it to the threshold defined in `rules/toolchain.md` Completion checklist
 - If either path already exists, apply the same lowest-available zero-padded sequence
   rule as Step 5 (`issues/{timestamp}_01_unknowns.md`, `issues/{timestamp}_01_risks.md`,
   ...). An existing file MUST NOT be overwritten.
-  The same 3-attempt bound and stop-and-report behavior from Step 5 apply here: after 3
+  Step 5's 3-attempt bound applies: after 3
   collisions on either path, stop and report `Blocked: repeated filename collision —
-  {path}` for the colliding path.
+  {path}`.
 - Each generated Unknown or Risk issue MUST include a Traceability section (per
   `templates/unknowns-issue.md` / `templates/risks-issue.md` — a deliberately
   narrower field subset than `templates/traceability.md`'s, since these trace to
@@ -634,9 +620,7 @@ Per `rules/ai-execution.md` Progress Reporting (Base), read every value above ba
 where it was recorded (e.g. Path A/B from Step 3's record, freeze status from Step 8's
 validation) rather than re-deriving it, unless the source is known to have changed.
 
-No human approval is required for the move to `issues/done/`, per
-`rules/workflow-lifecycle.md` Validation Reporting — proceed to Step 10 once Step 8 is
-`Pass` and all required validations are `Pass`.
+The move to `issues/done/` needs no human approval (`rules/workflow-lifecycle.md` Validation Reporting) — proceed to Step 10 once Step 8 and all required validations are `Pass`.
 
 If `Implementation Target Files` is not `Frozen`, or Step 8 is `Fail`, `Partial`, or
 `Blocked`, MUST NOT proceed to Step 10 and MUST NOT move the Issue. For `Fail`/`Partial`,
@@ -671,13 +655,13 @@ failure rule.
   `git mv issues/{filename}.md issues/done/{filename}.md` move.
 - The tool refuses (non-zero exit, no move) if the source is missing, the destination
   already exists, or a Plan in `plans/` for this Issue is not `Frozen`. MUST NOT work
-  around the last refusal with `--force`; resume at Step 8 instead. An Issue with no
-  matching Plan moves normally. The direct command below does not run the `Frozen`
-  check, so the gate above applies to it too. Fall back to it only if the tool is
+  around the last refusal with `--force`; resume at Step 8. An Issue with no
+  matching Plan moves normally. The direct command below skips the `Frozen`
+  check, so the gate above applies to it too; use it only if the tool is
   unavailable.
 - Direct command (fallback): `git mv issues/{filename}.md
   issues/done/{filename}.md`. No `mv`, `cp` + `rm`, file-copy APIs, or other
-  fallback beyond these two.
+  method.
 - Report `Completed` only after successful verification.
 
 **This cycle is complete when, and only when**: the move above has succeeded and been

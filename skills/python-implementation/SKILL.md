@@ -11,10 +11,8 @@ description: |
 ## When to use
 
 - adding features, changing business logic, creating new Python modules
-- modifying existing production Python code
-- refactoring that changes implementation details
-- extending existing interfaces or behaviors
-- integrating with repository-specific conventions
+- modifying existing production Python code, refactoring that changes implementation details
+- extending existing interfaces or behaviors, integrating with repository-specific conventions
 
 Use this skill by default for production Python work.
 
@@ -65,9 +63,7 @@ Even in Fast path, passing `ruff`, `mypy/pyright`, and the tests in Phase 9 is m
 ## Core implementation rules
 
 ### Code Correctness & Architecture
-- Prefer existing repository patterns over new local inventions
-- Prefer typed, explicit, maintainable code
-- Prefer small, reviewable diffs
+- Prefer existing repository patterns over new local inventions; typed, explicit, maintainable code; small, reviewable diffs
 - Scope discipline: see `AGENTS.md` Global Rule 5.
 - When a requirement is uncertain, inspect the repository (Phase 2) before writing code —
   uncertainty is a signal to investigate, not approval of any interpretation
@@ -93,8 +89,7 @@ surprising behavior) that cannot be recovered by reading the code. MUST NOT writ
 - task/ticket ID references (e.g. `(UZU-XXXX)`)
 
 ### Production Readiness
-See `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug artifacts) —
-apply before moving to Phase 11.
+Apply `skills/DESIGN.md` Pythonic safety constraints (no placeholders, no debug artifacts) before Phase 11.
 
 ---
 
@@ -115,9 +110,6 @@ apply before moving to Phase 11.
 
 ## Improvement feedback
 
-After using this skill:
-- if a phase was unnecessary, update the mandatory or skip conditions
-- if a needed step was missing, add it
-- if the fast path was too broad or too narrow, refine its conditions
+After using this skill: update the mandatory/skip conditions of an unnecessary phase, add a missing step, and refine the fast path conditions if too broad or too narrow.
 
 Update phase definitions here and detailed procedures in `workflow.md` as needed.

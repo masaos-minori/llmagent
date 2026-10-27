@@ -90,5 +90,4 @@ Report: the failing check and its cause; the fix; the check-only commands run an
 
 ## Improvement feedback
 
-After running this skill, if a step was unnecessary for the task type or a recovery path was missing:
-update the routing rules in this file or add the specific tool recovery commands to `workflow.md`.
+If a step was unnecessary for the task type or a recovery path was missing: update the routing rules here or add the tool recovery commands to `workflow.md`.

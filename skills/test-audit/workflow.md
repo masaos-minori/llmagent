@@ -4,8 +4,7 @@
 
 This is a standalone, auxiliary workflow, not a phase of the
 issue → plan → implementation-procedure → code pipeline. It is invoked directly by
-filename (`prompts/07_test-audit.md`) to produce a QA review memo / test debt report /
-stabilization work plan, not staged through `issues/` -> `plans/` -> `implementations/`.
+filename (`prompts/07_test-audit.md`), not staged through `issues/` -> `plans/` -> `implementations/`.
 
 - Input: none required (operates on the whole repository's test suite); optionally a
   scope hint from the user (a module or layer to focus on).
@@ -102,19 +101,7 @@ Step 3 (`safety.md`).
 Run every command Step 2 classified `Safe` or `Safe with isolated infrastructure`,
 applying `safety.md` Full-Suite Execution Scope and Abort Conditions.
 
-This includes, if present and cleared by Step 2:
-- unit tests
-- integration tests
-- e2e tests
-- smoke tests
-- schema / migration tests
-- CLI tests
-- API tests
-- lint
-- type checks
-- import boundary checks
-- formatting checks
-- config/schema consistency checks
+This includes, if present and cleared by Step 2: unit, integration, e2e, smoke, schema / migration, CLI, and API tests; lint, type, import boundary, formatting, and config/schema consistency checks.
 
 Lint and formatting run in their check-only forms (`safety.md` "Commands that modify the
 working tree"), never the `--fix` or in-place forms.
@@ -219,9 +206,7 @@ These rules MUST be followed, in addition to `evidence.md`'s classification proc
 - MUST NOT silently ignore skipped or blocked tests — instead, record each one
   explicitly in the audit findings using `evidence.md`'s classification procedures,
   with the reason it was skipped or blocked.
-- If CI and local commands differ, report that explicitly.
-- Prefer repository-defined commands over invented ones, per `rules/ai-execution.md`
-  Repository Tool Usage rule 5.
+- If CI and local commands differ, report that explicitly (repository-defined commands over invented ones: Toolchain above).
 - If a service dependency is missing, explain exactly what blocked execution.
 - For missing tests, tie each proposal to concrete code paths or documented behavior,
   and to a Finding ID.
@@ -231,13 +216,11 @@ These rules MUST be followed, in addition to `evidence.md`'s classification proc
 
 ## Test-Specific Guidance
 
-- In Step 3, use quiet/short-traceback modes (e.g. `pytest -q --tb=short`) and read
-  coverage from a summary (`coverage.xml` or the summary line) rather than verbose
-  per-line reports. MUST NOT read full output for passing runs.
+- In Step 3, use quiet/short-traceback modes (e.g. `pytest -q --tb=short`), read
+  coverage from a summary (`coverage.xml` or the summary line), and redirect each command's output to a file, extracting only
+  `FAIL`/`ERROR` lines via `grep`. MUST NOT read full output for passing runs.
 - In Step 4, keep stack trace summaries to the minimum lines needed to identify the
   cause; MUST NOT paste full tracebacks.
-- Redirect each validation command's output to a file and extract only
-  `FAIL`/`ERROR` lines via `grep`, rather than reading the full raw stream.
 - Perform Step 1 discovery sequentially; return only the identified commands and
   structure, not full file contents.
 - Perform Step 5 gap analysis sequentially by layer: see `discovery.md` Gap Analysis.
@@ -249,5 +232,4 @@ These rules MUST be followed, in addition to `evidence.md`'s classification proc
 
 ## Output format
 
-See `report-template.md` for the exact final-report structure; the report is Step 8's
-output.
+See `report-template.md` (Step 8's output).

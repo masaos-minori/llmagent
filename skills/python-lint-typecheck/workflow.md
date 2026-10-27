@@ -15,10 +15,8 @@
 | `libcst` | semantic refactor safety | CST-based transforms preserving comments |
 | `pre-commit` | CI consistency validation | Aggregated hook runner; final gate |
 
-Run every Python tool through `uv run` (`uv run mypy`, `uv run pyright`, `uv run ruff`, ...); the
-commands below carry the prefix. Check availability the same way, e.g.
-`uv run pyright --version`; `command -v` is wrong for `pyright`, `pyre`, and `tox`, which are not
-on PATH here but run under `uv run`. If a tool fails to start under `uv run`, apply `skills/DESIGN.md`
+Run every Python tool through `uv run`, and check availability the same way (`SKILL.md` No Tool Hallucination; `command -v` is wrong for `pyright`, `pyre`, `tox`). The
+commands below carry the prefix. If a tool fails to start under `uv run`, apply `skills/DESIGN.md`
 Tool availability guard and record the check as `Needs confirmation`.
 
 ## Step failure handling
@@ -88,10 +86,10 @@ to the same result as the original for every input the surrounding code handles 
 it only then. A hunk touching a lambda, a chained comprehension, or an expression with
 more than one boolean operator needs this check most; a simple import-sort or
 whitespace-only hunk needs no such re-derivation. If a hunk fails this check, revert only
-that hunk (`git diff` shows it in isolation) and fix the line by hand — MUST NOT accept a
+that hunk and fix the line by hand — MUST NOT accept a
 semantically-changed auto-fix and MUST NOT re-run `ruff check --fix` on the same input. Revert
-the hunk by editing those lines back to the original text (interactive `git checkout -p` is not
-available here, and `git stash`/reset would touch other sessions' edits); then confirm with
+by editing those lines back to the original text (interactive `git checkout -p` is not
+available here; `git stash`/reset would touch other sessions' edits); then confirm with
 `git diff <path>`.
 
 #### ast-grep — structural pattern enforcement
@@ -172,10 +170,10 @@ transform recipe and post-transform verification commands in
 #### mypy — primary
 
 ```bash
-uv run mypy --no-namespace-packages scripts/ tests/eventbus
+uv run mypy --no-namespace-packages scripts/ tests/eventbus --show-error-codes   # always include error codes
 uv run mypy --no-namespace-packages scripts/<file>.py
-uv run mypy --no-namespace-packages scripts/ --show-error-codes   # always include error codes
 ```
+Expected: `Success: no issues found`.
 
 `mypy --strict` is not the CI configuration. Use it only to inspect a file's wider type hygiene;
 errors that appear only under `--strict` are recorded as Findings and not fixed in this task
@@ -197,39 +195,14 @@ For each mypy error:
 2. Add the correct annotation at the definition site
 3. Propagate the type through all affected functions
 
-Common patterns:
-
-```python
-# incorrect — annotation on parameter with default
-def f(x: int = None) -> None: ...         # error: not None-compatible
-
-# correct
-def f(x: int | None = None) -> None: ...
-```
-
-```python
-# incorrect — missing return type
-def parse(line):
-    return line.strip()
-
-# correct
-def parse(line: str) -> str:
-    return line.strip()
-```
+Typical fixes: `x: int = None` becomes `x: int | None = None`; a missing return type gets an explicit annotation (`def parse(line: str) -> str`).
 
 #### pyright — cross-validation
 
-Check availability first (per `skills/DESIGN.md` Tool availability guard):
+Check availability first (per `skills/DESIGN.md` Tool availability guard): `uv run pyright --version`; if unavailable, skip this sub-step (mypy's result stands alone). If available:
 
 ```bash
-uv run pyright --version || echo "pyright unavailable — skip this sub-step, mypy's result stands alone"
-```
-
-(`command -v pyright` would wrongly report it missing: it runs only under `uv run`.) If available:
-
-```bash
-uv run pyright scripts/
-uv run pyright scripts/<file>.py
+uv run pyright scripts/<file>.py     # or scripts/
 ```
 
 CI runs mypy, not pyright, so pyright is a cross-check on the files this task changed (`uv run

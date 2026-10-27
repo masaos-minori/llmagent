@@ -35,8 +35,7 @@ Servers differ in the extra modules they carry; follow the closest existing serv
 
 New servers MUST use the next free port above every port currently assigned — derive it at
 task time (see Prerequisites), per `skills/DESIGN.md` No concrete configuration values.
-MUST NOT state the assigned port number in `docs/*.md` once deployed — see
-`skills/DESIGN.md` Docs content policy — remove.
+MUST NOT state the assigned port number in `docs/*.md` once deployed (`skills/DESIGN.md` Docs content policy).
 
 ## Prerequisites
 

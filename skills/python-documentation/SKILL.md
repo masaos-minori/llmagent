@@ -8,14 +8,7 @@ description: |
 
 ## When to use
 
-Use this skill only for documenting an existing Python repository from actual code, configuration, tests, and CI/CD.
-
-Use it when the task is to:
-- review docs against implementation,
-- update design/operational docs from verified behavior,
-- document public interfaces and runtime behavior,
-- correct doc/code mismatches,
-- reduce stale implementation-derived detail in docs.
+Use this skill only for documenting an existing Python repository from actual code, configuration, tests, and CI/CD: reviewing docs against implementation, updating design/operational docs from verified behavior, documenting public interfaces and runtime behavior, correcting doc/code mismatches, and reducing stale implementation-derived detail.
 
 ## When not to use
 
@@ -82,19 +75,13 @@ encountered, the skill MUST:
 - determine whether `requirements.txt` is authoritative, manually maintained, generated, or unused
 - never assume `requirements.txt` exists or is required
 - never treat a lockfile as design documentation
-- avoid copying complete dependency lists, exact resolved versions, or dependency counts into
-  documentation
-- verify the actual dependency workflow from CI/CD, container definitions, build scripts, and
-  contributor instructions
+- avoid copying complete dependency lists, exact resolved versions, or dependency counts into documentation
+- verify the actual dependency workflow from CI/CD, container definitions, build scripts, and contributor instructions
 
 ### Example: uv-managed repositories
 
-Repository-specific evidence to verify, not a rule for other repositories:
-
-- `pyproject.toml` is the likely direct dependency declaration source
-- `uv.lock` is the likely resolved dependency record
-- verify this relationship from the repository before documenting it
-- MUST NOT conclude that CI/CD or production uses uv only because `uv.lock` exists
+Evidence to verify, not a rule for other repositories: `pyproject.toml` is the likely direct declaration source and `uv.lock` the likely resolved record; verify this from the repository before documenting it.
+MUST NOT conclude that CI/CD or production uses uv only because `uv.lock` exists.
 
 See `workflow.md` Evidence and Source of Truth, and Boundaries.
 

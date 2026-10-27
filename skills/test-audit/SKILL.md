@@ -29,7 +29,7 @@ The output MUST be usable directly as each of: a QA review memo, a test debt rep
 
 | Step | Name | Phase type | Goal / AI Action |
 |---|---|---|---|
-| 0 | Load required instructions | Discovery | Read `routing.md`, `AGENTS.md`, `rules/toolchain.md`, `rules/env.md`, `rules/ai-execution.md`, `skills/DESIGN.md`, this skill, `workflow.md`, `discovery.md`, `safety.md`, `evidence.md`, `report-template.md` before starting (list: `workflow.md` Step 0). |
+| 0 | Load required instructions | Discovery | Read every file listed in `workflow.md` Step 0 before starting. |
 | 1 | Discover test entry points | Discovery | Identify every test/validation command the repository defines and record the audited revision (`HEAD`, `git status --short`); execute nothing. |
 | 2 | Safety evaluation | Analysis | Classify every discovered command `Safe` / `Safe with isolated infrastructure` / `Blocked` / `Not runnable` / `Prohibited`, before anything runs: isolation scope, exempt tests, port collisions with running services, and commands that would modify tracked files. |
 | 3 | Execute safe commands | Execution | Run every command Step 2 cleared, within the Full-Suite Execution Scope and Abort Conditions. |
@@ -101,14 +101,13 @@ Task List MUST show both fields separately; neither MAY stand in for the other.
 ## Core Execution Rules
 
 - Full-Suite Execution Scope: see `safety.md` Full-Suite Execution Scope and Abort Conditions.
-- MUST NOT assume test coverage from file names alone — instead, open the matching
+- MUST NOT assume test coverage from file names alone — open the matching
   test file and confirm it actually exercises the behavior in question before
   crediting it as coverage.
 - Production code: see Phase Boundaries above.
 - MUST NOT stop at high-level commentary — run the tests and produce a concrete,
   execution-ready plan.
-- **No unrelated changes**: see `AGENTS.md` Global Rule 5.
-- Out-of-scope paths: see `skills/DESIGN.md` Out-of-scope paths.
+- No unrelated changes: `AGENTS.md` Global Rule 5. Out-of-scope paths: `skills/DESIGN.md` Out-of-scope paths.
 
 ---
 
@@ -123,13 +122,11 @@ that accompanies it follows the chat language.
 ---
 
 ## See Also
-See `workflow.md` for detailed phase content and the toolchain reference.
-See `discovery.md` for test-entry-point discovery and gap-analysis categories.
-See `safety.md` for the safety-classification procedure and execution scope/abort
-conditions.
-See `evidence.md` for Result Classification, the flaky/root-cause evidence procedure,
-Finding Categories, and the Finding/Task/Test Case ID scheme.
-See `report-template.md` for the final report structure and content rules.
+- `workflow.md`: detailed phase content and the toolchain reference
+- `discovery.md`: test-entry-point discovery and gap-analysis categories
+- `safety.md`: safety-classification procedure and execution scope/abort conditions
+- `evidence.md`: Result Classification, flaky/root-cause evidence procedure, Finding Categories, ID scheme
+- `report-template.md`: final report structure and content rules
 
 ---
 
@@ -150,7 +147,5 @@ See `report-template.md` for the final report structure and content rules.
 
 ## Improvement feedback
 
-If a Step needed clarification, a safety classification produced a false
-positive/negative, or an evidence rule was insufficient, update
-`workflow.md`/`safety.md`/`evidence.md` accordingly. If the report was missing a
-field the user consistently requested, add it to `report-template.md`.
+If a Step needed clarification, a safety classification was a false positive/negative, or an evidence rule was insufficient, update
+`workflow.md`/`safety.md`/`evidence.md`. If the report lacked a field the user consistently requested, add it to `report-template.md`.

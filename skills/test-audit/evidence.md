@@ -124,6 +124,4 @@ Every artifact produced from Step 6 onward is identified and cross-linked
 `report-template.md`'s Report Template includes a Traceability table (# 7) built from
 these links — MUST NOT re-derive the links there; carry them forward from Steps 6-7.
 
-Reference findings by their Finding ID in Steps 6-7 and in the final report, rather
-than re-quoting full evidence or source excerpts already recorded in
-`discovery.md`/this file.
+Reference findings by Finding ID in Steps 6-7 and the final report, not by re-quoting evidence.

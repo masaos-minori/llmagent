@@ -89,7 +89,7 @@ The audit is read-only. A command that rewrites tracked files is not run as writ
 
 MUST NOT change configuration, environment variables, feature flags, or other runtime
 settings solely to make a test runnable. If a test cannot run without such a change,
-MUST NOT make the change — classify it `Blocked` or `Not runnable` (see `evidence.md`
+classify it `Blocked` or `Not runnable` (see `evidence.md`
 Result Classification) and record the specific missing environment requirement.
 
 ### Prohibited test execution
@@ -99,10 +99,7 @@ conditions in `rules/ai-execution.md` Repository Tool Usage rule 7.
 
 If a safe isolated test environment is unavailable, or starting one would require a
 change forbidden above:
-- Mark the command `Blocked` or `Not runnable` (see `evidence.md` Result
-  Classification).
-- Record the missing environment, service, or credential.
-- MUST NOT report it as passed.
+- Mark the command `Blocked` or `Not runnable` (`evidence.md` Result Classification), record the missing environment, service, or credential, and MUST NOT report it as passed.
 
 Output: every Step 1 command classified as one of `Safe` / `Safe with isolated
 infrastructure` / `Blocked` / `Not runnable` / `Prohibited`, plus the Full-Suite

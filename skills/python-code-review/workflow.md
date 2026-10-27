@@ -36,12 +36,11 @@ checker that cannot run is `Needs confirmation`.
 Apply `skills/DESIGN.md` Agent (Explore) threshold.
 Run a tool to confirm a finding before reporting it; MUST NOT present a suspected issue as confirmed without evidence.
 
-Within a Phase, run its tools after the manual checks in that Phase's list, so a tool
-confirms or refutes a finding the manual checks produced rather than replacing them. Run
-Python tools through `uv run`, and pass touched files explicitly (a bare `uv run mypy`
-does not cover `tools/`). If a tool is unavailable in the current
-environment, record the affected checks as `Needs confirmation` (per `skills/DESIGN.md`
-Evidence labels) and continue with the remaining checks — MUST NOT stop the review.
+Within a Phase, run its tools after the manual checks, so a tool confirms or refutes a
+manual finding rather than replacing it. Run Python tools through `uv run` and pass touched
+files explicitly (a bare `uv run mypy` does not cover `tools/`). If a tool is unavailable,
+record the affected checks as `Needs confirmation` (`skills/DESIGN.md` Evidence labels) and
+continue — MUST NOT stop the review.
 
 ---
 
@@ -60,7 +59,7 @@ Do:
 - identify out-of-scope files per `skills/DESIGN.md` Out-of-scope paths (generated code, vendored code, build outputs)
 - when the target is a file list with no diff (a review of existing code), treat every function in those files as changed for the Phases below
 - for a large diff (threshold above), review in risk order — public contracts, persistence, async/resource handling, error handling first — and record any file left unreviewed so the report can state it
-- `gh` is available for reading a PR (`gh pr view`, `gh pr diff`); it is also able to post to GitHub, which this skill never does without the explicit request and approval described in `SKILL.md` (GitHub is read-only by default)
+- `gh` is for reading a PR only (`gh pr view`, `gh pr diff`); posting to GitHub follows `SKILL.md` Core Review Rules (read-only by default)
 
 **Completed when**: the diff boundary, the uncommitted-edit check, the working-tree/head
 check, and the stated intent are all recorded.
@@ -83,8 +82,7 @@ Do:
 - import direction, circular imports, and cross-layer access are checked in Phase 3, not here
 - run `ruff check` / `mypy` or `pyright` on touched files to confirm type and lint findings
 
-**Completed when**: every check above has been applied to each changed function in
-the diff, and `ruff check`/`mypy`/`pyright` have been run on touched files.
+**Completed when**: every check above has been applied to each changed function, and `ruff check`/`mypy`/`pyright` have been run on touched files.
 
 ---
 
@@ -100,10 +98,7 @@ Do:
 - run the project checkers from the Toolchain table whose trigger matches the diff
   (`check_db_separation`, `check_module_size`, `generate_reference_table --check`, ...)
 
-**Completed when**: dependency direction, import-cycle, boundary, and abstraction-
-introduction checks have been applied to every changed import/interface in the diff,
-`lint-imports` has been run (or recorded as unavailable), and each matching project
-checker has been run or recorded `Needs confirmation`.
+**Completed when**: the checks above have been applied to every changed import/interface, `lint-imports` has been run (or recorded as unavailable), and each matching project checker has been run or recorded `Needs confirmation`.
 
 ---
 
@@ -114,9 +109,7 @@ Check compliance with `skills/DESIGN.md` Pythonic safety constraints:
 - check file, socket, DB connection, HTTP client, subprocess, and async task cleanup (`with` / `async with`)
 - check for resource leaks on early-return and exception paths
 
-**Completed when**: every changed `async def`/resource-acquiring code path in the
-diff has been checked for blocking calls and cleanup on both normal and exception
-paths.
+**Completed when**: every changed `async def`/resource-acquiring path has been checked for blocking calls and cleanup on normal and exception paths.
 
 ---
 
@@ -162,10 +155,7 @@ Do:
   `tox.ini`, and confirm each touched path is covered by lint, type-check, test, and
   `lint-imports` gates (for example, `mypy`'s configured `files` scope omits `tools/`)
 
-**Completed when**: test coverage has been checked for every critical/edge/failure
-path touched by the diff, CI gate coverage has been checked for the touched paths from
-those files, and `pytest` has been run (or recorded `Needs confirmation` because
-isolation could not be confirmed) to confirm the claimed pass/fail state.
+**Completed when**: test coverage and CI gate coverage have been checked for every path touched by the diff, and `pytest` has been run (or recorded `Needs confirmation` because isolation could not be confirmed).
 
 ---
 
@@ -176,8 +166,7 @@ Do:
 - ground every mismatch claim in the current implementation, not in memory of prior versions; for config keys, ports, and symbols, run `uv run python tools/check_docs_consistency.py --domain <domain>` (domains per `routing.md` Tools)
 - avoid implementation-reference duplication: see `skills/DESIGN.md` Avoid implementation-reference duplication and Docs content policy — remove
 
-**Completed when**: every doc claim about the changed behavior has been checked
-against the current implementation, not against a prior-version recollection.
+**Completed when**: every doc claim about the changed behavior has been checked against the current implementation.
 
 ---
 
@@ -202,12 +191,10 @@ evidence, an evidence label/confidence level, a severity, and an ID assigned.
 
 Use the Output Format defined in `SKILL.md`, including its no-findings form when nothing
 survives Phase 8. Group findings by severity. MUST NOT over-report style-only issues.
-Keep recommendations actionable; for suggested tests, specify the exact behavior or failure
-mode to verify. Deliver the report in the chat; do not post it to GitHub unless the user asks
-(`SKILL.md` GitHub read-only rule).
+Deliver the report in the chat; do not post it to GitHub unless the user asks (`SKILL.md`
+GitHub read-only rule).
 
-**Completed when**: the report follows `SKILL.md`'s Output Format, findings are
-grouped by severity, and no style-only issue is over-reported.
+**Completed when**: the report follows `SKILL.md`'s Output Format and no style-only issue is over-reported.
 
 ---
 
@@ -219,12 +206,10 @@ Markdown file per issue under `issues/` (it does not post to GitHub). Writing th
 skill's designated output phase, not a violation of the analysis-only constraint
 (`skills/DESIGN.md`).
 
-Delegate issue authoring entirely to `skills/issue-creator/SKILL.md`: it owns the field
-list (`templates/issue.md`), the grouping/splitting criteria, the sibling-issue check, the
-filename, and the verification. When it is called from here, its "Input from review
-findings" (`skills/issue-creator/workflow.md`) defines how each finding's location,
-evidence, confidence, and suggested fix map into the issue — do not restate that mapping
-or a field list here. Apply in order: choose the findings (10a), then run `issue-creator`
+Delegate issue authoring entirely to `skills/issue-creator/SKILL.md` (field list, grouping,
+sibling-issue check, filename, verification). Its "Input from review findings"
+(`skills/issue-creator/workflow.md`) defines how each finding maps into the issue — do not
+restate that mapping or a field list here. Apply in order: choose the findings (10a), then run `issue-creator`
 (10b), then check the written files (10c).
 
 ### Step 10a: Choose the findings that feed `issue-creator`

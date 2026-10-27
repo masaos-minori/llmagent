@@ -39,21 +39,19 @@ below omit the prefix for brevity. Use mirrored test paths (`tests/<package>/tes
 
 ### Tool availability and fallbacks
 
-Tools come in two kinds, and the availability check differs (checking the wrong way gives a
-false "missing"):
+Checking the wrong way gives a false "missing":
 
 - **Python-package tools** (`viztracer`, `py-spy`, `mitmproxy`, `http` from httpie, `tox`,
-  `pyright`, `ipdb`, `aiomonitor`, ...) are installed in the project environment, not on PATH.
-  Run them as `uv run <tool> ...` and check with `uv run <tool> --version`. Libraries without a
-  command (`aiomonitor`, `ipdb`, `rich`, `stackprinter`) are checked by importing them:
-  `uv run python -c "import aiomonitor"`. On this host, `viztracer`, `py-spy`, `mitmproxy`, `http`,
-  and `tox` run under `uv run` although `command -v` finds none of them.
+  `pyright`, `ipdb`, `aiomonitor`, ...) are in the project environment, not on PATH: run as
+  `uv run <tool> ...`, check with `uv run <tool> --version`. Libraries without a command
+  (`aiomonitor`, `ipdb`, `rich`, `stackprinter`) are checked by importing them:
+  `uv run python -c "import aiomonitor"`.
 - **System tools** (`strace`, `lnav`, `multitail`, `jq`, `sqlite3`, `rg`) are checked with
   `command -v <tool>`; they may be absent.
 
-Re-check on each host rather than trusting this list. If the correct check fails, apply
-`skills/DESIGN.md` Tool availability guard and use the fallback, recording the check as
-`Needs confirmation` when the fallback gives weaker evidence:
+Re-check on each host. If the correct check fails, apply `skills/DESIGN.md` Tool availability
+guard and use the fallback, recording the check as `Needs confirmation` when the fallback
+gives weaker evidence:
 
 | Missing tool | Fallback |
 |---|---|
@@ -118,9 +116,7 @@ Rules for reading and quoting logs:
   context: `rg -A 15 " ERROR "` (or `-B 2 -A 15` around the match).
 - Rotation is not documented here. Prefer a time window (`rg "^<date> <hour>:"`) over a fixed
   `tail -N`, and confirm the log covers the failure time (the first line's date).
-- Logs can contain secrets (tokens, authorization headers, production values). Before quoting a
-  snippet in the report, replace each secret with `<redacted>` (`skills/DESIGN.md` No secrets in
-  output); keep the rest of the text exact.
+- Redact secrets in every quoted snippet with `<redacted>` per `SKILL.md` Evidence-Driven; keep the rest of the text exact.
 
 Use `lnav` only when plain filtering cannot narrow the window (e.g. correlating across log files by time). Use
 `multitail` only when several services must be watched live as the failure reproduces (not for
@@ -174,9 +170,7 @@ with sentry_sdk.push_scope() as scope:
 
 See `rules/coding.md`, section "Prohibited behavior (all tasks)" — remove before committing.
 
-**Completed when**: at least one observability source above has surfaced enough
-signal to inform Phase 3's classification, or all applicable sources were checked
-and none did.
+**Completed when**: one observability source has surfaced enough signal for Phase 3's classification, or all applicable sources were checked and none did.
 
 ---
 
@@ -229,11 +223,9 @@ If `tox` does not run under `uv run`, use `uv run pytest` directly (see Tool ava
 
 #### Running the agent itself (needs confirmation)
 
-Starting `python -m agent` — alone, behind `mitmproxy`, or under `viztracer`/`strace` — is not an
-isolated reproduction even when launched from the working tree: the repository configuration
-points at `/opt/llm`, so the process would use the production session database, write the
-production logs, and start MCP servers on the configured ports (which may already be in use). The
-test suite avoids this with a temporary root that holds a copy of `config/` and `schemas/` with
+Starting `python -m agent` (alone, behind `mitmproxy`, or under `viztracer`/`strace`) is not an
+isolated reproduction (see `SKILL.md` Production Safety: production session database, logs,
+MCP server ports in use). The test suite avoids this with a temporary root that holds a copy of `config/` and `schemas/` with
 the state paths rewritten, and the environment variables `LLMAGENT_CONFIG_DIR`,
 `EVENTBUS_CONFIG_PATH`, `EVENTBUS_SCHEMA_PATH`, and `LLMAGENT_LOG_DIR` (see the header of
 `tests/conftest.py`). The repository does not document that setup as a supported way to launch the
@@ -313,9 +305,8 @@ tool first with the check that matches its kind (Tool availability and fallbacks
 --version` for Python-package tools, `command -v` for system tools) and use the fallback table
 when the right check fails.
 
-Attaching to a running process (`py-spy --pid`, `strace -p`, `aiomonitor`) needs the user's
-confirmation (`SKILL.md` Production Safety). Starting a fresh agent process under a tool is not a
-safe alternative: it needs the confirmation and caveats in Phase 4 "Running the agent itself". The
+Attaching to a running process and starting a fresh agent process both need the confirmation
+in `SKILL.md` Production Safety (caveats: Phase 4 "Running the agent itself"). The
 agent entry point is `PYTHONPATH=scripts uv run python -m agent` (`scripts/agent/__main__.py`);
 there is no `scripts/agent.py`. Prefer profiling or tracing the suspect component inside a test
 under the test-suite isolation (for example `uv run viztracer -m pytest <test path>`, or
@@ -408,9 +399,7 @@ from rich.pretty import pprint; pprint(config_dict)
 import stackprinter; stackprinter.set_excepthook(style="plaintext")
 ```
 
-**Completed when**: the tool(s) selected via Phase 3's table have been run and
-produced either a concrete lead for Phase 6's hypothesis table or a confirmed
-absence of signal from that tool.
+**Completed when**: the tool(s) selected via Phase 3's table have been run and produced a concrete lead for Phase 6 or a confirmed absence of signal.
 
 ---
 
@@ -644,7 +633,7 @@ cycle ended in a `Blocked` state per Phase 6b or Phase 9a's own stop condition.
 - the wider suite (`uv run pytest -m "not integration and not production_paths_allowed"`) and the targeted test pass, and the project gates pass or each unrelated failure is recorded
 - services restarted if production code changed and the user confirmed; if the user declined or no production code changed, say so (not an unmet item)
 - debug artifacts removed
-- every quoted log, request, or output snippet has its secrets redacted
+- every quoted log, request, or output snippet has its secrets redacted (`SKILL.md` Evidence-Driven)
 - residual uncertainty stated explicitly
 
 ---
@@ -667,8 +656,7 @@ Populate every item from what earlier Phases recorded — MUST NOT re-derive or 
 
 ## Prohibited behavior
 
-The rules stated in `SKILL.md` Core Debugging Rules (evidence, observations vs assumptions,
-production safety, secrets) apply throughout. Additionally:
+`SKILL.md` Core Debugging Rules apply throughout. Additionally:
 
 - MUST NOT skip reproduction analysis when feasible
 - MUST NOT apply multiple speculative fixes at once

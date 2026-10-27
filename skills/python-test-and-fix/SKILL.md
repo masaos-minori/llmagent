@@ -120,7 +120,4 @@ Report: the Test Fix Strategy Record (for any fix to a failing test); the tests 
 - `git-commit-and-sync` — to commit and push the result on request.
 
 ## Improvement feedback
-After running this skill:
-- if a skip criterion was wrong or a step was missing for a specific task type, update the Task Routing section in this file
-- if a Step's instruction, command, or example was wrong, update that Step in `workflow.md`
-- if the completion checklist missed a check that mattered (or listed one that never did), update the checklist in `workflow.md`
+After running this skill: a wrong skip criterion or missing step for a task type is fixed in Task Routing here; a wrong Step instruction/command/example, or a checklist that missed (or wrongly listed) a check, is fixed in `workflow.md`.
