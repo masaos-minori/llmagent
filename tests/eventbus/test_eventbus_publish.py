@@ -49,7 +49,7 @@ def test_health_degraded_when_db_unavailable(client: TestClient) -> None:
 
     mock_db = MagicMock()
     mock_db.execute.side_effect = sqlite3.OperationalError("DB gone")
-    eb_app.app.state.db = mock_db  # type: ignore[assignment]
+    eb_app.app.state.db = mock_db
     resp = client.get(
         "/health",
         headers=eventbus_auth_headers("monitoring"),

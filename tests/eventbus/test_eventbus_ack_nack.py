@@ -348,7 +348,7 @@ class TestNackEvent:
         """Publish an event using the publisher token."""
         publisher_headers = {"Authorization": "Bearer publisher-token"}
         resp = client.post("/publish", json=body, headers=publisher_headers)
-        return resp.status_code
+        return int(resp.status_code)
 
     def test_nack_event_increments_failure_count(self, db: sqlite3.Connection) -> None:
         from eventbus.db import nack_event

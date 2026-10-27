@@ -10,7 +10,7 @@ from __future__ import annotations
 import sqlite3
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
 from eventbus_helpers import eventbus_auth_headers, make_eventbus_client
@@ -112,7 +112,7 @@ class TestCrashBeforeAck:
         """Publish an event using the publisher token."""
         publisher_headers = {"Authorization": "Bearer publisher-token"}
         resp = client.post("/publish", json=body, headers=publisher_headers)
-        return resp.status_code
+        return int(resp.status_code)
 
     def test_unacked_event_replayed_on_reconnect(self, client: TestClient) -> None:
         """Consumer disconnects before acking — event must be replayed."""
@@ -237,7 +237,12 @@ class TestCrashBeforeAck:
 
         # This should raise an exception
         with pytest.raises(sqlite3.IntegrityError, match="simulated commit failure"):
-            ack_event_for_consumer(failing_db, "evt-crash-offset", consumer_id, now)
+            ack_event_for_consumer(
+                cast(sqlite3.Connection, failing_db),
+                "evt-crash-offset",
+                consumer_id,
+                now,
+            )
 
         # Verify neither delivery nor offset was committed
         delivery_row = db.execute(

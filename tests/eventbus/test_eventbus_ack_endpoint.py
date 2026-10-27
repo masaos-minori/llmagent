@@ -128,7 +128,7 @@ class TestAckEndpoint:
         """Publish an event using the publisher token."""
         publisher_headers = {"Authorization": "Bearer publisher-token"}
         resp = client.post("/publish", json=body, headers=publisher_headers)
-        return resp.status_code
+        return int(resp.status_code)
 
     def test_ack_event_with_consumer_id(self, client: TestClient) -> None:
         """POST /events/{event_id}/ack with consumer_id updates offset."""
@@ -341,7 +341,7 @@ class TestNackEndpointIdempotency:
         """Publish an event using the publisher token."""
         publisher_headers = {"Authorization": "Bearer publisher-token"}
         resp = client.post("/publish", json=body, headers=publisher_headers)
-        return resp.status_code
+        return int(resp.status_code)
 
     def test_nack_same_key_no_op(self, principal_client: TestClient) -> None:
         """A repeated delivery-attempt key returns a no-op 200 with an unchanged count."""

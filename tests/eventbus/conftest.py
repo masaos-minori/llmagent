@@ -61,19 +61,3 @@ def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
     original_map = getattr(auth, "_TOKEN_PRINCIPAL_MAP", {})
     yield
     monkeypatch.setattr(auth, "_TOKEN_PRINCIPAL_MAP", original_map)
-
-
-@pytest.fixture(autouse=True)
-def _reset_auth_state(monkeypatch: pytest.MonkeyPatch) -> Generator[None]:
-    """Preserve auth module-level state across tests.
-
-    _TOKEN_PRINCIPAL_MAP is populated at runtime by
-    attach_auth_middleware() or config loading; preserving it prevents
-    test-to-test leakage while keeping the map intact for the duration
-    of each test run.
-    """
-    from eventbus import auth
-
-    original_map = getattr(auth, "_TOKEN_PRINCIPAL_MAP", {})
-    yield
-    monkeypatch.setattr(auth, "_TOKEN_PRINCIPAL_MAP", original_map)

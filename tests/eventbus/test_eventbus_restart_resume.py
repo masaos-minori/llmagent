@@ -101,7 +101,8 @@ def _pub(client: TestClient, topic: str = "t") -> dict[str, Any]:
     }
     r = client.post("/publish", json=ev)
     assert r.status_code == 200
-    return r.json()
+    published: dict[str, Any] = r.json()
+    return published
 
 
 def test_same_consumer_id_resumes_from_last_acked_offset(
@@ -231,6 +232,7 @@ def test_resume_from_sqlite_offset(client: TestClient, tmp_path: Path) -> None:
         "p",
         "2026-06-25T12:00:00Z",
     )
+    assert seq1 is not None and seq2 is not None and seq3 is not None
     assert seq1 < seq2 < seq3
 
     _, newly_acked_a, _ = ack_event_for_consumer(
@@ -347,6 +349,7 @@ class TestOutOfOrderAckNoSkipOnReconnect:
                 "p",
                 "2026-10-04T00:00:00Z",
             )
+            assert seq1 is not None and seq2 is not None and seq3 is not None
             assert seq1 < seq2 < seq3
 
             # ACK out of order: ack seq3 before seq2

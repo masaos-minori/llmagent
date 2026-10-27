@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import uuid
+from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
@@ -162,7 +163,7 @@ def _pub_client(client: TestClient) -> TestClient:
 
 def _make_subscriber_client(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, idle_timeout: float = 0.5
-) -> TestClient:
+) -> Generator[TestClient]:
     """Create a subscriber TestClient with a short idle timeout for SSE streams."""
     from eventbus import app as eb_app
     from eventbus.config import EventBusConfig

@@ -13,9 +13,10 @@ import asyncio
 import json
 import uuid
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from tests.eventbus.eventbus_helpers import eventbus_auth_headers, eventbus_test_tokens
@@ -102,7 +103,8 @@ def _pub(client: TestClient, topic: str = "t") -> dict[str, Any]:
     }
     r = client.post("/publish", json=ev)
     assert r.status_code == 200
-    return r.json()
+    published: dict[str, Any] = r.json()
+    return published
 
 
 def _event(topic: str = "t") -> dict[str, Any]:
@@ -122,7 +124,7 @@ def test_ack_writes_offset(client: TestClient, tmp_path: Path) -> None:
         insert_event,
     )
 
-    db = client.app.state.db
+    db = cast(FastAPI, client.app).state.db
     now = "2026-09-09T10:00:00Z"
     consumer_id = "test_consumer"
 
@@ -225,13 +227,14 @@ class TestSqliteOffsetMonotonicity:
             insert_event,
         )
 
-        db = client.app.state.db
+        db = cast(FastAPI, client.app).state.db
         now = "2026-09-09T10:00:00Z"
         consumer_id = "monotonic_test"
 
         # Insert two events with different seq values
         seq1, _, _ = insert_event(db, "evt-mono-1", "test-topic", "{}", "producer", now)
         seq2, _, _ = insert_event(db, "evt-mono-2", "test-topic", "{}", "producer", now)
+        assert seq1 is not None and seq2 is not None
         assert seq1 < seq2
 
         # Acknowledge evt-mono-2 first (higher seq)

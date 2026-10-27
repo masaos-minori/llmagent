@@ -429,7 +429,7 @@ async def test_concurrent_requeue_same_event(
 
     from httpx import ASGITransport, AsyncClient
 
-    async def requeue(event_id: str) -> dict:
+    async def requeue(event_id: str) -> dict[str, Any]:
         async with AsyncClient(
             transport=ASGITransport(app=client.app), base_url="http://test"
         ) as ac:
@@ -437,7 +437,8 @@ async def test_concurrent_requeue_same_event(
                 f"/dlq/{event_id}/requeue",
                 headers=eventbus_auth_headers("operator"),
             )
-            return r.json()
+            body: dict[str, Any] = r.json()
+            return body
 
     results = await asyncio.gather(
         requeue(ev["event_id"]),
@@ -494,7 +495,7 @@ async def test_concurrent_requeue_different_events(
 
     sweep_orphans(db, str(tmp_path / "deadletter"), max_retry=2)
 
-    async def requeue(event_id: str) -> dict:
+    async def requeue(event_id: str) -> dict[str, Any]:
         async with AsyncClient(
             transport=ASGITransport(app=client.app), base_url="http://test"
         ) as ac:
@@ -502,7 +503,8 @@ async def test_concurrent_requeue_different_events(
                 f"/dlq/{event_id}/requeue",
                 headers=eventbus_auth_headers("operator"),
             )
-            return r.json()
+            body: dict[str, Any] = r.json()
+            return body
 
     results = await asyncio.gather(
         requeue(ev1["event_id"]),

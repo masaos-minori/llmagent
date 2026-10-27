@@ -110,7 +110,7 @@ class TestHealth:
 
         mock_db = MagicMock()
         mock_db.execute.side_effect = sqlite3.OperationalError("DB gone")
-        eb_app.app.state.db = mock_db  # type: ignore[assignment]
+        eb_app.app.state.db = mock_db
         resp = client.get("/health")
         assert resp.status_code == 503
         body = resp.json()
