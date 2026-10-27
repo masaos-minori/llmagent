@@ -7,13 +7,17 @@ Tests the inner LLM streaming + tool-call loop in isolation.
 
 from __future__ import annotations
 
+import sqlite3
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.context import ConversationState
 from agent.llm_turn_runner import LLMTurnRunner
+from agent.session import AgentSession
+from agent.session_message_repo import SessionMessageRepository
 from agent.tool_loop_guard import ToolLoopGuard
+from agent.turn_persistence import ConversationPersistenceError
 from shared.llm_exceptions import LLMTransportError
 from shared.llm_types import LLMResponse
 from shared.types import LLMMessage
@@ -722,3 +726,145 @@ class TestAllFailingRoundGuardReachable:
         # turn continues. Had update_errors incremented on partial failure, the
         # third round would have hit error_limit instead.
         assert result.action == "continue"
+
+
+# ── Round atomicity (AC-002) ────────────────────────────────────────────────
+
+_ROUND_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS sessions (
+    session_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    title TEXT,
+    undo_floor_message_id INTEGER NOT NULL DEFAULT 0
+);
+CREATE TABLE IF NOT EXISTS messages (
+    message_id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id INTEGER NOT NULL,
+    role       TEXT NOT NULL,
+    content    TEXT NOT NULL,
+    tool_calls TEXT,
+    tool_call_id TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+"""
+
+
+class _FakeSQLiteHelper:
+    """Minimal SQLiteHelper stand-in bound to an in-memory connection."""
+
+    def __init__(self, conn: sqlite3.Connection) -> None:
+        self._conn = conn
+
+    def open(
+        self, *, write_mode: bool = False, row_factory: bool = False
+    ) -> _FakeSQLiteHelper:
+        self._conn.row_factory = sqlite3.Row if row_factory else None
+        return self
+
+    def execute(self, sql: str, params: tuple | dict = ()) -> sqlite3.Cursor:
+        return self._conn.execute(sql, params)
+
+    def executemany(self, sql: str, params_seq: list) -> sqlite3.Cursor:
+        return self._conn.executemany(sql, params_seq)
+
+    def fetchall(self, sql: str, params: tuple | dict = ()) -> list:
+        return self._conn.execute(sql, params).fetchall()
+
+    def commit(self) -> None:
+        self._conn.commit()
+
+    def close(self) -> None:
+        pass
+
+    def __enter__(self) -> _FakeSQLiteHelper:
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        pass
+
+
+class TestRunRoundAtomicity:
+    """A persistence failure in a later tool round rolls back every earlier
+    round's assistant row through the turn boundary (AC-002)."""
+
+    @pytest.mark.asyncio
+    async def test_failed_later_round_leaves_no_partial_rows(self) -> None:
+        conn = sqlite3.connect(":memory:")
+        conn.executescript(_ROUND_SCHEMA_SQL)
+        conn.execute("INSERT INTO sessions (session_id) VALUES (1)")
+        conn.commit()
+        fake = _FakeSQLiteHelper(conn)
+        with (
+            patch("agent.session.SQLiteHelper", return_value=fake),
+            patch("agent.session_message_repo.SQLiteHelper", return_value=fake),
+        ):
+            session = AgentSession()
+            session.session_id = 1
+            session._message_repo = SessionMessageRepository(session_id=1)
+
+            # Pre-turn user row (id 1); the boundary marker is captured after it.
+            user_msg: LLMMessage = {"role": "user", "content": "q"}
+            session.save(user_msg["role"], user_msg["content"])
+            conv = ConversationState()
+            conv.history = [user_msg]
+            boundary = await session.turn_boundary(conv)
+
+            guard = MagicMock()
+            guard.check_all.return_value = None
+            guard.check_error_limit.return_value = None
+            guard.check_empty_result_repeat.return_value = None
+            guard.update_errors.return_value = 0
+            ctx = MagicMock()
+            ctx.conv = conv
+            ctx.turn.persistence_boundary = boundary
+            ctx.stats.stat_tool_errors = 0
+            ctx.cfg.tool.max_tool_turns = 5
+            runner = LLMTurnRunner(ctx, guard)
+
+            tool_calls = [{"id": "c1", "function": {"name": "read_file"}}]
+            tool_response = LLMResponse(
+                message={
+                    "role": "assistant",
+                    "content": "",
+                    "tool_calls": tool_calls,
+                },
+                finish_reason="tool_calls",
+            )
+
+            real_save = session._message_repo.save  # bound to the repo instance
+            calls = {"n": 0}
+
+            def _counting_save(
+                role: str,
+                content: str,
+                tool_calls: list[dict] | None = None,
+                tool_call_id: str | None = None,
+            ) -> None:
+                # 1st call = round-1 assistant row (persists); the 2nd
+                # (round-2 assistant) fails and the boundary compensates every
+                # row after the turn-start marker.
+                calls["n"] += 1
+                if calls["n"] >= 2:
+                    raise sqlite3.OperationalError("injected disk failure")
+                return real_save(role, content, tool_calls, tool_call_id)
+
+            with (
+                patch.object(
+                    runner,
+                    "_stream_llm",
+                    AsyncMock(side_effect=[tool_response, tool_response]),
+                ),
+                patch("agent.llm_turn_runner.execute_all_tool_calls", AsyncMock()),
+            ):
+                with patch.object(
+                    SessionMessageRepository, "save", side_effect=_counting_save
+                ):
+                    with pytest.raises(ConversationPersistenceError):
+                        await runner.run("http://llm", **WF_CTX)
+
+            # Round 2's failure compensated round 1's assistant row; only the
+            # pre-turn user row remains. No partial round rows survive (AC-002).
+            rows = conn.execute(
+                "SELECT role FROM messages WHERE session_id = 1 ORDER BY message_id"
+            ).fetchall()
+            assert [r[0] for r in rows] == ["user"]

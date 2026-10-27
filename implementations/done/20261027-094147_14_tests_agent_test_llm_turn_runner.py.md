@@ -89,10 +89,10 @@ async def test_failed_round_leaves_no_partial_rows():
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Update runner tests for boundary-routed persistence | Pending | — | — | Update existing module |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This module |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Update runner tests for boundary-routed persistence | Complete | 2026-10-27 | 2026-10-27 | Per-round assistant persist already asserted on `runner._ctx.turn.persistence_boundary.save` (test_executes_tool_calls_then_returns); no stale `session.save` assertions remain in the module |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | Added `TestRunRoundAtomicity.test_failed_later_round_leaves_no_partial_rows`: real `AgentSession` + in-memory DB, pre-turn user row, two tool rounds, round-2 `repo.save` fails via counting side_effect, asserts `ConversationPersistenceError` and that only the user row remains (AC-002). Negative-checked: disabling `_compensate` leaves the assistant row (assertion fails) so the test exercises the real compensation path |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | ruff check/format clean, mypy --no-namespace-packages clean (441 files), lint-imports 6/6, bandit severity High/Medium 0, vulture @80 exit 0; full suite 10237 passed, 12 skipped |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | Marked Execution Status Complete |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
