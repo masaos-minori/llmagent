@@ -59,8 +59,20 @@ PYTHONPATH=scripts uv run lint-imports
 ### 4. Constraint verification (ast-grep)
 
 ```bash
-ast-grep --pattern 'except: $$$' --lang python scripts/
+ast-grep scan --inline-rules 'id: no-bare-except
+language: python
+severity: error
+message: bare except is prohibited
+rule:
+  pattern: |
+    try:
+        $$$A
+    except:
+        $$$B
+' scripts/
 ```
+
+Exits non-zero on a bare `except:`. A bare `--pattern 'except: $$$'` is rejected by ast-grep as an invalid pattern.
 
 ### 5. Security scan (bandit)
 

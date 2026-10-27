@@ -64,6 +64,21 @@ MODE_FAST = "fast"
 MODE_FULL = "full"
 
 _ROUTING_HEADING = "### When to run which tool"
+# rules/toolchain.md section 4 bare-except check. A bare `--pattern 'except: $$$'` is not a
+# valid ast-grep pattern (it parses as several nodes), and a plain `--pattern` run exits 0 even
+# on matches. Scanning with an error-severity rule exits non-zero on a hit.
+_BARE_EXCEPT_RULE = (
+    "id: no-bare-except\n"
+    "language: python\n"
+    "severity: error\n"
+    "message: bare except is prohibited (rules/coding.md)\n"
+    "rule:\n"
+    "  pattern: |\n"
+    "    try:\n"
+    "        $$$A\n"
+    "    except:\n"
+    "        $$$B\n"
+)
 # The orchestrator has its own row in that table, but it cannot be a gate of itself, so
 # the drift check ignores that row.
 _SELF_CHECKER_ID = Path(__file__).stem
@@ -565,10 +580,9 @@ TOOLCHAIN_GATES: tuple[Gate, ...] = (
         command=(
             (
                 "ast-grep",
-                "--pattern",
-                "except: $$$",
-                "--lang",
-                "python",
+                "scan",
+                "--inline-rules",
+                _BARE_EXCEPT_RULE,
                 "scripts/",
             ),
         ),

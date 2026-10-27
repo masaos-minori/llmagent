@@ -68,8 +68,18 @@ inline comment above `ignore = ["E501"]` in `pyproject.toml` and
 ## Constraint checks (run before every commit)
 
 ```bash
-# no bare except
-ast-grep --pattern 'except: $$$' --lang python scripts/
+# no bare except (non-zero exit on a hit; see rules/toolchain.md section 4)
+ast-grep scan --inline-rules 'id: no-bare-except
+language: python
+severity: error
+message: bare except is prohibited
+rule:
+  pattern: |
+    try:
+        $$$A
+    except:
+        $$$B
+' scripts/
 
 # no print() in library modules
 ast-grep --pattern 'print($$$)' --lang python scripts/
