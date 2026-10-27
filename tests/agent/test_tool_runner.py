@@ -128,8 +128,26 @@ def _make_ctx(cfg: AgentConfig | None = None) -> MagicMock:
     ctx.conv = ConversationState()
     ctx.session = MagicMock()
     ctx.session.session_id = None
+    # Tool-result persist routes through the turn's atomic boundary (SEQ-08);
+    # expose an awaitable save_phase_grouped so complete_round()'s round path
+    # resolves it without a real session/DB.
+    ctx.turn.persistence_boundary = _persistence_boundary_mock()
     ctx.workflow.workflow_id = "wf-test-id"
     return ctx
+
+
+def _persistence_boundary_mock() -> MagicMock:
+    """A stand-in TurnPersistence with awaitable write methods.
+
+    Lets execute_all_tool_calls route its round persist through
+    ``ctx.turn.persistence_boundary`` (SEQ-08) without a real session/DB.
+    """
+    boundary = MagicMock()
+    boundary.save = AsyncMock(return_value=None)
+    boundary.save_many = AsyncMock(return_value=None)
+    boundary.save_phase_grouped = AsyncMock(return_value=None)
+    boundary.replace_messages = AsyncMock(return_value=None)
+    return boundary
 
 
 def _tc(name: str, args: str = "{}") -> dict:
@@ -656,12 +674,12 @@ def _tool_history_ids(ctx: MagicMock) -> list[str]:
 
 
 def _saved_tool_ids(ctx: MagicMock) -> list[str]:
-    rows = ctx.session.save_many.call_args.args[0]
+    rows = ctx.turn.persistence_boundary.save_phase_grouped.call_args.args[0]
     return [row[3] for row in rows]
 
 
 def _saved_text(ctx: MagicMock, call_id: str) -> str:
-    rows = ctx.session.save_many.call_args.args[0]
+    rows = ctx.turn.persistence_boundary.save_phase_grouped.call_args.args[0]
     return next(row[1] for row in rows if row[3] == call_id)
 
 
@@ -689,7 +707,7 @@ class TestBatchFailureTotality:
     def _assert_paired(ctx: MagicMock, declared: list[str]) -> None:
         assert sorted(_tool_history_ids(ctx)) == sorted(declared)
         assert sorted(_saved_tool_ids(ctx)) == sorted(declared)
-        ctx.session.save_many.assert_called_once()
+        ctx.turn.persistence_boundary.save_phase_grouped.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_executor_unavailable_yields_error_row_not_raise(self) -> None:
@@ -900,10 +918,13 @@ class TestBatchFailureTotality:
     async def test_a_failing_completion_still_raises(self) -> None:
         ctx = _make_ctx()
         ctx.services_required.tools = None
-        ctx.session.save_many.side_effect = RuntimeError("db down")
+        ctx.turn.persistence_boundary.save_phase_grouped.side_effect = RuntimeError(
+            "db down"
+        )
 
         # The per-call failure is now converted to an error row, so the round
-        # completes; the surviving exception is the completion (save_many) one.
+        # completes; the surviving exception is the completion (save_phase_grouped)
+        # one.
         with _approve_all(), pytest.raises(RuntimeError, match="db down"):
             await execute_all_tool_calls(
                 ctx, _declared("read_text_file"), 0, guard=ToolLoopGuard(ctx)
@@ -1068,7 +1089,7 @@ class TestExecuteAllToolCalls:
         ctx.services_required.tools.execute.assert_awaited_once_with(
             "read_text_file", {"path": "/tmp/f"}
         )
-        ctx.session.save_many.assert_called_once()
+        ctx.turn.persistence_boundary.save_phase_grouped.assert_called_once()
 
     @pytest.mark.asyncio
     async def test_all_calls_execute_without_gateway(self) -> None:

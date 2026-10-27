@@ -9,7 +9,14 @@ come back silently.
 
 from __future__ import annotations
 
-from agent.tool_round_completion import _merge_in_declared_order
+from unittest.mock import AsyncMock, MagicMock
+
+from agent.tool_enums import ToolCallStopReason
+from agent.tool_round_completion import (
+    RoundState,
+    _merge_in_declared_order,
+    complete_round,
+)
 
 
 def _row(call_id: str, tag: str = "") -> tuple:
@@ -57,3 +64,61 @@ class TestMergeInDeclaredOrder:
 
         assert _merge_in_declared_order(declared, [a, b, c]) == [a, b, c]
         assert _merge_in_declared_order(declared, [c, a, b]) == [a, b, c]
+
+
+class TestCompleteRoundPersistence:
+    """complete_round routes the round's tool-result persist through the turn
+    boundary's grouped variant instead of a standalone save_many (SEQ-08)."""
+
+    @staticmethod
+    def _make_ctx() -> MagicMock:
+        ctx = MagicMock()
+        # Memory advance stays a real append; the DB persist now flows through
+        # the turn boundary's begin_immediate transaction (SEQ-08).
+        ctx.conv.extend_messages = AsyncMock(return_value=None)
+        ctx.turn.persistence_boundary.save_phase_grouped = AsyncMock(return_value=None)
+        return ctx
+
+    @staticmethod
+    def _state() -> RoundState:
+        # One executed call with a real result; declared order is preserved.
+        return RoundState(
+            declared_ids=["c1"],
+            collected={"c1": ("c1", "t", "{}", "r", False, "r")},
+        )
+
+    async def test_persists_tool_results_through_boundary(self) -> None:
+        ctx = self._make_ctx()
+
+        await complete_round(
+            ctx,
+            self._state(),
+            [{"id": "c1"}],
+            0,
+            None,
+            ToolCallStopReason.GUARD_STOP,
+            AsyncMock(return_value=[("tool", "r", None, "c1")]),
+        )
+
+        # Memory append is preserved; the DB persist goes through the boundary.
+        ctx.conv.extend_messages.assert_awaited_once()
+        ctx.turn.persistence_boundary.save_phase_grouped.assert_awaited_once_with(
+            [("tool", "r", None, "c1")]
+        )
+
+    async def test_no_standalone_save_many_commit(self) -> None:
+        ctx = self._make_ctx()
+
+        await complete_round(
+            ctx,
+            self._state(),
+            [{"id": "c1"}],
+            0,
+            None,
+            ToolCallStopReason.GUARD_STOP,
+            AsyncMock(return_value=[("tool", "r", None, "c1")]),
+        )
+
+        # AC-001: no direct session writes remain in the round path.
+        ctx.session.save_many.assert_not_called()
+        ctx.session.save.assert_not_called()

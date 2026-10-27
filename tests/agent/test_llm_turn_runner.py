@@ -38,13 +38,17 @@ def _make_ctx() -> MagicMock:
 
 
 def _persistence_boundary_mock() -> MagicMock:
-    """A stand-in TurnPersistence with an awaitable save().
+    """A stand-in TurnPersistence with awaitable write methods.
 
-    Lets LLMTurnRunner route its per-round assistant persist through
-    ``ctx.turn.persistence_boundary`` (SEQ-07) without a real session/DB.
+    Lets LLMTurnRunner route its per-round assistant persist (SEQ-07) and
+    complete_round its round persist (SEQ-08) through
+    ``ctx.turn.persistence_boundary`` without a real session/DB.
     """
     boundary = MagicMock()
     boundary.save = AsyncMock(return_value=None)
+    boundary.save_many = AsyncMock(return_value=None)
+    boundary.save_phase_grouped = AsyncMock(return_value=None)
+    boundary.replace_messages = AsyncMock(return_value=None)
     return boundary
 
 

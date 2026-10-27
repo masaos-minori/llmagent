@@ -377,7 +377,25 @@ def _make_ctx_for_dag(
     ctx.services_required.runtime_tools = _runtime_tools_for_dag(is_write_by_name or {})
     ctx.session = MagicMock()
     ctx.session.save_many = MagicMock()
+    # Tool-result persist routes through the turn's atomic boundary (SEQ-08);
+    # expose an awaitable save_phase_grouped so complete_round()'s round path
+    # resolves it without a real session/DB.
+    ctx.turn.persistence_boundary = _persistence_boundary_mock()
     return ctx
+
+
+def _persistence_boundary_mock() -> MagicMock:
+    """A stand-in TurnPersistence with awaitable write methods.
+
+    Lets execute_all_tool_calls route its round persist through
+    ``ctx.turn.persistence_boundary`` (SEQ-08) without a real session/DB.
+    """
+    boundary = MagicMock()
+    boundary.save = AsyncMock(return_value=None)
+    boundary.save_many = AsyncMock(return_value=None)
+    boundary.save_phase_grouped = AsyncMock(return_value=None)
+    boundary.replace_messages = AsyncMock(return_value=None)
+    return boundary
 
 
 @pytest.mark.asyncio
