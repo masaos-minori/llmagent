@@ -38,7 +38,7 @@ for the gated sub-task is acceptable.
   `plans/done/20260806-134805_plan.md`); spans rule codes beyond `BLE001`/`PLC0415`,
   out of scope for this increment.
 
-**mypy:** `python_version = "3.13"`, `files = ["scripts/"]`, `ignore_missing_imports = true`
+**mypy:** `python_version = "3.13"`, `files = ["scripts/", "tests/eventbus"]`, `ignore_missing_imports = true`
 - Pre-existing errors exist. Fix incrementally (see Suppression governance below).
 
 **bandit:** `[tool.bandit]` — `skips = []`; do not add skips without justification
@@ -133,7 +133,7 @@ The default parameter is mandatory — omitting it means "reject missing keys".
 
 ## mypy note
 
-`warn_unused_ignores = true` is set in `pyproject.toml` — any `# type: ignore` on a line where mypy finds no error is itself an error. Neither CI nor the pre-commit mypy run covers `tests/` (`files` in `pyproject.toml` is `scripts/`), so a test file is type-checked only when it is passed to mypy explicitly; check one test directory per run, because a single run over all of `tests/` stops on duplicate `conftest` modules. Judge unused ignores only with the CI invocation, `uv run mypy --no-namespace-packages scripts/` (see `rules/toolchain.md`): without the flag, mypy reports ignores that CI still needs as unused.
+`warn_unused_ignores = true` is set in `pyproject.toml` — any `# type: ignore` on a line where mypy finds no error is itself an error. CI and the pre-commit mypy run cover `scripts/` and `tests/eventbus` (`files` in `pyproject.toml`), so a test module under `tests/eventbus` must pass mypy; the other test directories are type-checked only when passed to mypy explicitly, one directory per run, because a single run over all of `tests/` stops on duplicate `conftest` modules. Judge unused ignores only with the CI invocation, `uv run mypy --no-namespace-packages scripts/` (see `rules/toolchain.md`): without the flag, mypy reports ignores that CI still needs as unused.
 
 ## Documentation notes — "Current behavior" classification
 

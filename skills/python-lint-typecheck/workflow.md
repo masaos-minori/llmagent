@@ -37,14 +37,15 @@ changed since that command last ran in this cycle.
 
 **Full diagnosis** — if the cause is unknown, run all tools first, in their check-only forms
 (the CI `lint` job's commands in the table below; they do not modify files): `rules/toolchain.md`
-sections 1 (ruff), 2 (mypy), 3 (lint-imports), and 5 (bandit), each scoped to `scripts/`. Do not
+sections 1 (ruff), 2 (mypy), 3 (lint-imports), and 5 (bandit), each scoped to `scripts/` (mypy also covers `tests/eventbus`). Do not
 use the section 1 forms `uv run ruff format scripts/` or `ruff check --fix` for diagnosis: they
 rewrite files before you know what failed. Before the first edit, record `git status --short`;
 changes already in the working tree are not this task's (Step 10).
 When the failure is in `tools/` or `tests/`, scope the commands to those paths explicitly:
-`mypy`'s configured `files` covers only `scripts/` and CI's `ruff`/`bandit` steps also run on
-`scripts/` only, so a bare run says nothing about `tools/` (use `routing.md` "Adding a new tool"
-for a `tools/` file) or `tests/`; pre-commit hooks do cover those files.
+`mypy`'s configured `files` covers `scripts/` and `tests/eventbus` (the pre-commit mypy hook uses the
+same `files`), and CI's `ruff`/`bandit` steps run on `scripts/` only, so a bare run says nothing
+about `tools/` (use `routing.md` "Adding a new tool" for a `tools/` file) or the other `tests/`
+directories.
 
 **Map a failing CI step to a Step** (the `lint` job in `.github/workflows/ci.yml` is the
 source of truth; re-read it if this table looks stale):
@@ -53,7 +54,7 @@ source of truth; re-read it if this table looks stale):
 |---|---|---|
 | Format check | `uv run ruff format --check scripts/` | Step 2 |
 | Lint check | `uv run ruff check scripts/` | Step 2 |
-| Type check | `uv run mypy --no-namespace-packages scripts/` | Step 6 |
+| Type check | `uv run mypy --no-namespace-packages scripts/ tests/eventbus` | Step 6 |
 | Security scan | `uv run bandit -r scripts/ -c pyproject.toml -ll` | Step 7 |
 | Architecture check | `PYTHONPATH=scripts uv run lint-imports` | Step 3 |
 | SQLite 4DB separation check, reference-docs drift, docstring format, module size | `tools/check_db_separation.py`, `tools/generate_reference_table.py --check`, `tools/check_docstrings.py`, `tools/check_module_size.py` | Step 9 (CI-only gates) |
@@ -171,7 +172,7 @@ transform recipe and post-transform verification commands in
 #### mypy — primary
 
 ```bash
-uv run mypy --no-namespace-packages scripts/
+uv run mypy --no-namespace-packages scripts/ tests/eventbus
 uv run mypy --no-namespace-packages scripts/<file>.py
 uv run mypy --no-namespace-packages scripts/ --show-error-codes   # always include error codes
 ```

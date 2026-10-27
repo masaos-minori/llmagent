@@ -540,7 +540,16 @@ TOOLCHAIN_GATES: tuple[Gate, ...] = (
     ),
     Gate(
         name="mypy",
-        command=(("uv", "run", "mypy", "--no-namespace-packages", "scripts/"),),
+        command=(
+            (
+                "uv",
+                "run",
+                "mypy",
+                "--no-namespace-packages",
+                "scripts/",
+                "tests/eventbus",
+            ),
+        ),
         source=SOURCE_TOOLCHAIN,
         mode=MODE_FULL,
     ),

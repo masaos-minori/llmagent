@@ -42,7 +42,7 @@ uv run ruff check scripts/       # confirm clean
 ### 2. Type check
 
 ```bash
-uv run mypy --no-namespace-packages scripts/   # primary (same invocation as CI and pre-commit)
+uv run mypy --no-namespace-packages scripts/ tests/eventbus   # primary (same invocation as CI and pre-commit)
 uv run pyright scripts/          # alternate (cross-validate)
 ```
 
@@ -110,7 +110,7 @@ continuing to patch beyond that bound.
 ## Completion checklist (common to all tasks)
 
 - `uv run ruff check scripts/` passes with no errors
-- `uv run mypy --no-namespace-packages scripts/` passes (no new regressions vs pre-existing errors)
+- `uv run mypy --no-namespace-packages scripts/ tests/eventbus` passes (no new regressions vs pre-existing errors; `tests/eventbus` has none)
 - `uv run bandit -r scripts/ -c pyproject.toml -ll` passes (no high/medium unaddressed)
 - `PYTHONPATH=scripts uv run lint-imports` passes (no architecture boundary violations)
 - `uv run pytest` passes with no new failures

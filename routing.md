@@ -63,7 +63,7 @@ lighter validation sequence instead, then consider the tool done:
 1. `uv run ruff format tools/<file>.py` and `uv run ruff check tools/<file>.py --fix`,
    then confirm clean with `uv run ruff check tools/<file>.py`.
 2. `uv run mypy tools/<file>.py` — pass the file path explicitly; `pyproject.toml`'s
-   mypy `files` scope covers `scripts/` by default, not `tools/`, so a bare
+   mypy `files` scope covers `scripts/` and `tests/eventbus` by default, not `tools/`, so a bare
    `uv run mypy` (no path) silently skips this file rather than confirming it clean.
 3. `uv run bandit tools/<file>.py`.
 4. A manual smoke-test invocation against real repository data (not only a
