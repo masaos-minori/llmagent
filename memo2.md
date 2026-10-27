@@ -5,7 +5,6 @@
 各計画書から実装手順書を作成した後に以下のファイル一覧から作業が完了した計画書ファイル名を削除してください。
 作業が終了した計画書はアーカイブしてください。
 
-- plans/20261027-071546_turn002_repair-orphan-tool-call-rows.md
 - plans/20261027-072306_memory001_retry-memory-injection-failure.md
 - plans/20261027-073638_config001_make-config-reload-atomic.md
 - plans/20261027-074212_history001_token-overflow-compression-fallback.md
