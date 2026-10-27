@@ -41,6 +41,17 @@ Documents the relationship between session persistence and conversation history 
 
 `save_many(messages)` processes multiple messages in a single transaction. `replace_messages(messages)` writes a snapshot of compressed history back to the DB.
 
+### Turn Persistence Boundary
+
+A single turn-persistence boundary makes one agent turn's session-DB persistence all-or-nothing. One boundary is materialized per turn and owns every `messages` write for that turn: each turn-path writer routes its writes through the boundary instead of writing the repository directly, so a whole turn commits atomically or not at all.
+
+On any persistence failure inside the turn, the boundary compensates and surfaces a distinct error:
+
+- **Compensation.** Only the turn's own rows are removed — those with a `message_id` greater than the turn-start marker, where the marker is the highest `message_id` present when the turn begins. Rows at or below the marker, including the marker row and every prior turn, are retained. The in-memory `ctx.conv.history` is restored element-wise to the snapshot captured at turn start.
+- **Dedicated error type.** A database failure inside the turn is raised as the dedicated conversation-persistence error type (wrapping the underlying database error), never a raw database error. It propagates from the boundary through the orchestrator, which records a distinct persistence error kind, to the REPL, which surfaces a dedicated "turn not persisted, history rolled back" message rather than the generic error format.
+
+This boundary is a failure-triggered path, distinct from the manual `/undo` command and from the save rules above; it does not change their semantics. Rows retained by compensation remain subject to `/undo` and history compression as before.
+
 ### DiagnosticStore Separation Design
 
 Diagnostic data (LLM transport errors, guard hints, session runtime summaries) is persisted in the `session_diagnostics` table via `DiagnosticStore`. It is separate from the `messages` table. Regarding the partial completion model for persistence, refer to [agent_03 Partial-Completion Model](agent_03_03_turn-processing-flow-workflow-engine.md).
