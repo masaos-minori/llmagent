@@ -2,6 +2,13 @@
 
 Create the single turn-persistence boundary module `scripts/agent/turn_persistence.py` that makes session-DB persistence for one agent turn all-or-nothing (`REQ-001`). It defines `ConversationPersistenceError (new)` (new) — the exception every turn-path failure surfaces through — and `TurnPersistence (new)` (new), the object that owns the turn-start marker, per-phase writes on a reused connection, compensation, and memory restore. On any persistence failure inside a turn the boundary deletes the turn's partial DB rows, restores `ConversationState` memory to its turn-start snapshot, and raises `ConversationPersistenceError (new)` wrapping the underlying `sqlite3.Error` (`REQ-002`, `REQ-003`, `REQ-004`).
 
+### Adversarial verification corrections
+
+The implementation below deviates from this document's literal pseudo-code in two ways, both required to satisfy the Plan's acceptance criteria. Both deviations are pinned by tests.
+
+- **Compensation operator is `> marker`, not `>= marker`.** The turn-start marker is `MAX(message_id)` — the largest `message_id` of the *last pre-turn row*. A `DELETE ... WHERE message_id >= marker` would therefore also delete that prior turn's row. The correct compensation is `DELETE ... WHERE message_id > marker`, which deletes exactly this turn's rows and never an earlier turn's row (`AC-002`: "zero message rows from that turn"; seq 02's stated intent "deletes exactly the turn's rows, never earlier rows"). This document's `_compensate` pseudo-code (`message_id >= marker`) is corrected to `> marker`.
+- **`fail_from_error` is `async`.** `restore_messages` (`context.py`, seq 04) is lock-guarded and `async`, so the boundary's failure path must `await` it; `fail_from_error` (renamed `_fail_from_error` in the implementation) is therefore `async` and `NoReturn`.
+
 ## Scope
 
 - **In-Scope** (`scripts/agent/turn_persistence.py` only):
@@ -88,7 +95,7 @@ class TurnPersistence:
         return self._conn
 
     def _compensate(self) -> None:        # (new) REQ-002
-        # DELETE messages WHERE session_id=? AND message_id>=marker in one txn.
+        # DELETE messages WHERE session_id=? AND message_id>marker in one txn.
         delete_messages_from(self.session_id, self.turn_start_message_id)
 
     def fail_from_error(self, exc: sqlite3.Error) -> None:   # (new) REQ-002, REQ-004, REQ-003
@@ -102,7 +109,7 @@ class TurnPersistence:
 ### Details
 
 - **`REQ-001` (one boundary per turn):** the boundary is constructed by the orchestrator (seq 05) via `scripts/agent/session.py::turn_boundary` (seq 03) with the turn-start marker and a pre-taken memory snapshot; it is the only object permitted to persist turn writes.
-- **`REQ-002` (turn all-or-nothing):** `_compensate()` deletes exactly the turn's rows (`message_id >= turn_start_message_id`) in one transaction, so completed earlier phases leave no residue on failure. Marker is the largest `message_id` at turn start (`0` fresh) — `UNK-02`.
+- **`REQ-002` (turn all-or-nothing):** `_compensate()` deletes exactly the turn's rows (`message_id > turn_start_message_id`) in one transaction, so completed earlier phases leave no residue on failure. Marker is the largest `message_id` at turn start (`0` fresh) — `UNK-02`. `> marker` (strictly greater) preserves the last pre-turn row; `>= marker` would wrongly delete it.
 - **`REQ-003` (single error type):** `fail_from_error (new)` raises `ConversationPersistenceError (new)` (new) chaining the raw `sqlite3.Error` via `from exc`; no raw error escapes the turn path. Base class is `Exception`, matching `LLMTransportError`'s placement convention.
 - **`REQ-004` (memory == DB after compensation):** `fail_from_error (new)` restores the turn-start snapshot so `ConversationState.history` equals the turn-start snapshot element-wise (AC-004).
 - **`UNK-03` (`/undo` untouched):** compensation uses a direct `message_id >= marker` delete, not `undo_last_turn`, so the `undo_floor_message_id` gate is not bypassed; documented alongside the boundary contract (seq 20).
@@ -149,10 +156,10 @@ class TurnPersistence:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Implement `TurnPersistence (new)` boundary + `ConversationPersistenceError (new)` in `scripts/agent/turn_persistence.py` | Pending | — | — | New module |
-| 2 | Add or update tests per Validation plan | Pending | — | — | `tests/agent/test_turn_persistence.py` (new) |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A: contract doc is seq 20 |
+| 1 | Implement `TurnPersistence (new)` boundary + `ConversationPersistenceError (new)` in `scripts/agent/turn_persistence.py` | Complete | 2026-10-27 | 2026-10-27 | New module |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | `tests/agent/test_turn_persistence.py` (new) |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | N/A: contract doc is seq 20 |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

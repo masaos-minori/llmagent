@@ -126,10 +126,10 @@ async def restore_messages(self, snapshot: list[LLMMessage]) -> None:
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `snapshot_messages` (new)/`restore_messages` (new) to `ConversationState` in `scripts/agent/context.py` | Pending | — | — | New async API |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Extend `tests/agent/test_context.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add `snapshot_messages` (new)/`restore_messages` (new) to `ConversationState` in `scripts/agent/context.py` | Complete | 2026-10-27 | 2026-10-27 | New async API |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | Extend `tests/agent/test_context.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

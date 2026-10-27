@@ -2,10 +2,17 @@
 
 Extend `scripts/agent/session_message_repo.py` with the three repository-level primitives the turn-persistence boundary (seq 01) needs: a compensation delete (`delete_messages_from` (new)), a transaction-grouped persist variant that writes a whole round's messages in one `begin_immediate` transaction on one connection, and `sqlite3.Error` → `scripts/agent/turn_persistence.py::ConversationPersistenceError` wrapping (`REQ-002`, `REQ-003`, `REQ-005`, `REQ-006`). Existing per-method `save`/`save_many`/`replace_messages` behavior stays backward compatible for `cmd_rag_export*` and stats consumers.
 
+### Adversarial verification corrections
+
+This document's implementation deviates from its literal text in two ways, both required by the Plan's acceptance criteria and pinned by tests.
+
+- **Compensation operator is `> marker`, not `>= marker`.** The marker is `MAX(message_id)` — the last pre-turn row. `DELETE ... WHERE message_id >= marker` would delete that prior turn's row; the correct compensation is `> marker`, deleting exactly this turn's rows and never an earlier turn's (`AC-002`; seq 01's off-by-one correction). Every `>= marker` below is corrected to `> marker`.
+- **The repo raises native `sqlite3.Error`; the boundary wraps.** The original text asked the repo to wrap `sqlite3.Error` into `ConversationPersistenceError` at the new entry points. That is wrong for the boundary design: the boundary's write methods catch `except sqlite3.Error` to compensate + restore + raise. A repo-raised `ConversationPersistenceError` (which subclasses `Exception`, not `sqlite3.Error`) would bypass that handler, so a failing write would raise without ever compensating. The repo therefore propagates the raw `sqlite3.Error` (consistent with all its other methods), and the boundary (seq 01) performs the single wrap.
+
 ## Scope
 
 - **In-Scope** (`scripts/agent/session_message_repo.py` only):
-  - Add `delete_messages_from` (new): DELETE `messages` rows `WHERE session_id = ? AND message_id >= ?` in one transaction; mirrors `AgentSession.undo_last_turn`'s `message_id`-based delete (`session.py`, seq 03). Used by the boundary's compensation (seq 01).
+  - Add `delete_messages_from` (new): DELETE `messages` rows `WHERE session_id = ? AND message_id > ?` in one transaction; mirrors `AgentSession.undo_last_turn`'s `message_id`-based delete (`session.py`, seq 03). Used by the boundary's compensation (seq 01).
   - Add a transaction-grouped persist variant (new): persist a phase-group of messages in a single `SQLiteHelper.begin_immediate` transaction on a single connection, so a tool round's assistant + tool-result rows land atomically (`AC-005`).
   - Wrap raw `sqlite3.Error` from the new grouped/compensation paths into `scripts/agent/turn_persistence.py::ConversationPersistenceError` (seq 01); existing `save`/`save_many`/`replace_messages` keep propagating the raw error unchanged (backward compatibility).
 - **Out-of-Scope** (handled by sibling documents this Plan generates):
@@ -51,10 +58,10 @@ Extend `scripts/agent/session_message_repo.py` with the three repository-level p
 ```python
 # session_message_repo.py — compensation delete (REQ-002)  (new)
 def delete_messages_from(self, session_id: int, start_message_id: int) -> int:
-    """Delete messages rows for a session at/after start_message_id in one txn."""
+    """Delete messages rows for a session strictly after start_message_id in one txn."""
     with SQLiteHelper("session").open(write_mode=True) as db:
         cur = db.execute(
-            "DELETE FROM messages WHERE session_id = ? AND message_id >= ?",
+            "DELETE FROM messages WHERE session_id = ? AND message_id > ?",
             (session_id, start_message_id),
         )
         db.commit()
@@ -84,20 +91,13 @@ def save_phase_grouped(
         with db.begin_immediate():
             db.executemany(_INSERT_MESSAGE_SQL, rows)
             # commit happens on begin_immediate() context exit
-
-
-# session_message_repo.py — error wrapping (REQ-003)  (new)
-def _wrap(exc: sqlite3.Error) -> "ConversationPersistenceError":  # (new)
-    return ConversationPersistenceError(  # (new) seq 01
-        "turn persistence failed", cause=exc
-    ) from exc
 ```
 
 ### Details
 
-- **`REQ-002` / `AC-002` (compensation):** `delete_messages_from` (new) removes exactly the turn's rows (`message_id >= turn_start`), leaving earlier/completed rows intact. The boundary (seq 01) supplies the marker; this method never computes it.
+- **`REQ-002` / `AC-002` (compensation):** `delete_messages_from` (new) removes exactly the turn's rows (`message_id > turn_start`), leaving earlier/completed rows intact. The boundary (seq 01) supplies the marker; this method never computes it. `> marker` (strictly greater) preserves the last pre-turn row.
 - **`REQ-005` / `AC-005` (grouped atomic round):** `save_phase_grouped` (new) writes the round's assistant + tool-result rows in one `begin_immediate` transaction on one connection, so a single injected failure leaves either all or none of the round's rows.
-- **`REQ-003` / `AC-003` (single error type):** both new paths wrap `sqlite3.Error` in `scripts/agent/turn_persistence.py::ConversationPersistenceError` (seq 01) via `from`; no raw error escapes the turn path.
+- **`REQ-003` / `AC-003` (single error type):** the repo propagates the native `sqlite3.Error` from both new paths (consistent with its other methods); the boundary (seq 01) catches it and wraps it into `scripts/agent/turn_persistence.py::ConversationPersistenceError` via `from`. No raw error escapes the turn path.
 - **`REQ-006` (compression untouched):** `replace_messages` keeps its existing atomic DELETE + INSERT + `undo_floor_message_id` update; unchanged here.
 - **Backward compatibility:** `save`/`save_many`/`replace_messages` signatures, return values, and invalid-role skipping are unchanged; `cmd_rag_export*` and stats consumers unaffected.
 
@@ -143,10 +143,10 @@ def _wrap(exc: sqlite3.Error) -> "ConversationPersistenceError":  # (new)
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Add `delete_messages_from` (new), grouped variant, error wrapping in `scripts/agent/session_message_repo.py` | Pending | — | — | Extends existing repo |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Extend `tests/agent/test_session_message_repo.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Add `delete_messages_from` (new), grouped variant, error wrapping in `scripts/agent/session_message_repo.py` | Complete | 2026-10-27 | 2026-10-27 | Extends existing repo |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | Extend `tests/agent/test_session_message_repo.py` |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

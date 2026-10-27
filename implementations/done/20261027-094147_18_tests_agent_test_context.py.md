@@ -94,10 +94,10 @@ async def test_snapshot_restore_under_concurrent_append():
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend test_context.py with snapshot/restore tests | Pending | — | — | Extend existing module |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This module |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Extend test_context.py with snapshot/restore tests | Complete | 2026-10-27 | 2026-10-27 | Extend existing module |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | This module |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | N/A |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
