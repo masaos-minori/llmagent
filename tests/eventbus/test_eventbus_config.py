@@ -717,6 +717,8 @@ def test_load_config_normalizes_mapping_types(tmp_path) -> None:
         'topic_authorization = { "orders/*" = [ "svc-a", "svc-b" ] }\n'
     )
     cfg = load_config(config_file)
+    assert cfg.topic_authorization is not None
+    assert cfg.consumer_authorization is not None
     assert all(isinstance(v, set) for v in cfg.topic_authorization.values())
     assert all(isinstance(v, list) for v in cfg.consumer_authorization.values())
 

@@ -14,7 +14,7 @@ import asyncio
 import time
 from datetime import UTC
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 from unittest.mock import MagicMock
 
 import pytest
@@ -58,17 +58,17 @@ def _make_test_app(
         deadletter_dir=str(tmp_path / "deadletter"),
         max_retry=3,
         host="127.0.0.1",
-        auth_token=token,
-        publisher_token=publisher_token,
-        consumer_token=consumer_token,
+        auth_token=token or "",
+        publisher_token=publisher_token or "",
+        consumer_token=consumer_token or "",
         # Fail-closed (ADR-013 INV-02): consumer_token requires a non-None
         # consumer_authorization. The per-fixture Principal override below
         # (lines ~94-102) governs the actual consumer_id/topic restriction; this
         # value only satisfies the startup fail-closed check and mirrors that
         # override's consumer ids.
         consumer_authorization={"consumer_a": ["test"]},
-        operator_token=operator_token,
-        admin_token=admin_token,
+        operator_token=operator_token or "",
+        admin_token=admin_token or "",
     )
 
     orig_load_config = getattr(eb_app, "load_config", None)
@@ -172,16 +172,14 @@ def _make_test_app(
         event_id: str,
         _principal: Principal = Depends(require_role(Role.OPERATOR)),
     ) -> dict[str, Any]:
-        result: dict[str, Any] = await eb_app.dlq_requeue_route(
-            request, event_id, _principal=_principal
-        )
+        result: dict[str, Any] = await eb_app.dlq_requeue_route(request, event_id)
         return result
 
     @local_app.get("/replay")
     async def replay(
         request: Request,
         since_seq: int = Query(default=0, ge=0),
-        fmt: str = Query(default="sse", alias="format"),
+        fmt: Literal["sse", "json"] = Query(default="sse", alias="format"),
         limit: int = Query(default=100, ge=1, le=1000),
         offset: int = Query(default=0, ge=0),
         _principal: Principal = Depends(require_role(Role.OPERATOR)),
@@ -240,7 +238,8 @@ def _make_test_app(
         finally:
             loop.close()
 
-    client._cleanup = _cleanup  # type: ignore[attr-defined] — TestClient does not expose _cleanup as a public attribute; needed to clean up ASGI transport on teardown
+    # TestClient does not expose _cleanup as a public attribute; needed to clean up ASGI transport on teardown
+    client._cleanup = _cleanup
     return local_app, cfg
 
 
@@ -287,6 +286,9 @@ async def _do_cleanup_eb(app: FastAPI) -> None:
 
 class TestPublishAuth:
     """Tests for POST /publish authorization."""
+
+    client: TestClient
+    cfg: Any
 
     @classmethod
     def setup_class(cls):
@@ -370,6 +372,9 @@ class TestPublishAuth:
 
 class TestSubscribeAuth:
     """Tests for GET /subscribe authorization."""
+
+    client: TestClient
+    cfg: Any
 
     @classmethod
     def setup_class(cls):
@@ -456,6 +461,9 @@ class TestSubscribeAuth:
 class TestAckAuth:
     """Tests for POST /events/{event_id}/ack authorization."""
 
+    client: TestClient
+    cfg: Any
+
     @classmethod
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-ack")
@@ -497,6 +505,9 @@ class TestAckAuth:
 class TestNackAuth:
     """Tests for POST /nack authorization."""
 
+    client: TestClient
+    cfg: Any
+
     @classmethod
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-nack")
@@ -535,6 +546,9 @@ class TestNackAuth:
 
 class TestDlqListAuth:
     """Tests for GET /dlq authorization."""
+
+    client: TestClient
+    cfg: Any
 
     @classmethod
     def setup_class(cls):
@@ -582,6 +596,9 @@ class TestDlqListAuth:
 class TestDlqRequeueAuth:
     """Tests for POST /dlq/{event_id}/requeue authorization."""
 
+    client: TestClient
+    cfg: Any
+
     @classmethod
     def setup_class(cls):
         cls.tmp_path = Path("/tmp/test-eventbus-auth-dlq-requeue")
@@ -619,6 +636,9 @@ class TestDlqRequeueAuth:
 
 class TestReplayAuth:
     """Tests for GET /replay authorization."""
+
+    client: TestClient
+    cfg: Any
 
     @classmethod
     def setup_class(cls):
@@ -1035,7 +1055,7 @@ class TestFailClosedConsumerAuthorization:
                 auth_token="shared-token",
                 consumer_token=token,
                 consumer_authorization={"consumer_a": ["test"], "consumer_b": ["test"]},
-                topic_authorization={"test": ["consumer_a", "consumer_b"]},
+                topic_authorization={"test": {"consumer_a", "consumer_b"}},
             )
             _populate_token_maps(cfg)
             principal = principal_map()[token]
@@ -1066,6 +1086,9 @@ class TestFailClosedConsumerAuthorization:
 
 class TestAuditRecordValidation:
     """Tests for structured audit record emission on auth failures."""
+
+    client: TestClient
+    cfg: Any
 
     @classmethod
     def setup_class(cls):
@@ -1547,7 +1570,7 @@ class TestDuplicateTokenBinding:
                 monitoring_token="monitoring-token",
                 admin_token="admin-token",
                 consumer_authorization={"consumer_a": ["test"]},
-                topic_authorization={"test": ["consumer_a"]},
+                topic_authorization={"test": {"consumer_a"}},
             )
             _populate_token_maps(cfg)
             assert principal_map()["auth-token"].roles == frozenset(
@@ -1598,9 +1621,11 @@ class TestDuplicateTokenBinding:
             )
             import dataclasses
 
-            cfg = dataclasses.replace(
-                cfg, **{field_a: "shared-value", field_b: "shared-value"}
-            )
+            overrides: dict[str, Any] = {
+                field_a: "shared-value",
+                field_b: "shared-value",
+            }
+            cfg = dataclasses.replace(cfg, **overrides)
             with pytest.raises(ValueError, match="duplicate token") as exc_info:
                 _populate_token_maps(cfg)
             message = str(exc_info.value)

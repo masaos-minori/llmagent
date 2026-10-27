@@ -149,7 +149,8 @@ def make_eventbus_client(
         finally:
             loop.close()
 
-    client._cleanup = _cleanup  # type: ignore[attr-defined] — TestClient has no _cleanup attribute; attached here only for this test helper's own teardown call
+    # TestClient has no _cleanup attribute; attached here only for this test helper's own teardown call
+    client._cleanup = _cleanup
     return client
 
 

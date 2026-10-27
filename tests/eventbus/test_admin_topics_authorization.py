@@ -68,7 +68,8 @@ def _make_admin_test_client(
         finally:
             loop.close()
 
-    client._cleanup = _cleanup  # type: ignore[attr-defined] — TestClient has no _cleanup attribute; attached here only for this test's own teardown call
+    # TestClient has no _cleanup attribute; attached here only for this test's own teardown call
+    client._cleanup = _cleanup
     return client
 
 
@@ -301,7 +302,7 @@ class TestOneRolePerTokenAdminRebuild:
                 monitoring_token="monitoring-token",
                 admin_token="admin-token",
                 consumer_authorization={"c1": ["topicA"]},
-                topic_authorization={"topicA": ["c1"]},
+                topic_authorization={"topicA": {"c1"}},
             )
             _populate_token_maps(cfg)
             assert set(principal_map()["auth-token"].roles) == {
@@ -371,9 +372,8 @@ class TestDuplicateRejectionAdminRebuild:
             admin_token="",
             consumer_authorization={},
         )
-        cfg = dataclasses.replace(
-            base, **{field_a: "shared-value", field_b: "shared-value"}
-        )
+        overrides: dict[str, Any] = {field_a: "shared-value", field_b: "shared-value"}
+        cfg = dataclasses.replace(base, **overrides)
         with pytest.raises(ValueError, match="duplicate token") as exc_info:
             _populate_token_maps(cfg)
         message = str(exc_info.value)
