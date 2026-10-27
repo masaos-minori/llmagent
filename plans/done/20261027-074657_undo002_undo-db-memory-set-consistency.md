@@ -289,9 +289,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: row-returning DB undo step | Pending | — | — | |
-| 2 | Phase 2: memory reconciliation in the service | Pending | — | — | |
-| 3 | Phase 3: tests and docs | Pending | — | — | |
+| 1 | Phase 1: row-returning DB undo step | In Progress | — | — | Implementation procedure docs generated for all 3 Phase 1 target files |
+| 2 | Phase 2: memory reconciliation in the service | In Progress | — | — | Implementation procedure doc generated for undo_service.py |
+| 3 | Phase 3: tests and docs | In Progress | — | — | Implementation procedure docs generated for 3 test files + 1 doc |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -301,7 +301,14 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261027-214625_01_scripts_agent_services_models.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261027-214625_02_scripts_agent_session_message_repo.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261027-214625_03_scripts_agent_session.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261027-214625_04_scripts_agent_services_undo_service.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-214625_05_tests_agent_test_agent_session.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261027-214625_06_tests_agent_test_regression_undo_artifact.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261027-214625_07_tests_agent_test_undo_db_memory_parity.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261027-214625_08_docs_23_agent_agent_07_07_cli-and-commands-slash-commands-session-mcp.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -329,3 +336,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-005 | Constraints 3 | UndoResult compatible / callers atomic | scripts/agent/services/models.py | Phase 1 | AC-002 | T-002 | Confirmed (models L120-128; caller grep) |
 | REQ-006 | Constraints 1-2 | Boundary + DB-first preserved | scripts/agent/session.py | Phase 1 | AC-003 | T-002 | Confirmed (L216-234 gate) |
 | REQ-007 | Acceptance Criteria 1 | Divergence → parity after undo | tests/agent/test_undo_db_memory_parity.py | Phase 3 | AC-001 | T-001 | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-214625 -->
