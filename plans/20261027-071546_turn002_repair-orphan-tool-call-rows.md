@@ -285,3 +285,5 @@ High (source issue priority: High)
 | REQ-006 | Constraints 2 + Out of Scope (no write-path change) | scripts/agent/services/session_restore.py | Phase 3 | AC-005 | diff-scope check + test_session_message_repo.py regression | Explicit in issue |
 | REQ-001..REQ-003 | Testing Expectations 1-3 | tests/agent/test_session_restore.py | Phase 2 | AC-001..AC-004 | test_session_restore.py | Explicit in issue |
 | REQ-002, REQ-003 | Documentation Impact | docs/23_agent/agent_04_01_state-and-persistence-state-model.md | Phase 3 | N/A: documentation check via check_doc_claims.py | N/A: documentation only | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-110403 -->
