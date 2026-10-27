@@ -41,7 +41,7 @@ def _make_cfg(**overrides: object) -> RagConfig:
         mqe_n_queries=3,
         rerank_prompt_template="Rerank results for: {query}",
         use_search=True,
-        rag_service_url=None,
+        rag_query_service_url=None,
         use_refiner=False,
         use_mqe=False,
         use_rerank=False,

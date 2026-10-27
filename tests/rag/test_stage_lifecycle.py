@@ -31,7 +31,7 @@ def mock_cfg():
         use_rrf=True,
         rrf_k=60,
         use_search=True,
-        rag_service_url=None,
+        rag_query_service_url=None,
         rag_auth_token=None,
         use_refiner=False,
         refiner_max_tokens=512,

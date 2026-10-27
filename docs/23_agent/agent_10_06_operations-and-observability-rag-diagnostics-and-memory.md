@@ -45,7 +45,7 @@ related:
 
 ### HTTP Result Classification
 
-`HttpAugment` (present when `rag_service_url` is configured) and `Refiner` (present when `use_refiner=True`) appear as additional entries in `last_stage_results`. The HTTP result classification is exposed separately as `get_diagnostics()["http_result_kind"]` (`HttpResultKind`: `success` / `empty` / `error` / `not_used` / `auth_error`); the internal string literals of `HttpAugment` are not part of any external surface (see [rag_03_03](../21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md)). (Explicit in code — `scripts/rag/http_augment.py`)
+`HttpAugment` (present when `rag_query_service_url` is configured) and `Refiner` (present when `use_refiner=True`) appear as additional entries in `last_stage_results`. The HTTP result classification is exposed separately as `get_diagnostics()["http_result_kind"]` (`HttpResultKind`: `success` / `empty` / `error` / `not_used` / `auth_error`); the internal string literals of `HttpAugment` are not part of any external surface (see [rag_03_03](../21_rag/rag_03_03_query_pipeline-context-and-diagnostics.md)). (Explicit in code — `scripts/rag/http_augment.py`)
 
 ## RAG Ingestion Diagnostics
 

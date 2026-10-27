@@ -168,7 +168,7 @@ def build_rag_cfg_adapter(cfg: RagPipelineConfig) -> RagConfig:
             use_rerank=bool(cfg.use_rerank),
             use_refiner=bool(cfg.use_refiner),
             use_search=True,  # always True in MCP mode; checked in augment()
-            rag_service_url="",  # prevent HTTP loop when augment() is called in-process
+            rag_query_service_url="",  # prevent HTTP loop when augment() is called in-process
             rag_auth_token=cfg.rag_auth_token if cfg.rag_auth_token else "",
             top_k_search=int(cfg.top_k_search),
             top_k_rerank=int(cfg.top_k_rerank),

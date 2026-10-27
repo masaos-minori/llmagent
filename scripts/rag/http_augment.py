@@ -70,7 +70,7 @@ class HttpAugmentResult:
 class HttpAugment:
     """Handles HTTP RAG augment delegation.
 
-    When rag_service_url is configured, delegates augment to an external
+    When rag_query_service_url is configured, delegates augment to an external
     RAG service instead of running the in-process pipeline.
     """
 

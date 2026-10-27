@@ -53,7 +53,7 @@ def _make_no_cache_cfg() -> SimpleNamespace:
         use_rrf=True,
         rrf_k=60,
         use_search=True,
-        rag_service_url="",
+        rag_query_service_url="",
         rag_auth_token="",
         use_refiner=False,
         refiner_max_tokens=256,

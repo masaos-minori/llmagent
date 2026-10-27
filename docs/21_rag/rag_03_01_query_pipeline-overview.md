@@ -33,7 +33,7 @@ related:
 ``` text
 RagPipeline.augment(query)
   → use_search=False? → returns ""
-  → rag_service_url is configured? → call_rag_service() → fallback to in-process execution on failure
+  → rag_query_service_url is configured? → call_rag_service() → fallback to in-process execution on failure
   → run(query, db, history_context)
       [1] MqeStage         — Expands query into N variants
       [2] SearchStage      — Executes KNN + BM25 per variant

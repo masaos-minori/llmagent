@@ -38,7 +38,7 @@ Configuration notes:
 - Pipeline stages are switched by `use_mqe`, `use_rrf`, `use_rerank`, `use_refiner`; result limits by `top_k_search`, `top_k_rerank`, `rag_top_k`, `rag_min_score`, `max_chunks_per_doc`; refiner limits by `refiner_*`. `llm_url`, `embed_url`, `rag_db_path`, and `sqlite_vec_so` locate the backing services.
 - `auth_token` is the inbound Bearer token required by this server (resolved from `MCP_RAG_PIPELINE_AUTH_TOKEN`). `rag_auth_token` is the outbound Bearer token sent to a remote RAG service; empty means no header.
 - host, port, and http_timeout are not configuration keys: `RagPipelineConfig` does not load them and they are fixed in code.
-- To prevent HTTP loops, `rag_service_url = ""` is fixed in `build_rag_cfg_adapter()`.
+- To prevent HTTP loops, `rag_query_service_url = ""` is fixed in `build_rag_cfg_adapter()`.
 
 Operations:
 

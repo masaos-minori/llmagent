@@ -17,10 +17,10 @@ from rag.pipeline_service import CallRagResult
 from rag.types import PipelineRunResult
 
 
-def _make_pipeline(rag_service_url: str = "http://rag.local") -> RagPipeline:
+def _make_pipeline(rag_query_service_url: str = "http://rag.local") -> RagPipeline:
     """Return a RagPipeline with HTTP mode enabled and mocked HTTP client."""
     cfg = MagicMock()
-    cfg.rag_service_url = rag_service_url
+    cfg.rag_query_service_url = rag_query_service_url
     cfg.use_refiner = False
     cfg.use_search = True
     cfg.llm_url = "http://llm.local"

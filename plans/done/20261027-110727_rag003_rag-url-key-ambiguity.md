@@ -283,10 +283,10 @@ Low
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization baseline | Pending | — | — |  |
-| 2 | Phase 2: declaration and reader rename | In Progress | — | — |  |
-| 3 | Phase 3: tests | In Progress | — | — |  |
-| 4 | Phase 4: docs, deployment check, verification | In Progress | — | — |  |
+| 1 | Phase 1: characterization baseline | Completed | 20261027-214659 | 20261027-214659 | HEAD baseline green; post-rename full suite 10265 passed, 10 skipped, exit 0 |
+| 2 | Phase 2: declaration and reader rename | Completed | 20261027-214659 | 20261027-214659 | Executed with Phase 3 as one serial batch (single validation pass); grep gate, mypy, bandit, lint-imports, targeted pytest all green |
+| 3 | Phase 3: tests | Completed | 20261027-214659 | 20261027-214659 | 14 test files renamed + new AC-2 regression test in test_config_resolution.py; full suite exit 0; diff-cover 100% |
+| 4 | Phase 4: docs, deployment check, verification | Completed | 20261027-214659 | 20261027-214659 | 7 docs pages + ADR renamed; docs checkers green; check_adr_preservation WARNING recorded (see procedure 29); config/ and deployed /opt/llm/config/ contain no old key |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -296,35 +296,35 @@ Low
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| implementations/20261027-154425_01_scripts_rag_config_resolution.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261027-154425_02_scripts_rag_models_config.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261027-154425_03_scripts_shared_types.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261027-154425_04_scripts_rag_pipeline.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261027-154425_05_scripts_rag_http_augment.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261027-154425_06_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261027-154425_07_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 2 | Procedure | Pending | — | — |
-| implementations/20261027-154425_08_tests_rag_test_config_resolution.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_09_tests_rag_test_rag_pipeline.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_10_tests_rag_test_rag_http_mode.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_11_tests_rag_test_pipeline_http_result_kind.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_12_tests_rag_test_rag_quality_regression.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_13_tests_rag_test_stage_observability.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_14_tests_rag_test_stage_lifecycle.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_15_tests_rag_test_rag_pipeline_no_cache_freshness.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_16_tests_rag_test_augment_integration.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_17_tests_rag_test_augment_refiner.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_18_tests_rag_test_rag_pipeline_stage.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_19_tests_mcp_servers_rag_pipeline_test_rag_pipeline_mcp_service.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_20_tests_agent_commands_test_agent_rag.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_21_tests_agent_test_rag_get_cfg.py.md | 3 | Procedure | Pending | — | — |
-| implementations/20261027-154425_22_docs_21_rag_rag_05_01-configuration-reference.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261027-154425_23_docs_21_rag_rag_03_02_query_pipeline-rag-pipeline-class.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261027-154425_24_docs_21_rag_rag_03_01_query_pipeline-overview.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261027-154425_25_docs_21_rag_rag_01_system_overview.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261027-154425_26_docs_21_rag_rag_05_04-error-handling-reference.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261027-154425_27_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261027-154425_28_docs_23_agent_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md.md | 4 | Procedure | Pending | — | — |
-| implementations/20261027-154425_29_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 4 | Procedure | Pending | — | — |
+| implementations/20261027-154425_01_scripts_rag_config_resolution.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261027-154425_02_scripts_rag_models_config.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261027-154425_03_scripts_shared_types.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261027-154425_04_scripts_rag_pipeline.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261027-154425_05_scripts_rag_http_augment.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261027-154425_06_scripts_mcp_servers_rag_pipeline_rag_pipeline_models.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261027-154425_07_scripts_mcp_servers_rag_pipeline_rag_pipeline_server.py.md | 2 | Procedure | Completed | — | — |
+| implementations/20261027-154425_08_tests_rag_test_config_resolution.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_09_tests_rag_test_rag_pipeline.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_10_tests_rag_test_rag_http_mode.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_11_tests_rag_test_pipeline_http_result_kind.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_12_tests_rag_test_rag_quality_regression.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_13_tests_rag_test_stage_observability.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_14_tests_rag_test_stage_lifecycle.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_15_tests_rag_test_rag_pipeline_no_cache_freshness.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_16_tests_rag_test_augment_integration.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_17_tests_rag_test_augment_refiner.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_18_tests_rag_test_rag_pipeline_stage.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_19_tests_mcp_servers_rag_pipeline_test_rag_pipeline_mcp_service.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_20_tests_agent_commands_test_agent_rag.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_21_tests_agent_test_rag_get_cfg.py.md | 3 | Procedure | Completed | — | — |
+| implementations/20261027-154425_22_docs_21_rag_rag_05_01-configuration-reference.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261027-154425_23_docs_21_rag_rag_03_02_query_pipeline-rag-pipeline-class.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261027-154425_24_docs_21_rag_rag_03_01_query_pipeline-overview.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261027-154425_25_docs_21_rag_rag_01_system_overview.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261027-154425_26_docs_21_rag_rag_05_04-error-handling-reference.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261027-154425_27_docs_22_mcp_mcp_04_03_rag-pipeline-and-cicd.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261027-154425_28_docs_23_agent_agent_10_06_operations-and-observability-rag-diagnostics-and-memory.md.md | 4 | Procedure | Completed | — | — |
+| implementations/20261027-154425_29_docs_10_adr_adr_02_06_010_rag-fallback.md.md | 4 | Procedure | Completed | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

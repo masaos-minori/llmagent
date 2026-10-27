@@ -30,7 +30,7 @@ class _RagCfg:
     use_rrf: bool = True
     rrf_k: int = 60
     use_search: bool = True
-    rag_service_url: str = ""
+    rag_query_service_url: str = ""
     rag_auth_token: str = ""
     use_refiner: bool = False
     refiner_max_tokens: int = 512
@@ -62,7 +62,7 @@ def _make_rag_cfg(**overrides) -> RagConfigImpl:
         use_rrf=True,
         rrf_k=60,
         use_search=True,
-        rag_service_url="",
+        rag_query_service_url="",
         rag_auth_token="",
         use_refiner=False,
         refiner_max_tokens=512,

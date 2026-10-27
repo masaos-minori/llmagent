@@ -184,7 +184,7 @@ class TestRagPipelineErrorOnDbOpen:
     def _make_pipeline(self) -> RagPipeline:
         cfg = SimpleNamespace(
             use_search=True,
-            rag_service_url="",
+            rag_query_service_url="",
             use_refiner=False,
             use_mqe=False,
             use_rerank=False,
@@ -260,7 +260,7 @@ class TestGetDiagnostics:
     def _make_pipeline(self) -> RagPipeline:
         cfg = SimpleNamespace(
             use_search=True,
-            rag_service_url="",
+            rag_query_service_url="",
             use_refiner=False,
             use_mqe=False,
             use_rerank=False,

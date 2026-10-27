@@ -39,7 +39,7 @@ def _make_cfg(**overrides: object) -> RagConfig:
         mqe_n_queries=3,
         rerank_prompt_template="Rerank results for: {query}",
         use_search=True,
-        rag_service_url=None,
+        rag_query_service_url=None,
         use_refiner=False,
         use_mqe=False,
         use_rerank=False,
@@ -178,7 +178,7 @@ class TestRunHttpAugment:
     async def test_delegates_to_http_augment(self) -> None:
         """run_http_augment should delegate to HttpAugment."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
         mock_result = MagicMock()
@@ -209,7 +209,7 @@ class TestRunHttpAugment:
     async def test_returns_none_when_http_augment_fails(self) -> None:
         """run_http_augment should return None when HttpAugment returns None."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
         mock_result = MagicMock()
@@ -234,7 +234,7 @@ class TestRunHttpAugment:
     async def test_updates_search_diagnostics(self) -> None:
         """run_http_augment should update search_diagnostics with HTTP result info."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         diagnostics = SearchDiagnostics()
         refiner = _make_refiner(
             http=mock_http,
@@ -265,7 +265,7 @@ class TestRunHttpAugment:
     async def test_sets_remote_result_source(self) -> None:
         """When result.result is not None, result_source should be REMOTE."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         diagnostics = SearchDiagnostics()
         refiner = _make_refiner(
             http=mock_http,
@@ -294,7 +294,7 @@ class TestRunHttpAugment:
     async def test_sets_fallback_result_source(self) -> None:
         """When result.result is None, result_source should be FALLBACK."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         diagnostics = SearchDiagnostics()
         refiner = _make_refiner(
             http=mock_http,
@@ -323,7 +323,7 @@ class TestRunHttpAugment:
     async def test_empty_string_result_is_valid(self) -> None:
         """Empty string '' from HTTP should be treated as valid result (not None)."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
         mock_result = MagicMock()
@@ -349,7 +349,7 @@ class TestRunHttpAugment:
         """auth_token should be passed to HttpAugment constructor."""
         mock_http = MagicMock()
         cfg = _make_cfg(
-            rag_service_url="http://example.com/api", rag_auth_token="secret-token"
+            rag_query_service_url="http://example.com/api", rag_auth_token="secret-token"
         )
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
@@ -374,7 +374,7 @@ class TestRunHttpAugment:
     async def test_empty_auth_token_defaults_to_empty_string(self) -> None:
         """Empty auth_token should default to empty string."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api", rag_auth_token="")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api", rag_auth_token="")
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
         mock_result = MagicMock()
@@ -398,7 +398,7 @@ class TestRunHttpAugment:
     async def test_null_auth_token_defaults_to_empty_string(self) -> None:
         """Null auth_token should default to empty string."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api", rag_auth_token=None)  # type: ignore[arg-type] — test verifies None defaults to empty string
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api", rag_auth_token=None)  # type: ignore[arg-type] — test verifies None defaults to empty string
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
         mock_result = MagicMock()
@@ -422,7 +422,7 @@ class TestRunHttpAugment:
     async def test_http_result_kind_mapping_preserved(self) -> None:
         """_map_http_result_kind mapping should be preserved in diagnostics."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         diagnostics = SearchDiagnostics()
         refiner = _make_refiner(
             http=mock_http,
@@ -451,7 +451,7 @@ class TestRunHttpAugment:
     async def test_http_result_kind_none_maps_to_not_used(self) -> None:
         """None http_result_kind should map to NOT_USED."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         diagnostics = SearchDiagnostics()
         refiner = _make_refiner(
             http=mock_http,
@@ -480,7 +480,7 @@ class TestRunHttpAugment:
     async def test_http_augment_exception_propagates(self) -> None:
         """Exceptions from HttpAugment should propagate."""
         mock_http = MagicMock()
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         refiner = _make_refiner(http=mock_http, cfg=cfg)
 
         with patch("rag.augment.HttpAugment") as MockHttpAugment:
@@ -499,7 +499,7 @@ class TestRunHttpAugment:
         """set_fetch_result callback should be called with selected_hits when present."""
         captured_results: list[list[dict[str, Any]]] = []
         mock_http = MagicMock(spec=httpx.AsyncClient)
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         refiner = _make_refiner(
             http=mock_http,
             cfg=cfg,
@@ -535,7 +535,7 @@ class TestRunHttpAugment:
         """set_fallback_reason callback should be called with reason string."""
         captured_reasons: list[str] = []
         mock_http = MagicMock(spec=httpx.AsyncClient)
-        cfg = _make_cfg(rag_service_url="http://example.com/api")
+        cfg = _make_cfg(rag_query_service_url="http://example.com/api")
         refiner = _make_refiner(
             http=mock_http,
             cfg=cfg,

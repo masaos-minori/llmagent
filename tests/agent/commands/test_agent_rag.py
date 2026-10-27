@@ -18,7 +18,7 @@ def _make_cfg(**kwargs: object) -> SimpleNamespace:
     """Build a minimal cfg SimpleNamespace for RagPipeline."""
     defaults = {
         "use_search": True,
-        "rag_service_url": "http://127.0.0.1:8010",
+        "rag_query_service_url": "http://127.0.0.1:8010",
         "llm_url": "http://llm.local",
         "embed_url": "http://embed.local",
         "rag_auth_token": "",

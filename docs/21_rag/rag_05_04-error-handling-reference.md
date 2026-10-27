@@ -94,7 +94,7 @@ The RAG-layer error classes, including `RagRerankError` and `RagPipelineError`, 
 |---|---|
 | DB open error | Raises `RagPipelineError` (does not return `""`) |
 | `use_search=False` | Immediately returns `""` |
-| Failure when setting `rag_service_url` | Fallback to in-process pipeline |
+| Failure when setting `rag_query_service_url` | Fallback to in-process pipeline |
 | Cross-encoder failure | `RerankStage.run()` catches `RagRerankError` and falls back to the RRF-ranked results (sliced and deduplicated), recording the fallback reason `rerank_exception`. Other exceptions from the stage propagate to `RagPipeline`, which records `StageResult.status="failure"` for `RuntimeError`, `sqlite3.OperationalError`, `httpx` errors, and `TimeoutError`, logs a warning, and continues with `ctx.reranked=[]`. If `use_rerank=False`, RRF ordering and deduplication are used instead. |
 | Startup config validation failure | `RagPipeline.__init__()` runs `RagConfigValidator().validate()`; a failing result raises `ValueError` and aborts construction. Warnings-only results are logged and allow continuation. |
 

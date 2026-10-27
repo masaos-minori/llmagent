@@ -26,7 +26,7 @@ def _make_cfg(**overrides):
         "use_rrf": True,
         "rrf_k": 60,
         "use_search": True,
-        "rag_service_url": None,
+        "rag_query_service_url": None,
         "rag_auth_token": None,
         "use_refiner": False,
         "refiner_max_tokens": 512,
@@ -74,7 +74,7 @@ def test_returns_rag_config_impl_directly(mock_validator):
         use_rrf=True,
         rrf_k=60,
         use_search=True,
-        rag_service_url=None,
+        rag_query_service_url=None,
         rag_auth_token=None,
         use_refiner=False,
         refiner_max_tokens=512,
@@ -176,3 +176,17 @@ def test_valid_string_templates_resolve():
     assert isinstance(result, RagConfigImpl)
     assert result.mqe_prompt_template == "Expand query: {query}"
     assert result.rerank_prompt_template == "Rerank results for: {query}"
+
+
+def test_renamed_key_resolves_and_old_spelling_ignored(mock_validator):
+    """rag003 AC-2: the renamed key resolves; the old spelling is filtered out.
+
+    `rag_query_service_url` is the query-path key. A config dict carrying the
+    pre-rename spelling `rag_service_url` is an extra key for the _ALL_FIELDS
+    filter and must stay None (fail-safe: no HTTP delegation).
+    """
+    result = resolve_rag_config({"rag_query_service_url": "http://x"})
+    assert result.rag_query_service_url == "http://x"
+
+    result = resolve_rag_config({"rag_service_url": "http://x"})
+    assert result.rag_query_service_url is None

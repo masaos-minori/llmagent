@@ -94,7 +94,7 @@ class RagConfig(Protocol):
     use_rrf: bool
     rrf_k: int
     use_search: bool
-    rag_service_url: str
+    rag_query_service_url: str
     rag_auth_token: str | None
     use_refiner: bool
     refiner_max_tokens: int

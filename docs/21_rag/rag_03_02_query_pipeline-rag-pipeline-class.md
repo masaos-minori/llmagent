@@ -33,9 +33,9 @@ related:
 
 - `RagPipeline` has no cache invalidation mechanism because it has no cache; see [rag_03_06_query_pipeline-helpers-and-cache.md](rag_03_06_query_pipeline-helpers-and-cache.md) section 6.
 
-### HTTP Mode (`rag_service_url`)
+### HTTP Mode (`rag_query_service_url`)
 
-If `rag_service_url` is not empty, `augment()` delegates to an external RAG service via `call_rag_service()` in `scripts/rag/pipeline_service.py` instead of executing the in-process pipeline. `rag_auth_token` is the outbound Bearer token for that service; an empty value sends no `Authorization` header.
+If `rag_query_service_url` is not empty, `augment()` delegates to an external RAG service via `call_rag_service()` in `scripts/rag/pipeline_service.py` instead of executing the in-process pipeline. `rag_auth_token` is the outbound Bearer token for that service; an empty value sends no `Authorization` header.
 
 | Behavior | Details |
 |---|---|
@@ -43,7 +43,7 @@ If `rag_service_url` is not empty, `augment()` delegates to an external RAG serv
 | Timeout | Fixed per-HTTP-attempt timeout (connection + read), the module constant `_REQUEST_TIMEOUT_SECONDS` in `scripts/rag/pipeline_service.py` |
 | Retries | Bounded retries for 5xx or transport errors with exponential backoff; no retries for 4xx or JSON parsing errors |
 | Fallback | `transient_failure` (HTTP 5xx or transport error after retries, other 4xx, or `is_error` true) → In-process pipeline; `empty` ("" context) → accepted as valid result; `auth_error` (HTTP 401/403) → `RagPipelineError`, no in-process fallback (fail closed) |
-| Prevention of infinite delegation | The MCP adapter hardcodes `rag_service_url=""`, so the in-process `augment()` will not re-delegate |
+| Prevention of infinite delegation | The MCP adapter hardcodes `rag_query_service_url=""`, so the in-process `augment()` will not re-delegate |
 | Return value | `call_rag_service()` returns a frozen `CallRagResult(kind, result, status_code, latency_ms)` — `kind` is `success`, `empty`, `auth_error` or `transient_failure`; `result` is the augmented text, `""` for `empty`, or `None` for failures |
 
 HTTP 401/403 yields `auth_error`, which `HttpAugment` maps to `http_result_kind="auth_error"` and `AugmentRefiner.run_http_augment` converts to `RagPipelineError`.

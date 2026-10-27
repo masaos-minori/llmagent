@@ -177,7 +177,7 @@ Chunk-size, chunk-overlap, crawl-depth, and max-pages bounds exist to keep chunk
 
 The interaction flow is: MCP client → HTTP routing → service orchestration → pipeline execution. For details see `docs/21_rag/rag_03_01_query_pipeline-overview.md`.
 
-Note: The rag-pipeline MCP server reads the corpus database through `rag_db_path` in `config/rag_pipeline_mcp_server.toml`, and the Agent reaches the same database only for admin-only maintenance through `rag_db_path` in `config/agent.toml`. HTTP delegation (`rag_service_url`) is not used in production (ADR-010). Both files are configured with the same path by convention, not by an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
+Note: The rag-pipeline MCP server reads the corpus database through `rag_db_path` in `config/rag_pipeline_mcp_server.toml`, and the Agent reaches the same database only for admin-only maintenance through `rag_db_path` in `config/agent.toml`. HTTP delegation (`rag_query_service_url`) is not used in production (ADR-010). Both files are configured with the same path by convention, not by an enforced invariant — a misconfigured `rag_pipeline_mcp_server.toml` pointing at a different `rag_db_path` would silently diverge, undetected by any current automated check.
 
 ## Chapter Map
 
