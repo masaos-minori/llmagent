@@ -245,8 +245,8 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: core logic in scripts/agent/history.py | Pending | — | — | |
-| 2 | Phase 2: regression tests and docs | Pending | — | — | |
+| 1 | Phase 1: core logic in scripts/agent/history.py | In Progress | — | — |  |
+| 2 | Phase 2: regression tests and docs | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -256,7 +256,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261027-211550_01_scripts_agent_history.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261027-211550_02_tests_agent_test_history_manager.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-211550_03_docs_23_agent_agent_04_02_state-and-persistence-history-compression.md.md | 2 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -280,3 +282,5 @@ See `templates/requirement-traceability.md` for the canonical column format.
 | REQ-004 | Required Changes 2 | CompressResult reporting parity | scripts/agent/history.py | Phase 1 | AC-001 | T-001 | Confirmed (L322-327) |
 | REQ-005 | Acceptance Criteria 2 | Repeated turns keep history bounded | scripts/agent/history.py | Phase 1 | AC-002 | T-003 | Derived from confirmed evidence |
 | REQ-006 | Acceptance Criteria 3; AI Instruction | Existing tests/behavior unchanged | tests/agent/test_history_manager.py | Phase 2 | AC-004 | T-004 | Confirmed (existing fallback case inventory) |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-211550 -->
