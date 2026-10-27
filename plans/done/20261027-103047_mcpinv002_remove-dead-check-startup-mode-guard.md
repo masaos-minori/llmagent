@@ -195,9 +195,9 @@ Low
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: pre-deletion verification gate | Pending | — | — | |
-| 2 | Phase 2: deletion | Pending | — | — | |
-| 3 | Phase 3: documentation and verification | Pending | — | — | |
+| 1 | Phase 1: pre-deletion verification gate | In Progress | — | — |  |
+| 2 | Phase 2: deletion | In Progress | — | — |  |
+| 3 | Phase 3: documentation and verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -207,7 +207,9 @@ Low
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-005859_01_scripts_shared_tool_executor.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-005859_02_docs_22_mcp_mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-005859_03_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -228,3 +230,5 @@ Low
 | REQ-004 | Verified stale claims in `mcp_06_02` and `mcp_03_01` | docs/22_mcp/mcp_06_02_mcpserverconfig-fields-agenttoml-mcp_servers.md | Phase 3 | AC-4 | 22_mcp documentation consistency check | Confirmed by repository evidence |
 | REQ-004 | Verified stale claim in `mcp_03_01` `ToolExecutor.server_configs` note | docs/22_mcp/mcp_03_01_dispatch-and-routing.md | Phase 3 | AC-4 | 22_mcp documentation consistency check | Confirmed by repository evidence |
 | REQ-005 | Constraints "Must not change runtime behavior"; live-guard verification | scripts/shared/tool_executor.py | Phase 2 | AC-2 | `test_invoke_rejects_disabled_server` unmodified | Confirmed by repository evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261028-005859 -->

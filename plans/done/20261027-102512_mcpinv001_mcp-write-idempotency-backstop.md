@@ -315,9 +315,9 @@ Medium
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: characterization baseline | Pending | — | — | |
-| 2 | Phase 2: core classification gate | Pending | — | — | |
-| 3 | Phase 3: tests, docs, deployment check, verification | Pending | — | — | |
+| 1 | Phase 1: characterization baseline | In Progress | — | — |  |
+| 2 | Phase 2: core classification gate | In Progress | — | — |  |
+| 3 | Phase 3: tests, docs, deployment check, verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -327,7 +327,9 @@ Medium
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-004925_01_scripts_shared_http_transport.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-004925_02_tests_shared_test_http_transport.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-004925_03_docs_22_mcp_mcp_03_01_dispatch-and-routing.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -350,3 +352,5 @@ Medium
 | REQ-005 | Documentation Impact; stale "Idempotency and retry" bullet | docs/22_mcp/mcp_03_01_dispatch-and-routing.md | Phase 3 | AC-5 | 22_mcp documentation consistency check | Confirmed by repository evidence |
 | REQ-006 | Scope amendments (no sent-key record, no toggle); handler comment invariant | scripts/shared/http_transport.py | Phase 2 | AC-6 | Mirror pin test + lint-imports | Derived from confirmed evidence |
 | REQ-006 | Testing Expectations extended with mirror pin | tests/shared/test_http_transport.py | Phase 3 | AC-6 | Mirror pin unit test | Derived from confirmed evidence |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261028-004925 -->

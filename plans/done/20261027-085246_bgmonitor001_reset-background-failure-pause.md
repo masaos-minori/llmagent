@@ -217,12 +217,27 @@ Step 1 → Step 2 (tests exercise the new branch); Step 3 is deferred to the doc
 
 ## Execution Status
 
-| Field | Value |
-|-------|-------|
-| Phase | P1: resume path (`bg_task_monitor.py`), P2: regression tests, P3 (deferred docs): docs |
-| Status | Planned (Plan drafting complete) |
-| Completed scope | none yet |
-| Next action | `plan-to-implementation-procedure` |
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`.
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | `scripts/agent/bg_task_monitor.py` clean-completion pause clear (REQ-1, REQ-2) | In Progress | — | — | P1: resume path |
+| 2 | `tests/agent/test_orchestrator_bg_failure_threshold.py` resume-path regression cases (REQ-1, REQ-2, REQ-4) | In Progress | — | — | P2: regression tests |
+| 3 | Step 10 docs phase: `docs/23_agent/agent_03_01_turn-processing-flow-overview.md` L93/L131 (REQ-3) | In Progress | — | — | P3: deferred docs phase |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| implementations/20261027-235926_01_scripts_agent_bg_task_monitor.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261027-235926_02_tests_agent_test_orchestrator_bg_failure_threshold.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261027-235926_03_docs_23_agent_agent_03_01_turn-processing-flow-overview.md.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 
@@ -233,3 +248,5 @@ Step 1 → Step 2 (tests exercise the new branch); Step 3 is deferred to the doc
 - **Source implementation procedure**: N/A: not yet generated
 - **Generated at**: 20261027-085246
 - **Related target files**: `scripts/agent/bg_task_monitor.py`, `tests/agent/test_orchestrator_bg_failure_threshold.py`, `docs/23_agent/agent_03_01_turn-processing-flow-overview.md`
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261027-235926 -->

@@ -220,12 +220,27 @@ Step 1 → Step 2 → Step 3 (contract → consumer → tests).
 
 ## Execution Status
 
-| Field | Value |
-|-------|-------|
-| Phase | P1: return contract (`session.py`), P2: command mapping, P3: tests + static gate |
-| Status | Planned (Plan drafting complete) |
-| Completed scope | none yet |
-| Next action | `plan-to-implementation-procedure` |
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`.
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | `scripts/agent/session.py` `set_title` bool return contract (REQ-1) | In Progress | — | — | P1: return contract |
+| 2 | `scripts/agent/commands/cmd_session.py` rename branch output mapping (REQ-2, REQ-4) | In Progress | — | — | P2: command mapping; after step 1 |
+| 3 | `tests/agent/commands/test_agent_cmd_session.py` regression cases + static gate (REQ-3, REQ-4) | In Progress | — | — | P3: tests + static gate |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| implementations/20261028-001446_01_scripts_agent_session.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-001446_02_scripts_agent_commands_cmd_session.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-001446_03_tests_agent_commands_test_agent_cmd_session.py.md | 3 | Procedure | Pending | — | — |
 
 ## Traceability
 
@@ -236,3 +251,5 @@ Step 1 → Step 2 → Step 3 (contract → consumer → tests).
 - **Source implementation procedure**: N/A: not yet generated
 - **Generated at**: 20261027-085735
 - **Related target files**: `scripts/agent/session.py`, `scripts/agent/commands/cmd_session.py`, `tests/agent/commands/test_agent_cmd_session.py`
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261028-001446 -->

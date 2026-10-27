@@ -231,10 +231,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Move the Health imports and delete the re-export | Pending | — | — | |
-| 2 | Require the posture gates (helper, 65 call sites, signature flip) | Pending | — | — | |
-| 3 | Add the checker rules, tests and catalog entries | Pending | — | — | |
-| 4 | Deployment and verification | Pending | — | — | |
+| 1 | Move the Health imports and delete the re-export | In Progress | — | — |  |
+| 2 | Require the posture gates (helper, 65 call sites, signature flip) | In Progress | — | — |  |
+| 3 | Add the checker rules, tests and catalog entries | In Progress | — | — |  |
+| 4 | Deployment and verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -244,7 +244,25 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-013216_01_scripts_shared_mcp_config.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_02_scripts_agent_services_mcp_status.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_03_scripts_agent_startup_reporter.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_04_scripts_agent_context.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_05_scripts_shared_tool_transport_invoker.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_06_scripts_agent_services_mcp_tool_discovery.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-013216_07_tests_shared_test_tool_executor.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_08_tests_shared_test_tool_executor_routing.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_09_tests_shared_test_tool_transport_invoker.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_10_tests_integration_test_agent_mcp_integration.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_11_tests_agent_services__discovery_gates.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-013216_12_tests_agent_services_test_mcp_tool_discovery.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-013216_13_tests_agent_services_test_mcp_tool_discovery_posture_gate.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-013216_14_tests_integration_test_production_security_regression.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-013216_15_tests_agent_services_test_runtime_tool_routing_integration.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-013216_16_docs_22_mcp_mcp_03_03_transport-and-health.md.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-013216_17_tools_check_compat_shims.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-013216_18_tests_tools_test_check_compat_shims.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-013216_19_tools_TOOL_DESCRIPTIONS.md.md | 3 | Procedure | Pending | — | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -278,3 +296,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-005 | Testing Expectations (catalog sync) | `tools/TOOL_DESCRIPTIONS.md` | Phase 3 | AC-7 | `uv run python tools/check_tool_descriptions_sync.py` | Derived from confirmed evidence |
 | REQ-006 | Required Changes (document sentence) | `docs/22_mcp/mcp_03_03_transport-and-health.md` | Phase 1 | AC-6 | `uv run python tools/check_docs_consistency.py --domain mcp` | Confirmed by repository evidence |
 | REQ-007 | Constraints; Acceptance Criteria; Testing Expectations | `scripts/agent/services/mcp_tool_discovery.py` | Phase 4 | AC-8 | Full suite; `lint-imports`; `mypy`; diff-cover | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261028-013216 -->

@@ -282,7 +282,7 @@ verified, so no additional boundary sentences are needed.
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| Archive Note | — | Note | Done | — | 2026-10-28: Superseded duplicate of plans/20261027-111522 (same source issue 20261027-104324, regenerated 12:17 in commit 8a63ad9ab). Canonical procedures were generated from the 111522 copy (implementations/20261028-065435_01..05); the legacy resource_scope reject policy was owner-approved on that copy's Decision record. No documents generated from this file. |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

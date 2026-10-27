@@ -185,8 +185,8 @@ persistence names through the facade; layer modules own the transactions and loc
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: record the decision in README | Pending | — | — | |
-| 2 | Phase 2: verification commands | Pending | — | — | |
+| 1 | Phase 1: record the decision in README | In Progress | — | — |  |
+| 2 | Phase 2: verification commands | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -196,7 +196,7 @@ persistence names through the facade; layer modules own the transactions and loc
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-070453_01_scripts_eventbus_README.md.md | 1 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -213,3 +213,5 @@ persistence names through the facade; layer modules own the transactions and loc
 | REQ-001 | issues/20261027-104252 (Required Changes, owner decision 2026-10-27) | Background, Target Files row 1 | scripts/eventbus/README.md | AC-01 | Planned |
 | REQ-002 | issues/20261027-104252 (Constraints, AI Implementation Instruction) | Scope, Design | N/A (no code change) | AC-02 git-diff pin | Planned |
 | REQ-003 | issues/20261027-104252 (Testing Expectations) | Validation plan | N/A (commands only) | AC-03 command set | Planned |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261028-070453 -->

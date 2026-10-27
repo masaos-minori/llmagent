@@ -117,6 +117,13 @@ Yes. The MCP tool-registry document (located through `docs/00_index.md` "Documen
 | UNK-03 | Do the two environment-dependent tool-list modules satisfy the four-field contract? | They could not be imported outside the test environment | Run `tests/mcp_servers/test_tool_schema_contract.py` in Phase 1 before and after the validator change | False |
 | UNK-04 | Implementation order against the `mcpcompat001` Plan, which also edits `tests/agent/services/test_mcp_tool_discovery.py` | The sibling Plan is not yet implemented | Implement its test phase first or rebase; the implementation-procedure phase reads this Plan's Scope Dependencies | False |
 
+## Decision record
+- 2026-10-28 (procedure-generation session, owner-approved): UNK-01 resolved — the legacy singular
+  `resource_scope` policy is explicit rejection: `validate_tool_schema_v2()` reports an entry carrying
+  the key as a schema error. UNK-02 is covered by the same approval: the owner accepts the exclusion
+  risk for external or deployed emitters. The ignore alternative is not adopted. REQ-001 and AC-1 are
+  satisfied by this record.
+
 ## Affected areas
 `skills/DESIGN.md` Change-impact table, extended with `Churn (30d)` and `Bus Factor`
 columns. The `File` column here MUST be a subset of `Implementation Target Files`'
@@ -186,10 +193,10 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Record the legacy-policy sign-off and run the baseline | Pending | — | — | |
-| 2 | Validator contract (tests first, then the validator) | Pending | — | — | |
-| 3 | Fetch layer and discovery tests | Pending | — | — | |
-| 4 | Document, deployment hand-off and verification | Pending | — | — | |
+| 1 | Record the legacy-policy sign-off and run the baseline | In Progress | — | — |  |
+| 2 | Validator contract (tests first, then the validator) | In Progress | — | — |  |
+| 3 | Fetch layer and discovery tests | In Progress | — | — |  |
+| 4 | Document, deployment hand-off and verification | In Progress | — | — |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |
@@ -199,7 +206,11 @@ with the Plan's actual steps once Implementation steps are broken down):
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| implementations/20261028-065435_01_scripts_shared_resource_scope.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-065435_02_scripts_agent_services_mcp_tool_discovery_fetch.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-065435_03_tests_shared_test_resource_scope.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-065435_04_tests_agent_services_test_mcp_tool_discovery.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-065435_05_docs_22_mcp_mcp_03_02_tool-registry.md.md | 4 | Procedure | Pending | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan
@@ -223,3 +234,5 @@ with the Plan's actual steps once Implementation steps are broken down):
 | REQ-005 | Required Changes (confirm by test) | `tests/agent/services/test_mcp_tool_discovery.py` | Phase 3 | AC-5 | `uv run pytest tests/agent/services -v` | Confirmed by repository evidence |
 | REQ-006 | Required Changes (rewrite the document sentence) | `docs/22_mcp/mcp_03_02_tool-registry.md` | Phase 4 | AC-6 | `uv run python tools/check_docs_consistency.py --domain mcp` | Confirmed by repository evidence |
 | REQ-007 | Constraints; Acceptance Criteria; Testing Expectations | `scripts/agent/services/mcp_tool_discovery_fetch.py` | Phase 4 | AC-7 | Full suite; `lint-imports`; `mypy`; diff-cover | Explicit in issue |
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261028-065435 -->

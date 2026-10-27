@@ -291,7 +291,7 @@ repo-wide grep).
 ### Work Items Created
 | Item ID | Related Step | Type | Status | Owner | Due Date |
 |---------|--------------|------|--------|-------|----------|
-| — | — | — | — | — | — |
+| N/A: superseded duplicate — archived without procedures; canonical copy plans/20261027-110516_mcpcompat001_remove-mcp-compat-paths.md generated 19 procedures (20261028-013216) on 2026-10-28 | — | Archive Note | Done | — | — | — |
 
 ## Traceability
 - **Workflow phase**: issue-to-plan

@@ -298,12 +298,47 @@ Strict order: 0 → 1 → 2 → 3 → 4 → 5 → 6; 7 deferred.
 
 ## Execution Status
 
-| Field | Value |
-|-------|-------|
-| Phase | P0: turn001 prerequisite + boundary API read; P1: probe tests; P2: helper kwarg; P3: boundary offload; P4: call-site awaits; P5: test updates + contention test; P6 (deferred docs): db_04 |
-| Status | Planned — START BLOCKED until turn001 implementation completes (issue Dependencies) |
-| Completed scope | none yet |
-| Next action | `plan-to-implementation-procedure` after turn001 implementation |
+Table structure, status/type vocabulary, and general guidance: see
+`templates/execution-status.md`.
+
+### Execution Status
+| Step | Description | Status | Started | Completed | Notes |
+|------|-------------|--------|---------|-----------|-------|
+| 1 | `scripts/db/helper.py` `check_same_thread` pass-through (REQ-002) | In Progress | — | — | P2: helper knob |
+| 2 | `tests/db/test_helper_thread_safety.py` probe module (REQ-002, REQ-005) | In Progress | — | — | P1: probe gate; P1/P2 land as one commit pair, probes before offload |
+| 3 | `scripts/agent/turn_persistence.py` `asyncio.to_thread` offload (REQ-001, REQ-003, REQ-004) | In Progress | — | — | P3: boundary offload; after steps 1-2 |
+| 4 | Call-site await verification: `orchestrator.py`, `conversation_state_manager.py`, `llm_turn_runner.py`, `tool_round_completion.py`, `workflow_engine_adapter.py` (REQ-003, REQ-004) | In Progress | — | — | P4: await routing shipped by turn001; regression + AC-001 grep gates only |
+| 5 | Test await-contract verification: `test_llm_turn_runner.py`, `test_tool_round_completion.py`, `test_orchestrator.py`, `test_history_compression_consistency.py`, `test_agent_session.py` (REQ-004) | In Progress | — | — | P5: AsyncMock contracts shipped by turn001 |
+| 6 | `tests/agent/test_turn_persistence.py` off-thread proof + contention test (REQ-001, REQ-003, REQ-006) | In Progress | — | — | P5: after step 3 |
+| 7 | `docs/41_db/db_04_api_and_operations-module-boundaries-and-helper.md` threading boundary record (REQ-007) | In Progress | — | — | P6: deferred docs row (workflow Step 10 docs phase) |
+
+### Blocker Log
+| Step | Blocker Description | Resolved | Resolution Date |
+|------|---------------------|----------|-----------------|
+| — | — | — | — |
+
+turn001 prerequisite gate (former "START BLOCKED" note): satisfied —
+`scripts/agent/turn_persistence.py` and `tests/agent/test_turn_persistence.py` exist;
+turn001 procedures archived under `implementations/done/20261027-094147_*`.
+
+### Work Items Created
+| Item ID | Related Step | Type | Status | Owner | Due Date |
+|---------|--------------|------|--------|-------|----------|
+| implementations/20261028-003125_01_scripts_db_helper.py.md | 1 | Procedure | Pending | — | — |
+| implementations/20261028-003125_02_scripts_agent_turn_persistence.py.md | 3 | Procedure | Pending | — | — |
+| implementations/20261028-003125_03_scripts_agent_orchestrator.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-003125_04_scripts_agent_conversation_state_manager.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-003125_05_scripts_agent_llm_turn_runner.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-003125_06_scripts_agent_tool_round_completion.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-003125_07_scripts_agent_workflow_engine_adapter.py.md | 4 | Procedure | Pending | — | — |
+| implementations/20261028-003125_08_tests_db_test_helper_thread_safety.py.md | 2 | Procedure | Pending | — | — |
+| implementations/20261028-003125_09_tests_agent_test_turn_persistence.py.md | 6 | Procedure | Pending | — | — |
+| implementations/20261028-003125_10_tests_agent_test_llm_turn_runner.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261028-003125_11_tests_agent_test_tool_round_completion.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261028-003125_12_tests_agent_test_orchestrator.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261028-003125_13_tests_agent_test_history_compression_consistency.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261028-003125_14_tests_agent_test_agent_session.py.md | 5 | Procedure | Pending | — | — |
+| implementations/20261028-003125_15_docs_41_db_db_04_api_and_operations-module-boundaries-and-helper.md.md | 7 | Procedure | Pending | — | — |
 
 ## Traceability
 
@@ -314,3 +349,5 @@ Strict order: 0 → 1 → 2 → 3 → 4 → 5 → 6; 7 deferred.
 - **Source implementation procedure**: N/A: not yet generated
 - **Generated at**: 20261027-090510
 - **Related target files**: `scripts/db/helper.py`, `scripts/agent/turn_persistence.py`, `scripts/agent/orchestrator.py`, `scripts/agent/conversation_state_manager.py`, `scripts/agent/llm_turn_runner.py`, `scripts/agent/tool_round_completion.py`, `scripts/agent/workflow_engine_adapter.py`, `tests/db/test_helper_thread_safety.py`, `tests/agent/test_turn_persistence.py`, `docs/41_db/db_04_api_and_operations-module-boundaries-and-helper.md`
+
+<!-- tools/generate_workitem.py implementation-procedure-pass timestamp: 20261028-003125 -->
