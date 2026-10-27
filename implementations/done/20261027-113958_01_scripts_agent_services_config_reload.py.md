@@ -6,7 +6,7 @@ Reorder `apply_config_dict` in `scripts/agent/services/config_reload.py` into tw
 
 - **In-Scope** (`scripts/agent/services/config_reload.py` only):
   - Restructure `apply_config_dict` (L89-122) into a candidate phase (build and validate every section, direct field, and the MCP classification; no live mutation) followed by a commit phase (apply candidate sections, set the `ctx.conv` field, run removed-server lifecycle cleanup, then `_sync_services`).
-  - Fold `allowed_tools` and `masked_fields` into the `tool` candidate so they become atomic with it.
+  - Fold `allowed_tools` and `masked_fields` into the `tool` candidate so they become atomic with it. Verification note: `allowed_tools` is already a `tool`-section registry entry (`config_field_registry.py` L80), so the prepare variant picks it up automatically; only `masked_fields` (not a registry entry) needs explicit folding via the prepare variant's `extra_changed_fields` parameter.
   - Hold `system_prompt_tool` in a pending-apply list executed only in the commit phase.
   - Move MCP removed-server `cleanup_server_resources` to the commit phase (REQ-004).
 - **Out-of-Scope**:
@@ -19,12 +19,13 @@ Reorder `apply_config_dict` in `scripts/agent/services/config_reload.py` into tw
 
 - `apply_config_dict` is the sole production entry point the command handler calls; `apply_config` delegates to it, so `cmd_config.py` needs no change (Reference File).
 - Registry validators take only the candidate section and never read live `ctx.cfg` (confirmed by `config_validators.py` signature review), so candidate-phase validation needs no live-cfg extraction.
-- `classify_mcp_server_changes` is read-only classification; only the removed-server branch carries the `cleanup_server_resources` side effect.
-- `dataclasses.replace` is safe for all six section dataclasses (`scripts/agent/config_dataclasses.py`).
+- `classify_mcp_server_changes` is read-only classification; only the removed-server branch carries the `cleanup_server_resources` side effect. Verification facts: it returns `list[str]` (no `.needs_restart` object), and it calls `_build_mcp_servers(new_cfg)` which raises `ValueError` when `new_cfg` has no non-empty `mcp_servers` key — the existing `if "mcp_servers" not in new_cfg` guard in `_handle_mcp_changes` (L252-253) must be kept in the candidate phase.
+- `dataclasses.replace` candidate construction applies to the three validated sections (`llm`/`rag`/`tool`) only. Direct sections are staged as changed-field dicts and applied with per-field `setattr` (row 02 Design decisions; test fixtures model `ctx.cfg.approval` / `ctx.cfg.mcp` as `MagicMock`).
+- `new_cfg` payloads are flat: reloadable field names appear at the top level of the dict (e.g. `{"llm_temperature": 0.5}`), matching `_req_to_dict` flattening (L125-140) and existing tests.
 
 ## Design decisions
 
-- **Candidate phase first.** Build a candidate for every touched section via `dataclasses.replace` on the current section (the pattern already used in `reload_validated_section`) and run the existing validators for all of them before touching live state. Collect direct-field changes, fold `allowed_tools` and `masked_fields` into the `tool` candidate, hold `system_prompt_tool` aside, and classify MCP changes — all without any `setattr` or lifecycle call.
+- **Candidate phase first.** Build a candidate for every touched validated section via `dataclasses.replace` on the current section (the pattern already used in `reload_validated_section`) and run the existing validators for all of them before touching live state. Collect direct-section changed-field dicts, fold `masked_fields` into the `tool` candidate via `extra_changed_fields` (`allowed_tools` arrives through the registry), hold `system_prompt_tool` aside for the conv update, and classify MCP changes — all without any `setattr` or lifecycle call.
 - **Commit phase last.** Only after the whole candidate set is valid: `setattr` the candidates onto `ctx.cfg`, execute the pending `system_prompt_tool` update, run removed-server cleanup, then `_sync_services`. Because the candidate phase is the only place validation can raise, no validation-error path exists in the commit phase, making whole-config atomicity a structural property (no rollback or compensation code).
 - **Pending-apply for the conv field.** `system_prompt_tool` targets `ctx.conv`, not `ctx.cfg`, so it is staged in a small pending-apply list executed only in the commit phase.
 
@@ -43,10 +44,10 @@ Reorder `apply_config_dict` in `scripts/agent/services/config_reload.py` into tw
 
 1. Open `scripts/agent/services/config_reload.py` and locate `apply_config_dict` (L89-122), whose body currently chains `_apply_validated_sections` (L210-221), `_apply_direct_reloads` (L223-234), `_apply_direct_fields` (L236-243), `_handle_mcp_changes` (L245-264), and `_sync_services` (L144-161) in a single mutating sequence.
 2. Replace the body with a two-phase structure: a candidate phase that builds and validates every section, direct field, and the MCP classification without mutating live state, then a commit phase that applies the validated results.
-3. In the candidate phase, iterate `llm`, `rag`, and `tool` and build each section candidate via the prepare variant introduced in row 02, collecting the `(section_path, candidate)` pairs into a new `prepared` collection. Fold `allowed_tools` and `masked_fields` from `new_cfg` into the `tool` candidate changed fields so the tool candidate is atomic across all three.
-4. In the candidate phase, build the `approval`, `memory`, and `mcp` direct-section candidates via the prepare variant from row 02 (no validators; REQ-006), and classify MCP server changes with `classify_mcp_server_changes` read-only — do NOT run `cleanup_server_resources` here.
+3. In the candidate phase, iterate `llm`, `rag`, and `tool` and build each section candidate via `prepare_validated_section` (row 02), collecting only non-empty `(section_path, candidate)` pairs into a new `prepared` collection. For `tool`, pass `extra_changed_fields={"masked_fields": list(new_cfg["masked_fields"])}` when `masked_fields` is present in `new_cfg` AND differs from `ctx.cfg.tool.masked_fields` (mirrors the registry's equal-value skip); `allowed_tools` is already a `tool`-section registry entry and is picked up by the prepare variant itself.
+4. In the candidate phase, collect the `approval`, `memory`, and `mcp` direct-section changed fields via `prepare_direct_section` from row 02 (no validators, no candidate; REQ-006), and — only when `mcp_servers` is present in `new_cfg` (guard preserved from `_handle_mcp_changes` L252-253) — classify MCP server changes with `classify_mcp_server_changes` read-only. It returns `list[str]`; do NOT run `cleanup_server_resources` here.
 5. In the candidate phase, if `system_prompt_tool` is present in `new_cfg`, append a zero-arg closure to a new `pending_conv_updates` (new) list instead of setting `ctx.conv.system_prompt_content` now.
-6. In the commit phase, `setattr` each prepared candidate onto `ctx.cfg` in order, invoke each closure in pending_conv_updates to set `ctx.conv.system_prompt_content`, run removed-server `cleanup_server_resources` for the MCP items classified as removed, append the remaining `needs_restart` items to the outcome, and finally call `_sync_services`.
+6. In the commit phase, `setattr` each prepared validated candidate onto `ctx.cfg` in order and append each such `section_path` to `outcome.applied`; apply each direct-section changed-field dict with `apply_direct_section` (per-field `setattr` on the live section) and append the non-empty section names to `outcome.applied`; invoke each closure in pending_conv_updates to set `ctx.conv.system_prompt_content`; run removed-server `cleanup_server_resources` for the MCP items classified as removed and append the remaining items to `outcome.needs_restart`; finally call `_sync_services`.
 7. Confirm the outcome report shape (`applied`, `needs_restart`, `skipped`, `startup_only`, `always_live`) is unchanged (REQ-007) and that `cmd_config.py` still surfaces `ConfigReloadValidationError` unchanged (reference only).
 8. Run the validation sequence (`routing.md`).
 
@@ -60,17 +61,29 @@ def apply_config_dict(self, new_cfg):
     outcome = ConfigReloadOutcome()
 
     # Candidate phase: build + validate everything; no live mutation
-    prepared = []                       # (section_path, candidate) pairs
+    prepared = []                       # (section_path, candidate) pairs, changes only
     for section_path in ("llm", "rag", "tool"):
-        changed, candidate = <prepare variant for validated sections, seq 02>
-        if section_path == "tool":
-            if "allowed_tools" in new_cfg:
-                changed["allowed_tools"] = list(new_cfg["allowed_tools"])
-            if "masked_fields" in new_cfg:
-                changed["masked_fields"] = list(new_cfg["masked_fields"])
-        prepared.append((section_path, candidate))
-    # approval / memory / mcp direct candidates (seq 02); no validators
-    mcp_result = classify_mcp_server_changes(ctx, new_cfg)   # read-only, no cleanup
+        extra = None
+        if (
+            section_path == "tool"
+            and "masked_fields" in new_cfg
+            and list(new_cfg["masked_fields"]) != ctx.cfg.tool.masked_fields
+        ):
+            extra = {"masked_fields": list(new_cfg["masked_fields"])}
+        changed, candidate = prepare_validated_section(
+            ctx, section_path, new_cfg, extra_changed_fields=extra
+        )
+        if candidate is not None:
+            prepared.append((section_path, candidate))
+    # approval / memory / mcp direct changed fields (seq 02); no validators
+    direct_changed = {}
+    for section_path in ("approval", "memory", "mcp"):
+        changed_fields = prepare_direct_section(ctx, new_cfg, section_path)
+        if changed_fields:
+            direct_changed[section_path] = changed_fields
+    mcp_items = (
+        classify_mcp_server_changes(ctx, new_cfg) if "mcp_servers" in new_cfg else []
+    )  # read-only list[str], no cleanup
     pending_conv_updates = []     # closures run only in the commit phase
     if "system_prompt_tool" in new_cfg:
         value = new_cfg["system_prompt_tool"]
@@ -81,9 +94,13 @@ def apply_config_dict(self, new_cfg):
     # Commit phase: safe, no validation error path exists
     for section_path, candidate in prepared:
         setattr(ctx.cfg, section_path, candidate)
+        outcome.applied.append(section_path)
+    for section_path, changed_fields in direct_changed.items():
+        apply_direct_section(ctx, section_path, changed_fields)
+        outcome.applied.append(section_path)
     for update in pending_conv_updates:
         update()
-    for item in mcp_result.needs_restart:
+    for item in mcp_items:
         if item.endswith(" (removed server)"):
             lifecycle = ctx.services_required.lifecycle
             if lifecycle is not None:
@@ -104,7 +121,7 @@ def apply_config_dict(self, new_cfg):
     return outcome
 ```
 
-The illustrative block omits the exact direct-section candidate construction (row 02 defines the prepare variants); the key structural change is that every `setattr` and the `cleanup_server_resources` call move after the whole candidate set is known valid.
+The illustrative block shows the shape; the exact direct-section staging uses `prepare_direct_section` from row 02 (changed-field dicts, no candidates); the key structural change is that every `setattr` and the `cleanup_server_resources` call move after the whole candidate set is known valid.
 
 ### Details
 
@@ -151,11 +168,11 @@ The illustrative block omits the exact direct-section candidate construction (ro
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Prepare/apply split in `config_section_reload.py` (row 02) | Pending | — | — | Dependency |
-| 2 | Two-phase reorder of `apply_config_dict` (this row) | In Progress | — | — | REQ-001, REQ-004, REQ-005, REQ-007 |
-| 3 | Regression tests (row 03) | Pending | — | — | Dependency |
-| 4 | Hot-reload doc (row 04) | Pending | — | — | REQ-001, REQ-003 |
-| 5 | Run validation sequence | Pending | — | — | pytest/mypy/ruff |
+| 1 | Prepare/apply split in `config_section_reload.py` (row 02) | Completed | 20261027-194948 | 20261027-194948 | Dependency |
+| 2 | Two-phase reorder of `apply_config_dict` (this row) | Completed | 20261027-194948 | 20261027-194948 | REQ-001, REQ-004, REQ-005, REQ-007 |
+| 3 | Regression tests (row 03) | Completed | 20261027-194948 | 20261027-194948 | Dependency |
+| 4 | Hot-reload doc (row 04) | Completed | 20261027-194948 | 20261027-194948 | REQ-001, REQ-003 |
+| 5 | Run validation sequence | Completed | 20261027-194948 | 20261027-194948 | pytest/mypy/ruff |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

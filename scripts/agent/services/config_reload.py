@@ -21,8 +21,10 @@ from agent.services.config_outcome_classification import (
     detect_diagnostics_live_fields,
 )
 from agent.services.config_section_reload import (
-    reload_direct_fields,
-    reload_validated_section,
+    apply_direct_section,
+    apply_validated_section,
+    prepare_direct_section,
+    prepare_validated_section,
 )
 from agent.services.config_service_sync import ServiceSyncer
 from agent.services.exceptions import ConfigReloadValidationError
@@ -89,25 +91,73 @@ class ConfigReloadService:
     def apply_config_dict(self, new_cfg: dict[str, Any]) -> ConfigReloadOutcome:
         """Update ctx.cfg from new_cfg, sync live services, return a report.
 
-        Replaces _apply_config_params() + all _apply_* helpers from _ConfigMixin.
-        The command handler only calls this method and renders the result.
+        Two-phase apply for whole-config atomicity:
+          Candidate phase — prepare and validate every section, direct field,
+          and the MCP classification without mutating live state. A
+          ConfigReloadValidationError from any validator aborts here, leaving
+          ctx.cfg and ctx.conv untouched.
+          Commit phase — apply the validated candidates, the pending conv
+          update, the removed-server lifecycle cleanup, then _sync_services.
+          No validation error path exists in this phase.
 
-        Delegates to:
-            _apply_validated_sections() — section-based reload for llm/rag/tool
-            _apply_direct_reloads()     — direct field reload for approval/memory/mcp
-            _apply_direct_fields()      — direct field updates for system_prompt_tool etc.
-            _handle_mcp_changes()       — MCP server change classification + lifecycle cleanup
-            _sync_services()            — propagate updated cfg to running service instances
-            _classify_outcomes()        — outcome classification for startup-only and diagnostics fields
+        The outcome report shape (applied, needs_restart, skipped,
+        startup_only, always_live) is unchanged.
         """
         ctx = self._ctx
         outcome = ConfigReloadOutcome()
 
-        outcome.applied.extend(self._apply_validated_sections(ctx, new_cfg))
-        outcome.applied.extend(self._apply_direct_reloads(ctx, new_cfg))
-        self._apply_direct_fields(new_cfg)
-        mcp_result = self._handle_mcp_changes(ctx, new_cfg)
-        outcome.needs_restart.extend(mcp_result.needs_restart)
+        # ── Candidate phase: build + validate everything; no live mutation ──
+        prepared: list[tuple[str, Any]] = []
+        for section_path in ("llm", "rag", "tool"):
+            extra: dict[str, Any] | None = None
+            if (
+                section_path == "tool"
+                and "masked_fields" in new_cfg
+                and list(new_cfg["masked_fields"]) != ctx.cfg.tool.masked_fields
+            ):
+                extra = {"masked_fields": list(new_cfg["masked_fields"])}
+            _, candidate = prepare_validated_section(
+                ctx, section_path, new_cfg, extra_changed_fields=extra
+            )
+            if candidate is not None:
+                prepared.append((section_path, candidate))
+
+        direct_changed: dict[str, dict[str, Any]] = {}
+        for section_path in ("approval", "memory", "mcp"):
+            changed_fields = prepare_direct_section(ctx, new_cfg, section_path)
+            if changed_fields:
+                direct_changed[section_path] = changed_fields
+
+        mcp_items = (
+            classify_mcp_server_changes(ctx, new_cfg) if "mcp_servers" in new_cfg else []
+        )
+
+        pending_conv_updates: list[Any] = []
+        if "system_prompt_tool" in new_cfg:
+            value = new_cfg["system_prompt_tool"]
+            pending_conv_updates.append(
+                lambda v=value: setattr(ctx.conv, "system_prompt_content", v)
+            )
+
+        # ── Commit phase: safe, no validation error path exists ──
+        for section_path, candidate in prepared:
+            apply_validated_section(ctx, section_path, candidate)
+            outcome.applied.append(section_path)
+        for section_path, changed_fields in direct_changed.items():
+            apply_direct_section(ctx, section_path, changed_fields)
+            outcome.applied.append(section_path)
+        for update in pending_conv_updates:
+            update()
+        for item in mcp_items:
+            if item.endswith(" (removed server)"):
+                server_key = item.replace("mcp_servers/", "").removesuffix(
+                    " (removed server)"
+                )
+                lifecycle = ctx.services_required.lifecycle
+                if lifecycle is not None:
+                    lifecycle.cleanup_server_resources(server_key)
+            else:
+                outcome.needs_restart.append(item)
         service_result = self._sync_services(
             new_cfg,
             ctx.services_required.llm,
@@ -204,64 +254,6 @@ class ConfigReloadService:
         call, independent of /reload — they are config-file-driven, not startup-only.
         """
         return detect_diagnostics_live_fields(self._ctx, new_cfg)
-
-    # ── Extracted private methods (REQ-001 through REQ-006) ────────────────
-
-    def _apply_validated_sections(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> list[str]:
-        """Apply validated section reloads for llm/rag/tool sections."""
-        applied: list[str] = []
-        for section_path in ("llm", "rag", "tool"):
-            changed_fields = reload_validated_section(ctx, section_path, new_cfg)
-            if changed_fields:
-                applied.append(section_path)
-        return applied
-
-    def _apply_direct_reloads(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> list[str]:
-        """Apply direct field reloads for approval/memory/mcp sections."""
-        applied: list[str] = []
-        for section_path in ("approval", "memory", "mcp"):
-            changed_fields_dict = reload_direct_fields(ctx, new_cfg, section_path)
-            if changed_fields_dict:
-                applied.append(section_path)
-        return applied
-
-    def _apply_direct_fields(self, new_cfg: dict[str, Any]) -> None:
-        """Apply direct field updates for system_prompt_tool, allowed_tools, masked_fields."""
-        if "system_prompt_tool" in new_cfg:
-            self._ctx.conv.system_prompt_content = new_cfg["system_prompt_tool"]
-        if "allowed_tools" in new_cfg:
-            self._ctx.cfg.tool.allowed_tools = list(new_cfg["allowed_tools"])
-        if "masked_fields" in new_cfg:
-            self._ctx.cfg.tool.masked_fields = list(new_cfg["masked_fields"])
-
-    def _handle_mcp_changes(
-        self,
-        ctx: AgentContext,
-        new_cfg: dict[str, Any],
-    ) -> ConfigReloadOutcome:
-        """Classify MCP server changes and handle lifecycle cleanup for removed servers."""
-        result = ConfigReloadOutcome()
-        if "mcp_servers" not in new_cfg:
-            return result
-        for item in classify_mcp_server_changes(ctx, new_cfg):
-            if item.endswith(" (removed server)"):
-                server_key = item.replace("mcp_servers/", "").removesuffix(
-                    " (removed server)"
-                )
-                lifecycle = ctx.services_required.lifecycle
-                if lifecycle is not None:
-                    lifecycle.cleanup_server_resources(server_key)
-            else:
-                result.needs_restart.append(item)
-        return result
 
     def _classify_outcomes(
         self,

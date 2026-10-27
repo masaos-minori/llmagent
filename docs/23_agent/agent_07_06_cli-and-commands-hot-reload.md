@@ -44,6 +44,19 @@ The reload subcommand reads the base configuration files and applies changes as 
 | Skipped | `[SKIP]` | Changes intentionally ignored |
 | Always live | `[LIVE]` | Always effective without reload |
 
+### Apply Atomicity
+
+The reloadable set of settings is applied atomically. A successful reload applies
+every reloadable change together; there is no partial application.
+
+- On a single invalid reloadable field, the entire reload is rejected: the live
+  configuration is left unchanged, no service is re-synced, and the failure is
+  reported as an actionable error that names the offending field.
+- This differs from startup-only settings, which are detected but never applied by
+  the reload subcommand regardless of validity.
+- Restart remains required for the "Requires restart" category; atomicity governs
+  only the reloadable fields applied within a single reload.
+
 ## Responsibility Boundary
 
 - **Hot-reloadable**: LLM settings, history management, tool settings, etc.

@@ -16,7 +16,9 @@ Add regression tests to `tests/agent/services/test_config_reload.py` that pin th
 
 - The `agent` package is importable under the test runner (existing tests import `agent.config_dataclasses` and `agent.services.config_reload`), so the new module imports cleanly.
 - `pytest-asyncio` is configured if any async path is exercised; the cases here are synchronous through `apply_config_dict`.
-- The `svc` and `svc_with_ctx` fixtures build a real `AgentConfig` over a `MagicMock` `ctx` and already mock `_classify_mcp_server_changes`, so tests only need to supply `new_cfg` payloads and, where needed, mock `_sync_services` and the lifecycle cleanup.
+- The `svc` and `svc_with_ctx` fixtures build a real `AgentConfig` over a `MagicMock` `ctx` and already mock `_classify_mcp_server_changes`, so tests only need to supply `new_cfg` payloads and, where needed, mock `_sync_services` and the lifecycle cleanup. Verification note: `apply_config_dict` never routes through the mocked `_classify_mcp_server_changes` method — MCP classification runs only inside `_handle_mcp_changes` when the payload contains an `mcp_servers` key, so T-003 must pre-populate `ctx.cfg.mcp.mcp_servers` with an existing server and supply raw per-server dicts (validated by `shared.mcp_config._build_mcp_servers`, which raises on a missing or empty `mcp_servers` section).
+- `new_cfg` payloads are flat: reloadable field names sit at the top level of the dict (e.g. `{"llm_temperature": 0.5}`, `{"max_tool_turns": 0}`), matching `_req_to_dict` flattening and the existing `TestApplyConfig` cases. Section-nested payload dicts are NOT the format `apply_config_dict` consumes.
+- The invalid-field carrier for the tool section is `max_tool_turns` / `tool_result_max_llm_chars` (their registry validators raise on non-positive values); `llm_max_tokens` is an `llm`-section field, not a tool one.
 - An invalid `tool` value makes a registry validator raise, which `config_section_reload.py` wraps into `ConfigReloadValidationError` during the candidate phase.
 
 ## Design decisions
@@ -40,10 +42,10 @@ Add regression tests to `tests/agent/services/test_config_reload.py` that pin th
 
 1. Open `tests/agent/services/test_config_reload.py` and locate the existing `svc` and `svc_with_ctx` fixtures (both construct a real `AgentConfig` over a `MagicMock` `ctx` and mock `_classify_mcp_server_changes`) and the `TestApplyConfig` class.
 2. Append a new test class `TestConfigReloadAtomicity` (new) after `TestApplyConfig`.
-3. Add `test_invalid_tool_leaves_live_config_unchanged` (new) [T-001]: take `svc_with_ctx`, snapshot the `llm` section, call `apply_config_dict` with a payload of valid `llm` + `rag` changes and an invalid `tool` value, assert it raises `ConfigReloadValidationError`, assert the live sections still equal the snapshot, and assert `_sync_services` was not called (assign a `MagicMock` to `svc._sync_services` first).
-4. Add `test_direct_fields_unchanged_on_later_failure` (new) [T-002]: send a payload that sets `allowed_tools`, `masked_fields`, `system_prompt_tool` together with a later-failing section, and assert the direct fields and `ctx.conv.system_prompt_content` are unchanged from their pre-call values.
-5. Add `test_mcp_cleanup_not_run_on_validation_failure` (new) [T-003]: assign a `MagicMock` to `svc.ctx.services_required.lifecycle.cleanup_server_resources`, send a payload that removes an MCP server plus an invalid section, and assert the cleanup mock was not called and the outcome `needs_restart` is empty.
-6. Add `test_valid_reload_applies_everything` (new) [T-004]: send a fully valid payload and assert every section, direct field, the `system_prompt_tool` conv update, and services are applied, with the outcome categories populated.
+3. Add `test_invalid_tool_leaves_live_config_unchanged` (new) [T-001]: take `svc_with_ctx`, snapshot the `llm` and `rag` sections, call `apply_config_dict` with a flat payload of valid `llm` + `rag` changes and an invalid tool value (`{"llm_temperature": 0.5, "embed_url": "http://localhost:8081/embed", "max_tool_turns": 0}`), assert it raises `ConfigReloadValidationError`, assert the live sections still equal the snapshots, and assert `_sync_services` was not called (assign a `MagicMock` to `svc._sync_services` first).
+4. Add `test_direct_fields_unchanged_on_later_failure` (new) [T-002]: set `ctx.conv.system_prompt_content` to a real string first, then send a flat payload that sets `allowed_tools`, `masked_fields`, `system_prompt_tool` together with a later-failing tool value (`"max_tool_turns": 0`), and assert the direct fields and `ctx.conv.system_prompt_content` are unchanged from their pre-call values.
+5. Add `test_mcp_cleanup_not_run_on_validation_failure` (new) [T-003]: assign a `MagicMock` to `svc.ctx.services_required.lifecycle.cleanup_server_resources`, pre-populate `ctx.cfg.mcp.mcp_servers` with one existing server (a real `McpServerConfig`), and send a flat payload whose `mcp_servers` raw-dict map drops that server and whose tool section is invalid (`{"mcp_servers": {"kept": {"transport": "http", "url": "http://localhost:8080"}}, "max_tool_turns": 0}`). Because the tool candidate raises in the candidate phase, assert the cleanup mock was not called and the outcome `needs_restart` is empty — assert the raise with `pytest.raises` rather than inspecting an outcome object.
+6. Add `test_valid_reload_applies_everything` (new) [T-004]: send a fully valid flat payload touching several sections at once (e.g. `{"llm_temperature": 0.5, "embed_url": "http://localhost:8081/embed", "max_tool_turns": 7, "allowed_tools": ["read_file"], "system_prompt_tool": "new prompt", "gitops_push_blocked": True}`) and assert every section field, the direct fields, the `ctx.conv.system_prompt_content` update, and the outcome `applied` categories are populated.
 7. Run the regression gate (`uv run pytest tests/agent/services/test_config_reload.py tests/agent/services/test_config_reload_classification.py tests/agent/commands/test_agent_cmd_config.py`) and confirm AC-005 (no validator/registry change) holds.
 
 ### Imports
@@ -66,48 +68,78 @@ class TestConfigReloadAtomicity:
         svc, ctx = svc_with_ctx
         svc._sync_services = MagicMock()
         before_llm = copy.deepcopy(ctx.cfg.llm)
+        before_rag = copy.deepcopy(ctx.cfg.rag)
         payload = {
-            "llm": {"llm_temperature": 0.2},
-            "rag": {"embed_url": "http://localhost:8080/embed"},
-            "tool": {"llm_max_tokens": -1},
+            "llm_temperature": 0.5,
+            "embed_url": "http://localhost:8081/embed",
+            "max_tool_turns": 0,
         }
         with pytest.raises(ConfigReloadValidationError):
             svc.apply_config_dict(payload)
         assert ctx.cfg.llm == before_llm
+        assert ctx.cfg.rag == before_rag
         svc._sync_services.assert_not_called()
 
     def test_direct_fields_unchanged_on_later_failure(self, svc_with_ctx):
         svc, ctx = svc_with_ctx
+        ctx.conv.system_prompt_content = "original prompt"
         before_allowed = list(ctx.cfg.tool.allowed_tools)
+        before_masked = list(ctx.cfg.tool.masked_fields)
         before_system = ctx.conv.system_prompt_content
         payload = {
             "allowed_tools": ["a", "b"],
+            "masked_fields": ["api_key"],
             "system_prompt_tool": "new system prompt",
-            "tool": {"llm_max_tokens": -1},
+            "max_tool_turns": 0,
         }
         with pytest.raises(ConfigReloadValidationError):
             svc.apply_config_dict(payload)
         assert list(ctx.cfg.tool.allowed_tools) == before_allowed
+        assert list(ctx.cfg.tool.masked_fields) == before_masked
         assert ctx.conv.system_prompt_content == before_system
 
     def test_mcp_cleanup_not_run_on_validation_failure(self, svc_with_ctx):
         svc, ctx = svc_with_ctx
+        from shared.mcp_config import McpServerConfig, TransportType
+
         ctx.services_required.lifecycle.cleanup_server_resources = MagicMock()
-        payload = {
-            "mcp_servers": {"removed": {"endpoint": "http://x"}},
-            "tool": {"llm_max_tokens": -1},
+        ctx.cfg.mcp.mcp_servers = {
+            "removed": McpServerConfig(
+                transport=TransportType.HTTP,
+                url="http://localhost:9090",
+                cmd=[],
+            )
         }
-        outcome = svc.apply_config_dict(payload)
+        payload = {
+            "mcp_servers": {"kept": {"transport": "http", "url": "http://localhost:8080"}},
+            "max_tool_turns": 0,
+        }
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(payload)
         ctx.services_required.lifecycle.cleanup_server_resources.assert_not_called()
-        assert outcome.needs_restart == []
 
     def test_valid_reload_applies_everything(self, svc_with_ctx):
         svc, ctx = svc_with_ctx
+        ctx.conv.system_prompt_content = "original prompt"
         outcome = svc.apply_config_dict(
-            {"llm": {"llm_temperature": 0.2}, "rag": {"embed_url": "http://y"}}
+            {
+                "llm_temperature": 0.5,
+                "embed_url": "http://localhost:8081/embed",
+                "max_tool_turns": 7,
+                "allowed_tools": ["read_file"],
+                "system_prompt_tool": "new prompt",
+                "gitops_push_blocked": True,
+            }
         )
-        assert ctx.cfg.llm.llm_temperature == 0.2
-        assert outcome.applied
+        assert ctx.cfg.llm.llm_temperature == 0.5
+        assert ctx.cfg.rag.embed_url == "http://localhost:8081/embed"
+        assert ctx.cfg.tool.max_tool_turns == 7
+        assert ctx.cfg.tool.allowed_tools == ["read_file"]
+        assert ctx.conv.system_prompt_content == "new prompt"
+        assert "llm" in outcome.applied
+        assert "rag" in outcome.applied
+        assert "tool" in outcome.applied
+        assert "approval" in outcome.applied
 ```
 
 The three failure-path tests assert both the raised `ConfigReloadValidationError` and that no live state changed and no side effect ran; the happy-path test asserts the sections were applied and the outcome categories are populated.
@@ -153,11 +185,11 @@ The three failure-path tests assert both the raised `ConfigReloadValidationError
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Prepare/apply split (row 02) | Pending | — | — | Dependency |
-| 2 | Two-phase reorder (row 01) | Pending | — | — | Dependency |
-| 3 | Regression tests (this row) | In Progress | — | — | REQ-001, REQ-003, REQ-004, REQ-007 |
-| 4 | Hot-reload doc (row 04) | Pending | — | — | REQ-001, REQ-003 |
-| 5 | Run validation sequence | Pending | — | — | pytest/mypy/ruff |
+| 1 | Prepare/apply split (row 02) | Completed | 20261027-194948 | 20261027-194948 | Dependency |
+| 2 | Two-phase reorder (row 01) | Completed | 20261027-194948 | 20261027-194948 | Dependency |
+| 3 | Regression tests (this row) | Completed | 20261027-194948 | 20261027-194948 | REQ-001, REQ-003, REQ-004, REQ-007 |
+| 4 | Hot-reload doc (row 04) | Completed | 20261027-194948 | 20261027-194948 | REQ-001, REQ-003 |
+| 5 | Run validation sequence | Completed | 20261027-194948 | 20261027-194948 | pytest/mypy/ruff |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

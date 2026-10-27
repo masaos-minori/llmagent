@@ -284,9 +284,9 @@ Table structure, status/type vocabulary, and general guidance: see
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Phase 1: prepare/apply split in config_section_reload.py | Pending | — | — | |
-| 2 | Phase 2: two-phase orchestration in config_reload.py | Pending | — | — | |
-| 3 | Phase 3: regression tests and docs | Pending | — | — | |
+| 1 | Phase 1: prepare/apply split in config_section_reload.py | Completed | 20261027-194948 | 20261027-194948 |  |
+| 2 | Phase 2: two-phase orchestration in config_reload.py | Completed | 20261027-194948 | 20261027-194948 |  |
+| 3 | Phase 3: regression tests and docs | Completed | 20261027-194948 | 20261027-194948 |  |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

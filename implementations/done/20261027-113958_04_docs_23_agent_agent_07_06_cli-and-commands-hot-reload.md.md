@@ -104,11 +104,11 @@ every reloadable change together; there is no partial application.
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Prepare/apply split (row 02) | Pending | — | — | Dependency |
-| 2 | Two-phase reorder (row 01) | Pending | — | — | Dependency |
-| 3 | Regression tests (row 03) | Pending | — | — | Dependency |
-| 4 | Hot-reload doc (this row) | In Progress | — | — | REQ-001, REQ-003 |
-| 5 | Run validation sequence | Pending | — | — | Doc checkers |
+| 1 | Prepare/apply split (row 02) | Completed | 20261027-194948 | 20261027-194948 | Dependency |
+| 2 | Two-phase reorder (row 01) | Completed | 20261027-194948 | 20261027-194948 | Dependency |
+| 3 | Regression tests (row 03) | Completed | 20261027-194948 | 20261027-194948 | Dependency |
+| 4 | Hot-reload doc (this row) | Completed | 20261027-194948 | 20261027-194948 | REQ-001, REQ-003 |
+| 5 | Run validation sequence | Completed | 20261027-194948 | 20261027-194948 | Doc checkers |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

@@ -4,6 +4,7 @@ Error-path tests for ConfigReloadService.apply_config().
 
 from __future__ import annotations
 
+import copy
 from typing import cast
 from unittest.mock import MagicMock
 
@@ -195,6 +196,104 @@ class TestApplyConfig:
         )
         assert ctx.cfg.llm.llm_temperature == 0.5
         assert ctx.cfg.tool.serial_tool_calls is True
+
+
+class TestConfigReloadAtomicity:
+    """Two-phase apply: an invalid section leaves every live section, direct
+    field, and ctx.conv unchanged, and _sync_services / lifecycle cleanup never
+    run (AC-001, AC-002, AC-003, AC-004)."""
+
+    def test_invalid_tool_leaves_live_config_unchanged(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        svc._sync_services = MagicMock()  # type: ignore[method-assign]
+        before_llm = copy.deepcopy(ctx.cfg.llm)
+        before_rag = copy.deepcopy(ctx.cfg.rag)
+        payload = {
+            "llm_temperature": 0.5,
+            "embed_url": "http://localhost:8081/embed",
+            "max_tool_turns": 0,
+        }
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(payload)  # type: ignore[attr-defined]
+        assert ctx.cfg.llm == before_llm
+        assert ctx.cfg.rag == before_rag
+        svc._sync_services.assert_not_called()  # type: ignore[attr-defined]
+
+    def test_direct_fields_unchanged_on_later_failure(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+
+        svc, ctx = svc_with_ctx
+        ctx.conv.system_prompt_content = "original prompt"
+        before_allowed = list(ctx.cfg.tool.allowed_tools)
+        before_masked = list(ctx.cfg.tool.masked_fields)
+        before_system = ctx.conv.system_prompt_content
+        payload = {
+            "allowed_tools": ["a", "b"],
+            "masked_fields": ["api_key"],
+            "system_prompt_tool": "new system prompt",
+            "max_tool_turns": 0,
+        }
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(payload)  # type: ignore[attr-defined]
+        assert list(ctx.cfg.tool.allowed_tools) == before_allowed
+        assert list(ctx.cfg.tool.masked_fields) == before_masked
+        assert ctx.conv.system_prompt_content == before_system
+
+    def test_mcp_cleanup_not_run_on_validation_failure(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        from agent.services.exceptions import ConfigReloadValidationError
+        from shared.mcp_config import McpServerConfig, TransportType
+
+        svc, ctx = svc_with_ctx
+        ctx.services_required.lifecycle.cleanup_server_resources = MagicMock()
+        ctx.cfg.mcp.mcp_servers = {
+            "removed": McpServerConfig(
+                transport=TransportType.HTTP,
+                url="http://localhost:9090",
+                cmd=[],
+            )
+        }
+        payload = {
+            "mcp_servers": {
+                "kept": {"transport": "http", "url": "http://localhost:8080"}
+            },
+            "max_tool_turns": 0,
+        }
+        with pytest.raises(ConfigReloadValidationError):
+            svc.apply_config_dict(payload)  # type: ignore[attr-defined]
+        ctx.services_required.lifecycle.cleanup_server_resources.assert_not_called()
+
+    def test_valid_reload_applies_everything(
+        self, svc_with_ctx: tuple[object, MagicMock]
+    ) -> None:
+        svc, ctx = svc_with_ctx
+        ctx.conv.system_prompt_content = "original prompt"
+        outcome = svc.apply_config_dict(  # type: ignore[attr-defined]
+            {
+                "llm_temperature": 0.5,
+                "embed_url": "http://localhost:8081/embed",
+                "max_tool_turns": 7,
+                "allowed_tools": ["read_file"],
+                "system_prompt_tool": "new prompt",
+                "gitops_push_blocked": True,
+            }
+        )
+        assert ctx.cfg.llm.llm_temperature == 0.5
+        assert ctx.cfg.rag.embed_url == "http://localhost:8081/embed"
+        assert ctx.cfg.tool.max_tool_turns == 7
+        assert ctx.cfg.tool.allowed_tools == ["read_file"]
+        assert ctx.conv.system_prompt_content == "new prompt"
+        assert "llm" in outcome.applied
+        assert "rag" in outcome.applied
+        assert "tool" in outcome.applied
+        assert "approval" in outcome.applied
 
 
 class TestDiffMcpServerConfig:
