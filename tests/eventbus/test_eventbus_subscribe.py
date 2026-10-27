@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import uuid
-from collections.abc import Generator
 from pathlib import Path
 from typing import Any
 
@@ -159,42 +158,6 @@ def _pub_client(client: TestClient) -> TestClient:
     c = TestClient(client.app, raise_server_exceptions=False)
     c.headers["Authorization"] = "Bearer publisher-token"
     return c
-
-
-def _make_subscriber_client(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, idle_timeout: float = 0.5
-) -> Generator[TestClient]:
-    """Create a subscriber TestClient with a short idle timeout for SSE streams."""
-    from eventbus import app as eb_app
-    from eventbus.config import EventBusConfig
-
-    cfg = EventBusConfig(
-        port=8015,
-        db_path=str(tmp_path / "eventbus.sqlite"),
-        storage_dir=str(tmp_path / "storage"),
-        deadletter_dir=str(tmp_path / "deadletter"),
-        max_retry=3,
-        auth_token="shared-token",
-        consumer_token="consumer-token",
-        # Fail-closed (ADR-013 INV-02): an empty mapping is deny-all, so allow the
-        # consumer_ids and topics these tests use.
-        consumer_authorization=_CONSUMER_AUTHORIZATION,
-    )
-    # Monkey-patch sse_idle_timeout since it's not a real EventBusConfig field
-    object.__setattr__(cfg, "sse_idle_timeout", idle_timeout)
-    monkeypatch.setattr(eb_app, "load_config", lambda path=None: cfg)
-    schema_path = (
-        Path(__file__).parent.parent.parent / "schemas" / "event_envelope.json"
-    )
-    monkeypatch.setattr(eb_app, "get_schema_path", lambda: schema_path)
-    # Also monkey-patch the module-level default so subscribe_route uses it
-    import eventbus.subscribe_route as sr_module
-
-    monkeypatch.setattr(sr_module, "DEFAULT_SSE_IDLE_TIMEOUT", idle_timeout)
-
-    with TestClient(eb_app.app) as c:
-        c.headers["Authorization"] = "Bearer consumer-token"
-        yield c
 
 
 def _extract_first_n_event_ids(resp: Any, n: int = 10) -> list[int]:

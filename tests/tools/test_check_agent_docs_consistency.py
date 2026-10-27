@@ -284,5 +284,13 @@ class TestCheckFunctionReferences:
 
     def test_known_external_callable_is_accepted(self, tmp_path: Path) -> None:
         repo = self._repo(tmp_path, "def do_thing():\n    pass\n")
-        doc = _mk_file("a.md", ["awaits `gather()` and `aclose()`"])
+        doc = _mk_file(
+            "a.md",
+            [
+                "awaits `gather()` and `aclose()`",
+                "runs `asyncio.to_thread()`",
+                "copies via `shutil.copy2()`",
+                "checks with `isinstance()`",
+            ],
+        )
         assert check_function_references(tmp_path, [doc], repo) == []
