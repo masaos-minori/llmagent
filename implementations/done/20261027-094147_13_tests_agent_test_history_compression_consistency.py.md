@@ -15,7 +15,7 @@ Extend `tests/agent/test_history_compression_consistency.py` to cover a mid-turn
 ## Assumptions
 
 - Compression is routed through the turn boundary (seq 06); a failure there is compensated like any other turn write (`AC-006`).
-- `replace_messages` updates `undo_floor_message_id` atomically (schema_sql.py); the test asserts it returns to its pre-turn value on compensation.
+- `replace_messages` updates `undo_floor_message_id` atomically inside a single transaction (session_message_repo.py); the test asserts it returns to its pre-turn value on compensation.
 
 ## Design decisions
 
@@ -92,10 +92,10 @@ async def test_successful_compression_keeps_db_and_memory_consistent():
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Extend compression-consistency tests with failure-restoration case | Pending | — | — | Extend existing module |
-| 2 | Add or update tests per Validation plan | Pending | — | — | This module |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Extend compression-consistency tests with failure-restoration case | Complete | 2026-10-27 | 2026-10-27 | Added `test_compression_failure_restores_pre_turn_state` (append-only; existing success cases untouched, AC-008). Builds a real `TurnPersistence` via `session.turn_boundary(conv)` (marker=pre-turn MAX id, snapshot=pre-turn history), appends this turn's rows, injects `sqlite3.OperationalError` into `SessionMessageRepository.replace_messages`, asserts `ConversationPersistenceError` raised and DB rows/`undo_floor_message_id`/`conv.history` all restored to pre-turn values |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | Failure-restoration test covers the Validation plan's "compression failure" row; existing success-consistency and /undo cases cover the success/backward-compat rows |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | ruff check/format clean (scripts/ + test file), mypy --no-namespace-packages clean (441 files), lint-imports 6/6, bandit severity High/Medium 0, vulture @80 exit 0; full suite 10236 passed, 12 skipped. Negative-checked: breaking `_compensate` yields 4 rows (test expects 2) so the test exercises the real compensation path |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | Corrected Assumptions parenthetical: atomic `undo_floor_message_id` update is in `session_message_repo.py` (not `schema_sql.py`) |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

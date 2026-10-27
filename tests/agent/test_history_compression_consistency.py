@@ -22,6 +22,7 @@ from agent.history import HistoryManager
 from agent.services.undo_service import undo_last_turn
 from agent.session import AgentSession
 from agent.session_message_repo import SessionMessageRepository
+from agent.turn_persistence import ConversationPersistenceError
 from shared.types import LLMMessage
 
 
@@ -367,7 +368,86 @@ async def test_compact_path_sets_undo_floor_to_snapshot_length(
     assert boundary == len(history)
 
 
-# --- /undo gated by the boundary (rows 02/03) ---
+# --- Mid-turn compression failure compensates (rows 06/07) ---
+
+
+async def test_compression_failure_restores_pre_turn_state(
+    session_and_conn: tuple[AgentSession, sqlite3.Connection],
+) -> None:
+    """A failure during the boundary-routed compression persist compensates:
+    DB rows, ``undo_floor_message_id``, and conversation memory all return to
+    their pre-turn values (SEQ-06, AC-006, REQ-004)."""
+    session, conn = session_and_conn
+
+    # Pre-turn turn: two rows (ids 1..2), undo floor at id 2.
+    pre_history = _make_history(1)
+    for m in pre_history:
+        session.save(m["role"], m["content"])  # type: ignore[arg-type]  — test messages always carry string content
+    conn.execute("UPDATE sessions SET undo_floor_message_id = 2 WHERE session_id = 1")
+    conn.commit()
+
+    # Materialize the real boundary at turn start (marker = 2, snapshot = pre-turn).
+    conv = ConversationState()
+    conv.history = list(pre_history)
+    conv.undo_floor = 1
+    conv.system_prompt_content = ""
+    boundary = await session.turn_boundary(conv)
+
+    # This turn's own rows (ids 3..4) persisted before compression ran.
+    turn_history = _make_history(1)
+    for m in turn_history:
+        conn.execute(
+            "INSERT INTO messages (session_id, role, content) VALUES (1, ?, ?)",
+            (m["role"], m["content"]),
+        )
+    conn.commit()
+
+    hist_mgr = SimpleNamespace(
+        compress=AsyncMock(
+            return_value=(
+                list(turn_history),
+                SimpleNamespace(
+                    compressed_count=1, summary_added=True, is_fallback=False
+                ),
+            )
+        )
+    )
+    ctx = cast(
+        AgentContext,
+        SimpleNamespace(
+            conv=conv,
+            session=session,
+            turn=SimpleNamespace(persistence_boundary=boundary),
+            services_required=SimpleNamespace(hist_mgr=hist_mgr),
+        ),
+    )
+    mgr = ConversationStateManager(ctx, tasks=set(), on_discard=lambda t: None)
+
+    with patch.object(
+        SessionMessageRepository,
+        "replace_messages",
+        side_effect=sqlite3.OperationalError("injected disk failure"),
+    ):
+        with pytest.raises(ConversationPersistenceError):
+            await mgr.handle_history_compression()
+
+    # Rows restored to pre-turn (ids 1..2); this turn's rows were compensated.
+    remaining = conn.execute(
+        "SELECT COUNT(*) FROM messages WHERE session_id = 1"
+    ).fetchone()[0]
+    assert remaining == 2
+
+    # undo_floor_message_id untouched by the failed atomic replace.
+    floor = conn.execute(
+        "SELECT undo_floor_message_id FROM sessions WHERE session_id = 1"
+    ).fetchone()[0]
+    assert floor == 2
+
+    # Memory restored element-wise to the pre-turn snapshot.
+    assert [m["content"] for m in conv.history] == [
+        "User message 0",
+        "Assistant reply 0",
+    ]
 
 
 def _gate_ctx(
