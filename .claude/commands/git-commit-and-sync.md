@@ -1,4 +1,5 @@
 ---
+model: haiku
 description: |
   Use this skill when managing a complete Git commit and sync workflow.
   Covers: status check, selective staging, conventional commit message creation,
