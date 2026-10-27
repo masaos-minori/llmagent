@@ -286,6 +286,21 @@ def test_compress_result_count_matches_replace(repo: SessionMessageRepository) -
 # --- Compression entry points establish the /undo boundary (rows 08/09) ---
 
 
+class _TurnBoundaryStub:
+    """Minimal persistence-boundary stand-in delegating to the real session.
+
+    Lets ``ConversationStateManager`` route its compression write through
+    ``ctx.turn.persistence_boundary`` (SEQ-06) against the real patched DB used by
+    these consistency tests, without constructing a full ``TurnPersistence``.
+    """
+
+    def __init__(self, session: AgentSession) -> None:
+        self._session = session
+
+    async def replace_messages(self, messages: list[LLMMessage]) -> int | None:
+        return self._session.replace_messages(messages)
+
+
 def _compression_ctx(
     session: AgentSession,
     history: list[LLMMessage],
@@ -315,6 +330,7 @@ def _compression_ctx(
     return SimpleNamespace(
         conv=conv,
         session=session,
+        turn=SimpleNamespace(persistence_boundary=_TurnBoundaryStub(session)),
         services_required=SimpleNamespace(hist_mgr=hist_mgr),
     )
 

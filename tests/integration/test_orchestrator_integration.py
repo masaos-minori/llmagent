@@ -23,6 +23,14 @@ from shared.llm_exceptions import LLMErrorKind, LLMTransportError
 from shared.llm_types import LLMMessage, LLMResponse
 
 
+def _persistence_boundary_mock() -> MagicMock:
+    """A stand-in TurnPersistence with awaitable save/replace_messages."""
+    boundary = MagicMock()
+    boundary.save = AsyncMock(return_value=None)
+    boundary.replace_messages = AsyncMock(return_value=None)
+    return boundary
+
+
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
     ctx.cfg.tool.max_tool_turns = 3
@@ -45,6 +53,10 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_calls = 0
     ctx.turn.current_turn_id = None
     ctx.session.session_id = "test-session"
+    # Manager writes route through the turn's atomic boundary (SEQ-06); expose an
+    # awaitable handle here (also returned by turn_boundary() for execute_turn).
+    ctx.turn.persistence_boundary = _persistence_boundary_mock()
+    ctx.session.turn_boundary = AsyncMock(return_value=_persistence_boundary_mock())
     ctx.workflow.workflow_id = None
     hist_mgr = AsyncMock()
     hist_mgr.stat_compress_count = 0
@@ -422,7 +434,7 @@ class TestCompleteTurnExecution:
         )
         orch = Orchestrator(ctx)
         await orch._conversation_manager.handle_history_compression()
-        ctx.session.replace_messages.assert_called_once()
+        ctx.turn.persistence_boundary.replace_messages.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_handle_turn_history_compression_noop_when_unnecessary(self) -> None:
@@ -438,7 +450,7 @@ class TestCompleteTurnExecution:
         )
         orch = Orchestrator(ctx)
         await orch._conversation_manager.handle_history_compression()
-        ctx.session.replace_messages.assert_not_called()
+        ctx.turn.persistence_boundary.replace_messages.assert_not_awaited()
 
 
 class TestToolCallFlow:

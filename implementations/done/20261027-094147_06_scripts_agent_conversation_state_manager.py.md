@@ -42,7 +42,7 @@ Route the conversation-state manager's turn-path DB writes through the atomic tu
 
 ### Method
 
-`ConversationStateManager` (conversation_state_manager.py:36) owns turn-memory bookkeeping. `append_user_message` (conversation_state_manager.py:106) syncs the system prompt, awaits `ctx.conv.append_message` (conversation_state_manager.py:110), increments `stat_turns`, and persists the user row via `ctx.session.save("user", line)` (conversation_state_manager.py:119). `handle_history_compression` (conversation_state_manager.py:148) compresses `ctx.conv.history` and, when `compressed_count > 0`, persists via `ctx.session.replace_messages(ctx.conv.history)` (conversation_state_manager.py:161) and sets `conv.undo_floor`. The boundary handle (seq 05) provides the same persistence with turn-level all-or-nothing semantics.
+`ConversationStateManager` (conversation_state_manager.py:36) owns turn-memory bookkeeping. `append_user_message` (conversation_state_manager.py:106) syncs the system prompt, awaits `ctx.conv.append_message` (conversation_state_manager.py:110), increments `stat_turns`, and persists the user row through the boundary via `await ctx.turn.persistence_boundary.save("user", line)`. `handle_history_compression` (conversation_state_manager.py:152) compresses `ctx.conv.history` and, when `compressed_count > 0`, persists the compressed snapshot through the boundary via `await ctx.turn.persistence_boundary.replace_messages(ctx.conv.history)` and sets `conv.undo_floor`. The boundary (turn_persistence.py) exposes `save()` (single message) and `replace_messages()` (compressed snapshot); both delegate to the session's message repository inside the turn's all-or-nothing unit. A missing boundary (`persistence_boundary is None` outside a turn) is a programming error caught by an `assert ... is not None` guard.
 
 ```python
 # conversation_state_manager.py — routed user persist (REQ-005)  (new)
@@ -52,7 +52,9 @@ async def append_user_message(self, line: str) -> None:
     await ctx.conv.append_message({"role": "user", "content": line})
     ctx.stats.stat_turns += 1
     ...
-    await self._ctx.turn.persistence_boundary.append_user(line)   # seq 05, 01
+    boundary = ctx.turn.persistence_boundary   # TurnPersistence | None
+    assert boundary is not None, "persistence boundary not set for this turn"
+    await boundary.save("user", line)   # seq 05, 01  (save() -> repo.save)
 
 # conversation_state_manager.py — routed compression persist (REQ-006)  (new)
 async def handle_history_compression(self) -> None:
@@ -62,9 +64,9 @@ async def handle_history_compression(self) -> None:
             ctx.conv.history
         )
         if result.compressed_count > 0:
-            await self._ctx.turn.persistence_boundary.compress_snapshot(  # seq 05, 01
-                ctx.conv.history
-            )
+            boundary = ctx.turn.persistence_boundary
+            assert boundary is not None, "persistence boundary not set for this turn"
+            await boundary.replace_messages(ctx.conv.history)   # seq 05, 01
             ctx.conv.undo_floor = len(ctx.conv.history)
 ```
 

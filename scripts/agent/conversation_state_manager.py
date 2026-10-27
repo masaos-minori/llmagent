@@ -116,7 +116,11 @@ class ConversationStateManager:
             )
             self._tasks.add(_task)
             _task.add_done_callback(self._on_discard)
-        ctx.session.save("user", line)
+        # Persist through the turn's atomic boundary (SEQ-06) so the user row is
+        # part of the turn's all-or-nothing unit instead of an independent commit.
+        boundary = ctx.turn.persistence_boundary
+        assert boundary is not None, "persistence boundary not set for this turn"  # noqa: B101 — boundary required inside a turn; None means writes bypass the atomic boundary
+        await boundary.save("user", line)
 
     async def handle_memory_injection(self, line: str) -> None:
         """Inject memory-based context into the conversation."""
@@ -161,9 +165,10 @@ class ConversationStateManager:
     async def handle_history_compression(self) -> None:
         """Compress conversation history if it exceeds configured limits.
 
-        Persists the compressed history via session.replace_messages() only
-        when compression actually changed something (compressed_count > 0) —
-        a no-op compress leaves the session's stored history untouched.
+        Persists the compressed history through the turn's atomic persistence
+        boundary (via ``replace_messages``) only when compression actually
+        changed something (compressed_count > 0) — a no-op compress leaves the
+        session's stored history untouched.
         """
         ctx = self._ctx
         if ctx.services_required.hist_mgr is not None:
@@ -171,7 +176,14 @@ class ConversationStateManager:
                 ctx.conv.history
             )
             if result.compressed_count > 0:
-                ctx.session.replace_messages(ctx.conv.history)
+                # Persist the compressed snapshot through the turn's atomic
+                # boundary (SEQ-06); a mid-turn compression failure is then
+                # compensated like any other turn write (AC-006).
+                boundary = ctx.turn.persistence_boundary
+                assert boundary is not None, (
+                    "persistence boundary not set for this turn"
+                )  # noqa: B101 — boundary required inside a turn; None means writes bypass the atomic boundary
+                await boundary.replace_messages(ctx.conv.history)
                 # establish the /undo boundary at the end of the new snapshot
                 # (rows 02/04): nothing in the compressed snapshot is undoable;
                 # only turns appended after this point are undoable.

@@ -90,6 +90,20 @@ async def _make_cancelled(name: str) -> asyncio.Task[object]:
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
 
+def _persistence_boundary_mock() -> MagicMock:
+    """A stand-in TurnPersistence with awaitable save/replace_messages.
+
+    Used so manager write-routing (through ``ctx.turn.persistence_boundary``) is
+    exercised without a real session/DB. The orchestrator assigns this either
+    directly (direct-call tests) or as ``turn_boundary()``'s return value (tests
+    that drive the full ``execute_turn``).
+    """
+    boundary = MagicMock()
+    boundary.save = AsyncMock(return_value=None)
+    boundary.replace_messages = AsyncMock(return_value=None)
+    return boundary
+
+
 def _make_ctx() -> MagicMock:
     ctx = MagicMock()
     # cfg values accessed by handle_turn / _run_turn
@@ -116,9 +130,13 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_calls = 0
     ctx.turn.current_turn_id = None
     ctx.session.session_id = "test-session"
-    # Orchestrator creates a per-turn persistence boundary via turn_boundary(); make it
-    # awaitable here so the default MagicMock ctx supports the new per-turn wiring.
-    ctx.session.turn_boundary = AsyncMock(return_value=MagicMock())
+    # Orchestrator creates a per-turn persistence boundary via turn_boundary();
+    # expose an awaitable handle on the turn context so the write-routing callers
+    # (manager.save / manager.replace_messages) resolve without a real DB. Tests
+    # that drive the full execute_turn get this same handle as turn_boundary()'s
+    # return value.
+    ctx.turn.persistence_boundary = _persistence_boundary_mock()
+    ctx.session.turn_boundary = AsyncMock(return_value=_persistence_boundary_mock())
     ctx.workflow.workflow_id = None
     # services
     hist_mgr = AsyncMock()
@@ -1939,7 +1957,7 @@ class TestHandleHistoryCompressionPersist:
         )
         orch = Orchestrator(ctx)
         await orch._conversation_manager.handle_history_compression()
-        ctx.session.replace_messages.assert_called_once()
+        ctx.turn.persistence_boundary.replace_messages.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_compress_no_persist_when_noop(self) -> None:
@@ -1954,7 +1972,7 @@ class TestHandleHistoryCompressionPersist:
         )
         orch = Orchestrator(ctx)
         await orch._conversation_manager.handle_history_compression()
-        ctx.session.replace_messages.assert_not_called()
+        ctx.turn.persistence_boundary.replace_messages.assert_not_awaited()
 
     @pytest.mark.asyncio
     async def test_compress_persists_on_fallback_truncation(self) -> None:
@@ -1972,7 +1990,7 @@ class TestHandleHistoryCompressionPersist:
         )
         orch = Orchestrator(ctx)
         await orch._conversation_manager.handle_history_compression()
-        ctx.session.replace_messages.assert_called_once()
+        ctx.turn.persistence_boundary.replace_messages.assert_awaited_once()
 
     @pytest.mark.asyncio
     async def test_compress_passes_full_history_to_replace_messages(
@@ -1998,7 +2016,7 @@ class TestHandleHistoryCompressionPersist:
         )
         orch = Orchestrator(ctx)
         await orch._conversation_manager.handle_history_compression()
-        saved = ctx.session.replace_messages.call_args[0][0]
+        saved = ctx.turn.persistence_boundary.replace_messages.call_args[0][0]
         assert len(saved) == 3
         assert saved[0] == kept
         assert saved[1] == ephemeral_msg

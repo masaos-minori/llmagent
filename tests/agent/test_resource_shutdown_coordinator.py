@@ -65,8 +65,10 @@ def _registry_ctx() -> MagicMock:
     ctx.stats = MagicMock()
     ctx.stats.stat_turns = 0  # append increments to 1, firing the first-turn branch
     ctx.session = MagicMock()
-    ctx.session.save = MagicMock()
     ctx.turn = TurnState()  # real, empty background_tasks set
+    # append_user_message() persists through the turn's atomic boundary (SEQ-06);
+    # give this non-turn test an awaitable stand-in handle.
+    ctx.turn.persistence_boundary = AsyncMock()
     return ctx
 
 
