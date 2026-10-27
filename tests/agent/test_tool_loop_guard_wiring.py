@@ -8,7 +8,7 @@ the result is produced, for sequential and gathered groups alike.
 from __future__ import annotations
 
 import asyncio
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agent.llm_turn_runner import LLMTurnRunner
@@ -30,7 +30,21 @@ def _ctx(max_repeats: int, *, serial: bool = False):
     ctx.cfg.tool.tool_empty_result_max_repeats = max_repeats
     ctx.cfg.tool.max_tool_turns = 3
     ctx.diagnostics = None
+    # Per-round assistant persist routes through the turn's atomic boundary (SEQ-07);
+    # expose an awaitable handle so runner.run()'s tool-call path resolves it.
+    ctx.turn.persistence_boundary = _persistence_boundary_mock()
     return ctx
+
+
+def _persistence_boundary_mock() -> MagicMock:
+    """A stand-in TurnPersistence with an awaitable save().
+
+    Lets LLMTurnRunner route its per-round assistant persist through
+    ``ctx.turn.persistence_boundary`` (SEQ-07) without a real session/DB.
+    """
+    boundary = MagicMock()
+    boundary.save = AsyncMock(return_value=None)
+    return boundary
 
 
 def _batch(n: int) -> list[dict]:

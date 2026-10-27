@@ -40,13 +40,16 @@ Route the per-round assistant tool-call persistence in `scripts/agent/llm_turn_r
 
 ### Method
 
-`LLMTurnRunner` (llm_turn_runner.py:40) drives one turn's LLM/tool loop. `run` (llm_turn_runner.py:62) iterates `ctx.cfg.tool.max_tool_turns`; for each tool-calling response it awaits `_stream_llm`, checks guards, then at llm_turn_runner.py:106-111 does `await ctx.conv.append_message(message)` and `ctx.session.save("assistant", message.get("content") or "", tool_calls=message.get("tool_calls"))` before executing the tool calls. The boundary handle (seq 05) provides the same insert with turn-level all-or-nothing semantics.
+`LLMTurnRunner` (llm_turn_runner.py:40) drives one turn's LLM/tool loop. `run` (llm_turn_runner.py:62) iterates `ctx.cfg.tool.max_tool_turns`; for each tool-calling response it awaits `_stream_llm`, checks guards, then at llm_turn_runner.py:106-113 does `await ctx.conv.append_message(message)` and persists the assistant row through the boundary via `await ctx.turn.persistence_boundary.save("assistant", message.get("content") or "", tool_calls=message.get("tool_calls"))` before executing the tool calls. The boundary handle (seq 05) provides the same insert with turn-level all-or-nothing semantics. A missing boundary (`persistence_boundary is None` outside a turn) is a programming error caught by an `assert ... is not None` guard.
 
 ```python
 # llm_turn_runner.py — routed assistant persist (REQ-005)  (new)
 await ctx.conv.append_message(message)
-await self._ctx.turn.persistence_boundary.append_assistant(   # seq 05, 01
-    content=message.get("content") or "",
+boundary = ctx.turn.persistence_boundary   # TurnPersistence | None
+assert boundary is not None, "persistence boundary not set for this turn"  # noqa: B101
+await boundary.save(
+    "assistant",
+    message.get("content") or "",
     tool_calls=message.get("tool_calls"),
 )
 ```
@@ -95,10 +98,10 @@ await self._ctx.turn.persistence_boundary.append_assistant(   # seq 05, 01
 ### Execution Status
 | Step | Description | Status | Started | Completed | Notes |
 |------|-------------|--------|---------|-----------|-------|
-| 1 | Route assistant persist through boundary in `scripts/agent/llm_turn_runner.py` | Pending | — | — | Replaces standalone save at L107 |
-| 2 | Add or update tests per Validation plan | Pending | — | — | Update `tests/agent/test_llm_turn_runner.py` |
-| 3 | Run the validation sequence (`rules/toolchain.md`) | Pending | — | — | |
-| 4 | Update documentation, if in scope per Compatibility/Out of scope | Pending | — | — | N/A |
+| 1 | Route assistant persist through boundary in `scripts/agent/llm_turn_runner.py` | Complete | 2026-10-27 | 2026-10-27 | Replaces standalone save; `ctx.session.save` → `await ctx.turn.persistence_boundary.save(...)`; assert guard for mypy narrowing |
+| 2 | Add or update tests per Validation plan | Complete | 2026-10-27 | 2026-10-27 | Awaitable boundary wired into `_make_ctx` (test_llm_turn_runner), `_ctx` (test_tool_loop_guard_wiring), `_make_turn_ctx` (test_rag_turn_integration); assert boundary.save awaited once with assistant row |
+| 3 | Run the validation sequence (`rules/toolchain.md`) | Complete | 2026-10-27 | 2026-10-27 | ruff check/format clean, mypy clean, lint-imports 6/6, bandit full gate exit 0 (Low only), vulture @80 unchanged vs baseline; 192 turn-flow tests pass |
+| 4 | Update documentation, if in scope per Compatibility/Out of scope | Complete | 2026-10-27 | 2026-10-27 | Corrected pseudo-code (save() not append_assistant()); method + execution-status updated |
 
 ### Blocker Log
 | Step | Blocker Description | Resolved | Resolution Date |

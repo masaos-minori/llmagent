@@ -104,7 +104,9 @@ class LLMTurnRunner:
                 return await self._finalize_after_guard()
 
             await ctx.conv.append_message(message)
-            ctx.session.save(
+            boundary = ctx.turn.persistence_boundary
+            assert boundary is not None, "persistence boundary not set for this turn"  # noqa: B101 — boundary required inside a turn; None means writes bypass the atomic boundary
+            await boundary.save(
                 "assistant",
                 message.get("content") or "",
                 tool_calls=message.get("tool_calls"),

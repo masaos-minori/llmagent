@@ -31,7 +31,21 @@ def _make_ctx() -> MagicMock:
     ctx.stats.stat_tool_errors = 0
     ctx.services_required.llm = AsyncMock()
     ctx.services_required.llm.stream = AsyncMock()
+    # Per-round assistant persist routes through the turn's atomic boundary (SEQ-07);
+    # expose an awaitable handle so runner.run()'s tool-call path resolves it.
+    ctx.turn.persistence_boundary = _persistence_boundary_mock()
     return ctx
+
+
+def _persistence_boundary_mock() -> MagicMock:
+    """A stand-in TurnPersistence with an awaitable save().
+
+    Lets LLMTurnRunner route its per-round assistant persist through
+    ``ctx.turn.persistence_boundary`` (SEQ-07) without a real session/DB.
+    """
+    boundary = MagicMock()
+    boundary.save = AsyncMock(return_value=None)
+    return boundary
 
 
 def _make_guard() -> MagicMock:
@@ -406,6 +420,13 @@ class TestRun:
         mock_exec.assert_awaited_once()
         assert len(runner._ctx.conv.history) == 2
         assert runner._ctx.conv.history[0]["tool_calls"] is not None
+        # SEQ-07: assistant tool-call row persists through the turn boundary,
+        # not a standalone session.save.
+        runner._ctx.turn.persistence_boundary.save.assert_awaited_once_with(
+            "assistant",
+            "",
+            tool_calls=tool_calls,
+        )
 
     @pytest.mark.asyncio
     async def test_handles_transport_error(self, runner: LLMTurnRunner) -> None:

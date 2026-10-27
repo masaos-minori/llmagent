@@ -120,7 +120,21 @@ def _make_turn_ctx(
     ctx.services_required.gateway = None
     ctx.services_required.audit_logger = None
     ctx.services_required.runtime_tools = _default_runtime_tools()
+    # Per-round assistant persist routes through the turn's atomic boundary (SEQ-07);
+    # expose an awaitable handle so runner.run()'s tool-call path resolves it.
+    ctx.turn.persistence_boundary = _persistence_boundary_mock()
     return ctx
+
+
+def _persistence_boundary_mock() -> MagicMock:
+    """A stand-in TurnPersistence with an awaitable save().
+
+    Lets LLMTurnRunner route its per-round assistant persist through
+    ``ctx.turn.persistence_boundary`` (SEQ-07) without a real session/DB.
+    """
+    boundary = MagicMock()
+    boundary.save = AsyncMock(return_value=None)
+    return boundary
 
 
 def _make_guard() -> MagicMock:
