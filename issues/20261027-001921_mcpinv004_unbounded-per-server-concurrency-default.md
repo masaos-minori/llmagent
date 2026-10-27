@@ -84,3 +84,19 @@ In `scripts/shared/tool_transport_invoker.py`, apply a bounded default semaphore
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261027-001921
 - **Related target files**: scripts/shared/tool_transport_invoker.py
+
+---
+
+**Adversarial Verification** (2026-10-27): verified against current source per `rules/ai-execution.md` Adversarial Verification (Base).
+
+Examined: `scripts/shared/tool_transport_invoker.py` (`__init__` 31-63, `_ensure_semaphores` 90-114, `_maybe_semaphore` 116-126, `_run_precall_gates` 291-295, `_execute_with_semaphore` 221-230).
+
+Claims:
+
+- Per-server semaphore applied only when `concurrency_limits` has a positive entry; default path uses `nullcontext` (null semaphore) — CONFIRMED (`_ensure_semaphores` creates semaphores only for `n > 0` at 110-114; `_maybe_semaphore` returns `nullcontext` when None at 116-126).
+- `__init__` copies `concurrency_limits` (empty when None) at line 43; `_semaphores` stays None until `_ensure_semaphores` runs (line 44) — CONFIRMED.
+- `_ensure_semaphores` docstring documents `0`/negative/omitted-key as "unlimited" — CONFIRMED (docstring 93-97).
+- `_run_precall_gates` resolves the semaphore and passes it through `_invoke_and_record` → `_execute_with_semaphore` → `_maybe_semaphore` — CONFIRMED (291-295, 221-230).
+- All transports share one `httpx.AsyncClient` — CONFIRMED (single `http` param at 32, forwarded to every `HttpTransport` at 61-63).
+
+Assessment: All claims hold. Correctly characterized as a guardrail gap, not a runtime defect. Open questions (per-server vs global cap; appropriate default value; interaction with the shared client's pool limit) are genuinely open and belong at plan time. Recommendation: premise sound.

@@ -86,3 +86,17 @@ In `scripts/shared/http_transport.py::HttpTransport.call()`, remove the discarde
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261027-001424
 - **Related target files**: scripts/shared/http_transport.py
+
+---
+
+**Adversarial Verification** (2026-10-27): verified against current source per `rules/ai-execution.md` Adversarial Verification (Base).
+
+Examined: `scripts/shared/http_transport.py::HttpTransport.call()` (lines 169-223), `_transport_error` (115-132), `_build_exhaustion_message` (134-141).
+
+Claims:
+
+- The `except httpx.RequestError` handler computes a `TransportError` via `_transport_error(...)` but discards the return value (no raise, no explicit `continue`), relying on implicit fall-through — CONFIRMED (line 220; falls through to 221-223).
+- Sibling handlers (`TimeoutException`, `HTTPStatusError`, `ValueError`) all `raise self._transport_error(...)` — CONFIRMED (194-211).
+- Loop trailing code builds a generic exhaustion message and raises a fresh `TransportError` — CONFIRMED (221-223).
+
+Assessment: All claims hold. Correctly characterized as a maintainability/robustness defect, not a runtime bug (REQ-006 retry behavior is currently correct). The reliance on implicit fall-through is a real latent-regression risk: adding a statement after this `except` block would change retry behavior silently. Recommendation: premise sound; either an explicit `continue` or raise-on-final-attempt preserves REQ-006.

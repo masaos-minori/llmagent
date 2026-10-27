@@ -66,3 +66,24 @@ In `scripts/shared/tool_executor.py`, delete the `_check_startup_mode` method. F
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261027-001347
 - **Related target files**: scripts/shared/tool_executor.py
+
+---
+
+**Adversarial Verification** (2026-10-27): verified against current source per `rules/ai-execution.md` Adversarial Verification (Base).
+
+Examined: `scripts/shared/tool_executor.py::_check_startup_mode` (lines 68-79), `scripts/shared/tool_transport_invoker.py` (`_run_precall_gates` 262-295, `__init__` 56-63), `scripts/shared/mcp_config.py` (`is_disabled` 110-112), `scripts/mcp_servers/dispatch.py`.
+
+Claims:
+
+- `_check_startup_mode` is defined but has zero callers — CONFIRMED. `rg -n _check_startup_mode scripts/ tests/` returns only the definition (`tool_executor.py`:68); no production or test caller exists.
+- `is_disabled` equals `startup_mode == StartupMode.NONE` — CONFIRMED (`mcp_config.py`:110-112).
+- Live guards cover the disabled-server rejection: `_run_precall_gates` rejects `startup_mode == NONE` (`tool_transport_invoker.py`:268-275) and `__init__` skips building a transport for `cfg.is_disabled` (58-59) — CONFIRMED.
+
+CORRECTION REQUIRED — recommended fix violates the deprecation policy:
+
+- The issue instructs direct deletion ("Delete the `_check_startup_mode` method"). `rules/coding.md` Deprecation Policy (lines 16-21) forbids immediate deletion: a deprecated symbol is removed "the next time `plans/` touches the corresponding file for an unrelated reason, provided a zero-caller `rg` re-check still holds." Archived implementation docs (e.g. `implementations/done/20261003-174413_04_scripts_shared_tool_transport_invoker.py.md`) already recorded that removing it conflicts with this policy.
+- Corrected approach: mark `@deprecated` with a comment citing `rules/coding.md` Deprecation Policy; defer removal to a future plan that touches `tool_executor.py`. Do NOT delete outright in this change.
+
+Minor incompleteness: the Summary characterizes the method as rejecting only `startup_mode == NONE`, but it also rejects `cfg is None` ("No validated configuration"), a branch the live guards do NOT replicate (they fall through to "No transport configured"). The dead-code conclusion is unaffected; the Background is slightly incomplete.
+
+Assessment: The "dead code" premise is CORRECT. The fix approach must be corrected from "delete" to "deprecate then remove on a later plan touch."

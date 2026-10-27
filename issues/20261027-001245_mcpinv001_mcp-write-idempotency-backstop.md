@@ -77,3 +77,18 @@ Add a client-side idempotency guard in `scripts/shared/http_transport.py` that r
 - **Source implementation procedure**: N/A: not filed from an implementation procedure
 - **Generated at**: 20261027-001245
 - **Related target files**: scripts/shared/http_transport.py, scripts/shared/tool_transport_invoker.py
+
+---
+
+**Adversarial Verification** (2026-10-27): verified against current source per `rules/ai-execution.md` Adversarial Verification (Base) — target file → direct dependencies → related tests.
+
+Examined: `scripts/shared/http_transport.py::HttpTransport.call()` (lines 143-223), `scripts/mcp_servers/dispatch.py` idempotency cache (lines 77/105/122-138/186-215), `scripts/shared/tool_transport_invoker.py`.
+
+Claims:
+
+- Single `X-Idempotency-Key` emitted once per logical call and reused across the `_RETRY_MAX=3` retry loop — CONFIRMED (`http_transport.py`:153,159; loop at 169; `RequestError` handler at 212-220).
+- Server-side dedup via module-level `_duplicate_cache` (`OrderedDict`), keyed on the header, with TTL (3600s) and max-entry eviction — CONFIRMED (`dispatch.py`:77,102,122-128,186-190). A reuse-with-different-content guard also exists (205-215).
+- Client retry-handler comment states "No client-side backstop exists" — CONFIRMED (`http_transport.py`:218-219).
+- Timeouts fail fast and are not retried; only non-timeout `RequestError`s retry — CONFIRMED (`TimeoutException` handler raises at 194-197).
+
+Assessment: All factual claims hold. No disconfirming evidence found. This is a defense-in-depth proposal, not a runtime bug. The issue's own Unresolved Questions (whether a client-side guard is warranted, always-on vs config-toggleable, per-server key namespace) remain genuinely open and belong at plan time. Recommendation: premise sound; proceed via issue-to-plan with those questions resolved.
